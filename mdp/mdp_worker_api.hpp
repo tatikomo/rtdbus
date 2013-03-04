@@ -14,9 +14,6 @@
 #include "zmsg.hpp"
 #include "mdp_common.h"
 
-//  Reliability parameters
-#define HEARTBEAT_LIVENESS  3       //  3-5 is reasonable
-
 //  Structure of our class
 //  We access these properties only via class methods
 class mdwrk {
@@ -53,9 +50,9 @@ class mdwrk {
     set_reconnect (int reconnect);
 
     //  ---------------------------------------------------------------------
-    //  Send reply, if any, to broker and wait for next request.
+    //  wait for next request and get the address for reply.
     zmsg *
-    recv (std::string *&reply_p);
+    recv (std::string *&reply);
 
   private:
     std::string      m_broker;
@@ -74,7 +71,7 @@ class mdwrk {
     bool             m_expect_reply;//  Zero only at start
 
     //  Return address, if any
-    std::string      m_reply_to;
+    //std::string      m_reply_to;
 };
 
 #endif

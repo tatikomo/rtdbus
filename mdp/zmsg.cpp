@@ -106,7 +106,7 @@ bool zmsg::recv(zmq::socket_t & socket) {
       && (message.size() == 5 /*17*/)
       && ((unsigned char *)message.data())[0] == 0) {
          char *uuidstr = encode_uuid((unsigned char*) message.data());
-         std::cerr << "identity(uuid) = " << uuidstr << std::endl;
+         //std::cerr << "identity(uuid) = " << uuidstr << std::endl;
          push_back(uuidstr);
       }
       else {

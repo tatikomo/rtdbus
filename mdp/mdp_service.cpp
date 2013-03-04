@@ -18,7 +18,7 @@ Worker::expired ()
 
 //  ---------------------------------------------------------------------
 //  Constructor is private, only used from broker
-Worker::Worker(std::string identity, Service * service, int64_t expiry)
+Worker::Worker(std::string& identity, Service * service, int64_t expiry)
 {
    m_identity = identity;
    m_service = service;
@@ -47,7 +47,7 @@ Service::~Service ()
    m_blacklist.clear();
 }
 
-Service::Service(std::string name)
+Service::Service(std::string& name)
 {
    m_name = name;
 }

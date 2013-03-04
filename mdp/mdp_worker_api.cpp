@@ -1,3 +1,4 @@
+#include "mdp_common.h"
 #include "mdp_worker_api.hpp"
 
 //  ---------------------------------------------------------------------
@@ -36,13 +37,14 @@ mdwrk::mdwrk (std::string broker, std::string service, int verbose)
     m_broker = broker;
     m_service = service;
     m_verbose = verbose;
-    m_heartbeat = 2500;     //  msecs
-    m_reconnect = 2500;     //  msecs
+    m_heartbeat = HEARTBEAT_INTERVAL;     //  msecs
+    m_reconnect = HEARTBEAT_INTERVAL;     //  msecs
     m_worker = 0;
     m_expect_reply = false;
 
     s_catch_signals ();
     connect_to_broker ();
+//    set_heartbeat(m_heartbeat);
 }
 
 //  ---------------------------------------------------------------------
@@ -56,9 +58,6 @@ mdwrk::~mdwrk ()
 //  ---------------------------------------------------------------------
 //  Send message to broker
 //  If no _msg is provided, creates one internally
-//  OPTION
-//  COMMAND
-//  WORKER
 void mdwrk::send_to_broker(char *command, std::string option, zmsg *_msg)
 {
     zmsg *msg = _msg? new zmsg(*_msg): new zmsg ();
@@ -71,7 +70,6 @@ void mdwrk::send_to_broker(char *command, std::string option, zmsg *_msg)
     msg->push_front ((char*)MDPW_WORKER);
     msg->push_front ((char*)"");
     /*
-     * Следующее поле д.б. "sender"
      *  идентификатор отправителя - буквенно-цифровой код
      *  Например:
      *   [005] 006B8B4567
@@ -93,14 +91,13 @@ void mdwrk::send_to_broker(char *command, std::string option, zmsg *_msg)
 //  Connect or reconnect to broker
 void mdwrk::connect_to_broker ()
 {
+    int linger = 0;
+
     if (m_worker) {
         delete m_worker;
     }
     m_worker = new zmq::socket_t (*m_context, ZMQ_DEALER);
-#if defined GEV
-    int linger = 0;
     m_worker->setsockopt (ZMQ_LINGER, &linger, sizeof (linger));
-#endif
     m_worker->connect (m_broker.c_str());
     if (m_verbose)
         s_console ("I: connecting to broker at %s...", m_broker.c_str());
@@ -133,29 +130,18 @@ mdwrk::set_reconnect (int reconnect)
 
 //  ---------------------------------------------------------------------
 //  Send reply, if any, to broker and wait for next request.
-//  If reply_p is not NULL, a pointer to client's address is filled in.
+//  If reply is not NULL, a pointer to client's address is filled in.
 zmsg *
-mdwrk::recv (std::string *&reply_p)
+mdwrk::recv (std::string *&reply)
 {
     //  Format and send the reply if we were provided one
-    std::string *reply = reply_p;
     assert (reply || !m_expect_reply);
-#if defined GEV
-    if (reply) {
-        assert (m_reply_to.size()!=0);
-        reply->wrap (m_reply_to.c_str(), "");
-        m_reply_to = "";
-        send_to_broker ((char*)MDPW_REPLY, "", reply);
-        delete reply_p;
-        reply_p = 0;
-    }
-#endif
-    m_expect_reply = true;
 
+    m_expect_reply = true;
     while (!s_interrupted) {
         zmq::pollitem_t items [] = {
             { *m_worker,  0, ZMQ_POLLIN, 0 } };
-        zmq::poll (items, 1, m_heartbeat * 1000);
+        zmq::poll (items, 1, m_heartbeat);
 
         if (items [0].revents & ZMQ_POLLIN) {
             zmsg *msg = new zmsg(*m_worker);
@@ -180,11 +166,12 @@ mdwrk::recv (std::string *&reply_p)
             if (command.compare (MDPW_REQUEST) == 0) {
                 //  We should pop and save as many addresses as there are
                 //  up to a null part, but for now, just save one...
-                *reply_p = msg->unwrap ();
-//                m_reply_to = reply_p; // +++ GEV добавил на всякий случай
+                *reply = msg->unwrap ();
+//                m_reply_to = reply;
                 return msg;     //  We have a request to process
             }
             else if (command.compare (MDPW_HEARTBEAT) == 0) {
+                s_console("I: receive HEARTBEAT from broker");
                 //  Do nothing for heartbeats
             }
             else if (command.compare (MDPW_DISCONNECT) == 0) {
@@ -197,7 +184,7 @@ mdwrk::recv (std::string *&reply_p)
             }
             delete msg;
         }
-        else
+        else /* Ожидание нового запроса завершено по таймауту */
         if (--m_liveness == 0) {
             if (m_verbose) {
                 s_console ("W: disconnected from broker - retrying...");
@@ -205,7 +192,15 @@ mdwrk::recv (std::string *&reply_p)
             s_sleep (m_reconnect);
             connect_to_broker ();
         }
+
+#if 0
         //  Send HEARTBEAT if it's time
+        int64_t time_now = s_clock ();
+        s_console("%s SEND HEARTBEAT (time=%lld, at=%lld)",
+            (time_now > m_heartbeat_at)? "":"NOT",
+            time_now, m_heartbeat_at);
+#endif
+
         if (s_clock () > m_heartbeat_at) {
             send_to_broker ((char*)MDPW_HEARTBEAT, "", NULL);
             m_heartbeat_at = s_clock () + m_heartbeat;

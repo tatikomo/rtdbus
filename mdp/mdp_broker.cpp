@@ -210,12 +210,9 @@ Broker::worker_require (std::string& sender)
 {
     assert (sender.size() > 0);
     Worker * instance = NULL;
-//    char* identity = NULL;  // На этот указатель выделяется память
 
-    //generateIdentity(sender.c_str(), identity);
-
-    //  self->workers is keyed off worker identity
     if (m_workers.count(sender)) {
+       s_console("I: worker '%s' is registered", sender.c_str());
        instance = m_workers.at(sender);
     }
     else {
@@ -276,8 +273,8 @@ Broker::worker_msg (std::string& sender, zmsg *msg)
     assert (sender.size() > 0);
 
     std::string command = msg->pop_front();
-    Worker *wrk = worker_require (sender);
     bool worker_ready = m_workers.count(sender)>0;
+    Worker *wrk = worker_require (sender);
 
     if (command.compare (MDPW_READY) == 0) {
         if (worker_ready)  {              //  Not first command in session
@@ -293,10 +290,13 @@ Broker::worker_msg (std::string& sender, zmsg *msg)
                 wrk->m_service = service_require (service_name);
                 wrk->m_service->m_workers++;
                 worker_waiting (wrk);
+                zclock_log ("worker '%s' created", sender.c_str());
             }
         }
     } else {
        if (command.compare (MDPW_REPORT) == 0) {
+           s_console("D: get REPORT from '%s' wr=%d",
+                     sender.c_str(), worker_ready);
            if (worker_ready) {
                //  Remove & save client return envelope and insert the
                //  protocol header and service name, then rewrap envelope.
@@ -313,6 +313,8 @@ Broker::worker_msg (std::string& sender, zmsg *msg)
            }
        } else {
           if (command.compare (MDPW_HEARTBEAT) == 0) {
+              s_console("D: get HEARTBEAT from '%s' wr=%d",
+                        sender.c_str(), worker_ready);
               if (worker_ready) {
                   wrk->m_expiry = s_clock () + HEARTBEAT_EXPIRY;
               } else {
@@ -320,6 +322,8 @@ Broker::worker_msg (std::string& sender, zmsg *msg)
               }
           } else {
              if (command.compare (MDPW_DISCONNECT) == 0) {
+                 s_console("D: get DISCONNECT from '%s'",
+                           sender.c_str());
                  worker_delete (wrk, 0);
              } else {
                  s_console ("E: invalid input message (%d)", 
@@ -360,7 +364,6 @@ Broker::worker_send (Worker *worker,
 
 //  ---------------------------------------------------------------------
 //  This worker is now waiting for work
-
 void
 Broker::worker_waiting (Worker *worker)
 {
@@ -371,7 +374,6 @@ Broker::worker_waiting (Worker *worker)
     worker->m_expiry = s_clock () + HEARTBEAT_EXPIRY;
     service_dispatch (worker->m_service, 0);
 }
-
 
 
 //  ---------------------------------------------------------------------
@@ -403,7 +405,7 @@ Broker::start_brokering()
    {
        zmq::pollitem_t items [] = {
            { *m_socket,  0, ZMQ_POLLIN, 0 } };
-       zmq::poll (items, 1, HEARTBEAT_INTERVAL * 1000);
+       zmq::poll (items, 1, HEARTBEAT_INTERVAL);
 
        //  Process next input message, if any
        if (items [0].revents & ZMQ_POLLIN) {
@@ -415,7 +417,6 @@ Broker::start_brokering()
 
            assert (msg->parts () >= 3);
 
-           // GEV: sender читается пустым! ++++++++++++
            std::string sender = msg->pop_front ();
            assert(sender.size ());
 
@@ -425,9 +426,6 @@ Broker::start_brokering()
            std::string header = msg->pop_front ();
            assert(header.size ());
 
-           /*std::cout << "sbrok, sender: "<< sender << std::endl;
-           std::cout << "sbrok, header: "<< header << std::endl;
-           std::cout << "msg size: " << msg->parts() << std::endl;*/
            msg->dump();
 
            if (header.compare(MDPC_CLIENT) == 0) {
@@ -446,6 +444,9 @@ Broker::start_brokering()
        //  Send heartbeats to idle workers if needed
        if (s_clock () > m_heartbeat_at) {
            purge_workers ();
+           // TODO: можно не посылать HEARTBEAT если от службы 
+           // было получено любое сообщение, датированное в пределах 
+           // интервала опроса HEARTBEAT_INTERVAL
            for (std::vector<Worker*>::iterator it = m_waiting.begin();
                  it != m_waiting.end() && (*it)!=0; it++) {
                worker_send (*it, (char*)MDPW_HEARTBEAT, "", NULL);

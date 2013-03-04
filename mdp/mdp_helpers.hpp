@@ -165,24 +165,11 @@ s_clock (void)
 #else
     struct timeval tv;
     gettimeofday (&tv, NULL);
-    return (int64_t) (tv.tv_sec * 1000 + tv.tv_usec / 1000);
+    return (int64_t) ((int64_t)tv.tv_sec * 1000 + (int64_t)tv.tv_usec / 1000);
 #endif
 }
 
-//  Sleep for a number of milliseconds
-static void
-s_sleep (int msecs)
-{
-#if (defined (__WINDOWS__))
-    Sleep (msecs);
-#else
-    struct timespec t;
-    t.tv_sec = msecs / 1000;
-    t.tv_nsec = (msecs % 1000) * 1000000;
-    nanosleep (&t, NULL);
-#endif
-}
-
+// Log out to stdout
 static void
 s_console (const char *format, ...)
 {
@@ -199,6 +186,20 @@ s_console (const char *format, ...)
     va_end (argptr);
     printf ("\n");
     fflush(stdout);
+}
+
+//  Sleep for a number of milliseconds
+static void
+s_sleep (int msecs)
+{
+#if (defined (__WINDOWS__))
+    Sleep (msecs);
+#else
+    struct timespec t;
+    t.tv_sec = msecs / 1000;
+    t.tv_nsec = (msecs % 1000) * 1000000;
+    nanosleep (&t, NULL);
+#endif
 }
 
 #endif

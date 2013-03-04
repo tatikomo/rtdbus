@@ -3,6 +3,7 @@
 #pragma once
 
 #include <map>
+#include <list>
 #include <string>
 
 #include "mdp_broker.hpp"

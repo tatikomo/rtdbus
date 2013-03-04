@@ -12,7 +12,9 @@ class Digger : public mdwrk
     Digger(std::string broker, std::string service, int verbose) 
         : mdwrk(broker, service, verbose) {};
 
-    int handle_request(zmsg* request, std::string* reply_to);
+    int handle_request(zmsg*, std::string *&);
+    int handle_sell_request (std::string&, std::string&, std::string *);
+    int handle_buy_request (std::string&, std::string&, std::string *);
 };
 
 #endif
