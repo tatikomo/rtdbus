@@ -1,0 +1,55 @@
+#!/bin/ksh
+#set -x
+echo "RTD-BUS environment settings"
+
+PROJECT_ROOT_DIR=/home/gev/ITG/sandbox
+RTDBUS_SOURCE_DIR="$PROJECT_ROOT_DIR/rtdbus-0.0.1"
+
+echo -e "\t\t\t\t\t< libev-4.11 \t>"
+LIBEV_DIR="$RTDBUS_SOURCE_DIR/../libev-4.11"
+LIBEV_INCLUDE_DIR="$LIBEV_DIR"
+LIBEV_LIBRARIES_DIR="$LIBEV_DIR/.libs"
+export LIBEV_DIR LIBEV_LIBRARIES_DIR
+
+echo -e "\t\t\t\t\t< eXtremeDB 3.5 >"
+LIBEXTREMEDB_DIR="$RTDBUS_SOURCE_DIR/../master_eXtremeDB_3.5.987_sunos"
+LIBEXTREMEDB_INCLUDE_DIR="$LIBEXTREMEDB_DIR/sources/include"
+LIBEXTREMEDB_LIBRARIES_DIR="$LIBEXTREMEDB_DIR/sources/target/bin.so"
+export LIBEXTREMEDB_DIR LIBEXTREMEDB_LIBRARIES_DIR
+
+echo -e "\t\t\t\t\t< protobuf 2.4.1>"
+LIBPROTOBUF_DIR="$RTDBUS_SOURCE_DIR/../protoRTD_ENV=buf-2.4.1"
+LIBPROTOBUF_INCLUDE_DIR="$LIBPROTOBUF_DIR/src/google/protobuf"
+LIBPROTOBUF_LIBRARIES_DIR="$LIBPROTOBUF_DIR/src/.libs"
+export LIBPROTOBUF_DIR LIBPROTOBUF_LIBRARIES_DIR
+
+echo -e "\t\t\t\t\t< zeromq 3.2.2 \t>"
+LIBZMQ_DIR="$RTDBUS_SOURCE_DIR/../zeromq-3.2.2"
+LIBZMQ_INCLUDE_DIR="$LIBZMQ_DIR/src"
+LIBZMQ_LIBRARIES_DIR="$LIBZMQ_DIR/src/.libs"
+export LIBZMQ_DIR LIBZMQ_LIBRARIES_DIR
+
+echo -e "\t\t\t\t\t< glog 0.3.2   \t>"
+LIBGLOG_DIR="$RTDBUS_SOURCE_DIR/../glog-0.3.2"
+LIBGLOG_INCLUDE_DIR="$LIBGLOG_DIR/src"
+LIBGLOG_LIBRARIES_DIR="$LIBGLOG_DIR/src/.libs"
+export LIBGLOG_DIR LIBGLOG_LIBRARIES_DIR
+
+if [ -z "$RTD_ENV" ];
+then
+  # value was not set
+  LD_LIBRARY_PATH=$LIBEV_LIBRARIES_DIR:$LD_LIBRARY_PATH
+  LD_LIBRARY_PATH=$LIBEXTREMEDB_LIBRARIES_DIR:$LD_LIBRARY_PATH
+  LD_LIBRARY_PATH=$LIBPROTOBUF_LIBRARIES_DIR:$LD_LIBRARY_PATH
+  LD_LIBRARY_PATH=$LIBZMQ_LIBRARIES_DIR:$LD_LIBRARY_PATH
+  LD_LIBRARY_PATH=$LIBGLOG_LIBRARIES_DIR:$LD_LIBRARY_PATH
+
+  echo "Logging to console against files in /tmp/..."
+  GLOG_logtostderr=1
+  export GLOG_logtostderr
+
+  RTD_ENV="configured"
+  export LD_LIBRARY_PATH RTD_ENV
+else
+  echo "RTD_ENV is not empty -> do not apply settings"
+fi

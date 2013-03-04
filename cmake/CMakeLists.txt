@@ -1,0 +1,209 @@
+cmake_minimum_required(VERSION 2.6)
+
+project(RTDBUS CXX C)
+
+set (RTDBUS_MAJOR_VERSION "0")
+set (RTDBUS_MINOR_VERSION "0")
+set (RTDBUS_MICRO_VERSION "1")
+set (RTDBUS_VERSION ${RTBUS_MAJOR_VERSION}.${RTBUS_MINOR_VERSION}.${RTBUS_MICRO_VERSION})
+set (RTDBUS_VERSION_STRING "${RTDBUS_VERSION}")
+
+set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/modules")
+
+set (BUILD_SHARED_LIBS ON)
+
+include (FindPkgConfig)
+find_package(LibZMQ)
+if(NOT LIBZMQ_FOUND)
+    message(SEND_ERROR "Failed to find ZeroMQ facility")
+    return()
+endif()
+
+find_package(LibEv)
+if(NOT LIBEV_FOUND)
+    message(SEND_ERROR "Failed to find libev facility")
+    return()
+endif()
+
+find_package(LibProtobuf)
+if(NOT LIBPROTOBUF_FOUND)
+    message(SEND_ERROR "Failed to find Google protobuf facility")
+    return()
+endif()
+
+find_package(LibExtremeDB)
+if(NOT LIBEXTREMEDB_FOUND)
+    message(SEND_ERROR "Failed to find eXtremeDB facility")
+    return()
+endif()
+
+find_package(LibGLOG)
+if(NOT LIBGLOG_FOUND)
+    message(SEND_ERROR "Failed to find Google LOG facility")
+    return()
+endif()
+
+include (ConfigureChecks.cmake)
+include (MacroLibrary)
+
+set (RTDBUS_SOURCE_DIR ${CMAKE_SOURCE_DIR}/..)
+set (LIBRARY_OUTPUT_PATH  ${CMAKE_BINARY_DIR}/lib)
+set (EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
+
+# for including config.h and for includes like <dir/foo.h>
+include_directories(${CMAKE_SOURCE_DIR}/.. ${CMAKE_BINARY_DIR} ${CMAKE_INCLUDE_PATH})
+#include_directories(${CMAKE_LIBRARY_PATH})
+
+# linker search directories
+link_directories(${RTDBUS_LIB_DIR} ${LIBRARY_OUTPUT_PATH})
+
+set(RTDBUS_INCLUDES )
+
+########### basic vars ###############
+ENABLE_TESTING()
+
+if (RTDBUSDIR)
+	set(RTDBUS_INSTALL_DIR "${DBUSDIR}")
+endif (RTDBUSDIR)
+
+if ($ENV{RTDBUSDIR})
+	set(RTDBUS_INSTALL_DIR "$ENV{RTDBUSDIR}")
+endif ($ENV{RTDBUSDIR})
+
+if (RTDBUS_INSTALL_DIR)
+	set(CMAKE_INSTALL_PREFIX "${RTDBUS_INSTALL_DIR}" CACHE TYPE PATH FORCE)
+else (RTDBUS_INSTALL_DIR)
+	set(RTDBUS_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}")
+endif (RTDBUS_INSTALL_DIR)
+
+set(prefix                   ${RTDBUS_INSTALL_DIR})
+set(exec_prefix              ${prefix})
+set(EXPANDED_LIBDIR          ${RTDBUS_INSTALL_DIR}/lib)
+set(EXPANDED_INCLUDEDIR      ${RTDBUS_INSTALL_DIR}/include)
+set(EXPANDED_BINDIR          ${RTDBUS_INSTALL_DIR}/bin)
+set(EXPANDED_SYSCONFDIR      ${RTDBUS_INSTALL_DIR}/etc)
+set(EXPANDED_DATADIR         ${RTDBUS_INSTALL_DIR}/data)
+set(RTDBUS_BINDIR            ${EXPANDED_BINDIR})
+set(RTDBUS_DAEMONDIR         ${EXPANDED_BINDIR})
+
+# добавил для тестов - где задавать структуру каталога исходников?
+set(MDP_DIR                  ${CMAKE_SOURCE_DIR}/../mdp)
+set(WORKER_DIR               ${CMAKE_SOURCE_DIR}/../worker)
+set(CLIENT_DIR               ${CMAKE_SOURCE_DIR}/../client)
+set(MDP_LIBRARY_NAME         mdp)
+
+OPTION(RTDBUS_BUILD_TESTS "enable unit test code" ON)
+ 
+if(RTDBUS_BUILD_TESTS)
+    add_definitions(-DRTDBUS_BUILD_TESTS)
+    add_definitions(-DDEBUG)
+endif(RTDBUS_BUILD_TESTS)
+
+STRING(TOUPPER ${CMAKE_SYSTEM_NAME} sysname)
+if("${sysname}" MATCHES ".*SOLARIS.*")
+    OPTION(HAVE_CONSOLE_OWNER_FILE "enable console owner file (solaris only)" ON)
+    add_definitions(-DTYPE_OS=SOLARIS)
+    if(HAVE_CONSOLE_OWNER_FILE)
+        SET(DBUS_CONSOLE_OWNER_FILE "/dev/console" CACHE STRING "Directory to check for console ownerhip")
+    endif(HAVE_CONSOLE_OWNER_FILE)
+else ("${sysname}" MATCHES ".*SOLARIS.*")
+    add_definitions(-DTYPE_OS=LINUX)
+endif("${sysname}" MATCHES ".*SOLARIS.*")
+
+add_definitions(-g)
+if (CMAKE_COMPILER_IS_GNUCC)
+#  add_definitions(-mcpu=v9)
+#  add_definitions(-G)
+  add_definitions(-m32)
+else (CMAKE_COMPILER_IS_GNUCC)
+  add_definitions(-xarch=v9)
+  add_definitions(+w2)
+endif (CMAKE_COMPILER_IS_GNUCC)
+
+########### create config.h ###############
+add_definitions(-DHAVE_CONFIG_H)
+
+set(RTDBUS_LIBRARIES rtdbus-1)
+set(RTDBUS_INTERNAL_LIBRARIES ev zmq socket nsl stdc++)
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config.h )
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/rtdbus-env.bat.cmake ${CMAKE_BINARY_DIR}/bin/rtdbus-env.bat )
+install_files(/bin FILES ${CMAKE_BINARY_DIR}/bin/rtdbus-env.bat)
+
+add_subdirectory( mdp )
+add_subdirectory( worker )
+add_subdirectory( client )
+#add_subdirectory( rtdbus )
+#add_subdirectory( database )
+#add_subdirectory( transport )
+if (RTDBUS_BUILD_TESTS)
+  add_subdirectory( test )
+endif (RTDBUS_BUILD_TESTS)
+#add_subdirectory( tools )
+
+
+GET_FILENAME_COMPONENT(C_COMPILER ${CMAKE_C_COMPILER} NAME)
+GET_FILENAME_COMPONENT(CXX_COMPILER ${CMAKE_CXX_COMPILER} NAME)
+
+message("                  RTD-BUS ${RTDBUS_VERSION}                           ")
+message("                  ==============                                      ")
+message("                                                                      ")
+message(STATUS "System:                   ${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_VERSION}")
+message(STATUS "Cmake generates:          ${CMAKE_GENERATOR}                  ")
+message(STATUS "install prefix:           ${prefix}                           ")
+message(STATUS "install exec_prefix:      ${exec_prefix}                      ")
+message(STATUS "install libdir:           ${EXPANDED_LIBDIR}                  ")
+message(STATUS "install bindir:           ${EXPANDED_BINDIR}                  ")
+message(STATUS "install sysconfdir:       ${EXPANDED_SYSCONFDIR}              ")
+message(STATUS "install datadir:          ${EXPANDED_DATADIR}                 ")
+message(STATUS "source code location:     ${RTDBUS_SOURCE_DIR}                ")
+message(STATUS "build dir:                ${CMAKE_BINARY_DIR}                 ")
+message(STATUS "c compiler:               ${C_COMPILER}                       ")
+message(STATUS "cflags:                   ${CMAKE_C_FLAGS}                    ")
+message(STATUS "cflags debug:             ${CMAKE_C_FLAGS_DEBUG}              ")
+message(STATUS "cflags release:           ${CMAKE_C_FLAGS_RELEASE}            ")
+message(STATUS "cxx compiler:             ${CXX_COMPILER}                     ")
+message(STATUS "cxxflags:                 ${CMAKE_CXX_FLAGS}                  ")
+message(STATUS "cxxflags debug:           ${CMAKE_CXX_FLAGS_DEBUG}            ")
+message(STATUS "cxxflags release:         ${CMAKE_CXX_FLAGS_RELEASE}          ")
+message(STATUS "64-bit int:               ${RTDBUS_INT64_TYPE}                ")
+message(STATUS "32-bit int:               ${RTDBUS_INT32_TYPE}                ")
+message(STATUS "16-bit int:               ${RTDBUS_INT16_TYPE}                ")
+message(STATUS "ZeroMQ:                   ${LIBZMQ_LIBRARIES_DIR}\t${LIBZMQ_LIBRARIES}")
+message(STATUS "Protobuf:                 ${LIBPROTOBUF_LIBRARIES_DIR}\t${LIBPROTOBUF_LIBRARIES}")
+message(STATUS "eXtremeDB:                ${LIBEXTREMEDB_LIBRARIES_DIR}\t${LIBEXTREMEDB_LIBRARIES}")
+message(STATUS "libev:                    ${LIBEV_LIBRARIES_DIR}\t${LIBEV_LIBRARIES}")
+message(STATUS "glog:                     ${LIBGLOG_LIBRARIES_DIR}\t${LIBGLOG_LIBRARIES}")
+message(STATUS "Building unit tests:      ${RTDBUS_BUILD_TESTS}               ")
+message(STATUS "Building verbose mode:    ${RTDBUS_ENABLE_VERBOSE_MODE}       ")
+message(STATUS "Building w/o assertions:  ${RTDBUS_DISABLE_ASSERTS}           ")
+message(STATUS "Building w/o checks:      ${RTDBUS_DISABLE_CHECKS}            ")
+message(STATUS "Building XML docs:        ${RTDBUS_ENABLE_XML_DOCS}           ")
+message(STATUS "Using XML parser:         ${XML_LIB}                          ")
+message(STATUS "Daemon executable name:   ${RTDBUS_DAEMON_NAME}               ")
+
+MESSAGE(" ")
+if (RTDBUS_BUILD_TESTS)
+    message("NOTE: building with unit tests increases the size of the installed library and renders it insecure.")
+endif(RTDBUS_BUILD_TESTS)
+
+if (RTDBUS_BUILD_TESTS AND RTDBUS_DISABLE_ASSERTS)
+    message("NOTE: building with unit tests but without assertions means tests may not properly report failures (this configuration is only useful when doing something like profiling the tests)")
+endif(RTDBUS_BUILD_TESTS AND RTDBUS_DISABLE_ASSERTS)
+
+if (RTDBUS_GCOV_ENABLED)
+    message("NOTE: building with coverage profiling is definitely for developers only.")
+endif(RTDBUS_GCOV_ENABLED)
+
+if (RTDBUS_ENABLE_VERBOSE_MODE)
+    message("NOTE: building with verbose mode increases library size, may slightly increase security risk, and decreases performance.")
+endif(RTDBUS_ENABLE_VERBOSE_MODE)
+
+if(NOT RTDBUS_DISABLE_ASSERTS)
+    message("NOTE: building with assertions increases library size and decreases performance.")
+endif(NOT RTDBUS_DISABLE_ASSERTS)
+
+if (RTDBUS_DISABLE_CHECKS)
+    message("NOTE: building without checks for arguments passed to public API makes it harder to debug apps using D-BUS, but will slightly decrease D-BUS library size and _very_ slightly improve performance.")
+endif(RTDBUS_DISABLE_CHECKS)
+MESSAGE(" ")
