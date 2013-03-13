@@ -55,7 +55,7 @@ class Broker {
    //  ---------------------------------------------------------------------
    //  Creates worker if necessary
    Worker *
-   worker_require (std::string& identity);
+   worker_require (std::string& sender/*, char* identity*/);
 
    //  ---------------------------------------------------------------------
    //  Deletes worker from all data structures, and destroys worker

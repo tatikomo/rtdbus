@@ -72,6 +72,7 @@ bool zmsg::recv(zmq::socket_t & socket) {
    int more;
    int iteration = 0;
    size_t more_size = sizeof(more);
+   char *uuidstr = NULL;
 
    clear();
    while(1)
@@ -80,6 +81,7 @@ bool zmsg::recv(zmq::socket_t & socket) {
       zmq::message_t message(0);
       try {
          if (!socket.recv(&message, 0)) {
+            s_console("W: zmsg::recv() false");
             return false;
          }
       } catch (zmq::error_t error) {
@@ -92,24 +94,26 @@ bool zmsg::recv(zmq::socket_t & socket) {
       ustring data = (char*) message.data();
 #endif
 
-      /*
+#if 0
       std::cerr << "recv: \"" 
                 << (unsigned char*) message.data() 
                 << "\", size " << message.size() << std::endl;
-      */
+#endif      
       /*
        * В первом пакете приходит идентификатор отправителя в бинарном формате.
        * Длина фрейма 5 байтов, начинается с 0.
-       * Конвертируем его в UUID.
+       * Конвертируем его в UUID, 10 символов.
        */
       if ((iteration == 1)
-      && (message.size() == 5 /*17*/)
-      && ((unsigned char *)message.data())[0] == 0) {
-         char *uuidstr = encode_uuid((unsigned char*) message.data());
-         //std::cerr << "identity(uuid) = " << uuidstr << std::endl;
+      && (message.size() == 5)
+      && data[0] == 0) {
+         uuidstr = encode_uuid((unsigned char*) message.data());
+//         std::cerr << "identity(uuid) = " << uuidstr << std::endl;
          push_back(uuidstr);
+         delete uuidstr;
       }
-      else {
+      else
+      {
          data[message.size()] = 0;
          push_back((char *)data.c_str());
       }
@@ -125,13 +129,23 @@ void zmsg::send(zmq::socket_t & socket) {
     for (size_t part_nbr = 0; part_nbr < m_part_data.size(); part_nbr++) {
        zmq::message_t message;
        ustring data = m_part_data[part_nbr];
-       if (data.size() == 33 && data [0] == '@') {
-          unsigned char * uuidbin = decode_uuid ((char *) data.c_str());
-          message.rebuild(17);
-          memcpy(message.data(), uuidbin, 17);
+#if 1
+       /*
+        * Первый фрейм - символьное представление адреса получателя.
+        * Необходимо обратное преобразование в двоичное представление.
+        * 11 байт - это первый символ '@' + 10 байт представления Адресата (identity)
+        */
+//       std::cerr << "part_nbr=" << part_nbr << "; data size=" << data.size() << "; data[0]=" << data [0] << std::endl;
+       if (part_nbr == 0 && data.size() == 11 && data [0] == '@') {
+          unsigned char * uuidbin = decode_uuid(data);
+//          std::cerr << "decode identity(" << data << ")" << std::endl;
+          message.rebuild(5);
+          memcpy(message.data(), uuidbin, 5);
           delete uuidbin;
        }
-       else {
+       else 
+#endif
+       {
           message.rebuild(data.size());
           memcpy(message.data(), data.c_str(), data.size());
        }
@@ -193,35 +207,38 @@ void zmsg::push_back(char *part) {
 #endif
 }
 
+
 //  --------------------------------------------------------------------------
-//  Formats 17-byte UUID as 33-char string starting with '@'
+//  Formats 5-byte UUID as 11-char string starting with '@'
 //  Lets us print UUIDs as C strings and use them as addresses
 //
 char *
-zmsg::encode_uuid (unsigned char *data)
+zmsg::encode_uuid (unsigned char* data)
 {
     static char
         hex_char [] = "0123456789ABCDEF";
 
+    assert (data);
     assert (data [0] == 0);
-    char *uuidstr = new char[34];
+
+    char *uuidstr = new char[11 + 1];
     uuidstr [0] = '@';
     int byte_nbr;
-    for (byte_nbr = 0; byte_nbr < 16; byte_nbr++) {
-        uuidstr [byte_nbr * 2 + 1] = hex_char [data [byte_nbr + 1] >> 4];
-        uuidstr [byte_nbr * 2 + 2] = hex_char [data [byte_nbr + 1] & 15];
+    for (byte_nbr = 0; byte_nbr < 5; byte_nbr++) {
+        uuidstr [byte_nbr * 2 + 1] = hex_char [data [byte_nbr + 0] >> 4];
+        uuidstr [byte_nbr * 2 + 2] = hex_char [data [byte_nbr + 0] & 15];
     }
-    uuidstr [33] = 0;
+    uuidstr [11] = 0;
     return (uuidstr);
 }
 
 
 // --------------------------------------------------------------------------
-// Formats 17-byte UUID as 33-char string starting with '@'
+// Formats 5-byte UUID as 11-char string starting with '@'
 // Lets us print UUIDs as C strings and use them as addresses
 //
 unsigned char *
-zmsg::decode_uuid (char *uuidstr)
+zmsg::decode_uuid (ustring& uuidstr)
 {
     static char
         hex_to_bin [128] = {
@@ -234,15 +251,14 @@ zmsg::decode_uuid (char *uuidstr)
            -1,10,11,12,13,14,15,-1,-1,-1,-1,-1,-1,-1,-1,-1, /* a..f */
            -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1 }; /* */
 
-    assert (strlen (uuidstr) == 33);
+    assert (uuidstr.size() == 11);
     assert (uuidstr [0] == '@');
-    unsigned char *data = new unsigned char[17];
+    unsigned char *data = new unsigned char[5];
     int byte_nbr;
-    data [0] = 0;
-    for (byte_nbr = 0; byte_nbr < 16; byte_nbr++)
-        data [byte_nbr + 1]
-            = (hex_to_bin [uuidstr [byte_nbr * 2 + 1] & 127] << 4)
-            + (hex_to_bin [uuidstr [byte_nbr * 2 + 2] & 127]);
+    for (byte_nbr = 0; byte_nbr < 5; byte_nbr++)
+        data [byte_nbr]
+            = (hex_to_bin [uuidstr [byte_nbr * 2 + 1] & 0x7F] << 4)
+            + (hex_to_bin [uuidstr [byte_nbr * 2 + 2] & 0x7F]);
 
     return (data);
 }
@@ -263,6 +279,11 @@ void zmsg::append (const char *part)
     push_back((char*)part);
 }
 
+
+/* 
+ * Двоичное представление Адресата содержит символы '\0', однако при приеме
+ * оно конвертируется в символьную форму (5 двоичных байт в '@'+10 символьных байт).
+ */
 char *zmsg::address() {
    if (m_part_data.size()>0) {
       return (char*)m_part_data[0].c_str();
@@ -271,12 +292,14 @@ char *zmsg::address() {
    }
 }
 
+
 void zmsg::wrap(const char *address, const char *delim) {
    if (delim) {
       push_front((char*)delim);
    }
    push_front((char*)address);
 }
+
 
 char * zmsg::unwrap() {
    if (m_part_data.size() == 0) {
@@ -288,6 +311,7 @@ char * zmsg::unwrap() {
    }
    return addr;
 }
+
 
 void zmsg::dump() {
    std::cerr << "--------------------------------------" << std::endl;

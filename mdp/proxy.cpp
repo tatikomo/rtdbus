@@ -18,7 +18,7 @@ int main (int argc, char *argv [])
       s_catch_signals ();
 
       Broker *broker = new Broker(verbose);
-      broker->bind ("tcp://*:5555");
+      broker->bind ("tcp://lo:5555");
 
       broker->start_brokering();
 

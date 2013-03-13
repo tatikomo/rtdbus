@@ -79,13 +79,13 @@ class zmsg
    //  Lets us print UUIDs as C strings and use them as addresses
    //
    char *
-   encode_uuid (unsigned char *data);
+   encode_uuid (unsigned char*);
 
    // --------------------------------------------------------------------------
-   // Formats 17-byte UUID as 33-char string starting with '@'
+   // Formats 5-byte UUID as 10-char string starting with '00'
    // Lets us print UUIDs as C strings and use them as addresses
    unsigned char *
-   decode_uuid (char *uuidstr);
+   decode_uuid (ustring&);
 
    // zmsg_pop
    ustring pop_front();
@@ -94,7 +94,7 @@ class zmsg
 
    char *address();
 
-   void wrap(const char *address, const char *delim);
+   void wrap(const char *address, const char *delim = 0);
 
    char * unwrap();
 

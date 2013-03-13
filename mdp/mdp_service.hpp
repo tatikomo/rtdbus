@@ -26,6 +26,7 @@ class Worker
    //  Return 1 if worker has expired and must be deleted
    bool
    expired ();
+   
 
  private:
    Broker      * m_broker;     //  Broker instance
@@ -36,7 +37,8 @@ class Worker
 
    //  ---------------------------------------------------------------------
    //  Constructor is private, only used from broker
-   Worker(std::string& identity, Service * service = 0, int64_t expiry = 0);
+   Worker(const char* identity, Service * service = 0, int64_t expiry = 0);
+   Worker(const char* identity, Broker* broker, std::string& address);
 };
 
 //  This defines a single Service
@@ -53,6 +55,10 @@ class Service
 
    void
     destroy (void *argument);
+
+   //  The dispatch method sends request to the worker.
+   void
+    dispatch ();
 
    void
     enable_command (std::string& command);

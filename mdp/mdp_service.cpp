@@ -1,4 +1,6 @@
 #include <string>
+#include "mdp_common.h"
+#include "mdp_broker.hpp"
 #include "mdp_service.hpp"
 
 //  ---------------------------------------------------------------------
@@ -18,11 +20,21 @@ Worker::expired ()
 
 //  ---------------------------------------------------------------------
 //  Constructor is private, only used from broker
-Worker::Worker(std::string& identity, Service * service, int64_t expiry)
+Worker::Worker(const char* identity, Service * service, int64_t expiry)
 {
+   assert(identity != 0);
    m_identity = identity;
    m_service = service;
    m_expiry = expiry;
+}
+
+Worker::Worker(const char* identity, Broker* broker, std::string& address)
+{
+   assert(identity != 0);
+   m_broker = broker;
+   m_address = address;
+   // скопировать identity, поскольку он однозначно идентифицирует экземпляр
+   m_identity = address; // TODO: может удалить вообще address?
 }
 
 //  ---------------------------------------------------------------------
@@ -41,6 +53,7 @@ Service::~Service ()
    m_waiting.clear();
 
    // Очистить список блокированных команд
+   //  Free memory keeping  blacklisted commands.
    for(size_t i = 0; i < m_blacklist.size(); i++) {
         delete &m_blacklist[i];
    }
@@ -53,50 +66,34 @@ Service::Service(std::string& name)
 }
 
 
-#if 0
-//  Service destructor is called automatically whenever the service is
-//  removed from broker->services.
-void
-Service::destroy (void *argument)
-{
-    Service *service = (Service *) argument;
-    while (zlist_size (service->requests)) {
-        zmsg_t *msg = (zmsg_t*)zlist_pop (service->requests);
-        zmsg_destroy (&msg);
-    }
-    //  Free memory keeping  blacklisted commands.
-    char *command = (char *) zlist_first (service->blacklist);
-    while (command) {
-        zlist_remove (service->blacklist, command);
-        free (command);
-    }
-    zlist_destroy (&service->requests);
-    zlist_destroy (&service->waiting);
-    zlist_destroy (&service->blacklist);
-    free (service->name);
-    free (service);
-}
-
 //  The dispatch method sends request to the worker.
 void
 Service::dispatch ()
 {
-    m_broker->purge ();
-    if (zlist_size (self->waiting) == 0)
-        return;
+    //m_broker->purge_workers ();
 
-    while (zlist_size (self->requests) > 0) {
-        worker_t *worker = (worker_t*)zlist_pop (self->waiting);
-        zlist_remove (self->waiting, worker);
-        zmsg_t *msg = (zmsg_t*)zlist_pop (self->requests);
-        s_worker_send (worker, MDPW_REQUEST, NULL, msg);
+    if (m_waiting.size() == 0)
+      return;
+
+    while (m_requests.size() > 0) {
+        //worker_t *worker = (worker_t*)zlist_pop (self->waiting);
+        Worker * wrk = m_waiting.size()>0 ? m_waiting.front() : 0;
+
+        //zlist_remove (self->waiting, worker);
+        m_broker->worker_delete(wrk, 0);
+
+        //zmsg_t *msg = (zmsg_t*)zlist_pop (self->requests);
+        zmsg *msg = m_requests.front();
+
+        m_broker->worker_send (wrk, (char*)MDPW_REQUEST, NULL, msg);
+
         //  Workers are scheduled in the round-robin fashion
-        zlist_append (self->waiting, worker);
-        zmsg_destroy (&msg);
+        //zlist_append (self->waiting, worker);
+        m_waiting.push_back(wrk);
+        delete msg;
     }
 }
 
-#endif
 void
 Service::enable_command (std::string& /*const char **/command)
 {

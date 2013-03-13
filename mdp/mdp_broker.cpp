@@ -1,6 +1,7 @@
 #include "mdp_common.h"
 #include "mdp_service.hpp"
 #include "mdp_broker.hpp"
+#include "zmsg.hpp"
 
 //  ---------------------------------------------------------------------
 //  Signal handling
@@ -22,25 +23,6 @@ void s_catch_signals ()
     sigemptyset (&action.sa_mask);
     sigaction (SIGINT, &action, NULL);
     sigaction (SIGTERM, &action, NULL);
-}
-
-static void generateIdentity(const char* origin, char*& identity)
-{
-    static const char hex_char [] = "0123456789ABCDEF";
-    int byte_nbr;
-
-    assert (origin);
-    assert (origin[0]);
-
-    int origin_length = strlen((const char*)origin);
-
-    identity = (char *) new char[origin_length * 2 + 1];
-
-    for (byte_nbr = 0; byte_nbr < origin_length; byte_nbr++) {
-        identity [byte_nbr * 2 + 0] = hex_char [origin [byte_nbr] >> 4];
-        identity [byte_nbr * 2 + 1] = hex_char [origin [byte_nbr] & 15];
-    }
-    identity [origin_length * 2] = 0;
 }
 
 //  ---------------------------------------------------------------------
@@ -86,10 +68,10 @@ Broker::purge_workers ()
         if (!wrk->expired ()) {
             break;              //  Worker is alive, we're done here
         }
-        if (m_verbose) {
+//        if (m_verbose) {
             s_console ("I: deleting expired worker: %s",
                   wrk->m_identity.c_str());
-        }
+//        }
         worker_delete (wrk, 0);
         wrk = m_waiting.size()>0 ? m_waiting.front() : 0;
     }
@@ -108,7 +90,6 @@ Broker::service_require (std::string& name)
     } else {
         s_console("W: service '%s' is not registered", name.c_str());
         Service * srv = new Service(name);
-        // TODO: как прикрепить функцию удаления service_destroy для элемента?
         m_services.insert(std::make_pair(name, srv));
         if (m_verbose) {
             s_console ("I: received message:");
@@ -193,12 +174,13 @@ Broker::service_internal (std::string service_name, zmsg *msg)
 
     //  Remove & save client return envelope and insert the
     //  protocol header and service name, then rewrap envelope.
-    char *client = msg->unwrap();
+    char* client = msg->unwrap();
     msg->wrap(MDPC_CLIENT, service_name.c_str());
-    // TODO: добавить поле MDPC_REPORT +++
-    msg->wrap(client, "");
-    delete client;
+    msg->push_front((char*)MDPC_REPORT);
+    msg->push_front((char*)MDPC_CLIENT);
+    msg->wrap (client);
     msg->send (*m_socket);
+    delete client;
 }
 
 //  ---------------------------------------------------------------------
@@ -206,20 +188,20 @@ Broker::service_internal (std::string service_name, zmsg *msg)
 //  Lazy constructor that locates a worker by identity, or creates a new
 //  worker if there is no worker already with that identity
 Worker *
-Broker::worker_require (std::string& sender)
+Broker::worker_require (std::string& sender/*, char *identity*/)
 {
-    assert (sender.size() > 0);
+//    assert (identity != 0);
     Worker * instance = NULL;
 
-    if (m_workers.count(sender)) {
+    if (m_workers.count(sender/*identity*/)) {
        s_console("I: worker '%s' is registered", sender.c_str());
-       instance = m_workers.at(sender);
+       instance = m_workers.at(sender/*identity*/);
     }
     else {
-       instance = new Worker(sender);
-       m_workers.insert(std::make_pair(sender, instance));
+       instance = new Worker(""/*identity*/, this, sender);
+       m_workers.insert(std::make_pair(sender/*identity*/, instance));
        if (m_verbose) {
-          s_console ("I: registering new worker: %s", sender.c_str());
+          s_console ("I: registering new worker: %s", sender.c_str()/*identity*/);
        }
     }
 
@@ -273,8 +255,10 @@ Broker::worker_msg (std::string& sender, zmsg *msg)
     assert (sender.size() > 0);
 
     std::string command = msg->pop_front();
+//    char *identity = msg->strhex (sender.c_str());
     bool worker_ready = m_workers.count(sender)>0;
-    Worker *wrk = worker_require (sender);
+    Worker *wrk = worker_require (sender/*, identity*/);
+//    delete identity;
 
     if (command.compare (MDPW_READY) == 0) {
         if (worker_ready)  {              //  Not first command in session
@@ -290,6 +274,7 @@ Broker::worker_msg (std::string& sender, zmsg *msg)
                 wrk->m_service = service_require (service_name);
                 wrk->m_service->m_workers++;
                 worker_waiting (wrk);
+                service_dispatch(wrk->m_service, 0); // GEV недавно добавил
                 zclock_log ("worker '%s' created", sender.c_str());
             }
         }
@@ -300,12 +285,13 @@ Broker::worker_msg (std::string& sender, zmsg *msg)
            if (worker_ready) {
                //  Remove & save client return envelope and insert the
                //  protocol header and service name, then rewrap envelope.
-               std::string client = msg->unwrap ();
-               msg->wrap (MDPC_CLIENT, wrk->m_service->m_name.c_str());
-               // TODO: Версия 0.2.0 mdp_broker.c:199 также использует MDPC_REPORT
-               // GEV +++
-               msg->wrap (client.c_str(), "");
+               char* client = msg->unwrap ();
+               msg->push_front((char*)wrk->m_service->m_name.c_str());
+               msg->push_front((char*)MDPC_REPORT);
+               msg->push_front((char*)MDPC_CLIENT);
+               msg->wrap (client);
                msg->send (*m_socket);
+               delete client;
                worker_waiting (wrk);
            }
            else {
@@ -316,7 +302,7 @@ Broker::worker_msg (std::string& sender, zmsg *msg)
               s_console("D: get HEARTBEAT from '%s' wr=%d",
                         sender.c_str(), worker_ready);
               if (worker_ready) {
-                  wrk->m_expiry = s_clock () + HEARTBEAT_EXPIRY;
+                  worker_waiting(wrk);
               } else {
                   worker_delete (wrk, 1);
               }
@@ -352,11 +338,11 @@ Broker::worker_send (Worker *worker,
     msg->push_front (command);
     msg->push_front ((char*)MDPW_WORKER);
     //  Stack routing envelope to start of message
-    msg->wrap(worker->m_identity.c_str(), "");
+    msg->wrap(worker->m_address.c_str(), "");
 
     if (m_verbose) {
-        s_console ("I: sending %s to worker",
-            mdpw_commands [(int) *command]);
+        s_console ("I: sending %s to worker (%s)",
+            mdpw_commands [(int) *command], worker->m_address.c_str());
         msg->dump ();
     }
     msg->send (*m_socket);
@@ -364,6 +350,8 @@ Broker::worker_send (Worker *worker,
 
 //  ---------------------------------------------------------------------
 //  This worker is now waiting for work
+// TODO: Move worker to the end of the waiting queue,
+// so purge_workers() will only check old worker(s) in m_waiting vector.
 void
 Broker::worker_waiting (Worker *worker)
 {
@@ -372,6 +360,8 @@ Broker::worker_waiting (Worker *worker)
     m_waiting.push_back(worker);
     worker->m_service->m_waiting.push_back(worker);
     worker->m_expiry = s_clock () + HEARTBEAT_EXPIRY;
+    // +++ послать ответ на HEARTBEAT
+    worker_send (worker, (char*)MDPW_HEARTBEAT, "", NULL);
     service_dispatch (worker->m_service, 0);
 }
 
@@ -425,8 +415,6 @@ Broker::start_brokering()
 
            std::string header = msg->pop_front ();
            assert(header.size ());
-
-           msg->dump();
 
            if (header.compare(MDPC_CLIENT) == 0) {
                client_msg (sender, msg);

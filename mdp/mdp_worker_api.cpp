@@ -69,15 +69,6 @@ void mdwrk::send_to_broker(char *command, std::string option, zmsg *_msg)
     msg->push_front (command);
     msg->push_front ((char*)MDPW_WORKER);
     msg->push_front ((char*)"");
-    /*
-     *  идентификатор отправителя - буквенно-цифровой код
-     *  Например:
-     *   [005] 006B8B4567
-     *   [000] 
-     *   [006] MDPW01
-     *   [001] 01
-     *   [004] echo
-     */ 
 
     if (m_verbose) {
         s_console ("I: sending %s to broker",
@@ -97,7 +88,9 @@ void mdwrk::connect_to_broker ()
         delete m_worker;
     }
     m_worker = new zmq::socket_t (*m_context, ZMQ_DEALER);
+    /*
     m_worker->setsockopt (ZMQ_LINGER, &linger, sizeof (linger));
+    */
     m_worker->connect (m_broker.c_str());
     if (m_verbose)
         s_console ("I: connecting to broker at %s...", m_broker.c_str());
@@ -146,7 +139,7 @@ mdwrk::recv (std::string *&reply)
         if (items [0].revents & ZMQ_POLLIN) {
             zmsg *msg = new zmsg(*m_worker);
             if (m_verbose) {
-                s_console ("I: received message from broker:");
+                s_console ("I: new message from broker:");
                 msg->dump ();
             }
             m_liveness = HEARTBEAT_LIVENESS;
@@ -171,7 +164,7 @@ mdwrk::recv (std::string *&reply)
                 return msg;     //  We have a request to process
             }
             else if (command.compare (MDPW_HEARTBEAT) == 0) {
-                s_console("I: receive HEARTBEAT from broker");
+                s_console("I: HEARTBEAT from broker");
                 //  Do nothing for heartbeats
             }
             else if (command.compare (MDPW_DISCONNECT) == 0) {
