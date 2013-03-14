@@ -114,7 +114,7 @@ mdcli::recv ()
 {
    //  Poll socket for a reply, with timeout
    zmq::pollitem_t items [] = { { *m_client, 0, ZMQ_POLLIN, 0 } };
-   zmq::poll (items, 1, m_timeout * 1000); // 1000 -> msec
+   zmq::poll (items, 1, m_timeout /** 1000*/); // 1000 -> msec
 
    //  If we got a reply, process it
    if (items [0].revents & ZMQ_POLLIN) {
@@ -131,7 +131,7 @@ mdcli::recv ()
         assert (header.compare(MDPC_CLIENT) == 0);
 
         ustring service = msg->pop_front();
-//GEV+++        assert (service.compare(service) == 0);
+        assert (service.compare(service) == 0);
 
         return msg;     //  Success
    }

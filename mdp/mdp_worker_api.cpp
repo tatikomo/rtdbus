@@ -58,15 +58,15 @@ mdwrk::~mdwrk ()
 //  ---------------------------------------------------------------------
 //  Send message to broker
 //  If no _msg is provided, creates one internally
-void mdwrk::send_to_broker(char *command, std::string option, zmsg *_msg)
+void mdwrk::send_to_broker(const char *command, const char* option, zmsg *_msg)
 {
     zmsg *msg = _msg? new zmsg(*_msg): new zmsg ();
 
     //  Stack protocol envelope to start of message
-    if (option.length() != 0) {
-        msg->push_front ((char*)option.c_str());
+    if (option) {
+        msg->push_front ((char*)option);
     }
-    msg->push_front (command);
+    msg->push_front ((char*)command);
     msg->push_front ((char*)MDPW_WORKER);
     msg->push_front ((char*)"");
 
@@ -88,15 +88,13 @@ void mdwrk::connect_to_broker ()
         delete m_worker;
     }
     m_worker = new zmq::socket_t (*m_context, ZMQ_DEALER);
-    /*
     m_worker->setsockopt (ZMQ_LINGER, &linger, sizeof (linger));
-    */
     m_worker->connect (m_broker.c_str());
     if (m_verbose)
         s_console ("I: connecting to broker at %s...", m_broker.c_str());
 
     //  Register service with broker
-    send_to_broker ((char*)MDPW_READY, m_service, NULL);
+    send_to_broker ((char*)MDPW_READY, m_service.c_str(), NULL);
 
     //  If liveness hits zero, queue is considered disconnected
     m_liveness = HEARTBEAT_LIVENESS;
@@ -160,7 +158,6 @@ mdwrk::recv (std::string *&reply)
                 //  We should pop and save as many addresses as there are
                 //  up to a null part, but for now, just save one...
                 *reply = msg->unwrap ();
-//                m_reply_to = reply;
                 return msg;     //  We have a request to process
             }
             else if (command.compare (MDPW_HEARTBEAT) == 0) {
@@ -185,14 +182,6 @@ mdwrk::recv (std::string *&reply)
             s_sleep (m_reconnect);
             connect_to_broker ();
         }
-
-#if 0
-        //  Send HEARTBEAT if it's time
-        int64_t time_now = s_clock ();
-        s_console("%s SEND HEARTBEAT (time=%lld, at=%lld)",
-            (time_now > m_heartbeat_at)? "":"NOT",
-            time_now, m_heartbeat_at);
-#endif
 
         if (s_clock () > m_heartbeat_at) {
             send_to_broker ((char*)MDPW_HEARTBEAT, "", NULL);

@@ -31,7 +31,7 @@ class mdwrk {
     //  ---------------------------------------------------------------------
     //  Send message to broker
     //  If no _msg is provided, creates one internally
-    void send_to_broker(char *command, std::string option, zmsg *_msg);
+    void send_to_broker(const char *command, const char* option, zmsg *_msg);
 
     //  ---------------------------------------------------------------------
     //  Connect or reconnect to broker

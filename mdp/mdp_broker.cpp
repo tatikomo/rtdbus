@@ -178,7 +178,7 @@ Broker::service_internal (std::string service_name, zmsg *msg)
     msg->wrap(MDPC_CLIENT, service_name.c_str());
     msg->push_front((char*)MDPC_REPORT);
     msg->push_front((char*)MDPC_CLIENT);
-    msg->wrap (client);
+    msg->wrap (client, EMPTY_FRAME);
     msg->send (*m_socket);
     delete client;
 }
@@ -289,9 +289,9 @@ Broker::worker_msg (std::string& sender, zmsg *msg)
                msg->push_front((char*)wrk->m_service->m_name.c_str());
                msg->push_front((char*)MDPC_REPORT);
                msg->push_front((char*)MDPC_CLIENT);
-               msg->wrap (client);
+               msg->wrap (client, EMPTY_FRAME);
                msg->send (*m_socket);
-               delete client;
+ //             delete client; // ай-яй-яй! +++
                worker_waiting (wrk);
            }
            else {
@@ -338,7 +338,7 @@ Broker::worker_send (Worker *worker,
     msg->push_front (command);
     msg->push_front ((char*)MDPW_WORKER);
     //  Stack routing envelope to start of message
-    msg->wrap(worker->m_address.c_str(), "");
+    msg->wrap(worker->m_address.c_str(), EMPTY_FRAME);
 
     if (m_verbose) {
         s_console ("I: sending %s to worker (%s)",
@@ -361,7 +361,7 @@ Broker::worker_waiting (Worker *worker)
     worker->m_service->m_waiting.push_back(worker);
     worker->m_expiry = s_clock () + HEARTBEAT_EXPIRY;
     // +++ послать ответ на HEARTBEAT
-    worker_send (worker, (char*)MDPW_HEARTBEAT, "", NULL);
+    worker_send (worker, (char*)MDPW_HEARTBEAT, EMPTY_FRAME, NULL);
     service_dispatch (worker->m_service, 0);
 }
 
@@ -372,7 +372,7 @@ void
 Broker::client_msg (std::string& sender, zmsg *msg)
 {
     assert (msg && msg->parts () >= 2);     //  Service name + body
-
+s_console("D: client_msg %s", sender.c_str()); // GEV delete me
     std::string service_frame = msg->pop_front();
     Service *srv = service_require (service_frame);
     if (!srv)
