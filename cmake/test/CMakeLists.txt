@@ -3,20 +3,21 @@ SET(TEST_RTDBUS_DIR ${CMAKE_SOURCE_DIR}/../test)
 
 SET(UNITTEST_DEVICE device_unittest)
 
-if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Solaris")
+if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   set (SYSTEM_EXTERNAL_LIBS
         socket
         nsl
+        rt
 #        glog
         gtest
         uuid)
-else ("${CMAKE_SYSTEM_NAME}" STREQUAL "Solaris")
+else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # LINUX
   set (SYSTEM_EXTERNAL_LIBS
         nsl
 #        glog
         gtest)
-endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "Solaris")
+endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
 include_directories(${CMAKE_SOURCE_DIR}/../../gtest-1.6.0/include)
 include_directories(${MDP_DIR})

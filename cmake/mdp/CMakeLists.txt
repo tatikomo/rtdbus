@@ -5,16 +5,17 @@ set(MDP_DIR ${CMAKE_SOURCE_DIR}/../mdp)
 set(MDP_BROKER broker)
 set(MDP_LIBRARY_NAME mdp)
 
-if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Solaris")
+if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   set (SYSTEM_EXTERNAL_LIBS
         socket
+        rt
         nsl
         uuid)
-else ("${CMAKE_SYSTEM_NAME}" STREQUAL "Solaris")
+else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # LINUX
   set (SYSTEM_EXTERNAL_LIBS
         nsl)
-endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "Solaris")
+endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
 include_directories(${MDP_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})

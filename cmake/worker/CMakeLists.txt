@@ -1,13 +1,14 @@
 set(WORKER_DIGGER wdigger)
 
-if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Solaris")
+if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   set (SYSTEM_EXTERNAL_LIBS
         socket
+        rt
         uuid)
-else ("${CMAKE_SYSTEM_NAME}" STREQUAL "Solaris")
+else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # LINUX
   set (SYSTEM_EXTERNAL_LIBS "")
-endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "Solaris")
+endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
 include_directories(${LIBZMQ_INCLUDE_DIR})
 include_directories(${WORKER_DIR})
