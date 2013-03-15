@@ -11,26 +11,31 @@ int main (int argc, char *argv [])
     ustring empty;
     ustring header;
     int more;           //  Multipart detection
+    Broker *broker = NULL;
 
     try
     {
       s_version_assert (3, 2);
       s_catch_signals ();
-
-      Broker *broker = new Broker(verbose);
-      broker->bind ("tcp://lo:5555");
+      broker = new Broker(verbose);
+      /*
+       * NB: "tcp://lo:5555" использует локальный интерфейс, 
+       * что удобно для мониторинга wireshark-ом.
+       */
+      broker->bind ("tcp://*:5555");
 
       broker->start_brokering();
-
-      delete broker;
     }
     catch (zmq::error_t err)
     {
         std::cout << "E: " << err.what() << std::endl;
     }
 
-    if (s_interrupted)
+    if (s_interrupted) {
         printf ("W: interrupt received, shutting down...\n");
+    }
+
+    delete broker;
 
     return 0;
 }

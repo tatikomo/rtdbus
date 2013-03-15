@@ -86,7 +86,13 @@ Broker::service_require (std::string& name)
 
     if (m_services.count(name)) {
         s_console("I: service '%s' is registered", name.c_str());
+#if TYPE_OS == SOLARIS
+        return m_services.find(name)->second;
+#elif TYPE_OS == LINUX
         return m_services.at(name);
+#else
+#error "Unknown platform"
+#endif
     } else {
         s_console("W: service '%s' is not registered", name.c_str());
         Service * srv = new Service(name);
@@ -134,7 +140,14 @@ void
 Broker::service_internal (std::string service_name, zmsg *msg)
 {
     if (service_name.compare("mmi.service") == 0) {
+/* NB в солярис gcc 3.4.6, не имеющий поддерки метода std::map->'at()' */
+#if TYPE_OS == SOLARIS
+        Service * srv = m_services.find(msg->body())->second;
+#elif TYPE_OS == LINUX
         Service * srv = m_services.at(msg->body());
+#else
+#error "Unknown platform"
+#endif
         if (srv && srv->m_workers) {
             msg->body_set("200");
         } else {
@@ -193,15 +206,21 @@ Broker::worker_require (std::string& sender/*, char *identity*/)
 //    assert (identity != 0);
     Worker * instance = NULL;
 
-    if (m_workers.count(sender/*identity*/)) {
-       s_console("I: worker '%s' is registered", sender.c_str());
-       instance = m_workers.at(sender/*identity*/);
+    if (m_workers.count(sender)) {
+//       s_console("D: worker '%s' is registered", sender.c_str());
+#if TYPE_OS == SOLARIS
+       instance = m_workers.find(sender)->second;
+#elif TYPE_OS == LINUX
+       instance = m_workers.at(sender);
+#else
+#error "Unknown platform"
+#endif
     }
     else {
        instance = new Worker(""/*identity*/, this, sender);
-       m_workers.insert(std::make_pair(sender/*identity*/, instance));
+       m_workers.insert(std::make_pair(sender, instance));
        if (m_verbose) {
-          s_console ("I: registering new worker: %s", sender.c_str()/*identity*/);
+          s_console ("I: registering new worker: %s", sender.c_str());
        }
     }
 
@@ -346,6 +365,7 @@ Broker::worker_send (Worker *worker,
         msg->dump ();
     }
     msg->send (*m_socket);
+    delete msg;
 }
 
 //  ---------------------------------------------------------------------
@@ -372,7 +392,7 @@ void
 Broker::client_msg (std::string& sender, zmsg *msg)
 {
     assert (msg && msg->parts () >= 2);     //  Service name + body
-s_console("D: client_msg %s", sender.c_str()); // GEV delete me
+//    s_console("D: client_msg %s", sender.c_str()); // GEV delete me
     std::string service_frame = msg->pop_front();
     Service *srv = service_require (service_frame);
     if (!srv)
@@ -425,13 +445,14 @@ Broker::start_brokering()
            else {
                s_console ("E: invalid message:");
                msg->dump ();
-               delete msg;
            }
+           delete msg;
        }
        //  Disconnect and delete any expired workers
        //  Send heartbeats to idle workers if needed
        if (s_clock () > m_heartbeat_at) {
            purge_workers ();
+#if 0
            // TODO: можно не посылать HEARTBEAT если от службы 
            // было получено любое сообщение, датированное в пределах 
            // интервала опроса HEARTBEAT_INTERVAL
@@ -440,6 +461,7 @@ Broker::start_brokering()
                worker_send (*it, (char*)MDPW_HEARTBEAT, "", NULL);
            }
            m_heartbeat_at = s_clock () + HEARTBEAT_INTERVAL;
+#endif
        }
    }
 }
