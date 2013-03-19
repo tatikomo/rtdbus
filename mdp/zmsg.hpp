@@ -87,6 +87,8 @@ class zmsg
    unsigned char *
    decode_uuid (ustring&);
 
+   const ustring front();
+
    // zmsg_pop
    ustring pop_front();
 

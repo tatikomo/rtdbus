@@ -262,6 +262,10 @@ zmsg::decode_uuid (ustring& uuidstr)
     return (data);
 }
 
+const ustring zmsg::front() {
+  return m_part_data.front();
+}
+
 // zmsg_pop
 ustring zmsg::pop_front() {
    if (m_part_data.size() == 0) {

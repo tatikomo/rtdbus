@@ -4,6 +4,8 @@
 #include "mdp_worker_api.hpp"
 #include "wdigger.hpp"
 
+extern int s_interrupted;
+
 int Digger::handle_request(zmsg* request, std::string*& reply_to)
 {
   assert (request->parts () >= 3);
@@ -68,7 +70,7 @@ int main(int argc, char **argv)
   try
   {
     Digger *engine = new Digger("tcp://localhost:5555", "NYSE", verbose);
-    while (1) 
+    while (!s_interrupted) 
     {
        std::string * reply_to = new std::string;
        zmsg        * request  = NULL;

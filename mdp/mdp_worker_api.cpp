@@ -184,7 +184,7 @@ mdwrk::recv (std::string *&reply)
         }
 
         if (s_clock () > m_heartbeat_at) {
-            send_to_broker ((char*)MDPW_HEARTBEAT, "", NULL);
+            send_to_broker ((char*)MDPW_HEARTBEAT, NULL, NULL);
             m_heartbeat_at = s_clock () + m_heartbeat;
         }
     }

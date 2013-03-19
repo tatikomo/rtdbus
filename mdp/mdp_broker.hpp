@@ -45,7 +45,7 @@ class Broker {
    //  ---------------------------------------------------------------------
    //  Dispatch requests to waiting workers as possible
    void
-   service_dispatch (Service *srv, zmsg *msg);
+   service_dispatch (Service *srv/*, zmsg *msg*/);
 
    //  ---------------------------------------------------------------------
    //  Handle internal service according to 8/MMI specification

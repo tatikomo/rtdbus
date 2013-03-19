@@ -42,20 +42,20 @@ Worker::Worker(const char* identity, Broker* broker, std::string& address)
 //  broker->services.
 Service::~Service ()
 {
-   for(size_t i = 0; i < m_requests.size(); i++) {
-        delete m_requests[i];
+   while (m_requests.size()) {
+        delete m_requests[0];
    }
    m_requests.clear();
 
-   for(size_t i = 0; i < m_waiting.size(); i++) {
-        delete m_waiting[i];
+   while (m_waiting.size()) {
+        delete m_waiting[0];
    }
    m_waiting.clear();
 
    // Очистить список блокированных команд
    //  Free memory keeping  blacklisted commands.
-   for(size_t i = 0; i < m_blacklist.size(); i++) {
-        delete &m_blacklist[i];
+   while (m_blacklist.size()) {
+        delete &m_blacklist[0];
    }
    m_blacklist.clear();
 }
