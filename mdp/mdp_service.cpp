@@ -28,13 +28,17 @@ Worker::Worker(const char* identity, Service * service, int64_t expiry)
    m_expiry = expiry;
 }
 
-Worker::Worker(const char* identity, Broker* broker, std::string& address)
+Worker::Worker(Broker* broker, std::string& identity)
 {
-   assert(identity != 0);
+   assert(broker != 0);
    m_broker = broker;
-   m_address = address;
    // скопировать identity, поскольку он однозначно идентифицирует экземпляр
-   m_identity = address; // TODO: может удалить вообще address?
+   m_identity = identity;
+}
+
+const std::string& Worker::get_identity()
+{
+  return const_cast<std::string&> (m_identity);
 }
 
 //  ---------------------------------------------------------------------
@@ -62,6 +66,7 @@ Service::~Service ()
 
 Service::Service(std::string& name)
 {
+   m_workers = 0;
    m_name = name;
 }
 
@@ -95,7 +100,14 @@ Service::dispatch ()
 }
 
 void
-Service::enable_command (std::string& /*const char **/command)
+Service::attach_worker(Worker* wrk)
+{
+  m_waiting.push_back(wrk);
+  m_workers++;
+}
+
+void
+Service::enable_command (const std::string& command)
 {
     // попробуем найти полученную команду в списке заблокированных
     for(std::vector<std::string>::iterator it = m_blacklist.begin();
@@ -110,7 +122,7 @@ Service::enable_command (std::string& /*const char **/command)
 }
 
 void
-Service::disable_command (std::string& /*const char **/command)
+Service::disable_command (const std::string& command)
 {
     bool exist = false;
 
@@ -132,7 +144,7 @@ Service::disable_command (std::string& /*const char **/command)
 }
 
 bool
-Service::is_command_enabled (std::string& /*const char **/command)
+Service::is_command_enabled (const std::string& command)
 {
     bool exist = false;
 

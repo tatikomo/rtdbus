@@ -53,7 +53,7 @@ zmsg::~zmsg() {
 //  --------------------------------------------------------------------------
 //  Erases all messages
 void zmsg::clear() {
-    std::cerr <<  "on " << this << " zmsg::clear() " << parts() << " parts" << std::endl;
+//    std::cerr <<  "on " << this << " zmsg::clear() " << parts() << " parts" << std::endl;
     m_part_data.clear();
 }
 

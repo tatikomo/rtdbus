@@ -27,18 +27,20 @@ class Worker
    bool
    expired ();
    
+   const std::string& 
+   get_identity();
 
  private:
    Broker      * m_broker;     //  Broker instance
    std::string   m_identity;   //  Identity of worker
-   std::string   m_address;    //  Address to route to
+//   std::string   m_address;    //  Address to route to
    Service     * m_service;    //  Owning service, if known
    int64_t       m_expiry;     //  Expires at unless heartbeat
 
    //  ---------------------------------------------------------------------
    //  Constructor is private, only used from broker
    Worker(const char* identity, Service * service = 0, int64_t expiry = 0);
-   Worker(const char* identity, Broker* broker, std::string& address);
+   Worker(Broker* broker, std::string& identity);
 };
 
 //  This defines a single Service
@@ -61,13 +63,16 @@ class Service
     dispatch ();
 
    void
-    enable_command (std::string& command);
+    attach_worker(Worker*);
 
    void
-    disable_command (std::string& command);
+    enable_command (const std::string& command);
+
+   void
+    disable_command (const std::string& command);
     
    bool
-    is_command_enabled (std::string& command);
+    is_command_enabled (const std::string& command);
 
  private:
     Broker              * m_broker;   //  Broker instance

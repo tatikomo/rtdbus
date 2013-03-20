@@ -34,6 +34,10 @@ class Broker {
    void
    purge_workers ();
 
+   // Регистрировать новый экземпляр Worker-a
+   //  ---------------------------------------------------------------------
+   void add_new_worker(Worker* instance);
+
    //  ---------------------------------------------------------------------
    //  Locate or create new service entry
    Service *

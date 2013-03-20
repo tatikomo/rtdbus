@@ -58,6 +58,12 @@ Broker::bind (std::string endpoint)
     s_console ("I: MDP Broker/0.2.0 is active at %s", endpoint.c_str());
 }
 
+void Broker::add_new_worker(Worker* instance)
+{
+  assert(instance);
+  m_workers.insert(std::make_pair(instance->get_identity(), instance));
+}
+
 //  ---------------------------------------------------------------------
 //  Delete any idle workers that haven't pinged us in a while.
 void
@@ -80,23 +86,23 @@ Broker::purge_workers ()
 //  ---------------------------------------------------------------------
 //  Locate or create new service entry
 Service *
-Broker::service_require (std::string& name)
+Broker::service_require (std::string& service_name)
 {
-    assert (name.size() > 0);
+    assert (service_name.size() > 0);
 
-    if (m_services.count(name)) {
-        s_console("I: service '%s' is registered", name.c_str());
+    if (m_services.count(service_name)) {
+        s_console("I: service '%s' is registered", service_name.c_str());
 #if TYPE_OS == SOLARIS
-        return m_services.find(name)->second;
+        return m_services.find(service_name)->second;
 #elif TYPE_OS == LINUX
-        return m_services.at(name);
+        return m_services.at(service_name);
 #else
 #error "Unknown platform"
 #endif
     } else {
-        s_console("W: service '%s' is not registered", name.c_str());
-        Service * srv = new Service(name);
-        m_services.insert(std::make_pair(name, srv));
+        s_console("W: service '%s' is not registered", service_name.c_str());
+        Service * srv = new Service(service_name);
+        m_services.insert(std::make_pair(service_name, srv));
         if (m_verbose) {
             s_console ("I: received message:");
         }
@@ -207,26 +213,26 @@ Broker::service_internal (std::string service_name, zmsg *msg)
 //  Lazy constructor that locates a worker by identity, or creates a new
 //  worker if there is no worker already with that identity
 Worker *
-Broker::worker_require (std::string& sender/*, char *identity*/)
+Broker::worker_require (std::string& identity)
 {
 //    assert (identity != 0);
     Worker * instance = NULL;
 
-    if (m_workers.count(sender)) {
-//       s_console("D: worker '%s' is registered", sender.c_str());
+    if (m_workers.count(identity)) {
+//       s_console("D: worker '%s' is registered", identity.c_str());
 #if TYPE_OS == SOLARIS
-       instance = m_workers.find(sender)->second;
+       instance = m_workers.find(identity)->second;
 #elif TYPE_OS == LINUX
-       instance = m_workers.at(sender);
+       instance = m_workers.at(identity);
 #else
 #error "Unknown platform"
 #endif
     }
     else {
-       instance = new Worker(""/*identity*/, this, sender);
-       m_workers.insert(std::make_pair(sender, instance));
+       instance = new Worker(this, identity);
+       add_new_worker(instance);
        if (m_verbose) {
-          s_console ("I: registering new worker: %s", sender.c_str());
+          s_console ("I: registering new worker instance: %s", identity.c_str());
        }
     }
 
@@ -285,8 +291,6 @@ Broker::worker_msg (std::string& sender, zmsg *msg)
     bool worker_ready = m_workers.count(sender)>0;
     Worker *wrk = worker_require (sender);
 
-//    zclock_log ("############## command is '%s'", command.c_str());
-
     if (command.compare (MDPW_READY) == 0) {
         if (worker_ready)  {              //  Not first command in session
             worker_delete (wrk, 1);
@@ -296,11 +300,15 @@ Broker::worker_msg (std::string& sender, zmsg *msg)
              && sender.find_first_of("mmi.") == 0) {
                 worker_delete (wrk, 1);
             }
-            else {
-                //  Attach worker to service and mark as idle
+            else { //  Attach worker to service and mark as idle
+                // Получить название сервиса
                 std::string service_name = msg->pop_front();
+                // найти сервис по имени или создать новый
                 wrk->m_service = service_require (service_name);
-                wrk->m_service->m_workers++;
+
+                // Привязать нового Worker-a к Сервису, им реализуемому
+                wrk->m_service->attach_worker(wrk);
+
                 worker_waiting (wrk);
                 service_dispatch(wrk->m_service);
                 zclock_log ("worker '%s' created", sender.c_str());
@@ -372,12 +380,11 @@ Broker::worker_send (Worker *worker,
     msg->push_front (command);
     msg->push_front ((char*)MDPW_WORKER);
     //  Stack routing envelope to start of message
-    assert(worker->m_address.size()>0);
-    msg->wrap(worker->m_address.c_str(), EMPTY_FRAME);
+    msg->wrap(worker->get_identity().c_str(), EMPTY_FRAME);
 
     if (m_verbose) {
         s_console ("I: sending %s to worker (%s)",
-            mdpw_commands [(int) *command], worker->m_address.c_str());
+            mdpw_commands [(int) *command], worker->get_identity().c_str());
         msg->dump ();
     }
     msg->send (*m_socket);
