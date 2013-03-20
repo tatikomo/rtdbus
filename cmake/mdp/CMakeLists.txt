@@ -1,6 +1,3 @@
-set (PROJECT mdp)
-project (${PROJECT})
-
 set(MDP_DIR ${CMAKE_SOURCE_DIR}/../mdp)
 set(MDP_BROKER broker)
 set(MDP_LIBRARY_NAME mdp)
@@ -19,13 +16,17 @@ endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
 include_directories(${MDP_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})
+include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
 
 link_directories(${LIBZMQ_LIBRARIES_DIR})
+link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
+#link_directories(${CMAKE_SOURCE_DIR}/../cmake/lib)
 
 set (MDP_SOURCES
         ${MDP_DIR}/zmsg.hpp
         ${MDP_DIR}/zmsg.cpp
         ${MDP_DIR}/mdp_common.h
+        ${MDP_DIR}/mdp_helpers.hpp
         ${MDP_DIR}/mdp_client_async_api.hpp
         ${MDP_DIR}/mdp_client_async_api.cpp
         ${MDP_DIR}/mdp_worker_api.hpp
@@ -37,6 +38,7 @@ set (BROKER_SOURCES
         ${MDP_DIR}/zmsg.hpp
         ${MDP_DIR}/zmsg.cpp
         ${MDP_DIR}/mdp_common.h
+        ${MDP_DIR}/mdp_helpers.hpp
         ${MDP_DIR}/mdp_service.hpp
         ${MDP_DIR}/mdp_service.cpp
         ${MDP_DIR}/mdp_broker.hpp
@@ -44,8 +46,8 @@ set (BROKER_SOURCES
 
 # Сборка библиотеки
 ##########################################################
-add_library (${PROJECT} ${MDP_SOURCES})
-target_link_libraries(${PROJECT}
+add_library (${MDP_LIBRARY_NAME} ${MDP_SOURCES})
+target_link_libraries(${MDP_LIBRARY_NAME}
     ${LIBZMQ_LIBRARIES}
     ${SYSTEM_EXTERNAL_LIBS})
 
@@ -53,13 +55,9 @@ target_link_libraries(${PROJECT}
 ##########################################################
 add_executable (${MDP_BROKER} ${BROKER_SOURCES})
 # каталог генерации libmdp.so
-link_directories(${CMAKE_SOURCE_DIR}/../cmake/lib)
 target_link_libraries(${MDP_BROKER}
     ${LIBZMQ_LIBRARIES}
+    ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${MDP_LIBRARY_NAME}
     ${SYSTEM_EXTERNAL_LIBS})
 
-#add_executable (${CLIENT_NAME} ${CLIENT_SOURCES})
-#target_link_libraries(${CLIENT_NAME} 
-#    ${LIBZMQ_LIBRARIES} 
-#    ${SYSTEM_EXTERNAL_LIBS})

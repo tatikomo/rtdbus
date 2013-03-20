@@ -3,6 +3,13 @@
 #include "mdp_broker.hpp"
 #include "zmsg.hpp"
 
+#ifdef __cplusplus
+extern "C" {
+#include "mco.h"
+}
+#endif
+
+
 //  ---------------------------------------------------------------------
 //  Signal handling
 //
@@ -34,6 +41,17 @@ Broker::Broker (int verbose)
     m_socket = new zmq::socket_t(*m_context, ZMQ_ROUTER);
     m_verbose = verbose;
     m_heartbeat_at = s_clock () + HEARTBEAT_INTERVAL;
+
+    mco_get_runtime_info(&info);
+    if (!info.mco_shm_supported)
+    {
+        printf("\nThis program requires shared memory database runtime\n");
+        exit(1);
+    }
+    else
+    {
+        printf("\nThis program uses shared memory database runtime\n");
+    }
 }
 
 //  ---------------------------------------------------------------------

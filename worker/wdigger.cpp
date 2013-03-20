@@ -77,7 +77,10 @@ int main(int argc, char **argv)
 
        request = engine->recv (reply_to);
        if (request)
+       {
          engine->handle_request (request, reply_to);
+         delete reply_to;
+       }
        else
          break;          // Worker has been interrupted
     }

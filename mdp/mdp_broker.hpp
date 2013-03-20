@@ -9,6 +9,8 @@
 #include "mdp_broker.hpp"
 #include "mdp_service.hpp"
 
+#include "mco.h"
+
 //
 //  This defines a single broker
 class Broker {
@@ -104,6 +106,15 @@ class Broker {
     std::map<std::string, Service*> m_services;//  Hash of known services
     std::map<std::string, Worker*>  m_workers; //  Hash of known workers
     std::vector<Worker*>            m_waiting; //  List of waiting workers
+
+
+    MCO_RET rc;
+    mco_db_h db;
+    void* start_mem;
+    mco_runtime_info_t info;
+    char* dbsFileName;
+    char* logFileName;
+
 };
 
 #endif

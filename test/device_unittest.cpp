@@ -55,6 +55,41 @@ TEST(TestHelper, CLOCK)
   EXPECT_TRUE(2 > (after - before - 1000));
 }
 
+/*
+ * Должны быть запущены Брокер и ECHO-Сервис
+ */
+TEST(TestClient, EXCHANGE)
+{
+  int verbose = 0;
+  int count;
+  const int MSG_COUNT = 4;
+  mdcli *session = NULL;
+  zmsg  *reply   = NULL;
+  zmsg  *request = NULL;
+
+  session = new mdcli ("tcp://localhost:5555", verbose);
+  EXPECT_TRUE(session != NULL);
+  
+  for (count = 0; count < 4; count++) 
+  {
+     request = new zmsg ();
+     EXPECT_TRUE(request != NULL);
+
+     request->push_front((char*)"Hello world");
+     session->send ("echo", request);
+     
+     reply = session->recv ();
+     EXPECT_TRUE(reply != NULL);
+
+     if (reply)
+          delete reply;
+     else
+          break;              //  Interrupt or failure
+  }
+  EXPECT_TRUE (count == MSG_COUNT);
+  delete session;
+}
+
 /*TEST(TestWorker, Creation)
 {
   std::string broker = "tcp://localhost:5555";
