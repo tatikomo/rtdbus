@@ -7,15 +7,28 @@
 char *service_name = (char*)"service_test_1";
 XDBDatabaseBroker *database;
 
-TEST(TestBrokerDATABASE, CREATE)
+TEST(TestBrokerDATABASE, OPEN)
 {
     bool status;
+    XDBDatabase::DBState state;
 
     database = new XDBDatabaseBroker();
     ASSERT_TRUE (database != NULL);
 
+    state = database->State();
+    EXPECT_EQ(state, XDBDatabase::DISCONNECTED);
+
     status = database->Connect();
     EXPECT_EQ(status, true);
+
+    state = database->State();
+    EXPECT_EQ(state, XDBDatabase::CONNECTED);
+
+    status = database->Open();
+    EXPECT_EQ(status, true);
+
+    state = database->State();
+    EXPECT_EQ(state, XDBDatabase::OPENED);
 }
 
 TEST(TestBrokerDATABASE, INSERT)
