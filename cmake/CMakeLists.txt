@@ -88,9 +88,11 @@ set(RTDBUS_DAEMONDIR         ${EXPANDED_BINDIR})
 
 # добавил для тестов - где задавать структуру каталога исходников?
 set(MDP_DIR                  ${CMAKE_SOURCE_DIR}/../mdp)
+set(XDB_DIR                  ${CMAKE_SOURCE_DIR}/../database)
 set(WORKER_DIR               ${CMAKE_SOURCE_DIR}/../worker)
 set(CLIENT_DIR               ${CMAKE_SOURCE_DIR}/../client)
 set(MDP_LIBRARY_NAME         mdp)
+set(XDB_LIBRARY_NAME         xdb)
 
 OPTION(RTDBUS_BUILD_TESTS "enable unit test code" ON)
  
@@ -136,7 +138,7 @@ add_subdirectory( mdp )
 add_subdirectory( worker )
 add_subdirectory( client )
 #add_subdirectory( rtdbus )
-#add_subdirectory( database )
+add_subdirectory( database )
 #add_subdirectory( transport )
 if (RTDBUS_BUILD_TESTS)
   add_subdirectory( test )

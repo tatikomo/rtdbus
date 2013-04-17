@@ -23,6 +23,7 @@ link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 #link_directories(${CMAKE_SOURCE_DIR}/../cmake/lib)
 
 set (MDP_SOURCES
+        ${CMAKE_SOURCE_DIR}/config.h
         ${MDP_DIR}/zmsg.hpp
         ${MDP_DIR}/zmsg.cpp
         ${MDP_DIR}/mdp_common.h
@@ -33,6 +34,7 @@ set (MDP_SOURCES
         ${MDP_DIR}/mdp_worker_api.cpp)
 
 set (BROKER_SOURCES
+        ${CMAKE_SOURCE_DIR}/config.h
         ${MDP_DIR}/proxy.hpp
         ${MDP_DIR}/proxy.cpp
         ${MDP_DIR}/zmsg.hpp

@@ -133,6 +133,8 @@ mdcli::recv ()
         ustring service = msg->pop_front();
         assert (service.compare(service) == 0);
 
+        // TODO: добавить фрейм КОМАНДА
+
         return msg;     //  Success
    }
 

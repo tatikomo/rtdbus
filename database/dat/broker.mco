@@ -1,0 +1,34 @@
+/*
+ * Создать структуры Service и Worker
+ */
+
+#define MAX_SERVICES_ENTRY  400
+#define uint4               unsigned<4>
+#define service_name_t      char<32>
+#define identity_t          char<11>
+
+
+declare database xdb_broker;
+
+struct point_oid
+{
+  uint4      id;
+};
+
+declare oid point_oid[10000]; /* 10000 uniq points */
+
+/* Acquisition system */
+class Services
+{
+  oid;
+  service_name_t name;
+  hash           <name> pair[MAX_SERVICES_ENTRY]; /* */
+};
+
+class Workers
+{
+  oid;
+  identity_t identity;
+    
+};
+
