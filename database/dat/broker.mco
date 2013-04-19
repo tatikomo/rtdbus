@@ -15,20 +15,19 @@ struct point_oid
   uint4      id;
 };
 
-declare oid point_oid[10000]; /* 10000 uniq points */
+declare auto_oid [1000]; /* 1000 uniq points */
 
 /* Acquisition system */
 class Services
 {
-  oid;
+  autoid[100];
   service_name_t name;
   hash           <name> pair[MAX_SERVICES_ENTRY]; /* */
 };
 
 class Workers
 {
-  oid;
+  autoid[100];
   identity_t identity;
-    
 };
 

@@ -29,7 +29,6 @@ class XDBDatabaseImpl
   private:
     char m_name[DATABASE_NAME_MAXLEN+1];
     const XDBDatabase    *m_self;
-    XDBDatabase::DBState  m_state;
 };
 
 #endif

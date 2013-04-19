@@ -5,6 +5,7 @@
 #include "xdb_database.hpp"
 
 class XDBDatabaseBrokerImpl;
+class XDBService;
 
 class XDBDatabaseBroker : public XDBDatabase
 {
@@ -13,9 +14,10 @@ class XDBDatabaseBroker : public XDBDatabase
     ~XDBDatabaseBroker();
 
     bool Open();
-    bool AddService(char *service_name);
-    bool RemoveService(char *service_name);
-    bool IsServiceExist(char *service_name);
+    bool AddService(char*);
+    bool RemoveService(char*);
+    bool IsServiceExist(char*);
+    XDBService *GetServiceByName(char*);
 
   private:
     XDBDatabaseBrokerImpl *m_impl;

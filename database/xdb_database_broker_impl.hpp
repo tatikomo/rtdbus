@@ -10,6 +10,7 @@ extern "C" {
 
 #include "xdb_database_broker.hpp"
 
+class XDBService;
 
 /* Фактическая реализация функциональности Базы Данных для Брокера */
 class XDBDatabaseBrokerImpl
@@ -21,9 +22,12 @@ class XDBDatabaseBrokerImpl
     bool AddService(const char*);
     bool RemoveService(const char*);
     bool IsServiceExist(const char*);
+    XDBService *GetServiceByName(const char*);
 
   private:
     const XDBDatabaseBroker *m_self;
+    void  LogError(MCO_RET, const char*, const char*);
+
     mco_db_h db;
     bool AttachToInstance();
 #ifdef DISK_DATABASE

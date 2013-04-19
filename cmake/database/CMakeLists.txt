@@ -27,6 +27,8 @@ set (XDB_SOURCES
         ${XDB_DIR}/xdb_database_broker.hpp
         ${XDB_DIR}/xdb_database_broker_impl.cpp
         ${XDB_DIR}/xdb_database_broker_impl.hpp
+        ${XDB_DIR}/xdb_database_service.cpp
+        ${XDB_DIR}/xdb_database_service.hpp
         )
 
 # Сборка библиотеки

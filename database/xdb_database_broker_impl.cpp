@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -7,10 +8,12 @@ extern "C" {
 }
 #endif
 
+#include "dat/xdb_broker.hpp"
 #include "xdb_database_broker.hpp"
 #include "xdb_database_broker_impl.hpp"
+#include "xdb_database_service.hpp"
 
-const int   SEGSZ = 1024 * 1024 * 10; // 10M
+const int   SEGSZ = 1024 * 1024 * 1; // 1M
 const int   MAP_ADDRESS = 0x20000000;
 
 #ifndef MCO_PLATFORM_X64
@@ -72,27 +75,43 @@ XDBDatabaseBrokerImpl::~XDBDatabaseBrokerImpl()
 
   printf("\t~XDBDatabaseBrokerImpl(%p, %s)\n", 
         (void*)m_self,
-        ((XDBDatabaseBroker*)m_self)->DatabaseName());
+        ((XDBDatabase*)m_self)->DatabaseName());
+}
+
+void XDBDatabaseBrokerImpl::LogError(MCO_RET rc, 
+            const char *functionName, 
+            const char *msg)
+{
+    const char *empty = "";
+    printf("E %s: %s [rc=%d]\n", 
+        functionName? functionName : empty,
+        msg? msg : empty,
+        rc);
 }
 
 bool XDBDatabaseBrokerImpl::Open()
 {
-  switch (((XDBDatabaseBroker*)m_self)->State())
+  switch (((XDBDatabase*)m_self)->State())
   {
     case XDBDatabase::OPENED:
       printf("\tTry to reopen database %s\n",
-        ((XDBDatabaseBroker*)m_self)->DatabaseName());
+        ((XDBDatabase*)m_self)->DatabaseName());
     break;
 
+    case XDBDatabase::CONNECTED:
     case XDBDatabase::CLOSED:
-    case XDBDatabase::DISCONNECTED:
         AttachToInstance();
+    break;
+
+    case XDBDatabase::DISCONNECTED:
+      printf("\tTry to reopen disconnected database %s\n",
+        ((XDBDatabase*)m_self)->DatabaseName());
     break;
 
     default:
       printf("\tUnknown database %s state %d\n",
-        ((XDBDatabaseBroker*)m_self)->DatabaseName(),
-        (int)((XDBDatabaseBroker*)m_self)->State());
+        ((XDBDatabase*)m_self)->DatabaseName(),
+        (int)((XDBDatabase*)m_self)->State());
     break;
   }
 }
@@ -103,27 +122,27 @@ bool XDBDatabaseBrokerImpl::AttachToInstance()
 
     /* подключиться к базе данных, предполагая что она создана */
     printf("\nattaching to instance '%s'\n",
-           ((XDBDatabaseBroker*)m_self)->DatabaseName());
-    rc = mco_db_connect(((XDBDatabaseBroker*)m_self)->DatabaseName(),
+           ((XDBDatabase*)m_self)->DatabaseName());
+    rc = mco_db_connect(((XDBDatabase*)m_self)->DatabaseName(),
             &db);
 
     /* ошибка - экземпляр базы не найден, попробуем создать её */
     if (rc == MCO_E_NOINSTANCE)
     {
         printf("'%s' instance not found, create\n",
-            ((XDBDatabaseBroker*)m_self)->DatabaseName());
+            ((XDBDatabase*)m_self)->DatabaseName());
         /*
          * TODO: Использование mco_db_open() является запрещенным,
          * начиная с версии 4 и старше
          */
 #if EXTREMEDB_VER >= 40
-        rc = mco_db_open_dev(((XDBDatabaseBroker*)m_self)->DatabaseName(),
+        rc = mco_db_open_dev(((XDBDatabase*)m_self)->DatabaseName(),
                          xdb_broker_get_dictionary(),
                          (void*)MAP_ADDRESS,
                          SEGSZ + DB_DISK_CACHE,
                          PAGESIZE);
 #else
-        rc = mco_db_open(((XDBDatabaseBroker*)m_self)->DatabaseName(),
+        rc = mco_db_open(((XDBDatabase*)m_self)->DatabaseName(),
                          xdb_broker_get_dictionary(),
                          (void*)MAP_ADDRESS,
                          SEGSZ + DB_DISK_CACHE,
@@ -132,7 +151,7 @@ bool XDBDatabaseBrokerImpl::AttachToInstance()
 
 #ifdef DISK_DATABASE
         printf("Disk database '%s' opening\n", m_dbsFileName);
-        rc = mco_disk_open(((XDBDatabaseBroker*)m_self)->DatabaseName(),
+        rc = mco_disk_open(((XDBDatabase*)m_self)->DatabaseName(),
                            m_dbsFileName,
                            m_logFileName, 
                            0, 
@@ -150,8 +169,8 @@ bool XDBDatabaseBrokerImpl::AttachToInstance()
 
         /* подключиться к базе данных, т.к. она только что создана */
         printf("connecting to instance '%s'\n", 
-            ((XDBDatabaseBroker*)m_self)->DatabaseName());
-        rc = mco_db_connect(((XDBDatabaseBroker*)m_self)->DatabaseName(), &db);
+            ((XDBDatabase*)m_self)->DatabaseName());
+        rc = mco_db_connect(((XDBDatabase*)m_self)->DatabaseName(), &db);
     }
 
     /* ошибка создания экземпляра - выход из системы */
@@ -161,36 +180,174 @@ bool XDBDatabaseBrokerImpl::AttachToInstance()
         return false;
     }
 
+    ((XDBDatabase*)m_self)->TransitionToState(XDBDatabase::OPENED);
     return true;
 }
 
 bool XDBDatabaseBrokerImpl::AddService(const char *name)
 {
-  bool status = false;
+  const char    *fctName = "XDBDatabaseBrokerImpl::AddService";
+  bool           status = false;
+  xdb_broker::Services instance;
+  MCO_RET        rc;
+  mco_trans_h    t;
 
   assert(name);
-  printf("\t\tAddService %s\n", name);
+  rc = mco_trans_start(db, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+  while (rc == MCO_S_OK)
+  {
+    if (rc) { LogError(rc, fctName, "transaction starting failure"); break; }
 
-  return true;
+    printf("creating...\n");
+    rc = instance.create(t);
+    if (rc) { LogError(rc, fctName, "instance creating failure"); break; }
+
+    printf("name_put...\n");
+    rc = instance.name_put(name, strlen(name));
+    if (rc) { LogError(rc, fctName, "name setting failure"); break; }
+
+    printf("checkpoint...\n");
+    rc = instance.checkpoint();
+    if (rc) { LogError(rc, fctName, "checkpointing failure"); break; }
+
+    printf("commit...\n");
+    rc = mco_trans_commit(t);
+    if (rc) { LogError(rc, fctName, "transaction commitment failure"); break; }
+
+    status = true;
+    break;
+  }
+
+  if (rc)
+    mco_trans_rollback(t);
+
+  return status;
 }
 
+#if 0
+  XDBService *service = NULL;
+  if (NULL != (service = GetServiceByName(name)))
+  {
+      oid.id = service->GetID();
+      rc = instance.create(t, &oid);
+      if (rc) { LogError(rc, fctName, "creating failure"); break; }
+      rc = instance.remove();
+      if (rc) { LogError(rc, fctName, "removing failure"); break; }
+      delete service;
+  }
+#endif
+
+/*
+ * Удалить запись о заданном сервисе
+ * - найти указанную запись в базе
+ *   - если найдена, удалить её
+ *   - если не найдена, вернуть ошибку
+ */
 bool XDBDatabaseBrokerImpl::RemoveService(const char *name)
 {
-  bool status = false;
+  const char *fctName = "XDBDatabaseBrokerImpl::RemoveService";
+  bool        status = false;
+  xdb_broker::Services instance;
+  MCO_RET        rc;
+  mco_trans_h    t;
 
   assert(name);
-  printf("\t\tRemoveService %s\n", name);
+  rc = mco_trans_start(db, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+  while (rc == MCO_S_OK)
+  {
+    if (rc) { LogError(rc, fctName, "transaction starting failure"); break; }
 
-  return true;
+    /* найти запись в таблице сервисов с заданным именем */
+    rc = xdb_broker::Services::pair::find(t, name, strlen(name), instance);
+    if (MCO_S_NOTFOUND == rc) 
+    { 
+        LogError(rc, fctName, "removed service doesn't exists"); break;
+    }
+    if (rc) { LogError(rc, fctName, "searching failure"); break; }
+    
+    rc = instance.remove();
+    if (rc) { LogError(rc, fctName, "removing service failure"); break; }
+
+    status = true;
+    break;
+  }
+
+  if (rc)
+    mco_trans_rollback(t);
+  else
+    mco_trans_commit(t);
+
+  return status;
+}
+
+/*
+ * Найти в базе данных запись о Сервисе по его имени
+ * @return Новый объект, представляющий Сервис
+ * Вызываюшая сторона должна сама удалить объект возврата
+ */
+XDBService *XDBDatabaseBrokerImpl::GetServiceByName(const char* name)
+{
+  const char   *fctName = "XDBDatabaseBrokerImpl::GetServiceByName";
+  MCO_RET       rc;
+  bool          status = false;
+  mco_trans_h   t;
+  xdb_broker::Services instance;
+  XDBService *service = NULL;
+  /* NB: 32 - это размер поля service_name_t из broker.mco */
+  char     name_from_db[32+1];
+  uint2    name_from_db_length = sizeof(name_from_db)-1;
+  autoid_t id;
+
+  rc = mco_trans_start(db, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
+  while (rc == MCO_S_OK)
+  {
+    /* найти запись в таблице сервисов с заданным именем */
+    rc = xdb_broker::Services::pair::find(t, name, strlen(name), instance);
+
+    /* Запись не найдена - нет ошибки */
+    if (MCO_S_NOTFOUND == rc) break;
+
+    /* Запись не найдена - есть ошибка - сообщить */
+    if (rc) { LogError(rc, fctName, "\t\tlocating service failure"); break; }
+
+    /* Запись найдена - сконструировать объект на основе данных из БД */
+    rc = instance.name_get(name_from_db, name_from_db_length);
+    if (rc) { LogError(rc, fctName, "\t\tget service name failure"); break; }
+    rc = instance.autoid_get(id);
+    if (rc) { LogError(rc, fctName, "\t\tget service id failure"); break; }
+
+    service = new XDBService(id, name_from_db);
+    break;
+  }
+
+  if (rc)
+    mco_trans_rollback(t);
+  else
+    mco_trans_commit(t);
+
+
+  return service;
 }
 
 bool XDBDatabaseBrokerImpl::IsServiceExist(const char *name)
 {
-  bool status = false;
+  const char   *fctName = "XDBDatabaseBrokerImpl::IsServiceExist";
+  MCO_RET       rc;
+  bool          status = false;
+  mco_trans_h   t;
+  xdb_broker::Services instance;
 
   assert(name);
-  printf("\t\tIsServiceExist %s\n", name);
+  rc = mco_trans_start(db, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
+  if (rc)
+  {
+    LogError(rc, fctName, NULL);
+    mco_trans_rollback(t);
+    return false;
+  }
+  rc = xdb_broker::Services::pair::find(t, name, strlen(name), instance);
+  mco_trans_commit(t);
 
-  return true;
+  return (MCO_S_NOTFOUND == rc)? false:true;
 }
 

@@ -2,6 +2,7 @@
 #include "gtest/gtest.h"
 
 #include "xdb_database_broker.hpp"
+#include "xdb_database_service.hpp"
 #include "dat/xdb_broker.hpp"
 
 char *service_name = (char*)"service_test_1";
@@ -49,9 +50,17 @@ TEST(TestBrokerDATABASE, CHECK_EXIST)
 {
     bool status;
     char *unbelievable_service_name = (char*)"unbelievable_service";
+    XDBService *service = NULL;
     
     status = database->IsServiceExist(service_name);
     EXPECT_EQ(status, true);
+
+    service = database->GetServiceByName(service_name);
+    ASSERT_TRUE (service != NULL);
+    ASSERT_TRUE(strcmp(service->GetNAME(), service_name) == 0);
+    printf("%s.auto_id = %lld\n", service->GetNAME(), service->GetID());
+    if (service)
+      delete service;
 
     status = database->IsServiceExist(unbelievable_service_name);
     EXPECT_EQ(status, false);

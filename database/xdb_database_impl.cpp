@@ -18,7 +18,6 @@ XDBDatabaseImpl::XDBDatabaseImpl(const XDBDatabase* self, const char* name)
     m_self = self;
     strncpy(m_name, name, DATABASE_NAME_MAXLEN);
     m_name[DATABASE_NAME_MAXLEN] = '\0';
-    m_state = XDBDatabase::DISCONNECTED;
 
     printf("\tXDBDatabaseImpl(%p, %s)\n", (void*)self, name);
 }
@@ -28,18 +27,11 @@ XDBDatabaseImpl::~XDBDatabaseImpl()
     printf("\t~XDBDatabaseImpl(%p, %s)\n", (void*)m_self, m_name);
     if (false == Disconnect())
       printf("disconnecting failure\n");
-
-    m_state = XDBDatabase::DELETED;
 }
 
 const char* XDBDatabaseImpl::DatabaseName()
 {
     return m_name;
-}
-
-const XDBDatabase::DBState XDBDatabaseImpl::State()
-{
-    return m_state;
 }
 
 bool XDBDatabaseImpl::Connect()
@@ -63,7 +55,6 @@ bool XDBDatabaseImpl::Connect()
     }
 
     status = true;
-    m_state = XDBDatabase::CONNECTED;
     return status;
 }
 
@@ -72,7 +63,6 @@ bool XDBDatabaseImpl::Open()
     bool status = false;
 
     printf("XDBDatabaseImpl Open()\n");
-//    m_state = XDBDatabase::OPENED;
     return status;
 }
 
@@ -85,8 +75,6 @@ bool XDBDatabaseImpl::Disconnect()
     {
         printf("\nCould not stop runtime: %d\n", rc);
     }
-
-    m_state = XDBDatabase::DISCONNECTED;
     return true;
 }
 
