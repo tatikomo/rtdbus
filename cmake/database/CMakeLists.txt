@@ -19,6 +19,9 @@ link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 
 set (XDB_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
+        ${XDB_DIR}/dat/xdb_broker.h
+        ${XDB_DIR}/dat/xdb_broker.c
+        ${XDB_DIR}/dat/xdb_broker.hpp
         ${XDB_DIR}/xdb_database.cpp
         ${XDB_DIR}/xdb_database.hpp
         ${XDB_DIR}/xdb_database_impl.cpp
@@ -29,8 +32,24 @@ set (XDB_SOURCES
         ${XDB_DIR}/xdb_database_broker_impl.hpp
         ${XDB_DIR}/xdb_database_service.cpp
         ${XDB_DIR}/xdb_database_service.hpp
+        ${XDB_DIR}/xdb_database_worker.cpp
+        ${XDB_DIR}/xdb_database_worker.hpp
         )
 
+add_custom_command(
+        OUTPUT 
+        ${XDB_DIR}/dat/xdb_broker.h
+        ${XDB_DIR}/dat/xdb_broker.c
+        ${XDB_DIR}/dat/xdb_broker.hpp
+        COMMAND
+        ${LIBEXTREMEDB_MCOCOMP} -hpp broker.mco -P${XDB_DIR}/dat
+        DEPENDS
+        ${XDB_DIR}/dat/broker.mco
+        WORKING_DIRECTORY
+        ${XDB_DIR}/dat
+        )
+
+                        
 # Сборка библиотеки
 ##########################################################
 #add_definitions("-pthread")

@@ -5,6 +5,7 @@
 //#include "xdb_database_service.hpp"
 
 class XDBService;
+class XDBWorker;
 
 const char *database_name = "BrokerDB";
 
@@ -30,7 +31,7 @@ bool XDBDatabaseBroker::Open()
 }
 
 /* найти в БД и вернуть объект типа Сервис */
-XDBService *XDBDatabaseBroker::GetServiceByName(char *service_name)
+XDBService *XDBDatabaseBroker::GetServiceByName(const char *service_name)
 {
   bool status = false;
   assert(m_impl);
@@ -39,7 +40,7 @@ XDBService *XDBDatabaseBroker::GetServiceByName(char *service_name)
   return m_impl->GetServiceByName(service_name);
 }
 
-bool XDBDatabaseBroker::AddService(char *service_name)
+bool XDBDatabaseBroker::AddService(const char *service_name)
 {
   bool status = false;
   assert(m_impl);
@@ -48,7 +49,7 @@ bool XDBDatabaseBroker::AddService(char *service_name)
   return m_impl->AddService(service_name);
 }
 
-bool XDBDatabaseBroker::RemoveService(char *service_name)
+bool XDBDatabaseBroker::RemoveService(const char *service_name)
 {
   bool status = false;
   assert(m_impl);
@@ -57,12 +58,39 @@ bool XDBDatabaseBroker::RemoveService(char *service_name)
   return m_impl->RemoveService(service_name);
 }
 
-bool XDBDatabaseBroker::IsServiceExist(char *service_name)
+bool XDBDatabaseBroker::IsServiceExist(const char *service_name)
 {
   bool status = false;
   assert(m_impl);
 
   if (!m_impl) return false;
   return m_impl->IsServiceExist(service_name);
+}
+
+XDBWorker *XDBDatabaseBroker::GetWaitingWorkerForService(const char *service_name)
+{
+  bool status = false;
+  assert(m_impl);
+
+  if (!m_impl) return 0;
+  return m_impl->GetWaitingWorkerForService(service_name);
+}
+
+XDBWorker *XDBDatabaseBroker::GetWaitingWorkerForService(XDBService *service)
+{
+  bool status = false;
+  assert(m_impl);
+
+  if (!m_impl) return 0;
+  return m_impl->GetWaitingWorkerForService(service);
+}
+
+bool XDBDatabaseBroker::AddWaitingWorkerForService(XDBService *service, XDBWorker *worker)
+{
+  bool status = false;
+  assert(m_impl);
+
+  if (!m_impl) return false;
+  return m_impl->AddWaitingWorkerForService(service, worker);
 }
 

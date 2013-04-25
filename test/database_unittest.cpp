@@ -3,10 +3,13 @@
 
 #include "xdb_database_broker.hpp"
 #include "xdb_database_service.hpp"
+#include "xdb_database_worker.hpp"
 #include "dat/xdb_broker.hpp"
 
 char *service_name = (char*)"service_test_1";
-XDBDatabaseBroker *database;
+char *worker_identity = (char*)"SN1_AAAAAAA";
+XDBDatabaseBroker *database = NULL;
+XDBService *service = NULL;
 
 TEST(TestBrokerDATABASE, OPEN)
 {
@@ -32,9 +35,10 @@ TEST(TestBrokerDATABASE, OPEN)
     EXPECT_EQ(state, XDBDatabase::OPENED);
 }
 
-TEST(TestBrokerDATABASE, INSERT)
+TEST(TestBrokerDATABASE, INSERT_SERVICE)
 {
     bool status;
+    int64_t id;
 
     status = database->IsServiceExist(service_name);
     EXPECT_EQ(status, false);
@@ -44,9 +48,33 @@ TEST(TestBrokerDATABASE, INSERT)
 
     status = database->IsServiceExist(service_name);
     EXPECT_EQ(status, true);
+
+    service = database->GetServiceByName(service_name);
+    ASSERT_TRUE (service != NULL);
+    id = service->GetID();
+    EXPECT_EQ(id, 1);
 }
 
-TEST(TestBrokerDATABASE, CHECK_EXIST)
+TEST(TestBrokerDATABASE, INSERT_WORKER)
+{
+    XDBWorker  *worker  = NULL;
+    bool status;
+
+    worker = database->GetWaitingWorkerForService(service);
+    /* Обработчиков еще нет - worker д.б. = NULL */
+    ASSERT_TRUE (worker == NULL);
+
+    worker = new XDBWorker(worker_identity);
+    status = database->AddWaitingWorkerForService(service, worker);
+    EXPECT_EQ(status, true);
+
+    worker = database->GetWaitingWorkerForService(service);
+    ASSERT_TRUE (worker != NULL);
+    //std::cout <<  worker->GetIDENTITY() << std::endl;
+    ASSERT_TRUE (0 == (strcmp(worker->GetIDENTITY(), worker_identity)));
+}
+
+TEST(TestBrokerDATABASE, CHECK_EXIST_SERVICE)
 {
     bool status;
     char *unbelievable_service_name = (char*)"unbelievable_service";
@@ -58,12 +86,17 @@ TEST(TestBrokerDATABASE, CHECK_EXIST)
     service = database->GetServiceByName(service_name);
     ASSERT_TRUE (service != NULL);
     ASSERT_TRUE(strcmp(service->GetNAME(), service_name) == 0);
-    printf("%s.auto_id = %lld\n", service->GetNAME(), service->GetID());
+    //printf("%s.auto_id = %lld\n", service->GetNAME(), service->GetID());
     if (service)
       delete service;
 
     status = database->IsServiceExist(unbelievable_service_name);
     EXPECT_EQ(status, false);
+}
+
+TEST(TestBrokerDATABASE, CHECK_EXIST_WORKER)
+{
+    bool status;
 }
 
 TEST(TestBrokerDATABASE, REMOVE)
@@ -83,6 +116,7 @@ TEST(TestBrokerDATABASE, REMOVE)
 TEST(TestBrokerDATABASE, DESTROY)
 {
     ASSERT_TRUE (database != NULL);
+    database->Disconnect();
     delete database;
 }
 

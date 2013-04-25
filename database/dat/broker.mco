@@ -3,31 +3,53 @@
  */
 
 #define MAX_SERVICES_ENTRY  400
+#define MAX_WORKERS_ENTRY   400
 #define uint4               unsigned<4>
+#define uint8               unsigned<8>
 #define service_name_t      char<32>
 #define identity_t          char<11>
 
 
 declare database xdb_broker;
-
+/* Пользовательская ссылка, соответствует штатному autoid_t (uint8) */
 struct point_oid
 {
-  uint4      id;
+  uint8      id;
 };
 
-declare auto_oid [1000]; /* 1000 uniq points */
+/*
+ * NB: Для использования ref должен быть объявлен пользовательский oid,
+ * поскольку фактически ссылка на другой объект имеет тип <dbname>_oid
+ */
+declare oid point_oid[1000];
+declare auto_oid [1000]; /* 1000 уникальных объектов в базе */
 
 /* Acquisition system */
-class Services
+class Service
 {
-  autoid[100];
+  /* Автоинкрементный числовой идентификатор */
+  autoid[MAX_SERVICES_ENTRY];
+  /* Имя Сервиса */
   service_name_t name;
-  hash           <name> pair[MAX_SERVICES_ENTRY]; /* */
+  /* Поиск Сервиса по имени */
+  hash           <name> pair[MAX_SERVICES_ENTRY];
+  /* Спул зарегистрированных Обработчиков данного Сервиса */
+  vector <ref>   waiting;
+  /* Доступ ко всем зарегистрированным Сервисам */
+  list;
 };
 
-class Workers
+class Worker
 {
-  autoid[100];
+  /* Автоинкрементный числовой идентификатор */
+  autoid[MAX_WORKERS_ENTRY];
+  /* Строковый идентификатор Обработчика */
   identity_t identity;
+  /* Поиск Обработчика по имени */
+  hash       <identity> pair[MAX_WORKERS_ENTRY];
+  /* Ссылка на свой экземпляр Сервиса */
+  ref        service;
+  /* Поиск экземпляра по идентификатору сервиса и identity */
+  tree       <service, identity> tree_link;
 };
 

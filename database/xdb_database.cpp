@@ -13,7 +13,7 @@ XDBDatabase::~XDBDatabase()
 {
     assert (impl);
     impl->Disconnect();
-    m_state = XDBDatabase::DELETED;
+    TransitionToState(DELETED);
     delete impl;
 }
 
@@ -34,6 +34,9 @@ bool XDBDatabase::TransitionToState(DBState new_state)
    * TODO проверить допустимость перехода из 
    * старого в новое состояние
    */
+  if (new_state == m_state)
+    return false;
+    
   m_state = new_state;
   return true;
 }
@@ -64,8 +67,12 @@ bool XDBDatabase::Connect()
 
 bool XDBDatabase::Disconnect()
 {
+    bool status = false;
+    
     assert (impl);
-    TransitionToState(DISCONNECTED);
-    return impl->Disconnect();
+    if (TransitionToState(DISCONNECTED))
+        status = impl->Disconnect();
+
+    return status;
 }
 

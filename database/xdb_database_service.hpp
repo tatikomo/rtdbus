@@ -4,6 +4,12 @@
 
 #include <stdint.h>
 
+/*
+ * Содержит
+ * 1. Название сервиса
+ * 1. список Обработчиков (Worker-ов)
+ * 2. список Команд 
+ */
 class XDBService
 {
   public:
@@ -20,9 +26,9 @@ class XDBService
     const char* GetNAME();
 
   private:
-    int64_t m_id;
-    char *m_name;
-    bool  m_modified;
+    int64_t  m_id;
+    char    *m_name;
+    bool     m_modified;
 };
 
 #endif

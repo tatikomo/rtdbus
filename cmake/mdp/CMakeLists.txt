@@ -15,12 +15,26 @@ else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
 include_directories(${MDP_DIR})
+include_directories(${XDB_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})
 include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
 
 link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 #link_directories(${CMAKE_SOURCE_DIR}/../cmake/lib)
+
+add_custom_command(
+        OUTPUT 
+        ${XDB_DIR}/dat/xdb_broker.h
+        ${XDB_DIR}/dat/xdb_broker.c
+        ${XDB_DIR}/dat/xdb_broker.hpp
+        COMMAND
+        ${LIBEXTREMEDB_MCOCOMP} -hpp broker.mco -P${XDB_DIR}/dat
+        DEPENDS
+        ${XDB_DIR}/dat/broker.mco
+        WORKING_DIRECTORY
+        ${XDB_DIR}/dat
+        )
 
 set (MDP_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
@@ -40,6 +54,9 @@ set (BROKER_SOURCES
         ${MDP_DIR}/zmsg.hpp
         ${MDP_DIR}/zmsg.cpp
         ${MDP_DIR}/mdp_common.h
+        ${XDB_DIR}/dat/xdb_broker.h
+        ${XDB_DIR}/dat/xdb_broker.c
+        ${XDB_DIR}/dat/xdb_broker.hpp
         ${MDP_DIR}/mdp_helpers.hpp
         ${MDP_DIR}/mdp_service.hpp
         ${MDP_DIR}/mdp_service.cpp
@@ -59,7 +76,8 @@ add_executable (${MDP_BROKER} ${BROKER_SOURCES})
 # каталог генерации libmdp.so
 target_link_libraries(${MDP_BROKER}
     ${LIBZMQ_LIBRARIES}
-    ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${MDP_LIBRARY_NAME}
+    ${XDB_LIBRARY_NAME}
+    ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${SYSTEM_EXTERNAL_LIBS})
 

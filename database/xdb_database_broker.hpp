@@ -6,6 +6,7 @@
 
 class XDBDatabaseBrokerImpl;
 class XDBService;
+class XDBWorker;
 
 class XDBDatabaseBroker : public XDBDatabase
 {
@@ -14,10 +15,13 @@ class XDBDatabaseBroker : public XDBDatabase
     ~XDBDatabaseBroker();
 
     bool Open();
-    bool AddService(char*);
-    bool RemoveService(char*);
-    bool IsServiceExist(char*);
-    XDBService *GetServiceByName(char*);
+    bool AddService(const char*);
+    bool RemoveService(const char*);
+    bool IsServiceExist(const char*);
+    XDBService *GetServiceByName(const char*);
+    XDBWorker  *GetWaitingWorkerForService(const char*);
+    XDBWorker  *GetWaitingWorkerForService(XDBService*);
+    bool AddWaitingWorkerForService(XDBService*, XDBWorker*);
 
   private:
     XDBDatabaseBrokerImpl *m_impl;

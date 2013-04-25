@@ -4,7 +4,7 @@
 
 XDBService::XDBService()
 {
-  m_id = -1;
+  m_id = 0;
   m_name = NULL;
   m_modified = false;
 }

@@ -46,6 +46,19 @@ set (TEST_DATABASE_SOURCES
         ${XDB_DIR}/dat/xdb_broker.c
         ${TEST_RTDBUS_DIR}/database_unittest.cpp)
 
+add_custom_command(
+        OUTPUT 
+        ${XDB_DIR}/dat/xdb_broker.h
+        ${XDB_DIR}/dat/xdb_broker.c
+        ${XDB_DIR}/dat/xdb_broker.hpp
+        COMMAND
+        ${LIBEXTREMEDB_MCOCOMP} -hpp broker.mco -P${XDB_DIR}/dat
+        DEPENDS
+        ${XDB_DIR}/dat/broker.mco
+        WORKING_DIRECTORY
+        ${XDB_DIR}/dat
+        )
+
 add_executable (${UNITTEST_DEVICE} ${TEST_DEVICE_SOURCES})
 target_link_libraries(${UNITTEST_DEVICE}
     ${MDP_LIBRARY_NAME}

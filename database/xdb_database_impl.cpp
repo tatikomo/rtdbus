@@ -19,12 +19,12 @@ XDBDatabaseImpl::XDBDatabaseImpl(const XDBDatabase* self, const char* name)
     strncpy(m_name, name, DATABASE_NAME_MAXLEN);
     m_name[DATABASE_NAME_MAXLEN] = '\0';
 
-    printf("\tXDBDatabaseImpl(%p, %s)\n", (void*)self, name);
+//    printf("\tXDBDatabaseImpl(%p, %s)\n", (void*)self, name);
 }
 
 XDBDatabaseImpl::~XDBDatabaseImpl()
 {
-    printf("\t~XDBDatabaseImpl(%p, %s)\n", (void*)m_self, m_name);
+//    printf("\t~XDBDatabaseImpl(%p, %s)\n", (void*)m_self, m_name);
     if (false == Disconnect())
       printf("disconnecting failure\n");
 }
