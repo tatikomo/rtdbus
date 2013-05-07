@@ -50,6 +50,8 @@ class XDBDatabaseBrokerImpl
 
     /* Добавить нового Обработчика в спул Сервиса */
     bool PushWorkerForService(Service*, Worker*);
+    /* TODO Worker должен содержать сведения о своем Сервисе */
+    bool PushWorker(Worker*);
 
     bool ClearWorkersForService(const char*);
     bool ClearWorkersForService(const std::string&);
