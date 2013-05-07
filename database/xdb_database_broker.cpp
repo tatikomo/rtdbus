@@ -43,7 +43,7 @@ Service *XDBDatabaseBroker::GetServiceByName(const char *service_name)
   bool status = false;
   assert(m_impl);
 
-  if (!m_impl) return false;
+  if (!m_impl) return NULL;
   return m_impl->GetServiceByName(service_name);
 }
 
