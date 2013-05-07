@@ -58,8 +58,8 @@ set (BROKER_SOURCES
         ${XDB_DIR}/dat/xdb_broker.c
         ${XDB_DIR}/dat/xdb_broker.hpp
         ${MDP_DIR}/mdp_helpers.hpp
-        ${MDP_DIR}/mdp_service.hpp
-        ${MDP_DIR}/mdp_service.cpp
+#        ${MDP_DIR}/mdp_service.hpp
+#        ${MDP_DIR}/mdp_service.cpp
         ${MDP_DIR}/mdp_broker.hpp
         ${MDP_DIR}/mdp_broker.cpp)
 

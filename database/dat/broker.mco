@@ -1,5 +1,5 @@
 /*
- * Создать структуры Service и Worker
+ * Создать структуры XDBService и XDBWorker
  */
 
 #define MAX_SERVICES_ENTRY  400
@@ -25,7 +25,7 @@ declare oid point_oid[1000];
 declare auto_oid [1000]; /* 1000 уникальных объектов в базе */
 
 /* Acquisition system */
-class Service
+class XDBService
 {
   /* Автоинкрементный числовой идентификатор */
   autoid[MAX_SERVICES_ENTRY];
@@ -39,17 +39,24 @@ class Service
   list;
 };
 
-class Worker
+class XDBWorker
 {
   /* Автоинкрементный числовой идентификатор */
   autoid[MAX_WORKERS_ENTRY];
   /* Строковый идентификатор Обработчика */
   identity_t identity;
+  /* Время ожидания получения подтверждения "Я ЖИВ" */
+  time       expiration;
   /* Поиск Обработчика по имени */
-  hash       <identity> pair[MAX_WORKERS_ENTRY];
+  hash       <identity> PK_ident[MAX_WORKERS_ENTRY];
   /* Ссылка на свой экземпляр Сервиса */
   ref        service;
   /* Поиск экземпляра по идентификатору сервиса и identity */
-  tree       <service, identity> tree_link;
+  tree       <service, identity> PK_link;
+  /*
+   * Индекс по времени истечения периода "годности" информации 
+   * о состоянии Обработчика
+   */
+  tree       <expiration> PK_expire;
 };
 

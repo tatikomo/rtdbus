@@ -83,8 +83,8 @@ XDBDatabaseBrokerImpl::~XDBDatabaseBrokerImpl()
       mco_db_kill(m_name);*/
 
 #ifdef DISK_DATABASE
-  delete m_dbsFileName;
-  delete m_logFileName;
+  delete []m_dbsFileName;
+  delete []m_logFileName;
 #endif
 
 /*  printf("\t~XDBDatabaseBrokerImpl(%p, %s)\n", 
@@ -202,7 +202,7 @@ bool XDBDatabaseBrokerImpl::AddService(const char *name)
 {
   const char    *fctName = "XDBDatabaseBrokerImpl::AddService";
   bool           status = false;
-  xdb_broker::Service instance;
+  xdb_broker::XDBService instance;
   MCO_RET        rc;
   mco_trans_h    t;
 
@@ -257,7 +257,7 @@ bool XDBDatabaseBrokerImpl::RemoveService(const char *name)
 {
   const char *fctName = "XDBDatabaseBrokerImpl::RemoveService";
   bool        status = false;
-  xdb_broker::Service instance;
+  xdb_broker::XDBService instance;
   MCO_RET        rc;
   mco_trans_h    t;
 
@@ -268,7 +268,7 @@ bool XDBDatabaseBrokerImpl::RemoveService(const char *name)
     if (rc) { LogError(rc, fctName, "transaction starting failure"); break; }
 
     /* найти запись в таблице сервисов с заданным именем */
-    rc = xdb_broker::Service::pair::find(t, name, strlen(name), instance);
+    rc = xdb_broker::XDBService::pair::find(t, name, strlen(name), instance);
     if (MCO_S_NOTFOUND == rc) 
     { 
         LogError(rc, fctName, "removed service doesn't exists"); break;
@@ -290,29 +290,50 @@ bool XDBDatabaseBrokerImpl::RemoveService(const char *name)
   return status;
 }
 
+bool XDBDatabaseBrokerImpl::RemoveWorker(Worker *wrk)
+{
+  bool status = false;
+  Service *srv = NULL;
+
+  assert(wrk);
+
+  if (srv = GetServiceById(wrk->GetSERVICE_ID()))
+  {
+    /* TODO удалить Обработчик из списка своей Службы */
+  }
+  return status;
+}
+
+
+Service *XDBDatabaseBrokerImpl::GetServiceByName(const std::string& name)
+{
+  return GetServiceByName(name.c_str());
+}
+
 /*
  * Найти в базе данных запись о Сервисе по его имени
  * @return Новый объект, представляющий Сервис
  * Вызываюшая сторона должна сама удалить объект возврата
  */
-XDBService *XDBDatabaseBrokerImpl::GetServiceByName(const char* name)
+Service *XDBDatabaseBrokerImpl::GetServiceByName(const char* name)
 {
   const char   *fctName = "XDBDatabaseBrokerImpl::GetServiceByName";
   MCO_RET       rc;
   bool          status = false;
   mco_trans_h   t;
-  xdb_broker::Service instance;
-  XDBService *service = NULL;
+  xdb_broker::XDBService instance;
+  Service *service = NULL;
   /* NB: 32 - это размер поля service_name_t из broker.mco */
   char     name_from_db[32+1];
   uint2    name_from_db_length = sizeof(name_from_db)-1;
   autoid_t id;
+  uint2         workers_waiting_count = 0;
 
   rc = mco_trans_start(m_db, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
   while (rc == MCO_S_OK)
   {
     /* найти запись в таблице сервисов с заданным именем */
-    rc = xdb_broker::Service::pair::find(t, name, strlen(name), instance);
+    rc = xdb_broker::XDBService::pair::find(t, name, strlen(name), instance);
 
     /* Запись не найдена - нет ошибки */
     if (MCO_S_NOTFOUND == rc) break;
@@ -325,8 +346,10 @@ XDBService *XDBDatabaseBrokerImpl::GetServiceByName(const char* name)
     if (rc) { LogError(rc, fctName, "\t\tget service name failure"); break; }
     rc = instance.autoid_get(id);
     if (rc) { LogError(rc, fctName, "\t\tget service id failure"); break; }
+    rc = instance.waiting_size(workers_waiting_count);
 
-    service = new XDBService(id, name_from_db);
+    service = new Service(id, name_from_db);
+    service->SetWaitingWorkersCount(workers_waiting_count);
     break;
   }
 
@@ -335,9 +358,41 @@ XDBService *XDBDatabaseBrokerImpl::GetServiceByName(const char* name)
   else
     mco_trans_commit(t);
 
-
   return service;
 }
+
+/* 
+ * Вернуть ближайший свободный Обработчик.
+ * Побочные эффекты: нет
+ */
+Worker *XDBDatabaseBrokerImpl::GetWorkerForService(const Service *srv)
+{
+  const char   *fctName = "XDBDatabaseBrokerImpl::GetWorkerForService";
+  MCO_RET       rc;
+  bool          status = false;
+  mco_trans_h   t;
+  xdb_broker::XDBService instance;
+  Worker       *worker = NULL;
+  xdb_broker_oid oid;
+
+  assert(srv);
+  rc = mco_trans_start(m_db, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
+  while (rc == MCO_S_OK)
+  {
+    rc = instance.waiting_at((uint2)0, oid);
+    if (rc) { LogError(rc, fctName, "service's get waiting worker failure"); break; }
+
+    break;
+  }
+
+  if (rc)
+    mco_trans_rollback(t);
+  else
+    mco_trans_commit(t);
+
+  return worker;
+}
+
 
 /* 
  * Вернуть ближайший свободный Обработчик.
@@ -345,13 +400,13 @@ XDBService *XDBDatabaseBrokerImpl::GetServiceByName(const char* name)
  * Побочные эффекты:
  * Выбранный экземпляр в базе данных удаляется из списка ожидающих
  */
-XDBWorker *XDBDatabaseBrokerImpl::GetWaitingWorkerForService(const char *name)
+Worker *XDBDatabaseBrokerImpl::PopWorkerForService(const char *name)
 {
-  const char   *fctName = "XDBDatabaseBrokerImpl::GetWaitingWorkerForService";
+  const char   *fctName = "XDBDatabaseBrokerImpl::PopWorkerForService";
   MCO_RET       rc;
   bool          status = false;
   mco_trans_h   t;
-  xdb_broker::Service instance;
+  xdb_broker::XDBService instance;
   xdb_broker_oid oid;
 
   assert(name);
@@ -364,9 +419,9 @@ XDBWorker *XDBDatabaseBrokerImpl::GetWaitingWorkerForService(const char *name)
   }
 
   rc = instance.waiting_at((uint2)0, oid);
+  // TODO: удалить экземпляр из базы
 
   mco_trans_commit(t);
-  throw 0;
   return NULL;
 }
 
@@ -375,29 +430,28 @@ XDBWorker *XDBDatabaseBrokerImpl::GetWaitingWorkerForService(const char *name)
  *
  * Побочные эффекты:
  * Выбранный экземпляр в базе данных удаляется из списка ожидающих.
- * Вызывающая сторона должна удалить полученный экземпляр XDBWorker
+ * Вызывающая сторона должна удалить полученный экземпляр Worker
  */
-XDBWorker *XDBDatabaseBrokerImpl::GetWaitingWorkerForService(
-        XDBService *service)
+Worker *XDBDatabaseBrokerImpl::PopWorkerForService(
+        Service *service)
 {
-  const char   *fctName = "XDBDatabaseBrokerImpl::GetWaitingWorkerForService";
+  const char   *fctName = "XDBDatabaseBrokerImpl::PopWorkerForService";
   MCO_RET       rc;
   bool          status = false;
   mco_trans_h   t;
-  xdb_broker::Service service_instance;
-  xdb_broker::Worker  worker_instance;
-  xdb_broker_oid      oid;
+  xdb_broker::XDBService service_instance;
+  xdb_broker::XDBWorker  worker_instance;
+  xdb_broker_oid service_oid;
   uint2         workers_waiting_count = 0;
   autoid_t      worker_aid;
-  XDBWorker    *worker = NULL;
-  /* Размер identity_t = 11 символов */
-  char          identity[20]; /* TODO подставить константу */
+  Worker       *worker = NULL;
+  char          identity[WORKER_IDENTITY_MAXLEN+1];
 
   assert(service);
   rc = mco_trans_start(m_db, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
   while (rc == MCO_S_OK)
   {
-    rc = xdb_broker::Service::autoid::find(t, service->GetID(), service_instance);
+    rc = xdb_broker::XDBService::autoid::find(t, service->GetID(), service_instance);
     if (rc) { LogError(rc, fctName, "locating service failure"); break; }
     /* Есть ли в спуле Сервиса Обработчики? */
     rc = service_instance.waiting_size(workers_waiting_count);
@@ -409,15 +463,17 @@ XDBWorker *XDBDatabaseBrokerImpl::GetWaitingWorkerForService(
        break;
     }
 
-    rc = service_instance.waiting_at((uint2)0, oid);
+    rc = service_instance.waiting_at((uint2)0, service_oid);
     if (rc) { LogError(rc, fctName, "get service's 0-waiting worker failure"); break; }
-    /* Получить по oid экземпляр Обработчика */
-    worker_aid = oid.id;
-    rc = xdb_broker::Worker::autoid::find(t, worker_aid, worker_instance);
+    /* Получить по service_oid экземпляр Обработчика */
+    worker_aid = service_oid.id;
+    rc = xdb_broker::XDBWorker::autoid::find(t, worker_aid, worker_instance);
     if (rc) { LogError(rc, fctName, "locating worker by id failure"); break; }
     rc =  worker_instance.identity_get(identity, (uint2) sizeof(identity)-1);
     if (rc) { LogError(rc, fctName, "get worker's identity failure"); break; }
-    worker = new XDBWorker(worker_aid, identity);
+    worker = new Worker((int64_t)worker_aid,
+                        (const char*)identity,
+                        (int64_t)service_oid.id);
 
     mco_trans_commit(t);
     status = true;
@@ -434,6 +490,18 @@ XDBWorker *XDBDatabaseBrokerImpl::GetWaitingWorkerForService(
   return worker;
 }
 
+Service *XDBDatabaseBrokerImpl::GetServiceForWorker(const Worker *wrk)
+{
+  // TODO: реализация
+  return NULL;
+}
+
+
+Service *XDBDatabaseBrokerImpl::GetServiceById(int64_t _id)
+{
+  // TODO: реализация
+  return NULL;
+}
 
 bool XDBDatabaseBrokerImpl::IsServiceExist(const char *name)
 {
@@ -441,7 +509,7 @@ bool XDBDatabaseBrokerImpl::IsServiceExist(const char *name)
   MCO_RET       rc;
   bool          status = false;
   mco_trans_h   t;
-  xdb_broker::Service instance;
+  xdb_broker::XDBService instance;
 
   assert(name);
   rc = mco_trans_start(m_db, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
@@ -451,23 +519,25 @@ bool XDBDatabaseBrokerImpl::IsServiceExist(const char *name)
     mco_trans_rollback(t);
     return false;
   }
-  rc = xdb_broker::Service::pair::find(t, name, strlen(name), instance);
+  rc = xdb_broker::XDBService::pair::find(t, name, strlen(name), instance);
   mco_trans_commit(t);
 
   return (MCO_S_NOTFOUND == rc)? false:true;
 }
 
-bool XDBDatabaseBrokerImpl::AddWaitingWorkerForService(
-        XDBService *service,
-        XDBWorker  *worker)
+bool XDBDatabaseBrokerImpl::PushWorkerForService(
+        Service *service,
+        Worker  *worker)
 {
-  const char   *fctName = "XDBDatabaseBrokerImpl::AddWaitingWorkerForService";
+  const char   *fctName = "XDBDatabaseBrokerImpl::PushWorkerForService";
   MCO_RET       rc;
   bool          status = false;
   mco_trans_h   t;
   uint2         waiting_size = 0;
-  xdb_broker::Service service_instance;
-  xdb_broker::Worker worker_instance;
+  xdb_broker::XDBService service_instance;
+  xdb_broker::XDBWorker worker_instance;
+  mco_time      expire_time;
+  timer_unit    beg_time = 0, end_time = 0;
   xdb_broker_oid oid;
   autoid_t  aid;
 
@@ -477,7 +547,7 @@ bool XDBDatabaseBrokerImpl::AddWaitingWorkerForService(
   rc = mco_trans_start(m_db, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
   while (rc == MCO_S_OK)
   {
-    rc = xdb_broker::Service::autoid::find(t, service->GetID(), service_instance);
+    rc = xdb_broker::XDBService::autoid::find(t, service->GetID(), service_instance);
     if (rc) { LogError(rc, fctName, "locating service failure"); break; }
 
     /* Создать нового Обработчика */
@@ -490,6 +560,10 @@ bool XDBDatabaseBrokerImpl::AddWaitingWorkerForService(
     oid.id = service->GetID();
     rc = worker_instance.service_put(oid);
     if (rc) { LogError(rc, fctName, "worker's service name assign failure"); break; }
+    beg_time = mco_system_get_current_time();
+    end_time = beg_time + 100; /* TODO GEV это тест! - неясно как соотносятся time_t и mco_time */
+    rc = worker_instance.expiration_put(end_time);
+    if (rc) { LogError(rc, fctName, "worker's set expiration time failure"); break; }
     rc = worker_instance.checkpoint();
     if (rc) { LogError(rc, fctName, "worker's checkpoint failure"); break; }
     rc = worker_instance.autoid_get(aid);
@@ -522,3 +596,114 @@ bool XDBDatabaseBrokerImpl::AddWaitingWorkerForService(
   return status;
 }
 
+bool XDBDatabaseBrokerImpl::ClearWorkersForService(const char *name)
+{
+    /* TODO: Очистить спул Обработчиков указанной Службы */
+    return false;
+}
+
+bool XDBDatabaseBrokerImpl::ClearServices()
+{
+    /* TODO: Очистить спул Обработчиков и всех Служб */
+    return false;
+}
+
+/* Вернуть NULL или Обработчика по его идентификационной строке */
+/*
+ * Найти в базе данных запись об Обработчике по его имени
+ * @return Новый объект, представляющий Обработчика
+ * Вызываюшая сторона должна сама удалить объект возврата
+ */
+Worker *XDBDatabaseBrokerImpl::GetWorkerByIdent(const char *ident)
+{
+  const char   *fctName = "XDBDatabaseBrokerImpl::GetWorkerByIdent";
+  MCO_RET       rc;
+  bool          status = false;
+  mco_trans_h   t;
+  xdb_broker::XDBWorker instance;
+  Worker  *worker = NULL;
+#if 0
+  /* NB: WORKER_IDENTITY_MAXLEN - это размер поля identity_t из broker.mco */
+  char     identity_from_db[WORKER_IDENTITY_MAXLEN+1];
+  uint2    identity_from_db_length = sizeof(identity_from_db)-1;
+#endif
+  autoid_t self_id;
+  mco_time expiration;
+  xdb_broker_oid service_oid;
+
+  rc = mco_trans_start(m_db, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
+  while (rc == MCO_S_OK)
+  {
+    /* найти запись в таблице сервисов с заданным именем */
+    rc = xdb_broker::XDBWorker::PK_ident::find(t,
+                ident,
+                strlen(ident),
+                instance);
+
+    /* Запись не найдена - нет ошибки */
+    if (MCO_S_NOTFOUND == rc) break;
+
+    /* Запись не найдена - есть ошибка - сообщить */
+    if (rc) { LogError(rc, fctName, "worker location failure"); break; }
+
+    /* Запись найдена - сконструировать объект на основе данных из БД */
+#if 0
+    rc = instance.identity_get(identity_from_db, identity_from_db_length);
+    if (rc) { LogError(rc, fctName, "worker's get identity failure"); break; }
+#else
+    /* IDENTITY у нас уже есть - это ident */
+#endif
+    rc = instance.autoid_get(self_id);
+    if (rc) { LogError(rc, fctName, "worker's get id failure"); break; }
+    rc = instance.service_get(service_oid);
+    if (rc) { LogError(rc, fctName, "worker's get service id failure"); break; }
+    rc = instance.expiration_get(expiration);
+    if (rc) { LogError(rc, fctName, "worker's get expiration failure"); break; }
+
+    worker = new Worker(self_id, ident, service_oid.id);
+    assert(worker);
+    worker->SetEXPIRATION(expiration);
+    status = true;
+    break;
+  }
+
+  if (rc)
+    mco_trans_rollback(t);
+  else
+    mco_trans_commit(t);
+
+
+  return worker;
+}
+
+
+Worker *XDBDatabaseBrokerImpl::GetWorkerByIdent(const std::string& ident)
+{
+    return NULL;
+}
+
+void XDBDatabaseBrokerImpl::EnableServiceCommand(
+        const Service *srv, 
+        const std::string &command)
+{
+  assert(srv);
+}
+
+void XDBDatabaseBrokerImpl::EnableServiceCommand(
+        const std::string &srv_name, 
+        const std::string &command)
+{
+}
+
+void XDBDatabaseBrokerImpl::DisableServiceCommand(
+        const std::string &srv_name, 
+        const std::string &command)
+{
+}
+
+void XDBDatabaseBrokerImpl::DisableServiceCommand(
+        const Service *srv, 
+        const std::string &command)
+{
+  assert(srv);
+}

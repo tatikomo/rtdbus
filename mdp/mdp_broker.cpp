@@ -1,8 +1,10 @@
 #include "mdp_common.h"
-#include "mdp_service.hpp"
 #include "mdp_broker.hpp"
 #include "zmsg.hpp"
 #include "xdb_database_broker.hpp"
+#include "xdb_database_service.hpp"
+#include "xdb_database_worker.hpp"
+#include "xdb_database_letter.hpp"
 
 //  ---------------------------------------------------------------------
 //  Signal handling
@@ -43,9 +45,9 @@ Broker::Broker (int verbose)
 //  Destructor for broker object
 Broker::~Broker ()
 {
-    m_services.clear();
-    m_workers.clear();
-    m_waiting.clear();
+    m_database->ClearServices();
+    //m_workers.clear();
+    //m_waiting.clear();
     delete m_database;
     delete m_socket;
     delete m_context;
@@ -62,28 +64,33 @@ Broker::bind (std::string endpoint)
     s_console ("I: MDP Broker/0.2.0 is active at %s", endpoint.c_str());
 }
 
-void Broker::add_new_worker(Worker* instance)
+/*void Broker::add_new_worker(Worker* instance)
 {
   assert(instance);
-  m_workers.insert(std::make_pair(instance->get_identity(), instance));
-}
+  m_workers.insert(std::make_pair(instance->GetIDENTITY(), instance));
+}*/
 
 //  ---------------------------------------------------------------------
 //  Delete any idle workers that haven't pinged us in a while.
 void
 Broker::purge_workers ()
 {
-    Worker * wrk = m_waiting.size()>0 ? m_waiting.front() : 0;
-    while (wrk) {
-        if (!wrk->expired ()) {
+    Worker * wrk = NULL;
+    /* TODO Пройти по списку Сервисов */
+    while (wrk = m_database->PopWorkerForService("GEV")) 
+    {
+        if (!wrk->Expired ()) {
+        /* TODO continue так же завершит текущий цикл, 
+         * но позволит проверить всех Обработчиков. 
+         * Это бесполезно, если Обработчики хранятся в 
+         * отсортированном по времени ожидания списке. */
             break;              //  Worker is alive, we're done here
         }
-//        if (m_verbose) {
+        if (m_verbose) {
             s_console ("I: deleting expired worker: %s",
-                  wrk->m_identity.c_str());
-//        }
+                  wrk->GetIDENTITY());
+        }
         worker_delete (wrk, 0);
-        wrk = m_waiting.size()>0 ? m_waiting.front() : 0;
     }
 }
 
@@ -92,26 +99,33 @@ Broker::purge_workers ()
 Service *
 Broker::service_require (std::string& service_name)
 {
-    assert (service_name.size() > 0);
+    bool status = false;
+    Service *acquired_service = NULL;
+    //Service    *instance = NULL;
 
-    if (m_services.count(service_name)) {
-        s_console("I: service '%s' is registered", service_name.c_str());
-#if TYPE_OS == SOLARIS
-        return m_services.find(service_name)->second;
-#elif TYPE_OS == LINUX
-        return m_services.at(service_name);
-#else
-#error "Unknown platform"
-#endif
-    } else {
-        s_console("W: service '%s' is not registered", service_name.c_str());
-        Service * srv = new Service(service_name);
-        m_services.insert(std::make_pair(service_name, srv));
-        if (m_verbose) {
-            s_console ("I: received message:");
-        }
-        return srv;
+    assert (service_name.size() > 0);
+    if (m_verbose) {
+        s_console ("I: require service");
     }
+
+    if (acquired_service = m_database->GetServiceByName(service_name.c_str()))
+    {
+        s_console("I: service '%s' is registered", service_name.c_str());
+        status = true;
+    }
+    else 
+    {
+        s_console("W: service '%s' is not registered", service_name.c_str());
+        status = m_database->AddService(service_name.c_str());
+        acquired_service = m_database->GetServiceByName(service_name.c_str());
+    }
+
+/*    if ((true == status) && (NULL != acquired_service))
+    {
+        instance = new Service(service_name);
+    }*/
+
+    return acquired_service;
 }
 
 //  ---------------------------------------------------------------------
@@ -119,34 +133,36 @@ Broker::service_require (std::string& service_name)
 void
 Broker::service_dispatch (Service *srv/*, zmsg *processing_msg*/)
 {
-    zmsg  * msg = NULL;
+//    zmsg   *msg = NULL;
+    Worker *wrk = NULL;
+    Letter *letter = NULL;
     bool    enabled = false;
 
     assert (srv);
+    /* Очистить список Обработчиков Сервиса от зомби */
     purge_workers ();
     /*
      * Продолжать обработку, пока
-     * 1. В списке есть m_requests необработанные команды
-     * 2. Данная команда разрешена (содержится в соответствующем списке)
-     * 3. 
+     *  Для Сервиса есть свободные Обработчики
+     *  Для Сервиса есть необработанные разрешенные Сообщения
+     *
+     *   1. Выбрать Сообщение из базы, не удаляя его
+     *   2. Послать Сообщение указанному Обработчику
+     *   3. Удалить Сообщение только после успешной отправки
      */
-    while ((srv->m_waiting.size()>0) && (srv->m_requests.size()>0))
+    while (wrk = m_database->PopWorkerForService(srv))
     {
-        Worker *wrk = srv->m_waiting.size() ? srv->m_waiting.front() : 0;
-        srv->m_waiting.erase(srv->m_waiting.begin());
-
-        msg = srv->m_requests.size() ? srv->m_requests.front() : 0;
-        srv->m_requests.erase(srv->m_requests.begin());
-
-        worker_send (wrk, (char*)MDPW_REQUEST, EMPTY_FRAME, msg);
-        for(std::vector<Worker*>::iterator it = m_waiting.begin();
-            it != m_waiting.end();
-            it++) {
-           if (*it == wrk) {
-              it = m_waiting.erase(it)-1;
-           }
-        }
+      while (letter = m_database->GetWaitingLetter(srv, wrk))
+      {
+        /* передать ожидающую обслуживания команду выбранному 
+         * Обработчику
+         * TODO удалить команду в worker_send() из ожидания 
+         * только после успешной передачи
+         */
+        worker_send (wrk, (char*)MDPW_REQUEST, EMPTY_FRAME, letter);
         //delete msg; // NB: удаляется в worker_send()
+      }
+      delete wrk;
     }
 }
 
@@ -155,16 +171,10 @@ Broker::service_dispatch (Service *srv/*, zmsg *processing_msg*/)
 void
 Broker::service_internal (std::string service_name, zmsg *msg)
 {
-    if (service_name.compare("mmi.service") == 0) {
-/* NB в солярис gcc 3.4.6, не имеющий поддерки метода std::map->'at()' */
-#if TYPE_OS == SOLARIS
-        Service * srv = m_services.find(msg->body())->second;
-#elif TYPE_OS == LINUX
-        Service * srv = m_services.at(msg->body());
-#else
-#error "Unknown platform"
-#endif
-        if (srv && srv->m_workers) {
+    if (service_name.compare("mmi.service") == 0) 
+    {
+        Service * srv = m_database->GetServiceByName(service_name);
+        if (srv && srv->GetWaitingWorkersCount() > 0) {
             msg->body_set("200");
         } else {
             msg->body_set("404");
@@ -181,14 +191,16 @@ Broker::service_internal (std::string service_name, zmsg *msg)
         ustring command_frame   = msg->pop_front();
 
         if (operation_frame.compare ("enable") == 0) {
-                Service *service = service_require (service_frame);
-                service->enable_command (command_frame);
+//                Service *service = service_require (service_frame);
+//                m_database->EnableServiceCommand (service, command_frame);
+                m_database->EnableServiceCommand (service_frame, command_frame);
                 msg->body_set("200");
         }
         else
         if (operation_frame.compare ("disable") == 0) {
-                Service *service = service_require (service_frame);
-                service->disable_command (command_frame);
+//                Service *service = service_require (service_frame);
+//                service->disable_command (command_frame);
+                m_database->DisableServiceCommand (service_frame, command_frame);
                 msg->body_set("200");
         }
         else
@@ -222,19 +234,17 @@ Broker::worker_require (std::string& identity)
 //    assert (identity != 0);
     Worker * instance = NULL;
 
-    if (m_workers.count(identity)) {
-//       s_console("D: worker '%s' is registered", identity.c_str());
-#if TYPE_OS == SOLARIS
-       instance = m_workers.find(identity)->second;
-#elif TYPE_OS == LINUX
-       instance = m_workers.at(identity);
-#else
-#error "Unknown platform"
-#endif
+    if (instance = m_database->GetWorkerByIdent(identity))
+    {
+       s_console("D: worker '%s' is registered", identity.c_str());
     }
     else {
-       instance = new Worker(this, identity);
-       add_new_worker(instance);
+       std::cout << "F: Обработчик " 
+                 << identity 
+                 << "не может быть создан здесь" << std::endl;
+//       GEV +++++++
+//       instance = new Worker(this, identity);
+//       add_new_worker(instance);
        if (m_verbose) {
           s_console ("I: registering new worker instance: %s", identity.c_str());
        }
@@ -245,89 +255,83 @@ Broker::worker_require (std::string& identity)
 
 //  ---------------------------------------------------------------------
 //  Deletes worker from all data structures, and destroys worker
-//  TODO: Если это был последний экземпляр Сервиса, разрегистрировать Сервис
 void
 Broker::worker_delete (Worker *&wrk, int disconnect)
 {
     assert (wrk);
     if (disconnect) {
-        worker_send (wrk, (char*)MDPW_DISCONNECT, EMPTY_FRAME, NULL);
+        worker_send (wrk, (char*)MDPW_DISCONNECT, EMPTY_FRAME, (Letter*)NULL);
     }
 
-    if (wrk->m_service)
-    {
-        for(std::vector<Worker*>::iterator it = wrk->m_service->m_waiting.begin();
-            it != wrk->m_service->m_waiting.end();
-            it++)
-        {
-           if (*it == wrk)
-           {
-              it = wrk->m_service->m_waiting.erase(it)-1;
-           }
-        }
-        wrk->m_service->m_workers--;
-    }
-
-    for(std::vector<Worker*>::iterator it = m_waiting.begin();
-        it != m_waiting.end();
-        it++)
-    {
-       if (*it == wrk)
-       {
-          it = m_waiting.erase(it)-1;
-       }
-    }
-    //  This implicitly calls the worker destructor
-    m_workers.erase(wrk->m_identity);
-    delete wrk;
+    if (true == m_database->RemoveWorker(wrk))
+      delete wrk;
 }
 
 //  ---------------------------------------------------------------------
-//  Process message sent to us by a worker
+//  Message processing sent to us by a worker
 //  NB: Удаляет обрабатываемое сообщение zmsg
 void
-Broker::worker_msg (std::string& sender, zmsg *msg)
+Broker::worker_msg (std::string& sender_identity, zmsg *msg)
 {
+    bool status = false;
+    Worker  *wrk = NULL;
+    Service *service = NULL;
+
     assert (msg && msg->parts() >= 1);     //  At least, command
-    assert (sender.size() > 0);
+    assert (sender_identity.size() > 0);
 
     std::string command = msg->pop_front();
-    bool worker_ready = m_workers.count(sender)>0;
-    Worker *wrk = worker_require (sender);
+    /* Зарегистрирован ли Обработчик с данным identity? */
+    wrk = m_database->GetWorkerByIdent(sender_identity);
+    bool worker_ready = (NULL != wrk);
+
+    /*
+     * TODO нужно заменить функцию worker_require()
+     * Нельзя допускать неизвестных обработчиков, они все должны 
+     * принаждлежать своему Сервису. Значит, нужно узнать, к какому
+     * Сервису принадлежит сообщение от данного Обработчика.
+     */
 
     if (command.compare (MDPW_READY) == 0) {
         if (worker_ready)  {              //  Not first command in session
             worker_delete (wrk, 1);
         }
         else {
-            if (sender.size() >= 4  //  Reserved service name
-             && sender.find_first_of("mmi.") == 0) {
+            if (sender_identity.size() >= 4  //  Reserved service name
+             && sender_identity.find_first_of("mmi.") == 0) {
                 worker_delete (wrk, 1);
             }
-            else { //  Attach worker to service and mark as idle
+            else {
+                // Attach worker to service and mark as idle
                 // Получить название сервиса
                 std::string service_name = msg->pop_front();
+
                 // найти сервис по имени или создать новый
-                wrk->m_service = service_require (service_name);
+#error "Service creation is only possible on first workers call"                
+#if 0
+                service = m_database->RequireServiceByName (service_name);
+                assert (service);
+#endif
 
-                // Привязать нового Worker-a к Сервису, им реализуемому
-                wrk->m_service->attach_worker(wrk);
-
+                // Привязать нового Обработчика к обслуживаемому им Сервису
+                //status = m_database->PushWorkerForService (service, wrk);
                 worker_waiting (wrk);
-                service_dispatch(wrk->m_service);
-                zclock_log ("worker '%s' created", sender.c_str());
+                service_dispatch(service);
+
+                zclock_log ("worker '%s' created", sender_identity.c_str());
             }
         }
     }
     else {
        if (command.compare (MDPW_REPORT) == 0) {
            s_console("D: get REPORT from '%s' wr=%d",
-                     sender.c_str(), worker_ready);
+                     sender_identity.c_str(), worker_ready);
            if (worker_ready) {
+               service = m_database->GetServiceForWorker(wrk);
                //  Remove & save client return envelope and insert the
                //  protocol header and service name, then rewrap envelope.
                char* client = msg->unwrap ();
-               msg->push_front((char*)wrk->m_service->m_name.c_str());
+               msg->push_front((char*)service->GetNAME());
                msg->push_front((char*)MDPC_REPORT);
                msg->push_front((char*)MDPC_CLIENT);
                msg->wrap (client, EMPTY_FRAME);
@@ -342,9 +346,11 @@ Broker::worker_msg (std::string& sender, zmsg *msg)
        else {
           if (command.compare (MDPW_HEARTBEAT) == 0) {
               s_console("D: get HEARTBEAT from '%s' wr=%d",
-                        sender.c_str(), worker_ready);
+                        sender_identity.c_str(), worker_ready);
               if (worker_ready) {
-                  worker_waiting(wrk);
+                // GEV - возможно, если wrk содержит сведения о своем Сервисе
+                  status = m_database->PushWorker(wrk);
+//                  worker_waiting(wrk);
               }
               else {
                   worker_delete (wrk, 1);
@@ -353,7 +359,7 @@ Broker::worker_msg (std::string& sender, zmsg *msg)
           else {
              if (command.compare (MDPW_DISCONNECT) == 0) {
                  s_console("D: get DISCONNECT from '%s'",
-                           sender.c_str());
+                           sender_identity.c_str());
                  worker_delete (wrk, 0);
              }
              else {
@@ -365,7 +371,18 @@ Broker::worker_msg (std::string& sender, zmsg *msg)
        }
     }
     delete msg;
-//    msg = NULL;
+}
+
+//  ---------------------------------------------------------------------
+//  Send message to worker
+//  If pointer to message is provided, sends that message
+void
+Broker::worker_send (Worker *worker,
+    char *command, std::string option, Letter *letter)
+{
+  // TODO: удалить сообщение из базы только после успешной передачи
+  // NB: это может привести к параллельному исполнению 
+  // команды двумя Обработчиками. Как бороться? И стоит ли?
 }
 
 //  ---------------------------------------------------------------------
@@ -384,16 +401,15 @@ Broker::worker_send (Worker *worker,
     msg->push_front (command);
     msg->push_front ((char*)MDPW_WORKER);
     //  Stack routing envelope to start of message
-    msg->wrap(worker->get_identity().c_str(), EMPTY_FRAME);
+    msg->wrap(worker->GetIDENTITY(), EMPTY_FRAME);
 
     if (m_verbose) {
         s_console ("I: sending %s to worker (%s)",
-            mdpw_commands [(int) *command], worker->get_identity().c_str());
+            mdpw_commands [(int) *command], worker->GetIDENTITY());
         msg->dump ();
     }
     msg->send (*m_socket);
     delete msg;
-//    msg = NULL;
 }
 
 //  ---------------------------------------------------------------------
@@ -405,9 +421,14 @@ Broker::worker_waiting (Worker *worker)
 {
     assert (worker);
     //  Queue to broker and service waiting lists
+#if 0
     m_waiting.push_back(worker);
     worker->m_service->m_waiting.push_back(worker);
     worker->m_expiry = s_clock () + HEARTBEAT_EXPIRY;
+#else
+    /* Это допустимо, если worker содержит сведения о своем Сервисе */
+    m_database->PushWorker(worker);
+#endif
     // +++ послать ответ на HEARTBEAT
 //    NB: В версии zguide/C/mdbroker не вызывается worker_send
     worker_send (worker, (char*)MDPW_HEARTBEAT, EMPTY_FRAME, NULL);
@@ -467,69 +488,68 @@ Broker::client_msg (std::string& sender, zmsg *msg)
               msg->wrap(sender.c_str(), EMPTY_FRAME);
               msg->send (*m_socket);
             }
-        }
-      } /* запрос к внешнему сервису */
-    }   /* запрос к известному сервису */
-    delete msg;
-//    msg = NULL;
-}
+            }
+          } /* запрос к внешнему сервису */
+        }   /* запрос к известному сервису */
+        delete msg;
+    }
 
-//  Get and process messages forever or until interrupted
-void
-Broker::start_brokering()
-{
-   while (!s_interrupted)
-   {
-       zmq::pollitem_t items [] = {
-           { *m_socket,  0, ZMQ_POLLIN, 0 } };
-       zmq::poll (items, 1, HEARTBEAT_INTERVAL);
+    //  Get and process messages forever or until interrupted
+    void
+    Broker::start_brokering()
+    {
+       while (!s_interrupted)
+       {
+           zmq::pollitem_t items [] = {
+               { *m_socket,  0, ZMQ_POLLIN, 0 } };
+           zmq::poll (items, 1, HEARTBEAT_INTERVAL);
 
-       //  Process next input message, if any
-       if (items [0].revents & ZMQ_POLLIN) {
-           zmsg *msg = new zmsg(*m_socket);
-           if (m_verbose) {
-               s_console ("I: received message:");
-               msg->dump ();
+           //  Process next input message, if any
+           if (items [0].revents & ZMQ_POLLIN) {
+               zmsg *msg = new zmsg(*m_socket);
+               if (m_verbose) {
+                   s_console ("I: received message:");
+                   msg->dump ();
+               }
+
+               assert (msg->parts () >= 3);
+
+               std::string sender = msg->pop_front ();
+               assert(sender.size ());
+
+               std::string empty = msg->pop_front (); //empty message
+               assert(empty.size () == 0);
+
+               std::string header = msg->pop_front ();
+               assert(header.size ());
+
+               if (header.compare(MDPC_CLIENT) == 0) {
+                   client_msg (sender, msg);
+               }
+               else if (header.compare(MDPW_WORKER) == 0) {
+                       worker_msg (sender, msg);
+               }
+               else {
+                   s_console ("E: invalid message:");
+                   msg->dump ();
+                   delete msg;
+               }
            }
-
-           assert (msg->parts () >= 3);
-
-           std::string sender = msg->pop_front ();
-           assert(sender.size ());
-
-           std::string empty = msg->pop_front (); //empty message
-           assert(empty.size () == 0);
-
-           std::string header = msg->pop_front ();
-           assert(header.size ());
-
-           if (header.compare(MDPC_CLIENT) == 0) {
-               client_msg (sender, msg);
-           }
-           else if (header.compare(MDPW_WORKER) == 0) {
-               worker_msg (sender, msg);
-           }
-           else {
-               s_console ("E: invalid message:");
-               msg->dump ();
-               delete msg;
+           //  Disconnect and delete any expired workers
+               //  Send heartbeats to idle workers if needed
+           if (s_clock () > m_heartbeat_at) {
+               purge_workers ();
+    #if 0
+               // TODO: можно не посылать HEARTBEAT если от службы 
+               // было получено любое сообщение, датированное в пределах 
+               // интервала опроса HEARTBEAT_INTERVAL
+               for (std::vector<Worker*>::iterator it = m_waiting.begin();
+                     it != m_waiting.end() && (*it)!=0; it++) {
+                   worker_send (*it, (char*)MDPW_HEARTBEAT, EMPTY_FRAME, NULL);
+               }
+               m_heartbeat_at = s_clock () + HEARTBEAT_INTERVAL;
+    #endif
            }
        }
-       //  Disconnect and delete any expired workers
-       //  Send heartbeats to idle workers if needed
-       if (s_clock () > m_heartbeat_at) {
-           purge_workers ();
-#if 0
-           // TODO: можно не посылать HEARTBEAT если от службы 
-           // было получено любое сообщение, датированное в пределах 
-           // интервала опроса HEARTBEAT_INTERVAL
-           for (std::vector<Worker*>::iterator it = m_waiting.begin();
-                 it != m_waiting.end() && (*it)!=0; it++) {
-               worker_send (*it, (char*)MDPW_HEARTBEAT, EMPTY_FRAME, NULL);
-           }
-           m_heartbeat_at = s_clock () + HEARTBEAT_INTERVAL;
-#endif
-       }
-   }
-}
+    }
 

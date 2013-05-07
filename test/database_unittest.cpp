@@ -60,18 +60,19 @@ TEST(TestBrokerDATABASE, INSERT_WORKER)
     XDBWorker  *worker  = NULL;
     bool status;
 
-    worker = database->GetWaitingWorkerForService(service);
+    worker = database->PopWorkerForService(service);
     /* Обработчиков еще нет - worker д.б. = NULL */
     ASSERT_TRUE (worker == NULL);
 
     worker = new XDBWorker(worker_identity);
-    status = database->AddWaitingWorkerForService(service, worker);
+    status = database->PushWorkerForService(service, worker);
     EXPECT_EQ(status, true);
 
-    worker = database->GetWaitingWorkerForService(service);
+    worker = database->PopWorkerForService(service);
     ASSERT_TRUE (worker != NULL);
     //std::cout <<  worker->GetIDENTITY() << std::endl;
     ASSERT_TRUE (0 == (strcmp(worker->GetIDENTITY(), worker_identity)));
+    delete worker;
 }
 
 TEST(TestBrokerDATABASE, CHECK_EXIST_SERVICE)
@@ -87,8 +88,7 @@ TEST(TestBrokerDATABASE, CHECK_EXIST_SERVICE)
     ASSERT_TRUE (service != NULL);
     ASSERT_TRUE(strcmp(service->GetNAME(), service_name) == 0);
     //printf("%s.auto_id = %lld\n", service->GetNAME(), service->GetID());
-    if (service)
-      delete service;
+    delete service;
 
     status = database->IsServiceExist(unbelievable_service_name);
     EXPECT_EQ(status, false);
@@ -115,6 +115,9 @@ TEST(TestBrokerDATABASE, REMOVE)
 
 TEST(TestBrokerDATABASE, DESTROY)
 {
+    ASSERT_TRUE (service != NULL);
+    delete service;
+
     ASSERT_TRUE (database != NULL);
     database->Disconnect();
     delete database;

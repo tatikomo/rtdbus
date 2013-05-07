@@ -2,41 +2,41 @@
 #include <string.h>
 #include "xdb_database_service.hpp"
 
-XDBService::XDBService()
+Service::Service()
 {
   m_id = 0;
+  m_waiting_workers_count = 0;
   m_name = NULL;
   m_modified = false;
 }
 
-XDBService::XDBService(int64_t _id, const char *_name)
+Service::Service(int64_t _id, const char *_name)
 {
   m_name = NULL;
+  m_waiting_workers_count = 0;
   SetID(_id);
   SetNAME(_name);
 }
 
-XDBService::~XDBService()
+Service::~Service()
 {
-  if (m_name)
-    delete m_name;
+  delete []m_name;
 }
 
-void XDBService::SetID(int64_t _id)
+void Service::SetID(int64_t _id)
 {
   m_id = _id;
   m_modified = true;
 }
 
-void XDBService::SetNAME(const char *_name)
+void Service::SetNAME(const char *_name)
 {
   assert(_name);
 
   if (!_name) return;
 
   /* удалить старое значение названия сервиса */
-  if (m_name)
-    delete m_name;
+  delete []m_name;
 
   m_name = new char[strlen(_name)+1];
   strcpy(m_name, _name);
@@ -44,13 +44,22 @@ void XDBService::SetNAME(const char *_name)
   m_modified = true;
 }
 
-const int64_t XDBService::GetID()
+const int64_t Service::GetID()
 {
   return m_id;
 }
 
-const char* XDBService::GetNAME()
+const char* Service::GetNAME()
 {
   return m_name;
 }
 
+void Service::SetWaitingWorkersCount(int _count)
+{
+  m_waiting_workers_count = _count;
+}
+
+const int Service::GetWaitingWorkersCount()
+{
+  return m_waiting_workers_count;
+}
