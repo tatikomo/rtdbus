@@ -290,6 +290,15 @@ bool XDBDatabaseBrokerImpl::RemoveService(const char *name)
   return status;
 }
 
+bool XDBDatabaseBrokerImpl::IsServiceCommandEnabled(const Service* srv, const std::string& cmd_name)
+{
+  bool status = false;
+  assert(srv);
+  // TODO реализация
+  return status;
+}
+
+
 bool XDBDatabaseBrokerImpl::RemoveWorker(Worker *wrk)
 {
   bool status = false;
@@ -304,6 +313,15 @@ bool XDBDatabaseBrokerImpl::RemoveWorker(Worker *wrk)
   return status;
 }
 
+bool XDBDatabaseBrokerImpl::PushWorker(Worker *wrk)
+{
+  bool status = false;
+  Service *srv = NULL;
+
+  assert(wrk);
+  /* TODO Установить новое значение expiration */
+  return status;
+}
 
 Service *XDBDatabaseBrokerImpl::GetServiceByName(const std::string& name)
 {
@@ -406,23 +424,38 @@ Worker *XDBDatabaseBrokerImpl::PopWorkerForService(const char *name)
   MCO_RET       rc;
   bool          status = false;
   mco_trans_h   t;
-  xdb_broker::XDBService instance;
+  xdb_broker::XDBService service_instance;
+  xdb_broker::XDBWorker worker_instance;
+  Worker *worker = NULL;
   xdb_broker_oid oid;
+  autoid_t       aid;
 
   assert(name);
   rc = mco_trans_start(m_db, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
-  if (rc)
+  while (rc == MCO_S_OK)
   {
-    LogError(rc, fctName, NULL);
-    mco_trans_rollback(t);
-    return NULL;
+    if (rc) { LogError(rc, fctName, "transaction starting failure"); break; }
+
+    rc = xdb_broker::XDBService::pair::find(t, name, strlen(name), service_instance);
+    if (rc) { LogError(rc, fctName, "service locating by name failure"); break; }
+
+    rc = service_instance.waiting_at((uint2)0, oid);
+    if (rc) { LogError(rc, fctName, "there is no waiting workers"); break; }
+
+    // TODO Получить экземпляр XDBWorker по oid
+    aid = oid.id;
+    rc = xdb_broker::XDBWorker::autoid::find(t, aid, worker_instance);
+    if (rc) { LogError(rc, fctName, "get worker by oid failure"); break; }
+
+    // TODO: Построить worker и удалить этот экземпляр из базы
   }
 
-  rc = instance.waiting_at((uint2)0, oid);
-  // TODO: удалить экземпляр из базы
+  if (rc)
+    mco_trans_rollback(t);
+  else
+    mco_trans_commit(t);
 
-  mco_trans_commit(t);
-  return NULL;
+  return worker;
 }
 
 /* 
@@ -560,7 +593,12 @@ bool XDBDatabaseBrokerImpl::PushWorkerForService(
     oid.id = service->GetID();
     rc = worker_instance.service_put(oid);
     if (rc) { LogError(rc, fctName, "worker's service name assign failure"); break; }
+#warning "Find eXtremeDB library with mco_system_get_current_time()"
+#if 0
     beg_time = mco_system_get_current_time();
+#else
+    beg_time = time(0);
+#endif
     end_time = beg_time + 100; /* TODO GEV это тест! - неясно как соотносятся time_t и mco_time */
     rc = worker_instance.expiration_put(end_time);
     if (rc) { LogError(rc, fctName, "worker's set expiration time failure"); break; }
@@ -661,7 +699,6 @@ Worker *XDBDatabaseBrokerImpl::GetWorkerByIdent(const char *ident)
     if (rc) { LogError(rc, fctName, "worker's get expiration failure"); break; }
 
     worker = new Worker(self_id, ident, service_oid.id);
-    assert(worker);
     worker->SetEXPIRATION(expiration);
     status = true;
     break;

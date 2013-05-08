@@ -98,6 +98,7 @@ OPTION(RTDBUS_BUILD_TESTS "enable unit test code" ON)
  
 if(RTDBUS_BUILD_TESTS)
     add_definitions(-DRTDBUS_BUILD_TESTS)
+    enable_testing()
     add_definitions(-DDEBUG)
 endif(RTDBUS_BUILD_TESTS)
 

@@ -9,7 +9,7 @@
 char *service_name = (char*)"service_test_1";
 char *worker_identity = (char*)"SN1_AAAAAAA";
 XDBDatabaseBroker *database = NULL;
-XDBService *service = NULL;
+Service *service = NULL;
 
 TEST(TestBrokerDATABASE, OPEN)
 {
@@ -57,14 +57,14 @@ TEST(TestBrokerDATABASE, INSERT_SERVICE)
 
 TEST(TestBrokerDATABASE, INSERT_WORKER)
 {
-    XDBWorker  *worker  = NULL;
+    Worker  *worker  = NULL;
     bool status;
 
     worker = database->PopWorkerForService(service);
     /* Обработчиков еще нет - worker д.б. = NULL */
     ASSERT_TRUE (worker == NULL);
 
-    worker = new XDBWorker(worker_identity);
+    worker = new Worker(1, worker_identity, 1);
     status = database->PushWorkerForService(service, worker);
     EXPECT_EQ(status, true);
 
@@ -79,7 +79,7 @@ TEST(TestBrokerDATABASE, CHECK_EXIST_SERVICE)
 {
     bool status;
     char *unbelievable_service_name = (char*)"unbelievable_service";
-    XDBService *service = NULL;
+    Service *service = NULL;
     
     status = database->IsServiceExist(service_name);
     EXPECT_EQ(status, true);

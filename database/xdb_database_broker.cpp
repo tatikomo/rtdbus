@@ -38,6 +38,12 @@ Service *XDBDatabaseBroker::GetServiceForWorker(const Worker *wrk)
 }
 
 /* найти в БД и вернуть объект типа Сервис */
+Service *XDBDatabaseBroker::GetServiceByName(const std::string& service_name)
+{
+  return GetServiceByName(service_name.c_str());
+}
+
+/* найти в БД и вернуть объект типа Сервис */
 Service *XDBDatabaseBroker::GetServiceByName(const char *service_name)
 {
   bool status = false;
@@ -67,8 +73,16 @@ bool XDBDatabaseBroker::RemoveService(const char *service_name)
 
 bool XDBDatabaseBroker::RemoveWorker(Worker *wrk)
 {
+  assert (wrk);
   if (!m_impl) return false;
   return m_impl->RemoveWorker(wrk);
+}
+
+bool XDBDatabaseBroker::PushWorker(Worker *wrk)
+{
+  assert (wrk);
+  if (!m_impl) return false;
+  return m_impl->PushWorker(wrk);
 }
 
 bool XDBDatabaseBroker::IsServiceExist(const char *service_name)
@@ -78,6 +92,25 @@ bool XDBDatabaseBroker::IsServiceExist(const char *service_name)
 
   if (!m_impl) return false;
   return m_impl->IsServiceExist(service_name);
+}
+
+/* Получить первое ожидающее обработки Сообщение */
+Letter* XDBDatabaseBroker::GetWaitingLetter(Service*, Worker*)
+{
+// TODO реализация
+#warning "Make XDBDatabaseBroker::GetWaitingLetter() implementation"
+  return NULL;
+}
+
+bool XDBDatabaseBroker::IsServiceCommandEnabled(
+        const Service* srv, 
+        const std::string& cmd_name)
+{
+  bool status = false;
+  assert(m_impl);
+
+  if (!m_impl) return false;
+  return m_impl->IsServiceCommandEnabled(srv, cmd_name);
 }
 
 Service *XDBDatabaseBroker::GetServiceById(int64_t _id)
@@ -131,6 +164,18 @@ bool XDBDatabaseBroker::ClearServices()
 
   if (!m_impl) return false;
   return m_impl->ClearServices();
+}
+
+/* Вернуть экземпляр Обработчика из БД. Не найден - вернуть NULL */
+Worker *XDBDatabaseBroker::GetWorkerByIdent(const char*)
+{
+#warning "Make XDBDatabaseBroker::GetWorkerByIdent() implementation"
+  return NULL;
+}
+
+Worker *XDBDatabaseBroker::GetWorkerByIdent(const std::string& ident)
+{
+  return GetWorkerByIdent(ident.c_str());
 }
  
 void XDBDatabaseBroker::EnableServiceCommand(const std::string &srv_name, 

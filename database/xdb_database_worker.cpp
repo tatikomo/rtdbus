@@ -14,7 +14,7 @@ Worker::Worker(int64_t _self_id, const char *_identity, int64_t _service_id)
 {
   m_identity = NULL;
   SetID(_self_id);
-  SetServiceID(_service_id);
+  SetSERVICE_ID(_service_id);
   SetIDENTITY(_identity);
 }
 
@@ -38,10 +38,15 @@ void Worker::SetID(int64_t _id)
   m_modified = true;
 }
 
-void Worker::SetServiceID(int64_t _service_id)
+void Worker::SetSERVICE_ID(int64_t _service_id)
 {
   m_service_id = _service_id;
   m_modified = true;
+}
+
+const int64_t Worker::GetSERVICE_ID()
+{
+  return m_service_id;
 }
 
 void Worker::SetIDENTITY(const char *_identity)
@@ -82,6 +87,7 @@ const int64_t Worker::GetEXPIRATION()
 
 bool Worker::Expired()
 {
+  // TODO: сравнить текущее время и m_expiration
   return false;
 }
 

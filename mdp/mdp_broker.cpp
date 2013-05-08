@@ -291,7 +291,6 @@ Broker::worker_msg (std::string& sender_identity, zmsg *msg)
      * принаждлежать своему Сервису. Значит, нужно узнать, к какому
      * Сервису принадлежит сообщение от данного Обработчика.
      */
-
     if (command.compare (MDPW_READY) == 0) {
         if (worker_ready)  {              //  Not first command in session
             worker_delete (wrk, 1);
@@ -307,7 +306,7 @@ Broker::worker_msg (std::string& sender_identity, zmsg *msg)
                 std::string service_name = msg->pop_front();
 
                 // найти сервис по имени или создать новый
-#error "Service creation is only possible on first workers call"                
+#warning "Service creation is only possible on first workers call"                
 #if 0
                 service = m_database->RequireServiceByName (service_name);
                 assert (service);
@@ -415,10 +414,11 @@ Broker::worker_send (Worker *worker,
 //  ---------------------------------------------------------------------
 //  This worker is now waiting for work
 // TODO: Move worker to the end of the waiting queue,
-// so purge_workers() will only check old worker(s) in m_waiting vector.
+// so purge_workers() will only check old worker(s).
 void
 Broker::worker_waiting (Worker *worker)
 {
+    Service *service = NULL;
     assert (worker);
     //  Queue to broker and service waiting lists
 #if 0
@@ -431,8 +431,10 @@ Broker::worker_waiting (Worker *worker)
 #endif
     // +++ послать ответ на HEARTBEAT
 //    NB: В версии zguide/C/mdbroker не вызывается worker_send
-    worker_send (worker, (char*)MDPW_HEARTBEAT, EMPTY_FRAME, NULL);
-    service_dispatch (worker->m_service/*, 0*/);
+    worker_send (worker, (char*)MDPW_HEARTBEAT, EMPTY_FRAME, (Letter*)NULL);
+    service = m_database->GetServiceById(worker->GetSERVICE_ID());
+    service_dispatch (service);
+    delete service;
 }
 
 
@@ -470,12 +472,14 @@ Broker::client_msg (std::string& sender, zmsg *msg)
             /* Если команда разрешена, исполнить её */
             /* NB: Только здесь читается не команда, а Получатель сообщения! */
             ustring cmd_frame = msg->front ();
-            enabled = srv->is_command_enabled (cmd_frame);
+            enabled = m_database->IsServiceCommandEnabled (srv, cmd_frame);
 
             if (true == enabled) {
               /* внести команду в очередь и обработать её */
               s_console("D: command '%s' is enabled", cmd_frame.c_str());
-              srv->m_requests.push_back(msg);
+#warning "Make PushRequestToService() implementation"
+//GEV              m_database->PushRequestToService(srv, msg);
+              
               service_dispatch (srv/*, msg*/);
             }
             else /*  Send a NAK message back to the client. */
@@ -488,68 +492,68 @@ Broker::client_msg (std::string& sender, zmsg *msg)
               msg->wrap(sender.c_str(), EMPTY_FRAME);
               msg->send (*m_socket);
             }
-            }
-          } /* запрос к внешнему сервису */
-        }   /* запрос к известному сервису */
-        delete msg;
-    }
+        }
+      } /* запрос к внешнему сервису */
+    }   /* запрос к известному сервису */
+    delete msg;
+}
 
-    //  Get and process messages forever or until interrupted
-    void
-    Broker::start_brokering()
-    {
-       while (!s_interrupted)
-       {
-           zmq::pollitem_t items [] = {
-               { *m_socket,  0, ZMQ_POLLIN, 0 } };
-           zmq::poll (items, 1, HEARTBEAT_INTERVAL);
+//  Get and process messages forever or until interrupted
+void
+Broker::start_brokering()
+{
+   while (!s_interrupted)
+   {
+       zmq::pollitem_t items [] = {
+           { *m_socket,  0, ZMQ_POLLIN, 0 } };
+       zmq::poll (items, 1, HEARTBEAT_INTERVAL);
 
-           //  Process next input message, if any
-           if (items [0].revents & ZMQ_POLLIN) {
-               zmsg *msg = new zmsg(*m_socket);
-               if (m_verbose) {
-                   s_console ("I: received message:");
-                   msg->dump ();
-               }
-
-               assert (msg->parts () >= 3);
-
-               std::string sender = msg->pop_front ();
-               assert(sender.size ());
-
-               std::string empty = msg->pop_front (); //empty message
-               assert(empty.size () == 0);
-
-               std::string header = msg->pop_front ();
-               assert(header.size ());
-
-               if (header.compare(MDPC_CLIENT) == 0) {
-                   client_msg (sender, msg);
-               }
-               else if (header.compare(MDPW_WORKER) == 0) {
-                       worker_msg (sender, msg);
-               }
-               else {
-                   s_console ("E: invalid message:");
-                   msg->dump ();
-                   delete msg;
-               }
+       //  Process next input message, if any
+       if (items [0].revents & ZMQ_POLLIN) {
+           zmsg *msg = new zmsg(*m_socket);
+           if (m_verbose) {
+               s_console ("I: received message:");
+               msg->dump ();
            }
-           //  Disconnect and delete any expired workers
-               //  Send heartbeats to idle workers if needed
-           if (s_clock () > m_heartbeat_at) {
-               purge_workers ();
-    #if 0
-               // TODO: можно не посылать HEARTBEAT если от службы 
-               // было получено любое сообщение, датированное в пределах 
-               // интервала опроса HEARTBEAT_INTERVAL
-               for (std::vector<Worker*>::iterator it = m_waiting.begin();
-                     it != m_waiting.end() && (*it)!=0; it++) {
-                   worker_send (*it, (char*)MDPW_HEARTBEAT, EMPTY_FRAME, NULL);
-               }
-               m_heartbeat_at = s_clock () + HEARTBEAT_INTERVAL;
-    #endif
+
+           assert (msg->parts () >= 3);
+
+           std::string sender = msg->pop_front ();
+           assert(sender.size ());
+
+           std::string empty = msg->pop_front (); //empty message
+           assert(empty.size () == 0);
+
+           std::string header = msg->pop_front ();
+           assert(header.size ());
+
+           if (header.compare(MDPC_CLIENT) == 0) {
+               client_msg (sender, msg);
+           }
+           else if (header.compare(MDPW_WORKER) == 0) {
+                   worker_msg (sender, msg);
+           }
+           else {
+               s_console ("E: invalid message:");
+               msg->dump ();
+               delete msg;
            }
        }
-    }
+       //  Disconnect and delete any expired workers
+           //  Send heartbeats to idle workers if needed
+       if (s_clock () > m_heartbeat_at) {
+           purge_workers ();
+#if 0
+           // TODO: можно не посылать HEARTBEAT если от службы 
+           // было получено любое сообщение, датированное в пределах 
+           // интервала опроса HEARTBEAT_INTERVAL
+           for (std::vector<Worker*>::iterator it = m_waiting.begin();
+                 it != m_waiting.end() && (*it)!=0; it++) {
+               worker_send (*it, (char*)MDPW_HEARTBEAT, EMPTY_FRAME, NULL);
+           }
+           m_heartbeat_at = s_clock () + HEARTBEAT_INTERVAL;
+#endif
+       }
+   }
+}
 

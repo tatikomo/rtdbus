@@ -25,9 +25,13 @@ class XDBDatabaseBroker : public XDBDatabase
     bool RemoveService(const char*);
     /* Удалить Обработчик из всех связанных с ним таблиц БД */
     bool RemoveWorker(Worker*);
+    /* Поместить в спул своего Сервиса */
+    bool PushWorker(Worker*);
 
     /* Проверить существование указанного Сервиса */
     bool IsServiceExist(const char*);
+    /* Проверка разрешения использования указанной команды */
+    bool IsServiceCommandEnabled(const Service*, const std::string&);
 
     /* Вернуть экземпляр Сервиса, только если он существует в БД */
     Service *GetServiceByName(const char*);

@@ -38,7 +38,7 @@ class Worker
     char    *m_identity;
     bool     m_modified;
 
-    void     SetServiceID(int64_t);
+    void     SetSERVICE_ID(int64_t);
 };
 
 #endif

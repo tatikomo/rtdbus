@@ -28,7 +28,12 @@ class XDBDatabaseBrokerImpl
     bool RemoveService(const char*);
     /* Удалить Обработчик из всех связанных с ним таблиц БД */
     bool RemoveWorker(Worker*);
+    /* Добавить нового Обработчика в спул Сервиса */
+    bool PushWorkerForService(Service*, Worker*);
+    /* TODO Worker должен содержать сведения о своем Сервисе */
+    bool PushWorker(Worker*);
     bool IsServiceExist(const char*);
+    bool IsServiceCommandEnabled(const Service*, const std::string&);
 
     /* Вернуть экземпляр Сервиса. Если он не существует в БД - создать */
     Service *RequireServiceByName(const char*);
@@ -47,11 +52,6 @@ class XDBDatabaseBrokerImpl
     Worker *PopWorkerForService(const char*);
     Worker *PopWorkerForService(const std::string&);
     Worker *PopWorkerForService(Service*);
-
-    /* Добавить нового Обработчика в спул Сервиса */
-    bool PushWorkerForService(Service*, Worker*);
-    /* TODO Worker должен содержать сведения о своем Сервисе */
-    bool PushWorker(Worker*);
 
     bool ClearWorkersForService(const char*);
     bool ClearWorkersForService(const std::string&);
