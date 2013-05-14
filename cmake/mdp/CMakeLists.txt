@@ -14,6 +14,7 @@ else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
         nsl)
 endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
+include_directories(${TOOLS_DIR})
 include_directories(${MDP_DIR})
 include_directories(${XDB_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})
@@ -68,6 +69,7 @@ set (BROKER_SOURCES
 add_library (${MDP_LIBRARY_NAME} ${MDP_SOURCES})
 target_link_libraries(${MDP_LIBRARY_NAME}
     ${LIBZMQ_LIBRARIES}
+    ${TOOLS_LIBRARY_NAME}
     ${SYSTEM_EXTERNAL_LIBS})
 
 # Сборка брокера
@@ -76,6 +78,7 @@ add_executable (${MDP_BROKER} ${BROKER_SOURCES})
 # каталог генерации libmdp.so
 target_link_libraries(${MDP_BROKER}
     ${LIBZMQ_LIBRARIES}
+    ${TOOLS_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
     ${XDB_LIBRARY_NAME}
     ${LIBEXTREMEDB_LIBRARIES_ALL}

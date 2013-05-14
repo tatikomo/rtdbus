@@ -12,6 +12,7 @@ else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
         rt)
 endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
+include_directories(${TOOLS_DIR})
 include_directories(${XDB_DIR})
 include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
 link_directories(/lib/i386-linux-gnu/)
@@ -19,6 +20,7 @@ link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 
 set (XDB_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
+        ${TOOLS_DIR}/helper.hpp
         ${XDB_DIR}/dat/xdb_broker.h
         ${XDB_DIR}/dat/xdb_broker.c
         ${XDB_DIR}/dat/xdb_broker.hpp

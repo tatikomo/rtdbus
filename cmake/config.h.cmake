@@ -31,6 +31,11 @@
 #define TEST_LISTEN       "@TEST_LISTEN@"
 #define TEST_CONNECTION   "@TEST_CONNECTION@"
 
+#cmakedefine SERVICE_NAME_MAXLEN    @SERVICE_NAME_MAXLEN@
+#cmakedefine WORKER_IDENTITY_MAXLEN @WORKER_IDENTITY_MAXLEN@
+#cmakedefine DBNAME_MAXLEN          @DBNAME_MAXLEN@
+
+
 // test binaries
 /* Full path to test file test/test-exit in builddir */
 #define TEST_BUS_BINARY          "@TEST_BUS_BINARY@"
@@ -203,6 +208,8 @@
 #if defined(_WIN32) || defined(_WIN64) || defined (_WIN32_WCE)
 # define RTDBUS_WIN
 # define RTDBUS_WIN_FIXME 1
+// Монотонно увеличивающийся таймер
+# define CLOCK_TYPE CLOCK_MONOTONIC 
 # ifdef _WIN32_WCE
 #  define RTDBUS_WINCE
 # else
@@ -210,7 +217,9 @@
 # endif
 #else
 # define RTDBUS_UNIX
-#endif 
+// Тип таймера, не подверженного NTP - специфично для Linux
+# define CLOCK_TYPE CLOCK_MONOTONIC_RAW
+#endif
 
 #if defined(_WIN32) || defined(_WIN64)
 // mingw mode_t

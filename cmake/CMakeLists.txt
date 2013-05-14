@@ -60,7 +60,7 @@ link_directories(${RTDBUS_LIB_DIR} ${LIBRARY_OUTPUT_PATH})
 set(RTDBUS_INCLUDES )
 
 ########### basic vars ###############
-ENABLE_TESTING()
+#enable_testing()
 
 if (RTDBUSDIR)
 	set(RTDBUS_INSTALL_DIR "${DBUSDIR}")
@@ -89,17 +89,23 @@ set(RTDBUS_DAEMONDIR         ${EXPANDED_BINDIR})
 # добавил для тестов - где задавать структуру каталога исходников?
 set(MDP_DIR                  ${CMAKE_SOURCE_DIR}/../mdp)
 set(XDB_DIR                  ${CMAKE_SOURCE_DIR}/../database)
+set(TOOLS_DIR                ${CMAKE_SOURCE_DIR}/../tools)
 set(WORKER_DIR               ${CMAKE_SOURCE_DIR}/../worker)
 set(CLIENT_DIR               ${CMAKE_SOURCE_DIR}/../client)
 set(MDP_LIBRARY_NAME         mdp)
 set(XDB_LIBRARY_NAME         xdb)
+set(TOOLS_LIBRARY_NAME       rtdb_helper)
 
 OPTION(RTDBUS_BUILD_TESTS "enable unit test code" ON)
+# ограничение размера полей данных из схемы MCO
+set (SERVICE_NAME_MAXLEN      32)
+set (WORKER_IDENTITY_MAXLEN   11)
+set (DBNAME_MAXLEN            10)
  
 if(RTDBUS_BUILD_TESTS)
     add_definitions(-DRTDBUS_BUILD_TESTS)
-    enable_testing()
     add_definitions(-DDEBUG)
+    enable_testing()
 endif(RTDBUS_BUILD_TESTS)
 
 STRING(TOUPPER ${CMAKE_SYSTEM_NAME} sysname)
@@ -135,16 +141,15 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake ${CMAKE_CURRENT_BINARY
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/rtdbus-env.bat.cmake ${CMAKE_BINARY_DIR}/bin/rtdbus-env.bat )
 install_files(/bin FILES ${CMAKE_BINARY_DIR}/bin/rtdbus-env.bat)
 
+add_subdirectory( tools )
 add_subdirectory( mdp )
 add_subdirectory( worker )
 add_subdirectory( client )
 #add_subdirectory( rtdbus )
 add_subdirectory( database )
-#add_subdirectory( transport )
 if (RTDBUS_BUILD_TESTS)
   add_subdirectory( test )
 endif (RTDBUS_BUILD_TESTS)
-#add_subdirectory( tools )
 
 GET_FILENAME_COMPONENT(C_COMPILER ${CMAKE_C_COMPILER} NAME)
 GET_FILENAME_COMPONENT(CXX_COMPILER ${CMAKE_CXX_COMPILER} NAME)
