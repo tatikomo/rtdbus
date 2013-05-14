@@ -4,18 +4,32 @@
 #include "config.h"
 #include "timer.hpp"
 
-int GetTimerValue(timer_unit_t& timer)
+int GetTimerValue(timer_mark_t& timer)
 {
   struct timespec res;
-  int status;
+  int status = 0;
 
-  if (-1 != (status = clock_gettime(CLOCK_TYPE, &res)))
+  if (clock_gettime(CLOCK_TYPE, &res) != -1)
   {
     timer.tv_sec = res.tv_sec;
     timer.tv_nsec = res.tv_nsec;
+    status = 1;
   }
-  else perror("GetTimerValue");
+  else
+  {
+    perror("GetTimerValue");
+  }
 
   return status;
 }
 
+/* mco_system_get_current_time() must be implmeneted by the
+ * application in order to use the High Availability runtime.
+ * You may remove this function if you are not using  the
+ * HA-enabled runtime
+ */
+long mco_system_get_current_time(void)
+{
+    printf("CALL mco_system_get_current_time\n");
+    return 0;
+}

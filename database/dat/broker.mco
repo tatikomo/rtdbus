@@ -50,7 +50,7 @@ class XDBWorker
   /* Строковый идентификатор Обработчика */
   identity_t identity;
   /* Время ожидания получения подтверждения "Я ЖИВ" */
-  time       expiration;
+  timer_mark expiration;
   /* Поиск Обработчика по имени */
   hash       <identity> PK_ident[MAX_WORKERS_ENTRY];
   /* Ссылка на свой экземпляр Сервиса */
@@ -61,12 +61,17 @@ class XDBWorker
    * Индекс по времени истечения периода "годности" информации 
    * о состоянии Обработчика
    */
-  tree       <expiration> PK_expire;
+  tree       <expiration.sec> PK_expire;
 };
 
 enum LetterState
 {
    EMPTY, READY, DONE_OK, DONE_FAIL
+};
+
+struct timer_mark {
+  uint4 sec;
+  uint4 nsec;
 };
 
 /* Сообщение для Сервиса */
@@ -77,7 +82,7 @@ class XDBLetter
   ref   worker;
   LetterState state = EMPTY;
   /* Время ожидания получения подтверждения о выполнении */
-  time  expiration;
-  tree  <expiration, service> PK_expire_for_service;
+  timer_mark  expiration;
+  tree  <expiration.sec, service> PK_expire_for_service;
 };
 
