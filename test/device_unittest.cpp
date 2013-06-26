@@ -1,6 +1,7 @@
 #include <string>
 #include "gtest/gtest.h"
 
+#include "helper.hpp"
 #include "zmsg.hpp"
 #include "mdp_worker_api.hpp"
 #include "mdp_client_async_api.hpp"
@@ -48,13 +49,30 @@ TEST(TestUUID, DECODE)
 
 TEST(TestHelper, CLOCK)
 {
+  timer_mark_t now_time;
+  timer_mark_t future_time;
+  int ret;
   int64_t before = s_clock();
-  sleep (1);
+
+  ret = GetTimerValue(now_time);
+  EXPECT_TRUE(ret == 1);
+
+  usleep (500000);
+
+  ret = GetTimerValue(future_time);
+  EXPECT_TRUE(ret == 1);
+
   int64_t after = s_clock();
-  // 1000 - одна секунда, добавим 2 мсек для погрешности.
-  EXPECT_TRUE(2 > (after - before - 1000));
+  // 500 = полсекунды, добавим 2 мсек для погрешности.
+  //std::cout << (after - before - 500) << std::endl;
+  EXPECT_TRUE(2 > (after - before - 500));
+
+  EXPECT_TRUE (1 >= (future_time.tv_sec - now_time.tv_sec));
+  // 1млрд = одна секунда, добавим 100тыс (1 мсек) для погрешности.
+  EXPECT_TRUE (100000 > (future_time.tv_nsec - now_time.tv_nsec - 500000000));
 }
 
+#if defined FUNCTIONAL_TESTS
 /*
  * Должны быть запущены Брокер и ECHO-Сервис
  */
@@ -89,6 +107,8 @@ TEST(TestClient, EXCHANGE)
   EXPECT_TRUE (count == MSG_COUNT);
   delete session;
 }
+
+#endif
 
 /*TEST(TestWorker, Creation)
 {

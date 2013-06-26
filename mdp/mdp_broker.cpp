@@ -77,7 +77,7 @@ Broker::purge_workers ()
 {
     Worker * wrk = NULL;
     /* TODO Пройти по списку Сервисов */
-    while (wrk = m_database->PopWorkerForService("GEV")) 
+    while (wrk = m_database->PopWorker("GEV")) 
     {
         if (!wrk->Expired ()) {
         /* TODO continue так же завершит текущий цикл, 
@@ -150,7 +150,7 @@ Broker::service_dispatch (Service *srv/*, zmsg *processing_msg*/)
      *   2. Послать Сообщение указанному Обработчику
      *   3. Удалить Сообщение только после успешной отправки
      */
-    while (wrk = m_database->PopWorkerForService(srv))
+    while (wrk = m_database->PopWorker(srv))
     {
       while (letter = m_database->GetWaitingLetter(srv, wrk))
       {
@@ -174,9 +174,13 @@ Broker::service_internal (std::string service_name, zmsg *msg)
     if (service_name.compare("mmi.service") == 0) 
     {
         Service * srv = m_database->GetServiceByName(service_name);
-        if (srv && srv->GetWaitingWorkersCount() > 0) {
+        // Если у Сервиса есть активные Обработчики
+        if (m_database->GetServiceState(srv) == Service::ACTIVATED)
+        {
             msg->body_set("200");
-        } else {
+        }
+        else
+        {
             msg->body_set("404");
         }
     }
@@ -313,7 +317,6 @@ Broker::worker_msg (std::string& sender_identity, zmsg *msg)
 #endif
 
                 // Привязать нового Обработчика к обслуживаемому им Сервису
-                //status = m_database->PushWorkerForService (service, wrk);
                 worker_waiting (wrk);
                 service_dispatch(service);
 
@@ -347,7 +350,7 @@ Broker::worker_msg (std::string& sender_identity, zmsg *msg)
               s_console("D: get HEARTBEAT from '%s' wr=%d",
                         sender_identity.c_str(), worker_ready);
               if (worker_ready) {
-                // GEV - возможно, если wrk содержит сведения о своем Сервисе
+                // wrk содержит идентификатор своего Сервиса
                   status = m_database->PushWorker(wrk);
 //                  worker_waiting(wrk);
               }
@@ -426,7 +429,7 @@ Broker::worker_waiting (Worker *worker)
     worker->m_service->m_waiting.push_back(worker);
     worker->m_expiry = s_clock () + HEARTBEAT_EXPIRY;
 #else
-    /* Это допустимо, если worker содержит сведения о своем Сервисе */
+    /* worker содержит идентификатор своего Сервиса */
     m_database->PushWorker(worker);
 #endif
     // +++ послать ответ на HEARTBEAT

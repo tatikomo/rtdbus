@@ -10,6 +10,7 @@ char *service_name = (char*)"service_test_1";
 char *worker_identity = (char*)"SN1_AAAAAAA";
 XDBDatabaseBroker *database = NULL;
 Service *service = NULL;
+int64_t service_id;
 
 TEST(TestBrokerDATABASE, OPEN)
 {
@@ -38,7 +39,6 @@ TEST(TestBrokerDATABASE, OPEN)
 TEST(TestBrokerDATABASE, INSERT_SERVICE)
 {
     bool status;
-    int64_t id;
 
     status = database->IsServiceExist(service_name);
     EXPECT_EQ(status, false);
@@ -51,8 +51,9 @@ TEST(TestBrokerDATABASE, INSERT_SERVICE)
 
     service = database->GetServiceByName(service_name);
     ASSERT_TRUE (service != NULL);
-    id = service->GetID();
-    EXPECT_EQ(id, 1);
+    service_id = service->GetID();
+    // В пустой базе индексы начинаются с 1, поэтому service id=1
+    EXPECT_EQ(service_id, 1);
 }
 
 TEST(TestBrokerDATABASE, INSERT_WORKER)
@@ -60,19 +61,49 @@ TEST(TestBrokerDATABASE, INSERT_WORKER)
     Worker  *worker  = NULL;
     bool status;
 
-    worker = database->PopWorkerForService(service);
+    worker = database->PopWorker(service);
     /* Обработчиков еще нет - worker д.б. = NULL */
     ASSERT_TRUE (worker == NULL);
+    delete worker;
 
-    worker = new Worker(1, worker_identity, 1);
-    status = database->PushWorkerForService(service, worker);
+    worker = new Worker(worker_identity, service_id);
+    status = database->PushWorker(worker);
+    EXPECT_EQ(status, true);
+    delete worker;
+
+    worker = database->PopWorker(service);
+    ASSERT_TRUE (worker != NULL);
+    ASSERT_TRUE (0 == (strcmp(worker->GetIDENTITY(), worker_identity)));
+    const timer_mark_t expiration_time_mark = worker->GetEXPIRATION();
+    std::cout << "worker: '" << worker->GetIDENTITY() << "' "
+              << "state: " << worker->GetSTATE() << " "
+              << "expiration: " 
+              << expiration_time_mark.tv_sec << "."
+              << expiration_time_mark.tv_nsec << std::endl;
+    delete worker;
+
+    /*
+     * У Сервиса был зарегистрирован только один Обработчик,
+     * Вторая попытка получения Обработчика из спула не должна
+     * ничего возвращать
+     */
+    worker = database->PopWorker(service);
+    ASSERT_TRUE (worker == NULL);
+}
+
+TEST(TestBrokerDATABASE, REMOVE_WORKER)
+{
+    Worker  *worker  = NULL;
+    bool status;
+
+    worker = database->PopWorker(service);
+    ASSERT_TRUE (worker != NULL);
+    EXPECT_EQ(worker->GetSTATE(), Worker::ARMED);
+    status = database->RemoveWorker(worker);
     EXPECT_EQ(status, true);
 
-    worker = database->PopWorkerForService(service);
-    ASSERT_TRUE (worker != NULL);
-    //std::cout <<  worker->GetIDENTITY() << std::endl;
-    ASSERT_TRUE (0 == (strcmp(worker->GetIDENTITY(), worker_identity)));
-    delete worker;
+    worker = database->PopWorker(service);
+    ASSERT_TRUE (worker == NULL);
 }
 
 TEST(TestBrokerDATABASE, CHECK_EXIST_SERVICE)

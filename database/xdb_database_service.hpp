@@ -13,6 +13,14 @@
 class Service
 {
   public:
+
+    enum State
+    {
+        REGISTERED = 1,
+        ACTIVATED  = 2,
+        DISABLED   = 3
+    };
+
     Service();
     /* 
      * NB: размер поля данных идентификатора 
@@ -22,19 +30,18 @@ class Service
     ~Service();
     void SetID(const int64_t);
     void SetNAME(const char*);
-    void SetWaitingWorkersCount(int);
+    void  SetSTATE(State);
     const int64_t GetID();
     const char   *GetNAME();
+    State         GetSTATE();
     const char   *GetSERVICE_NAME();
-    const int     GetWaitingWorkersCount();
-
 
   private:
     int64_t  m_id;
     char    *m_name;
+    State    m_state;
     char    *m_service_name;
     bool     m_modified;
-    int      m_waiting_workers_count;
 };
 
 #endif

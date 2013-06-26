@@ -5,22 +5,33 @@
 Service::Service()
 {
   m_id = 0;
-  m_waiting_workers_count = 0;
   m_name = NULL;
+  m_state = DISABLED;
   m_modified = false;
 }
 
-Service::Service(int64_t _id, const char *_name)
+Service::Service(const int64_t _id, const char *_name)
 {
   m_name = NULL;
-  m_waiting_workers_count = 0;
   SetID(_id);
+  SetSTATE(DISABLED);
   SetNAME(_name);
 }
 
 Service::~Service()
 {
   delete []m_name;
+}
+
+void Service::SetSTATE(State _state)
+{
+  m_state = _state;
+  m_modified = true;
+}
+
+Service::State Service::GetSTATE()
+{
+  return m_state;
 }
 
 void Service::SetID(int64_t _id)
@@ -54,12 +65,4 @@ const char* Service::GetNAME()
   return m_name;
 }
 
-void Service::SetWaitingWorkersCount(int _count)
-{
-  m_waiting_workers_count = _count;
-}
 
-const int Service::GetWaitingWorkersCount()
-{
-  return m_waiting_workers_count;
-}

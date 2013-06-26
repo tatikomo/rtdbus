@@ -3,6 +3,7 @@
 #pragma once
 
 #include <string>
+#include "config.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -10,17 +11,18 @@ extern "C" {
 }
 #endif
 
+#include "dat/xdb_broker.hpp"
 #include "xdb_database_broker.hpp"
+#include "xdb_database_service.hpp"
 
 class Service;
 class Worker;
-
-#define DBNAME_MAXLEN 10
 
 /* Фактическая реализация функциональности Базы Данных для Брокера */
 class XDBDatabaseBrokerImpl
 {
   public:
+
     XDBDatabaseBrokerImpl(const XDBDatabaseBroker*, const char*);
     ~XDBDatabaseBrokerImpl();
     bool Open();
@@ -47,11 +49,13 @@ class XDBDatabaseBrokerImpl
     Service *GetServiceByName(const std::string&);
     Service *GetServiceById(int64_t _id);
     Service *GetServiceForWorker(const Worker*);
+    // Вернуть текущее состояние Сервиса
+    Service::State GetServiceState(const Service*);
 
-    Worker *GetWorkerForService(const Service*);
-    Worker *PopWorkerForService(const char*);
-    Worker *PopWorkerForService(const std::string&);
-    Worker *PopWorkerForService(Service*);
+    Worker *GetWorker(const Service*);
+    Worker *PopWorker(const char*);
+    Worker *PopWorker(const std::string&);
+    Worker *PopWorker(Service*);
 
     bool ClearWorkersForService(const char*);
     bool ClearWorkersForService(const std::string&);
@@ -69,6 +73,21 @@ class XDBDatabaseBrokerImpl
     char                     m_name[DBNAME_MAXLEN+1];
     void  LogError(MCO_RET, const char*, const char*);
     bool  AttachToInstance();
+    /* 
+     * Вернуть Worker, построенный на основе прочитанных из БД данных
+     */
+    Worker* LoadWorker(mco_trans_h,
+                       autoid_t&,
+                       xdb_broker::XDBWorker&);
+
+    /*
+     * Поиск в спуле данного Сервиса индекса Обработчика,
+     * находящегося в состоянии state. 
+     * Возвращает индекс найденного Обработчика, или -1
+     */
+    int LocatingFirstOccurence(xdb_broker::XDBService &service_instance,
+                       WorkerState            state);
+
 #ifdef DISK_DATABASE
     char* m_dbsFileName;
     char* m_logFileName;

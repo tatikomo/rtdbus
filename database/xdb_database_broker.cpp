@@ -31,6 +31,12 @@ bool XDBDatabaseBroker::Open()
   return m_impl->Open();
 }
 
+Service::State XDBDatabaseBroker::GetServiceState(const Service *srv)
+{
+  assert(m_impl);
+  return m_impl->GetServiceState(srv);
+}
+
 Service *XDBDatabaseBroker::GetServiceForWorker(const Worker *wrk)
 {
   assert(m_impl);
@@ -119,31 +125,22 @@ Service *XDBDatabaseBroker::GetServiceById(int64_t _id)
   return m_impl->GetServiceById(_id);
 }
 
-Worker *XDBDatabaseBroker::PopWorkerForService(const char *service_name)
+Worker *XDBDatabaseBroker::PopWorker(const char *service_name)
 {
   bool status = false;
   assert(m_impl);
 
   if (!m_impl) return 0;
-  return m_impl->PopWorkerForService(service_name);
+  return m_impl->PopWorker(service_name);
 }
 
-Worker *XDBDatabaseBroker::PopWorkerForService(Service *service)
+Worker *XDBDatabaseBroker::PopWorker(Service *service)
 {
   bool status = false;
   assert(m_impl);
 
   if (!m_impl) return 0;
-  return m_impl->PopWorkerForService(service);
-}
-
-bool XDBDatabaseBroker::PushWorkerForService(Service *service, Worker *worker)
-{
-  bool status = false;
-  assert(m_impl);
-
-  if (!m_impl) return false;
-  return m_impl->PushWorkerForService(service, worker);
+  return m_impl->PopWorker(service);
 }
 
 /* Очистить спул Обработчиков указанного Сервиса */

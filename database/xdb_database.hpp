@@ -2,7 +2,10 @@
 #define XDB_DATABASE_HPP
 #pragma once
 
+// размер имени базы данных
 #define DATABASE_NAME_MAXLEN 10
+// максимальное количество Обработчиков для одного Сервиса
+#define WAITING_WORKERS_SPOOL_MAXLEN 2
 
 class XDBDatabaseImpl;
 

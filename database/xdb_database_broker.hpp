@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <string>
 #include "xdb_database.hpp"
+#include "xdb_database_service.hpp"
 
 class XDBDatabaseBrokerImpl;
 class Service;
@@ -13,6 +14,7 @@ class Letter;
 class XDBDatabaseBroker : public XDBDatabase
 {
   public:
+
     XDBDatabaseBroker();
     ~XDBDatabaseBroker();
 
@@ -38,6 +40,7 @@ class XDBDatabaseBroker : public XDBDatabase
     Service *GetServiceByName(const std::string&);
     Service *GetServiceById(int64_t);
     Service *GetServiceForWorker(const Worker*);
+    Service::State GetServiceState(const Service*);
 
     /* Вернуть экземпляр Обработчика из БД. Не найден - вернуть NULL */
     Worker *GetWorkerByIdent(const char*);
@@ -47,12 +50,9 @@ class XDBDatabaseBroker : public XDBDatabase
     Service *RequireServiceByName(const char*);
     Service *RequireServiceByName(std::string&);
 
-    /* Выбрать свободного Обработчика и удалить его из спула данного Сервиса */
-    Worker  *PopWorkerForService(const char*);
-    Worker  *PopWorkerForService(Service*);
-
-    /* Поместить нового Обработчика в спул данного Сервиса */
-    bool PushWorkerForService(Service*, Worker*);
+    /* Выбрать свободного Обработчика и удалить его из спула своего Сервиса */
+    Worker  *PopWorker(const char*);
+    Worker  *PopWorker(Service*);
 
     /* Очистить спул Обработчиков указанного Сервиса */
     bool ClearWorkersForService(const char*);

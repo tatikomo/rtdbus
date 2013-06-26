@@ -1,42 +1,37 @@
+#include <stdio.h>
 #include <assert.h>
 #include <string.h>
+#include <sys/time.h>
 #include "xdb_database_worker.hpp"
+#include "helper.hpp"
 
 Worker::Worker()
 {
-  m_id = 0;
-  m_expiration = 0;
+  memset((void*)&m_expiration, '\0', sizeof(m_expiration));
   m_identity = NULL;
   m_modified = false;
 }
 
-Worker::Worker(int64_t _self_id, const char *_identity, int64_t _service_id)
+/*
+ * NB если self_id == -1, значит идентификатор будет 
+ * автоматически сгенерирован базой данных 
+ */
+Worker::Worker(const char *_identity, int64_t _service_id)
 {
+  timer_mark_t mark = {0, 0};
+
   m_identity = NULL;
-  SetID(_self_id);
   SetSERVICE_ID(_service_id);
   SetIDENTITY(_identity);
+  SetEXPIRATION(mark);
 }
 
-#if 0
-Worker::Worker(const char *_identity)
-{
-  m_id = 0;
-  m_identity = NULL;
-  SetIDENTITY(_identity);
-}
-#endif
 
 Worker::~Worker()
 {
   delete []m_identity;
 }
 
-void Worker::SetID(int64_t _id)
-{
-  m_id = _id;
-  m_modified = true;
-}
 
 void Worker::SetSERVICE_ID(int64_t _service_id)
 {
@@ -58,15 +53,22 @@ void Worker::SetIDENTITY(const char *_identity)
   /* удалить старое значение идентификатора Обработчика */
   delete []m_identity;
 
+//  printf("Worker::SetIDENTITY('%s' %d)\n", _identity, strlen(_identity));
   m_identity = new char[strlen(_identity)+1];
   strcpy(m_identity, _identity);
 
   m_modified = true;
 }
 
-const int64_t Worker::GetID()
+
+void Worker::SetSTATE(const State _state)
 {
-  return m_id;
+  m_state = _state;
+}
+
+const Worker::State Worker::GetSTATE()
+{
+  return m_state;
 }
 
 const char* Worker::GetIDENTITY()
@@ -74,20 +76,36 @@ const char* Worker::GetIDENTITY()
   return m_identity;
 }
 
-void Worker::SetEXPIRATION(int64_t _expiration)
+void Worker::SetEXPIRATION(const timer_mark_t& _expiration)
 {
-  m_expiration = _expiration;
+  memcpy((void*)&m_expiration, 
+         (void*) &_expiration, 
+         sizeof (m_expiration));
+/*  printf("SetEXPIRATION(sec=%ld, nsec=%ld)\n", 
+         m_expiration.tv_sec,
+         m_expiration.tv_nsec);*/
   m_modified = true;
 }
 
-const int64_t Worker::GetEXPIRATION()
+const timer_mark_t Worker::GetEXPIRATION()
 {
   return m_expiration;
 }
 
+// Проверка превышения текущего времени отметки expiration
 bool Worker::Expired()
 {
-  // TODO: сравнить текущее время и m_expiration
-  return false;
+  timer_mark_t now_time;
+  bool expired = false;
+
+  if (GetTimerValue(now_time))
+  {
+    if ((m_expiration.tv_sec < now_time.tv_sec)
+     && (m_expiration.tv_nsec < now_time.tv_nsec))
+    expired = true;
+  }
+  else throw;
+
+  return expired;
 }
 
