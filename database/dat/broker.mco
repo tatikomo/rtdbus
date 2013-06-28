@@ -33,6 +33,8 @@ class XDBService
   autoid[MAX_SERVICES_ENTRY];
   /* Имя Сервиса */
   service_name_t name;
+  /* Текущее состояние */
+  ServiceState state = UNKNOWN;
 
   /* Поиск Сервиса по имени */
   hash           <name> PK_name[MAX_SERVICES_ENTRY];
@@ -51,9 +53,14 @@ class XDBService
   unique tree <SK_workers.identity> SK_ident;
 };
 
+enum ServiceState
+{
+  UNKNOWN, REGISTERED, DISABLED
+};
+
 enum WorkerState
 {
-  ARMED, DISARMED, INIT, SHUTDOWN, IN_PROCESS, EXPIRED
+  DISARMED, ARMED, INIT, SHUTDOWN, IN_PROCESS, EXPIRED
 };
 
 enum LetterState
