@@ -75,9 +75,11 @@ Broker::bind (std::string endpoint)
 void
 Broker::purge_workers ()
 {
-    Worker * wrk = NULL;
+    Worker  *wrk = NULL;
+    Service *service = NULL;
     /* TODO Пройти по списку Сервисов */
-    while (wrk = m_database->PopWorker("GEV")) 
+    service = NULL; // GEV временно для компиляции, убрать!
+    while (NULL != (wrk = m_database->PopWorker(service)))
     {
         if (!wrk->Expired ()) {
         /* TODO continue так же завершит текущий цикл, 
@@ -108,7 +110,8 @@ Broker::service_require (std::string& service_name)
         s_console ("I: require service");
     }
 
-    if (acquired_service = m_database->GetServiceByName(service_name.c_str()))
+    if (NULL != 
+        (acquired_service = m_database->GetServiceByName(service_name.c_str())))
     {
         s_console("I: service '%s' is registered", service_name.c_str());
         status = true;
@@ -150,9 +153,9 @@ Broker::service_dispatch (Service *srv/*, zmsg *processing_msg*/)
      *   2. Послать Сообщение указанному Обработчику
      *   3. Удалить Сообщение только после успешной отправки
      */
-    while (wrk = m_database->PopWorker(srv))
+    while (NULL != (wrk = m_database->PopWorker(srv)))
     {
-      while (letter = m_database->GetWaitingLetter(srv, wrk))
+      while (NULL != (letter = m_database->GetWaitingLetter(srv, wrk)))
       {
         /* передать ожидающую обслуживания команду выбранному 
          * Обработчику
@@ -238,7 +241,7 @@ Broker::worker_require (std::string& identity)
 //    assert (identity != 0);
     Worker * instance = NULL;
 
-    if (instance = m_database->GetWorkerByIdent(identity))
+    if (NULL != (instance = m_database->GetWorkerByIdent(identity)))
     {
        s_console("D: worker '%s' is registered", identity.c_str());
     }

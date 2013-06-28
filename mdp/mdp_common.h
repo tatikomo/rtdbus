@@ -76,6 +76,8 @@ zclock_time (void)
     GetSystemTimeAsFileTime (&ft);
     return s_filetime_to_msec (&ft);
 #endif
+    /* -Wreturn-type ругается на отсутствие оператора return */
+    return 0; /* невыполнимая команда, возврат из функции происходит ранее */
 }
 
 #endif

@@ -3,6 +3,7 @@
 #pragma once
 
 #include <stdint.h>
+#include "config.h"
 
 /*
  * Содержит
@@ -13,9 +14,12 @@
 class Service
 {
   public:
+    static const int NAME_MAXLEN = SERVICE_NAME_MAXLEN;
+    static const int WORKERS_SPOOL_MAXLEN = WORKERS_SPOOL_SIZE;
 
     enum State
     {
+        UNKNOWN    = 0,
         REGISTERED = 1,
         ACTIVATED  = 2,
         DISABLED   = 3

@@ -35,7 +35,7 @@ class XDBDatabase
     const DBState State();
     /* Сменить текущее состояние на новое */
     bool TransitionToState(DBState);
-    ~XDBDatabase();
+    virtual ~XDBDatabase();
 
   private:
     XDBDatabaseImpl *impl;

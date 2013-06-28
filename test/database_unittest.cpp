@@ -7,7 +7,9 @@
 #include "dat/xdb_broker.hpp"
 
 char *service_name = (char*)"service_test_1";
-char *worker_identity = (char*)"SN1_AAAAAAA";
+char *worker_identity_1 = (char*)"SN1_AAAAAAA";
+char *worker_identity_2 = (char*)"SN1_WRK2";
+char *worker_identity_3 = (char*)"SN1_WRK3";
 XDBDatabaseBroker *database = NULL;
 Service *service = NULL;
 int64_t service_id;
@@ -54,6 +56,10 @@ TEST(TestBrokerDATABASE, INSERT_SERVICE)
     service_id = service->GetID();
     // В пустой базе индексы начинаются с 1, поэтому service id=1
     EXPECT_EQ(service_id, 1);
+#if defined DEBUG
+    database->MakeSnapshot();
+#endif
+
 }
 
 TEST(TestBrokerDATABASE, INSERT_WORKER)
@@ -66,44 +72,120 @@ TEST(TestBrokerDATABASE, INSERT_WORKER)
     ASSERT_TRUE (worker == NULL);
     delete worker;
 
-    worker = new Worker(worker_identity, service_id);
+    worker = new Worker(worker_identity_1, service_id);
     status = database->PushWorker(worker);
     EXPECT_EQ(status, true);
     delete worker;
+#if defined DEBUG
+    database->MakeSnapshot();
+#endif
+
+    /*
+     * Повторная регистрация Обработчика с идентификатором, который там уже 
+     * присутствует, приводит к замещению предыдущего экземпляра 
+     */
+    worker = new Worker(worker_identity_1, service_id);
+    status = database->PushWorker(worker);
+    EXPECT_EQ(status, true);
+    delete worker;
+#if defined DEBUG
+    database->MakeSnapshot();
+#endif
+
+    /* Можно поместить не более двух Обработчиков с разными идентификаторами */
+    worker = new Worker(worker_identity_2, service_id);
+    status = database->PushWorker(worker);
+    EXPECT_EQ(status, true);
+    delete worker;
+#if defined DEBUG
+    database->MakeSnapshot();
+#endif
+
+    /* Можно поместить не более двух Обработчиков с разными идентификаторами */
+    worker = new Worker(worker_identity_3, service_id);
+    status = database->PushWorker(worker);
+    EXPECT_EQ(status, false);
+    delete worker;
+}
+
+TEST(TestBrokerDATABASE, REMOVE_WORKER)
+{
+    Worker  *worker  = NULL;
+    timer_mark_t expiration_time_mark;
+    bool status;
 
     worker = database->PopWorker(service);
     ASSERT_TRUE (worker != NULL);
-    ASSERT_TRUE (0 == (strcmp(worker->GetIDENTITY(), worker_identity)));
-    const timer_mark_t expiration_time_mark = worker->GetEXPIRATION();
+    ASSERT_TRUE (0 == (strcmp(worker->GetIDENTITY(), worker_identity_1)));
+    expiration_time_mark = worker->GetEXPIRATION();
     std::cout << "worker: '" << worker->GetIDENTITY() << "' "
               << "state: " << worker->GetSTATE() << " "
               << "expiration: " 
               << expiration_time_mark.tv_sec << "."
               << expiration_time_mark.tv_nsec << std::endl;
     delete worker;
+#if defined DEBUG
+    database->MakeSnapshot();
+#endif
+
+    worker = database->PopWorker(service);
+    ASSERT_TRUE (worker != NULL);
+    ASSERT_TRUE (0 == (strcmp(worker->GetIDENTITY(), worker_identity_2)));
+    expiration_time_mark = worker->GetEXPIRATION();
+    std::cout << "worker: '" << worker->GetIDENTITY() << "' "
+              << "state: " << worker->GetSTATE() << " "
+              << "expiration: " 
+              << expiration_time_mark.tv_sec << "."
+              << expiration_time_mark.tv_nsec << std::endl;
+    delete worker;
+#if defined DEBUG
+    database->MakeSnapshot();
+#endif
 
     /*
-     * У Сервиса был зарегистрирован только один Обработчик,
-     * Вторая попытка получения Обработчика из спула не должна
+     * У Сервиса было зарегистрированщ только два Обработчика,
+     * Третья попытка получения Обработчика из спула не должна
      * ничего возвращать
      */
     worker = database->PopWorker(service);
     ASSERT_TRUE (worker == NULL);
-}
 
-TEST(TestBrokerDATABASE, REMOVE_WORKER)
-{
-    Worker  *worker  = NULL;
-    bool status;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#if 0
 
     worker = database->PopWorker(service);
     ASSERT_TRUE (worker != NULL);
     EXPECT_EQ(worker->GetSTATE(), Worker::ARMED);
+#if defined DEBUG
+    database->MakeSnapshot();
+#endif
+
     status = database->RemoveWorker(worker);
     EXPECT_EQ(status, true);
+#if defined DEBUG
+    database->MakeSnapshot();
+#endif
 
     worker = database->PopWorker(service);
     ASSERT_TRUE (worker == NULL);
+#if defined DEBUG
+    database->MakeSnapshot();
+#endif
+
+#endif
 }
 
 TEST(TestBrokerDATABASE, CHECK_EXIST_SERVICE)
@@ -139,6 +221,9 @@ TEST(TestBrokerDATABASE, REMOVE)
 
     status = database->RemoveService(service_name);
     EXPECT_EQ(status, true);
+#if defined DEBUG
+    database->MakeSnapshot();
+#endif
 
     status = database->IsServiceExist(service_name);
     EXPECT_EQ(status, false);

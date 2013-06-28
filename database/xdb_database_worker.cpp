@@ -5,7 +5,7 @@
 #include "xdb_database_worker.hpp"
 #include "helper.hpp"
 
-Worker::Worker()
+Worker::Worker() /*: HEARTBEAT_PERIOD_VALUE(10)*/
 {
   memset((void*)&m_expiration, '\0', sizeof(m_expiration));
   m_identity = NULL;
@@ -16,7 +16,7 @@ Worker::Worker()
  * NB если self_id == -1, значит идентификатор будет 
  * автоматически сгенерирован базой данных 
  */
-Worker::Worker(const char *_identity, int64_t _service_id)
+Worker::Worker(const char *_identity, int64_t _service_id) /*: HEARTBEAT_PERIOD_VALUE(10)*/
 {
   timer_mark_t mark = {0, 0};
 

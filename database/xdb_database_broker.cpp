@@ -27,8 +27,10 @@ bool XDBDatabaseBroker::Open()
   bool status = false;
   assert(m_impl);
 
-  if (!m_impl) return false;
-  return m_impl->Open();
+  if (m_impl)
+    status = m_impl->Open();
+
+  return status;
 }
 
 Service::State XDBDatabaseBroker::GetServiceState(const Service *srv)
@@ -202,3 +204,12 @@ void XDBDatabaseBroker::DisableServiceCommand(const Service *srv,
   assert(m_impl);
   return m_impl->DisableServiceCommand(srv, command);
 }
+
+#if defined DEBUG
+/* Тестовый API сохранения базы */
+void XDBDatabaseBroker::MakeSnapshot()
+{
+  assert(m_impl);
+  return m_impl->MakeSnapshot();
+}
+#endif

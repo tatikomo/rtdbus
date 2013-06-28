@@ -22,9 +22,9 @@ class Worker;
 class XDBDatabaseBrokerImpl
 {
   public:
-
     XDBDatabaseBrokerImpl(const XDBDatabaseBroker*, const char*);
     ~XDBDatabaseBrokerImpl();
+
     bool Open();
     bool AddService(const char*);
     bool RemoveService(const char*);
@@ -67,14 +67,37 @@ class XDBDatabaseBrokerImpl
     void DisableServiceCommand (const std::string&, const std::string&);
     void DisableServiceCommand (const Service*, const std::string&);
 
+#if defined DEBUG
+    /* Тестовый API сохранения базы */
+    void MakeSnapshot();
+#endif
+
   private:
+#if defined DEBUG
+    char  m_snapshot_file_prefix[10];
+    bool  m_initialized;
+    bool  m_save_to_xml_feature;
+    int   m_snapshot_counter;
+    MCO_RET SaveDbToFile(const char*);
+#endif
+
     const XDBDatabaseBroker *m_self;
     mco_db_h                 m_db;
     char                     m_name[DBNAME_MAXLEN+1];
     void  LogError(MCO_RET, const char*, const char*);
+    void  LogWarn(const char*, const char*);
     bool  AttachToInstance();
+
+    /* 
+     * Вернуть Service, построенный на основе прочитанных из БД данных
+     */
+    Service* LoadService(mco_trans_h,
+                        autoid_t&,
+                        xdb_broker::XDBService&);
+
     /* 
      * Вернуть Worker, построенный на основе прочитанных из БД данных
+     * autoid_t - идентификатор Сервиса, содержащий данный Обработчик
      */
     Worker* LoadWorker(mco_trans_h,
                        autoid_t&,
@@ -85,7 +108,7 @@ class XDBDatabaseBrokerImpl
      * находящегося в состоянии state. 
      * Возвращает индекс найденного Обработчика, или -1
      */
-    int LocatingFirstOccurence(xdb_broker::XDBService &service_instance,
+    uint2 LocatingFirstOccurence(xdb_broker::XDBService &service_instance,
                        WorkerState            state);
 
 #ifdef DISK_DATABASE

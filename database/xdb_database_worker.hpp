@@ -9,12 +9,6 @@
 #include "helper.hpp"
 
 /*
- * TODO: перенести константу внутрь определения класса
- * 10 секунд между двумя heartbeat
- */
-#define WORKER_HEARTBEAT_PERIOD_VALUE 10
-
-/*
  * Содержит
  * 1. Название Обработчика
  * 2. Строковый идентификатор
@@ -23,10 +17,16 @@
 class Worker
 {
   public:
+
+    //  10 секунд между двумя heartbeat
+    static const int HEARTBEAT_PERIOD_VALUE = HEARTBEAT_PERIOD;
+    /* NB: должен быть размер поля identity_t из broker.mco */
+    static const int IDENTITY_MAXLEN = WORKER_IDENTITY_MAXLEN;
+
     // NB: создан на основе WorkerState из генерируемого dat/xdb_broker.h
     enum State {
-        ARMED       = 0,
-        DISARMED    = 1,
+        DISARMED    = 0,
+        ARMED       = 1,
         INIT        = 2,
         SHUTDOWN    = 3,
         IN_PROCESS  = 4,
