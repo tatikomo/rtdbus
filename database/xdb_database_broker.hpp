@@ -71,10 +71,8 @@ class XDBDatabaseBroker : public XDBDatabase
     void DisableServiceCommand (const std::string&, const std::string&);
     void DisableServiceCommand (const Service*, const std::string&);
 
-#if defined DEBUG
     /* Тестовый API сохранения базы */
-    void MakeSnapshot();
-#endif
+    void MakeSnapshot(const char* = NULL);
 
   private:
     /* Ссылка на физическую реализацию */

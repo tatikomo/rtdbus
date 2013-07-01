@@ -205,11 +205,9 @@ void XDBDatabaseBroker::DisableServiceCommand(const Service *srv,
   return m_impl->DisableServiceCommand(srv, command);
 }
 
-#if defined DEBUG
 /* Тестовый API сохранения базы */
-void XDBDatabaseBroker::MakeSnapshot()
+void XDBDatabaseBroker::MakeSnapshot(const char *msg)
 {
   assert(m_impl);
-  return m_impl->MakeSnapshot();
+  return m_impl->MakeSnapshot(msg);
 }
-#endif

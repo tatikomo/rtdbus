@@ -22,6 +22,10 @@ class Worker;
 class XDBDatabaseBrokerImpl
 {
   public:
+    enum State {
+      SHUTDOWN, INIT
+    };
+
     XDBDatabaseBrokerImpl(const XDBDatabaseBroker*, const char*);
     ~XDBDatabaseBrokerImpl();
 
@@ -67,10 +71,8 @@ class XDBDatabaseBrokerImpl
     void DisableServiceCommand (const std::string&, const std::string&);
     void DisableServiceCommand (const Service*, const std::string&);
 
-//#if defined DEBUG
     /* Тестовый API сохранения базы */
-    void MakeSnapshot();
-//#endif
+    void MakeSnapshot(const char*);
 
   private:
 #if defined DEBUG
@@ -84,6 +86,7 @@ class XDBDatabaseBrokerImpl
     const XDBDatabaseBroker *m_self;
     mco_db_h                 m_db;
     char                     m_name[DBNAME_MAXLEN+1];
+    State                    m_state;
     void  LogError(MCO_RET, const char*, const char*);
     void  LogWarn(const char*, const char*);
     bool  AttachToInstance();

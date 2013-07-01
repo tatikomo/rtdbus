@@ -63,6 +63,7 @@ XDBDatabaseBrokerImpl::XDBDatabaseBrokerImpl(
   m_self = self;
   strncpy(m_name, name, DBNAME_MAXLEN);
   m_name[DBNAME_MAXLEN] = '\0';
+  m_state = INIT;
 
 #ifdef DISK_DATABASE
   m_dbsFileName = new char[strlen(name) + 5];
@@ -82,19 +83,23 @@ XDBDatabaseBrokerImpl::~XDBDatabaseBrokerImpl()
   const char *fctName = "~XDBDatabaseBrokerImpl";
   MCO_RET rc;
 
-  assert(m_self);
-  rc = mco_db_disconnect(m_db);
-  if (rc) { LogError(rc, fctName, "disconnecting failure"); }
-  rc = mco_db_close(m_name);
-  if (rc) { LogError(rc, fctName, "closing failure"); }
+  if (m_state != SHUTDOWN)
+  {
+    assert(m_self);
+    rc = mco_db_disconnect(m_db);
+    if (rc) { LogError(rc, fctName, "disconnecting failure"); }
+    rc = mco_db_close(m_name);
+    if (rc) { LogError(rc, fctName, "closing failure"); }
 
 /*  if (kill_after)
       mco_db_kill(m_name);*/
 
 #ifdef DISK_DATABASE
-  delete []m_dbsFileName;
-  delete []m_logFileName;
+    delete []m_dbsFileName;
+    delete []m_logFileName;
 #endif
+    m_state = SHUTDOWN;
+  }
 
 /*  printf("\t~XDBDatabaseBrokerImpl(%p, %s)\n", 
         (void*)m_self,
@@ -345,9 +350,7 @@ bool XDBDatabaseBrokerImpl::RemoveWorker(Worker *wrk)
 {
   const char   *fctName = "XDBDatabaseBrokerImpl::RemoveWorker";
   bool          status = false;
-  Service      *srv = NULL;
   MCO_RET       rc;
-//  autoid_t      aid;
   mco_trans_h   t;
   xdb_broker::XDBService service_instance;
   xdb_broker::XDBWorker  worker_instance;
@@ -359,14 +362,20 @@ bool XDBDatabaseBrokerImpl::RemoveWorker(Worker *wrk)
   rc = mco_trans_start(m_db, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
   while (rc == MCO_S_OK)
   {
-    if ((srv = GetServiceById(wrk->GetSERVICE_ID())))
-    {
       // Удалось найти Сервис, к которому привязан Обработчик
       rc = xdb_broker::XDBService::SK_ident::find(t, 
             identity, 
             strlen(identity), 
             service_instance, 
             worker_index);
+
+      if (MCO_S_NOTFOUND == rc)
+      {
+        // Попытка удаления Обработчика несуществующего Сервиса
+        LogError(rc, fctName, 
+            "try to remove worker for non-existense service");
+        break;
+      }
       if (rc) { LogError(rc, fctName, "locating worker failure"); break; }
 
       // номер искомого Обработчика в спуле есть worker_index
@@ -378,22 +387,15 @@ bool XDBDatabaseBrokerImpl::RemoveWorker(Worker *wrk)
       // удалить у Сервиса упоминания о данном Обработчике
       rc = service_instance.SK_workers_erase(worker_index);
       if (rc) { LogError(rc, fctName, "worker disarming failure"); break; }
-    }
-    else
-    {
-        // Попытка удаления Обработчика несуществующего Сервиса
-        LogError(rc, fctName, 
-            "try to remove worker for non-existense service");
-    }
 
-    status = true;
-    break;
+      status = true;
+      break;
   }
 
-  if (false == status)
-    mco_trans_rollback(t);
-  else
+  if (true == status)
     mco_trans_commit(t);
+  else
+    mco_trans_rollback(t);
 
   return status;
 }
@@ -527,6 +529,9 @@ bool XDBDatabaseBrokerImpl::PushWorker(Worker *wrk)
 
     break;
   }
+
+  // Удалим Сервис, переданный сюда из GetServiceById
+  delete srv;
 
   if (true == status)
     mco_trans_commit(t);
@@ -738,7 +743,8 @@ Worker *XDBDatabaseBrokerImpl::GetWorker(const Service *srv)
  * Вернуть ближайший Обработчик, находящийся в состоянии ARMED.
  *
  * Побочные эффекты:
- * Выбранный экземпляр в базе данных помечается занятым (IN_PROCESS)
+ *   Выбранный экземпляр в базе данных не удаляется, а 
+ *   помечается занятым (IN_PROCESS)
  */
 Worker *XDBDatabaseBrokerImpl::PopWorker(const char *name)
 {
@@ -1135,9 +1141,9 @@ void XDBDatabaseBrokerImpl::DisableServiceCommand(
 
 #if defined DEBUG
 /* Тестовый API сохранения базы */
-void XDBDatabaseBrokerImpl::MakeSnapshot()
+void XDBDatabaseBrokerImpl::MakeSnapshot(const char* msg)
 {
-  char file_name[30];
+  static char file_name[50];
 
   if (false == m_initialized)
   {
@@ -1146,8 +1152,10 @@ void XDBDatabaseBrokerImpl::MakeSnapshot()
     m_initialized = true;
   }
 
-  sprintf(file_name, "%s%03d.xdb", 
-          m_snapshot_file_prefix, m_snapshot_counter++);
+  sprintf(file_name, "%s.%s.%03d",
+          m_snapshot_file_prefix,
+          (NULL == msg)? "xdb" : msg,
+          ++m_snapshot_counter);
 
   //fprintf(stdout, "Make snapshot into %s file\n", file_name);
 
@@ -1213,11 +1221,14 @@ MCO_RET XDBDatabaseBrokerImpl::SaveDbToFile(const char* fname)
       mco_xml_set_policy(t, &op);
 #endif
 
-      mco_trans_rollback(t);
-
       if (rc != MCO_S_OK)
       {
          fprintf(stdout, "En error=%d occured during exporting.\n", rc);
+         mco_trans_rollback(t);
+      }
+      else
+      {
+         mco_trans_commit(t);
       }
     }
     else
@@ -1236,7 +1247,7 @@ MCO_RET XDBDatabaseBrokerImpl::SaveDbToFile(const char* fname)
 } /* ========================================================================= */
 
 #else
-void XDBDatabaseBrokerImpl::MakeSnapshot()
+void XDBDatabaseBrokerImpl::MakeSnapshot(const char*)
 {
   return;
 }

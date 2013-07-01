@@ -11,10 +11,13 @@ XDBDatabase::XDBDatabase(const char* name)
 
 XDBDatabase::~XDBDatabase()
 {
+  if (m_state != DELETED)
+  {
     assert (impl);
     impl->Disconnect();
     TransitionToState(DELETED);
     delete impl;
+  }
 }
 
 const char* XDBDatabase::DatabaseName()

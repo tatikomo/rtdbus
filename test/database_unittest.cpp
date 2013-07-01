@@ -11,7 +11,7 @@ char *service_name_2 = (char*)"service_test_2";
 char *unbelievable_service_name = (char*)"unbelievable_service";
 char *worker_identity_1 = (char*)"SN1_AAAAAAA";
 char *worker_identity_2 = (char*)"SN1_WRK2";
-char *worker_identity_3 = (char*)"SN1_WRK3";
+char *worker_identity_3 = (char*)"SN2_WRK3";
 XDBDatabaseBroker *database = NULL;
 Service *service1 = NULL;
 Service *service2 = NULL;
@@ -61,29 +61,24 @@ TEST(TestBrokerDATABASE, INSERT_SERVICE)
     status = database->IsServiceExist(service_name_1);
     EXPECT_EQ(status, true);
 
-#if 0
-    /* Добавим второй Сервис */
-    status = database->AddService(service_name_2);
-    EXPECT_EQ(status, true);
-
-    status = database->IsServiceExist(service_name_2);
-    EXPECT_EQ(status, true);
-#endif
-
     service1 = database->GetServiceByName(service_name_1);
     ASSERT_TRUE (service1 != NULL);
     service1_id = service1->GetID();
     // В пустой базе индексы начинаются с 1, поэтому у первого Сервиса id=1
     EXPECT_EQ(service1_id, 1);
 
-    
-#if 0
+    /* Добавим второй Сервис */
+    status = database->AddService(service_name_2);
+    EXPECT_EQ(status, true);
+
+    status = database->IsServiceExist(service_name_2);
+    EXPECT_EQ(status, true);
+
     service2 = database->GetServiceByName(service_name_2);
     ASSERT_TRUE (service2 != NULL);
     service2_id = service2->GetID();
-#endif
 
-    database->MakeSnapshot();
+    database->MakeSnapshot("A");
 }
 
 TEST(TestBrokerDATABASE, INSERT_WORKER)
@@ -100,7 +95,7 @@ TEST(TestBrokerDATABASE, INSERT_WORKER)
     status = database->PushWorker(worker);
     EXPECT_EQ(status, true);
     delete worker;
-    database->MakeSnapshot();
+    database->MakeSnapshot("B");
 
     /*
      * Повторная регистрация Обработчика с идентификатором, который там уже 
@@ -110,20 +105,21 @@ TEST(TestBrokerDATABASE, INSERT_WORKER)
     status = database->PushWorker(worker);
     EXPECT_EQ(status, true);
     delete worker;
-    database->MakeSnapshot();
+    database->MakeSnapshot("C");
 
     /* Можно поместить не более двух Обработчиков с разными идентификаторами */
     worker = new Worker(worker_identity_2, service1_id);
     status = database->PushWorker(worker);
     EXPECT_EQ(status, true);
     delete worker;
-    database->MakeSnapshot();
+    database->MakeSnapshot("D");
 
     /* Ошибка помещения третьего экземпляра в спул */
     worker = new Worker(worker_identity_3, service1_id);
     status = database->PushWorker(worker);
     EXPECT_EQ(status, false);
     delete worker;
+    database->MakeSnapshot("D1");
 
 #if 0
     /* Помещение экземпляра в спул второго Сервиса */
@@ -131,8 +127,9 @@ TEST(TestBrokerDATABASE, INSERT_WORKER)
     status = database->PushWorker(worker);
     EXPECT_EQ(status, true);
     delete worker;
-    database->MakeSnapshot();
 #endif
+
+    database->MakeSnapshot("E");
 }
 
 TEST(TestBrokerDATABASE, REMOVE_WORKER)
@@ -151,7 +148,7 @@ TEST(TestBrokerDATABASE, REMOVE_WORKER)
               << expiration_time_mark.tv_sec << "."
               << expiration_time_mark.tv_nsec << std::endl;
     delete worker;
-    database->MakeSnapshot();
+    database->MakeSnapshot("F");
 
     worker = database->PopWorker(service1);
     ASSERT_TRUE (worker != NULL);
@@ -163,7 +160,7 @@ TEST(TestBrokerDATABASE, REMOVE_WORKER)
               << expiration_time_mark.tv_sec << "."
               << expiration_time_mark.tv_nsec << std::endl;
     delete worker;
-    database->MakeSnapshot();
+    database->MakeSnapshot("J");
 
     /*
      * У Сервиса было зарегистрировано только два Обработчика,
@@ -179,15 +176,15 @@ TEST(TestBrokerDATABASE, REMOVE_WORKER)
     worker = database->PopWorker(service);
     ASSERT_TRUE (worker != NULL);
     EXPECT_EQ(worker->GetSTATE(), Worker::ARMED);
-    database->MakeSnapshot();
+    database->MakeSnapshot("K");
 
     status = database->RemoveWorker(worker);
     EXPECT_EQ(status, true);
-    database->MakeSnapshot();
+    database->MakeSnapshot("L");
 
     worker = database->PopWorker(service);
     ASSERT_TRUE (worker == NULL);
-    database->MakeSnapshot();
+    database->MakeSnapshot("M");
 
 #endif
 }
@@ -225,20 +222,28 @@ TEST(TestBrokerDATABASE, REMOVE)
 
     status = database->RemoveService(service_name_1);
     EXPECT_EQ(status, true);
-    database->MakeSnapshot();
+    database->MakeSnapshot("M");
 
-#if 0
+#if 1
     worker = database->PopWorker(service2);
     ASSERT_TRUE (worker != NULL);
-    database->MakeSnapshot();
+    database->MakeSnapshot("N");
 
     status = database->RemoveWorker(worker);
     EXPECT_EQ(status, true);
-    database->MakeSnapshot();
+    database->MakeSnapshot("O");
 
     status = database->RemoveService(service_name_2);
     EXPECT_EQ(status, true);
-    database->MakeSnapshot();
+    database->MakeSnapshot("P");
+#else
+    worker = database->PopWorker(service2);
+    ASSERT_TRUE (worker == NULL);
+    database->MakeSnapshot("Q");
+
+    status = database->RemoveService(service_name_2);
+    EXPECT_EQ(status, true);
+    database->MakeSnapshot("R");
 #endif
 }
 
@@ -247,7 +252,7 @@ TEST(TestBrokerDATABASE, DESTROY)
     ASSERT_TRUE (service1 != NULL);
     delete service1;
 
-#if 0
+#if 1
     ASSERT_TRUE (service2 != NULL);
     delete service2;
 #endif
