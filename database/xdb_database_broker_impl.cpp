@@ -1073,35 +1073,14 @@ Worker *XDBDatabaseBrokerImpl::GetWorkerByIdent(const char *ident)
     if (rc) { LogError(rc, fctName, "worker location failure"); break; }
 
     /* Запись найдена - сконструировать объект на основе данных из БД */
-#if 0
-    rc = instance.identity_get(identity_from_db, identity_from_db_length);
-    if (rc) { LogError(rc, fctName, "worker's get identity failure"); break; }
-#else
-    /* IDENTITY у нас уже есть - это ident */
-    printf("XDBDatabaseBrokerImpl::GetWorkerByIdent('%s' %d)\n",
-           ident, strlen(ident));
-#endif
     rc = service_instance.autoid_get(service_aid);
     if (rc) { LogError(rc, fctName, "worker's get service id failure"); break; }
     rc = service_instance.SK_workers_at(worker_idx, worker_instance);
     if (rc) { LogError(rc, fctName, "get worker's instance failure"); break; }
 
-#if 1
-    worker = LoadWorker(t, service_aid, worker_instance);
-#else
-    rc = worker_instance.expiration_read(xdb_expiration);
-    if (rc) { LogError(rc, fctName, "worker's get expiration failure"); break; }
-    rc = worker_instance.state_get(state);
-    if (rc) { LogError(rc, fctName, "worker's state read failure"); break; }
+    if (NULL != (worker = LoadWorker(t, service_aid, worker_instance)))
+      status = true;
 
-    worker = new Worker(ident, service_aid);
-    worker->SetSTATE((Worker::State)state);
-    xdb_expiration.sec_get(timer_value); expiration.tv_sec = timer_value;
-    xdb_expiration.nsec_get(timer_value); expiration.tv_nsec = timer_value;
-    worker->SetEXPIRATION(expiration);
-#endif
-    if (worker) 
-        status = true;
     break;
   }
 
@@ -1256,5 +1235,10 @@ MCO_RET XDBDatabaseBrokerImpl::SaveDbToFile(const char* fname)
   return rc;
 } /* ========================================================================= */
 
+#else
+void XDBDatabaseBrokerImpl::MakeSnapshot()
+{
+  return;
+}
 #endif
 

@@ -32,7 +32,7 @@ class XDBDatabaseBrokerImpl
     bool RemoveWorker(Worker*);
     /* Добавить нового Обработчика в спул Сервиса */
     bool PushWorkerForService(Service*, Worker*);
-    /* TODO Worker должен содержать сведения о своем Сервисе */
+    /* поместить Обработчик в спул своего Сервиса */
     bool PushWorker(Worker*);
     bool IsServiceExist(const char*);
     bool IsServiceCommandEnabled(const Service*, const std::string&);
@@ -67,10 +67,10 @@ class XDBDatabaseBrokerImpl
     void DisableServiceCommand (const std::string&, const std::string&);
     void DisableServiceCommand (const Service*, const std::string&);
 
-#if defined DEBUG
+//#if defined DEBUG
     /* Тестовый API сохранения базы */
     void MakeSnapshot();
-#endif
+//#endif
 
   private:
 #if defined DEBUG
