@@ -24,6 +24,8 @@ set (XDB_SOURCES
         ${XDB_DIR}/dat/xdb_broker.h
         ${XDB_DIR}/dat/xdb_broker.c
         ${XDB_DIR}/dat/xdb_broker.hpp
+        ${XDB_DIR}/xdb_database_common.c
+        ${XDB_DIR}/xdb_database_common.h
         ${XDB_DIR}/xdb_database.cpp
         ${XDB_DIR}/xdb_database.hpp
         ${XDB_DIR}/xdb_database_impl.cpp
