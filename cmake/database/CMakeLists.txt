@@ -28,8 +28,6 @@ set (XDB_SOURCES
         ${XDB_DIR}/xdb_database_common.h
         ${XDB_DIR}/xdb_database.cpp
         ${XDB_DIR}/xdb_database.hpp
-        ${XDB_DIR}/xdb_database_impl.cpp
-        ${XDB_DIR}/xdb_database_impl.hpp
         ${XDB_DIR}/xdb_database_broker.cpp
         ${XDB_DIR}/xdb_database_broker.hpp
         ${XDB_DIR}/xdb_database_broker_impl.cpp

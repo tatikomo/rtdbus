@@ -2,12 +2,9 @@
 #define XDB_DATABASE_HPP
 #pragma once
 
-// размер имени базы данных
-#define DATABASE_NAME_MAXLEN 10
-// максимальное количество Обработчиков для одного Сервиса
-#define WAITING_WORKERS_SPOOL_MAXLEN 2
-
-class XDBDatabaseImpl;
+#if defined HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 class XDBDatabase
 {
@@ -23,22 +20,24 @@ class XDBDatabase
     } DBState;
 
     XDBDatabase(const char*);
+    virtual ~XDBDatabase();
+
     const char* DatabaseName();
-    bool Connect();
     /* 
      * Каждая реализация базы данных использует 
      * свой собственный словарь, и должна сама
      * реализовывать функцию открытия
      */
+    virtual bool Connect();
     virtual bool Open();
-    bool Disconnect();
+    virtual bool Disconnect();
+
     const DBState State();
     /* Сменить текущее состояние на новое */
     bool TransitionToState(DBState);
-    virtual ~XDBDatabase();
 
   private:
-    XDBDatabaseImpl *impl;
+    char m_name[DBNAME_MAXLEN+1];
 
   protected:
     DBState  m_state;

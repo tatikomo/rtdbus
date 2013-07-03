@@ -1,29 +1,36 @@
 #include <assert.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h> // exit()
+
+#if defined HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include "xdb_database.hpp"
-#include "xdb_database_impl.hpp"
 
 XDBDatabase::XDBDatabase(const char* name)
 {
-    impl = new XDBDatabaseImpl(this, name);
-    assert (impl);
+    assert (name);
     m_state = XDBDatabase::DISCONNECTED;
+    strncpy(m_name, name, DBNAME_MAXLEN);
+    m_name[DBNAME_MAXLEN] = '\0';
+
+    fprintf(stdout, "\tXDBDatabase(%p, %s)\n", (void*)this, name);
+    fflush(stdout);
 }
 
 XDBDatabase::~XDBDatabase()
 {
-  if (m_state != DELETED)
+  fprintf(stdout, "\t~XDBDatabase(%p, %s)\n", (void*)this, m_name);
+  if (TransitionToState(DELETED) == true)
   {
-    assert (impl);
-    impl->Disconnect();
-    TransitionToState(DELETED);
-    delete impl;
+     Disconnect();
   }
 }
 
 const char* XDBDatabase::DatabaseName()
 {
-    assert (impl);
-    return impl->DatabaseName();
+    return m_name;
 }
 
 const XDBDatabase::DBState XDBDatabase::State()
@@ -46,36 +53,16 @@ bool XDBDatabase::TransitionToState(DBState new_state)
 
 bool XDBDatabase::Open()
 {
-    bool status;
-
-    assert (impl);
-    if (true == (status = impl->Open()))
-    {
-        status = TransitionToState(OPENED);
-    }
-    return status;
+    return TransitionToState(OPENED);
 }
 
 bool XDBDatabase::Connect()
 {
-    bool status;
-
-    assert (impl);
-    if (true == (status = impl->Connect()))
-    {
-        status = TransitionToState(CONNECTED);
-    }
-    return status;
+    return TransitionToState(CONNECTED);
 }
 
 bool XDBDatabase::Disconnect()
 {
-    bool status = false;
-    
-    assert (impl);
-    if (TransitionToState(DISCONNECTED))
-        status = impl->Disconnect();
-
-    return status;
+    return TransitionToState(DISCONNECTED);
 }
 

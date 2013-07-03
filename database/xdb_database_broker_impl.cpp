@@ -2,9 +2,15 @@
 #include <stdio.h>
 #include <string.h>
 
+/* TODO: delete stdio after removing printf() */
+#include <stdio.h>
+
 #ifdef __cplusplus
 extern "C" {
+#endif
+
 #include "mco.h"
+#include "xdb_database_common.h"
 
 #if defined DEBUG
 /* for xml saving support */
@@ -12,6 +18,8 @@ mco_size_t file_writer(void*, const void*, mco_size_t);
 #define SETUP_POLICY
 #include "mcoxml.h"
 #endif
+
+#ifdef __cplusplus
 }
 #endif
 
@@ -53,17 +61,15 @@ const int   MAP_ADDRESS = 0x20000000;
 #include "dat/xdb_broker.h"
 #include "dat/xdb_broker.hpp"
 
+
 XDBDatabaseBrokerImpl::XDBDatabaseBrokerImpl(
-    const XDBDatabaseBroker *self, 
-    const char *name) : m_initialized(false)
+    XDBDatabaseBroker *self) : m_initialized(false)
 {
   assert(self);
-  assert(name);
 
   m_self = self;
-  strncpy(m_name, name, DBNAME_MAXLEN);
-  m_name[DBNAME_MAXLEN] = '\0';
-  m_state = INIT;
+
+  const char* name = m_self->DatabaseName();
 
 #ifdef DISK_DATABASE
   m_dbsFileName = new char[strlen(name) + 5];
@@ -75,103 +81,28 @@ XDBDatabaseBrokerImpl::XDBDatabaseBrokerImpl(
   strcpy(m_logFileName, name);
   strcat(m_logFileName, ".log");
 #endif
-//  printf("\tXDBDatabaseBrokerImpl(%p, %s)\n", (void*)self, name);
+  fprintf(stdout, "\tXDBDatabaseBrokerImpl(%p, %s)\n", (void*)self, name);
+  fflush(stdout);
 }
 
 XDBDatabaseBrokerImpl::~XDBDatabaseBrokerImpl()
 {
   const char *fctName = "~XDBDatabaseBrokerImpl";
-  MCO_RET rc;
 
-  if (m_state != SHUTDOWN)
-  {
-    assert(m_self);
-    rc = mco_db_disconnect(m_db);
-    if (rc) { LogError(rc, fctName, "disconnecting failure"); }
-    rc = mco_db_close(m_name);
-    if (rc) { LogError(rc, fctName, "closing failure"); }
-
-/*  if (kill_after)
-      mco_db_kill(m_name);*/
-
-#ifdef DISK_DATABASE
-    delete []m_dbsFileName;
-    delete []m_logFileName;
-#endif
-    m_state = SHUTDOWN;
-  }
-
-/*  printf("\t~XDBDatabaseBrokerImpl(%p, %s)\n", 
-        (void*)m_self,
-        ((XDBDatabase*)m_self)->DatabaseName());*/
+  fprintf(stdout, "%s: state %d\n", fctName, (int)((XDBDatabase*)m_self)->State());
+  Disconnect();
+  fflush(stdout);
 }
 
-void XDBDatabaseBrokerImpl::LogError(MCO_RET rc, 
-            const char *functionName, 
-            const char *msg)
+/* NB: Сначала Подключение (Connect), потом Открытие (Open) */
+bool XDBDatabaseBrokerImpl::Connect()
 {
-    const char *empty = "";
-    printf("E %s: %s [rc=%d]\n", 
-        functionName? functionName : empty,
-        msg? msg : empty,
-        rc);
-}
-
-void  XDBDatabaseBrokerImpl::LogWarn(
-            const char *functionName, 
-            const char *msg)
-{
-    const char *empty = "";
-    printf("W %s: %s\n", 
-        functionName? functionName : empty,
-        msg? msg : empty);
-}
-
-bool XDBDatabaseBrokerImpl::Open()
-{
-  bool status = false;
-
-  switch (((XDBDatabase*)m_self)->State())
-  {
-    case XDBDatabase::OPENED:
-      printf("\tTry to reopen database %s\n",
-        ((XDBDatabase*)m_self)->DatabaseName());
-    break;
-
-    case XDBDatabase::CONNECTED:
-    case XDBDatabase::CLOSED:
-        status = AttachToInstance();
-    break;
-
-    case XDBDatabase::DISCONNECTED:
-      printf("\tTry to reopen disconnected database %s\n",
-        ((XDBDatabase*)m_self)->DatabaseName());
-    break;
-
-    default:
-      printf("\tUnknown database %s state %d\n",
-        ((XDBDatabase*)m_self)->DatabaseName(),
-        (int)((XDBDatabase*)m_self)->State());
-    break;
-  }
-
-  return status;
-}
-
-bool XDBDatabaseBrokerImpl::AttachToInstance()
-{
+    bool status = false;
     MCO_RET rc;
-
-    /* подключиться к базе данных, предполагая что она создана */
-    printf("\nattaching to instance '%s'\n",
-           ((XDBDatabase*)m_self)->DatabaseName());
-    rc = mco_db_connect(((XDBDatabase*)m_self)->DatabaseName(),
-            &m_db);
-
-#if defined DEBUG
     mco_runtime_info_t info;
 
     mco_get_runtime_info(&info);
+#if defined DEBUG
     if (!info.mco_save_load_supported)
     {
       fprintf(stdout, "XML import/export doesn't supported by runtime\n");
@@ -182,11 +113,129 @@ bool XDBDatabaseBrokerImpl::AttachToInstance()
       m_save_to_xml_feature = true;
     }
 #endif
+    if (!info.mco_shm_supported)
+    {
+      fprintf(stdout, "\nThis program requires shared memory database runtime\n");
+      return false;
+    }
+
+    /* Set the error handler to be called from the eXtremeDB runtime if a fatal error occurs */
+    mco_error_set_handler(&errhandler);
+    /* Set the error handler to be called from the eXtremeDB runtime if a fatal error occurs */
+    mco_error_set_handler_ex(&extended_errhandler);
+
+    fprintf(stdout, "\n\tUser-defined error handler set\n");
+    show_runtime_info("");
+
+    status = ((XDBDatabase*)m_self)->TransitionToState(XDBDatabase::INITIALIZED);
+    rc = mco_runtime_start();
+    rc_check("Runtime starting", rc);
+    if (!rc)
+    {
+      status = ((XDBDatabase*)m_self)->TransitionToState(XDBDatabase::CONNECTED);
+    }
+
+    return status;
+}
+
+void XDBDatabaseBrokerImpl::LogError(MCO_RET rc, 
+            const char *functionName, 
+            const char *msg)
+{
+    const char *empty = "";
+    fprintf(stdout, "E %s: %s [rc=%d]\n", 
+        functionName? functionName : empty,
+        msg? msg : empty,
+        rc);
+    fflush(stdout);
+}
+
+void  XDBDatabaseBrokerImpl::LogWarn(
+            const char *functionName, 
+            const char *msg)
+{
+    const char *empty = "";
+    fprintf(stdout, "W %s: %s\n", 
+        functionName? functionName : empty,
+        msg? msg : empty);
+    fflush(stdout);
+}
+
+/* NB: Сначала Подключение (Connect), потом Открытие (Open) */
+bool XDBDatabaseBrokerImpl::Open()
+{
+  bool status = false;
+
+  switch (((XDBDatabase*)m_self)->State())
+  {
+    case XDBDatabase::OPENED:
+      printf("\tTry to database '%s' reopen\n",
+        ((XDBDatabase*)m_self)->DatabaseName());
+    break;
+
+    case XDBDatabase::CONNECTED:
+        status = AttachToInstance();
+    break;
+
+    case XDBDatabase::CLOSED:
+    case XDBDatabase::DISCONNECTED:
+      printf("\tTry to open closed or disconnected database '%s'\n",
+        ((XDBDatabase*)m_self)->DatabaseName());
+    break;
+
+    default:
+      printf("\tTry to open database '%s' with unknown state %d\n",
+        ((XDBDatabase*)m_self)->DatabaseName(),
+        (int)((XDBDatabase*)m_self)->State());
+    break;
+  }
+
+  return status;
+}
+
+bool XDBDatabaseBrokerImpl::Disconnect()
+{
+  MCO_RET rc;
+
+  if (((XDBDatabase*)m_self)->State() != XDBDatabase::CONNECTED)
+  {
+    assert(m_self);
+    rc = mco_db_disconnect(m_db);
+    ((XDBDatabase*)m_self)->TransitionToState(XDBDatabase::DISCONNECTED);
+    rc_check("Disconnection", rc);
+
+    rc = mco_db_close(m_self->DatabaseName());
+    ((XDBDatabase*)m_self)->TransitionToState(XDBDatabase::CLOSED);
+    rc_check("Closing", rc);
+
+    rc = mco_runtime_stop();
+    rc_check("Runtime stop", rc);
+    ((XDBDatabase*)m_self)->TransitionToState(XDBDatabase::DELETED);
+
+/*  if (kill_after)
+      mco_db_kill(m_self->DatabaseName());*/
+
+#ifdef DISK_DATABASE
+    delete []m_dbsFileName;
+    delete []m_logFileName;
+#endif
+  }
+}
+
+
+bool XDBDatabaseBrokerImpl::AttachToInstance()
+{
+    MCO_RET rc;
+
+    /* подключиться к базе данных, предполагая что она создана */
+    fprintf(stdout, "\nattaching to instance '%s'\n",
+           ((XDBDatabase*)m_self)->DatabaseName());
+    rc = mco_db_connect(((XDBDatabase*)m_self)->DatabaseName(), &m_db);
 
     /* ошибка - экземпляр базы не найден, попробуем создать её */
-    if (rc == MCO_E_NOINSTANCE)
+    if (MCO_E_NOINSTANCE == rc)
     {
-        printf("'%s' instance not found, create\n",
+        fprintf(stdout, "'%s' instance not found, create\n",
             ((XDBDatabase*)m_self)->DatabaseName());
         /*
          * TODO: Использование mco_db_open() является запрещенным,
@@ -207,7 +256,7 @@ bool XDBDatabaseBrokerImpl::AttachToInstance()
 #endif
 
 #ifdef DISK_DATABASE
-        printf("Disk database '%s' opening\n", m_dbsFileName);
+        fprintf(stdout, "Disk database '%s' opening\n", m_dbsFileName);
         rc = mco_disk_open(((XDBDatabase*)m_self)->DatabaseName(),
                            m_dbsFileName,
                            m_logFileName, 
@@ -219,13 +268,13 @@ bool XDBDatabaseBrokerImpl::AttachToInstance()
 
         if (rc != MCO_S_OK && rc != MCO_ERR_DISK_ALREADY_OPENED)
         {
-            printf("\nerror creating disk database");
+            fprintf(stdout, "\nerror creating disk database");
             return false;
         }
 #endif
 
         /* подключиться к базе данных, т.к. она только что создана */
-        printf("connecting to instance '%s'\n", 
+        fprintf(stdout, "connecting to instance '%s'\n", 
             ((XDBDatabase*)m_self)->DatabaseName());
         rc = mco_db_connect(((XDBDatabase*)m_self)->DatabaseName(), &m_db);
     }
@@ -233,12 +282,13 @@ bool XDBDatabaseBrokerImpl::AttachToInstance()
     /* ошибка создания экземпляра - выход из системы */
     if (rc)
     {
-        printf("\nCould not create instance: %d\n", rc);
+        fprintf(stdout, "\nCould not attach to instance '%s': %d\n",
+                ((XDBDatabase*)m_self)->DatabaseName(), rc);
         return false;
     }
 
-    ((XDBDatabase*)m_self)->TransitionToState(XDBDatabase::OPENED);
-    return true;
+    fflush(stdout);
+    return ((XDBDatabase*)m_self)->TransitionToState(XDBDatabase::OPENED);
 }
 
 bool XDBDatabaseBrokerImpl::AddService(const char *name)
@@ -251,7 +301,7 @@ bool XDBDatabaseBrokerImpl::AddService(const char *name)
 
   assert(name);
   rc = mco_trans_start(m_db, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
-  while (rc == MCO_S_OK)
+  while (MCO_S_OK == rc)
   {
     if (rc) { LogError(rc, fctName, "transaction starting failure"); break; }
 
@@ -279,19 +329,6 @@ bool XDBDatabaseBrokerImpl::AddService(const char *name)
 
   return status;
 }
-
-#if 0
-  XDBService *service = NULL;
-  if (NULL != (service = GetServiceByName(name)))
-  {
-      oid.id = service->GetID();
-      rc = instance.create(t, &oid);
-      if (rc) { LogError(rc, fctName, "creating failure"); break; }
-      rc = instance.remove();
-      if (rc) { LogError(rc, fctName, "removing failure"); break; }
-      delete service;
-  }
-#endif
 
 /*
  * Удалить запись о заданном сервисе
@@ -1241,6 +1278,7 @@ MCO_RET XDBDatabaseBrokerImpl::SaveDbToFile(const char* fname)
         fprintf(stdout, "success\n");
     }
 
+    fflush(stdout);
     fclose(f);
 
   return rc;

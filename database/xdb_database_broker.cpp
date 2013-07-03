@@ -5,6 +5,9 @@
 #include "xdb_database_service.hpp"
 #include "xdb_database_worker.hpp"
 
+/* TODO: delete stdio after removing printf() */
+#include <stdio.h>
+
 class Service;
 class Worker;
 
@@ -12,12 +15,13 @@ const char *database_name = "BrokerDB";
 
 XDBDatabaseBroker::XDBDatabaseBroker() : XDBDatabase(database_name)
 {
-  m_impl = new XDBDatabaseBrokerImpl(this, database_name);
+  m_impl = new XDBDatabaseBrokerImpl(this);
   assert(m_impl);
 }
 
 XDBDatabaseBroker::~XDBDatabaseBroker()
 {
+  printf("~XDBDatabaseBroker()\n");
   assert(m_impl);
   delete m_impl;
 }
@@ -29,6 +33,17 @@ bool XDBDatabaseBroker::Open()
 
   if (m_impl)
     status = m_impl->Open();
+
+  return status;
+}
+
+bool XDBDatabaseBroker::Connect()
+{
+  bool status = false;
+  assert(m_impl);
+
+  if (m_impl)
+    status = m_impl->Connect();
 
   return status;
 }

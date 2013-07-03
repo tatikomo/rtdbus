@@ -18,6 +18,7 @@ class XDBDatabaseBroker : public XDBDatabase
     XDBDatabaseBroker();
     ~XDBDatabaseBroker();
 
+    bool Connect();
     bool Open();
 
     /* Зарегистрировать Сервис */

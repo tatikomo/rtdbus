@@ -22,14 +22,16 @@ class Worker;
 class XDBDatabaseBrokerImpl
 {
   public:
-    enum State {
-      SHUTDOWN, INIT
-    };
-
-    XDBDatabaseBrokerImpl(const XDBDatabaseBroker*, const char*);
+    XDBDatabaseBrokerImpl(XDBDatabaseBroker*);
     ~XDBDatabaseBrokerImpl();
 
+    /* NB: Сначала Подключение (Connect), потом Открытие (Open) */
+    /* Инициализация служебных структур БД */
+    bool Connect();
+    /* Создание экземпляра БД или подключение к уже существующему */
     bool Open();
+    bool Disconnect();
+
     bool AddService(const char*);
     bool RemoveService(const char*);
     /* Удалить Обработчик из всех связанных с ним таблиц БД */
@@ -83,10 +85,8 @@ class XDBDatabaseBrokerImpl
     MCO_RET SaveDbToFile(const char*);
 #endif
 
-    const XDBDatabaseBroker *m_self;
+    XDBDatabaseBroker       *m_self;
     mco_db_h                 m_db;
-    char                     m_name[DBNAME_MAXLEN+1];
-    State                    m_state;
     void  LogError(MCO_RET, const char*, const char*);
     void  LogWarn(const char*, const char*);
     bool  AttachToInstance();

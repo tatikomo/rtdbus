@@ -11,7 +11,7 @@ char *service_name_2 = (char*)"service_test_2";
 char *unbelievable_service_name = (char*)"unbelievable_service";
 char *worker_identity_1 = (char*)"SN1_AAAAAAA";
 char *worker_identity_2 = (char*)"SN1_WRK2";
-char *worker_identity_3 = (char*)"SN2_WRK3";
+char *worker_identity_3 = (char*)"WRK3";
 XDBDatabaseBroker *database = NULL;
 Service *service1 = NULL;
 Service *service2 = NULL;
@@ -224,7 +224,7 @@ TEST(TestBrokerDATABASE, REMOVE)
     EXPECT_EQ(status, true);
     database->MakeSnapshot("M");
 
-#if 1
+#if 0
     worker = database->PopWorker(service2);
     ASSERT_TRUE (worker != NULL);
     database->MakeSnapshot("N");
@@ -249,14 +249,13 @@ TEST(TestBrokerDATABASE, REMOVE)
 
 TEST(TestBrokerDATABASE, DESTROY)
 {
+#if 1
     ASSERT_TRUE (service1 != NULL);
     delete service1;
 
-#if 1
     ASSERT_TRUE (service2 != NULL);
     delete service2;
 #endif
-
     ASSERT_TRUE (database != NULL);
     database->Disconnect();
     delete database;
