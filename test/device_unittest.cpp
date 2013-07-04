@@ -22,6 +22,7 @@ TEST(TestUUID, ENCODE)
   EXPECT_STREQ(uncoded_ident, "@006B8B4567");
 
   delete msg;
+  delete[] uncoded_ident;
 }
 
 TEST(TestUUID, DECODE)
@@ -45,6 +46,7 @@ TEST(TestUUID, DECODE)
   EXPECT_TRUE(uncoded_ident[4] == binary_ident[4]);
 
   delete msg;
+  delete[] uncoded_ident;
 }
 
 TEST(TestHelper, CLOCK)
