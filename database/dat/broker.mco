@@ -15,6 +15,11 @@
 
 declare database xdb_broker;
 
+struct timer_mark {
+  uint4 sec;
+  uint4 nsec;
+};
+
 struct XDBWorker
 {
   /* Строковый идентификатор Обработчика */
@@ -66,11 +71,6 @@ enum WorkerState
 enum LetterState
 {
    EMPTY, READY, DONE_OK, DONE_FAIL
-};
-
-struct timer_mark {
-  uint4 sec;
-  uint4 nsec;
 };
 
 /* Сообщение для Сервиса */

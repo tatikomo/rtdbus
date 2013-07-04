@@ -13,8 +13,11 @@ extern "C" {
 #include "xdb_database_common.h"
 
 #if defined DEBUG
-/* for xml saving support */
+# if (EXTREMEDB_VERSION<=40)
 mco_size_t file_writer(void*, const void*, mco_size_t);
+# else
+mco_size_sig_t file_writer(void*, const void*, mco_size_t);
+# endif
 #define SETUP_POLICY
 #include "mcoxml.h"
 #endif
@@ -120,7 +123,7 @@ bool XDBDatabaseBrokerImpl::Connect()
     }
 
     /* Set the error handler to be called from the eXtremeDB runtime if a fatal error occurs */
-    mco_error_set_handler(&errhandler);
+//    mco_error_set_handler(&errhandler);
     /* Set the error handler to be called from the eXtremeDB runtime if a fatal error occurs */
     mco_error_set_handler_ex(&extended_errhandler);
 
@@ -220,6 +223,11 @@ bool XDBDatabaseBrokerImpl::Disconnect()
     delete []m_logFileName;
 #endif
   }
+
+  if (!rc) 
+    return true;
+  else
+    return false;
 }
 
 
@@ -1200,7 +1208,11 @@ void XDBDatabaseBrokerImpl::MakeSnapshot(const char* msg)
     SaveDbToFile(file_name);
 }
 
+#if (EXTREMEDB_VERSION<=40)
 mco_size_t file_writer(void* stream_handle, const void* from, mco_size_t nbytes)
+#else
+mco_size_sig_t file_writer(void* stream_handle, const void* from, mco_size_t nbytes)
+#endif
 {
     FILE* f = (FILE*)stream_handle;
     int nbs = fwrite(from, 1, nbytes, f);

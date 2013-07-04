@@ -475,7 +475,7 @@ void show_runtime_info(const char * lead_line)
   fprintf( stdout, "\tDirect pointers mode ____ : %s\n", info.mco_direct_pointers      ? "yes":"no" );  
 }
 
-#if (EXTREMEDB_VERSION >=41)
+#if (EXTREMEDB_VERSION>=41)
 void show_device_info(const char * lead_line, mco_device_t dev[], int nDev)
 {
   const char * memtype[]    = { "MCO_MEMORY_NULL", "MCO_MEMORY_CONV", "MCO_MEMORY_NAMED", "MCO_MEMORY_FILE", 

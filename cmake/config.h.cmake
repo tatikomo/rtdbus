@@ -36,6 +36,7 @@
 #cmakedefine WORKERS_SPOOL_SIZE     @WORKERS_SPOOL_SIZE@
 #cmakedefine DBNAME_MAXLEN          @DBNAME_MAXLEN@
 #cmakedefine HEARTBEAT_PERIOD       @HEARTBEAT_PERIOD@
+#cmakedefine EXTREMEDB_VERSION      @EXTREMEDB_VERSION@
 
 
 // test binaries
