@@ -2,6 +2,8 @@ SET(TEST_RTDBUS_DIR ${CMAKE_SOURCE_DIR}/../test)
 
 SET(UNITTEST_DEVICE device_unittest)
 SET(UNITTEST_DATABASE database_unittest)
+# Code sample for McObject issue #1182
+SET(SAMPLE1 sample1)
 
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   set (SYSTEM_EXTERNAL_LIBS
@@ -45,6 +47,13 @@ set (TEST_DATABASE_SOURCES
         ${XDB_DIR}/dat/xdb_broker.c
         ${TEST_RTDBUS_DIR}/database_unittest.cpp)
 
+set (SAMPLE1_SOURCES
+        ${XDB_DIR}/dat/xdb_broker.hpp
+        ${XDB_DIR}/dat/xdb_broker.h
+        ${XDB_DIR}/dat/xdb_broker.c
+        ${TEST_RTDBUS_DIR}/sample1.hpp
+        ${TEST_RTDBUS_DIR}/sample1.cpp)
+
 add_custom_command(
         OUTPUT 
         ${XDB_DIR}/dat/xdb_broker.h
@@ -73,6 +82,13 @@ target_link_libraries(${UNITTEST_DATABASE}
     ${XDB_LIBRARY_NAME}
     ${TOOLS_LIBRARY_NAME}
 #    ${LIBZMQ_LIBRARIES}
+    ${LIBEXTREMEDB_LIBRARIES_ALL}
+    ${SYSTEM_EXTERNAL_LIBS})
+
+add_executable (${SAMPLE1} ${SAMPLE1_SOURCES})
+target_link_libraries(${SAMPLE1}
+    ${XDB_LIBRARY_NAME}
+    ${TOOLS_LIBRARY_NAME}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${SYSTEM_EXTERNAL_LIBS})
 
