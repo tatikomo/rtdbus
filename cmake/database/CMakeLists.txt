@@ -6,6 +6,7 @@ if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
         rt)
 else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # LINUX
+  link_directories(/lib/i386-linux-gnu/)
   set (SYSTEM_EXTERNAL_LIBS
         nsl
         pthread
@@ -15,7 +16,6 @@ endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 include_directories(${TOOLS_DIR})
 include_directories(${XDB_DIR})
 include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
-link_directories(/lib/i386-linux-gnu/)
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 
 set (XDB_SOURCES
