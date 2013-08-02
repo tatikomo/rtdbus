@@ -11,21 +11,18 @@
 XDBDatabase::XDBDatabase(const char* name)
 {
     assert (name);
-    m_state = XDBDatabase::DISCONNECTED;
+    m_state = XDBDatabase::UNINITIALIZED;
     strncpy(m_name, name, DBNAME_MAXLEN);
     m_name[DBNAME_MAXLEN] = '\0';
 
-    fprintf(stdout, "\tXDBDatabase(%p, %s)\n", (void*)this, name);
-    fflush(stdout);
+//    fprintf(stdout, "\tXDBDatabase(%p, %s)\n", (void*)this, name);
+//    fflush(stdout);
 }
 
 XDBDatabase::~XDBDatabase()
 {
-  fprintf(stdout, "\t~XDBDatabase(%p, %s)\n", (void*)this, m_name);
-  if (TransitionToState(DELETED) == true)
-  {
-     Disconnect();
-  }
+//  fprintf(stdout, "~XDBDatabase(%p, %s)\n", (void*)this, m_name);
+  Disconnect();
 }
 
 const char* XDBDatabase::DatabaseName()
@@ -40,20 +37,69 @@ const XDBDatabase::DBState XDBDatabase::State()
 
 bool XDBDatabase::TransitionToState(DBState new_state)
 {
+  bool transition_correctness = false;
   /* 
    * TODO проверить допустимость перехода из 
    * старого в новое состояние
    */
-  if (new_state == m_state)
-    return false;
-    
-  m_state = new_state;
-  return true;
-}
+  switch (m_state)
+  {
+    // Состояние "ОТКЛЮЧЕНО" может перейти в "ПОДКЛЮЧЕНО" или "РАЗРУШЕНО"
+    case DISCONNECTED:
+    {
+      switch (new_state)
+      {
+        case CONNECTED:
+        case DELETED:
+          transition_correctness = true;
+        break;
+        default:
+          transition_correctness = false;
+      }
+    }
+    break;
 
-bool XDBDatabase::Open()
-{
-    return TransitionToState(OPENED);
+    // Состояние "ПОДКЛЮЧЕНО" может перейти в состояние "ОТКЛЮЧЕНО"
+    case CONNECTED:
+    {
+      switch (new_state)
+      {
+        case DISCONNECTED:
+          transition_correctness = true;
+        break;
+        default:
+          transition_correctness = false;
+      }
+    }
+    break;
+
+    // Состояние "РАЗРУШЕНО" не может перейти ни в какое другое состояние
+    case DELETED:
+    {
+       transition_correctness = false;
+    }
+    break;
+
+    // Неинициализированное состояние БД может перейти в "ОТКЛЮЧЕНО" или "РАЗРУШЕНО"
+    case UNINITIALIZED:
+    {
+      switch (new_state)
+      {
+        case DISCONNECTED:
+        case DELETED:
+          transition_correctness = true;
+        break;
+        default:
+          transition_correctness = false;
+      }
+    }
+    break;
+  }
+
+  if (transition_correctness)
+    m_state = new_state;
+
+  return transition_correctness;
 }
 
 bool XDBDatabase::Connect()

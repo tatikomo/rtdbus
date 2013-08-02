@@ -19,10 +19,9 @@ class XDBDatabaseBroker : public XDBDatabase
     ~XDBDatabaseBroker();
 
     bool Connect();
-    bool Open();
 
     /* Зарегистрировать Сервис */
-    bool AddService(const char*);
+    Service *AddService(const char*);
 
     /* Удалить Сервис */
     bool RemoveService(const char*);

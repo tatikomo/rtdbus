@@ -30,7 +30,9 @@ static const char * MDPW_WORKER = "MDPW0X";
 //  MDP/Server commands, as strings
 #define MDPW_READY          "\001"
 #define MDPW_REQUEST        "\002"
-#define MDPW_REPORT         "\003"
+#define MDPW_REPORT         "\003" // TODO: в версии 0.2 заменен на PARTIAL и FINAL
+#define MDPW_PARTIAL        "\003"
+#define MDPW_FINAL          "\003"
 #define MDPW_HEARTBEAT      "\004"
 #define MDPW_DISCONNECT     "\005"
 
@@ -41,7 +43,7 @@ static const char * MDPW_WORKER = "MDPW0X";
 
 static char *mdpw_commands [] = {
     '\0', (char*)"READY", (char*)"REQUEST", (char*)"REPORT", (char*)"HEARTBEAT", (char*)"DISCONNECT"
-};
+}; // TODO: в версии 0.2 REPORT заменен на PARTIAL и FINAL
 
 //  Print formatted string to stdout, prefixed by date/time and
 //  terminated with a newline.

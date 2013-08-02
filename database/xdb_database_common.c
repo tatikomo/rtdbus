@@ -435,9 +435,10 @@ const char * mco_ret_string( MCO_RET rc, int * is_error ) {
 void rc_check(const char * msg, MCO_RET rc)
 {
   if ( MCO_S_OK == rc )
-    fprintf(stdout, "\n%s : Successful", msg);
+    fprintf(stdout, "\n%s : Successful\n", msg);
   else
-    fprintf(stdout, "\n%s : \n\tReturn Code %d: %s\n", msg, (unsigned int)rc, mco_ret_string(rc, 0));
+    fprintf(stdout, "\n%s : \n\tReturn Code %d: %s\n", 
+            msg, (unsigned int)rc, mco_ret_string(rc, 0));
   fflush(stdout);
 }
 

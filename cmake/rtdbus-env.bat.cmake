@@ -5,16 +5,22 @@ echo "RTD-BUS environment settings"
 PROJECT_ROOT_DIR=/home/gev/ITG/sandbox
 RTDBUS_SOURCE_DIR="$PROJECT_ROOT_DIR/rtdbus-0.0.1"
 
-echo -e "\t\t\t\t\t< libev-4.11 \t>"
-LIBEV_DIR="$RTDBUS_SOURCE_DIR/../libev-4.11"
-LIBEV_INCLUDE_DIR="$LIBEV_DIR"
-LIBEV_LIBRARIES_DIR="$LIBEV_DIR/.libs"
-export LIBEV_DIR LIBEV_LIBRARIES_DIR
+#echo -e "\t\t\t\t\t< libev-4.11 \t>"
+#LIBEV_DIR="$RTDBUS_SOURCE_DIR/../libev-4.11"
+#LIBEV_INCLUDE_DIR="$LIBEV_DIR"
+#LIBEV_LIBRARIES_DIR="$LIBEV_DIR/.libs"
+#export LIBEV_DIR LIBEV_LIBRARIES_DIR
 
-echo -e "\t\t\t\t\t< eXtremeDB 3.5 >"
+#echo -e "\t\t\t\t\t< eXtremeDB 3.5 >"
+#LIBEXTREMEDB_DIR="$RTDBUS_SOURCE_DIR/../master_eXtremeDB_3.5.987_sunos"
+#LIBEXTREMEDB_INCLUDE_DIR="$LIBEXTREMEDB_DIR/sources/include"
+#LIBEXTREMEDB_LIBRARIES_DIR="$LIBEXTREMEDB_DIR/sources/target/bin.so"
+#export LIBEXTREMEDB_DIR LIBEXTREMEDB_LIBRARIES_DIR
+
+echo -e "\t\t\t\t\t< eXtremeDB 5.0 >"
 LIBEXTREMEDB_DIR="$RTDBUS_SOURCE_DIR/../master_eXtremeDB_3.5.987_sunos"
-LIBEXTREMEDB_INCLUDE_DIR="$LIBEXTREMEDB_DIR/sources/include"
-LIBEXTREMEDB_LIBRARIES_DIR="$LIBEXTREMEDB_DIR/sources/target/bin.so"
+LIBEXTREMEDB_INCLUDE_DIR="$LIBEXTREMEDB_DIR/include"
+LIBEXTREMEDB_LIBRARIES_DIR="$LIBEXTREMEDB_DIR/target/bin.so"
 export LIBEXTREMEDB_DIR LIBEXTREMEDB_LIBRARIES_DIR
 
 echo -e "\t\t\t\t\t< protobuf 2.4.1>"

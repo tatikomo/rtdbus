@@ -65,4 +65,15 @@ const char* Service::GetNAME()
   return m_name;
 }
 
+/* Подтвердить соответствие состояния объекта своему отображению в БД */
+void Service::SetVALID()
+{
+  m_modified = false;
+}
+
+/* Соответствует или нет экземпляр своему хранимому в БД состоянию */
+bool Service::GetVALID()
+{
+  return (m_modified == false);
+}
 

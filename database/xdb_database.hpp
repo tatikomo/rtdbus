@@ -11,12 +11,10 @@ class XDBDatabase
   public:
     /* Внутренние состояния базы данных */
     typedef enum {
-        INITIALIZED = 1,
-        CONNECTED   = 2,
-        OPENED      = 3,
-        CLOSED      = 4,
-        DISCONNECTED= 5,
-        DELETED     = 6
+        UNINITIALIZED = 1,
+        CONNECTED     = 2,
+        DISCONNECTED  = 3,
+        DELETED       = 4
     } DBState;
 
     XDBDatabase(const char*);
@@ -29,7 +27,6 @@ class XDBDatabase
      * реализовывать функцию открытия
      */
     virtual bool Connect();
-    virtual bool Open();
     virtual bool Disconnect();
 
     const DBState State();

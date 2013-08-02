@@ -21,31 +21,17 @@ XDBDatabaseBroker::XDBDatabaseBroker() : XDBDatabase(database_name)
 
 XDBDatabaseBroker::~XDBDatabaseBroker()
 {
-  printf("~XDBDatabaseBroker()\n");
+//  fprintf(stdout, "~XDBDatabaseBroker()\n");
   assert(m_impl);
   delete m_impl;
 }
 
-bool XDBDatabaseBroker::Open()
-{
-  bool status = false;
-  assert(m_impl);
-
-  if (m_impl)
-    status = m_impl->Open();
-
-  return status;
-}
-
 bool XDBDatabaseBroker::Connect()
 {
-  bool status = false;
   assert(m_impl);
 
-  if (m_impl)
-    status = m_impl->Connect();
-
-  return status;
+  if (!m_impl) return false;
+  return m_impl->Connect();
 }
 
 Service::State XDBDatabaseBroker::GetServiceState(const Service *srv)
@@ -69,25 +55,22 @@ Service *XDBDatabaseBroker::GetServiceByName(const std::string& service_name)
 /* найти в БД и вернуть объект типа Сервис */
 Service *XDBDatabaseBroker::GetServiceByName(const char *service_name)
 {
-  bool status = false;
   assert(m_impl);
 
   if (!m_impl) return NULL;
   return m_impl->GetServiceByName(service_name);
 }
 
-bool XDBDatabaseBroker::AddService(const char *service_name)
+Service *XDBDatabaseBroker::AddService(const char *service_name)
 {
-  bool status = false;
   assert(m_impl);
 
-  if (!m_impl) return false;
+  if (!m_impl) return (Service*)NULL;
   return m_impl->AddService(service_name);
 }
 
 bool XDBDatabaseBroker::RemoveService(const char *service_name)
 {
-  bool status = false;
   assert(m_impl);
 
   if (!m_impl) return false;
@@ -110,7 +93,6 @@ bool XDBDatabaseBroker::PushWorker(Worker *wrk)
 
 bool XDBDatabaseBroker::IsServiceExist(const char *service_name)
 {
-  bool status = false;
   assert(m_impl);
 
   if (!m_impl) return false;
@@ -129,7 +111,6 @@ bool XDBDatabaseBroker::IsServiceCommandEnabled(
         const Service* srv, 
         const std::string& cmd_name)
 {
-  bool status = false;
   assert(m_impl);
 
   if (!m_impl) return false;
@@ -144,7 +125,6 @@ Service *XDBDatabaseBroker::GetServiceById(int64_t _id)
 
 Worker *XDBDatabaseBroker::PopWorker(const char *service_name)
 {
-  bool status = false;
   assert(m_impl);
 
   if (!m_impl) return 0;
@@ -153,7 +133,6 @@ Worker *XDBDatabaseBroker::PopWorker(const char *service_name)
 
 Worker *XDBDatabaseBroker::PopWorker(Service *service)
 {
-  bool status = false;
   assert(m_impl);
 
   if (!m_impl) return 0;
@@ -163,7 +142,6 @@ Worker *XDBDatabaseBroker::PopWorker(Service *service)
 /* Очистить спул Обработчиков указанного Сервиса */
 bool XDBDatabaseBroker::ClearWorkersForService(const char *service_name)
 {
-  bool status = false;
   assert(m_impl);
 
   if (!m_impl) return false;
@@ -173,7 +151,6 @@ bool XDBDatabaseBroker::ClearWorkersForService(const char *service_name)
 /* Очистить спул Обработчиков и всех Сервисов */
 bool XDBDatabaseBroker::ClearServices()
 {
-  bool status = false;
   assert(m_impl);
 
   if (!m_impl) return false;
