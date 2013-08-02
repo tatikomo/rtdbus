@@ -57,7 +57,8 @@ int main(int argc, char **argv)
       fprintf(stderr, "\nE4: service '%s' adding failed\n", service_name_1);
       break;
     }
-    fprintf(stderr, "\nI4: add service '%s'\n", service_name_1); fflush(stderr);
+    fprintf(stderr, "\nI4: add service '%s' (id=%ld)\n", 
+            service_name_1, service1->GetID()); fflush(stderr);
     service1_id = service1->GetID();
 
     if (NULL == (service2 = database->AddService(service_name_2)))
@@ -65,7 +66,8 @@ int main(int argc, char **argv)
       fprintf(stderr, "\nE5: service adding '%s' failed\n", service_name_2);
       break;
     }
-    fprintf(stderr, "\nI5: add service '%s'\n", service_name_2); fflush(stderr);
+    fprintf(stderr, "\nI5: add service '%s' (id=%ld)\n", 
+            service_name_2, service2->GetID()); fflush(stderr);
     service2_id = service2->GetID();
     
 /* ########################################################### */
@@ -93,7 +95,7 @@ int main(int argc, char **argv)
     fprintf(stderr, "\nI7: push worker '%s'\n", worker_identity_2); fflush(stderr);
     delete worker;
 
-#if 0
+#if 1
     worker = new Worker(worker_identity_3, service2_id);
     status = database->PushWorker(worker);
     if (false == status)
@@ -103,6 +105,7 @@ int main(int argc, char **argv)
       break;
     }
     fprintf(stderr, "\nI8: push worker '%s'\n", worker_identity_3); fflush(stderr);
+    delete worker;
 #else
     fprintf(stderr, "\nI8: SKIP PUSHING WORKER '%s' FOR SERVICE2\n", worker_identity_3); fflush(stderr);
 #endif
