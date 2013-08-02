@@ -117,16 +117,14 @@ XDBDatabaseBrokerImpl::~XDBDatabaseBrokerImpl()
       Disconnect();
       // NB: break пропущен специально!
     case XDBDatabase::DISCONNECTED:
-#if EXTREMEDB_VERSION >= 41
+#if (EXTREMEDB_VERSION >= 41) && USE_EXTREMEDB_HTTP_SERVER
       if (m_metadict_initialized == true)
       {
-#    if defined USE_EXTREMEDB_HTTP_SERVER
         ret = mcohv_stop(m_hv);
         LogInfo(fctName, "Stopping http server [code=%d]", ret);
 
         ret = mcohv_shutdown();
         LogInfo(fctName, "Shutdowning http server [code=%d]", ret);
-#    endif
         free(m_metadict);
         m_metadict_initialized = false;
       }

@@ -93,13 +93,15 @@ class XDBDatabaseBrokerImpl
 #if EXTREMEDB_VERSION >= 41
     mco_db_params_t   m_db_params;
     mco_device_t      m_dev;
+#  if USE_EXTREMEDB_HTTP_SERVER  
     /*
      * HttpServer
      */
     mco_metadict_header_t *m_metadict;
-    bool                   m_metadict_initialized;
     mcohv_p                m_hv;
     unsigned int           m_size;
+#  endif  
+    bool                   m_metadict_initialized;
 #endif
     /*
      * Подключиться к БД, а при ее отсутствии - создать

@@ -27,7 +27,6 @@
     endif()
 
   elseif ("${EXTREMEDB_VERSION}" EQUAL "41")
-message("31")
 
     set (LIBEXTREMEDB_INCLUDE_DIR "${RTDBUS_SOURCE_DIR}/../../eXtremeDB_41/sources/include")
     set (LIBEXTREMEDB_LIBRARIES_DIR "${RTDBUS_SOURCE_DIR}/../../eXtremeDB_41/sources/target/bin.so")
@@ -58,6 +57,12 @@ message("31")
       set (LIBEXTREMEDB_LIBRARIES "mcolib mcovtdsk mcofu98 mcoslnx mcomipc mcotmvcc mcolib mcouwrt mcouda mcohv mcoews_cgi")
       set (LIBEXTREMEDB_LIBRARIES_ALL "mcolib_debug -lmcovtdsk_debug -lmcofu98_debug -lmcoslnx_debug -lmcomipc_debug -lmcotmvcc_debug -lmcolib_debug -lmcouwrt_debug -lmcouda_debug  -lmcohv_debug -lmcoews_cgi_debug")
     endif()
+
+    if (${USE_EXTREMEDB_HTTP_SERVER})
+      message("Internal eXtremeDB http server ON")
+    else ()
+      message("Internal eXtremeDB http server OFF")
+    endif ()
 
   endif ()
 
