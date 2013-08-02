@@ -8,6 +8,9 @@
 #ifdef __cplusplus
 extern "C" {
 #include "mco.h"
+#if EXTREMEDB_VERSION >= 41
+#include "mcohv.h"
+#endif
 }
 #endif
 
@@ -25,14 +28,13 @@ class XDBDatabaseBrokerImpl
     XDBDatabaseBrokerImpl(XDBDatabaseBroker*);
     ~XDBDatabaseBrokerImpl();
 
-    /* NB: Сначала Подключение (Connect), потом Открытие (Open) */
     /* Инициализация служебных структур БД */
-    bool Connect();
+    bool Init();
     /* Создание экземпляра БД или подключение к уже существующему */
-    bool Open();
+    bool Connect();
     bool Disconnect();
 
-    bool AddService(const char*);
+    Service *AddService(const char*);
     bool RemoveService(const char*);
     /* Удалить Обработчик из всех связанных с ним таблиц БД */
     bool RemoveWorker(Worker*);
@@ -87,8 +89,21 @@ class XDBDatabaseBrokerImpl
 
     XDBDatabaseBroker       *m_self;
     mco_db_h                 m_db;
-    void  LogError(MCO_RET, const char*, const char*);
-    void  LogWarn(const char*, const char*);
+
+#if EXTREMEDB_VERSION >= 41
+    mco_db_params_t   m_db_params;
+    mco_device_t      m_dev;
+    /*
+     * HttpServer
+     */
+    mco_metadict_header_t *m_metadict;
+    bool                   m_metadict_initialized;
+    mcohv_p                m_hv;
+    unsigned int           m_size;
+#endif
+    /*
+     * Подключиться к БД, а при ее отсутствии - создать
+     */
     bool  AttachToInstance();
 
     /* 
@@ -104,7 +119,8 @@ class XDBDatabaseBrokerImpl
      */
     Worker* LoadWorker(mco_trans_h,
                        autoid_t&,
-                       xdb_broker::XDBWorker&);
+                       xdb_broker::XDBWorker&,
+                       uint16_t);
 
     /*
      * Поиск в спуле данного Сервиса индекса Обработчика,
@@ -113,6 +129,11 @@ class XDBDatabaseBrokerImpl
      */
     uint2 LocatingFirstOccurence(xdb_broker::XDBService &service_instance,
                        WorkerState            state);
+
+    /*
+     * Прочитать состояние Обработчика по значению его identity
+     */
+    MCO_RET LoadWorkerByIdent(mco_trans_h, Service*, Worker*);
 
 #ifdef DISK_DATABASE
     char* m_dbsFileName;
