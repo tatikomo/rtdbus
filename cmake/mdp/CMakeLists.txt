@@ -43,6 +43,7 @@ set (MDP_SOURCES
         ${MDP_DIR}/zmsg.cpp
         ${MDP_DIR}/mdp_common.h
         ${MDP_DIR}/mdp_helpers.hpp
+        ${MDP_DIR}/mdp_helpers.cpp
         ${MDP_DIR}/mdp_client_async_api.hpp
         ${MDP_DIR}/mdp_client_async_api.cpp
         ${MDP_DIR}/mdp_worker_api.hpp
@@ -59,6 +60,7 @@ set (BROKER_SOURCES
         ${XDB_DIR}/dat/xdb_broker.c
         ${XDB_DIR}/dat/xdb_broker.hpp
         ${MDP_DIR}/mdp_helpers.hpp
+        ${MDP_DIR}/mdp_helpers.cpp
 #        ${MDP_DIR}/mdp_service.hpp
 #        ${MDP_DIR}/mdp_service.cpp
         ${MDP_DIR}/mdp_broker.hpp
