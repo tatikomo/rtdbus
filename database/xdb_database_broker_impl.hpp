@@ -35,14 +35,18 @@ class XDBDatabaseBrokerImpl
     bool Disconnect();
 
     Service *AddService(const char*);
+    Service *AddService(const std::string&);
     bool RemoveService(const char*);
     /* Удалить Обработчик из всех связанных с ним таблиц БД */
     bool RemoveWorker(Worker*);
     /* Добавить нового Обработчика в спул Сервиса */
-    bool PushWorkerForService(Service*, Worker*);
+    bool PushWorkerForService(const Service*, Worker*);// TODO: может быть удалить?
+    Worker* PushWorkerForService(const std::string&, const std::string&);
     /* поместить Обработчик в спул своего Сервиса */
     bool PushWorker(Worker*);
-    bool IsServiceExist(const char*);
+    /* получить признак существования данного экземпляра Сервиса в БД */
+    bool     IsServiceExist(const char*);
+
     bool IsServiceCommandEnabled(const Service*, const std::string&);
 
     /* Вернуть экземпляр Сервиса. Если он не существует в БД - создать */

@@ -3,7 +3,6 @@
 //  It is purpose is to demonstate how to use mdp_client interface.
 
 #include "zmsg.hpp"
-#include "mdp_common.h"
 #include "trader.hpp"
 #include "mdp_client_async_api.hpp"
 
