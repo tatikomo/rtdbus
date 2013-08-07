@@ -67,7 +67,7 @@ link_directories(${RTDBUS_LIB_DIR} ${LIBRARY_OUTPUT_PATH})
 #set(RTDBUS_INCLUDES )
 
 ########### basic vars ###############
-#enable_testing()
+enable_testing()
 
 if (RTDBUSDIR)
 	set(RTDBUS_INSTALL_DIR "${DBUSDIR}")

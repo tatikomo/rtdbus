@@ -37,6 +37,8 @@ set (TEST_DEVICE_SOURCES
         ${XDB_DIR}/dat/xdb_broker.hpp
         ${XDB_DIR}/dat/xdb_broker.h
         ${XDB_DIR}/dat/xdb_broker.c
+        ${XDB_DIR}/xdb_database_worker.cpp
+        ${MDP_DIR}/mdp_broker.cpp
         ${TEST_RTDBUS_DIR}/device_unittest.cpp)
 
 set (TEST_DATABASE_SOURCES
