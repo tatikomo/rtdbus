@@ -153,7 +153,7 @@ int main (int argc, char *argv [])
     ustring sender;
     ustring empty;
     ustring header;
-    int more;           //  Multipart detection
+//    int more;           //  Multipart detection
     Broker *broker = NULL;
 
     try

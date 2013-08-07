@@ -1,3 +1,8 @@
+#if !defined __GEV_HELPER_H_
+#define __GEV_HELPER_H_
+
+#pragma once
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -19,9 +24,11 @@ void LogInfo(
             const char *format,
             ...);
 
+
 #ifdef __cplusplus
 }
 #endif
 
 #include "timer.hpp"
 
+#endif

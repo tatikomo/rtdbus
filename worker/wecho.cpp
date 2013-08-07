@@ -1,6 +1,5 @@
 #include "zmq.hpp"
 #include "zmsg.hpp"
-#include "mdp_common.h"
 #include "mdp_worker_api.hpp"
 #include "wecho.hpp"
 

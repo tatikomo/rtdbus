@@ -14,6 +14,7 @@
 #include <string>
 #include <stdarg.h>
 
+#include "helper.hpp"
 #include "zmsg.hpp"
 
 zmsg::zmsg()
