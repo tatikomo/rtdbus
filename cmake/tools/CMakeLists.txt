@@ -11,6 +11,7 @@ link_directories(/lib/i386-linux-gnu/)
 
 set (TOOLS_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
+        ${TOOLS_DIR}/helper.cpp
         ${TOOLS_DIR}/helper.hpp
         ${TOOLS_DIR}/timer.cpp
         ${TOOLS_DIR}/timer.hpp

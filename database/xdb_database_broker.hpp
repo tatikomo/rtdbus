@@ -18,10 +18,11 @@ class XDBDatabaseBroker : public XDBDatabase
     XDBDatabaseBroker();
     ~XDBDatabaseBroker();
 
-    bool Open();
+    bool Connect();
 
     /* Зарегистрировать Сервис */
-    bool AddService(const char*);
+    Service *AddService(const char*);
+    Service *AddService(const std::string&);
 
     /* Удалить Сервис */
     bool RemoveService(const char*);
@@ -29,6 +30,9 @@ class XDBDatabaseBroker : public XDBDatabase
     bool RemoveWorker(Worker*);
     /* Поместить в спул своего Сервиса */
     bool PushWorker(Worker*);
+    /* Добавить нового Обработчика в спул Сервиса */
+    Worker* PushWorkerForService(const std::string&, const std::string&);
+    bool PushWorkerForService(Service*, Worker*); // TODO: delete me
 
     /* Проверить существование указанного Сервиса */
     bool IsServiceExist(const char*);
@@ -48,7 +52,7 @@ class XDBDatabaseBroker : public XDBDatabase
 
     /* Вернуть экземпляр Сервиса. Если он не существует в БД - создать */
     Service *RequireServiceByName(const char*);
-    Service *RequireServiceByName(std::string&);
+    Service *RequireServiceByName(const std::string&);
 
     /* Выбрать свободного Обработчика и удалить его из спула своего Сервиса */
     Worker  *PopWorker(const char*);
@@ -71,10 +75,8 @@ class XDBDatabaseBroker : public XDBDatabase
     void DisableServiceCommand (const std::string&, const std::string&);
     void DisableServiceCommand (const Service*, const std::string&);
 
-#if defined DEBUG
     /* Тестовый API сохранения базы */
-    void MakeSnapshot();
-#endif
+    void MakeSnapshot(const char* = NULL);
 
   private:
     /* Ссылка на физическую реализацию */

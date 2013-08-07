@@ -1,10 +1,11 @@
-#include "mdp_common.h"
 #include "mdp_broker.hpp"
 #include "zmsg.hpp"
 #include "xdb_database_broker.hpp"
 #include "xdb_database_service.hpp"
 #include "xdb_database_worker.hpp"
 #include "xdb_database_letter.hpp"
+
+#include "mdp_common.h"
 
 //  ---------------------------------------------------------------------
 //  Signal handling
@@ -41,6 +42,12 @@ Broker::Broker (int verbose)
     assert(m_database);
 }
 
+bool Broker::Init()
+{
+  assert(m_database);
+  return m_database->Connect();
+}
+
 //  ---------------------------------------------------------------------
 //  Destructor for broker object
 Broker::~Broker ()
@@ -57,18 +64,27 @@ Broker::~Broker ()
 //  Bind broker to endpoint, can call this multiple times
 //  We use a single socket for both clients and workers.
 void
-Broker::bind (std::string endpoint)
+Broker::bind (const std::string& endpoint)
 {
     m_endpoint = endpoint;
     m_socket->bind(m_endpoint.c_str());
     s_console ("I: MDP Broker/0.2.0 is active at %s", endpoint.c_str());
 }
 
-/*void Broker::add_new_worker(Worker* instance)
+// Регистрировать новый экземпляр Обработчика для Сервиса
+//  ---------------------------------------------------------------------
+Worker* 
+Broker::worker_register(const std::string& service_name, const std::string& worker_identity)
 {
-  assert(instance);
-  m_workers.insert(std::make_pair(instance->GetIDENTITY(), instance));
-}*/
+  return m_database->PushWorkerForService(service_name, worker_identity);
+//  m_workers.insert(std::make_pair(instance->GetIDENTITY(), instance));
+}
+
+void
+Broker::database_snapshot(const char* msg)
+{
+  m_database->MakeSnapshot(msg);
+}
 
 //  ---------------------------------------------------------------------
 //  Delete any idle workers that haven't pinged us in a while.
@@ -99,34 +115,24 @@ Broker::purge_workers ()
 //  ---------------------------------------------------------------------
 //  Locate or create new service entry
 Service *
-Broker::service_require (std::string& service_name)
+Broker::service_require (const std::string& service_name)
 {
-    bool status = false;
     Service *acquired_service = NULL;
-    //Service    *instance = NULL;
 
     assert (service_name.size() > 0);
     if (m_verbose) {
         s_console ("I: require service");
     }
 
-    if (NULL != 
-        (acquired_service = m_database->GetServiceByName(service_name.c_str())))
-    {
-        s_console("I: service '%s' is registered", service_name.c_str());
-        status = true;
-    }
-    else 
+    if (NULL == (acquired_service = m_database->GetServiceByName(service_name.c_str())))
     {
         s_console("W: service '%s' is not registered", service_name.c_str());
-        status = m_database->AddService(service_name.c_str());
-        acquired_service = m_database->GetServiceByName(service_name.c_str());
+        acquired_service = m_database->AddService(service_name.c_str());
     }
-
-/*    if ((true == status) && (NULL != acquired_service))
+    else if (m_verbose)
     {
-        instance = new Service(service_name);
-    }*/
+        s_console("I: service '%s' already registered", service_name.c_str());
+    }
 
     return acquired_service;
 }
@@ -139,7 +145,7 @@ Broker::service_dispatch (Service *srv/*, zmsg *processing_msg*/)
 //    zmsg   *msg = NULL;
     Worker *wrk = NULL;
     Letter *letter = NULL;
-    bool    enabled = false;
+//    bool    enabled = false;
 
     assert (srv);
     /* Очистить список Обработчиков Сервиса от зомби */
@@ -172,7 +178,7 @@ Broker::service_dispatch (Service *srv/*, zmsg *processing_msg*/)
 //  ---------------------------------------------------------------------
 //  Handle internal service according to 8/MMI specification
 void
-Broker::service_internal (std::string service_name, zmsg *msg)
+Broker::service_internal (const std::string& service_name, zmsg *msg)
 {
     if (service_name.compare("mmi.service") == 0) 
     {
@@ -236,25 +242,21 @@ Broker::service_internal (std::string service_name, zmsg *msg)
 //  Lazy constructor that locates a worker by identity, or creates a new
 //  worker if there is no worker already with that identity
 Worker *
-Broker::worker_require (std::string& identity)
+Broker::worker_require (const std::string& identity)
 {
-//    assert (identity != 0);
     Worker * instance = NULL;
 
     if (NULL != (instance = m_database->GetWorkerByIdent(identity)))
     {
        s_console("D: worker '%s' is registered", identity.c_str());
     }
-    else {
-       std::cout << "F: Обработчик " 
-                 << identity 
-                 << "не может быть создан здесь" << std::endl;
-//       GEV +++++++
-//       instance = new Worker(this, identity);
-//       add_new_worker(instance);
-       if (m_verbose) {
+    else
+    {
+       s_console("W: unable to find worker '%s'", identity.c_str());  
+/*       if (m_verbose)
+       {
           s_console ("I: registering new worker instance: %s", identity.c_str());
-       }
+       }*/
     }
 
     return instance;
@@ -278,7 +280,7 @@ Broker::worker_delete (Worker *&wrk, int disconnect)
 //  Message processing sent to us by a worker
 //  NB: Удаляет обрабатываемое сообщение zmsg
 void
-Broker::worker_msg (std::string& sender_identity, zmsg *msg)
+Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
 {
     bool status = false;
     Worker  *wrk = NULL;
@@ -313,8 +315,8 @@ Broker::worker_msg (std::string& sender_identity, zmsg *msg)
                 std::string service_name = msg->pop_front();
 
                 // найти сервис по имени или создать новый
-#warning "Service creation is only possible on first workers call"                
-#if 0
+// GEV: "Service creation is only possible on first workers call"                
+#if 1
                 service = m_database->RequireServiceByName (service_name);
                 assert (service);
 #endif
@@ -354,8 +356,11 @@ Broker::worker_msg (std::string& sender_identity, zmsg *msg)
                         sender_identity.c_str(), worker_ready);
               if (worker_ready) {
                 // wrk содержит идентификатор своего Сервиса
-                  status = m_database->PushWorker(wrk);
-//                  worker_waiting(wrk);
+                  if (false == (status = m_database->PushWorker(wrk)))
+                  {
+                    s_console("E: unable to register worker '%s'", wrk->GetIDENTITY());
+                  }
+//                worker_waiting(wrk);
               }
               else {
                   worker_delete (wrk, 1);
@@ -383,7 +388,7 @@ Broker::worker_msg (std::string& sender_identity, zmsg *msg)
 //  If pointer to message is provided, sends that message
 void
 Broker::worker_send (Worker *worker,
-    char *command, std::string option, Letter *letter)
+    const char *command, const std::string& option, Letter *letter)
 {
   // TODO: удалить сообщение из базы только после успешной передачи
   // NB: это может привести к параллельному исполнению 
@@ -395,7 +400,7 @@ Broker::worker_send (Worker *worker,
 //  If pointer to message is provided, sends that message
 void
 Broker::worker_send (Worker *worker,
-    char *command, std::string option, zmsg *msg)
+    const char *command, const std::string& option, zmsg *msg)
 {
     msg = (msg ? new zmsg(*msg) : new zmsg ());
 
@@ -403,7 +408,7 @@ Broker::worker_send (Worker *worker,
     if (option.size()>0) {                 //  Optional frame after command
         msg->push_front ((char*)option.c_str());
     }
-    msg->push_front (command);
+    msg->push_front (const_cast<char*>(command));
     msg->push_front ((char*)MDPW_WORKER);
     //  Stack routing envelope to start of message
     msg->wrap(worker->GetIDENTITY(), EMPTY_FRAME);
@@ -448,7 +453,7 @@ Broker::worker_waiting (Worker *worker)
 //  Process a request coming from a client
 //  NB: Удаляет обрабатываемое сообщение zmsg
 void
-Broker::client_msg (std::string& sender, zmsg *msg)
+Broker::client_msg (const std::string& sender, zmsg *msg)
 {
     bool enabled = false;
 

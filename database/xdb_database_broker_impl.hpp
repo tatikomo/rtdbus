@@ -8,6 +8,9 @@
 #ifdef __cplusplus
 extern "C" {
 #include "mco.h"
+#if EXTREMEDB_VERSION >= 41
+#include "mcohv.h"
+#endif
 }
 #endif
 
@@ -22,19 +25,28 @@ class Worker;
 class XDBDatabaseBrokerImpl
 {
   public:
-    XDBDatabaseBrokerImpl(const XDBDatabaseBroker*, const char*);
+    XDBDatabaseBrokerImpl(XDBDatabaseBroker*);
     ~XDBDatabaseBrokerImpl();
 
-    bool Open();
-    bool AddService(const char*);
+    /* Инициализация служебных структур БД */
+    bool Init();
+    /* Создание экземпляра БД или подключение к уже существующему */
+    bool Connect();
+    bool Disconnect();
+
+    Service *AddService(const char*);
+    Service *AddService(const std::string&);
     bool RemoveService(const char*);
     /* Удалить Обработчик из всех связанных с ним таблиц БД */
     bool RemoveWorker(Worker*);
     /* Добавить нового Обработчика в спул Сервиса */
-    bool PushWorkerForService(Service*, Worker*);
+    bool PushWorkerForService(const Service*, Worker*);// TODO: может быть удалить?
+    Worker* PushWorkerForService(const std::string&, const std::string&);
     /* поместить Обработчик в спул своего Сервиса */
     bool PushWorker(Worker*);
-    bool IsServiceExist(const char*);
+    /* получить признак существования данного экземпляра Сервиса в БД */
+    bool     IsServiceExist(const char*);
+
     bool IsServiceCommandEnabled(const Service*, const std::string&);
 
     /* Вернуть экземпляр Сервиса. Если он не существует в БД - создать */
@@ -67,10 +79,8 @@ class XDBDatabaseBrokerImpl
     void DisableServiceCommand (const std::string&, const std::string&);
     void DisableServiceCommand (const Service*, const std::string&);
 
-//#if defined DEBUG
     /* Тестовый API сохранения базы */
-    void MakeSnapshot();
-//#endif
+    void MakeSnapshot(const char*);
 
   private:
 #if defined DEBUG
@@ -81,11 +91,25 @@ class XDBDatabaseBrokerImpl
     MCO_RET SaveDbToFile(const char*);
 #endif
 
-    const XDBDatabaseBroker *m_self;
+    XDBDatabaseBroker       *m_self;
     mco_db_h                 m_db;
-    char                     m_name[DBNAME_MAXLEN+1];
-    void  LogError(MCO_RET, const char*, const char*);
-    void  LogWarn(const char*, const char*);
+
+#if EXTREMEDB_VERSION >= 41
+    mco_db_params_t   m_db_params;
+    mco_device_t      m_dev;
+#  if USE_EXTREMEDB_HTTP_SERVER  
+    /*
+     * HttpServer
+     */
+    mco_metadict_header_t *m_metadict;
+    mcohv_p                m_hv;
+    unsigned int           m_size;
+#  endif  
+    bool                   m_metadict_initialized;
+#endif
+    /*
+     * Подключиться к БД, а при ее отсутствии - создать
+     */
     bool  AttachToInstance();
 
     /* 
@@ -101,7 +125,8 @@ class XDBDatabaseBrokerImpl
      */
     Worker* LoadWorker(mco_trans_h,
                        autoid_t&,
-                       xdb_broker::XDBWorker&);
+                       xdb_broker::XDBWorker&,
+                       uint16_t);
 
     /*
      * Поиск в спуле данного Сервиса индекса Обработчика,
@@ -110,6 +135,11 @@ class XDBDatabaseBrokerImpl
      */
     uint2 LocatingFirstOccurence(xdb_broker::XDBService &service_instance,
                        WorkerState            state);
+
+    /*
+     * Прочитать состояние Обработчика по значению его identity
+     */
+    MCO_RET LoadWorkerByIdent(mco_trans_h, Service*, Worker*);
 
 #ifdef DISK_DATABASE
     char* m_dbsFileName;

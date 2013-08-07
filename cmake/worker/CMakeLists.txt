@@ -14,6 +14,7 @@ endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 include_directories(${LIBZMQ_INCLUDE_DIR})
 include_directories(${WORKER_DIR})
 include_directories(${MDP_DIR})
+include_directories(${TOOLS_DIR})
 
 link_directories(${LIBZMQ_LIBRARIES_DIR})
 # каталог генерации libmdp.so
@@ -41,6 +42,7 @@ set (WORKER_ECHO_SOURCES
 add_executable (${WORKER_DIGGER} ${WORKER_DIGGER_SOURCES})
 target_link_libraries(${WORKER_DIGGER}
     ${MDP_LIBRARY_NAME}
+    ${TOOLS_LIBRARY_NAME}
     ${SYSTEM_EXTERNAL_LIBS}
     ${LIBZMQ_LIBRARIES})
 
@@ -49,6 +51,7 @@ target_link_libraries(${WORKER_DIGGER}
 add_executable (${WORKER_ECHO} ${WORKER_ECHO_SOURCES})
 target_link_libraries(${WORKER_ECHO}
     ${MDP_LIBRARY_NAME}
+    ${TOOLS_LIBRARY_NAME}
     ${SYSTEM_EXTERNAL_LIBS}
     ${LIBZMQ_LIBRARIES})
 

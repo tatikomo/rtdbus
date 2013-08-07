@@ -34,10 +34,12 @@ class Service
     ~Service();
     void SetID(const int64_t);
     void SetNAME(const char*);
-    void  SetSTATE(State);
+    void SetSTATE(State);
+    void SetVALID();
     const int64_t GetID();
     const char   *GetNAME();
     State         GetSTATE();
+    bool          GetVALID();
     const char   *GetSERVICE_NAME();
 
   private:

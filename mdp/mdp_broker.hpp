@@ -31,25 +31,28 @@ class Broker {
    virtual
    ~Broker ();
 
+   bool
+   Init();
    //  ---------------------------------------------------------------------
    //  Bind broker to endpoint, can call this multiple times
    //  We use a single socket for both clients and workers.
    void
-   bind (std::string endpoint);
+   bind (const std::string& endpoint);
 
    //  ---------------------------------------------------------------------
    //  Delete any idle workers that haven't pinged us in a while.
    void
    purge_workers ();
 
-   // Регистрировать новый экземпляр Worker-a
+   // Регистрировать новый экземпляр Обработчика для Сервиса
    //  ---------------------------------------------------------------------
-   void add_new_worker(Worker* instance);
+   Worker *
+   worker_register(const std::string&, const std::string&);
 
    //  ---------------------------------------------------------------------
    //  Locate or create new service entry
    Service *
-   service_require (std::string& name);
+   service_require (const std::string& name);
 
    zmq::socket_t&
    get_socket() { return *m_socket; };
@@ -62,12 +65,12 @@ class Broker {
    //  ---------------------------------------------------------------------
    //  Handle internal service according to 8/MMI specification
    void
-   service_internal (std::string service_name, zmsg *msg);
+   service_internal (const std::string& service_name, zmsg *msg);
 
    //  ---------------------------------------------------------------------
    //  Creates worker if necessary
    Worker *
-   worker_require (std::string& sender/*, char* identity*/);
+   worker_require (const std::string& sender/*, char* identity*/);
 
    //  ---------------------------------------------------------------------
    //  Deletes worker from all data structures, and destroys worker
@@ -79,16 +82,15 @@ class Broker {
    //  Processes one READY, REPORT, HEARTBEAT or  DISCONNECT message 
    //  sent to the broker by a worker
    void
-   worker_msg (std::string& sender, zmsg *msg);
+   worker_msg (const std::string& sender, zmsg *msg);
 
    //  ---------------------------------------------------------------------
    //  Send message to worker
    //  If pointer to message is provided, sends that message
    void
-   worker_send (Worker *worker,
-       char *command, std::string option, zmsg *msg);
+   worker_send (Worker*, const char*, const std::string&, zmsg *msg);
    void
-   worker_send (Worker*, char *command, std::string option, Letter*);
+   worker_send (Worker*, const char*, const std::string&, Letter*);
 
 
    //  ---------------------------------------------------------------------
@@ -100,11 +102,14 @@ class Broker {
    //  ---------------------------------------------------------------------
    //  Process a request coming from a client
    void
-   client_msg (std::string& sender, zmsg *msg);
+   client_msg (const std::string& sender, zmsg *msg);
 
    //  Get and process messages forever or until interrupted
    void
    start_brokering();
+
+   void
+   database_snapshot(const char*);
 
  private:
     zmq::context_t  * m_context;               //  0MQ context

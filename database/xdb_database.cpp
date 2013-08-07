@@ -1,26 +1,33 @@
 #include <assert.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h> // exit()
+
+#if defined HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include "xdb_database.hpp"
-#include "xdb_database_impl.hpp"
 
 XDBDatabase::XDBDatabase(const char* name)
 {
-    impl = new XDBDatabaseImpl(this, name);
-    assert (impl);
-    m_state = XDBDatabase::DISCONNECTED;
+    assert (name);
+    m_state = XDBDatabase::UNINITIALIZED;
+    strncpy(m_name, name, DBNAME_MAXLEN);
+    m_name[DBNAME_MAXLEN] = '\0';
+
+//    fprintf(stdout, "\tXDBDatabase(%p, %s)\n", (void*)this, name);
+//    fflush(stdout);
 }
 
 XDBDatabase::~XDBDatabase()
 {
-    assert (impl);
-    impl->Disconnect();
-    TransitionToState(DELETED);
-    delete impl;
+//  fprintf(stdout, "~XDBDatabase(%p, %s)\n", (void*)this, m_name);
+  Disconnect();
 }
 
 const char* XDBDatabase::DatabaseName()
 {
-    assert (impl);
-    return impl->DatabaseName();
+    return m_name;
 }
 
 const XDBDatabase::DBState XDBDatabase::State()
@@ -30,49 +37,78 @@ const XDBDatabase::DBState XDBDatabase::State()
 
 bool XDBDatabase::TransitionToState(DBState new_state)
 {
+  bool transition_correctness = false;
   /* 
    * TODO проверить допустимость перехода из 
    * старого в новое состояние
    */
-  if (new_state == m_state)
-    return false;
-    
-  m_state = new_state;
-  return true;
-}
-
-bool XDBDatabase::Open()
-{
-    bool status;
-
-    assert (impl);
-    if (true == (status = impl->Open()))
+  switch (m_state)
+  {
+    // Состояние "ОТКЛЮЧЕНО" может перейти в "ПОДКЛЮЧЕНО" или "РАЗРУШЕНО"
+    case DISCONNECTED:
     {
-        status = TransitionToState(OPENED);
+      switch (new_state)
+      {
+        case CONNECTED:
+        case DELETED:
+          transition_correctness = true;
+        break;
+        default:
+          transition_correctness = false;
+      }
     }
-    return status;
+    break;
+
+    // Состояние "ПОДКЛЮЧЕНО" может перейти в состояние "ОТКЛЮЧЕНО"
+    case CONNECTED:
+    {
+      switch (new_state)
+      {
+        case DISCONNECTED:
+          transition_correctness = true;
+        break;
+        default:
+          transition_correctness = false;
+      }
+    }
+    break;
+
+    // Состояние "РАЗРУШЕНО" не может перейти ни в какое другое состояние
+    case DELETED:
+    {
+       transition_correctness = false;
+    }
+    break;
+
+    // Неинициализированное состояние БД может перейти в "ОТКЛЮЧЕНО" или "РАЗРУШЕНО"
+    case UNINITIALIZED:
+    {
+      switch (new_state)
+      {
+        case DISCONNECTED:
+        case DELETED:
+          transition_correctness = true;
+        break;
+        default:
+          transition_correctness = false;
+      }
+    }
+    break;
+  }
+
+  if (transition_correctness)
+    m_state = new_state;
+
+  return transition_correctness;
 }
 
 bool XDBDatabase::Connect()
 {
-    bool status;
-
-    assert (impl);
-    if (true == (status = impl->Connect()))
-    {
-        status = TransitionToState(CONNECTED);
-    }
-    return status;
+    return TransitionToState(CONNECTED);
 }
 
 bool XDBDatabase::Disconnect()
 {
-    bool status = false;
-    
-    assert (impl);
-    if (TransitionToState(DISCONNECTED))
-        status = impl->Disconnect();
-
-    return status;
+    return TransitionToState(DISCONNECTED);
 }
 

@@ -1,0 +1,19 @@
+EXTREMEDB_DIR=/home/gev/ITG/sandbox/master_eXtremeDB_3.5.987_sunos/sources
+EXTREMEDB_LIBDIR=$EXTREMEDB_DIR/bin.so
+EXTREMEDB_INCDIR=$EXTREMEDB_DIR/include
+
+/usr/bin/g++ -g \
+-I$EXTREMEDB_INCDIR \
+-I../cmake \
+-I../tools \
+../database/dat/xdb_broker.c \
+../database/xdb_database_broker.cpp \
+../database/xdb_database_service.cpp \
+../database/xdb_database_worker.cpp \
+../tools/timer.cpp \
+sample1.cpp  -o sample1 \
+-L$EXTREMEDB_LIBDIR \
+-rdynamic \
+-lmcolib_shm -lmcoslnx -lmcounrt -lmcovtmem -lmcouwrt \
+-lnsl -lgtest -lpthread -lrt \
+-Wl,-rpath,$EXTREMEDB_LIBDIR

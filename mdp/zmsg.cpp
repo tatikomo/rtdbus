@@ -14,6 +14,7 @@
 #include <string>
 #include <stdarg.h>
 
+#include "helper.hpp"
 #include "zmsg.hpp"
 
 zmsg::zmsg()
@@ -109,7 +110,7 @@ bool zmsg::recv(zmq::socket_t & socket) {
          uuidstr = encode_uuid((unsigned char*) message.data());
 //         std::cerr << "identity(uuid) = " << uuidstr << std::endl;
          push_back(uuidstr);
-         delete uuidstr;
+         delete[] uuidstr;
       }
       else
       {
@@ -140,7 +141,7 @@ void zmsg::send(zmq::socket_t & socket) {
 //          std::cerr << "decode identity(" << data << ")" << std::endl;
           message.rebuild(5);
           memcpy(message.data(), uuidbin, 5);
-          delete uuidbin;
+          delete[] uuidbin;
        }
        else 
 #endif

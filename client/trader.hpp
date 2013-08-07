@@ -3,7 +3,6 @@
 #pragma once
 
 #include "zmsg.hpp"
-#include "mdp_common.h"
 #include "trader.hpp"
 #include "mdp_client_async_api.hpp"
 

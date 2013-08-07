@@ -4,16 +4,21 @@
 
 #define MAX_SERVICES_ENTRY  400
 #define MAX_WORKERS_ENTRY   400
-/* в RTAP = 600 */
 #define LETTERS4SERVICE_QUEUE_MAXLEN  100
 #define uint4               unsigned<4>
 #define uint1               unsigned<1>
 #define uint8               unsigned<8>
 #define service_name_t      char<32>
 #define identity_t          char<11>
+#define WORKERS_FOR_SERVICE 2
 
 
 declare database xdb_broker;
+
+struct timer_mark {
+  uint4 sec;
+  uint4 nsec;
+};
 
 struct XDBWorker
 {
@@ -47,10 +52,10 @@ class XDBService
    * Зарегистрированные Обработчики данного Сервиса находятся
    * в XDBWorker по ссылке на XDBService.
    */
-  vector <XDBWorker> SK_workers;
-  tree   <SK_workers.expiration.sec> SK_workers_expire;
+  vector <XDBWorker> workers;
+  tree   <workers.expiration.sec> SK_workers_expire;
   /* Поиск Обработчика по имени */
-  unique tree <SK_workers.identity> SK_ident;
+  unique tree <workers.identity> SK_ident;
 };
 
 enum ServiceState
@@ -66,11 +71,6 @@ enum WorkerState
 enum LetterState
 {
    EMPTY, READY, DONE_OK, DONE_FAIL
-};
-
-struct timer_mark {
-  uint4 sec;
-  uint4 nsec;
 };
 
 /* Сообщение для Сервиса */

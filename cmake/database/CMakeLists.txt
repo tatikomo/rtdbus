@@ -6,6 +6,7 @@ if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
         rt)
 else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # LINUX
+  link_directories(/lib/i386-linux-gnu/)
   set (SYSTEM_EXTERNAL_LIBS
         nsl
         pthread
@@ -15,7 +16,6 @@ endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 include_directories(${TOOLS_DIR})
 include_directories(${XDB_DIR})
 include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
-link_directories(/lib/i386-linux-gnu/)
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 
 set (XDB_SOURCES
@@ -24,10 +24,10 @@ set (XDB_SOURCES
         ${XDB_DIR}/dat/xdb_broker.h
         ${XDB_DIR}/dat/xdb_broker.c
         ${XDB_DIR}/dat/xdb_broker.hpp
+        ${XDB_DIR}/xdb_database_common.c
+        ${XDB_DIR}/xdb_database_common.h
         ${XDB_DIR}/xdb_database.cpp
         ${XDB_DIR}/xdb_database.hpp
-        ${XDB_DIR}/xdb_database_impl.cpp
-        ${XDB_DIR}/xdb_database_impl.hpp
         ${XDB_DIR}/xdb_database_broker.cpp
         ${XDB_DIR}/xdb_database_broker.hpp
         ${XDB_DIR}/xdb_database_broker_impl.cpp

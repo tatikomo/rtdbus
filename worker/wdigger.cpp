@@ -1,6 +1,6 @@
 #include "zmq.hpp"
 #include "zmsg.hpp"
-#include "mdp_common.h"
+#include "helper.hpp"
 #include "mdp_worker_api.hpp"
 #include "wdigger.hpp"
 
