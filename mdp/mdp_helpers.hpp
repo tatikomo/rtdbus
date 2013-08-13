@@ -63,7 +63,6 @@ void zclock_log (const char *format, ...);
 
 int64_t zclock_time (void);
 
-void s_console (const char *format, ...);
 //  Return current system clock as milliseconds
 int64_t s_clock (void);
 //  Return current system clock as milliseconds

@@ -115,9 +115,8 @@ class XDBDatabaseBrokerImpl
     /* 
      * Вернуть Service, построенный на основе прочитанных из БД данных
      */
-    Service* LoadService(mco_trans_h,
-                        autoid_t&,
-                        xdb_broker::XDBService&);
+    Service* LoadService(autoid_t&,
+                         xdb_broker::XDBService&);
 
     /* 
      * Вернуть Worker, построенный на основе прочитанных из БД данных

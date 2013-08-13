@@ -36,7 +36,7 @@ class Broker {
    //  ---------------------------------------------------------------------
    //  Bind broker to endpoint, can call this multiple times
    //  We use a single socket for both clients and workers.
-   void
+   bool
    bind (const std::string& endpoint);
 
    //  ---------------------------------------------------------------------

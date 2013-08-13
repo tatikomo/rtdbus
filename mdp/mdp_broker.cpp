@@ -1,3 +1,5 @@
+#include <glog/logging.h>
+
 #include "mdp_broker.hpp"
 #include "zmsg.hpp"
 #include "xdb_database_broker.hpp"
@@ -63,12 +65,26 @@ Broker::~Broker ()
 //  ---------------------------------------------------------------------
 //  Bind broker to endpoint, can call this multiple times
 //  We use a single socket for both clients and workers.
-void
+bool
 Broker::bind (const std::string& endpoint)
 {
+    bool status = false;
+
     m_endpoint = endpoint;
-    m_socket->bind(m_endpoint.c_str());
-    s_console ("I: MDP Broker/0.2.0 is active at %s", endpoint.c_str());
+    try
+    {
+      m_socket->bind(m_endpoint.c_str());
+      LOG(INFO) << "MDP Broker/0.2.0 is active at " << endpoint;
+      status = true;
+    }
+    catch(zmq::error_t err)
+    {
+      LOG(ERROR) << "MDP Broker/0.2.0 unable bind to " << endpoint 
+        << " [" <<  err.what() << "]";
+      status = false;
+    }
+
+    return status;
 }
 
 // Регистрировать новый экземпляр Обработчика для Сервиса
@@ -91,6 +107,8 @@ Broker::database_snapshot(const char* msg)
 void
 Broker::purge_workers ()
 {
+#warning "Убери return!"
+   return;
     Worker  *wrk = NULL;
     Service *service = NULL;
     /* TODO Пройти по списку Сервисов */
@@ -105,8 +123,7 @@ Broker::purge_workers ()
             break;              //  Worker is alive, we're done here
         }
         if (m_verbose) {
-            s_console ("I: deleting expired worker: %s",
-                  wrk->GetIDENTITY());
+            LOG(INFO) << "Deleting expired worker: " << wrk->GetIDENTITY();
         }
         worker_delete (wrk, 0);
     }
@@ -121,17 +138,17 @@ Broker::service_require (const std::string& service_name)
 
     assert (service_name.size() > 0);
     if (m_verbose) {
-        s_console ("I: require service");
+        LOG(INFO) << "Require service '" << service_name << "'";
     }
 
     if (NULL == (acquired_service = m_database->GetServiceByName(service_name.c_str())))
     {
-        s_console("W: service '%s' is not registered", service_name.c_str());
+        LOG(WARNING) << "Service '" << service_name << "' is not registered";
         acquired_service = m_database->AddService(service_name.c_str());
     }
     else if (m_verbose)
     {
-        s_console("I: service '%s' already registered", service_name.c_str());
+        LOG(INFO) << "Service '" << service_name << "' already registered";
     }
 
     return acquired_service;
@@ -248,14 +265,14 @@ Broker::worker_require (const std::string& identity)
 
     if (NULL != (instance = m_database->GetWorkerByIdent(identity)))
     {
-       s_console("D: worker '%s' is registered", identity.c_str());
+       LOG(INFO) << "Worker '" << identity << "' is registered";
     }
     else
     {
-       s_console("W: unable to find worker '%s'", identity.c_str());  
+       LOG(WARNING) << "Unable to find worker " << identity;
 /*       if (m_verbose)
        {
-          s_console ("I: registering new worker instance: %s", identity.c_str());
+          LOG(INFO) << "Registering new worker instance:" << identity;
        }*/
     }
 
@@ -317,22 +334,26 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
                 // найти сервис по имени или создать новый
 // GEV: "Service creation is only possible on first workers call"                
 #if 1
-                service = m_database->RequireServiceByName (service_name);
+                service = service_require/*m_database->RequireServiceByName*/ (service_name);
                 assert (service);
 #endif
+                if (!worker_ready)
+                {
+                  // Создать экземпляр Обработчика
+                  wrk = new Worker(sender_identity.c_str(), service->GetID());
+                }
 
                 // Привязать нового Обработчика к обслуживаемому им Сервису
                 worker_waiting (wrk);
                 service_dispatch(service);
 
-                zclock_log ("worker '%s' created", sender_identity.c_str());
+                LOG(INFO) << "Created worker " << sender_identity;
             }
         }
     }
     else {
        if (command.compare (MDPW_REPORT) == 0) {
-           s_console("D: get REPORT from '%s' wr=%d",
-                     sender_identity.c_str(), worker_ready);
+           LOG(INFO) << "Get REPORT from '" << sender_identity << "' wr=" << worker_ready;
            if (worker_ready) {
                service = m_database->GetServiceForWorker(wrk);
                //  Remove & save client return envelope and insert the
@@ -352,13 +373,12 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
        }
        else {
           if (command.compare (MDPW_HEARTBEAT) == 0) {
-              s_console("D: get HEARTBEAT from '%s' wr=%d",
-                        sender_identity.c_str(), worker_ready);
+              LOG(INFO) << "Get HEARTBEAT from '" << sender_identity << "' wr=" << worker_ready;
               if (worker_ready) {
                 // wrk содержит идентификатор своего Сервиса
                   if (false == (status = m_database->PushWorker(wrk)))
                   {
-                    s_console("E: unable to register worker '%s'", wrk->GetIDENTITY());
+                    LOG(ERROR) << "Unable to register worker " << wrk->GetIDENTITY();
                   }
 //                worker_waiting(wrk);
               }
@@ -368,13 +388,11 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
           }
           else {
              if (command.compare (MDPW_DISCONNECT) == 0) {
-                 s_console("D: get DISCONNECT from '%s'",
-                           sender_identity.c_str());
+                 LOG(INFO) << "Get DISCONNECT from " << sender_identity;
                  worker_delete (wrk, 0);
              }
              else {
-                 s_console ("E: invalid input message (%d)", 
-                            (int) *command.c_str());
+                 LOG(ERROR) << "Invalid input message " << mdpw_commands [(int) *command.c_str()];
                  msg->dump ();
              }
           }
@@ -414,8 +432,8 @@ Broker::worker_send (Worker *worker,
     msg->wrap(worker->GetIDENTITY(), EMPTY_FRAME);
 
     if (m_verbose) {
-        s_console ("I: sending %s to worker (%s)",
-            mdpw_commands [(int) *command], worker->GetIDENTITY());
+        LOG(INFO) << "Sending '" << mdpw_commands [(int) *command]
+            << "' to worker '" << worker->GetIDENTITY() << "'";
         msg->dump ();
     }
     msg->send (*m_socket);
@@ -458,12 +476,12 @@ Broker::client_msg (const std::string& sender, zmsg *msg)
     bool enabled = false;
 
     assert (msg && msg->parts () >= 2);     //  Service name + body
-//    s_console("D: client_msg %s", sender.c_str()); // GEV delete me
+//  LOG(INFO) << "Client_msg " << sender; // GEV delete me
     std::string service_frame = msg->pop_front();
     Service *srv = service_require (service_frame);
     if (!srv) /* сервис неизвестен - выводим предупреждение */
     {
-        s_console("W: service %s is not known", service_frame.c_str());
+        LOG(INFO) << "Unknown service " << service_frame;
     }
     else /* Сервис известен */
     {
@@ -487,7 +505,7 @@ Broker::client_msg (const std::string& sender, zmsg *msg)
 
             if (true == enabled) {
               /* внести команду в очередь и обработать её */
-              s_console("D: command '%s' is enabled", cmd_frame.c_str());
+              LOG(INFO) << "Command '" << cmd_frame << "' is enabled";
 #warning "Make PushRequestToService() implementation"
 //GEV              m_database->PushRequestToService(srv, msg);
               
@@ -495,7 +513,7 @@ Broker::client_msg (const std::string& sender, zmsg *msg)
             }
             else /*  Send a NAK message back to the client. */
             {
-              s_console("D: command '%s' is disabled", cmd_frame.c_str());
+              LOG(INFO) << "Disabled command " << cmd_frame;
               msg->clear();
               msg->push_front ((char*) service_frame.c_str());
               msg->push_front ((char*) MDPC_NAK);
@@ -513,6 +531,9 @@ Broker::client_msg (const std::string& sender, zmsg *msg)
 void
 Broker::start_brokering()
 {
+   // Если инициализация не прошла, завершить работу
+   s_interrupted = (Init() == true)? 0 : 1;
+
    while (!s_interrupted)
    {
        zmq::pollitem_t items [] = {
@@ -523,7 +544,7 @@ Broker::start_brokering()
        if (items [0].revents & ZMQ_POLLIN) {
            zmsg *msg = new zmsg(*m_socket);
            if (m_verbose) {
-               s_console ("I: received message:");
+               LOG(INFO) <<  "Received message:";
                msg->dump ();
            }
 
@@ -545,7 +566,7 @@ Broker::start_brokering()
                    worker_msg (sender, msg);
            }
            else {
-               s_console ("E: invalid message:");
+               LOG(ERROR) << "Invalid message:";
                msg->dump ();
                delete msg;
            }

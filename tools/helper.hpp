@@ -14,7 +14,7 @@ void LogError(int rc,
             ...);
 
 
-void LogWarn(
+/*void LogWarn(
             const char *functionName,
             const char *format,
             ...);
@@ -22,7 +22,7 @@ void LogWarn(
 void LogInfo(
             const char *functionName,
             const char *format,
-            ...);
+            ...);*/
 
 
 #ifdef __cplusplus

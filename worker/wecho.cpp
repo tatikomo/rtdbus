@@ -1,3 +1,5 @@
+#include <glog/logging.h>
+
 #include "zmq.hpp"
 #include "zmsg.hpp"
 #include "mdp_worker_api.hpp"
@@ -8,8 +10,8 @@ extern int s_interrupted;
 int Echo::handle_request(zmsg* request, std::string*& reply_to)
 {
   assert (request->parts () >= 1);
-  s_console("Process new request with %d parts and reply to '%s'",
-            request->parts(), reply_to->c_str());
+  LOG(INFO) << "Process new request with " << request->parts() 
+    << " parts and reply to " << reply_to;
 
   request->dump();
 
@@ -25,6 +27,8 @@ int Echo::handle_request(zmsg* request, std::string*& reply_to)
 int main(int argc, char **argv)
 {
   int verbose = (argc > 1 && (0 == strcmp (argv [1], "-v")));
+  google::InitGoogleLogging(argv[0]);
+
   try
   {
     Echo *engine = new Echo("tcp://localhost:5555", "echo", verbose);

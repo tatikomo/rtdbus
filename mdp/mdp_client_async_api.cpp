@@ -1,3 +1,4 @@
+#include <glog/logging.h>
 #include "zmsg.hpp"
 #include "mdp_client_async_api.hpp"
 
@@ -61,7 +62,7 @@ void mdcli::connect_to_broker ()
    m_client->setsockopt (ZMQ_LINGER, &linger, sizeof (linger));
    m_client->connect (m_broker.c_str());
    if (m_verbose)
-        s_console ("I: connecting to broker at %s...", m_broker.c_str());
+        LOG(INFO) << "Connecting to broker " << m_broker;
 }
 
 
@@ -96,7 +97,7 @@ mdcli::send (std::string service, zmsg *&request_p)
    request->push_front ((char*)"");
 
    if (m_verbose) {
-        s_console ("I: send request to '%s' service:", service.c_str());
+        LOG(INFO) << "Send request to service " << service;
         request->dump ();
    }
 
@@ -120,7 +121,7 @@ mdcli::recv ()
    if (items [0].revents & ZMQ_POLLIN) {
         zmsg *msg = new zmsg (*m_client);
         if (m_verbose) {
-            s_console ("I: received reply:");
+            LOG(INFO) << "received reply:";
             msg->dump ();
         }
         //  Don't try to handle errors, just assert noisily
@@ -139,10 +140,9 @@ mdcli::recv ()
    }
 
    if (s_interrupted)
-        std::cout << "W: interrupt received, killing client..." << std::endl;
-   else
-   if (m_verbose)
-        s_console ("W: permanent error, abandoning request");
+     LOG(WARNING) << "Interrupt received, killing client...";
+   else if (m_verbose)
+     LOG(WARNING) << "Permanent error, abandoning request";
 
    return 0;
 }

@@ -3,11 +3,10 @@ if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
         rt)
 else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # LINUX
+  link_directories(/lib/i386-linux-gnu/)
   set (SYSTEM_EXTERNAL_LIBS
         rt)
 endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
-
-link_directories(/lib/i386-linux-gnu/)
 
 set (TOOLS_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h

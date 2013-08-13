@@ -190,26 +190,6 @@ s_clock (void)
 #endif
 }
 
-
-// Log out to stdout
-void
-s_console (const char *format, ...)
-{
-    time_t curtime = time (NULL);
-    struct tm *loctime = localtime (&curtime);
-    char *formatted = new char[20];
-    strftime (formatted, 20, "%y-%m-%d %H:%M:%S ", loctime);
-    printf ("%s", formatted);
-    delete[] formatted;
-
-    va_list argptr;
-    va_start (argptr, format);
-    vprintf (format, argptr);
-    va_end (argptr);
-    printf ("\n");
-    fflush(stdout);
-}
-
 //  Sleep for a number of milliseconds
 void
 s_sleep (int msecs)

@@ -17,9 +17,11 @@ endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 include_directories(${TOOLS_DIR})
 include_directories(${MDP_DIR})
 include_directories(${XDB_DIR})
+include_directories(${LIBGLOG_INCLUDE_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})
 include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
 
+link_directories(${LIBGLOG_LIBRARIES_DIR})
 link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 #link_directories(${CMAKE_SOURCE_DIR}/../cmake/lib)
@@ -83,6 +85,7 @@ target_link_libraries(${MDP_BROKER}
     ${TOOLS_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
     ${XDB_LIBRARY_NAME}
+    ${LIBGLOG_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${SYSTEM_EXTERNAL_LIBS})
 
