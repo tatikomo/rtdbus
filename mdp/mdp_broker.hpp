@@ -11,7 +11,6 @@
 
 #include "mdp_broker.hpp"
 
-//#include "xdb_database_broker.hpp"
 class XDBDatabaseBroker;
 class Service;
 class Worker;
@@ -31,8 +30,16 @@ class Broker {
    virtual
    ~Broker ();
 
+/* 
+ * Ненормальное состояние, вызывается из напрямую тестов, 
+ * когда нельзя явно запускать start_brokering() 
+ */
+#if defined _FUNCTIONAL_TEST
+   /* Инициализация внутренних структур, обычно вызывается из start_brokering() */
    bool
    Init();
+#endif
+
    //  ---------------------------------------------------------------------
    //  Bind broker to endpoint, can call this multiple times
    //  We use a single socket for both clients and workers.
@@ -128,6 +135,12 @@ class Broker {
      */
     XDBDatabaseBroker *m_database;
 
+/* Нормальное состояние, когда Init вызывается только из методов класса */
+#if !defined _FUNCTIONAL_TEST
+   /* Инициализация внутренних структур, вызывается из start_brokering() */
+   bool
+   Init();
+#endif
 };
 
 #endif

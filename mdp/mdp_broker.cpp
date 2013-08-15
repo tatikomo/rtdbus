@@ -190,6 +190,7 @@ Broker::service_dispatch (Service *srv/*, zmsg *processing_msg*/)
       }
       delete wrk;
     }
+    delete srv;
 }
 
 //  ---------------------------------------------------------------------
@@ -366,6 +367,8 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
                msg->send (*m_socket);
  //             delete client; // ай-яй-яй! +++
 //+++++               worker_waiting (wrk);
+
+               delete service;
            }
            else {
                worker_delete (wrk, 1);
@@ -380,19 +383,24 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
                   {
                     LOG(ERROR) << "Unable to register worker " << wrk->GetIDENTITY();
                   }
-//                worker_waiting(wrk);
+                  m_database->MakeSnapshot("HEARTBEAT");
+                  worker_waiting(wrk);
               }
               else {
-                  worker_delete (wrk, 1);
+//                  worker_delete (wrk, 1);
+//                  GEV: 13/08/2013 - в этом месте wrk = NULL,
+//                  и в worker_delete() происходит assertion
               }
           }
           else {
              if (command.compare (MDPW_DISCONNECT) == 0) {
-                 LOG(INFO) << "Get DISCONNECT from " << sender_identity;
+                 LOG(INFO) << "Get DISCONNECT from " 
+                           << sender_identity;
                  worker_delete (wrk, 0);
              }
              else {
-                 LOG(ERROR) << "Invalid input message " << mdpw_commands [(int) *command.c_str()];
+                 LOG(ERROR) << "Invalid input message " 
+                            << mdpw_commands [(int) *command.c_str()];
                  msg->dump ();
              }
           }
@@ -449,21 +457,21 @@ Broker::worker_waiting (Worker *worker)
 {
     Service *service = NULL;
     assert (worker);
-    //  Queue to broker and service waiting lists
 #if 0
     m_waiting.push_back(worker);
     worker->m_service->m_waiting.push_back(worker);
     worker->m_expiry = s_clock () + HEARTBEAT_EXPIRY;
 #else
-    /* worker содержит идентификатор своего Сервиса */
+    //  Queue to broker and service waiting lists
     m_database->PushWorker(worker);
 #endif
     // +++ послать ответ на HEARTBEAT
 //    NB: В версии zguide/C/mdbroker не вызывается worker_send
-    worker_send (worker, (char*)MDPW_HEARTBEAT, EMPTY_FRAME, (Letter*)NULL);
+//  Версия worker_send(), работающая с Letter, на 13/08/2013 еще не реализована
+    worker_send (worker, (char*)MDPW_HEARTBEAT, EMPTY_FRAME, /*(Letter*)*/(zmsg*)NULL);
     service = m_database->GetServiceById(worker->GetSERVICE_ID());
     service_dispatch (service);
-    delete service;
+    //delete service; - он удаляется в service_dispatch()
 }
 
 
