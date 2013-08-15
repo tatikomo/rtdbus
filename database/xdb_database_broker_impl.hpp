@@ -20,6 +20,65 @@ extern "C" {
 
 class Service;
 class Worker;
+class ServiceList;
+class ServiceListIterator;
+
+class ServiceListIterator
+{
+  public:
+    ServiceListIterator(ServiceList*);
+    ~ServiceListIterator();
+
+    Service* first();
+    Service* last();
+    Service* next();
+    Service* prev();
+  private:
+    ServiceListIterator();
+    int m_current_index;
+    ServiceList* m_list;
+};
+
+/* 
+ * Класс-контейнер объектов Service в БД
+ * TODO: Получать уведомления о создании/удалении экземпляра объекта Service в БД.
+ * TODO: Переделать с использованием итераторов.
+ */
+class ServiceList
+{
+  friend class ServiceListIterator;
+  public:
+    ServiceList();
+    ~ServiceList();
+#if 0
+    // Добавить новый Сервис, определенный своим именем и идентификатором
+    bool AddService(const char*, int64_t);
+    // Добавить новый Сервис, определенный объектом Service
+    bool AddService(const Service&);
+    // Удалить Сервис по его имени
+    bool RemoveService(const char*);
+    // Удалить Сервис по его идентификатору
+    bool RemoveService(const int64_t);
+#endif
+    // Получить количество зарегистрированных объектов
+    const int size();
+    // Перечитать список Сервисов из базы данных
+    MCO_RET refresh();
+    // Создать итератор
+    ServiceListIterator& getIterator();
+
+    // Создать список из Сервисов и инициировать его из БД. 
+    // Завершающий элемент равен 0
+    // NB: Лучше оставить доступ к элементам только через итератор, удалив этот метод
+    Service** getList();
+
+  private:
+    // Список прочитанных из БД Сервисов
+    Service** m_array;
+    // Количество Сервисов в массиве m_array
+    int       m_size;
+    ServiceListIterator m_iterator;
+};
 
 /* Фактическая реализация функциональности Базы Данных для Брокера */
 class XDBDatabaseBrokerImpl
@@ -107,6 +166,15 @@ class XDBDatabaseBrokerImpl
 #  endif  
     bool                   m_metadict_initialized;
 #endif
+    /*
+     * Зарегистрировать все обработчики событий, заявленные в БД
+     */
+    MCO_RET RegisterEvents();
+    /*
+     * Автоматически вызываемые события при работе с экземплярами XDBService
+     */
+    static MCO_RET new_Service(mco_trans_h, XDBService*, MCO_EVENT_TYPE, void*);
+    static MCO_RET del_Service(mco_trans_h, XDBService*, MCO_EVENT_TYPE, void*);
     /*
      * Подключиться к БД, а при ее отсутствии - создать
      */

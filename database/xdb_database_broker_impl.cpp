@@ -291,6 +291,7 @@ bool XDBDatabaseBrokerImpl::Disconnect()
 
     case XDBDatabase::CONNECTED:
       assert(m_self);
+      mco_async_event_release_all(m_db/*, MCO_EVENT_newService*/);
       rc = mco_db_disconnect(m_db);
 //      rc_check("Disconnection", rc);
 
@@ -306,6 +307,97 @@ bool XDBDatabaseBrokerImpl::Disconnect()
   return (!rc)? true : false;
 }
 
+/*
+ * Статический метод, вызываемый из runtime базы данных 
+ * при создании нового экземпляра XDBService
+ */
+MCO_RET XDBDatabaseBrokerImpl::new_Service(mco_trans_h t,
+        XDBService *obj,
+        MCO_EVENT_TYPE et,
+        void *p)
+{
+  XDBDatabaseBrokerImpl *self = static_cast<XDBDatabaseBrokerImpl*> (p);
+  char name[Service::NAME_MAXLEN + 1];
+  MCO_RET rc;
+
+  assert(self);
+  assert(obj);
+
+  do
+  {
+    name[0] = '\0';
+
+    rc = XDBService_name_get(obj, name, (uint2)Service::NAME_MAXLEN);
+    name[Service::NAME_MAXLEN] = '\0';
+    if (rc) { LOG(ERROR)<<"Unable to get service's name, rc="<<rc; break; }
+
+  } while (false);
+
+//  LOG(INFO) << "NEW XDBService "<<obj<<" name '"<<name<<"' self=" << self;
+
+  return MCO_S_OK;
+}
+
+/*
+ * Статический метод, вызываемый из runtime базы данных 
+ * при удалении экземпляра XDBService
+ */
+MCO_RET XDBDatabaseBrokerImpl::del_Service(mco_trans_h t,
+        XDBService *obj,
+        MCO_EVENT_TYPE et,
+        void *p)
+{
+  XDBDatabaseBrokerImpl *self = static_cast<XDBDatabaseBrokerImpl*> (p);
+  char name[Service::NAME_MAXLEN + 1];
+  MCO_RET rc;
+
+  assert(self);
+  assert(obj);
+
+  do
+  {
+    name[0] = '\0';
+
+    rc = XDBService_name_get(obj, name, (uint2)Service::NAME_MAXLEN);
+    name[Service::NAME_MAXLEN] = '\0';
+    if (rc) { LOG(ERROR)<<"Unable to get service's name, rc="<<rc; break; }
+
+  } while (false);
+
+//  LOG(INFO) << "DEL XDBService "<<obj<<" name '"<<name<<"' self=" << self;
+
+  return MCO_S_OK;
+}
+
+MCO_RET XDBDatabaseBrokerImpl::RegisterEvents()
+{
+  MCO_RET rc;
+  mco_trans_h t;
+
+  do
+  {
+    rc = mco_trans_start(m_db, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+    if (rc) LOG(ERROR) << "Starting transaction, rc=" << rc;
+
+    rc = mco_register_newService_handler(t, 
+            &XDBDatabaseBrokerImpl::new_Service, 
+            (void*)this,
+            MCO_AFTER_UPDATE);
+    if (rc) LOG(ERROR) << "Registering event on XDBService creation, rc=" << rc;
+
+    rc = mco_register_delService_handler(t, 
+            &XDBDatabaseBrokerImpl::del_Service, 
+            (void*)this);
+    if (rc) LOG(ERROR) << "Registering event on XDBService deletion, rc=" << rc;
+
+    rc = mco_trans_commit(t);
+  } while(false);
+
+  if (rc)
+   mco_trans_rollback(t);
+
+  return rc;
+}
 
 bool XDBDatabaseBrokerImpl::AttachToInstance()
 {
@@ -399,6 +491,8 @@ bool XDBDatabaseBrokerImpl::AttachToInstance()
             << "' with code " << rc;
         return false;
   }
+
+  RegisterEvents();
 
 //  rc_check("Connecting", rc);
 #if (EXTREMEDB_VERSION >= 41) && USE_EXTREMEDB_HTTP_SERVER
@@ -727,7 +821,7 @@ bool XDBDatabaseBrokerImpl::PushWorker(Worker *wrk)
       }
       if (rc) { LOG(ERROR) << "Getting worker from spool, rc="<<rc; break; }
 
-//      rc = service_instance.workers_put(worker_idx, worker_instance); /* issue #1182 */
+      rc = service_instance.workers_put(worker_idx, worker_instance); /* issue #1182 */
       if (rc) { LOG(ERROR) << "Putting worker into spool, rc="<<rc; break; }
 
       rc = worker_instance.identity_put(wrk_identity, strlen(wrk_identity));
@@ -984,7 +1078,7 @@ Worker *XDBDatabaseBrokerImpl::LoadWorker(mco_trans_h t,
     worker->SetINDEX(index_in_spool);
     /* Состояние объекта полностью соответствует хранимому в БД */
     worker->SetVALID();
-    LOG(INFO) << "New Worker(id='" << ident
+    LOG(INFO) << "Load Worker(id='" << ident
               << "' aid=" << srv_aid 
               << " state=" << (int)state
               << " spool_idx=" << index_in_spool << ")";
@@ -1322,7 +1416,7 @@ uint2 XDBDatabaseBrokerImpl::LocatingFirstOccurence(
     if (false == awaiting_worker_found)
     {
         /* нет ни одного Обработчика - у всех другое состояние */
-        LOG(INFO) << "No one waiting workers find";
+//        LOG(INFO) << "No one waiting workers find";
         break;
     }
 
@@ -1548,4 +1642,104 @@ void XDBDatabaseBrokerImpl::MakeSnapshot(const char*)
   return;
 }
 #endif
+
+
+ServiceListIterator::ServiceListIterator()
+{
+  m_list = NULL;
+  m_current_index = 0;
+}
+
+ServiceListIterator::ServiceListIterator(ServiceList *_list)
+{
+  m_list = _list;
+  m_current_index = 0;
+}
+
+ServiceListIterator::~ServiceListIterator()
+{
+}
+
+Service* ServiceListIterator::first()
+{
+  Service *srv = NULL;
+
+  assert(m_list);
+  if (m_list && m_list->m_array)
+    srv = m_list->m_array[0];
+
+  return srv;
+}
+
+Service* ServiceListIterator::last()
+{
+  Service *srv = NULL;
+
+  assert(m_list);
+  if (m_list && m_list->m_array)
+    srv = m_list->m_array[m_list->m_size];
+
+  return srv;
+}
+
+Service* ServiceListIterator::next()
+{
+  Service *srv = NULL;
+
+  return srv;
+}
+
+Service* ServiceListIterator::prev()
+{
+  Service *srv = NULL;
+  return srv;
+}
+
+ServiceList::ServiceList() : m_iterator(this)
+{
+  m_array = NULL;
+  m_size = 0;
+}
+
+ServiceList::~ServiceList()
+{
+  if ((m_size) && (m_array))
+  {
+    for (int i=0; i<m_size; i++)
+    {
+      delete m_array[i];
+    }
+  }
+  delete []m_array;
+}
+
+// Получить количество зарегистрированных объектов
+const int ServiceList::size()
+{
+  return m_size;
+}
+
+// Перечитать список Сервисов из базы данных
+MCO_RET ServiceList::refresh()
+{
+  MCO_RET rc = MCO_S_OK;
+
+  // TODO: заполнить данными из БД
+  delete m_array;
+  m_size = 0;
+
+  return rc;
+}
+
+// Получить итератор Сервисов
+ServiceListIterator& ServiceList::getIterator()
+{
+  return m_iterator;
+}
+
+// Создать список из Сервисов и инициировать его из БД. Завершающий элемент равен 0
+Service** ServiceList::getList()
+{
+  return m_array;
+}
 
