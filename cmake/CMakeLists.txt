@@ -105,6 +105,8 @@ set(TOOLS_LIBRARY_NAME       rtdb_helper)
 
 OPTION(RTDBUS_BUILD_TESTS "enable unit test code" ON)
 # ограничение размера полей данных из схемы MCO
+set (MAX_SERVICES_ENTRY      400)
+set (MAX_WORKERS_ENTRY       MAX_SERVICES_ENTRY * WORKERS_SPOOL_SIZE)
 set (SERVICE_NAME_MAXLEN      32)
 set (WORKER_IDENTITY_MAXLEN   11)
 set (DBNAME_MAXLEN            10)
