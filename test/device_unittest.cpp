@@ -1,5 +1,6 @@
 #include <string>
 #include "gtest/gtest.h"
+#include "glog/logging.h"
 
 #include "helper.hpp"
 #include "zmsg.hpp"
@@ -10,14 +11,19 @@
 #include "xdb_database_worker.hpp"
 #include "xdb_database_service.hpp"
 
+#include "proxy.hpp"
+#include "wdigger.hpp"
+#include "trader.hpp"
+
 Broker *broker = NULL;
-std::string service_name_1 = "сервис1";
+std::string service_name_1 = "NYSE";
 std::string service_name_2 = "service_test_2";
 std::string unbelievable_service_name = "unbelievable_service";
 std::string worker_identity_1 = "@W000000001";
 std::string worker_identity_2 = "@W000000002";
 std::string worker_identity_3 = "@W000000003";
 
+const char *attributes_connection_to_broker = "tcp://localhost:5555";
 Service *service1 = NULL;
 Service *service2 = NULL;
 int64_t service1_id;
@@ -91,7 +97,7 @@ TEST(TestHelper, CLOCK)
   EXPECT_TRUE (100000 > (future_time.tv_nsec - now_time.tv_nsec - 500000000));
 }
 
-TEST(TestProxy, RUNTIME)
+TEST(TestProxy, RUNTIME_VERSION)
 {
   bool status = false;
 
@@ -108,48 +114,251 @@ TEST(TestProxy, RUNTIME)
   EXPECT_EQ(status, true);
 }
 
-TEST(TestProxy, BROKER_CREATION)
+/*
+ * Проверить следующие методы класса Broker()
+ */
+#if 0
+   void bind (const std::string& endpoint);
+
+   //  ---------------------------------------------------------------------
+   //  Delete any idle workers that haven't pinged us in a while.
+   void purge_workers ();
+
+   // Регистрировать новый экземпляр Обработчика для Сервиса
+   //  ---------------------------------------------------------------------
++  Worker * worker_register(const std::string&, const std::string&);
+
+   //  ---------------------------------------------------------------------
+   //  Locate or create new service entry
++  Service * service_require (const std::string& name);
+
+   zmq::socket_t& get_socket() { return *m_socket; };
+
+   //  ---------------------------------------------------------------------
+   //  Dispatch requests to waiting workers as possible
+   void service_dispatch (Service *srv/*, zmsg *msg*/);
+
+   //  ---------------------------------------------------------------------
+   //  Handle internal service according to 8/MMI specification
+   void service_internal (const std::string& service_name, zmsg *msg);
+
+   //  ---------------------------------------------------------------------
+   //  Creates worker if necessary
++  Worker * worker_require (const std::string& sender/*, char* identity*/);
+
+   //  ---------------------------------------------------------------------
+   //  Deletes worker from all data structures, and destroys worker
++  void worker_delete (Worker *&wrk, int disconnect);
+
+
+   //  ---------------------------------------------------------------------
+   //  Processes one READY, REPORT, HEARTBEAT or  DISCONNECT message 
+   //  sent to the broker by a worker
+   void worker_msg (const std::string& sender, zmsg *msg);
+
+   //  ---------------------------------------------------------------------
+   //  Send message to worker
+   //  If pointer to message is provided, sends that message
+   void worker_send (Worker*, const char*, const std::string&, zmsg *msg);
+   void worker_send (Worker*, const char*, const std::string&, Letter*);
+
+
+   //  ---------------------------------------------------------------------
+   //  This worker is now waiting for work
+   void worker_waiting (Worker *worker);
+
+
+   //  ---------------------------------------------------------------------
+   //  Process a request coming from a client
+   void client_msg (const std::string& sender, zmsg *msg);
+
+   //  Get and process messages forever or until interrupted
+   void start_brokering();
+
+   void database_snapshot(const char*);
+#endif
+/*
+ * Конец списка проверяемых методов класса Broker
+ */
+
+/*
+ * Рабочий цикл клиентской программы TRADER
+ * Тестируется класс: mdcli
+ * Используемая служба: NYSE (service_name_1)
+ */
+static void *
+client_task (void *args)
 {
-  bool status = false;
+  int       verbose   = 1;
+  char    * s_price   = NULL;
+  zmsg    * request   = NULL;
+  zmsg    * report    = NULL;
+  Trader  * client    = new Trader (attributes_connection_to_broker, verbose);
+  int       count;
 
   try
   {
-    broker = new Broker(1); // be verbose
-    /*
-     * NB: "tcp://lo:5555" использует локальный интерфейс, 
-     * что удобно для мониторинга wireshark-ом.
-     */
-    broker->bind ("tcp://*:5555");
-    status = true;
+    s_price = new char[10];
+    //  Send 100 sell orders
+    for (count = 0; count < 2; count++) {
+        request = new zmsg ();
+        request->push_front ((char*)"8");    // volume
+        sprintf(s_price, "%d", count + 1000);
+        request->push_front ((char*)s_price);
+        request->push_front ((char*)"SELL");
+        client->send (service_name_1.c_str(), request);
+        delete request;
+    }
+
+    //  Send 1 buy order.
+    //  This order will match all sell orders.
+    request = new zmsg ();
+    request->push_front ((char*)"800");      // volume
+    request->push_front ((char*)"2000");     // price
+    request->push_front ((char*)"BUY");
+    client->send (service_name_1.c_str(), request);
+    delete request;
+
+    //  Wait for all trading reports
+    while (1) {
+        report = client->recv ();
+        if (report == NULL)
+            break;
+        printf("client recived this:");
+        report->dump();
+        assert (report->parts () >= 2);
+        
+        std::string report_type = report->pop_front ();
+        std::string volume      = report->pop_front ();
+
+        printf ("%s %s shares\n",  report_type.c_str(), volume.c_str());
+        delete report;
+    }
   }
   catch (zmq::error_t err)
   {
-    std::cout << "E: " << err.what() << std::endl;
-    status = false;
+      std::cout << "E: " << err.what() << std::endl;
   }
+  delete[] s_price;
+  delete client;
 
-  ASSERT_TRUE(broker != NULL);
-  EXPECT_EQ(status, true);
+  pthread_exit(NULL);
 }
 
-TEST(TestProxy, BROKER_RUNTIME)
+/*
+ * Рабочий цикл программы-Обработчика Digger для службы NYSE
+ * Тестируется класс mdwrk
+ */
+static void *
+worker_task (void *args)
+{
+  int verbose = 1;
+
+  try
+  {
+    Digger *engine = new Digger(attributes_connection_to_broker,
+                                service_name_1.c_str(),
+                                verbose);
+    while (!s_interrupted) 
+    {
+       std::string * reply_to = new std::string;
+       zmsg        * request  = NULL;
+
+       request = engine->recv (reply_to);
+       if (request)
+       {
+         engine->handle_request (request, reply_to);
+         delete reply_to;
+       }
+       else
+         break;          // Worker has been interrupted
+    }
+    delete engine;
+  }
+  catch(zmq::error_t err)
+  {
+    std::cout << "E: " << err.what() << std::endl;
+  }
+
+  pthread_exit(NULL);
+}
+
+/*
+ * Используется для проведения функциональных тестов:
+ * 1. Работа с Обработчиками
+ * 2. Работа с Клиентами
+ * NB: Не использует глобальных переменных
+ */
+static void *
+broker_task (void *args)
+{
+  int verbose = 1;
+  ustring sender;
+  ustring empty;
+  ustring header;
+  Broker *broker = NULL;
+
+  try
+  {
+     s_version_assert (3, 2);
+     s_catch_signals ();
+     broker = new Broker(verbose);
+     /*
+      * NB: "tcp://lo:5555" использует локальный интерфейс, 
+      * что удобно для мониторинга wireshark-ом.
+      */
+     broker->bind ("tcp://*:5555");
+
+     broker->start_brokering();
+  }
+  catch (zmq::error_t err)
+  {
+     std::cout << "E: " << err.what() << std::endl;
+  }
+
+  if (s_interrupted)
+  {
+     printf ("W: interrupt received, shutting down...\n");
+  }
+
+  delete broker;
+
+  pthread_exit(NULL);
+}
+
+/*
+ * Этот тест используется для проверки внутренних методов класса Broker;
+ * Все функциональные тесты проверяются с экземпляром, созданным в треде broker_task;
+ * NB: Использует глобальную переменную broker, объект необходимо удалить позже;
+ */
+TEST(TestProxy, BROKER_INTERNAL)
 {
   Worker *wrk = NULL;
   bool status = false;
-  
-  status = broker->Init();
+
+  broker = new Broker(1); // be verbose
+  ASSERT_TRUE (broker != NULL);
+  /*
+   * NB: "tcp://lo:5555" использует локальный интерфейс, 
+   * что удобно для мониторинга wireshark-ом.
+   */
+
+  status = broker->bind ("tcp://*:5555");
   EXPECT_EQ(status, true);
 
+  status = broker->Init();
+  EXPECT_EQ(status, true);
 
   // TODO: Зарегистрировать Обработчик в БД
   // Необходимые шаги:
   // 1. Создание Сервиса
   // 2. Регистрация Обработчика для этого Сервиса
-  broker->database_snapshot("BROKER_RUNTIME");
+  broker->database_snapshot("BROKER_INTERNAL");
   service1 = broker->service_require(service_name_1);
   ASSERT_TRUE(service1 != NULL);
+  // Сервис успешно зарегистрировался
 
-  broker->database_snapshot("BROKER_RUNTIME");
+  broker->database_snapshot("BROKER_INTERNAL");
   wrk = broker->worker_require(worker_identity_1);
   ASSERT_TRUE(wrk == NULL); /* Обработчик еще не зарегистрирован */
   delete wrk;
@@ -157,80 +366,60 @@ TEST(TestProxy, BROKER_RUNTIME)
   wrk = broker->worker_register(service_name_1, worker_identity_1);
   ASSERT_TRUE(wrk != NULL);
   delete wrk;
+  // Обработчик успешно зарегистрирован
 
   wrk = broker->worker_require(worker_identity_1);
   ASSERT_TRUE(wrk != NULL); /* Обработчик уже зарегистрирован */
-  delete wrk;
+  // не удалять пока wrk
 
-  broker->database_snapshot("BROKER_RUNTIME");
-}
+  broker->database_snapshot("BROKER_INTERNAL");
 
-TEST(TestProxy, BROKER_DELETION)
-{
+  /*
+   * Обработчик wrk будет удален внутри функции
+   * Он останется в БД, но его состояние сменится с ARMED(1) на (0)
+   * Для проверки следует сравнить срезы БД до и после функции worker_delete
+   */
+  broker->worker_delete(wrk, 0);
+  broker->database_snapshot("BROKER_INTERNAL");
+
   delete service1;
   delete broker;
 }
 
-#if defined FUNCTIONAL_TESTS
-/*
- * Должны быть запущены Брокер и ECHO-Сервис
- */
-TEST(TestClient, EXCHANGE)
+#if 0
+TEST(TestProxy, BROKER_RUNTIME)
 {
-  int verbose = 0;
-  int count;
-  const int MSG_COUNT = 4;
-  mdcli *session = NULL;
-  zmsg  *reply   = NULL;
-  zmsg  *request = NULL;
+    pthread_t broker;
+    pthread_t worker;
+    pthread_t client;
 
-  session = new mdcli ("tcp://localhost:5555", verbose);
-  EXPECT_TRUE(session != NULL);
-  
-  for (count = 0; count < 4; count++) 
-  {
-     request = new zmsg ();
-     EXPECT_TRUE(request != NULL);
+    /* Создать экземпляр Брокера */
+    pthread_create (&broker, NULL, broker_task, NULL);
+    sleep(1);
 
-     request->push_front((char*)"Hello world");
-     session->send ("echo", request);
-     
-     reply = session->recv ();
-     EXPECT_TRUE(reply != NULL);
+    /* Создать одного Обработчика службы NYSE */
+    pthread_create (&worker, NULL, worker_task, NULL);
+    sleep(1);
 
-     if (reply)
-          delete reply;
-     else
-          break;              //  Interrupt or failure
-  }
-  EXPECT_TRUE (count == MSG_COUNT);
-  delete session;
+    /* Создать одного клиента службы NYSE */
+    pthread_create (&client, NULL, client_task, NULL);
+
+    /* Дождаться завершения работы клиента */
+    pthread_join (client, NULL);
+
+    /* Остановить Обработчика NYSE */
+    int cw = pthread_cancel(worker);
+    sleep(1);
+
+    /* Остановить Брокера */
+    int cb = pthread_cancel(broker);
+    printf("%d %d\n", cw, cb);
 }
-
 #endif
-
-/*TEST(TestWorker, Creation)
-{
-  std::string broker = "tcp://localhost:5555";
-  std::string service = "echo";
-  int verbose = 1;
-
-  mdwrk *worker = new mdwrk(broker, service, verbose);
-  EXPECT_TRUE(worker != NULL);
-  delete worker;
-}
-
-TEST(TestClient, Creation)
-{
-  int verbose = 1;
-  mdcli *client = new mdcli("tcp://localhost:5555", verbose);
-  EXPECT_TRUE(client != NULL);
-  delete client;
-}*/
-
 
 int main(int argc, char** argv)
 {
+  google::InitGoogleLogging(argv[0]);
   testing::InitGoogleTest(&argc, argv);
 
   return RUN_ALL_TESTS();

@@ -1,17 +1,19 @@
 #include <string>
+#include <glog/logging.h>
 #include "gtest/gtest.h"
 
+#include "xdb_database_broker_impl.hpp"
 #include "xdb_database_broker.hpp"
 #include "xdb_database_service.hpp"
 #include "xdb_database_worker.hpp"
 #include "dat/xdb_broker.hpp"
 
-char *service_name_1 = "service_test_1";
-char *service_name_2 = "service_test_2";
-char *unbelievable_service_name = "unbelievable_service";
-char *worker_identity_1 = "SN1_AAAAAAA";
-char *worker_identity_2 = "SN1_WRK2";
-char *worker_identity_3 = "WRK3";
+const char *service_name_1 = "service_test_1";
+const char *service_name_2 = "service_test_2";
+const char *unbelievable_service_name = "unbelievable_service";
+const char *worker_identity_1 = "SN1_AAAAAAA";
+const char *worker_identity_2 = "SN1_WRK2";
+const char *worker_identity_3 = "WRK3";
 XDBDatabaseBroker *database = NULL;
 Service *service1 = NULL;
 Service *service2 = NULL;
@@ -39,7 +41,6 @@ TEST(TestBrokerDATABASE, OPEN)
 
     state = database->State();
     EXPECT_EQ(state, XDBDatabase::CONNECTED);
-
 }
 
 TEST(TestBrokerDATABASE, INSERT_SERVICE)
@@ -211,7 +212,7 @@ TEST(TestBrokerDATABASE, REMOVE_WORKER)
     ASSERT_TRUE (worker == NULL);
 }
 
-TEST(TestBrokerDATABASE, CHECK_EXIST_SERVICE)
+TEST(TestBrokerDATABASE, CHECK_SERVICE)
 {
     bool status;
     Service *service = NULL;
@@ -227,17 +228,57 @@ TEST(TestBrokerDATABASE, CHECK_EXIST_SERVICE)
 
     status = database->IsServiceExist(unbelievable_service_name);
     EXPECT_EQ(status, false);
+
+    // TODO: Получить список имеющихся в БД Служб
+}
+
+
+TEST(TestBrokerDATABASE, SERVICE_LIST)
+{
+  bool status = false;
+  Service** srv_array = NULL;
+  Service*  srv = NULL;
+  ServiceList *services_list = database->GetServiceList();
+  ASSERT_TRUE (services_list != NULL);
+
+  int services_count = services_list->size();
+  EXPECT_EQ(services_count, 2); // service_test_1 + service_test_2
+
+  srv = services_list->last();
+  ASSERT_TRUE(srv != NULL);
+
+  srv = services_list->first();
+  while (srv)
+  {
+    ASSERT_TRUE(srv != NULL);
+    LOG(INFO) << "FIRST SERVICE_ITERATOR " << srv->GetNAME() << ":" << srv->GetID();
+    srv = services_list->next();
+  }
+
+  // Перечитать список Сервисов из базы данных
+  status = services_list->refresh();
+  EXPECT_EQ(status, true);
+
+  srv = services_list->first();
+  while (srv)
+  {
+    ASSERT_TRUE(srv != NULL);
+    LOG(INFO) << "REFRESHED SERVICE_ITERATOR " << srv->GetNAME() << ":" << srv->GetID();
+    srv = services_list->next();
+  }
+
+  // Создать список из Сервисов и инициировать его из БД. 
+//  srv_array = services_list->getList();
+//  ASSERT_TRUE(srv_array != NULL);
 }
 
 TEST(TestBrokerDATABASE, CHECK_EXIST_WORKER)
 {
-    bool status;
 }
 
 TEST(TestBrokerDATABASE, REMOVE_SERVICE)
 {
     bool status;
-    Worker  *worker  = NULL;
 
     status = database->RemoveService(unbelievable_service_name);
     EXPECT_EQ(status, false);
@@ -274,6 +315,7 @@ TEST(TestBrokerDATABASE, DESTROY)
 
 int main(int argc, char** argv)
 {
+  google::InitGoogleLogging(argv[0]);
   testing::InitGoogleTest(&argc, argv);
 
   return RUN_ALL_TESTS();

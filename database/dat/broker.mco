@@ -45,6 +45,8 @@ class XDBService
   hash           <name> PK_name[MAX_SERVICES_ENTRY];
   /* Доступ ко всем зарегистрированным Сервисам */
   list;
+  event <checkpoint>   newService;
+  event <delete>       delService;
 
   /*
    * обрабатываемые и ожидающие обработки сообщения находятся 

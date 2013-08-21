@@ -12,10 +12,13 @@
 
 #include <vector>
 #include <string>
+#include <stdio.h>
 #include <stdarg.h>
+#include <glog/logging.h>
 
 #include "helper.hpp"
 #include "zmsg.hpp"
+#include "mdp_common.h"
 
 zmsg::zmsg()
 {
@@ -23,26 +26,30 @@ zmsg::zmsg()
 
 //  --------------------------------------------------------------------------
 //  Constructor, sets initial body
-zmsg::zmsg(char const *body) {
+zmsg::zmsg(char const *body)
+{
     body_set(body);
 }
 
 //  -------------------------------------------------------------------------
 //  Constructor, sets initial body and sends message to socket
-zmsg::zmsg(char const *body, zmq::socket_t &socket) {
+zmsg::zmsg(char const *body, zmq::socket_t &socket)
+{
     body_set(body);
     send(socket);
 }
 
 //  --------------------------------------------------------------------------
 //  Constructor, calls first receive automatically
-zmsg::zmsg(zmq::socket_t &socket) {
+zmsg::zmsg(zmq::socket_t &socket)
+{
     recv(socket);
 }
 
 //  --------------------------------------------------------------------------
 //  Copy Constructor, equivalent to zmsg_dup
-zmsg::zmsg(zmsg &msg) {
+zmsg::zmsg(zmsg &msg)
+{
     m_part_data.resize(msg.m_part_data.size());
     std::copy(msg.m_part_data.begin(), msg.m_part_data.end(), m_part_data.begin());
 }
@@ -81,11 +88,11 @@ bool zmsg::recv(zmq::socket_t & socket) {
       zmq::message_t message(0);
       try {
          if (!socket.recv(&message, 0)) {
-            s_console("W: zmsg::recv() false");
+            LOG(WARNING) << "zmsg::recv() false";
             return false;
          }
       } catch (zmq::error_t error) {
-         std::cout << "E: " << error.what() << std::endl;
+         LOG(ERROR) << "Catch '" << error.what() << "', code=" << error.num();
          return false;
       }
 #if USE_USTRING
@@ -317,9 +324,17 @@ char * zmsg::unwrap() {
 }
 
 
-void zmsg::dump() {
-   std::cerr << "--------------------------------------" << std::endl;
-   for (unsigned int part_nbr = 0; part_nbr < m_part_data.size(); part_nbr++) {
+// Вывод содержимого zmq
+// TODO: содержит опасные трюки с указателями, необходимо переделать
+void zmsg::dump()
+{
+   char buf[255];
+   int offset;
+
+   LOG(INFO) << "--------------------------------------";
+
+   for (unsigned int part_nbr = 0; part_nbr < m_part_data.size(); part_nbr++) 
+   {
        ustring data = m_part_data [part_nbr];
 
        // Dump the message as text or binary
@@ -328,15 +343,22 @@ void zmsg::dump() {
            if (data [char_nbr] < 32 || data [char_nbr] > 127)
                is_text = 0;
 
-       std::cerr << "[" << std::setw(3) << std::setfill('0') << (int) data.size() << "] ";
-       for (unsigned int char_nbr = 0; char_nbr < data.size(); char_nbr++) {
-           if (is_text) {
-               std::cerr << (char) data [char_nbr];
-           } else {
-               std::cerr << std::hex << std::setw(2) << std::setfill('0') << (short int) data [char_nbr];
+       sprintf(buf, "[%03d] ", (int) data.size());
+       offset = strlen(buf) - 1;
+       for (unsigned int char_nbr = 0; char_nbr < data.size(); char_nbr++)
+       {
+           if (is_text) 
+           {
+               strcpy((char*)(&buf[0] + offset++), (const char*) &data [char_nbr]);
+           }
+           else 
+           {
+               snprintf(&buf[offset], 3, "%02X", data[char_nbr]);
+               offset += 2;
            }
        }
-       std::cerr << std::endl;
+       buf[offset] = '\0';
+       LOG(INFO) << buf;
    }
 }
 

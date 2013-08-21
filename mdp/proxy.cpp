@@ -1,3 +1,5 @@
+#include <glog/logging.h>
+
 #include "mdp_common.h"
 #include "mdp_broker.hpp"
 #include "proxy.hpp"
@@ -153,8 +155,9 @@ int main (int argc, char *argv [])
     ustring sender;
     ustring empty;
     ustring header;
-//    int more;           //  Multipart detection
     Broker *broker = NULL;
+
+    google::InitGoogleLogging(argv[0]);
 
     try
     {
@@ -171,12 +174,12 @@ int main (int argc, char *argv [])
     }
     catch (zmq::error_t err)
     {
-        std::cout << "E: " << err.what() << std::endl;
+        LOG(ERROR) << err.what();;
     }
 
     if (s_interrupted)
     {
-        printf ("W: interrupt received, shutting down...\n");
+        LOG(INFO) << "interrupt received, shutting down...";
     }
 
     delete broker;

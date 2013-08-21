@@ -17,9 +17,12 @@ endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 include_directories(${TOOLS_DIR})
 include_directories(${MDP_DIR})
 include_directories(${XDB_DIR})
+include_directories(${MSG_DIR})
+include_directories(${LIBGLOG_INCLUDE_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})
 include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
 
+link_directories(${LIBGLOG_LIBRARIES_DIR})
 link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 #link_directories(${CMAKE_SOURCE_DIR}/../cmake/lib)
@@ -47,7 +50,9 @@ set (MDP_SOURCES
         ${MDP_DIR}/mdp_client_async_api.hpp
         ${MDP_DIR}/mdp_client_async_api.cpp
         ${MDP_DIR}/mdp_worker_api.hpp
-        ${MDP_DIR}/mdp_worker_api.cpp)
+        ${MDP_DIR}/mdp_worker_api.cpp
+        ${MSG_DIR}/msg_letter.cpp
+        ${MSG_DIR}/msg_letter.hpp)
 
 set (BROKER_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
@@ -61,8 +66,6 @@ set (BROKER_SOURCES
         ${XDB_DIR}/dat/xdb_broker.hpp
         ${MDP_DIR}/mdp_helpers.hpp
         ${MDP_DIR}/mdp_helpers.cpp
-#        ${MDP_DIR}/mdp_service.hpp
-#        ${MDP_DIR}/mdp_service.cpp
         ${MDP_DIR}/mdp_broker.hpp
         ${MDP_DIR}/mdp_broker.cpp)
 
@@ -82,7 +85,9 @@ target_link_libraries(${MDP_BROKER}
     ${LIBZMQ_LIBRARIES}
     ${TOOLS_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
+    ${MSG_LIBRARY_NAME}
     ${XDB_LIBRARY_NAME}
+    ${LIBGLOG_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${SYSTEM_EXTERNAL_LIBS})
 

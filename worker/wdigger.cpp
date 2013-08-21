@@ -1,3 +1,5 @@
+#include <glog/logging.h>
+
 #include "zmq.hpp"
 #include "zmsg.hpp"
 #include "helper.hpp"
@@ -9,8 +11,7 @@ extern int s_interrupted;
 int Digger::handle_request(zmsg* request, std::string*& reply_to)
 {
   assert (request->parts () >= 3);
-  s_console("Process new request with %d parts and reply to '%s'",
-            request->parts(), reply_to->c_str());
+  LOG(INFO) << "Process new request with " << request->parts() << " parts and reply to " << reply_to;
 
   std::string operation = request->pop_front ();
   std::string price     = request->pop_front ();
@@ -33,8 +34,7 @@ int Digger::handle_sell_request(std::string &price,
                                 std::string &volume,
                                 std::string *reply_to)
 {
-    s_console("I: SELL to '%s' price=%s volume=%s",
-              reply_to->c_str(), price.c_str(), volume.c_str());
+    LOG(INFO) << "SELL to '" << reply_to << "' price=" << price << " volume=" << volume;
 
     assert(reply_to != NULL);
     // в ответе д.б. два поля: REPORT_TYPE и VOLUME
@@ -51,8 +51,7 @@ int Digger::handle_buy_request(std::string &price,
                                std::string &volume,
                                std::string *reply_to)
 {
-    s_console("I: BUY to '%s' price=%s volume=%s",
-              reply_to->c_str(), price.c_str(), volume.c_str());
+    LOG(INFO) << "BUY from '" << reply_to << "' price=" << price << " volume=" << volume;
     assert(reply_to != NULL);
     // в ответе д.б. два поля: REPORT_TYPE и VOLUME
     zmsg * msg = new zmsg();
@@ -64,9 +63,16 @@ int Digger::handle_buy_request(std::string &price,
     return 0;
 }
 
+/*
+ * Если задан параметр FUNCTIONAL_TEST, значит объект находится
+ * под тестированием, следует заблокировать main() 
+ */
+#if !defined _FUNCTIONAL_TEST
 int main(int argc, char **argv)
 {
   int verbose = (argc > 1 && (0 == strcmp (argv [1], "-v")));
+  google::InitGoogleLogging(argv[0]);
+
   try
   {
     Digger *engine = new Digger("tcp://localhost:5555", "NYSE", verbose);
@@ -93,4 +99,5 @@ int main(int argc, char **argv)
 
   return 0;
 }
+#endif
 

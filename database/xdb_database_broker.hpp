@@ -7,14 +7,33 @@
 #include "xdb_database_service.hpp"
 
 class XDBDatabaseBrokerImpl;
+class ServiceList;
 class Service;
 class Worker;
 class Letter;
 
-class XDBDatabaseBroker : public XDBDatabase
+
+class ServiceList
 {
   public:
+    // NB: экземпляр не должен создаваться вручную
+    ServiceList() {};
+    virtual ~ServiceList() {};
 
+    virtual Service* first() = 0;
+    virtual Service* last()  = 0;
+    virtual Service* next()  = 0;
+    virtual Service* prev()  = 0;
+    // Получить количество зарегистрированных объектов
+    virtual const int size() = 0;
+    // Перечитать список Сервисов из базы данных
+    virtual bool refresh()   = 0;
+};
+
+class XDBDatabaseBroker : public XDBDatabase
+{
+
+  public:
     XDBDatabaseBroker();
     ~XDBDatabaseBroker();
 
@@ -38,6 +57,11 @@ class XDBDatabaseBroker : public XDBDatabase
     bool IsServiceExist(const char*);
     /* Проверка разрешения использования указанной команды */
     bool IsServiceCommandEnabled(const Service*, const std::string&);
+    /* получить доступ к текущему списку Сервисов */ 
+    ServiceList* GetServiceList();
+
+    /* поместить сообщение во входящую очередь Службы */
+    bool PushRequestToService(Service*, Letter*);
 
     /* Вернуть экземпляр Сервиса, только если он существует в БД */
     Service *GetServiceByName(const char*);
@@ -79,7 +103,7 @@ class XDBDatabaseBroker : public XDBDatabase
     void MakeSnapshot(const char* = NULL);
 
   private:
-    /* Ссылка на физическую реализацию */
+    /* Ссылка на физическую реализацию интерфейса с БД */
     XDBDatabaseBrokerImpl *m_impl;
 };
 

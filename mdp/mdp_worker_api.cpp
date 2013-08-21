@@ -1,3 +1,4 @@
+#include <glog/logging.h>
 #include "mdp_common.h"
 #include "mdp_worker_api.hpp"
 
@@ -71,8 +72,7 @@ void mdwrk::send_to_broker(const char *command, const char* option, zmsg *_msg)
     msg->push_front ((char*)"");
 
     if (m_verbose) {
-        s_console ("I: sending %s to broker",
-            mdpw_commands [(int) *command]);
+        LOG(INFO) << "Sending " << mdpw_commands [(int) *command] << " to broker";
         msg->dump ();
     }
     msg->send (*m_worker);
@@ -91,7 +91,7 @@ void mdwrk::connect_to_broker ()
     m_worker->setsockopt (ZMQ_LINGER, &linger, sizeof (linger));
     m_worker->connect (m_broker.c_str());
     if (m_verbose)
-        s_console ("I: connecting to broker at %s...", m_broker.c_str());
+        LOG(INFO) << "Connecting to broker " << m_broker;
 
     //  Register service with broker
     send_to_broker ((char*)MDPW_READY, m_service.c_str(), NULL);
@@ -137,7 +137,7 @@ mdwrk::recv (std::string *&reply)
         if (items [0].revents & ZMQ_POLLIN) {
             zmsg *msg = new zmsg(*m_worker);
             if (m_verbose) {
-                s_console ("I: new message from broker:");
+                LOG(INFO) << "New message from broker:";
                 msg->dump ();
             }
             m_liveness = HEARTBEAT_LIVENESS;
@@ -161,15 +161,14 @@ mdwrk::recv (std::string *&reply)
                 return msg;     //  We have a request to process
             }
             else if (command.compare (MDPW_HEARTBEAT) == 0) {
-                s_console("I: HEARTBEAT from broker");
+                LOG(INFO) << "HEARTBEAT from broker";
                 //  Do nothing for heartbeats
             }
             else if (command.compare (MDPW_DISCONNECT) == 0) {
                 connect_to_broker ();
             }
             else {
-                s_console ("E: invalid input message (%d)",
-                      (int) *(command.c_str()));
+                LOG(ERROR) << "Receive invalid message " << (int) *(command.c_str());
                 msg->dump ();
             }
             delete msg;
@@ -177,7 +176,7 @@ mdwrk::recv (std::string *&reply)
         else /* Ожидание нового запроса завершено по таймауту */
         if (--m_liveness == 0) {
             if (m_verbose) {
-                s_console ("W: disconnected from broker - retrying...");
+                LOG(WARNING) << "Disconnected from broker - retrying...";
             }
             s_sleep (m_reconnect);
             connect_to_broker ();
@@ -189,7 +188,7 @@ mdwrk::recv (std::string *&reply)
         }
     }
     if (s_interrupted)
-        printf ("W: interrupt received, killing worker...\n");
+        LOG(WARNING) << "Interrupt received, killing worker...";
     return NULL;
 }
 
