@@ -386,7 +386,7 @@ TEST(TestProxy, BROKER_INTERNAL)
   delete broker;
 }
 
-
+#if 0
 TEST(TestProxy, BROKER_RUNTIME)
 {
     pthread_t broker;
@@ -415,6 +415,7 @@ TEST(TestProxy, BROKER_RUNTIME)
     int cb = pthread_cancel(broker);
     printf("%d %d\n", cw, cb);
 }
+#endif
 
 int main(int argc, char** argv)
 {

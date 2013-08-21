@@ -2,6 +2,8 @@
 //  Simple trading example.
 //  It is purpose is to demonstate how to use mdp_client interface.
 
+#include <glog/logging.h>
+
 #include "zmsg.hpp"
 #include "trader.hpp"
 #include "mdp_client_async_api.hpp"
@@ -22,6 +24,7 @@ int main (int argc, char *argv [])
     Trader  * client    = new Trader ("tcp://localhost:5555", verbose);
     int       count;
 
+  google::InitGoogleLogging(argv[0]);
   try
   {
     s_price = new char[10];

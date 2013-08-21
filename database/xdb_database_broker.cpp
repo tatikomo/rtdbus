@@ -5,9 +5,6 @@
 #include "xdb_database_service.hpp"
 #include "xdb_database_worker.hpp"
 
-/* TODO: delete stdio after removing printf() */
-#include <stdio.h>
-
 class Service;
 class Worker;
 
@@ -21,7 +18,6 @@ XDBDatabaseBroker::XDBDatabaseBroker() : XDBDatabase(database_name)
 
 XDBDatabaseBroker::~XDBDatabaseBroker()
 {
-//  fprintf(stdout, "~XDBDatabaseBroker()\n");
   assert(m_impl);
   delete m_impl;
 }
@@ -72,6 +68,7 @@ Service *XDBDatabaseBroker::AddService(const std::string& service_name)
 Service *XDBDatabaseBroker::AddService(const char *service_name)
 {
   assert(m_impl);
+  assert(service_name);
 
   if (!m_impl) return (Service*)NULL;
   return m_impl->AddService(service_name);
@@ -121,6 +118,14 @@ bool XDBDatabaseBroker::IsServiceExist(const char *service_name)
 
   if (!m_impl) return false;
   return m_impl->IsServiceExist(service_name);
+}
+
+ServiceList* XDBDatabaseBroker::GetServiceList()
+{
+  assert(m_impl);
+
+  if (!m_impl) return (ServiceList*) NULL;
+  return m_impl->GetServiceList();
 }
 
 /* Получить первое ожидающее обработки Сообщение */
@@ -187,6 +192,15 @@ bool XDBDatabaseBroker::ClearWorkersForService(const char *service_name)
 
   if (!m_impl) return false;
   return m_impl->ClearWorkersForService(service_name);
+}
+
+/* поместить сообщение во входящую очередь Службы */
+bool XDBDatabaseBroker::PushRequestToService(Service* srv, Letter* letter)
+{
+  assert(m_impl);
+
+  if (!m_impl) return false;
+  return m_impl->PushRequestToService(srv, letter);
 }
 
 /* Очистить спул Обработчиков и всех Сервисов */

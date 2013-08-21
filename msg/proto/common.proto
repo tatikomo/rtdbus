@@ -1,0 +1,5 @@
+message CommonRequest {
+  required int32  field_1_int32 = 1;
+  required string field_2_string = 2;
+  required int32  field_3_int32 = 3;
+}

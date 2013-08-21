@@ -324,6 +324,8 @@ char * zmsg::unwrap() {
 }
 
 
+// Вывод содержимого zmq
+// TODO: содержит опасные трюки с указателями, необходимо переделать
 void zmsg::dump()
 {
    char buf[255];
@@ -351,8 +353,8 @@ void zmsg::dump()
            }
            else 
            {
-               strcpy((char*)(&buf[0] + offset++), mdpw_commands[(short int) data[char_nbr]]);
-               offset += strlen(mdpw_commands[(short int) data[char_nbr]]);
+               snprintf(&buf[offset], 3, "%02X", data[char_nbr]);
+               offset += 2;
            }
        }
        buf[offset] = '\0';
