@@ -20,69 +20,52 @@ extern "C" {
 
 class Service;
 class Worker;
-class ServiceList;
-class ServiceListIterator;
-
-class ServiceListIterator
-{
-  public:
-    ServiceListIterator(ServiceList*);
-    ~ServiceListIterator();
-
-    Service* first();
-    Service* last();
-    Service* next();
-    Service* prev();
-  private:
-    ServiceListIterator();
-    int m_current_index;
-    ServiceList* m_list;
-};
+class ServiceListImpl;
 
 /* 
  * Класс-контейнер объектов Service в БД
  * TODO: Получать уведомления о создании/удалении экземпляра объекта Service в БД.
  * TODO: Переделать с использованием итераторов.
  */
-class ServiceList
+class ServiceListImpl : public  ServiceList
 {
-  friend class ServiceListIterator;
   public:
-    ServiceList();
-    ~ServiceList();
-#if 0
+    ServiceListImpl(mco_db_h);
+    ~ServiceListImpl();
+
+    Service* first();
+    Service* last();
+    Service* next();
+    Service* prev();
+
     // Добавить новый Сервис, определенный своим именем и идентификатором
     bool AddService(const char*, int64_t);
     // Добавить новый Сервис, определенный объектом Service
-    bool AddService(const Service&);
+    bool AddService(const Service*);
     // Удалить Сервис по его имени
     bool RemoveService(const char*);
     // Удалить Сервис по его идентификатору
     bool RemoveService(const int64_t);
-#endif
+
     // Получить количество зарегистрированных объектов
     const int size();
     // Перечитать список Сервисов из базы данных
-    MCO_RET refresh();
-    // Создать итератор
-    ServiceListIterator& getIterator();
-
-    // Создать список из Сервисов и инициировать его из БД. 
-    // Завершающий элемент равен 0
-    // NB: Лучше оставить доступ к элементам только через итератор, удалив этот метод
-    Service** getList();
+    bool refresh();
 
   private:
+    ServiceListImpl();
+    int       m_current_index;
+    mco_db_h  m_db;
     // Список прочитанных из БД Сервисов
     Service** m_array;
     // Количество Сервисов в массиве m_array
     int       m_size;
-    ServiceListIterator m_iterator;
 };
 
 /* Фактическая реализация функциональности Базы Данных для Брокера */
 class XDBDatabaseBrokerImpl
 {
+  friend class ServiceListImpl;
   public:
     XDBDatabaseBrokerImpl(XDBDatabaseBroker*);
     ~XDBDatabaseBrokerImpl();
@@ -105,8 +88,13 @@ class XDBDatabaseBrokerImpl
     bool PushWorker(Worker*);
     /* получить признак существования данного экземпляра Сервиса в БД */
     bool     IsServiceExist(const char*);
+    /* получить доступ к текущему списку Сервисов */ 
+    ServiceList* GetServiceList();
 
     bool IsServiceCommandEnabled(const Service*, const std::string&);
+
+    /* поместить сообщение во входящую очередь Службы */
+    bool PushRequestToService(Service*, Letter*);
 
     /* Вернуть экземпляр Сервиса. Если он не существует в БД - создать */
     Service *RequireServiceByName(const char*);
@@ -152,6 +140,7 @@ class XDBDatabaseBrokerImpl
 
     XDBDatabaseBroker       *m_self;
     mco_db_h                 m_db;
+    ServiceListImpl         *m_service_list;
 
 #if EXTREMEDB_VERSION >= 41
     mco_db_params_t   m_db_params;

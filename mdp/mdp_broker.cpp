@@ -1,13 +1,13 @@
 #include <glog/logging.h>
 
+#include "mdp_common.h"
 #include "mdp_broker.hpp"
+#include "msg_letter.hpp"
 #include "zmsg.hpp"
 #include "xdb_database_broker.hpp"
 #include "xdb_database_service.hpp"
 #include "xdb_database_worker.hpp"
-#include "xdb_database_letter.hpp"
 
-#include "mdp_common.h"
 
 //  ---------------------------------------------------------------------
 //  Signal handling
@@ -107,12 +107,13 @@ Broker::database_snapshot(const char* msg)
 void
 Broker::purge_workers ()
 {
-#warning "Убери return!"
-   return;
-    Worker  *wrk = NULL;
-    Service *service = NULL;
-    /* TODO Пройти по списку Сервисов */
-    service = NULL; // GEV временно для компиляции, убрать!
+  ServiceList   *sl = m_database->GetServiceList();
+  Service       *service = sl->first();
+  Worker        *wrk;
+
+  while(service)
+  {
+    /* Пройти по списку Сервисов */
     while (NULL != (wrk = m_database->PopWorker(service)))
     {
         if (!wrk->Expired ()) {
@@ -127,6 +128,8 @@ Broker::purge_workers ()
         }
         worker_delete (wrk, 0);
     }
+    service = sl->next();
+  }
 }
 
 //  ---------------------------------------------------------------------
@@ -157,14 +160,26 @@ Broker::service_require (const std::string& service_name)
 //  ---------------------------------------------------------------------
 //  Dispatch requests to waiting workers as possible
 void
-Broker::service_dispatch (Service *srv/*, zmsg *processing_msg*/)
+Broker::service_dispatch (Service *srv, zmsg *processing_msg = NULL)
 {
 //    zmsg   *msg = NULL;
     Worker *wrk = NULL;
     Letter *letter = NULL;
-//    bool    enabled = false;
+    bool    status = false;
 
     assert (srv);
+
+    // Сообщение может отсутствовать
+    if (processing_msg)
+    {
+      letter = new Letter(processing_msg);
+      status = m_database->PushRequestToService(srv, letter);
+      if (!status) 
+        LOG(ERROR) << "Unable to put new letter into queue of '"
+                   <<srv->GetNAME()<<"' service";
+      delete letter;
+    }
+
     /* Очистить список Обработчиков Сервиса от зомби */
     purge_workers ();
     /*
@@ -180,8 +195,7 @@ Broker::service_dispatch (Service *srv/*, zmsg *processing_msg*/)
     {
       while (NULL != (letter = m_database->GetWaitingLetter(srv, wrk)))
       {
-        /* передать ожидающую обслуживания команду выбранному 
-         * Обработчику
+        /* передать ожидающую обслуживания команду выбранному Обработчику
          * TODO удалить команду в worker_send() из ожидания 
          * только после успешной передачи
          */
@@ -481,7 +495,7 @@ Broker::worker_waiting (Worker *worker)
 void
 Broker::client_msg (const std::string& sender, zmsg *msg)
 {
-    bool enabled = false;
+//    bool enabled = false;
 
     assert (msg && msg->parts () >= 2);     //  Service name + body
 //  LOG(INFO) << "Client_msg " << sender; // GEV delete me
@@ -503,22 +517,25 @@ Broker::client_msg (const std::string& sender, zmsg *msg)
       }
       else /* запрос к внешнему сервису */
       {
-        /* как минимум, содержит название команды */
+        /* как минимум, содержит идентификатор Клиента */
         if (msg && msg->parts() >= 1)
         {
-            /* Если команда разрешена, исполнить её */
-            /* NB: Только здесь читается не команда, а Получатель сообщения! */
-            ustring cmd_frame = msg->front ();
-            enabled = m_database->IsServiceCommandEnabled (srv, cmd_frame);
+            ustring client_frame = msg->front ();
 
-            if (true == enabled) {
-              /* внести команду в очередь и обработать её */
-              LOG(INFO) << "Command '" << cmd_frame << "' is enabled";
-#warning "Make PushRequestToService() implementation"
-//GEV              m_database->PushRequestToService(srv, msg);
-              
-              service_dispatch (srv/*, msg*/);
-            }
+            // TODO: проверить доступность Службы, которой адресуется сообщение
+            //[011]@006B8B4568
+            //[000]
+            //[006]MDPC0X
+            //[004]NYSE
+            //[004]SELL
+            //[004]1000
+            //[001]8
+
+            /* внести команду в очередь и обработать её */
+            service_dispatch (srv, msg);
+#if 0
+#error "continue here!"
+
             else /*  Send a NAK message back to the client. */
             {
               LOG(INFO) << "Disabled command " << cmd_frame;
@@ -529,6 +546,7 @@ Broker::client_msg (const std::string& sender, zmsg *msg)
               msg->wrap(sender.c_str(), EMPTY_FRAME);
               msg->send (*m_socket);
             }
+#endif
         }
       } /* запрос к внешнему сервису */
     }   /* запрос к известному сервису */

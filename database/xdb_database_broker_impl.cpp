@@ -5,8 +5,6 @@
 #include <stdarg.h>
 #include <string.h>
 
-/* TODO: delete stdio after removing printf() */
-#include <stdio.h>
 #include "config.h"
 
 #ifdef __cplusplus
@@ -37,9 +35,9 @@ mco_size_sig_t file_writer(void*, const void*, mco_size_t);
 #include "xdb_database_service.hpp"
 #include "xdb_database_worker.hpp"
 
-const unsigned int DATABASE_SIZE = 1024 * 1024 * 1;  // 1M
-const unsigned int MEMORY_PAGE_SIZE = DATABASE_SIZE; // Вся БД поместится в одной странице ОЗУ 
-const unsigned int MAP_ADDRESS = 0x20000000;
+const int DATABASE_SIZE = 1024 * 1024 * 1;  // 1Mб
+const int MEMORY_PAGE_SIZE = DATABASE_SIZE; // Вся БД поместится в одной странице ОЗУ 
+const int MAP_ADDRESS = 0x20000000;
 
 #ifndef MCO_PLATFORM_X64
     static const unsigned int PAGESIZE = 128;
@@ -48,15 +46,15 @@ const unsigned int MAP_ADDRESS = 0x20000000;
 #endif 
 
 #ifdef DISK_DATABASE
-const unsigned int DB_DISK_CACHE = (1 * 1024 * 1024);
-const unsigned int DB_DISK_PAGE_SIZE = 1024;
+const int DB_DISK_CACHE = (1 * 1024 * 1024);
+const int DB_DISK_PAGE_SIZE = 1024;
 
     #ifndef DB_LOG_TYPE
         #define DB_LOG_TYPE REDO_LOG
     #endif 
 #else 
-const unsigned int DB_DISK_CACHE = 0;
-const unsigned int DB_DISK_PAGE_SIZE = 0;
+const int DB_DISK_CACHE = 0;
+const int DB_DISK_PAGE_SIZE = 0;
 #endif 
 
 /* 
@@ -76,6 +74,7 @@ XDBDatabaseBrokerImpl::XDBDatabaseBrokerImpl(
   assert(self);
 
   m_self = self;
+  m_service_list = NULL;
 
 #ifdef DISK_DATABASE
   const char* name = m_self->DatabaseName();
@@ -128,6 +127,7 @@ XDBDatabaseBrokerImpl::~XDBDatabaseBrokerImpl()
         m_metadict_initialized = false;
       }
 #endif
+      delete m_service_list;
       rc = mco_runtime_stop();
       if (rc)
       {
@@ -319,6 +319,10 @@ MCO_RET XDBDatabaseBrokerImpl::new_Service(mco_trans_h t,
   XDBDatabaseBrokerImpl *self = static_cast<XDBDatabaseBrokerImpl*> (p);
   char name[Service::NAME_MAXLEN + 1];
   MCO_RET rc;
+  autoid_t aid;
+  Service *service;
+  xdb_broker::XDBService service_instance;
+  bool status = false;
 
   assert(self);
   assert(obj);
@@ -331,6 +335,17 @@ MCO_RET XDBDatabaseBrokerImpl::new_Service(mco_trans_h t,
     name[Service::NAME_MAXLEN] = '\0';
     if (rc) { LOG(ERROR)<<"Unable to get service's name, rc="<<rc; break; }
 
+    rc = XDBService_autoid_get(obj, &aid);
+    if (rc) { LOG(ERROR)<<"Unable to get id of service '"<<name<<"', rc="<<rc; break; }
+
+    service = new Service(aid, name);
+    if (!self->m_service_list)
+      self->m_service_list = new ServiceListImpl(self->m_db);
+
+    if (false == (status = self->m_service_list->AddService(service)))
+    {
+      LOG(WARNING)<<"Unable to add new service into list";
+    }
   } while (false);
 
 //  LOG(INFO) << "NEW XDBService "<<obj<<" name '"<<name<<"' self=" << self;
@@ -1024,7 +1039,7 @@ MCO_RET XDBDatabaseBrokerImpl::LoadWorkerByIdent(
       rc = xdb_broker::XDBService::SK_ident::search(t, &csr, MCO_EQ, identity, strlen(identity));
       if (rc) 
       { 
-        LOG(ERROR)<<"Unable to search '"<<identity<<"', rc="<<rc; 
+        LOG(ERROR)<<"Unable to search '"<<identity<<"', rc="<<rc;
         break;
       }
 
@@ -1530,6 +1545,19 @@ void XDBDatabaseBrokerImpl::DisableServiceCommand(
   assert(srv);
 }
 
+  /*
+   * TODO Поместить новое сообщение letter в очередь сервиса srv.
+   * Сообщение будет обработано одним из Обработчиков Сервиса.
+   */
+bool XDBDatabaseBrokerImpl::PushRequestToService(Service *srv, Letter *letter)
+{
+  bool status = false;
+  assert (srv);
+
+  return status;
+}
+
+
 #if defined DEBUG
 /* Тестовый API сохранения базы */
 void XDBDatabaseBrokerImpl::MakeSnapshot(const char* msg)
@@ -1643,65 +1671,36 @@ void XDBDatabaseBrokerImpl::MakeSnapshot(const char*)
 }
 #endif
 
-
-ServiceListIterator::ServiceListIterator()
+ServiceList* XDBDatabaseBrokerImpl::GetServiceList()
 {
-  m_list = NULL;
+  if (!m_service_list)
+    m_service_list = new ServiceListImpl(m_db);
+  else
+  {
+    if (!m_service_list->refresh())
+      LOG(WARNING) << "Services list is not updated";
+  }
+
+  return m_service_list;
+}
+
+
+ServiceListImpl::ServiceListImpl()
+{
   m_current_index = 0;
 }
 
-ServiceListIterator::ServiceListIterator(ServiceList *_list)
+
+ServiceListImpl::ServiceListImpl(mco_db_h _db)
 {
-  m_list = _list;
-  m_current_index = 0;
-}
-
-ServiceListIterator::~ServiceListIterator()
-{
-}
-
-Service* ServiceListIterator::first()
-{
-  Service *srv = NULL;
-
-  assert(m_list);
-  if (m_list && m_list->m_array)
-    srv = m_list->m_array[0];
-
-  return srv;
-}
-
-Service* ServiceListIterator::last()
-{
-  Service *srv = NULL;
-
-  assert(m_list);
-  if (m_list && m_list->m_array)
-    srv = m_list->m_array[m_list->m_size];
-
-  return srv;
-}
-
-Service* ServiceListIterator::next()
-{
-  Service *srv = NULL;
-
-  return srv;
-}
-
-Service* ServiceListIterator::prev()
-{
-  Service *srv = NULL;
-  return srv;
-}
-
-ServiceList::ServiceList() : m_iterator(this)
-{
-  m_array = NULL;
+  m_array = new Service*[MAX_SERVICES_ENTRY];
+  memset(m_array, '\0', sizeof(m_array)); // NB: подразумевается что 0 и NULL равны
   m_size = 0;
+  m_db = _db;
+  assert(m_db);
 }
 
-ServiceList::~ServiceList()
+ServiceListImpl::~ServiceListImpl()
 {
   if ((m_size) && (m_array))
   {
@@ -1713,33 +1712,191 @@ ServiceList::~ServiceList()
   delete []m_array;
 }
 
+Service* ServiceListImpl::first()
+{
+  Service *srv = NULL;
+
+  assert(m_array);
+
+  if (m_array)
+    m_current_index = 0;
+
+  srv = m_array[m_current_index];
+
+  if (m_size)
+    m_current_index++; // если список не пуст, передвинуться на след элемент
+
+  return srv;
+}
+
+Service* ServiceListImpl::last()
+{
+  Service *srv = NULL;
+
+  assert(m_array);
+  if (m_array)
+  {
+    if (!m_size)
+      m_current_index = m_size; // Если список пуст
+    else
+      m_current_index = m_size - 1;
+  }
+
+  srv = m_array[m_current_index];
+
+  return srv;
+}
+
+Service* ServiceListImpl::next()
+{
+  Service *srv = NULL;
+
+  assert(m_array);
+  if (m_array && (m_current_index < m_size))
+  {
+    srv = m_array[m_current_index++];
+  }
+
+  return srv;
+}
+
+Service* ServiceListImpl::prev()
+{
+  Service *srv = NULL;
+
+  assert(m_array);
+  if (m_array && (m_size < m_current_index))
+  {
+    srv = m_array[m_current_index--];
+  }
+
+  return srv;
+}
+
+
 // Получить количество зарегистрированных объектов
-const int ServiceList::size()
+const int ServiceListImpl::size()
 {
   return m_size;
 }
 
-// Перечитать список Сервисов из базы данных
-MCO_RET ServiceList::refresh()
+// Добавить новый Сервис, определенный своим именем и идентификатором
+bool ServiceListImpl::AddService(const char* name, int64_t id)
 {
-  MCO_RET rc = MCO_S_OK;
+  Service *srv;
 
-  // TODO: заполнить данными из БД
-  delete m_array;
+  if (m_size >= MAX_SERVICES_ENTRY)
+    return false;
+ 
+  srv = new Service(id, name);
+  m_array[m_size++] = srv;
+  
+  LOG(INFO) << "EVENT AddService '"<<srv->GetNAME()<<"' id="<<srv->GetID();
+  return true;
+}
+
+// Добавить новый Сервис, определенный объектом Service
+bool ServiceListImpl::AddService(const Service* service)
+{
+  assert(service);
+  Service *srv = const_cast<Service*>(service);
+  if (m_size >= MAX_SERVICES_ENTRY)
+    return false;
+
+  LOG(INFO) << "EVENT AddService '"<<srv->GetNAME()<<"' id="<<srv->GetID();
+  m_array[m_size++] = srv;
+
+  return true;
+}
+
+// Удалить Сервис по его имени
+bool ServiceListImpl::RemoveService(const char* name)
+{
+  LOG(INFO) << "EVENT DelService '"<<name<<"'";
+  return false;
+}
+
+// Удалить Сервис по его идентификатору
+bool ServiceListImpl::RemoveService(const int64_t id)
+{
+  LOG(INFO) << "EVENT AddService with id="<<id;
+  return false;
+}
+
+// Перечитать список Сервисов из базы данных
+bool ServiceListImpl::refresh()
+{
+  bool status = false;
+  mco_trans_h t;
+  MCO_RET rc = MCO_S_OK;
+  mco_cursor_t csr;
+  xdb_broker::XDBService service_instance;
+  char name[Service::NAME_MAXLEN + 1];
+  autoid_t aid;
+
+  //delete m_array;
+  for (int i=0; i < m_size; i++)
+  {
+    // Удалить экземпляр Service, хранящийся по ссылке
+    delete m_array[i];
+    m_array[i] = NULL;  // NULL как признак свободного места
+  }
   m_size = 0;
 
-  return rc;
+  do
+  {
+    rc = mco_trans_start(m_db, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
+    if (rc) { LOG(ERROR) << "Starting transaction, rc="<<rc; break; }
+
+    rc = xdb_broker::XDBService::list_cursor(t, &csr);
+    // Если курсор пуст, вернуться
+    if (MCO_S_CURSOR_EMPTY == rc)
+      break;
+    if (rc) { LOG(ERROR) << "Unable to get Services list cursor, rc="<<rc; break; }
+
+    rc = mco_cursor_first(t, &csr);
+    if (rc) 
+    { 
+        LOG(ERROR) << "Unable to point at first item in Services list cursor, rc="<<rc;
+        break;
+    }
+
+    while (rc == MCO_S_OK)
+    {
+      rc = service_instance.from_cursor(t, &csr);
+      if (rc) 
+      { 
+        LOG(ERROR) << "Unable to get item from Services list cursor, rc="<<rc; 
+      }
+
+      rc = service_instance.name_get(name, (uint2)Service::NAME_MAXLEN);
+      if (rc) { LOG(ERROR) << "Getting service name, rc="<<rc; break; }
+
+      rc = service_instance.autoid_get(aid);
+      if (rc) { LOG(ERROR) << "Getting ID of service '"<<name<<"', rc=" << rc; break; }
+
+      if (false == AddService(name, aid))
+        LOG(ERROR) << "Unable to add new service '"<<name<<"':"<<aid<<" into list";
+
+      rc = mco_cursor_next(t, &csr);
+    }
+
+  } while(false);
+
+  mco_trans_commit(t);
+
+  switch(rc)
+  {
+    case MCO_S_CURSOR_END:
+    case MCO_S_CURSOR_EMPTY:
+      status = true;
+      break;
+
+    default:
+      status = false;
+  }
+
+  return status;
 }
 
-// Получить итератор Сервисов
-ServiceListIterator& ServiceList::getIterator()
-{
-  return m_iterator;
-}
-
-// Создать список из Сервисов и инициировать его из БД. Завершающий элемент равен 0
-Service** ServiceList::getList()
-{
-  return m_array;
-}
 
