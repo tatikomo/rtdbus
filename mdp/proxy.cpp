@@ -152,9 +152,9 @@ process_server (
 int main (int argc, char *argv [])
 {
     int verbose = (argc > 1 && (0 == strncmp(argv [1], "-v", 3)));
-    ustring sender;
-    ustring empty;
-    ustring header;
+    std::string sender;
+    std::string empty;
+    std::string header;
     Broker *broker = NULL;
 
     google::InitGoogleLogging(argv[0]);

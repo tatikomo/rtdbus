@@ -51,7 +51,7 @@ TEST(TestUUID, ENCODE)
 TEST(TestUUID, DECODE)
 {
   unsigned char binary_ident[5];
-  ustring str = "@006B8B4567";
+  std::string str = "@006B8B4567";
   unsigned char * uncoded_ident = NULL;
   zmsg * msg = new zmsg();
 
@@ -293,9 +293,9 @@ static void *
 broker_task (void *args)
 {
   int verbose = 1;
-  ustring sender;
-  ustring empty;
-  ustring header;
+  std::string sender;
+  std::string empty;
+  std::string header;
   Broker *broker = NULL;
 
   try

@@ -19,12 +19,6 @@
 #include <string>
 #include <stdarg.h>
 
-#if USE_USTRING
-typedef std::basic_string<unsigned char> ustring;
-#else
-typedef std::basic_string<char> ustring;
-#endif
-
 class zmsg 
 {
  public:
@@ -70,9 +64,11 @@ class zmsg
 
    // zmsg_push
    void push_front(char *part);
+   void push_front(std::string& part);
 
    // zmsg_append
    void push_back(char *part);
+   void push_back(std::string& part);
 
    //  --------------------------------------------------------------------------
    //  Formats 17-byte UUID as 33-char string starting with '@'
@@ -85,12 +81,12 @@ class zmsg
    // Formats 5-byte UUID as 10-char string starting with '00'
    // Lets us print UUIDs as C strings and use them as addresses
    unsigned char *
-   decode_uuid (ustring&);
+   decode_uuid (std::string&);
 
-   const ustring front();
+   const std::string front();
 
    // zmsg_pop
-   ustring pop_front();
+   std::string pop_front();
 
    void append (const char *part);
 
@@ -103,7 +99,7 @@ class zmsg
    void dump();
 
  private:
-   std::vector<ustring> m_part_data;
+   std::vector<std::string> m_part_data;
 };
 
 #endif /* ZMSG_HPP_ */

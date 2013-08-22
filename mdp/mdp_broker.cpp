@@ -229,11 +229,11 @@ Broker::service_internal (const std::string& service_name, zmsg *msg)
     // The filter service that can be used to manipulate
     // the command filter table.
     if (service_name.compare("mmi.filter") == 0) {
-        ustring operation_frame = msg->pop_front();
+        std::string operation_frame = msg->pop_front();
         // GEV : как так?
         // ведь service_name уже прочитан и передан в качестве параметра? +++
-        ustring service_frame   = msg->pop_front();
-        ustring command_frame   = msg->pop_front();
+        std::string service_frame   = msg->pop_front();
+        std::string command_frame   = msg->pop_front();
 
         if (operation_frame.compare ("enable") == 0) {
 //                Service *service = service_require (service_frame);
@@ -520,7 +520,7 @@ Broker::client_msg (const std::string& sender, zmsg *msg)
         /* как минимум, содержит идентификатор Клиента */
         if (msg && msg->parts() >= 1)
         {
-            ustring client_frame = msg->front ();
+            std::string client_frame = msg->front ();
 
             // TODO: проверить доступность Службы, которой адресуется сообщение
             //[011]@006B8B4568

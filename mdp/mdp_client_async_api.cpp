@@ -128,10 +128,10 @@ mdcli::recv ()
         assert (msg->parts () >= 4);
         assert (msg->pop_front ().length() == 0);  // empty message
 
-        ustring header = msg->pop_front();
+        std::string header = msg->pop_front();
         assert (header.compare(MDPC_CLIENT) == 0);
 
-        ustring service = msg->pop_front();
+        std::string service = msg->pop_front();
         assert (service.compare(service) == 0);
 
         // TODO: добавить фрейм КОМАНДА

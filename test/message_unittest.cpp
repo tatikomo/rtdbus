@@ -56,8 +56,8 @@ TEST(TestProtobuf, CREATE)
   CommonRequest pb_responce_2;
 
   pb_request.set_field_1_int32(0);
-  pb_request.set_field_2_string("fuu");
-  pb_request.set_field_3_int32(1);
+  pb_request.set_field_2_string("Фуу");
+  pb_request.set_field_3_int32(0);
 
   // serialize the request to a string
   std::string pb_serialized;
@@ -67,7 +67,7 @@ TEST(TestProtobuf, CREATE)
   // A. Восстановление штатными средствами protobuf
   // B. Восстановление средствами protobuf из экземпляра zmsg
   zmsg *msg = new zmsg();
-  msg->push_front(const_cast<char*>(pb_serialized.c_str()));
+  msg->push_front(pb_serialized);
   Letter *letter = new Letter(msg);
 
   // (A)
@@ -80,7 +80,7 @@ TEST(TestProtobuf, CREATE)
   std::cout << req_id_1 << std::endl;
   std::cout << req_ident_1 << std::endl;
 */
-  ustring fuu = msg->pop_front();
+  std::string fuu = msg->pop_front();
   // (B)
   pb_responce_2.ParseFromString(fuu);
 

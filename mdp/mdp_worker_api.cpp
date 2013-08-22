@@ -145,15 +145,15 @@ mdwrk::recv (std::string *&reply)
             //  Don't try to handle errors, just assert noisily
             assert (msg->parts () >= 3);
 
-            ustring empty = msg->pop_front ();
+            std::string empty = msg->pop_front ();
             assert (empty.compare("") == 0);
             //free (empty);
 
-            ustring header = msg->pop_front ();
+            std::string header = msg->pop_front ();
             assert (header.compare(MDPW_WORKER) == 0);
             //free (header);
 
-            ustring command = msg->pop_front ();
+            std::string command = msg->pop_front ();
             if (command.compare (MDPW_REQUEST) == 0) {
                 //  We should pop and save as many addresses as there are
                 //  up to a null part, but for now, just save one...

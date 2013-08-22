@@ -67,11 +67,7 @@ void zmsg::clear() {
 
 void zmsg::set_part(size_t part_nbr, unsigned char *data) {
     if (part_nbr < m_part_data.size() && part_nbr >= 0) {
-#if USE_USTRING
-        m_part_data[part_nbr] = data;
-#else
         m_part_data[part_nbr] = (char*)data;
-#endif
     }
 }
 
@@ -95,11 +91,7 @@ bool zmsg::recv(zmq::socket_t & socket) {
          LOG(ERROR) << "Catch '" << error.what() << "', code=" << error.num();
          return false;
       }
-#if USE_USTRING
-      ustring data = (unsigned char*) message.data();
-#else
-      ustring data = (char*) message.data();
-#endif
+      std::string data = (char*) message.data();
 
 #if 0
       std::cerr << "recv: \"" 
@@ -135,7 +127,7 @@ bool zmsg::recv(zmq::socket_t & socket) {
 void zmsg::send(zmq::socket_t & socket) {
     for (size_t part_nbr = 0; part_nbr < m_part_data.size(); part_nbr++) {
        zmq::message_t message;
-       ustring data = m_part_data[part_nbr];
+       std::string data = m_part_data[part_nbr];
 #if 1
        /*
         * Первый фрейм - символьное представление адреса получателя.
@@ -198,21 +190,22 @@ char * zmsg::body ()
 
 // zmsg_push
 void zmsg::push_front(char *part) {
-#if USE_USTRING
-   m_part_data.insert(m_part_data.begin(), (unsigned char*)part);
-#else
    m_part_data.insert(m_part_data.begin(), part);
-#endif
+}
+
+void zmsg::push_front(std::string& part) {
+   m_part_data.insert(m_part_data.begin(), part);
 }
 
 // zmsg_append
 void zmsg::push_back(char *part) {
-#if USE_USTRING
-   m_part_data.push_back((unsigned char*)part);
-#else
    m_part_data.push_back(part);
-#endif
 }
+
+void zmsg::push_back(std::string& part) {
+   m_part_data.push_back(part);
+}
+
 
 
 //  --------------------------------------------------------------------------
@@ -245,7 +238,7 @@ zmsg::encode_uuid (unsigned char* data)
 // Lets us print UUIDs as C strings and use them as addresses
 //
 unsigned char *
-zmsg::decode_uuid (ustring& uuidstr)
+zmsg::decode_uuid (std::string& uuidstr)
 {
     static char
         hex_to_bin [128] = {
@@ -270,16 +263,16 @@ zmsg::decode_uuid (ustring& uuidstr)
     return (data);
 }
 
-const ustring zmsg::front() {
+const std::string zmsg::front() {
   return m_part_data.front();
 }
 
 // zmsg_pop
-ustring zmsg::pop_front() {
+std::string zmsg::pop_front() {
    if (m_part_data.size() == 0) {
       return 0;
    }
-   ustring part = m_part_data.front();
+   std::string part = m_part_data.front();
    m_part_data.erase(m_part_data.begin());
    return part;
 }
@@ -335,7 +328,7 @@ void zmsg::dump()
 
    for (unsigned int part_nbr = 0; part_nbr < m_part_data.size(); part_nbr++) 
    {
-       ustring data = m_part_data [part_nbr];
+       std::string data = m_part_data [part_nbr];
 
        // Dump the message as text or binary
        int is_text = 1;
@@ -353,7 +346,7 @@ void zmsg::dump()
            }
            else 
            {
-               snprintf(&buf[offset], 3, "%02X", data[char_nbr]);
+               snprintf(&buf[offset], 3, "%02X", (unsigned char)data[char_nbr]);
                offset += 2;
            }
        }
