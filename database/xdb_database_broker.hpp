@@ -10,7 +10,7 @@ class XDBDatabaseBrokerImpl;
 class ServiceList;
 class Service;
 class Worker;
-class Letter;
+class Payload;
 
 
 class ServiceList
@@ -61,7 +61,7 @@ class XDBDatabaseBroker : public XDBDatabase
     ServiceList* GetServiceList();
 
     /* поместить сообщение во входящую очередь Службы */
-    bool PushRequestToService(Service*, Letter*);
+    bool PushRequestToService(Service*, Payload*);
 
     /* Вернуть экземпляр Сервиса, только если он существует в БД */
     Service *GetServiceByName(const char*);
@@ -89,7 +89,7 @@ class XDBDatabaseBroker : public XDBDatabase
     bool ClearServices();
 
     /* Получить первое ожидающее обработки Сообщение */
-    Letter* GetWaitingLetter(Service*, Worker*);
+    Payload* GetWaitingLetter(Service*, Worker*);
 
     /* Разрешить исполнение Команды указанной Службе */
     void EnableServiceCommand (const std::string&, const std::string&);

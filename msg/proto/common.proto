@@ -1,5 +1,24 @@
+package RTDBM;
+
 message CommonRequest {
   required int32  field_1_int32 = 1;
   required string field_2_string = 2;
   required int32  field_3_int32 = 3;
 }
+
+message Header {
+  required int32    protocol_version    = 1; /* версия протокола */
+  required int32    exchange_id         = 2; /* идентификатор сообщения */
+  required int32    source_pid          = 3; /* системый идентификатор процесса-отправителя сообщения */
+  required string   proc_dest           = 4; /* название процесса-получателя */
+  required string   proc_origin         = 5; /* название процесса-создателя сообщения */
+  required int32    sys_msg_type        = 6; /* системный тип сообщения */
+  required int32    usr_msg_type        = 7; /* клиентский тип сообщения */
+}
+
+message ExecResult {
+  required int32    user_exchange_id    = 1; /* клиентский идентификатор обмена */
+  required int32    exec_result         = 2; /* */
+  required int32    failure_cause       = 3; /* */
+}
+

@@ -2,7 +2,7 @@
 
 #include "mdp_common.h"
 #include "mdp_broker.hpp"
-#include "msg_letter.hpp"
+#include "msg_payload.hpp"
 #include "zmsg.hpp"
 #include "xdb_database_broker.hpp"
 #include "xdb_database_service.hpp"
@@ -163,21 +163,21 @@ void
 Broker::service_dispatch (Service *srv, zmsg *processing_msg = NULL)
 {
 //    zmsg   *msg = NULL;
-    Worker *wrk = NULL;
-    Letter *letter = NULL;
-    bool    status = false;
+    Worker  *wrk = NULL;
+    Payload *payload = NULL;
+    bool     status = false;
 
     assert (srv);
 
     // Сообщение может отсутствовать
     if (processing_msg)
     {
-      letter = new Letter(processing_msg);
-      status = m_database->PushRequestToService(srv, letter);
+      payload = new Payload(processing_msg);
+      status = m_database->PushRequestToService(srv, payload);
       if (!status) 
         LOG(ERROR) << "Unable to put new letter into queue of '"
                    <<srv->GetNAME()<<"' service";
-      delete letter;
+      delete payload;
     }
 
     /* Очистить список Обработчиков Сервиса от зомби */
@@ -193,13 +193,13 @@ Broker::service_dispatch (Service *srv, zmsg *processing_msg = NULL)
      */
     while (NULL != (wrk = m_database->PopWorker(srv)))
     {
-      while (NULL != (letter = m_database->GetWaitingLetter(srv, wrk)))
+      while (NULL != (payload = m_database->GetWaitingLetter(srv, wrk)))
       {
         /* передать ожидающую обслуживания команду выбранному Обработчику
          * TODO удалить команду в worker_send() из ожидания 
          * только после успешной передачи
          */
-        worker_send (wrk, (char*)MDPW_REQUEST, EMPTY_FRAME, letter);
+        worker_send (wrk, (char*)MDPW_REQUEST, EMPTY_FRAME, payload);
         //delete msg; // NB: удаляется в worker_send()
       }
       delete wrk;
@@ -301,7 +301,7 @@ Broker::worker_delete (Worker *&wrk, int disconnect)
 {
     assert (wrk);
     if (disconnect) {
-        worker_send (wrk, (char*)MDPW_DISCONNECT, EMPTY_FRAME, (Letter*)NULL);
+        worker_send (wrk, (char*)MDPW_DISCONNECT, EMPTY_FRAME, (Payload*)NULL);
     }
 
     if (true == m_database->RemoveWorker(wrk))
@@ -428,7 +428,7 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
 //  If pointer to message is provided, sends that message
 void
 Broker::worker_send (Worker *worker,
-    const char *command, const std::string& option, Letter *letter)
+    const char *command, const std::string& option, Payload *letter)
 {
   // TODO: удалить сообщение из базы только после успешной передачи
   // NB: это может привести к параллельному исполнению 
@@ -481,8 +481,8 @@ Broker::worker_waiting (Worker *worker)
 #endif
     // +++ послать ответ на HEARTBEAT
 //    NB: В версии zguide/C/mdbroker не вызывается worker_send
-//  Версия worker_send(), работающая с Letter, на 13/08/2013 еще не реализована
-    worker_send (worker, (char*)MDPW_HEARTBEAT, EMPTY_FRAME, /*(Letter*)*/(zmsg*)NULL);
+//  Версия worker_send(), работающая с Payload, на 13/08/2013 еще не реализована
+    worker_send (worker, (char*)MDPW_HEARTBEAT, EMPTY_FRAME, /*(Payload*)*/(zmsg*)NULL);
     service = m_database->GetServiceById(worker->GetSERVICE_ID());
     service_dispatch (service);
     //delete service; - он удаляется в service_dispatch()

@@ -14,7 +14,7 @@
 class XDBDatabaseBroker;
 class Service;
 class Worker;
-class Letter;
+class Payload;
 
 //
 //  This defines a single broker
@@ -97,7 +97,7 @@ class Broker {
    void
    worker_send (Worker*, const char*, const std::string&, zmsg *msg);
    void
-   worker_send (Worker*, const char*, const std::string&, Letter*);
+   worker_send (Worker*, const char*, const std::string&, Payload*);
 
 
    //  ---------------------------------------------------------------------

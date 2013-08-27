@@ -34,7 +34,6 @@ include_directories(${LIBZMQ_INCLUDE_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})
 
 link_directories(${CMAKE_SOURCE_DIR}/../../gtest-1.6.0/lib/.libs)
-link_directories(${LIBRARY_OUTPUT_PATH})
 link_directories(${LIBGLOG_LIBRARIES_DIR})
 link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
@@ -97,6 +96,7 @@ add_definitions (-D_FUNCTIONAL_TEST)
 target_link_libraries(${UNITTEST_DEVICE}
     ${MDP_LIBRARY_NAME}
     ${TOOLS_LIBRARY_NAME}
+    ${MSG_LIBRARY_NAME}
     ${XDB_LIBRARY_NAME}
     ${LIBZMQ_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}

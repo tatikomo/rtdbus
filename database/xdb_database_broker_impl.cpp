@@ -1549,7 +1549,7 @@ void XDBDatabaseBrokerImpl::DisableServiceCommand(
    * TODO Поместить новое сообщение letter в очередь сервиса srv.
    * Сообщение будет обработано одним из Обработчиков Сервиса.
    */
-bool XDBDatabaseBrokerImpl::PushRequestToService(Service *srv, Letter *letter)
+bool XDBDatabaseBrokerImpl::PushRequestToService(Service *srv, Payload *letter)
 {
   bool status = false;
   assert (srv);

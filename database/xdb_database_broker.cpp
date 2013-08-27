@@ -129,7 +129,7 @@ ServiceList* XDBDatabaseBroker::GetServiceList()
 }
 
 /* Получить первое ожидающее обработки Сообщение */
-Letter* XDBDatabaseBroker::GetWaitingLetter(Service*, Worker*)
+Payload* XDBDatabaseBroker::GetWaitingLetter(Service*, Worker*)
 {
 // TODO реализация
 #warning "Make XDBDatabaseBroker::GetWaitingLetter() implementation"
@@ -195,7 +195,7 @@ bool XDBDatabaseBroker::ClearWorkersForService(const char *service_name)
 }
 
 /* поместить сообщение во входящую очередь Службы */
-bool XDBDatabaseBroker::PushRequestToService(Service* srv, Letter* letter)
+bool XDBDatabaseBroker::PushRequestToService(Service* srv, Payload* letter)
 {
   assert(m_impl);
 
