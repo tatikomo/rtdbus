@@ -71,7 +71,8 @@ int Digger::handle_buy_request(std::string &price,
 int main(int argc, char **argv)
 {
   int verbose = (argc > 1 && (0 == strcmp (argv [1], "-v")));
-  google::InitGoogleLogging(argv[0]);
+  ::google::InstallFailureSignalHandler();
+  ::google::InitGoogleLogging(argv[0]);
 
   try
   {
@@ -97,6 +98,7 @@ int main(int argc, char **argv)
     std::cout << "E: " << err.what() << std::endl;
   }
 
+  ::google::ShutdownGoogleLogging();
   return 0;
 }
 #endif
