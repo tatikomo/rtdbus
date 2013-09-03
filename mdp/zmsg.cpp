@@ -66,10 +66,19 @@ void zmsg::clear() {
 }
 
 void zmsg::set_part(size_t part_nbr, unsigned char *data) {
-    if (part_nbr < m_part_data.size() && part_nbr >= 0) {
+    if (part_nbr < m_part_data.size() /*&& part_nbr >= 0*/) {
         m_part_data[part_nbr] = (char*)data;
     }
 }
+
+const std::string& zmsg::get_part(size_t part_nbr) {
+    if (part_nbr < m_part_data.size() /*&& part_nbr >= 0*/) {
+        return m_part_data[part_nbr];
+    }
+    // TODO что возвращать, если индекс невалиден?
+    return m_part_data[0];
+}
+
 
 bool zmsg::recv(zmq::socket_t & socket) {
    int more;
@@ -305,11 +314,17 @@ void zmsg::wrap(const char *address, const char *delim) {
 }
 
 
-char * zmsg::unwrap() {
+char * zmsg::unwrap() 
+{
    if (m_part_data.size() == 0) {
       return NULL;
    }
-   char *addr = (char*)pop_front().c_str();
+
+   std::string addr_str = pop_front();
+   char *addr = new char[addr_str.size()+1];
+   memcpy(addr, addr_str.data(), addr_str.size());
+   addr[addr_str.size()] = '\0';
+
    if (address() && *address() == 0) {
       pop_front();
    }

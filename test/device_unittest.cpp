@@ -1,6 +1,7 @@
 #include <string>
 #include "gtest/gtest.h"
 #include "glog/logging.h"
+#include <google/protobuf/stubs/common.h>
 
 #include "helper.hpp"
 #include "zmsg.hpp"
@@ -15,6 +16,10 @@
 #include "wdigger.hpp"
 #include "trader.hpp"
 
+// Определения пользовательских сообщений и их сериализованных структур
+#include "msg_common.h"
+#include "proto/common.pb.h"
+
 Broker *broker = NULL;
 std::string service_name_1 = "NYSE";
 std::string service_name_2 = "service_test_2";
@@ -22,10 +27,14 @@ std::string unbelievable_service_name = "unbelievable_service";
 std::string worker_identity_1 = "@W000000001";
 std::string worker_identity_2 = "@W000000002";
 std::string worker_identity_3 = "@W000000003";
+std::string client_identity_1 = "@C000000001";
+
+XDBDatabaseBroker *database = NULL;
 
 const char *attributes_connection_to_broker = "tcp://localhost:5555";
 Service *service1 = NULL;
 Service *service2 = NULL;
+Worker  *worker = NULL;
 int64_t service1_id;
 int64_t service2_id;
 
@@ -180,6 +189,7 @@ TEST(TestProxy, RUNTIME_VERSION)
 /*
  * Конец списка проверяемых методов класса Broker
  */
+
 
 /*
  * Рабочий цикл клиентской программы TRADER
@@ -336,7 +346,7 @@ TEST(TestProxy, BROKER_INTERNAL)
   Worker *wrk = NULL;
   bool status = false;
 
-  broker = new Broker(1); // be verbose
+  broker = new Broker(true); // be verbose
   ASSERT_TRUE (broker != NULL);
   /*
    * NB: "tcp://lo:5555" использует локальный интерфейс, 
@@ -381,8 +391,110 @@ TEST(TestProxy, BROKER_INTERNAL)
    */
   broker->worker_delete(wrk, 0);
   broker->database_snapshot("BROKER_INTERNAL");
+}
 
-  delete service1;
+/*
+ * Проверить поступление сообщений от Клиентов
+ *
+ * Структура сообщений от Клиента:
+ * [011] Идентификатор Клиента
+ * [000]
+ * [006] MDPC0X
+ * [0XX] Имя Сервиса
+ * [0XX] Сериализованный заголовок
+ * [XXX] Сериализованное тело сообщения
+*/
+#if 1
+TEST(TestProxy, CLIENT_MESSAGE)
+{
+  zmsg*             msg = NULL;
+  RTDBM::Header     pb_header;
+  RTDBM::ExecResult pb_exec_result_request;
+  std::string       pb_serialized_header;
+  std::string       pb_serialized_request;
+
+  pb_header.set_protocol_version(1);
+  pb_header.set_exchange_id(9999999);
+  pb_header.set_source_pid(9999);
+  pb_header.set_proc_dest("В чащах юга жил-был Цитрус?");
+  pb_header.set_proc_origin("Да! Но фальшивый экземпляр.");
+  pb_header.set_sys_msg_type(100);
+  pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
+
+  pb_exec_result_request.set_user_exchange_id(9999999);
+  pb_exec_result_request.set_exec_result(23145);
+  pb_exec_result_request.set_failure_cause(5);
+
+  pb_header.SerializeToString(&pb_serialized_header);
+  pb_exec_result_request.SerializeToString(&pb_serialized_request);
+
+  msg = new zmsg();
+  ASSERT_TRUE(msg);
+
+  msg->push_front(pb_serialized_request);
+  msg->push_front(pb_serialized_header);
+  msg->push_front(service_name_1);
+
+  // msg удаляется внутри
+  broker->client_msg(client_identity_1, msg);
+  broker->database_snapshot("BROKER_INTERNAL");
+}
+#endif
+
+/*
+ * Проверить передачу Клиентсткого сообщения Обработчику
+ * У клиенсткого cообщения, отправляемого Брокером Обработчику, д.б. 4 фрейма:
+ * 1. идентификатор Клиента
+ * 2. пустой фрейм
+ * 3. сериализованный заголовок
+ * 4. сериализованное тело сообщения
+ */
+TEST(TestProxy, SERVICE_DISPATCH)
+{
+  zmsg*             msg = NULL;
+  RTDBM::Header     pb_header;
+  RTDBM::ExecResult pb_exec_result_request;
+  std::string       pb_serialized_header;
+  std::string       pb_serialized_request;
+
+  // Зарегистрировать нового Обработчика worker_identity_1 для service_name_1
+  worker = broker->worker_register(service_name_1, worker_identity_1);
+  ASSERT_TRUE(worker != NULL);
+  broker->database_snapshot("BROKER_INTERNAL");
+
+  pb_header.set_protocol_version(1);
+  pb_header.set_exchange_id(9999999);
+  pb_header.set_source_pid(9999);
+  pb_header.set_proc_dest("В чащах юга жил-был Цитрус?");
+  pb_header.set_proc_origin("Да! Но фальшивый экземпляр.");
+  pb_header.set_sys_msg_type(100);
+  pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
+
+  pb_exec_result_request.set_user_exchange_id(9999999);
+  pb_exec_result_request.set_exec_result(23145);
+  pb_exec_result_request.set_failure_cause(5);
+
+  pb_header.SerializeToString(&pb_serialized_header);
+  pb_exec_result_request.SerializeToString(&pb_serialized_request);
+
+  msg = new zmsg();
+  ASSERT_TRUE(msg);
+
+  msg->push_front(pb_serialized_request);
+  msg->push_front(pb_serialized_header);
+
+  broker->database_snapshot("BROKER_INTERNAL");
+  // service1 удаляется внутри
+  broker->service_dispatch(service1, msg);
+ // delete service1;
+  broker->database_snapshot("BROKER_INTERNAL");
+
+  delete msg;
+}
+
+
+TEST(TestProxy, BROKER_DELETE)
+{
   delete broker;
 }
 
@@ -419,8 +531,11 @@ TEST(TestProxy, BROKER_RUNTIME)
 
 int main(int argc, char** argv)
 {
-  google::InitGoogleLogging(argv[0]);
-  testing::InitGoogleTest(&argc, argv);
-
-  return RUN_ALL_TESTS();
+  ::testing::InitGoogleTest(&argc, argv);
+  ::google::InstallFailureSignalHandler();
+  ::google::InitGoogleLogging(argv[0]);
+  int retval = RUN_ALL_TESTS();
+  ::google::protobuf::ShutdownProtobufLibrary();
+  ::google::ShutdownGoogleLogging();
+  return retval;
 }

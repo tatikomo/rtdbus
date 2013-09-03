@@ -22,3 +22,6 @@ message ExecResult {
   required int32    failure_cause       = 3; /* */
 }
 
+message AskLife {
+  required int32    user_exchange_id    = 1; /* клиентский идентификатор обмена */
+}

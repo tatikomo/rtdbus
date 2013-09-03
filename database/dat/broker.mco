@@ -25,7 +25,7 @@ struct XDBWorker
   /* Строковый идентификатор Обработчика */
   identity_t identity;
   /* Состояние */
-  WorkerState state = DISARMED;
+  WorkerState state = ARMED;
   /* Время ожидания получения подтверждения "Я ЖИВ" */
   timer_mark expiration;
   /* ссылка на объект XDBLetter */
@@ -41,11 +41,13 @@ class XDBService
   /* Текущее состояние */
   ServiceState state = UNKNOWN;
 
+  vector <XDBWorker> workers;
   /* Поиск Сервиса по имени */
   hash           <name> PK_name[MAX_SERVICES_ENTRY];
   /* Доступ ко всем зарегистрированным Сервисам */
   list;
-  event <checkpoint>   newService;
+  /*event <checkpoint>   newService;*/
+  event <new>   newService;
   event <delete>       delService;
 
   /*
@@ -54,8 +56,7 @@ class XDBService
    * Зарегистрированные Обработчики данного Сервиса находятся
    * в XDBWorker по ссылке на XDBService.
    */
-  vector <XDBWorker> workers;
-  tree   <workers.expiration.sec> SK_workers_expire;
+/*  tree   <workers.expiration.sec> SK_workers_expire;*/
   /* Поиск Обработчика по имени */
   unique tree <workers.identity> SK_ident;
 };
@@ -72,7 +73,7 @@ enum WorkerState
 
 enum LetterState
 {
-   EMPTY, READY, DONE_OK, DONE_FAIL
+   EMPTY, UNASSIGNED, ASSIGNED, PROCESSING, DONE_OK, DONE_FAIL
 };
 
 /* Сообщение для Сервиса */
@@ -86,5 +87,8 @@ class XDBLetter
   timer_mark  expiration;
   unique tree <expiration.sec, service> PK_expire_for_service;
   unique tree <worker, service> SK_wrk_srv;
+  tree <service, state>  SK_by_state_for_serv;
+  string header;
+  string body;
 };
 

@@ -23,7 +23,8 @@ XDBDatabase::DBState state;
 
 void wait()
 {
- ; 
+//  puts("\nNext...");
+//  getchar();
 }
 
 TEST(TestBrokerDATABASE, OPEN)
@@ -37,10 +38,10 @@ TEST(TestBrokerDATABASE, OPEN)
     EXPECT_EQ(state, XDBDatabase::UNINITIALIZED);
 
     status = database->Connect();
-    EXPECT_EQ(status, true);
+    ASSERT_TRUE(status == true);
 
     state = database->State();
-    EXPECT_EQ(state, XDBDatabase::CONNECTED);
+    ASSERT_TRUE(state == XDBDatabase::CONNECTED);
 }
 
 TEST(TestBrokerDATABASE, INSERT_SERVICE)
@@ -69,6 +70,7 @@ TEST(TestBrokerDATABASE, INSERT_SERVICE)
     service1_id = service1->GetID();
     // В пустой базе индексы начинаются с 1, поэтому у первого Сервиса id=1
     EXPECT_EQ(service1_id, 1);
+    LOG(INFO) << "Service "<<service1->GetNAME()<<" added with id="<<service1->GetID();
 
     /* Добавим второй Сервис */
     srv = database->AddService(service_name_2);
@@ -81,6 +83,8 @@ TEST(TestBrokerDATABASE, INSERT_SERVICE)
     service2 = database->GetServiceByName(service_name_2);
     ASSERT_TRUE (service2 != NULL);
     service2_id = service2->GetID();
+    EXPECT_EQ(service2_id, 2);
+    LOG(INFO) << "Service "<<service2->GetNAME()<<" added with id="<<service2->GetID();
 
     database->MakeSnapshot("ONLY_SRV");
 }
@@ -95,47 +99,64 @@ TEST(TestBrokerDATABASE, INSERT_WORKER)
     EXPECT_TRUE (worker == NULL);
     delete worker;
 
-    worker = new Worker(worker_identity_1, service1_id);
+    worker = new Worker(worker_identity_1, service1_id, service_name_1);
     /*
+     * УСПЕШНО 
      * Поместить первого Обработчика в спул Службы
      */
     status = database->PushWorker(worker);
     EXPECT_EQ(status, true);
-    delete worker;
+    LOG(INFO) << "Worker "<<worker->GetIDENTITY()<<" added for service id="<<service1_id;
     database->MakeSnapshot("INS_WRK_1_A");
+    delete worker;
     wait();
 
     /*
+     * УСПЕШНО
      * Повторная регистрация Обработчика с идентификатором, который там уже 
-     * присутствует, приводит к замещению предыдущего экземпляра 
+     * присутствует.
+     * Должно призойти замещение предыдущего экземпляра Обработчика worker_identity_1
      */
-    worker = new Worker(worker_identity_1, service1_id);
+    worker = new Worker(worker_identity_1, service1_id, service_name_1);
     status = database->PushWorker(worker);
     EXPECT_EQ(status, true);
+    LOG(INFO) << "Worker "<<worker->GetIDENTITY()<<" replaced for service id="<<service1_id;
     database->MakeSnapshot("INS_WRK_1_B");
-    wait();
     delete worker;
+    wait();
 
-    /* Можно поместить не более двух Обработчиков с разными идентификаторами */
-    worker = new Worker(worker_identity_2, service1_id);
+    /* 
+     * УСПЕШНО
+     * Можно поместить не более двух Обработчиков с разными идентификаторами
+     */
+    worker = new Worker(worker_identity_2, service1_id, service_name_1);
     status = database->PushWorker(worker);
     EXPECT_EQ(status, true);
-    delete worker;
+    LOG(INFO) << "Worker "<<worker->GetIDENTITY()<<" added for service id="<<service1_id;
     database->MakeSnapshot("INS_WRK_2");
+    delete worker;
     wait();
 
-    /* Ошибка помещения третьего экземпляра в спул */
-    worker = new Worker(worker_identity_3, service1_id);
+    /* 
+     * ОШИБКА
+     * Ошибка помещения третьего экземпляра в спул
+     */
+    worker = new Worker(worker_identity_3, service1_id, service_name_1);
     status = database->PushWorker(worker);
     EXPECT_EQ(status, false);
+    LOG(INFO) << "Worker "<<worker->GetIDENTITY()<<" not added for service id="<<service1_id;
     delete worker;
 
-    /* Помещение экземпляра в спул второго Сервиса */
+    /* 
+     * УСПЕШНО
+     * Помещение экземпляра в спул второго Сервиса 
+     */
     worker = new Worker(worker_identity_3, service2_id);
     status = database->PushWorker(worker);
     EXPECT_EQ(status, true);
-    delete worker;
+    LOG(INFO) << "Worker "<<worker->GetIDENTITY()<<" added for service id="<<service2_id;
     database->MakeSnapshot("INS_WRK_3");
+    delete worker;
     wait();
 }
 
@@ -160,6 +181,7 @@ TEST(TestBrokerDATABASE, REMOVE_WORKER)
 
     status = database->RemoveWorker(worker);
     EXPECT_EQ(status, true);
+    LOG(INFO) << "Worker "<<worker->GetIDENTITY()<<" removed";
     database->MakeSnapshot("DIS_WRK_1");
     wait();
 
@@ -180,6 +202,7 @@ TEST(TestBrokerDATABASE, REMOVE_WORKER)
 
     status = database->RemoveWorker(worker);
     EXPECT_EQ(status, true);
+    LOG(INFO) << "Worker "<<worker->GetIDENTITY()<<" removed";
     database->MakeSnapshot("DIS_WRK_2");
     wait();
     delete worker;
@@ -196,11 +219,12 @@ TEST(TestBrokerDATABASE, REMOVE_WORKER)
      */
     worker = database->PopWorker(service2);
     ASSERT_TRUE (worker != NULL);
-    EXPECT_EQ(worker->GetSTATE(), Worker::IN_PROCESS);
+    EXPECT_EQ(worker->GetSTATE(), Worker::ARMED);
     database->MakeSnapshot("POP_WRK_3");
 
     status = database->RemoveWorker(worker);
     EXPECT_EQ(status, true);
+    LOG(INFO) << "Worker "<<worker->GetIDENTITY()<<" removed";
     delete worker;
     database->MakeSnapshot("DIS_WRK_3");
     /*
@@ -236,7 +260,7 @@ TEST(TestBrokerDATABASE, CHECK_SERVICE)
 TEST(TestBrokerDATABASE, SERVICE_LIST)
 {
   bool status = false;
-  Service** srv_array = NULL;
+//  Service** srv_array = NULL;
   Service*  srv = NULL;
   ServiceList *services_list = database->GetServiceList();
   ASSERT_TRUE (services_list != NULL);
@@ -315,9 +339,11 @@ TEST(TestBrokerDATABASE, DESTROY)
 
 int main(int argc, char** argv)
 {
-  google::InitGoogleLogging(argv[0]);
-  testing::InitGoogleTest(&argc, argv);
-
-  return RUN_ALL_TESTS();
+  ::testing::InitGoogleTest(&argc, argv);
+  ::google::InstallFailureSignalHandler();
+  ::google::InitGoogleLogging(argv[0]);
+  int retval = RUN_ALL_TESTS();
+  ::google::ShutdownGoogleLogging();
+  return retval;
 }
 

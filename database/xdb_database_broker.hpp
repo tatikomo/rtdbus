@@ -61,7 +61,9 @@ class XDBDatabaseBroker : public XDBDatabase
     ServiceList* GetServiceList();
 
     /* поместить сообщение во входящую очередь Службы */
-    bool PushRequestToService(Service*, Payload*);
+    bool PushRequestToService(Service*, 
+            const std::string&,
+            const std::string&);
 
     /* Вернуть экземпляр Сервиса, только если он существует в БД */
     Service *GetServiceByName(const char*);
@@ -89,7 +91,7 @@ class XDBDatabaseBroker : public XDBDatabase
     bool ClearServices();
 
     /* Получить первое ожидающее обработки Сообщение */
-    Payload* GetWaitingLetter(Service*, Worker*);
+    bool GetWaitingLetter(Service*, Worker*, std::string&, std::string&);
 
     /* Разрешить исполнение Команды указанной Службе */
     void EnableServiceCommand (const std::string&, const std::string&);
@@ -103,6 +105,7 @@ class XDBDatabaseBroker : public XDBDatabase
     void MakeSnapshot(const char* = NULL);
 
   private:
+    DISALLOW_COPY_AND_ASSIGN(XDBDatabaseBroker);
     /* Ссылка на физическую реализацию интерфейса с БД */
     XDBDatabaseBrokerImpl *m_impl;
 };

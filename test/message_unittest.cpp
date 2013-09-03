@@ -42,7 +42,6 @@ TEST(TestProtobuf, VERSION)
  */
 TEST(TestProtobuf, EXEC_RESULT)
 {
-
   pb_header.set_protocol_version(1);
   pb_header.set_exchange_id(9999999);
   pb_header.set_source_pid(9999);
@@ -80,8 +79,8 @@ TEST(TestPayload, CREATE_FROM_MSG)
     payload = new Payload(msg);
     ASSERT_TRUE(payload != NULL);
 
-    serialized_header = payload->header()->get_serialized();
-    serialized_request= payload->data()->get_serialized();
+    serialized_header = payload->header();
+    serialized_request= payload->data();
 
     EXPECT_EQ(serialized_header,  pb_serialized_header);
     EXPECT_EQ(serialized_request, pb_serialized_request);
@@ -94,22 +93,23 @@ TEST(TestPayload, CREATE_FROM_MSG)
 
 TEST(TestPayload, ACCESS)
 {
-  RTDBM::ExecResult* exec_result = static_cast<RTDBM::ExecResult*>(payload->data()->dump());
-  RTDBUS_MessageHeader* header = payload->header();
-  ASSERT_TRUE(exec_result);
+  RTDBM::ExecResult exec_result;
+  RTDBUS_MessageHeader* header = new RTDBUS_MessageHeader(payload->header());
   ASSERT_TRUE(header);
 
-  EXPECT_EQ(pb_header.protocol_version(), header->get_protocol_version());
-  EXPECT_EQ((rtdbExchangeId)pb_header.exchange_id(),      header->get_exchange_id());
-  EXPECT_EQ((rtdbPid)pb_header.source_pid(),       header->get_source_pid());
+  exec_result.ParseFromString(payload->data());
+
+  EXPECT_EQ(pb_header.protocol_version(),            header->get_protocol_version());
+  EXPECT_EQ((rtdbExchangeId)pb_header.exchange_id(), header->get_exchange_id());
+  EXPECT_EQ((rtdbPid)pb_header.source_pid(),         header->get_source_pid());
   EXPECT_EQ(pb_header.proc_dest(),        header->get_proc_dest());
   EXPECT_EQ(pb_header.proc_origin(),      header->get_proc_origin());
   EXPECT_EQ(pb_header.sys_msg_type(),     header->get_sys_msg_type());
   EXPECT_EQ(pb_header.usr_msg_type(),     header->get_usr_msg_type());
 
-  EXPECT_EQ(pb_exec_result_request.user_exchange_id(), exec_result->user_exchange_id());
-  EXPECT_EQ(pb_exec_result_request.exec_result(), exec_result->exec_result());
-  EXPECT_EQ(pb_exec_result_request.failure_cause(), exec_result->failure_cause());
+  EXPECT_EQ(pb_exec_result_request.user_exchange_id(), exec_result.user_exchange_id());
+  EXPECT_EQ(pb_exec_result_request.exec_result(),      exec_result.exec_result());
+  EXPECT_EQ(pb_exec_result_request.failure_cause(),    exec_result.failure_cause());
 
 #if 0
   std::cout << "HEADER --------------------------- " << std::endl;
@@ -122,10 +122,11 @@ TEST(TestPayload, ACCESS)
   std::cout << "Usr system type: "  << header->get_usr_msg_type() << std::endl;
   
   std::cout << "MESSAGE --------------------------- " << std::endl;
-  std::cout << "User exchange ID: "   << exec_result->user_exchange_id() << std::endl;
-  std::cout << "Execution result: "   << exec_result->exec_result() << std::endl;
-  std::cout << "User failure cause: " << exec_result->failure_cause() << std::endl;
+  std::cout << "User exchange ID: "   << exec_result.user_exchange_id() << std::endl;
+  std::cout << "Execution result: "   << exec_result.exec_result() << std::endl;
+  std::cout << "User failure cause: " << exec_result.failure_cause() << std::endl;
 #endif
+  delete header;
 }
 
 TEST(TespPayload, DELETE)
@@ -136,9 +137,12 @@ TEST(TespPayload, DELETE)
 
 int main(int argc, char** argv)
 {
-  google::InitGoogleLogging(argv[0]);
-  testing::InitGoogleTest(&argc, argv);
-
-  return RUN_ALL_TESTS();
+  ::testing::InitGoogleTest(&argc, argv);
+  ::google::InstallFailureSignalHandler();
+  ::google::InitGoogleLogging(argv[0]);
+  int retval = RUN_ALL_TESTS();
+  ::google::protobuf::ShutdownProtobufLibrary();
+  ::google::ShutdownGoogleLogging();
+  return retval;
 }
 

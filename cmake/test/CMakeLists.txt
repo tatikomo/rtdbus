@@ -47,10 +47,14 @@ set (TEST_DEVICE_SOURCES
         ${MDP_DIR}/mdp_broker.hpp
         ${MDP_DIR}/mdp_broker.cpp
         ${MDP_DIR}/proxy.hpp
+        ${MDP_DIR}/zmsg.hpp
         ${WORKER_DIR}/wdigger.cpp
         ${WORKER_DIR}/wdigger.hpp
         ${CLIENT_DIR}/trader.cpp
         ${CLIENT_DIR}/trader.hpp
+        ${MSG_DIR}/msg_common.h
+        ${MSG_DIR}/proto/common.pb.cc
+        ${MSG_DIR}/proto/common.pb.h
         ${TEST_RTDBUS_DIR}/device_unittest.cpp)
 
 set (TEST_DATABASE_SOURCES

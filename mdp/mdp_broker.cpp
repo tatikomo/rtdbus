@@ -33,7 +33,7 @@ void s_catch_signals ()
 
 //  ---------------------------------------------------------------------
 //  Constructor for broker object
-Broker::Broker (int verbose)
+Broker::Broker (bool verbose)
 {
     //  Initialize broker state
     m_context = new zmq::context_t(1);
@@ -110,25 +110,30 @@ Broker::purge_workers ()
   ServiceList   *sl = m_database->GetServiceList();
   Service       *service = sl->first();
   Worker        *wrk;
+  int           srv_count;
+  int           wrk_count;
 
-  while(service)
+  srv_count = 0;
+  while(NULL != service)
   {
+    wrk_count = 0;
     /* Пройти по списку Сервисов */
     while (NULL != (wrk = m_database->PopWorker(service)))
     {
-        if (!wrk->Expired ()) {
-        /* TODO continue так же завершит текущий цикл, 
-         * но позволит проверить всех Обработчиков. 
-         * Это бесполезно, если Обработчики хранятся в 
-         * отсортированном по времени ожидания списке. */
-            break;              //  Worker is alive, we're done here
-        }
-        if (m_verbose) {
+        LOG(INFO) <<srv_count<<":"<<service->GetNAME()<<" => "<<wrk_count<<":"<<wrk->GetIDENTITY();
+        if (wrk->Expired ()) 
+        {
+          if (m_verbose) 
+          {
             LOG(INFO) << "Deleting expired worker: " << wrk->GetIDENTITY();
+          }
+          worker_delete (wrk, 0); // Обработчик не подавал признаков жизни
         }
-        worker_delete (wrk, 0);
+        else delete wrk; // Обработчик жив, просто освободить память
+        wrk_count++;
     }
     service = sl->next();
+    srv_count++;
   }
 }
 
@@ -159,13 +164,19 @@ Broker::service_require (const std::string& service_name)
 
 //  ---------------------------------------------------------------------
 //  Dispatch requests to waiting workers as possible
+//  NB: Внутри удаляется srv!
 void
 Broker::service_dispatch (Service *srv, zmsg *processing_msg = NULL)
 {
-//    zmsg   *msg = NULL;
     Worker  *wrk = NULL;
     Payload *payload = NULL;
     bool     status = false;
+    // всегда проверять, есть ли в очереди ранее необслужанные запросы
+    bool     awaiting_messages_exists = true;
+    bool     continue_to_check_queue = true;
+    int      processed_messages_count;
+    std::string header;
+    std::string message_body;
 
     assert (srv);
 
@@ -173,7 +184,7 @@ Broker::service_dispatch (Service *srv, zmsg *processing_msg = NULL)
     if (processing_msg)
     {
       payload = new Payload(processing_msg);
-      status = m_database->PushRequestToService(srv, payload);
+      status = m_database->PushRequestToService(srv, payload->header(), payload->data());
       if (!status) 
         LOG(ERROR) << "Unable to put new letter into queue of '"
                    <<srv->GetNAME()<<"' service";
@@ -191,17 +202,26 @@ Broker::service_dispatch (Service *srv, zmsg *processing_msg = NULL)
      *   2. Послать Сообщение указанному Обработчику
      *   3. Удалить Сообщение только после успешной отправки
      */
-    while (NULL != (wrk = m_database->PopWorker(srv)))
+    continue_to_check_queue = awaiting_messages_exists;
+    processed_messages_count = 0;
+
+    while (continue_to_check_queue && (NULL != (wrk = m_database->PopWorker(srv))))
     {
-      while (NULL != (payload = m_database->GetWaitingLetter(srv, wrk)))
+      LOG(INFO) << "pop worker '"<<wrk->GetIDENTITY()<<"' state="<<wrk->GetSTATE();
+      while (m_database->GetWaitingLetter(srv, wrk, header, message_body))
       {
-        /* передать ожидающую обслуживания команду выбранному Обработчику
-         * TODO удалить команду в worker_send() из ожидания 
-         * только после успешной передачи
-         */
-        worker_send (wrk, (char*)MDPW_REQUEST, EMPTY_FRAME, payload);
-        //delete msg; // NB: удаляется в worker_send()
+        awaiting_messages_exists = true;
+        if (10 > processed_messages_count++)
+          break;
+        // Передать ожидающую обслуживания команду выбранному Обработчику
+        worker_send (wrk, (char*)MDPW_REQUEST, EMPTY_FRAME, header, message_body);
+        // TODO: установить статус IN_PROCESS данному Обработчику
       }
+      awaiting_messages_exists = false;
+      // GEV Пока обрабатывать не более 10 сообщений из очереди ожиданий! 
+      // TODO уточнить критерии останова разгребания очереди для данной Службы.
+      // Может быть, создать отдельный thread для таких случаев.
+      continue_to_check_queue = ((true == awaiting_messages_exists) && (processed_messages_count<10));
       delete wrk;
     }
     delete srv;
@@ -304,8 +324,10 @@ Broker::worker_delete (Worker *&wrk, int disconnect)
         worker_send (wrk, (char*)MDPW_DISCONNECT, EMPTY_FRAME, (Payload*)NULL);
     }
 
-    if (true == m_database->RemoveWorker(wrk))
-      delete wrk;
+    if (false == m_database->RemoveWorker(wrk))
+      LOG(ERROR) << "Unable to remove worker '"<<wrk->GetIDENTITY()<<"'";
+    // Экземпляр все равно должен быть удален из памяти
+    delete wrk;
 }
 
 //  ---------------------------------------------------------------------
@@ -379,7 +401,7 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
                msg->push_front((char*)MDPC_CLIENT);
                msg->wrap (client, EMPTY_FRAME);
                msg->send (*m_socket);
- //             delete client; // ай-яй-яй! +++
+               delete client; // ай-яй-яй! +++
 //+++++               worker_waiting (wrk);
 
                delete service;
@@ -433,6 +455,46 @@ Broker::worker_send (Worker *worker,
   // TODO: удалить сообщение из базы только после успешной передачи
   // NB: это может привести к параллельному исполнению 
   // команды двумя Обработчиками. Как бороться? И стоит ли?
+}
+
+void
+Broker::worker_send (
+    /* IN     */ Worker* worker, 
+    /* IN     */ const char* command,
+    /* IN     */ const std::string& option, 
+    /* IN-OUT */ std::string& header,
+    /* IN     */ std::string& body)
+{
+  LOG(INFO) << "Send message #"<<(int)command<<" to worker '"<<worker->GetIDENTITY()<<"'";
+  zmsg *msg = new zmsg();
+  /*
+   * TODO Сменить статус сообщения с READY на PROCESSING после его
+   * успешной передачи Обработчику.
+   */
+   //  Stack protocol envelope to start of message
+   if (option.size()>0) {                 //  Optional frame after command
+      msg->push_front ((char*)option.c_str());
+   }
+
+   msg->push_front(body);
+   // TODO: поля в header должны быть правильно заполнены!
+   // Для этого его нужно десериализовать, изменить, и сериализовать обратно
+   // например, нужно присвоить значения системным идентификаторам
+   //
+   // Хотя их можно менять и на стороне Клиента, в mdpcli...
+   msg->push_front(header);
+   msg->push_front (const_cast<char*>(command));
+   msg->push_front ((char*)MDPW_WORKER); 
+   //  Stack routing envelope to start of message
+   msg->wrap(worker->GetIDENTITY(), EMPTY_FRAME);
+
+   if (m_verbose) {
+        LOG(INFO) << "Sending '" << mdpw_commands [(int) *command]
+            << "' to worker '" << worker->GetIDENTITY() << "'";
+        msg->dump ();
+   }
+   msg->send (*m_socket);
+   delete msg;
 }
 
 //  ---------------------------------------------------------------------
@@ -521,15 +583,12 @@ Broker::client_msg (const std::string& sender, zmsg *msg)
         if (msg && msg->parts() >= 1)
         {
             std::string client_frame = msg->front ();
-
             // TODO: проверить доступность Службы, которой адресуется сообщение
-            //[011]@006B8B4568
-            //[000]
-            //[006]MDPC0X
-            //[004]NYSE
-            //[004]SELL
-            //[004]1000
-            //[001]8
+            //[011]@006B8B4568                      - автоматически подставляется Брокером при приёме!
+            //[000]                                 - заполняется клиентом
+            //[006]MDPC0X                           - заполняется клиентом
+            //[XXX]сериализованный RTDBM::Header    - заполняется клиентом
+            //[XXX]сериализованное сообщение Клиента- заполняется клиентом
 
             /* внести команду в очередь и обработать её */
             service_dispatch (srv, msg);

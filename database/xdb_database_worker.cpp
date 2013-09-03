@@ -8,7 +8,8 @@
 Worker::Worker()
 {
   memset((void*)&m_expiration, '\0', sizeof(m_expiration));
-  m_identity = NULL;
+  m_identity[0] = '\0';
+  m_service_name[0] = '\0';
   m_modified = false;
 }
 
@@ -16,13 +17,16 @@ Worker::Worker()
  * NB если self_id == -1, значит идентификатор будет 
  * автоматически сгенерирован базой данных 
  */
-Worker::Worker(const char *_identity, int64_t _service_id)
+Worker::Worker(const char *_identity, 
+               int64_t _service_id, 
+               const char* _service_name)
 {
   timer_mark_t mark = {0, 0};
 
-  m_identity = NULL;
+//  m_identity = NULL;
   SetSERVICE_ID(_service_id);
   SetIDENTITY(_identity);
+  SetSERVICE_NAME(_service_name);
   SetEXPIRATION(mark);
   SetINDEX(-1);
   SetSTATE(INIT);
@@ -31,7 +35,7 @@ Worker::Worker(const char *_identity, int64_t _service_id)
 
 Worker::~Worker()
 {
-  delete []m_identity;
+//  delete []m_identity;
 }
 
 
@@ -53,11 +57,20 @@ void Worker::SetIDENTITY(const char *_identity)
   if (!_identity) return;
 
   /* удалить старое значение идентификатора Обработчика */
-  delete []m_identity;
+//  delete []m_identity;
 
-//  printf("Worker::SetIDENTITY('%s' %d)\n", _identity, strlen(_identity));
-  m_identity = new char[strlen(_identity)+1];
-  strcpy(m_identity, _identity);
+  strncpy(m_identity, _identity, WORKER_IDENTITY_MAXLEN);
+  m_identity[WORKER_IDENTITY_MAXLEN] = '\0';
+
+  m_modified = true;
+}
+
+void Worker::SetSERVICE_NAME(const char *_service_name)
+{
+  if (!_service_name) return;
+
+  strncpy(m_service_name, _service_name, SERVICE_NAME_MAXLEN);
+  m_service_name[SERVICE_NAME_MAXLEN] = '\0';
 
   m_modified = true;
 }
@@ -96,6 +109,11 @@ const uint16_t Worker::GetINDEX()
 const char* Worker::GetIDENTITY()
 {
   return m_identity;
+}
+
+const char* Worker::GetSERVICE_NAME()
+{
+  return m_service_name;
 }
 
 void Worker::SetEXPIRATION(const timer_mark_t& _expiration)

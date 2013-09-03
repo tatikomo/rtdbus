@@ -9,9 +9,9 @@
   set (EXTREMEDB_VERSION 50)
 
   if ("${EXTREMEDB_VERSION}"  EQUAL "35")
-    set (LIBEXTREMEDB_INCLUDE_DIR "${RTDBUS_SOURCE_DIR}/../../master_eXtremeDB_3.5.987_sunos/sources/include")
-    set (LIBEXTREMEDB_LIBRARIES_DIR "${RTDBUS_SOURCE_DIR}/../../master_eXtremeDB_3.5.987_sunos/sources/target/bin.so")
-    set (LIBEXTREMEDB_MCOCOMP "${RTDBUS_SOURCE_DIR}/../../master_eXtremeDB_3.5.987_sunos/sources/host/bin/mcocomp")
+    set (LIBEXTREMEDB_INCLUDE_DIR "${RTDBUS_SOURCE_DIR}/../../eXtremeDB_3.5/sources/include")
+    set (LIBEXTREMEDB_LIBRARIES_DIR "${RTDBUS_SOURCE_DIR}/../../eXtremeDB_3.5/sources/target/bin.so")
+    set (LIBEXTREMEDB_MCOCOMP "${RTDBUS_SOURCE_DIR}/../../eXtremeDB_3.5/sources/host/bin/mcocomp")
 
     if (${COMPILER_PLATFORM} MATCHES "SunOS")
       # SOLARIS EXTREMEDB 3.5
@@ -19,8 +19,8 @@
       set (LIBEXTREMEDB_LIBRARIES_ALL "mcossun -lmcounrt -lmcovtmem -lmcouwrt")
     elseif (${COMPILER_PLATFORM} MATCHES "Linux")
       # LINUX EXTREMEDB 3.5
-      set (LIBEXTREMEDB_LIBRARIES "mcolib mcovtdsk mcofu98 mcoslnx mcomipc mcotmvcc mcolib mcouwrt")
-      set (LIBEXTREMEDB_LIBRARIES_ALL "mcolib_debug -lmcovtdsk_debug -lmcofu98_debug -lmcoslnx_debug -lmcomipc_debug -lmcotmvcc_debug -lmcolib_debug -lmcouwrt_debug")
+      set (LIBEXTREMEDB_LIBRARIES "mcolib_shm mcoslnx mcounrt mcovtmem mcouwrt")
+      set (LIBEXTREMEDB_LIBRARIES_ALL "mcolib_shm_debug -lmcoslnx_debug -lmcounrt_debug -lmcovtmem_debug -lmcouwrt_debug")
     else ()
       message("Unsupported platform ${COMPILER_PLATFORM}")
       return()

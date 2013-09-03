@@ -53,7 +53,7 @@ class ServiceListImpl : public  ServiceList
     bool refresh();
 
   private:
-    ServiceListImpl();
+    DISALLOW_COPY_AND_ASSIGN(ServiceListImpl);
     int       m_current_index;
     mco_db_h  m_db;
     // Список прочитанных из БД Сервисов
@@ -90,11 +90,17 @@ class XDBDatabaseBrokerImpl
     bool     IsServiceExist(const char*);
     /* получить доступ к текущему списку Сервисов */ 
     ServiceList* GetServiceList();
+    /* Получить первое ожидающее обработки Сообщение */
+    bool GetWaitingLetter(/* IN */ Service* srv,
+        /* IN */  Worker* wrk,
+        /* OUT */ std::string& header,
+        /* OUT */ std::string& body);
+
 
     bool IsServiceCommandEnabled(const Service*, const std::string&);
 
     /* поместить сообщение во входящую очередь Службы */
-    bool PushRequestToService(Service*, Payload*);
+    bool PushRequestToService(Service*, const std::string&, const std::string&);
 
     /* Вернуть экземпляр Сервиса. Если он не существует в БД - создать */
     Service *RequireServiceByName(const char*);
@@ -130,6 +136,7 @@ class XDBDatabaseBrokerImpl
     void MakeSnapshot(const char*);
 
   private:
+    DISALLOW_COPY_AND_ASSIGN(XDBDatabaseBrokerImpl);
 #if defined DEBUG
     char  m_snapshot_file_prefix[10];
     bool  m_initialized;
@@ -185,17 +192,18 @@ class XDBDatabaseBrokerImpl
                        uint16_t);
 
     /*
-     * Поиск в спуле данного Сервиса индекса Обработчика,
-     * находящегося в состоянии state. 
-     * Возвращает индекс найденного Обработчика, или -1
+     * Поиск в спуле данного Сервиса индекса Обработчика, находящегося 
+     * в заданном состоянии. 
+     * Возвращает статус поиска и индекс найденного Обработчика
      */
-    uint2 LocatingFirstOccurence(xdb_broker::XDBService &service_instance,
-                       WorkerState            state);
+    bool LocatingFirstWorkerIndexOccurence(xdb_broker::XDBService&,
+                       uint2&,
+                       WorkerState);
 
     /*
      * Прочитать состояние Обработчика по значению его identity
      */
-    MCO_RET LoadWorkerByIdent(mco_trans_h, Service*, Worker*);
+    MCO_RET LoadWorkerByIdent(mco_trans_h, autoid_t&, Worker*);
 
 #ifdef DISK_DATABASE
     char* m_dbsFileName;
