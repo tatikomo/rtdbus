@@ -38,6 +38,8 @@ set (XDB_SOURCES
         ${XDB_DIR}/xdb_database_service.hpp
         ${XDB_DIR}/xdb_database_worker.cpp
         ${XDB_DIR}/xdb_database_worker.hpp
+        ${XDB_DIR}/xdb_database_letter.cpp
+        ${XDB_DIR}/xdb_database_letter.hpp
         )
 
 add_custom_command(
