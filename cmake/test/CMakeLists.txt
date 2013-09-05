@@ -34,7 +34,6 @@ include_directories(${LIBZMQ_INCLUDE_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})
 
 link_directories(${CMAKE_SOURCE_DIR}/../../gtest-1.6.0/lib/.libs)
-link_directories(${LIBRARY_OUTPUT_PATH})
 link_directories(${LIBGLOG_LIBRARIES_DIR})
 link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
@@ -45,13 +44,22 @@ set (TEST_DEVICE_SOURCES
         ${XDB_DIR}/dat/xdb_broker.h
         ${XDB_DIR}/dat/xdb_broker.c
         ${XDB_DIR}/xdb_database_worker.hpp
+        ${XDB_DIR}/xdb_database_broker.hpp
+        ${XDB_DIR}/xdb_database_service.hpp
         ${MDP_DIR}/mdp_broker.hpp
         ${MDP_DIR}/mdp_broker.cpp
+        ${MDP_DIR}/mdp_worker_api.hpp
+        ${MDP_DIR}/mdp_client_async_api.hpp
         ${MDP_DIR}/proxy.hpp
+        ${MDP_DIR}/mdp_common.h
+        ${MDP_DIR}/zmsg.hpp
         ${WORKER_DIR}/wdigger.cpp
         ${WORKER_DIR}/wdigger.hpp
         ${CLIENT_DIR}/trader.cpp
         ${CLIENT_DIR}/trader.hpp
+        ${MSG_DIR}/msg_common.h
+        ${MSG_DIR}/proto/common.pb.cc
+        ${MSG_DIR}/proto/common.pb.h
         ${TEST_RTDBUS_DIR}/device_unittest.cpp)
 
 set (TEST_DATABASE_SOURCES
@@ -97,6 +105,7 @@ add_definitions (-D_FUNCTIONAL_TEST)
 target_link_libraries(${UNITTEST_DEVICE}
     ${MDP_LIBRARY_NAME}
     ${TOOLS_LIBRARY_NAME}
+    ${MSG_LIBRARY_NAME}
     ${XDB_LIBRARY_NAME}
     ${LIBZMQ_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}

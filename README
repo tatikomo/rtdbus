@@ -36,6 +36,9 @@ vmodule (string, default="")
 Per-module verbose level. The argument has to contain a comma-separated list of <module name>=<log level>. <module name> is a glob pattern (e.g., gfs* for all modules whose name starts with "gfs"), matched against the filename base (that is, name ignoring .cc/.h./-inl.h). <log level> overrides any value given by --v. See also the section about verbose logging.
 There are some other flags defined in logging.cc. Please grep the source code for "DEFINE_" to see a complete list of all flags.
 
+Используется ctags (exuberant-ctags) для создания библиотеки перекрестных ссылок в исходных текстах
+Файл tags создается командой:
+ctags -R --c++-kinds=+p --fields=+iaS --extra=+q .
 
 Хронология проблем:
 --------------------------------------------------------------------------------
@@ -54,6 +57,13 @@ Worker не получает сообщения от Брокера. После 
 - брокер на linux, служба в solaris
 Обнаружено постепенно увеличивающееся с каждой итерацией количество сообщений HEARTBEAT, 
 посылаемых службе единовременно. 
+
+27.08.2013
+У библиотеки ZMQ (как минимум в 3.2) есть потенциальная проблема с сокетами ROUTER:
+если удаленная сторона не отвечает на запрос, происходит утечка памяти. 
+An unavoidable memory leak in ROUTER sockets when there is pending data for clients who will never return.
+Ссылка на статью: http://gonitro.io, https://github.com/bumptech/nitro
+
 
 TODO
 --------------------------------------------------------------------------------

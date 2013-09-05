@@ -5,12 +5,13 @@
 #include <string>
 #include "xdb_database.hpp"
 #include "xdb_database_service.hpp"
+#include "xdb_database_worker.hpp"
 
 class XDBDatabaseBrokerImpl;
 class ServiceList;
 class Service;
 class Worker;
-class Letter;
+class Payload;
 
 
 class ServiceList
@@ -61,14 +62,15 @@ class XDBDatabaseBroker : public XDBDatabase
     ServiceList* GetServiceList();
 
     /* поместить сообщение во входящую очередь Службы */
-    bool PushRequestToService(Service*, Letter*);
+    bool PushRequestToService(Service*, 
+            const std::string&,
+            const std::string&);
 
     /* Вернуть экземпляр Сервиса, только если он существует в БД */
     Service *GetServiceByName(const char*);
     Service *GetServiceByName(const std::string&);
     Service *GetServiceById(int64_t);
     Service *GetServiceForWorker(const Worker*);
-    Service::State GetServiceState(const Service*);
 
     /* Вернуть экземпляр Обработчика из БД. Не найден - вернуть NULL */
     Worker *GetWorkerByIdent(const char*);
@@ -79,7 +81,7 @@ class XDBDatabaseBroker : public XDBDatabase
     Service *RequireServiceByName(const std::string&);
 
     /* Выбрать свободного Обработчика и удалить его из спула своего Сервиса */
-    Worker  *PopWorker(const char*);
+    Worker  *PopWorker(const std::string&);
     Worker  *PopWorker(Service*);
 
     /* Очистить спул Обработчиков указанного Сервиса */
@@ -89,7 +91,9 @@ class XDBDatabaseBroker : public XDBDatabase
     bool ClearServices();
 
     /* Получить первое ожидающее обработки Сообщение */
-    Letter* GetWaitingLetter(Service*, Worker*);
+    bool GetWaitingLetter(Service*, Worker*, std::string&, std::string&);
+    /* Установить новое состояние Обработчика */
+    bool SetWorkerState(Worker*, Worker::State);
 
     /* Разрешить исполнение Команды указанной Службе */
     void EnableServiceCommand (const std::string&, const std::string&);
@@ -103,6 +107,7 @@ class XDBDatabaseBroker : public XDBDatabase
     void MakeSnapshot(const char* = NULL);
 
   private:
+    DISALLOW_COPY_AND_ASSIGN(XDBDatabaseBroker);
     /* Ссылка на физическую реализацию интерфейса с БД */
     XDBDatabaseBrokerImpl *m_impl;
 };

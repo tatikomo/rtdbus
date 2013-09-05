@@ -53,7 +53,7 @@ class ServiceListImpl : public  ServiceList
     bool refresh();
 
   private:
-    ServiceListImpl();
+    DISALLOW_COPY_AND_ASSIGN(ServiceListImpl);
     int       m_current_index;
     mco_db_h  m_db;
     // Список прочитанных из БД Сервисов
@@ -86,15 +86,23 @@ class XDBDatabaseBrokerImpl
     Worker* PushWorkerForService(const std::string&, const std::string&);
     /* поместить Обработчик в спул своего Сервиса */
     bool PushWorker(Worker*);
+    /* Установить новое состояние Обработчику */
+    bool SetWorkerState(Worker*, Worker::State);
     /* получить признак существования данного экземпляра Сервиса в БД */
     bool     IsServiceExist(const char*);
     /* получить доступ к текущему списку Сервисов */ 
     ServiceList* GetServiceList();
+    /* Получить первое ожидающее обработки Сообщение */
+    bool GetWaitingLetter(/* IN */ Service* srv,
+        /* IN */  Worker* wrk,
+        /* OUT */ std::string& header,
+        /* OUT */ std::string& body);
+
 
     bool IsServiceCommandEnabled(const Service*, const std::string&);
 
     /* поместить сообщение во входящую очередь Службы */
-    bool PushRequestToService(Service*, Letter*);
+    bool PushRequestToService(Service*, const std::string&, const std::string&);
 
     /* Вернуть экземпляр Сервиса. Если он не существует в БД - создать */
     Service *RequireServiceByName(const char*);
@@ -108,13 +116,11 @@ class XDBDatabaseBrokerImpl
     Service *GetServiceByName(const std::string&);
     Service *GetServiceById(int64_t _id);
     Service *GetServiceForWorker(const Worker*);
-    // Вернуть текущее состояние Сервиса
-    Service::State GetServiceState(const Service*);
 
-    Worker *GetWorker(const Service*);
-    Worker *PopWorker(const char*);
+//    Worker *GetWorker(const Service*);
+//    Worker *PopWorker(const char*);
     Worker *PopWorker(const std::string&);
-    Worker *PopWorker(Service*);
+    Worker *PopWorker(const Service*);
 
     bool ClearWorkersForService(const char*);
     bool ClearWorkersForService(const std::string&);
@@ -130,6 +136,7 @@ class XDBDatabaseBrokerImpl
     void MakeSnapshot(const char*);
 
   private:
+    DISALLOW_COPY_AND_ASSIGN(XDBDatabaseBrokerImpl);
 #if defined DEBUG
     char  m_snapshot_file_prefix[10];
     bool  m_initialized;
@@ -147,7 +154,7 @@ class XDBDatabaseBrokerImpl
     mco_device_t      m_dev;
 #  if USE_EXTREMEDB_HTTP_SERVER  
     /*
-     * HttpServer
+     * Internal HttpServer http://localhost:8082/
      */
     mco_metadict_header_t *m_metadict;
     mcohv_p                m_hv;
@@ -176,26 +183,24 @@ class XDBDatabaseBrokerImpl
                          xdb_broker::XDBService&);
 
     /* 
-     * Вернуть Worker, построенный на основе прочитанных из БД данных
+     * Вернуть новый Worker, построенный на основе прочитанных из БД данных
      * autoid_t - идентификатор Сервиса, содержащий данный Обработчик
      */
-    Worker* LoadWorker(mco_trans_h,
-                       autoid_t&,
+    MCO_RET LoadWorker(mco_trans_h,
                        xdb_broker::XDBWorker&,
-                       uint16_t);
+                       Worker*&);
 
     /*
-     * Поиск в спуле данного Сервиса индекса Обработчика,
-     * находящегося в состоянии state. 
-     * Возвращает индекс найденного Обработчика, или -1
+     * Поиск Обработчика, находящегося в заданном состоянии. 
+     * Возвращает статус поиска и экземпляр найденного Обработчика
      */
-    uint2 LocatingFirstOccurence(xdb_broker::XDBService &service_instance,
-                       WorkerState            state);
+    Worker* GetWorkerByState(autoid_t& service_id,
+                       WorkerState);
 
     /*
      * Прочитать состояние Обработчика по значению его identity
      */
-    MCO_RET LoadWorkerByIdent(mco_trans_h, Service*, Worker*);
+    //MCO_RET LoadWorkerByIdent(mco_trans_h, autoid_t&, Worker*);
 
 #ifdef DISK_DATABASE
     char* m_dbsFileName;

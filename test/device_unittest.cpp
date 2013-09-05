@@ -1,6 +1,7 @@
 #include <string>
 #include "gtest/gtest.h"
 #include "glog/logging.h"
+#include <google/protobuf/stubs/common.h>
 
 #include "helper.hpp"
 #include "zmsg.hpp"
@@ -9,11 +10,16 @@
 #include "mdp_worker_api.hpp"
 #include "mdp_client_async_api.hpp"
 #include "xdb_database_worker.hpp"
+#include "xdb_database_broker.hpp"
 #include "xdb_database_service.hpp"
 
 #include "proxy.hpp"
 #include "wdigger.hpp"
 #include "trader.hpp"
+
+// Определения пользовательских сообщений и их сериализованных структур
+#include "msg_common.h"
+#include "proto/common.pb.h"
 
 Broker *broker = NULL;
 std::string service_name_1 = "NYSE";
@@ -22,13 +28,55 @@ std::string unbelievable_service_name = "unbelievable_service";
 std::string worker_identity_1 = "@W000000001";
 std::string worker_identity_2 = "@W000000002";
 std::string worker_identity_3 = "@W000000003";
+std::string client_identity_1 = "@C000000001";
+
+XDBDatabaseBroker *database = NULL;
 
 const char *attributes_connection_to_broker = "tcp://localhost:5555";
 Service *service1 = NULL;
 Service *service2 = NULL;
+Worker  *worker = NULL;
 int64_t service1_id;
 int64_t service2_id;
 
+void PrintWorker(Worker*);
+
+void PrintWorker(Worker* worker)
+{
+  if (!worker)
+    return;
+  std::cout << worker->GetID()<<":"<<worker->GetIDENTITY()
+    <<"/"<<worker->GetSTATE()<<"/"<<worker->Expired()<<std::endl;
+
+}
+
+void purge_workers()
+{
+  ServiceList  *sl = broker->get_internal_db_api()->GetServiceList();
+  Service      *service = sl->first();
+  Worker       *wrk = NULL;
+
+  broker->database_snapshot("PURGE_WORKERS");
+  while(NULL != service)
+  {
+    /* Пройти по списку Сервисов */
+    /*while (NULL != (*/wrk = broker->get_internal_db_api()->PopWorker(service);/*))*/
+    if (wrk)
+    {
+        LOG(INFO) <<service->GetID()<<":"<<service->GetNAME()<<" => "<<wrk->GetIDENTITY();
+        if (wrk->Expired ()) 
+        {
+          LOG(INFO) << "Deleting expired worker: " << wrk->GetIDENTITY();
+          broker->worker_delete (wrk, 0); // Обработчик не подавал признаков жизни
+        }
+        else delete wrk; // Обработчик жив, просто освободить память
+    }
+    service = sl->next();
+  }
+  broker->database_snapshot("PURGE_WORKERS");
+}
+
+////////////////////////////////////////////////////////////////////////////////
 TEST(TestUUID, ENCODE)
 {
   unsigned char binary_ident[5];
@@ -48,6 +96,7 @@ TEST(TestUUID, ENCODE)
   delete[] uncoded_ident;
 }
 
+////////////////////////////////////////////////////////////////////////////////
 TEST(TestUUID, DECODE)
 {
   unsigned char binary_ident[5];
@@ -72,15 +121,25 @@ TEST(TestUUID, DECODE)
   delete[] uncoded_ident;
 }
 
+////////////////////////////////////////////////////////////////////////////////
 TEST(TestHelper, CLOCK)
 {
   timer_mark_t now_time;
+  timer_mark_t now_plus_time;
   timer_mark_t future_time;
   int ret;
   int64_t before = s_clock();
+  // Проверка "просроченности" данных об Обработчике
+  Worker* worker = new Worker();
+  ASSERT_TRUE(worker);
 
   ret = GetTimerValue(now_time);
   EXPECT_TRUE(ret == 1);
+
+  memcpy(&now_plus_time, &now_time, sizeof(timer_mark_t));
+  now_plus_time.tv_nsec = 1000000;
+  worker->SetEXPIRATION(now_plus_time);
+  EXPECT_TRUE(worker->Expired() == false);
 
   usleep (500000);
 
@@ -95,8 +154,14 @@ TEST(TestHelper, CLOCK)
   EXPECT_TRUE (1 >= (future_time.tv_sec - now_time.tv_sec));
   // 1млрд = одна секунда, добавим 100тыс (1 мсек) для погрешности.
   EXPECT_TRUE (100000 > (future_time.tv_nsec - now_time.tv_nsec - 500000000));
+
+  usleep(500000);
+
+  EXPECT_TRUE(worker->Expired() == true);
+  delete worker;
 }
 
+////////////////////////////////////////////////////////////////////////////////
 TEST(TestProxy, RUNTIME_VERSION)
 {
   bool status = false;
@@ -118,12 +183,6 @@ TEST(TestProxy, RUNTIME_VERSION)
  * Проверить следующие методы класса Broker()
  */
 #if 0
-   void bind (const std::string& endpoint);
-
-   //  ---------------------------------------------------------------------
-   //  Delete any idle workers that haven't pinged us in a while.
-   void purge_workers ();
-
    // Регистрировать новый экземпляр Обработчика для Сервиса
    //  ---------------------------------------------------------------------
 +  Worker * worker_register(const std::string&, const std::string&);
@@ -132,11 +191,9 @@ TEST(TestProxy, RUNTIME_VERSION)
    //  Locate or create new service entry
 +  Service * service_require (const std::string& name);
 
-   zmq::socket_t& get_socket() { return *m_socket; };
-
    //  ---------------------------------------------------------------------
    //  Dispatch requests to waiting workers as possible
-   void service_dispatch (Service *srv/*, zmsg *msg*/);
++  void service_dispatch (Service *srv/*, zmsg *msg*/);
 
    //  ---------------------------------------------------------------------
    //  Handle internal service according to 8/MMI specification
@@ -150,7 +207,6 @@ TEST(TestProxy, RUNTIME_VERSION)
    //  Deletes worker from all data structures, and destroys worker
 +  void worker_delete (Worker *&wrk, int disconnect);
 
-
    //  ---------------------------------------------------------------------
    //  Processes one READY, REPORT, HEARTBEAT or  DISCONNECT message 
    //  sent to the broker by a worker
@@ -162,24 +218,18 @@ TEST(TestProxy, RUNTIME_VERSION)
    void worker_send (Worker*, const char*, const std::string&, zmsg *msg);
    void worker_send (Worker*, const char*, const std::string&, Letter*);
 
-
    //  ---------------------------------------------------------------------
    //  This worker is now waiting for work
    void worker_waiting (Worker *worker);
 
-
    //  ---------------------------------------------------------------------
    //  Process a request coming from a client
    void client_msg (const std::string& sender, zmsg *msg);
-
-   //  Get and process messages forever or until interrupted
-   void start_brokering();
-
-   void database_snapshot(const char*);
 #endif
 /*
  * Конец списка проверяемых методов класса Broker
  */
+
 
 /*
  * Рабочий цикл клиентской программы TRADER
@@ -326,6 +376,7 @@ broker_task (void *args)
   pthread_exit(NULL);
 }
 
+////////////////////////////////////////////////////////////////////////////////
 /*
  * Этот тест используется для проверки внутренних методов класса Broker;
  * Все функциональные тесты проверяются с экземпляром, созданным в треде broker_task;
@@ -336,7 +387,7 @@ TEST(TestProxy, BROKER_INTERNAL)
   Worker *wrk = NULL;
   bool status = false;
 
-  broker = new Broker(1); // be verbose
+  broker = new Broker(true); // be verbose
   ASSERT_TRUE (broker != NULL);
   /*
    * NB: "tcp://lo:5555" использует локальный интерфейс, 
@@ -376,13 +427,188 @@ TEST(TestProxy, BROKER_INTERNAL)
 
   /*
    * Обработчик wrk будет удален внутри функции
-   * Он останется в БД, но его состояние сменится с ARMED(1) на (0)
+   * Он останется в БД, но его состояние сменится с ARMED(1) на DISARMED(0)
    * Для проверки следует сравнить срезы БД до и после функции worker_delete
    */
   broker->worker_delete(wrk, 0);
   broker->database_snapshot("BROKER_INTERNAL");
 
-  delete service1;
+  wrk = broker->worker_require(worker_identity_1);
+  ASSERT_TRUE(wrk != NULL); /* Обработчик зарегистрирован, не активирован */
+  EXPECT_EQ(wrk->GetSTATE(), Worker::DISARMED);
+
+  broker->get_internal_db_api()->SetWorkerState(wrk, Worker::ARMED);
+  EXPECT_EQ(wrk->GetSTATE(), Worker::ARMED);
+  PrintWorker(wrk);
+  delete wrk;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+/*
+ * Проверить поступление сообщений от Клиентов
+ *
+ * Структура сообщений от Клиента:
+ * [011] Идентификатор Клиента
+ * [000]
+ * [006] MDPC0X
+ * [0XX] Имя Сервиса
+ * [0XX] Сериализованный заголовок
+ * [XXX] Сериализованное тело сообщения
+*/
+#if 1
+TEST(TestProxy, CLIENT_MESSAGE)
+{
+  zmsg*             msg = NULL;
+  RTDBM::Header     pb_header;
+  RTDBM::ExecResult pb_exec_result_request;
+  std::string       pb_serialized_header;
+  std::string       pb_serialized_request;
+
+  pb_header.set_protocol_version(1);
+  pb_header.set_exchange_id(9999999);
+  pb_header.set_source_pid(9999);
+  pb_header.set_proc_dest("В чащах юга жил-был Цитрус?");
+  pb_header.set_proc_origin("Да! Но фальшивый экземпляр.");
+  pb_header.set_sys_msg_type(100);
+  pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
+
+  pb_exec_result_request.set_user_exchange_id(9999999);
+  pb_exec_result_request.set_exec_result(23145);
+  pb_exec_result_request.set_failure_cause(5);
+
+  pb_header.SerializeToString(&pb_serialized_header);
+  pb_exec_result_request.SerializeToString(&pb_serialized_request);
+
+  msg = new zmsg();
+  ASSERT_TRUE(msg);
+
+  msg->push_front(pb_serialized_request);
+  msg->push_front(pb_serialized_header);
+  msg->push_front(service_name_1);
+
+  // msg удаляется внутри
+  broker->client_msg(client_identity_1, msg);
+  broker->database_snapshot("CLIENT_MESSAGE");
+}
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+TEST(TestProxy, WAITING_LETTER)
+{
+  int processed_messages_count = 0;
+  std::string header;
+  std::string message_body;
+  ServiceList  *sl = broker->get_internal_db_api()->GetServiceList();
+  Service      *service = sl->first();
+  Worker       *wrk = NULL;
+
+  broker->database_snapshot("WAITING_LETTER");
+  while(NULL != service)
+  {
+
+    while (NULL != (wrk = broker->get_internal_db_api()->PopWorker(service)))
+    {
+      LOG(INFO) << "Pop worker '"<<wrk->GetIDENTITY()<<"' with state "<<wrk->GetSTATE();
+      while (broker->get_internal_db_api()->GetWaitingLetter(service, wrk, header, message_body))
+      {
+        // Передать ожидающую обслуживания команду выбранному Обработчику
+        broker->worker_send (wrk, (char*)MDPW_REQUEST, EMPTY_FRAME, header, message_body);
+        // установить статус OCCUPIED данному Обработчику
+        broker->get_internal_db_api()->SetWorkerState(wrk, Worker::OCCUPED);
+        processed_messages_count++;
+      }
+      delete wrk;
+      break;
+    }
+    service = sl->next();
+  }
+  EXPECT_EQ(processed_messages_count, 1);
+  broker->database_snapshot("WAITING_LETTER");
+}
+
+////////////////////////////////////////////////////////////////////////////////
+TEST(TestProxy, PURGE_WORKERS)
+{
+  Worker       *wrk = NULL;
+  timer_mark_t mark = { 0, 0 };
+
+  broker->database_snapshot("PURGE_WORKERS");
+
+  // Добавить Сервису второго Обработчика
+  wrk = broker->worker_register(service_name_1, worker_identity_2);
+  ASSERT_TRUE(wrk != NULL);
+
+  // Обработчик успешно зарегистрирован.
+  // Теперь в базе должно быть два Обработчика:
+  // worker_identity_1(DISARMED) и worker_identity_2(ARMED)
+  purge_workers();
+  // На выходе не должно быть удаленных Обработчиков
+
+
+  // Установить срок годности Обработчика wrk "в прошлое"
+  // и повторить проверку. На этот раз один обработчик д.б. удален
+  wrk->SetEXPIRATION(mark);
+  delete wrk;
+  purge_workers();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/*
+ * Проверить передачу Клиентсткого сообщения Обработчику
+ * У клиенсткого cообщения, отправляемого Брокером Обработчику, д.б. 4 фрейма:
+ * 1. идентификатор Клиента
+ * 2. пустой фрейм
+ * 3. сериализованный заголовок
+ * 4. сериализованное тело сообщения
+ */
+TEST(TestProxy, SERVICE_DISPATCH)
+{
+  zmsg*             msg = NULL;
+  RTDBM::Header     pb_header;
+  RTDBM::ExecResult pb_exec_result_request;
+  std::string       pb_serialized_header;
+  std::string       pb_serialized_request;
+
+  // Зарегистрировать нового Обработчика worker_identity_1 для service_name_1
+  worker = broker->worker_register(service_name_1, worker_identity_1);
+  ASSERT_TRUE(worker != NULL);
+  broker->database_snapshot("SERVICE_DISPATCH");
+
+  pb_header.set_protocol_version(1);
+  pb_header.set_exchange_id(9999999);
+  pb_header.set_source_pid(9999);
+  pb_header.set_proc_dest("В чащах юга жил-был Цитрус?");
+  pb_header.set_proc_origin("Да! Но фальшивый экземпляр.");
+  pb_header.set_sys_msg_type(100);
+  pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
+
+  pb_exec_result_request.set_user_exchange_id(9999999);
+  pb_exec_result_request.set_exec_result(23145);
+  pb_exec_result_request.set_failure_cause(5);
+
+  pb_header.SerializeToString(&pb_serialized_header);
+  pb_exec_result_request.SerializeToString(&pb_serialized_request);
+
+  msg = new zmsg();
+  ASSERT_TRUE(msg);
+
+  msg->push_front(pb_serialized_request);
+  msg->push_front(pb_serialized_header);
+
+  broker->database_snapshot("SERVICE_DISPATCH");
+  // service1 удаляется внутри
+  broker->service_dispatch(service1, msg);
+ // delete service1;
+  broker->database_snapshot("SERVICE_DISPATCH");
+
+  delete msg;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+TEST(TestProxy, BROKER_DELETE)
+{
   delete broker;
 }
 
@@ -417,10 +643,14 @@ TEST(TestProxy, BROKER_RUNTIME)
 }
 #endif
 
+////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv)
 {
-  google::InitGoogleLogging(argv[0]);
-  testing::InitGoogleTest(&argc, argv);
-
-  return RUN_ALL_TESTS();
+  ::testing::InitGoogleTest(&argc, argv);
+  ::google::InstallFailureSignalHandler();
+  ::google::InitGoogleLogging(argv[0]);
+  int retval = RUN_ALL_TESTS();
+  ::google::protobuf::ShutdownProtobufLibrary();
+  ::google::ShutdownGoogleLogging();
+  return retval;
 }

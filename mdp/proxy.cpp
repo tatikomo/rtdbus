@@ -151,7 +151,7 @@ process_server (
 //  then processes messages on the broker socket.
 int main (int argc, char *argv [])
 {
-    int verbose = (argc > 1 && (0 == strncmp(argv [1], "-v", 3)));
+    bool verbose = (argc > 1 && (0 == strncmp(argv [1], "-v", 3)));
     std::string sender;
     std::string empty;
     std::string header;

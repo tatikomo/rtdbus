@@ -6,39 +6,28 @@
 #include "helper.hpp"
 #include "zmsg.hpp"
 #include "mdp_common.h"
-#include "msg/msg_letter.hpp"
+#include "msg_payload.hpp"
+#include "msg_message.hpp"
 #include "proto/common.pb.h"
 
-char *service_name_1 = "service_name_1";
-char *worker_identity_1 = "@W0000001";
+std::string        service_name_1 = "service_name_1";
+std::string        pb_serialized_header;
+std::string        pb_serialized_request;
+RTDBM::Header      pb_header;
+RTDBM::ExecResult  pb_exec_result_request;
+Payload           *payload = NULL;
+zmsg              *msg = NULL;
 
-TEST(TestLetter, CREATE)
+TEST(TestMessageFactory, CREATE)
 {
-  zmsg *msg = new zmsg();
-/*
-Эмуляция запроса Клиента Службе NYSE - "купить 2000 за 800"
-[000] 
-[006] MDPC0X
-[004] NYSE
-[003] BUY
-[004] 2000
-[003] 800
-*/
-  msg->push_front("800");
-  msg->push_front("2000");
-  msg->push_front("BUY");
-  msg->push_front(service_name_1);
-  msg->push_front((char*)MDPC_CLIENT);
-  msg->push_front(const_cast<char*>(EMPTY_FRAME));
+  RTDBM::ExecResult  *pb_request_exec_result = NULL;
+  pb_request_exec_result = static_cast<RTDBM::ExecResult*>(RTDBUS_MessageFactory::create(ADG_D_MSG_EXECRESULT));
+  ASSERT_TRUE(pb_request_exec_result != NULL);
 
-  Letter *letter = new Letter(msg);
-
-  ASSERT_TRUE(letter != NULL);
-  std::cout << "Sender: " << letter->sender() << std::endl;
-  std::cout << "Receiver: " << letter->receiver() << std::endl;
-  std::cout << "Service: " << letter->service_name() << std::endl;
-
-  delete letter;
+  pb_request_exec_result->set_user_exchange_id(99999);
+  pb_request_exec_result->set_exec_result(99);
+  pb_request_exec_result->set_failure_cause(1);
+  delete pb_request_exec_result;
 }
 
 TEST(TestProtobuf, VERSION)
@@ -46,62 +35,114 @@ TEST(TestProtobuf, VERSION)
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 }
 
-TEST(TestProtobuf, CREATE)
+/*
+ * Создает экземпляр zmsg, содержащий нагрузку из 
+ * заголовка и структуры ExecResult
+ * NB: после использования необходимо удалить msg
+ */
+TEST(TestProtobuf, EXEC_RESULT)
 {
-  CommonRequest pb_request;
-  CommonRequest pb_responce_1;
-  int         field_1_int32_A,  field_1_int32_B;
-  std::string field_2_string_A, field_2_string_B;
-  int         field_3_int32_A,  field_3_int32_B;
-  CommonRequest pb_responce_2;
+  pb_header.set_protocol_version(1);
+  pb_header.set_exchange_id(9999999);
+  pb_header.set_source_pid(9999);
+  pb_header.set_proc_dest("В чащах юга жил-был Цитрус?");
+  pb_header.set_proc_origin("Да! Но фальшивый экземпляр.");
+  pb_header.set_sys_msg_type(100);
+  pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
 
-  pb_request.set_field_1_int32(0);
-  pb_request.set_field_2_string("Фуу");
-  pb_request.set_field_3_int32(0);
+  pb_exec_result_request.set_user_exchange_id(9999999);
+  pb_exec_result_request.set_exec_result(23145);
+  pb_exec_result_request.set_failure_cause(5);
 
-  // serialize the request to a string
-  std::string pb_serialized;
-  pb_request.SerializeToString(&pb_serialized);
+  pb_header.SerializeToString(&pb_serialized_header);
+  pb_exec_result_request.SerializeToString(&pb_serialized_request);
 
-  // Сравнить по-разному восстановленные структуры
-  // A. Восстановление штатными средствами protobuf
-  // B. Восстановление средствами protobuf из экземпляра zmsg
-  zmsg *msg = new zmsg();
-  msg->push_front(pb_serialized);
-  Letter *letter = new Letter(msg);
+  msg = new zmsg();
+  ASSERT_TRUE(msg);
 
-  // (A)
-  pb_responce_1.ParseFromString(pb_serialized);
-  field_1_int32_A  = pb_responce_1.field_1_int32();
-  field_2_string_A = pb_responce_1.field_2_string();
-  field_3_int32_A  = pb_responce_1.field_3_int32();
+  msg->push_front(pb_serialized_request);
+  msg->push_front(pb_serialized_header);
+  msg->dump();
+}
+
 /*
-  std::cout << req_nb_1 << std::endl;
-  std::cout << req_id_1 << std::endl;
-  std::cout << req_ident_1 << std::endl;
-*/
-  std::string fuu = msg->pop_front();
-  // (B)
-  pb_responce_2.ParseFromString(fuu);
+ * Создать экземпляр Payload на основе zmsg и сравнить 
+ * восстановленные на его основе данные с образцом
+ */
+TEST(TestPayload, CREATE_FROM_MSG)
+{
+  std::string serialized_header;
+  std::string serialized_request;
 
-  field_1_int32_B  = pb_responce_2.field_1_int32();
-  field_2_string_B = pb_responce_2.field_2_string();
-  field_3_int32_B  = pb_responce_2.field_3_int32();
-/*
-  std::cout << req_nb_2 << std::endl;
-  std::cout << req_id_2 << std::endl;
-  std::cout << req_ident_2 << std::endl;
-*/
-  EXPECT_EQ(field_1_int32_A,  field_1_int32_B);
-  EXPECT_EQ(field_2_string_A, field_2_string_B);
-  EXPECT_EQ(field_3_int32_A,  field_3_int32_B);
+  try
+  {
+    payload = new Payload(msg);
+    ASSERT_TRUE(payload != NULL);
+
+    serialized_header = payload->header();
+    serialized_request= payload->data();
+
+    EXPECT_EQ(serialized_header,  pb_serialized_header);
+    EXPECT_EQ(serialized_request, pb_serialized_request);
+  }
+  catch(...)
+  {
+    LOG(ERROR) << "Unable to create payload";
+  }
+}
+
+TEST(TestPayload, ACCESS)
+{
+  RTDBM::ExecResult exec_result;
+  RTDBUS_MessageHeader* header = new RTDBUS_MessageHeader(payload->header());
+  ASSERT_TRUE(header);
+
+  exec_result.ParseFromString(payload->data());
+
+  EXPECT_EQ(pb_header.protocol_version(),            header->get_protocol_version());
+  EXPECT_EQ((rtdbExchangeId)pb_header.exchange_id(), header->get_exchange_id());
+  EXPECT_EQ((rtdbPid)pb_header.source_pid(),         header->get_source_pid());
+  EXPECT_EQ(pb_header.proc_dest(),        header->get_proc_dest());
+  EXPECT_EQ(pb_header.proc_origin(),      header->get_proc_origin());
+  EXPECT_EQ(pb_header.sys_msg_type(),     header->get_sys_msg_type());
+  EXPECT_EQ(pb_header.usr_msg_type(),     header->get_usr_msg_type());
+
+  EXPECT_EQ(pb_exec_result_request.user_exchange_id(), exec_result.user_exchange_id());
+  EXPECT_EQ(pb_exec_result_request.exec_result(),      exec_result.exec_result());
+  EXPECT_EQ(pb_exec_result_request.failure_cause(),    exec_result.failure_cause());
+
+#if 0
+  std::cout << "HEADER --------------------------- " << std::endl;
+  std::cout << "Protocol version: " << (int) header->get_protocol_version() << std::endl;
+  std::cout << "Exchange ID: "      << header->get_exchange_id() << std::endl;
+  std::cout << "Source pid:"        << header->get_source_pid() << std::endl;
+  std::cout << "Destination: "      << header->get_proc_dest() << std::endl;
+  std::cout << "Originator: "       << header->get_proc_origin() << std::endl;
+  std::cout << "Msg system type: "  << header->get_sys_msg_type() << std::endl;
+  std::cout << "Usr system type: "  << header->get_usr_msg_type() << std::endl;
+  
+  std::cout << "MESSAGE --------------------------- " << std::endl;
+  std::cout << "User exchange ID: "   << exec_result.user_exchange_id() << std::endl;
+  std::cout << "Execution result: "   << exec_result.exec_result() << std::endl;
+  std::cout << "User failure cause: " << exec_result.failure_cause() << std::endl;
+#endif
+  delete header;
+}
+
+TEST(TespPayload, DELETE)
+{
+  delete msg;
+  delete payload;
 }
 
 int main(int argc, char** argv)
 {
-  google::InitGoogleLogging(argv[0]);
-  testing::InitGoogleTest(&argc, argv);
-
-  return RUN_ALL_TESTS();
+  ::testing::InitGoogleTest(&argc, argv);
+  ::google::InstallFailureSignalHandler();
+  ::google::InitGoogleLogging(argv[0]);
+  int retval = RUN_ALL_TESTS();
+  ::google::protobuf::ShutdownProtobufLibrary();
+  ::google::ShutdownGoogleLogging();
+  return retval;
 }
 

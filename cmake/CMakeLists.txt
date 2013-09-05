@@ -4,7 +4,7 @@ project(RTDBUS CXX C)
 
 set (RTDBUS_MAJOR_VERSION "0")
 set (RTDBUS_MINOR_VERSION "0")
-set (RTDBUS_MICRO_VERSION "1")
+set (RTDBUS_MICRO_VERSION "2")
 set (RTDBUS_VERSION ${RTDBUS_MAJOR_VERSION}.${RTDBUS_MINOR_VERSION}.${RTDBUS_MICRO_VERSION})
 set (RTDBUS_VERSION_STRING "${RTDBUS_VERSION}")
 
@@ -63,6 +63,7 @@ include_directories(${CMAKE_SOURCE_DIR}/.. ${CMAKE_BINARY_DIR} ${CMAKE_INCLUDE_P
 
 # linker search directories
 link_directories(${RTDBUS_LIB_DIR} ${LIBRARY_OUTPUT_PATH})
+link_directories(${CMAKE_SOURCE_DIR}/../cmake/lib)
 
 #set(RTDBUS_INCLUDES )
 
@@ -108,12 +109,16 @@ set(TOOLS_LIBRARY_NAME       rtdb_helper)
 OPTION(RTDBUS_BUILD_TESTS "enable unit test code" ON)
 # ограничение размера полей данных из схемы MCO
 set (MAX_SERVICES_ENTRY      400)
-set (MAX_WORKERS_ENTRY       MAX_SERVICES_ENTRY * WORKERS_SPOOL_SIZE)
+set (MAX_WORKERS_ENTRY       800) # WORKERS_SPOOL_SIZE * MAX_SERVICES_ENTRY
 set (SERVICE_NAME_MAXLEN      32)
 set (WORKER_IDENTITY_MAXLEN   11)
 set (DBNAME_MAXLEN            10)
 set (HEARTBEAT_PERIOD         10)
 set (WORKERS_SPOOL_SIZE        2)
+#set (USE_EXTREMEDB_HTTP_SERVER 1)
+
+OPTION (RTDBUS_USE_EXTREMEDB_HTTP_SERVER "enable internal http server"  OFF)
+OPTION (RTDBUS_USE_MSEC_IN_EXPIRATION    "enable nanoseconds comparing" OFF)
  
 if(RTDBUS_BUILD_TESTS)
     add_definitions(-DRTDBUS_BUILD_TESTS)
@@ -128,6 +133,7 @@ if (CMAKE_COMPILER_IS_GNUCC)
 #  add_definitions(-G)
   add_definitions(-m32)
   add_definitions(-Wall)
+#  add_definitions(-Wextra)
 else (CMAKE_COMPILER_IS_GNUCC)
   add_definitions(-xarch=v9)
   add_definitions(+w2)
@@ -185,6 +191,7 @@ message(STATUS "Protobuf:                 ${LIBPROTOBUF_LIBRARIES_DIR}\t${LIBPRO
 message(STATUS "eXtremeDB:                ${LIBEXTREMEDB_LIBRARIES_DIR}\t${LIBEXTREMEDB_LIBRARIES}")
 message(STATUS "glog:                     ${LIBGLOG_LIBRARIES_DIR}\t${LIBGLOG_LIBRARIES}")
 message(STATUS "Building unit tests:      ${RTDBUS_BUILD_TESTS}               ")
+message(STATUS "Building xdb http serv:   ${RTDBUS_USE_EXTREMEDB_HTTP_SERVER} ")
 message(STATUS "Building verbose mode:    ${RTDBUS_ENABLE_VERBOSE_MODE}       ")
 message(STATUS "Building w/o assertions:  ${RTDBUS_DISABLE_ASSERTS}           ")
 message(STATUS "Building w/o checks:      ${RTDBUS_DISABLE_CHECKS}            ")

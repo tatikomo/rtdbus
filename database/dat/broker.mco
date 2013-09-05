@@ -20,18 +20,35 @@ struct timer_mark {
   uint4 nsec;
 };
 
-struct XDBWorker
+/*
+ * обрабатываемые и ожидающие обработки сообщения находятся 
+ * в XDBLetter по ссылке на XDBService.
+ */
+class XDBWorker
 {
+  /* Автоинкрементный числовой идентификатор */
+  autoid[MAX_WORKERS_ENTRY];
   /* Строковый идентификатор Обработчика */
   identity_t identity;
   /* Состояние */
-  WorkerState state = DISARMED;
+  WorkerState state = ARMED;
   /* Время ожидания получения подтверждения "Я ЖИВ" */
   timer_mark expiration;
   /* ссылка на объект XDBLetter */
-  autoid_t   letter;
+  autoid_t   service_ref;
+  /* ссылка на объект XDBLetter */
+  autoid_t   letter_ref;
+  /* Поиск Обработчика по имени */
+  unique tree  <identity> SK_by_ident;
+  tree   <expiration.sec> SK_expiration;
+  // У одной Службы может быть несколько Обработчиков
+  tree      <service_ref> SK_by_serv_id;
 };
 
+/*
+ * Зарегистрированные Обработчики данного Сервиса находятся
+ * в XDBWorker по ссылке на XDBService.
+ */
 class XDBService
 {
   /* Автоинкрементный числовой идентификатор */
@@ -40,24 +57,13 @@ class XDBService
   service_name_t name;
   /* Текущее состояние */
   ServiceState state = UNKNOWN;
-
   /* Поиск Сервиса по имени */
   hash           <name> PK_name[MAX_SERVICES_ENTRY];
   /* Доступ ко всем зарегистрированным Сервисам */
   list;
-  event <checkpoint>   newService;
+  /*event <checkpoint>   newService;*/
+  event <new>   newService;
   event <delete>       delService;
-
-  /*
-   * обрабатываемые и ожидающие обработки сообщения находятся 
-   * в XDBLetter по ссылке на XDBService.
-   * Зарегистрированные Обработчики данного Сервиса находятся
-   * в XDBWorker по ссылке на XDBService.
-   */
-  vector <XDBWorker> workers;
-  tree   <workers.expiration.sec> SK_workers_expire;
-  /* Поиск Обработчика по имени */
-  unique tree <workers.identity> SK_ident;
 };
 
 enum ServiceState
@@ -65,14 +71,18 @@ enum ServiceState
   UNKNOWN, REGISTERED, DISABLED
 };
 
+/*
+Необходимо поддерживать аналогичный порядок и в заголовочном файле 
+класса Worker - database/xdb_database_worker.hpp 
+*/
 enum WorkerState
 {
-  DISARMED, ARMED, INIT, SHUTDOWN, IN_PROCESS, EXPIRED
+  DISARMED, ARMED, INIT, SHUTDOWN, OCCUPIED, EXPIRED
 };
 
 enum LetterState
 {
-   EMPTY, READY, DONE_OK, DONE_FAIL
+   EMPTY, UNASSIGNED, ASSIGNED, PROCESSING, DONE_OK, DONE_FAIL
 };
 
 /* Сообщение для Сервиса */
@@ -86,5 +96,8 @@ class XDBLetter
   timer_mark  expiration;
   unique tree <expiration.sec, service> PK_expire_for_service;
   unique tree <worker, service> SK_wrk_srv;
+  tree <service, state>  SK_by_state_for_serv;
+  string header;
+  string body;
 };
 

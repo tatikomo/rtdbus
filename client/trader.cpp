@@ -66,7 +66,7 @@ int main (int argc, char *argv [])
   {
       std::cout << "E: " << err.what() << std::endl;
   }
-  delete s_price;
+  delete[] s_price;
   delete client;
   return 0;
 }

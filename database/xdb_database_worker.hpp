@@ -29,7 +29,7 @@ class Worker
         ARMED       = 1,
         INIT        = 2,
         SHUTDOWN    = 3,
-        IN_PROCESS  = 4,
+        OCCUPED     = 4,
         EXPIRED     = 5
     };
 
@@ -38,24 +38,21 @@ class Worker
      * NB: размер поля данных идентификатора 
      * задан в структуре point_oid файла broker.mco
      */
-    Worker(const char *identity, const int64_t service_id);
+    Worker(const int64_t, const char*, const int64_t=0);
     ~Worker();
     void SetIDENTITY(const char*);
     void SetEXPIRATION(const timer_mark_t&);
+    void SetID(const int64_t);
     /*
      * Текущее состояние Обработчика
      */
     void SetSTATE(const State);
-    /*
-     * Номер в спуле своего Сервиса
-     */
-    void SetINDEX(const uint16_t&);
     void SetVALID();
     const timer_mark_t GetEXPIRATION();
     const State   GetSTATE();
-    const int64_t GetSERVICE_ID();
+    const int64_t GetSERVICE_ID() { return m_service_id; }
+    const int64_t GetID()         { return m_id; }
     const char   *GetIDENTITY();
-    const uint16_t GetINDEX();
     bool          Expired();
     /*
      * Определяет консистентность
@@ -66,14 +63,16 @@ class Worker
     bool          GetVALID();
 
   private:
+    // Нельзя менять привязку уже существующему серверу
+    void SetSERVICE_ID(int64_t);
+
+    int64_t  m_id;
     int64_t  m_service_id;
-    char    *m_identity;
-    uint16_t m_index_in_spool;
+    char     m_identity[WORKER_IDENTITY_MAXLEN + 1];
     bool     m_modified;
     State    m_state;
     timer_mark_t m_expiration;
 
-    void     SetSERVICE_ID(int64_t);
 };
 
 #endif

@@ -66,10 +66,19 @@ void zmsg::clear() {
 }
 
 void zmsg::set_part(size_t part_nbr, unsigned char *data) {
-    if (part_nbr < m_part_data.size() && part_nbr >= 0) {
+    if (part_nbr < m_part_data.size() /*&& part_nbr >= 0*/) {
         m_part_data[part_nbr] = (char*)data;
     }
 }
+
+const std::string& zmsg::get_part(size_t part_nbr) {
+    if (part_nbr < m_part_data.size() /*&& part_nbr >= 0*/) {
+        return m_part_data[part_nbr];
+    }
+    // TODO что возвращать, если индекс невалиден?
+    return m_part_data[0];
+}
+
 
 bool zmsg::recv(zmq::socket_t & socket) {
    int more;
@@ -305,11 +314,17 @@ void zmsg::wrap(const char *address, const char *delim) {
 }
 
 
-char * zmsg::unwrap() {
+char * zmsg::unwrap() 
+{
    if (m_part_data.size() == 0) {
       return NULL;
    }
-   char *addr = (char*)pop_front().c_str();
+
+   std::string addr_str = pop_front();
+   char *addr = new char[addr_str.size()+1];
+   memcpy(addr, addr_str.data(), addr_str.size());
+   addr[addr_str.size()] = '\0';
+
    if (address() && *address() == 0) {
       pop_front();
    }
@@ -321,24 +336,27 @@ char * zmsg::unwrap() {
 // TODO: содержит опасные трюки с указателями, необходимо переделать
 void zmsg::dump()
 {
-   char buf[255];
+   char buf[4000];
    int offset;
+   int is_text;
+   unsigned int char_nbr;
+   unsigned int part_nbr;
 
    LOG(INFO) << "--------------------------------------";
 
-   for (unsigned int part_nbr = 0; part_nbr < m_part_data.size(); part_nbr++) 
+   for (part_nbr = 0; part_nbr < m_part_data.size(); part_nbr++) 
    {
        std::string data = m_part_data [part_nbr];
+//       buf = new char[data.size()+1];
 
        // Dump the message as text or binary
-       int is_text = 1;
-       for (unsigned int char_nbr = 0; char_nbr < data.size(); char_nbr++)
+       is_text = 1;
+       for (char_nbr = 0; char_nbr < data.size(); char_nbr++)
            if (data [char_nbr] < 32 || data [char_nbr] > 127)
                is_text = 0;
 
-       sprintf(buf, "[%03d] ", (int) data.size());
-       offset = strlen(buf) - 1;
-       for (unsigned int char_nbr = 0; char_nbr < data.size(); char_nbr++)
+       offset = sprintf(buf, "[%03d] ", (int) data.size());
+       for (char_nbr = 0; char_nbr < data.size(); char_nbr++)
        {
            if (is_text) 
            {
@@ -352,6 +370,7 @@ void zmsg::dump()
        }
        buf[offset] = '\0';
        LOG(INFO) << buf;
+//       delete []buf;
    }
 }
 

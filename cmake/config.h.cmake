@@ -39,6 +39,7 @@
 #cmakedefine DBNAME_MAXLEN          @DBNAME_MAXLEN@
 #cmakedefine HEARTBEAT_PERIOD       @HEARTBEAT_PERIOD@
 #cmakedefine EXTREMEDB_VERSION      @EXTREMEDB_VERSION@
+#cmakedefine USE_EXTREMEDB_HTTP_SERVER  @USE_EXTREMEDB_HTTP_SERVER@
 
 
 // test binaries
@@ -61,6 +62,8 @@
 #cmakedefine RTDBUS_ENABLE_VERBOSE_MODE 1
 #cmakedefine RTDBUS_DISABLE_ASSERTS 1
 #cmakedefine RTDBUS_DISABLE_CHECKS 1
+#cmakedefine RTDBUS_USE_EXTREMEDB_HTTP_SERVER 1
+#cmakedefine RTDBUS_USE_MSEC_IN_EXPIRATION 1
 /* xmldocs */
 /* doxygen */
 #cmakedefine RTDBUS_GCOV_ENABLED 1
@@ -208,6 +211,12 @@
 // structs
 /* Define to 1 if you have struct cmsgred */
 #cmakedefine    HAVE_CMSGCRED 1
+
+// A macro to disallow the copy constructor and operator= functions
+// This should be used in the private: declarations for a class
+#define DISALLOW_COPY_AND_ASSIGN(TypeName) \
+  TypeName(const TypeName&);               \
+   void operator=(const TypeName&)
 
 // system type defines
 #if defined(_WIN32) || defined(_WIN64) || defined (_WIN32_WCE)

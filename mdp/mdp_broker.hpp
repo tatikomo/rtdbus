@@ -9,21 +9,21 @@
 #include <zmq.hpp>
 #include "zmsg.hpp"
 
+#include "config.h"
 #include "mdp_broker.hpp"
 
 class XDBDatabaseBroker;
 class Service;
 class Worker;
-class Letter;
+class Payload;
 
 //
 //  This defines a single broker
 class Broker {
  public:
-
    //  ---------------------------------------------------------------------
    //  Constructor for broker object
-   Broker (int verbose);
+   Broker (bool verbose);
 
    //  ---------------------------------------------------------------------
    //  Destructor for broker object
@@ -36,8 +36,9 @@ class Broker {
  */
 #if defined _FUNCTIONAL_TEST
    /* Инициализация внутренних структур, обычно вызывается из start_brokering() */
-   bool
-   Init();
+   bool Init();
+   /* Доступ для тестирования к интерфейсу базы данных */
+   XDBDatabaseBroker* get_internal_db_api() { return m_database; }
 #endif
 
    //  ---------------------------------------------------------------------
@@ -97,7 +98,9 @@ class Broker {
    void
    worker_send (Worker*, const char*, const std::string&, zmsg *msg);
    void
-   worker_send (Worker*, const char*, const std::string&, Letter*);
+   worker_send (Worker*, const char*, const std::string&, Payload*);
+   void
+   worker_send (Worker*, const char*, const std::string&, std::string&, std::string&);
 
 
    //  ---------------------------------------------------------------------
@@ -119,9 +122,11 @@ class Broker {
    database_snapshot(const char*);
 
  private:
+    DISALLOW_COPY_AND_ASSIGN(Broker);
+
     zmq::context_t  * m_context;               //  0MQ context
     zmq::socket_t   * m_socket;                //  Socket for clients & workers
-    int               m_verbose;               //  Print activity to stdout
+    bool              m_verbose;               //  Print activity to stdout
     std::string       m_endpoint;              //  Broker binds to this endpoint
     int64_t           m_heartbeat_at;          //  When to send HEARTBEAT
 //    std::map<std::string, Service*> m_services;//  Hash of known services
@@ -135,11 +140,9 @@ class Broker {
      */
     XDBDatabaseBroker *m_database;
 
-/* Нормальное состояние, когда Init вызывается только из методов класса */
 #if !defined _FUNCTIONAL_TEST
    /* Инициализация внутренних структур, вызывается из start_brokering() */
-   bool
-   Init();
+   bool Init();
 #endif
 };
 
