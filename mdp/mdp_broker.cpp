@@ -109,7 +109,7 @@ Broker::purge_workers ()
 {
   ServiceList   *sl = m_database->GetServiceList();
   Service       *service = sl->first();
-  Worker        *wrk;
+  Worker        *wrk1, *wrk2;
   int           srv_count;
   int           wrk_count;
 
@@ -117,6 +117,7 @@ Broker::purge_workers ()
   while(NULL != service)
   {
     wrk_count = 0;
+#if 0
     /* Пройти по списку Сервисов */
     while (NULL != (wrk = m_database->PopWorker(service)))
     {
@@ -132,6 +133,25 @@ Broker::purge_workers ()
         else delete wrk; // Обработчик жив, просто освободить память
         wrk_count++;
     }
+#else
+    wrk1 = m_database->PopWorker(service);
+    if (wrk1)
+    {
+      LOG(INFO)<<"A: "<<srv_count<<":"<<service->GetNAME()
+        <<" => "<<wrk_count<<":"<<wrk1->GetIDENTITY()
+        <<" expire: "<<wrk1->Expired();
+      worker_delete (wrk1, 0);
+    }
+    wrk2 = m_database->PopWorker(service);
+    if (wrk2)
+    {
+      LOG(INFO)<<"B: "<<srv_count<<":"<<service->GetNAME()
+        <<" => "<<wrk_count<<":"<<wrk2->GetIDENTITY()
+        <<" expire: "<<wrk2->Expired();
+      delete wrk2;
+    }
+
+#endif
     service = sl->next();
     srv_count++;
   }
@@ -305,10 +325,6 @@ Broker::worker_require (const std::string& identity)
     else
     {
        LOG(WARNING) << "Unable to find worker " << identity;
-/*       if (m_verbose)
-       {
-          LOG(INFO) << "Registering new worker instance:" << identity;
-       }*/
     }
 
     return instance;
@@ -377,7 +393,7 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
                 if (!worker_ready)
                 {
                   // Создать экземпляр Обработчика
-                  wrk = new Worker(sender_identity.c_str(), service->GetID());
+                  wrk = new Worker(service->GetID(), sender_identity.c_str());
                 }
 
                 // Привязать нового Обработчика к обслуживаемому им Сервису

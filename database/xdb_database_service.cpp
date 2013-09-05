@@ -55,7 +55,7 @@ void Service::SetNAME(const char *_name)
   m_modified = true;
 }
 
-const int64_t Service::GetID()
+int64_t Service::GetID()
 {
   return m_id;
 }

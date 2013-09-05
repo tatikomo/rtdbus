@@ -44,9 +44,14 @@ set (TEST_DEVICE_SOURCES
         ${XDB_DIR}/dat/xdb_broker.h
         ${XDB_DIR}/dat/xdb_broker.c
         ${XDB_DIR}/xdb_database_worker.hpp
+        ${XDB_DIR}/xdb_database_broker.hpp
+        ${XDB_DIR}/xdb_database_service.hpp
         ${MDP_DIR}/mdp_broker.hpp
         ${MDP_DIR}/mdp_broker.cpp
+        ${MDP_DIR}/mdp_worker_api.hpp
+        ${MDP_DIR}/mdp_client_async_api.hpp
         ${MDP_DIR}/proxy.hpp
+        ${MDP_DIR}/mdp_common.h
         ${MDP_DIR}/zmsg.hpp
         ${WORKER_DIR}/wdigger.cpp
         ${WORKER_DIR}/wdigger.hpp

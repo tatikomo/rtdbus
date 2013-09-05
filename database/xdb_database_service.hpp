@@ -36,7 +36,7 @@ class Service
     void SetNAME(const char*);
     void SetSTATE(State);
     void SetVALID();
-    const int64_t GetID();
+    int64_t GetID();
     const char   *GetNAME();
     State         GetSTATE();
     bool          GetVALID();

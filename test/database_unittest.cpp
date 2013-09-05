@@ -70,7 +70,7 @@ TEST(TestBrokerDATABASE, INSERT_SERVICE)
     service1_id = service1->GetID();
     // В пустой базе индексы начинаются с 1, поэтому у первого Сервиса id=1
     EXPECT_EQ(service1_id, 1);
-    LOG(INFO) << "Service "<<service1->GetNAME()<<" added with id="<<service1->GetID();
+    LOG(INFO) << "Service "<<service1->GetNAME()<<":"<<service1->GetID()<<" is added";
 
     /* Добавим второй Сервис */
     srv = database->AddService(service_name_2);
@@ -84,31 +84,36 @@ TEST(TestBrokerDATABASE, INSERT_SERVICE)
     ASSERT_TRUE (service2 != NULL);
     service2_id = service2->GetID();
     EXPECT_EQ(service2_id, 2);
-    LOG(INFO) << "Service "<<service2->GetNAME()<<" added with id="<<service2->GetID();
+    LOG(INFO) << "Service "<<service2->GetNAME()<<":"<<service2->GetID()<<" is added";
 
     database->MakeSnapshot("ONLY_SRV");
 }
 
 TEST(TestBrokerDATABASE, INSERT_WORKER)
 {
-    Worker  *worker  = NULL;
+    Worker  *worker0  = NULL;
+    Worker  *worker1_1= NULL;
+    Worker  *worker1_2= NULL;
+    Worker  *worker2  = NULL;
+    Worker  *worker3  = NULL;
     bool status;
 
-    worker = database->PopWorker(service1);
+    worker0 = database->PopWorker(service1);
     /* Обработчиков еще нет - worker д.б. = NULL */
-    EXPECT_TRUE (worker == NULL);
-    delete worker;
+    EXPECT_TRUE (worker0 == NULL);
+    delete worker0;
 
-    worker = new Worker(worker_identity_1, service1_id, service_name_1);
     /*
      * УСПЕШНО 
      * Поместить первого Обработчика в спул Службы
      */
-    status = database->PushWorker(worker);
+    worker1_1 = new Worker(service1_id, worker_identity_1);
+    status = database->PushWorker(worker1_1);
     EXPECT_EQ(status, true);
-    LOG(INFO) << "Worker "<<worker->GetIDENTITY()<<" added for service id="<<service1_id;
+    LOG(INFO) << "Worker "<<worker1_1->GetIDENTITY()<<":"<<worker1_1->GetID()
+              <<" is added for service id="<<service1_id;
     database->MakeSnapshot("INS_WRK_1_A");
-    delete worker;
+    EXPECT_NE(worker1_1->GetID(), 0);
     wait();
 
     /*
@@ -117,47 +122,45 @@ TEST(TestBrokerDATABASE, INSERT_WORKER)
      * присутствует.
      * Должно призойти замещение предыдущего экземпляра Обработчика worker_identity_1
      */
-    worker = new Worker(worker_identity_1, service1_id, service_name_1);
-    status = database->PushWorker(worker);
+    worker1_2 = new Worker(service1_id, worker_identity_1);
+    status = database->PushWorker(worker1_2);
     EXPECT_EQ(status, true);
-    LOG(INFO) << "Worker "<<worker->GetIDENTITY()<<" replaced for service id="<<service1_id;
+    LOG(INFO) << "Worker "<<worker1_2->GetIDENTITY()<<":"<<worker1_2->GetID()
+              <<" is added for service id="<<service1_id;
     database->MakeSnapshot("INS_WRK_1_B");
-    delete worker;
+    EXPECT_EQ(worker1_1->GetID(), worker1_2->GetID());
     wait();
 
     /* 
      * УСПЕШНО
-     * Можно поместить не более двух Обработчиков с разными идентификаторами
+     * Можно поместить нескольких Обработчиков с разными идентификаторами
      */
-    worker = new Worker(worker_identity_2, service1_id, service_name_1);
-    status = database->PushWorker(worker);
+    worker2 = new Worker(service1_id, worker_identity_2);
+    status = database->PushWorker(worker2);
     EXPECT_EQ(status, true);
-    LOG(INFO) << "Worker "<<worker->GetIDENTITY()<<" added for service id="<<service1_id;
+    LOG(INFO) << "Worker "<<worker2->GetIDENTITY()<<":"<<worker2->GetID()
+              << " is added for service id="<<service1_id;
     database->MakeSnapshot("INS_WRK_2");
-    delete worker;
+    EXPECT_NE(worker1_2->GetID(), worker2->GetID());
     wait();
-
-    /* 
-     * ОШИБКА
-     * Ошибка помещения третьего экземпляра в спул
-     */
-    worker = new Worker(worker_identity_3, service1_id, service_name_1);
-    status = database->PushWorker(worker);
-    EXPECT_EQ(status, false);
-    LOG(INFO) << "Worker "<<worker->GetIDENTITY()<<" not added for service id="<<service1_id;
-    delete worker;
 
     /* 
      * УСПЕШНО
      * Помещение экземпляра в спул второго Сервиса 
      */
-    worker = new Worker(worker_identity_3, service2_id);
-    status = database->PushWorker(worker);
+    worker3 = new Worker(service2_id, worker_identity_3);
+    status = database->PushWorker(worker3);
     EXPECT_EQ(status, true);
-    LOG(INFO) << "Worker "<<worker->GetIDENTITY()<<" added for service id="<<service2_id;
+    LOG(INFO) << "Worker "<<worker3->GetIDENTITY()<<":"<<worker3->GetID()
+              << " is added for service id="<<service2_id;
     database->MakeSnapshot("INS_WRK_3");
-    delete worker;
+    EXPECT_NE(worker2->GetID(),   worker3->GetID());
     wait();
+
+    delete worker1_1;
+    delete worker1_2;
+    delete worker2;
+    delete worker3;
 }
 
 TEST(TestBrokerDATABASE, REMOVE_WORKER)
@@ -168,69 +171,84 @@ TEST(TestBrokerDATABASE, REMOVE_WORKER)
 
     worker = database->PopWorker(service1);
     ASSERT_TRUE (worker != NULL);
-    EXPECT_STREQ(worker->GetIDENTITY(), worker_identity_1);
+    EXPECT_EQ(worker->GetSERVICE_ID(), service1_id);
+    EXPECT_EQ(worker->GetSTATE(), Worker::ARMED);
+    // Проверка пока не возможна, поскольку порядок возвращения экземпляров
+    // может не совпадать с порядком их помещения в базу
+    //EXPECT_STREQ(worker->GetIDENTITY(), worker_identity_2);
     expiration_time_mark = worker->GetEXPIRATION();
+#if 0
     std::cout << "worker: '" << worker->GetIDENTITY() << "' "
               << "state: " << worker->GetSTATE() << " "
               << "expiration: " 
               << expiration_time_mark.tv_sec << "."
               << expiration_time_mark.tv_nsec << std::endl;
+#endif
 
     database->MakeSnapshot("POP_WRK_1");
     wait();
 
     status = database->RemoveWorker(worker);
     EXPECT_EQ(status, true);
+    EXPECT_EQ(worker->GetSTATE(), Worker::DISARMED);
     LOG(INFO) << "Worker "<<worker->GetIDENTITY()<<" removed";
     database->MakeSnapshot("DIS_WRK_1");
     wait();
-
     delete worker;
 
     worker = database->PopWorker(service1);
     ASSERT_TRUE (worker != NULL);
-    EXPECT_STREQ(worker->GetIDENTITY(), worker_identity_2);
+    EXPECT_EQ(worker->GetSERVICE_ID(), service1_id);
+    EXPECT_EQ(worker->GetSTATE(), Worker::ARMED);
+    //EXPECT_STREQ(worker->GetIDENTITY(), worker_identity_1);
     expiration_time_mark = worker->GetEXPIRATION();
+#if 0
     std::cout << "worker: '" << worker->GetIDENTITY() << "' "
               << "state: " << worker->GetSTATE() << " "
               << "expiration: " 
               << expiration_time_mark.tv_sec << "."
               << expiration_time_mark.tv_nsec << std::endl;
+#endif
 
     database->MakeSnapshot("POP_WRK_2");
     wait();
 
     status = database->RemoveWorker(worker);
     EXPECT_EQ(status, true);
+    EXPECT_EQ(worker->GetSTATE(), Worker::DISARMED);
     LOG(INFO) << "Worker "<<worker->GetIDENTITY()<<" removed";
     database->MakeSnapshot("DIS_WRK_2");
     wait();
     delete worker;
     /*
      * У Сервиса-1 было зарегистрировано только два Обработчика,
-     * Третья попытка получения Обработчика из спула не должна
-     * ничего возвращать
+     * и они все только что были удалены RemoveWorker-ом.
+     * Эта попытка получения Обработчика из спула не должна ничего 
+     * возвращать, т.к. у Сервиса1 нет Обработчиков в состоянии ARMED
      */
     worker = database->PopWorker(service1);
     ASSERT_TRUE (worker == NULL);
+    delete worker;
 
     /*
      * Получить и деактивировать единственный у Сервиса-2 Обработчик
      */
     worker = database->PopWorker(service2);
     ASSERT_TRUE (worker != NULL);
+    EXPECT_EQ(worker->GetSERVICE_ID(), service2_id);
     EXPECT_EQ(worker->GetSTATE(), Worker::ARMED);
     database->MakeSnapshot("POP_WRK_3");
 
     status = database->RemoveWorker(worker);
     EXPECT_EQ(status, true);
+    EXPECT_EQ(worker->GetSTATE(), Worker::DISARMED);
     LOG(INFO) << "Worker "<<worker->GetIDENTITY()<<" removed";
     delete worker;
     database->MakeSnapshot("DIS_WRK_3");
     /*
      * У Сервиса-2 был зарегистрирован только один Обработчик,
      * Вторая попытка получения Обработчика из спула не должна
-     * ничего возвращать
+     * вернуть Обработчика, т.к. оставшиеся находятся в DISARMED
      */
     worker = database->PopWorker(service2);
     ASSERT_TRUE (worker == NULL);
@@ -260,7 +278,6 @@ TEST(TestBrokerDATABASE, CHECK_SERVICE)
 TEST(TestBrokerDATABASE, SERVICE_LIST)
 {
   bool status = false;
-//  Service** srv_array = NULL;
   Service*  srv = NULL;
   ServiceList *services_list = database->GetServiceList();
   ASSERT_TRUE (services_list != NULL);
@@ -339,9 +356,9 @@ TEST(TestBrokerDATABASE, DESTROY)
 
 int main(int argc, char** argv)
 {
+  ::google::InitGoogleLogging(argv[0]);
   ::testing::InitGoogleTest(&argc, argv);
   ::google::InstallFailureSignalHandler();
-  ::google::InitGoogleLogging(argv[0]);
   int retval = RUN_ALL_TESTS();
   ::google::ShutdownGoogleLogging();
   return retval;

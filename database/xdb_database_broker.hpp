@@ -81,7 +81,7 @@ class XDBDatabaseBroker : public XDBDatabase
     Service *RequireServiceByName(const std::string&);
 
     /* Выбрать свободного Обработчика и удалить его из спула своего Сервиса */
-    Worker  *PopWorker(const char*);
+    Worker  *PopWorker(const std::string&);
     Worker  *PopWorker(Service*);
 
     /* Очистить спул Обработчиков указанного Сервиса */

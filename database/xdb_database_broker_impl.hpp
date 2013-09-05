@@ -117,10 +117,10 @@ class XDBDatabaseBrokerImpl
     // Вернуть текущее состояние Сервиса
     Service::State GetServiceState(const Service*);
 
-    Worker *GetWorker(const Service*);
-    Worker *PopWorker(const char*);
+//    Worker *GetWorker(const Service*);
+//    Worker *PopWorker(const char*);
     Worker *PopWorker(const std::string&);
-    Worker *PopWorker(Service*);
+    Worker *PopWorker(const Service*);
 
     bool ClearWorkersForService(const char*);
     bool ClearWorkersForService(const std::string&);
@@ -154,7 +154,7 @@ class XDBDatabaseBrokerImpl
     mco_device_t      m_dev;
 #  if USE_EXTREMEDB_HTTP_SERVER  
     /*
-     * HttpServer
+     * Internal HttpServer http://localhost:8082/
      */
     mco_metadict_header_t *m_metadict;
     mcohv_p                m_hv;
@@ -183,27 +183,24 @@ class XDBDatabaseBrokerImpl
                          xdb_broker::XDBService&);
 
     /* 
-     * Вернуть Worker, построенный на основе прочитанных из БД данных
+     * Вернуть новый Worker, построенный на основе прочитанных из БД данных
      * autoid_t - идентификатор Сервиса, содержащий данный Обработчик
      */
-    Worker* LoadWorker(mco_trans_h,
-                       autoid_t&,
+    MCO_RET LoadWorker(mco_trans_h,
                        xdb_broker::XDBWorker&,
-                       uint16_t);
+                       Worker*&);
 
     /*
-     * Поиск в спуле данного Сервиса индекса Обработчика, находящегося 
-     * в заданном состоянии. 
-     * Возвращает статус поиска и индекс найденного Обработчика
+     * Поиск Обработчика, находящегося в заданном состоянии. 
+     * Возвращает статус поиска и экземпляр найденного Обработчика
      */
-    bool LocatingFirstWorkerIndexOccurence(xdb_broker::XDBService&,
-                       uint2&,
+    Worker* GetWorkerByState(autoid_t& service_id,
                        WorkerState);
 
     /*
      * Прочитать состояние Обработчика по значению его identity
      */
-    MCO_RET LoadWorkerByIdent(mco_trans_h, autoid_t&, Worker*);
+    //MCO_RET LoadWorkerByIdent(mco_trans_h, autoid_t&, Worker*);
 
 #ifdef DISK_DATABASE
     char* m_dbsFileName;

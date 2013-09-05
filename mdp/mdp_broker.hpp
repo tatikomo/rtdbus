@@ -36,8 +36,9 @@ class Broker {
  */
 #if defined _FUNCTIONAL_TEST
    /* Инициализация внутренних структур, обычно вызывается из start_brokering() */
-   bool
-   Init();
+   bool Init();
+   /* Доступ для тестирования к интерфейсу базы данных */
+   XDBDatabaseBroker* get_internal_db_api() { return m_database; }
 #endif
 
    //  ---------------------------------------------------------------------
@@ -139,11 +140,9 @@ class Broker {
      */
     XDBDatabaseBroker *m_database;
 
-/* Нормальное состояние, когда Init вызывается только из методов класса */
 #if !defined _FUNCTIONAL_TEST
    /* Инициализация внутренних структур, вызывается из start_brokering() */
-   bool
-   Init();
+   bool Init();
 #endif
 };
 

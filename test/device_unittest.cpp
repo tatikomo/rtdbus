@@ -10,6 +10,7 @@
 #include "mdp_worker_api.hpp"
 #include "mdp_client_async_api.hpp"
 #include "xdb_database_worker.hpp"
+#include "xdb_database_broker.hpp"
 #include "xdb_database_service.hpp"
 
 #include "proxy.hpp"
@@ -37,6 +38,17 @@ Service *service2 = NULL;
 Worker  *worker = NULL;
 int64_t service1_id;
 int64_t service2_id;
+
+void PrintWorker(Worker*);
+
+void PrintWorker(Worker* worker)
+{
+  if (!worker)
+    return;
+  std::cout << worker->GetID()<<":"<<worker->GetIDENTITY()
+    <<"/"<<worker->GetSTATE()<<"/"<<worker->Expired()<<std::endl;
+
+}
 
 TEST(TestUUID, ENCODE)
 {
@@ -84,12 +96,21 @@ TEST(TestUUID, DECODE)
 TEST(TestHelper, CLOCK)
 {
   timer_mark_t now_time;
+  timer_mark_t now_plus_time;
   timer_mark_t future_time;
   int ret;
   int64_t before = s_clock();
+  // Проверка "просроченности" данных об Обработчике
+  Worker* worker = new Worker();
+  ASSERT_TRUE(worker);
 
   ret = GetTimerValue(now_time);
   EXPECT_TRUE(ret == 1);
+
+  memcpy(&now_plus_time, &now_time, sizeof(timer_mark_t));
+  now_plus_time.tv_nsec = 1000000;
+  worker->SetEXPIRATION(now_plus_time);
+  EXPECT_TRUE(worker->Expired() == false);
 
   usleep (500000);
 
@@ -104,6 +125,11 @@ TEST(TestHelper, CLOCK)
   EXPECT_TRUE (1 >= (future_time.tv_sec - now_time.tv_sec));
   // 1млрд = одна секунда, добавим 100тыс (1 мсек) для погрешности.
   EXPECT_TRUE (100000 > (future_time.tv_nsec - now_time.tv_nsec - 500000000));
+
+  usleep(500000);
+
+  EXPECT_TRUE(worker->Expired() == true);
+  delete worker;
 }
 
 TEST(TestProxy, RUNTIME_VERSION)
@@ -127,12 +153,6 @@ TEST(TestProxy, RUNTIME_VERSION)
  * Проверить следующие методы класса Broker()
  */
 #if 0
-   void bind (const std::string& endpoint);
-
-   //  ---------------------------------------------------------------------
-   //  Delete any idle workers that haven't pinged us in a while.
-   void purge_workers ();
-
    // Регистрировать новый экземпляр Обработчика для Сервиса
    //  ---------------------------------------------------------------------
 +  Worker * worker_register(const std::string&, const std::string&);
@@ -141,11 +161,9 @@ TEST(TestProxy, RUNTIME_VERSION)
    //  Locate or create new service entry
 +  Service * service_require (const std::string& name);
 
-   zmq::socket_t& get_socket() { return *m_socket; };
-
    //  ---------------------------------------------------------------------
    //  Dispatch requests to waiting workers as possible
-   void service_dispatch (Service *srv/*, zmsg *msg*/);
++  void service_dispatch (Service *srv/*, zmsg *msg*/);
 
    //  ---------------------------------------------------------------------
    //  Handle internal service according to 8/MMI specification
@@ -159,7 +177,6 @@ TEST(TestProxy, RUNTIME_VERSION)
    //  Deletes worker from all data structures, and destroys worker
 +  void worker_delete (Worker *&wrk, int disconnect);
 
-
    //  ---------------------------------------------------------------------
    //  Processes one READY, REPORT, HEARTBEAT or  DISCONNECT message 
    //  sent to the broker by a worker
@@ -171,20 +188,13 @@ TEST(TestProxy, RUNTIME_VERSION)
    void worker_send (Worker*, const char*, const std::string&, zmsg *msg);
    void worker_send (Worker*, const char*, const std::string&, Letter*);
 
-
    //  ---------------------------------------------------------------------
    //  This worker is now waiting for work
    void worker_waiting (Worker *worker);
 
-
    //  ---------------------------------------------------------------------
    //  Process a request coming from a client
    void client_msg (const std::string& sender, zmsg *msg);
-
-   //  Get and process messages forever or until interrupted
-   void start_brokering();
-
-   void database_snapshot(const char*);
 #endif
 /*
  * Конец списка проверяемых методов класса Broker
@@ -386,11 +396,53 @@ TEST(TestProxy, BROKER_INTERNAL)
 
   /*
    * Обработчик wrk будет удален внутри функции
-   * Он останется в БД, но его состояние сменится с ARMED(1) на (0)
+   * Он останется в БД, но его состояние сменится с ARMED(1) на DISARMED(0)
    * Для проверки следует сравнить срезы БД до и после функции worker_delete
    */
   broker->worker_delete(wrk, 0);
   broker->database_snapshot("BROKER_INTERNAL");
+  wrk = broker->worker_require(worker_identity_1);
+  ASSERT_TRUE(wrk != NULL); /* Обработчик зарегистрирован, не активирован */
+  EXPECT_EQ(wrk->GetSTATE(), Worker::DISARMED);
+//  PrintWorker(wrk);
+}
+
+TEST(TestProxy, PURGE_WORKERS)
+{
+  ServiceList  *sl = broker->get_internal_db_api()->GetServiceList();
+  Service      *service = sl->first();
+  Worker       *wrk = NULL;
+  int           srv_count;
+  int           wrk_count;
+
+  /*
+   * Добавить Сервису второго Обработчика
+   */
+  wrk = broker->worker_register(service_name_1, worker_identity_2);
+  ASSERT_TRUE(wrk != NULL);
+  delete wrk;
+  // Обработчик успешно зарегистрирован
+  // теперь в базе должно быть два Обработчика, worker_identity_1 и worker_identity_2
+
+  srv_count = 0;
+  while(NULL != service)
+  {
+    wrk_count = 0;
+    /* Пройти по списку Сервисов */
+    while (NULL != (wrk = broker->get_internal_db_api()->PopWorker(service)))
+    {
+        LOG(INFO) <<srv_count<<":"<<service->GetNAME()<<" => "<<wrk_count<<":"<<wrk->GetIDENTITY();
+        if (wrk->Expired ()) 
+        {
+          LOG(INFO) << "Deleting expired worker: " << wrk->GetIDENTITY();
+          broker->worker_delete (wrk, 0); // Обработчик не подавал признаков жизни
+        }
+        else delete wrk; // Обработчик жив, просто освободить память
+        wrk_count++;
+    }
+    service = sl->next();
+    srv_count++;
+  }
 }
 
 /*

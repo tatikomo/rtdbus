@@ -428,7 +428,7 @@ bool XDBDatabaseBrokerImpl::AttachToInstance()
    * уже созданный экземпляр БД может использоваться в качестве 
    * persistent-хранилища после аварийного завершения брокера.
    */
-  //mco_db_kill(((XDBDatabase*)m_self)->DatabaseName());
+  mco_db_kill(((XDBDatabase*)m_self)->DatabaseName());
 
   /* подключиться к базе данных, предполагая что она создана */
   LOG(INFO) << "Attaching to '" << ((XDBDatabase*)m_self)->DatabaseName() << "' instance";
@@ -514,12 +514,11 @@ Service *XDBDatabaseBrokerImpl::AddService(const std::string& name)
 
 Service *XDBDatabaseBrokerImpl::AddService(const char *name)
 {
-  xdb_broker::XDBService instance;
+  xdb_broker::XDBService service_instance;
   Service       *srv = NULL;
   MCO_RET        rc;
   mco_trans_h    t;
   autoid_t       aid;
-  ServiceState   state;
 
   assert(name);
   do
@@ -527,55 +526,41 @@ Service *XDBDatabaseBrokerImpl::AddService(const char *name)
     rc = mco_trans_start(m_db, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
     if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
 
-    rc = instance.create(t);
+    rc = service_instance.create(t);
     if (rc) { LOG(ERROR) << "Creating instance, rc=" << rc; break; }
 
-    rc = instance.name_put(name, strlen(name));
-    if (rc) { LOG(ERROR) << "Setting name '" << name << "'"; break; }
+    rc = service_instance.name_put(name, strlen(name));
+    if (rc) { LOG(ERROR) << "Setting '" << name << "' name"; break; }
 
-    rc = instance.workers_alloc(Service::WORKERS_SPOOL_MAXLEN);
-    if (rc) { LOG(ERROR) << "Allocating pool of workers, rc=" << rc; break; }
+    rc = service_instance.state_put(REGISTERED);
+    if (rc) { LOG(ERROR) << "Setting '" << name << "' state"; break; }
 
-    rc = instance.checkpoint();
-    if (rc) { LOG(ERROR) << "Checkpointing, rc=" << rc; break; }
-
-    rc = instance.state_get(state);
-    if (rc) { LOG(ERROR) << "Getting service's state, rc=" << rc; break; }
-    rc = instance.autoid_get(aid);
-    if (rc) { LOG(ERROR) << "Getting service's id, rc=" << rc; break; }
+    rc = service_instance.autoid_get(aid);
+    if (rc) { LOG(ERROR) << "Getting service's "<<name<<" id, rc=" << rc; break; }
 
     srv = new Service(aid, name);
-    srv->SetSTATE((Service::State)state);
+    srv->SetSTATE((Service::State)REGISTERED);
 
     if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; break; }
+    rc = mco_trans_commit(t);
   } while(false);
 
   if (rc)
     mco_trans_rollback(t);
-  else
-    rc = mco_trans_commit(t);
 
   return srv;
 }
 
+// TODO: возможно стоит удалить этот метод-обертку, оставив GetServiceByName
 Service *XDBDatabaseBrokerImpl::RequireServiceByName(const char *service_name)
 {
-  Service *service = NULL;
-
-  if (NULL == (service = GetServiceByName(service_name)))
-  {
-  }
-  return service;
+  return GetServiceByName(service_name);
 }
 
+// TODO: возможно стоит удалить этот метод-обертку, оставив GetServiceByName
 Service *XDBDatabaseBrokerImpl::RequireServiceByName(const std::string& service_name)
 {
-  Service *service = NULL;
-
-  if (NULL == (service = GetServiceByName(service_name)))
-  {
-  }
-  return service;
+  return GetServiceByName(service_name);
 }
 
 /*
@@ -587,7 +572,7 @@ Service *XDBDatabaseBrokerImpl::RequireServiceByName(const std::string& service_
 bool XDBDatabaseBrokerImpl::RemoveService(const char *name)
 {
   bool        status = false;
-  xdb_broker::XDBService instance;
+  xdb_broker::XDBService service_instance;
   MCO_RET        rc;
   mco_trans_h    t;
 
@@ -598,14 +583,14 @@ bool XDBDatabaseBrokerImpl::RemoveService(const char *name)
     if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
 
     /* найти запись в таблице сервисов с заданным именем */
-    rc = xdb_broker::XDBService::PK_name::find(t, name, strlen(name), instance);
+    rc = xdb_broker::XDBService::PK_name::find(t, name, strlen(name), service_instance);
     if (MCO_S_NOTFOUND == rc) 
     { 
         LOG(ERROR) << "Removed service '" << name << "' doesn't exists, rc=" << rc; break;
     }
     if (rc) { LOG(ERROR) << "Unable to find service '" << name << "', rc=" << rc; break; }
     
-    rc = instance.remove();
+    rc = service_instance.remove();
     if (rc) { LOG(ERROR) << "Unable to remove service '" << name << "', rc=" << rc; break; }
 
     status = true;
@@ -630,60 +615,37 @@ bool XDBDatabaseBrokerImpl::IsServiceCommandEnabled(const Service* srv, const st
 
 
 // Деактивировать Обработчик wrk по идентификатору у его Сервиса
+// NB: При этом сам экземпляр из базы не удаляется, а помечается неактивным (DISARMED)
 bool XDBDatabaseBrokerImpl::RemoveWorker(Worker *wrk)
 {
-  bool          status = false;
   MCO_RET       rc = MCO_S_OK;
   mco_trans_h   t;
   xdb_broker::XDBService service_instance;
   xdb_broker::XDBWorker  worker_instance;
-  uint2         worker_index;
 
   assert(wrk);
   const char* identity = wrk->GetIDENTITY();
 
-  do 
+  do
   {
       rc = mco_trans_start(m_db, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
       if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
 
-#if 1
-      // Удалось найти Сервис, к которому привязан Обработчик
-      rc = xdb_broker::XDBService::SK_ident::find(t,
+      rc = xdb_broker::XDBWorker::SK_by_ident::find(t,
             identity,
             strlen(identity),
-            service_instance,
-            worker_index);
-#else
-#warning "Доделать поиск Worker по его identity"
-#endif
+            worker_instance);
 
-      if (MCO_S_NOTFOUND == rc)
+      if (rc)
       {
-        // Попытка удаления Обработчика несуществующего Сервиса
-        LOG(ERROR) << "Try to disable worker '" << identity 
-            << "' for non-existense service id=" << wrk->GetSERVICE_ID() 
-            << ", rc=" << rc;
-        break;
-      }
-      if (rc) 
-      {
-        LOG(ERROR) << "Locating worker '" << identity << "', rc=" << rc; 
-        break;
-      }
-
-      // номер искомого Обработчика в спуле есть worker_index
-      /* Due McObject's issue #1182:
-       * _at returns read-only instance, but _put returns read-write instance */
-      rc = service_instance.workers_put(worker_index, worker_instance);
-      if (rc) 
-      { 
-        LOG(ERROR) << "Getting worker '" << identity 
-            << "' at pool's index=" << worker_index << ", rc=" << rc;
+        // Попытка удаления несуществующего Обработчика
+        LOG(ERROR) << "Try to disable non-existent worker '"
+                   << identity << ", rc=" << rc;
         break;
       }
 
       // Не удалять, пометить как "неактивен"
+      // NB: Неактивные обработчики должны быть удалены в процессе сборки мусора
       rc = worker_instance.state_put(DISARMED);
       if (rc) 
       { 
@@ -691,8 +653,9 @@ bool XDBDatabaseBrokerImpl::RemoveWorker(Worker *wrk)
         break;
       }
 
+      wrk->SetSTATE(Worker::State(DISARMED));
+
       rc = mco_trans_commit(t);
-      break;
   } while(false);
 
   if (rc)
@@ -701,18 +664,17 @@ bool XDBDatabaseBrokerImpl::RemoveWorker(Worker *wrk)
   return (MCO_S_OK == rc)? true : false;
 }
 
-// Активировать Обработчик wrk, находящийся в спуле своего Сервиса
+// Активировать Обработчик wrk своего Сервиса
 bool XDBDatabaseBrokerImpl::PushWorker(Worker *wrk)
 {
   MCO_RET       rc = MCO_S_OK;
   mco_trans_h   t;
   xdb_broker::XDBService service_instance;
   xdb_broker::XDBWorker  worker_instance;
-  uint2         worker_idx = -1;
-  uint2         workers_spool_size;
   timer_mark_t  now_time, next_heartbeat_time;
   xdb_broker::timer_mark xdb_next_heartbeat_time;
-  autoid_t      aid;
+  autoid_t      srv_aid;
+  autoid_t      wrk_aid;
 
   assert(wrk);
   const char* wrk_identity = wrk->GetIDENTITY();
@@ -722,94 +684,116 @@ bool XDBDatabaseBrokerImpl::PushWorker(Worker *wrk)
       rc = mco_trans_start(m_db, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
       if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
 
-      // Получить service_instance, к которому привязан Обработчик
       rc = xdb_broker::XDBService::autoid::find(t,
                             wrk->GetSERVICE_ID(),
                             service_instance);
-      if (rc) { LOG(ERROR) << "Unable to locate service by id "<<wrk->GetSERVICE_ID(); break; }
-
-      rc = service_instance.autoid_get(aid);
-      if (rc) { LOG(ERROR) << "Unable to get autoid for service id"<<wrk->GetSERVICE_ID(); break; }
-
-      // Индекс Обработчика в спуле сохраняется в экземпляре wrk
-      rc = LoadWorkerByIdent(t, aid, wrk);
-      if (rc) 
-      { 
-        LOG(ERROR)<<"Unable to locate '"<<wrk_identity<<"' in services pool with id="
-                  <<wrk->GetSERVICE_ID()<<", "<<wrk->GetSERVICE_NAME()<<", rc="<<rc;
-        // Необходимо продолжить дальнейшую проверку ошибки, 
-        // поскольку она может означать, что такой Обработчик 
-        // ранее не содержался в спуле Сервиса
-      }
-      worker_idx = wrk->GetINDEX();
-
-      // Если Обработчик не найден, то:
-      // 1. service_instance невалиден
-      // 2. Обработчик регистрируется в первый раз
-      if (MCO_S_NOTFOUND == rc || MCO_S_CURSOR_EMPTY == rc)
+      if (rc)
       {
-        // Индекс не корректен - данный Обработчик регистрируется впервые
-        // Найти в спуле для него свободное место
-        if (!LocatingFirstWorkerIndexOccurence(service_instance, worker_idx, DISARMED))
-        {
-            // Не удалось найти свободного места в спуле
-            LOG(ERROR) << "No free space in service's pool id " << wrk->GetSERVICE_ID()
-                << " to put '" << wrk_identity << "', rc=" << rc;
-            break;
-        }
-      }
-
-      // Здесь - место для Обработчика найдено (worker_idx),
-      // Сервис найден (service_instance)
-      // Номер искомого Обработчика в спуле есть worker_idx
-      LOG(INFO) << "Store worker "<<wrk->GetIDENTITY()
-                <<" at index "<<worker_idx
-                <<" for service "<<wrk->GetSERVICE_ID();
-
-      rc = service_instance.workers_put(worker_idx, worker_instance);
-      // Если Обработчика в состоянии DISARMED по данному индексу не окажется,
-      // его следует создать.
-/*      if (MCO_E_EMPTYVECTOREL == rc)
-      {
-        rc = service_instance.workers_put(worker_idx, worker_instance);
-        if (rc) { LOG(ERROR) << "Putting new worker into spool, rc="<<rc; break; }
-        rc = service_instance.checkpoint();
-      }*/
-      if (rc) 
-      { 
-        LOG(ERROR) << "Putting worker "<<wrk->GetIDENTITY()
-                   <<" to spool index "<<worker_idx<<", rc="<<rc;
+        LOG(ERROR) << "Unable to locate service by id "<<wrk->GetSERVICE_ID()
+                   << " for worker "<<wrk_identity;
         break;
       }
 
-//      rc = service_instance.workers_put(worker_idx, worker_instance); /* issue #1182 */
-//      if (rc) { LOG(ERROR) << "Putting worker into spool, rc="<<rc; break; }
+      rc = service_instance.autoid_get(srv_aid);
+      if (rc) { LOG(ERROR) << "Unable to get autoid for service id "<<wrk->GetSERVICE_ID(); break; }
 
-      rc = worker_instance.identity_put(wrk_identity, strlen(wrk_identity));
-      if (rc) { LOG(ERROR) << "Put worker's identity " << wrk_identity << ", rc="<<rc; break; }
-
-      // Первоначальное состояние Обработчика - "ЗАНЯТ"
-      rc = worker_instance.state_put(ARMED);
-      if (rc) { LOG(ERROR) << "Unable to change worker's "<< worker_idx <<" state, rc="<<rc; break; }
-
-      /* Установить новое значение expiration */
-      if (GetTimerValue(now_time))
+      // Защита от "дурака" - идентификаторы должны совпадать
+      assert(wrk->GetSERVICE_ID() == srv_aid);
+      if (wrk->GetSERVICE_ID() != srv_aid)
       {
-        next_heartbeat_time.tv_nsec = now_time.tv_nsec;
-        next_heartbeat_time.tv_sec = now_time.tv_sec + Worker::HEARTBEAT_PERIOD_VALUE;
+        LOG(ERROR) << "Database inconsistence: service id ("
+                   << wrk->GetSERVICE_ID()<<") for worker "<<wrk_identity
+                   << " did not equal to database value ("<<srv_aid<<")";
       }
-      else { LOG(ERROR) << "Unable to calculate expiration time, rc="<<rc; break; }
 
-      rc = worker_instance.expiration_write(xdb_next_heartbeat_time);
-      if (rc) { LOG(ERROR) << "Unable to set worker's expiration time, rc="<<rc; break; }
-      rc = xdb_next_heartbeat_time.sec_put(next_heartbeat_time.tv_sec);
-      if (rc) { LOG(ERROR) << "Unable to set the expiration seconds, rc="<<rc; break; }
-      rc = xdb_next_heartbeat_time.nsec_put(next_heartbeat_time.tv_nsec);
-      if (rc) { LOG(ERROR) << "Unable to set expiration time nanoseconds, rc="<<rc; break; }
+      // Проверить наличие Обработчика с таким ident в базе,
+      // в случае успеха получив его worker_instance
+      rc = xdb_broker::XDBWorker::SK_by_ident::find(t,
+                wrk_identity,
+                strlen(wrk_identity),
+                worker_instance);
+
+      if (!rc) // Экземпляр найден - обновить данные
+      {
+        if (!wrk->GetID()) // Нулевой собственный идентификатор - значит ранее не присваивался
+        {
+          // Обновить идентификатор
+          rc = worker_instance.autoid_get(wrk_aid);
+          if (rc) { LOG(ERROR) << "Unable to get worker "<<wrk_identity<<" id"; break; }
+          wrk->SetID(wrk_aid);
+        }
+        // Сменить ему статус на ARMED и обновить свойства
+        rc = worker_instance.state_put(ARMED);
+        if (rc) { LOG(ERROR) << "Unable to change '"<< wrk_identity
+                             <<"' worker state, rc="<<rc; break; }
+
+        rc = worker_instance.service_ref_put(srv_aid);
+        if (rc) { LOG(ERROR) << "Unable to set '"<< wrk_identity
+                             <<"' with service id "<<srv_aid<<", rc="<<rc; break; }
+
+        /* Установить новое значение expiration */
+        // TODO: wrk->CalculateEXPIRATION_TIME();
+        if (GetTimerValue(now_time))
+        {
+          next_heartbeat_time.tv_nsec = now_time.tv_nsec;
+          next_heartbeat_time.tv_sec = now_time.tv_sec + Worker::HEARTBEAT_PERIOD_VALUE;
+        }
+        else { LOG(ERROR) << "Unable to calculate expiration time, rc="<<rc; break; }
+
+        rc = worker_instance.expiration_write(xdb_next_heartbeat_time);
+        if (rc) { LOG(ERROR) << "Unable to set worker's expiration time, rc="<<rc; break; }
+        rc = xdb_next_heartbeat_time.sec_put(next_heartbeat_time.tv_sec);
+        if (rc) { LOG(ERROR) << "Unable to set the expiration seconds, rc="<<rc; break; }
+        rc = xdb_next_heartbeat_time.nsec_put(next_heartbeat_time.tv_nsec);
+        if (rc) { LOG(ERROR) << "Unable to set expiration time nanoseconds, rc="<<rc; break; }
+      }
+      else if (MCO_S_NOTFOUND == rc) // Экземпляр не найден, так как ранее не регистрировался
+      {
+        // Создать новый экземпляр
+        rc = worker_instance.create(t);
+        if (rc) { LOG(ERROR) << "Creating worker's instance " << wrk_identity << ", rc="<<rc; break; }
+
+        rc = worker_instance.identity_put(wrk_identity, strlen(wrk_identity));
+        if (rc) { LOG(ERROR) << "Put worker's identity " << wrk_identity << ", rc="<<rc; break; }
+
+        // Первоначальное состояние Обработчика - "ГОТОВ"
+        rc = worker_instance.state_put(ARMED);
+        if (rc) { LOG(ERROR) << "Unable to change "<< wrk_identity <<" worker state, rc="<<rc; break; }
+
+        rc = worker_instance.service_ref_put(srv_aid);
+        if (rc) { LOG(ERROR) << "Unable to set '"<< wrk_identity
+                             <<"' with service id "<<srv_aid<<", rc="<<rc; break; }
+
+        // Обновить идентификатор
+        rc = worker_instance.autoid_get(wrk_aid);
+        if (rc) { LOG(ERROR) << "Unable to get worker "<<wrk_identity<<" id"; break; }
+        wrk->SetID(wrk_aid);
+
+        /* Установить новое значение expiration */
+        if (GetTimerValue(now_time))
+        {
+          next_heartbeat_time.tv_nsec = now_time.tv_nsec;
+          next_heartbeat_time.tv_sec = now_time.tv_sec + Worker::HEARTBEAT_PERIOD_VALUE;
+        }
+        else { LOG(ERROR) << "Unable to calculate expiration time, rc="<<rc; break; }
+
+        rc = worker_instance.expiration_write(xdb_next_heartbeat_time);
+        if (rc) { LOG(ERROR) << "Unable to set worker's expiration time, rc="<<rc; break; }
+        rc = xdb_next_heartbeat_time.sec_put(next_heartbeat_time.tv_sec);
+        if (rc) { LOG(ERROR) << "Unable to set the expiration seconds, rc="<<rc; break; }
+        rc = xdb_next_heartbeat_time.nsec_put(next_heartbeat_time.tv_nsec);
+        if (rc) { LOG(ERROR) << "Unable to set expiration time nanoseconds, rc="<<rc; break; }
+      }
+      else 
+      { 
+        LOG(ERROR) << "Unable to load worker "<<wrk_identity<<" data"; 
+        break; 
+      }
 
       mco_trans_commit(t);
-  } while(false);
 
+  } while (false);
+  
   if (rc)
     mco_trans_rollback(t);
 
@@ -852,7 +836,7 @@ Worker* XDBDatabaseBrokerImpl::PushWorkerForService(const std::string& service_n
   // Сервис действительно существует => прописать ему нового Обработчика
   if (true == status)
   {
-    wrk = new Worker(wrk_identity.c_str(), srv->GetID(), srv->GetNAME());
+    wrk = new Worker(srv->GetID(), const_cast<char*>(wrk_identity.c_str()), 0);
 
     if (false == (status = PushWorker(wrk)))
     {
@@ -906,10 +890,7 @@ Service *XDBDatabaseBrokerImpl::GetServiceByName(const char* name)
     service = LoadService(service_id, service_instance);
   } while(false);
 
-  if (rc)
-    mco_trans_rollback(t);
-  else
-    rc = mco_trans_commit(t);
+  mco_trans_rollback(t);
 
   return service;
 }
@@ -940,76 +921,30 @@ Service *XDBDatabaseBrokerImpl::LoadService(
   return service;
 }
 
+#if 0
 /*
  * Загрузить данные Обработчика в ранее созданный вручную экземпляр
- * 1. Найти родительский Сервис
- * 2. Пройти по спулу Обработчиков в поиске того, чей identity нам задан
  */
 MCO_RET XDBDatabaseBrokerImpl::LoadWorkerByIdent(
         /* IN */ mco_trans_h t,
-        /* IN */ autoid_t& service_aid,
         /* INOUT */ Worker *wrk)
 {
   MCO_RET rc = MCO_S_OK;
   mco_cursor_t csr;
-  xdb_broker::XDBService service_instance;
+  xdb_broker::XDBWorker worker_instance;
   uint2 idx;
   char name[SERVICE_NAME_MAXLEN+1];
 
   assert(wrk);
 
   const char *identity = wrk->GetIDENTITY();
-//  const char *sname = wrk->GetSERVICE_NAME();
 
   do
   {
-#if 0
-    if (rc) { LOG(ERROR) << "Бяка для " << wrk->GetIDENTITY(); break; }
-
-    rc = xdb_broker::XDBService::SK_ident::cursor(t, &csr);
-    if (MCO_S_CURSOR_EMPTY == rc) 
-        break; /* В индексе нет ни одной записи */
-    if (rc) 
-    {
-      LOG(ERROR)<<"Unable to initialize cursor for '"<<identity<<"', rc="<<rc;
-      break;
-    }
-
-    idx = 0;
-    while (!rc)
-    {
-      rc = xdb_broker::XDBService::SK_ident::search(t, 
-                    &csr,
-                    MCO_EQ,
-/*                    service_aid,*/
-                    identity,
-                    strlen(identity));
-      if (rc)
-      { 
-        LOG(ERROR)<<"Unable to search '"<<identity<<"', rc="<<rc;
-        break;
-      }
-
-      if (MCO_S_OK == rc)
-      {
-        LOG(INFO) << "Йо-хо-хо " << idx << " для "<<identity;
-        wrk->SetINDEX(idx);
-        break;
-      }
-      idx++;
-    }
-
-    if (rc)
-    {
-        // Это может быть нормальным поведением
-        wrk->SetINDEX(-1);
-    }
-#else
-    rc = xdb_broker::XDBService::SK_ident::find(t,
+    rc = xdb_broker::XDBWorker::SK_by_ident::find(t,
                 identity,
                 strlen(identity),
-                service_instance,
-                idx);
+                worker_instance);
     if (rc) 
     { 
 //      LOG(ERROR)<<"Unable to locate '"<<identity<<"' in service id "<<service_aid<<", rc="<<rc;
@@ -1024,233 +959,92 @@ MCO_RET XDBDatabaseBrokerImpl::LoadWorkerByIdent(
         wrk->SetSERVICE_NAME(name);
     }
 
-#endif
   } while(false);
 
   return rc;
 }
+#endif
 
-Worker *XDBDatabaseBrokerImpl::LoadWorker(mco_trans_h t,
-        autoid_t &srv_aid,
-        xdb_broker::XDBWorker& wrk_instance,
-        uint2 index_in_spool)
+// Загрузить данные Обработчика, основываясь на его идентификаторе
+MCO_RET XDBDatabaseBrokerImpl::LoadWorker(mco_trans_h t,
+        /* IN  */ xdb_broker::XDBWorker& wrk_instance,
+        /* OUT */ Worker*& worker)
 {
-  Worker       *worker = NULL;
   MCO_RET       rc = MCO_S_OK;
   char          ident[Worker::IDENTITY_MAXLEN + 1];
   xdb_broker::timer_mark  xdb_expire_time;
   timer_mark_t  expire_time = {0, 0};
   uint4         timer_value;
   WorkerState   state;
+  autoid_t      wrk_aid;
+  autoid_t      srv_aid;
 
   do
   {
+    rc = wrk_instance.autoid_get(wrk_aid);
+    if (rc) { LOG(ERROR) << "Unable to get worker id"; break; }
+
     rc = wrk_instance.identity_get(ident, (uint2)Worker::IDENTITY_MAXLEN);
+    if (rc) { LOG(ERROR) << "Unable to get identity for worker id "<<wrk_aid; break; }
+
+    rc = wrk_instance.service_ref_get(srv_aid);
+    if (rc) { LOG(ERROR) << "Unable to get service id for worker "<<ident; break; }
+
     ident[Worker::IDENTITY_MAXLEN] = '\0';
     if (rc) { LOG(ERROR)<<"Unable to get worker's identity for service id "<<srv_aid<<", rc="<<rc; break; }
+
     rc = wrk_instance.expiration_read(xdb_expire_time);
     if (rc) { LOG(ERROR)<<"Unable to get worker '"<<ident<<"' expiration mark, rc="<<rc; break; }
+
     rc = wrk_instance.state_get(state);
     if (rc) { LOG(ERROR)<<"Unable to get worker '"<<ident<<"' state, rc="<<rc; break; }
+
     rc = xdb_expire_time.sec_get(timer_value); expire_time.tv_sec = timer_value;
     rc = xdb_expire_time.nsec_get(timer_value); expire_time.tv_nsec = timer_value;
 
-    worker = new Worker(ident, srv_aid);
+    worker = new Worker(srv_aid, ident, wrk_aid);
     worker->SetSTATE((Worker::State)state);
     worker->SetEXPIRATION(expire_time);
-    worker->SetINDEX(index_in_spool);
     /* Состояние объекта полностью соответствует хранимому в БД */
     worker->SetVALID();
-    LOG(INFO) << "Load Worker(id='" << ident
-              << "' aid=" << srv_aid 
-              << " state=" << (int)state
-              << " spool_idx=" << index_in_spool << ")";
+    LOG(INFO) << "Load Worker('" << worker->GetIDENTITY()
+              << "' id=" << worker->GetID() 
+              << " srv_id=" << worker->GetSERVICE_ID() 
+              << " state=" << worker->GetSTATE();
   } while(false);
 
-  return worker;
+  return rc;
 }
 
 /* 
- * Вернуть ближайший свободный Обработчик.
- * Побочные эффекты: нет
+ * Вернуть ближайший свободный Обработчик в состоянии ARMED.
+ * Побочные эффекты: создается экземпляр Worker, его удаляет вызвавшая сторона
+ *
+ * TODO: возвращать следует наиболее "старый" экземпляр, временная отметка 
+ * которого раньше всех остальных экземпляров с этим же состоянием.
  */
-Worker *XDBDatabaseBrokerImpl::GetWorker(const Service *srv)
+Worker *XDBDatabaseBrokerImpl::PopWorker(const Service *srv)
 {
-  MCO_RET       rc;
-  mco_trans_h   t;
-  xdb_broker::XDBService service_instance;
-  xdb_broker::XDBWorker worker_instance;
   Worker       *worker = NULL;
-  WorkerState   worker_state;
-  autoid_t      aid;
-  uint2         workers_spool_size;
-  uint2         idx;
+  autoid_t      service_aid;
 
   assert(srv);
-  do
-  {
-    rc = mco_trans_start(m_db, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
-    if (rc) { LOG(ERROR)<<"Unable to start transaction, rc="<<rc; break; }
-
-    aid = const_cast<Service*>(srv)->GetID();
-    rc = xdb_broker::XDBService::autoid::find(t, aid, service_instance);
-    if (rc) { LOG(ERROR)<<"Unable to get service's instance, rc="<<rc; break; }
-
-    rc = service_instance.workers_size(workers_spool_size);
-    if (rc) { LOG(ERROR)<<"Unable to get workers spool size, rc="<<rc; break; }
-
-    for (idx = 0; idx < workers_spool_size; idx++)
-    {
-      rc = service_instance.workers_at(idx, worker_instance);
-      if (rc) { LOG(ERROR)<<"Unable to read worker from spool, rc="<<rc; break; }
-      rc = worker_instance.state_get(worker_state);
-      if (!rc && (worker_state == ARMED))
-      {
-        worker = LoadWorker(t, aid, worker_instance, idx);
-        break;
-      }
-      if (rc) { LOG(ERROR)<<"Unable to get service's waiting worker, rc="<<rc; break; }
-    }
-  } while(false);
-
-  if (rc)
-    mco_trans_rollback(t);
-  else
-    rc = mco_trans_commit(t);
+  service_aid = const_cast<Service*>(srv)->GetID();
+  worker = GetWorkerByState(service_aid, ARMED);
 
   return worker;
 }
 
-
-/* 
- * Вернуть ближайший Обработчик, находящийся в состоянии ARMED.
- *
- * Побочные эффекты:
- *   Выбранный экземпляр в базе данных пока не помечается занятым,
- *   это нужно делать только после успешной передачи ему сообщения в обработку!
- */
-Worker *XDBDatabaseBrokerImpl::PopWorker(const char *name)
+Worker *XDBDatabaseBrokerImpl::PopWorker(const std::string& service_name)
 {
-  MCO_RET       rc;
-  mco_trans_h   t;
-  xdb_broker::XDBService service_instance;
-  xdb_broker::XDBWorker worker_instance;
-  uint2         workers_spool_size = 0;
-  uint2         awaiting_worker_idx = -1;
-  Worker *worker = NULL;
-  autoid_t      aid;
-
-  assert(name);
-  do
-  {
-    rc = mco_trans_start(m_db, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
-    if (rc) { LOG(ERROR)<<"Starting transaction, rc="<<rc; break; }
-
-    rc = xdb_broker::XDBService::PK_name::find(t, name, strlen(name), service_instance);
-    if (rc) { LOG(ERROR)<< "Locating service by name '"<<name<<"', rc="<<rc; break; }
-    rc = service_instance.autoid_get(aid);
-    if (rc) { LOG(ERROR)<< "Get id for service "<<name<<", rc="<<rc; break; }
-
-    rc = service_instance.workers_size(workers_spool_size);
-    if (rc) { LOG(ERROR)<< "Get workers spool size for service '"<<name<<"', rc="<<rc; break; }
-    if (!workers_spool_size)
-    {
-       /* Спул Обработчиков пуст - вернуться */
-       LOG(WARNING) << "Waiting workers pool is empty";
-       break;
-    }
-
-    if (!LocatingFirstWorkerIndexOccurence(service_instance, awaiting_worker_idx, ARMED))
-    {
-       /* Нет свободных Обработчиков - вернуться */
-       LOG(WARNING) << "No one waiting workers in '"<<name<<"' spool";
-       break;
-    }
-
-    rc = service_instance.workers_put(awaiting_worker_idx, worker_instance); // issue #1182
-    if (rc)
-    {
-      LOG(ERROR)<< "making worker instance at "<<awaiting_worker_idx<<" as read-write, rc="<<rc;
-      break;
-    }
-
-    /* Сменить состояние Обработчика на "ЗАНЯТ" */
-//    rc = worker_instance.state_put(IN_PROCESS);
-//    if (rc) { LOG(ERROR)<< "Changing worker state, rc="<<rc; break; }
-
-    worker = LoadWorker(t, aid, worker_instance, awaiting_worker_idx);
-  } while(false);
-
-  if (rc)
-    mco_trans_rollback(t);
-  else
-    rc = mco_trans_commit(t);
-
-  return worker;
-}
-
-/* 
- * Вернуть ближайший свободный Обработчик (в состоянии ARMED)
- *
- * Побочные эффекты:
- * Вызывающая сторона должна удалить полученный экземпляр Worker
- */
-Worker *XDBDatabaseBrokerImpl::PopWorker(
-        Service *service)
-{
-  MCO_RET       rc;
-  mco_trans_h   t;
-  xdb_broker::XDBService    service_instance;
-  xdb_broker::XDBWorker     worker_instance;
-  uint2         workers_spool_size = 0;
-  autoid_t      aid = 0;
+  Service      *service = NULL;
   Worker       *worker = NULL;
-  uint2         awaiting_worker_idx = 0;
 
-  assert(service);
-  do
+  if (NULL != (service = GetServiceByName(service_name)))
   {
-    rc = mco_trans_start(m_db, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
-    if (rc) { LOG(ERROR)<<"Starting transaction, rc="<<rc; break; }
-
-    rc = xdb_broker::XDBService::autoid::find(t, service->GetID(), service_instance);
-    if (rc) { LOG(ERROR)<<"Locating service id="<<service->GetID()<<" failure, rc="<<rc; break; }
-
-    /* Есть ли Обработчики для данного Сервиса? */
-    rc = service_instance.workers_size(workers_spool_size);
-    if (rc) { LOG(ERROR)<<"Get service's waiting workers queue size, rc="<<rc; break; }
-    
-    if (!workers_spool_size)
-    {
-       /* Спул Обработчиков пуст - вернуться */
-       LOG(WARNING) << "Waiting workers spool is empty";
-       break;
-    }
-
-    if (!LocatingFirstWorkerIndexOccurence(service_instance, awaiting_worker_idx, ARMED))
-    {
-       /* Нет свободных Обработчиков - вернуться */
-       LOG(WARNING) << "No one waiting workers in spool";
-       break;
-    }
-
-    rc = service_instance.workers_at(awaiting_worker_idx, worker_instance);
-    if (rc) { LOG(ERROR)<<"Get service's first awaiting worker, rc="<<rc; break; }
-    if (rc) 
-    {
-        LOG(ERROR)<< "Making worker instance at "<<awaiting_worker_idx
-                <<" as read-write, rc="<<rc; break; 
-    }
-
-    aid = service->GetID();
-
-    worker = LoadWorker(t, aid, worker_instance, awaiting_worker_idx);
-    worker->SetSERVICE_NAME(service->GetNAME());
-    rc = mco_trans_commit(t);
-  } while(false);
-
-  if (rc)
-    mco_trans_rollback(t);
+    autoid_t  service_aid = service->GetID();
+    worker = GetWorkerByState(service_aid, ARMED);
+  }
 
   return worker;
 }
@@ -1280,11 +1074,9 @@ Service *XDBDatabaseBrokerImpl::GetServiceById(int64_t _id)
     if (rc) { LOG(ERROR)<<"Locating service by id="<<_id<<", rc="<<rc; break; }
 
     service = LoadService(aid, service_instance);
-    mco_trans_commit(t);
   } while(false);
 
-  if (rc)
-    mco_trans_rollback(t);
+  mco_trans_rollback(t);
 
   return service;
 }
@@ -1307,88 +1099,87 @@ bool XDBDatabaseBrokerImpl::IsServiceExist(const char *name)
     rc = xdb_broker::XDBService::PK_name::find(t, name, strlen(name), instance);
     // Если объект не найден - это не ошибка
     if (rc == MCO_S_NOTFOUND) break;
-    if (rc) { LOG(WARNING)<< "Locating service instance by name '"<<name<<"', rc="<<rc; break; }
-    mco_trans_commit(t);
+
+    if (rc) { LOG(WARNING)<< "Locating service instance by name '"<<name<<"', rc="<<rc; }
   } while(false);
 
-  if (rc)
-    mco_trans_rollback(t);
+  mco_trans_rollback(t);
 
   return (MCO_S_NOTFOUND == rc)? false:true;
 }
 
 /*
- * Поиск в спуле данного Сервиса индекса Обработчика, находящегося в состоянии state.
+ * Поиск Обработчика, находящегося в состоянии state.
  *
- * NB: При поиске Обработчиков в состоянии DISARMED функция может возвращать 
- * индекс Обработчика в спуле, на месте которого еще не создан ни один Обработчик 
- * (ошибка MCO_E_EMPTYVECTOREL). 
- * Следует при дальнейшем взятии Обработчика по вернувшемуся индексу предусмотреть
- * этот случай.
+ * TODO: рассмотреть возможность поиска экземпляра, имеющего 
+ * самую раннюю отметку времени из всех остальных конкурентов.
+ * Это необходимо для более равномерного распределения нагрузки.
  */
-bool XDBDatabaseBrokerImpl::LocatingFirstWorkerIndexOccurence(
-    xdb_broker::XDBService &service_instance,
-    uint2&                 awaiting_worker_idx,
-    WorkerState            searched_worker_state)
+Worker* XDBDatabaseBrokerImpl::GetWorkerByState(autoid_t& service_id,
+                       WorkerState searched_worker_state)
 {
   MCO_RET      rc = MCO_S_OK;
-  xdb_broker::XDBWorker     worker_instance;
+  Worker      *worker = NULL;
+  mco_trans_h  t;
   WorkerState  worker_state;
+  mco_cursor_t csr;
   bool         awaiting_worker_found = false;
-  uint2        workers_spool_size = 0;
+  xdb_broker::XDBWorker    worker_instance;
+  int          cmp_result;
 
   do
   {
-    /* Есть ли в Обработчики для данного Сервиса? */
-    rc = service_instance.workers_size(workers_spool_size);
-    if (rc) { LOG(ERROR)<<"Get service's waiting workers queue size,rc="<<rc; break; }
-    
-    /* 
-     * Поскольку вектор элементов есть структура с постоянным количеством элементов,
-     * требуется в цикле проверить все его элементы.
-     */
-    for (awaiting_worker_idx = 0;
-         awaiting_worker_idx < workers_spool_size;
-         awaiting_worker_idx++)
+    rc = mco_trans_start(m_db, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
+    if (rc) { LOG(ERROR)<<"Starting transaction, rc="<<rc; break; }
+
+    rc = xdb_broker::XDBWorker::SK_by_serv_id::cursor(t, &csr);
+    if (MCO_S_CURSOR_EMPTY == rc) // если индекс еще не содержит ни одной записи
+      break;
+    if (rc) { LOG(ERROR)<< "Unable to get cursor, rc="<<rc; break; }
+
+    for (rc = xdb_broker::XDBWorker::SK_by_serv_id::search(t, &csr, MCO_EQ, service_id);
+         (rc == MCO_S_OK) || (false == awaiting_worker_found);
+         rc = mco_cursor_next(t, &csr)) 
     {
-      rc = service_instance.workers_at(awaiting_worker_idx, worker_instance);
-      // прочитали пустой элемент спула - это нормально для свежесозданного Сервиса
-      if (MCO_E_EMPTYVECTOREL == rc)
-      {
-        if (DISARMED == searched_worker_state)
-        {
-          // Если ищем DISARMED Обработчик, 
-          // то пустой элемент нам тоже подойдет
-          awaiting_worker_found = true;
-          break;
-        }
-        // в остальных случаях ищем дальше
-        continue;
-      }
+       rc = xdb_broker::XDBWorker::SK_by_serv_id::compare(t,
+                &csr,
+                service_id,
+                cmp_result);
+       if (rc == MCO_S_OK && cmp_result == 0)
+       {
+         rc = worker_instance.from_cursor(t, &csr);
+         // сообщим об ошибке и попробуем продолжить
+         if (rc) { LOG(ERROR)<<"Unable to load worker from cursor, rc="<<rc; continue; }
+         
+         rc = worker_instance.state_get(worker_state);
+         if (rc) { LOG(ERROR)<< "Unable to get worker state from cursor, rc="<<rc; continue; }
 
-      if (rc)
-      {
-        // выйти из поиска первого ожидающего зарегистрированного Обработчика
-        awaiting_worker_found = false;
-        LOG(ERROR)<<"Get service's awaiting worker, rc="<<rc;
-        break;
-      }
-      else // Найден Обработчик, проверить его состояние
-      {
-        rc = worker_instance.state_get(worker_state);
-        if (rc) { LOG(ERROR)<< "Get awaiting worker's state, rc="<<rc; break; }
+         if (searched_worker_state == worker_state)
+         {
+           awaiting_worker_found = true;
+           break; // нашли что искали, выйдем из цикла
+         } 
+       }
+       if (rc)
+         break;
+    }
+    rc = MCO_S_CURSOR_END == rc ? MCO_S_OK : rc;
 
-        // Проверить статус Обработчика - должен быть равен заданному
-        if (worker_state == searched_worker_state)
-        {
-          awaiting_worker_found = true;
-          break;
-        }
-      }
+    if (MCO_S_OK == rc && awaiting_worker_found)
+    {
+      // У нас есть id Сервиса и Обработчика -> получить все остальное
+      rc = LoadWorker(t, worker_instance, worker);
+      if (rc) { LOG(ERROR)<< "Unable to load worker instance, rc="<<rc; break; }
+      if (worker->GetSERVICE_ID() != service_id)
+        LOG(ERROR) << "Найден Обработчик "<<worker->GetIDENTITY()
+                   <<" для другого Сервиса ("
+                   << worker->GetSERVICE_ID()<<" != "<<service_id<<")";
     }
   } while(false);
 
-  return awaiting_worker_found;
+  mco_trans_rollback(t);
+
+  return worker;
 }
 
 
@@ -1417,44 +1208,31 @@ Worker *XDBDatabaseBrokerImpl::GetWorkerByIdent(const char *ident)
   xdb_broker::XDBService service_instance;
   xdb_broker::XDBWorker  worker_instance;
   Worker      *worker = NULL;
-  uint2        worker_idx;
-  autoid_t     service_aid;
 
   do
   {
     rc = mco_trans_start(m_db, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
     if (rc) { LOG(ERROR)<<"Starting transaction, rc="<<rc; break; }
 
-#if 1
-//GEV
     /* найти запись в таблице сервисов с заданным именем */
-    rc = xdb_broker::XDBService::SK_ident::find(t,
+    rc = xdb_broker::XDBWorker::SK_by_ident::find(t,
                 ident,
                 strlen(ident),
-                service_instance,
-                worker_idx);
-#else
-#warning "Доделать поиск Worker по его identity"
-#endif
+                worker_instance);
 
     /* Запись не найдена - нет ошибки */
     if (MCO_S_NOTFOUND == rc) break;
 
     /* Запись не найдена - есть ошибка - сообщить */
-    if (rc) { LOG(ERROR)<<"Worker location, rc="<<rc; break; }
+    if (rc) { LOG(ERROR)<<"Worker '"<<ident<<"' location, rc="<<rc; break; }
 
     /* Запись найдена - сконструировать объект на основе данных из БД */
-    rc = service_instance.autoid_get(service_aid);
-    if (rc) { LOG(ERROR)<< "Getting worker's service id, rc="<<rc; break; }
-    rc = service_instance.workers_at(worker_idx, worker_instance);
-    if (rc) { LOG(ERROR)<< "Getting worker's instance, rc="<<rc; break; }
+    rc = LoadWorker(t, worker_instance, worker);
+    if (rc) { LOG(ERROR)<<"Unable to load worker instance"; break; }
 
-    worker = LoadWorker(t, service_aid, worker_instance, worker_idx);
-    mco_trans_commit(t);
   } while(false);
 
-  if (rc)
-    mco_trans_rollback(t);
+  mco_trans_rollback(t);
 
   return worker;
 }
@@ -1557,13 +1335,9 @@ bool XDBDatabaseBrokerImpl::GetWaitingLetter(
     delete []body_buffer;
 
 #endif
-
-    mco_trans_commit(t);
-
   } while(false);
 
-  if (rc) 
-    mco_trans_rollback(t);
+  mco_trans_rollback(t);
 
   return status;
 }
@@ -1627,8 +1401,6 @@ bool XDBDatabaseBrokerImpl::PushRequestToService(Service *srv,
   xdb_broker::XDBLetter  letter_instance;
   xdb_broker::XDBService service_instance;
   xdb_broker::XDBWorker  worker_instance;
-  Worker      *worker = NULL;
-  uint2        worker_idx;
   autoid_t     aid;
   bool         status = false;
   xdb_broker::timer_mark   mark;
@@ -1816,12 +1588,6 @@ ServiceList* XDBDatabaseBrokerImpl::GetServiceList()
   return m_service_list;
 }
 
-
-/*ServiceListImpl::ServiceListImpl()
-{
-  m_current_index = 0;
-}
-*/
 
 ServiceListImpl::ServiceListImpl(mco_db_h _db)
 {
@@ -2016,7 +1782,7 @@ bool ServiceListImpl::refresh()
 
   } while(false);
 
-  mco_trans_commit(t);
+  mco_trans_rollback(t);
 
   switch(rc)
   {

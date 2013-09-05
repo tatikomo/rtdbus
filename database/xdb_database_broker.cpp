@@ -176,7 +176,7 @@ Service *XDBDatabaseBroker::GetServiceById(int64_t _id)
   return m_impl->GetServiceById(_id);
 }
 
-Worker *XDBDatabaseBroker::PopWorker(const char *service_name)
+Worker *XDBDatabaseBroker::PopWorker(const std::string& service_name)
 {
   assert(m_impl);
 
