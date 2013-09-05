@@ -116,6 +116,9 @@ set (DBNAME_MAXLEN            10)
 set (HEARTBEAT_PERIOD         10)
 set (WORKERS_SPOOL_SIZE        2)
 #set (USE_EXTREMEDB_HTTP_SERVER 1)
+
+OPTION (RTDBUS_USE_EXTREMEDB_HTTP_SERVER "enable internal http server"  OFF)
+OPTION (RTDBUS_USE_MSEC_IN_EXPIRATION    "enable nanoseconds comparing" OFF)
  
 if(RTDBUS_BUILD_TESTS)
     add_definitions(-DRTDBUS_BUILD_TESTS)
@@ -188,6 +191,7 @@ message(STATUS "Protobuf:                 ${LIBPROTOBUF_LIBRARIES_DIR}\t${LIBPRO
 message(STATUS "eXtremeDB:                ${LIBEXTREMEDB_LIBRARIES_DIR}\t${LIBEXTREMEDB_LIBRARIES}")
 message(STATUS "glog:                     ${LIBGLOG_LIBRARIES_DIR}\t${LIBGLOG_LIBRARIES}")
 message(STATUS "Building unit tests:      ${RTDBUS_BUILD_TESTS}               ")
+message(STATUS "Building xdb http serv:   ${RTDBUS_USE_EXTREMEDB_HTTP_SERVER} ")
 message(STATUS "Building verbose mode:    ${RTDBUS_ENABLE_VERBOSE_MODE}       ")
 message(STATUS "Building w/o assertions:  ${RTDBUS_DISABLE_ASSERTS}           ")
 message(STATUS "Building w/o checks:      ${RTDBUS_DISABLE_CHECKS}            ")

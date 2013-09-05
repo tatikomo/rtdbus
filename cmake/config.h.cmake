@@ -62,6 +62,8 @@
 #cmakedefine RTDBUS_ENABLE_VERBOSE_MODE 1
 #cmakedefine RTDBUS_DISABLE_ASSERTS 1
 #cmakedefine RTDBUS_DISABLE_CHECKS 1
+#cmakedefine RTDBUS_USE_EXTREMEDB_HTTP_SERVER 1
+#cmakedefine RTDBUS_USE_MSEC_IN_EXPIRATION 1
 /* xmldocs */
 /* doxygen */
 #cmakedefine RTDBUS_GCOV_ENABLED 1

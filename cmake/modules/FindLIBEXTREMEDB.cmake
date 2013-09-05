@@ -51,15 +51,17 @@
     if (${COMPILER_PLATFORM} MATCHES "SunOS")
       # SOLARIS EXTREMEDB 5.0 EVALUATION
       set (LIBEXTREMEDB_LIBRARIES "mcossun mcounrt mcovtmem mcouwrt mcohv")
-      set (LIBEXTREMEDB_LIBRARIES_ALL "mcomipc -lmcolib -lmcossun -lmcounrt -lmcovtmem -lmcouwrt -lmcotmursiw -lmcohv_debug")
+      set (LIBEXTREMEDB_LIBRARIES_ALL "mcomipc -lmcolib -lmcossun -lmcounrt -lmcovtmem -lmcouwrt -lmcotmursiw")
     elseif (${COMPILER_PLATFORM} MATCHES "Linux")
       # LINUX EXTREMEDB 5.0 EVALUATION
-      set (LIBEXTREMEDB_LIBRARIES "mcolib mcovtdsk mcofu98 mcoslnx mcomipc mcotmvcc mcolib mcouwrt mcouda mcohv mcoews_cgi")
-      set (LIBEXTREMEDB_LIBRARIES_ALL "mcolib_debug -lmcovtdsk_debug -lmcofu98_debug -lmcoslnx_debug -lmcomipc_debug -lmcotmvcc_debug -lmcolib_debug -lmcouwrt_debug -lmcouda_debug  -lmcohv_debug -lmcoews_cgi_debug")
+      set (LIBEXTREMEDB_LIBRARIES "mcolib mcovtdsk mcofu98 mcoslnx mcomipc mcotmvcc mcolib mcouwrt")
+      set (LIBEXTREMEDB_LIBRARIES_ALL "mcolib_debug -lmcovtdsk_debug -lmcofu98_debug -lmcoslnx_debug -lmcomipc_debug -lmcotmvcc_debug -lmcolib_debug -lmcouwrt_debug")
     endif()
 
     if (${USE_EXTREMEDB_HTTP_SERVER})
       message("Internal eXtremeDB http server ON")
+      set (LIBEXTREMEDB_LIBRARIES "${LIBEXTREMEDB_LIBRARIES} mcouda mcohv mcoews_cgi")
+      set (LIBEXTREMEDB_LIBRARIES_ALL "${LIBEXTREMEDB_LIBRARIES_ALL} -lmcohv_debug -lmcouda_debug -lmcoews_cgi_debug")
     else ()
       message("Internal eXtremeDB http server OFF")
     endif ()
