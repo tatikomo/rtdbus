@@ -30,10 +30,10 @@ bool XDBDatabaseBroker::Connect()
   return m_impl->Connect();
 }
 
-Service::State XDBDatabaseBroker::GetServiceState(const Service *srv)
+bool XDBDatabaseBroker::SetWorkerState(Worker* worker, Worker::State new_state)
 {
   assert(m_impl);
-  return m_impl->GetServiceState(srv);
+  return m_impl->SetWorkerState(worker, new_state);
 }
 
 Service *XDBDatabaseBroker::GetServiceForWorker(const Worker *wrk)

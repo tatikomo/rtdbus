@@ -104,24 +104,32 @@ Broker::database_snapshot(const char* msg)
 
 //  ---------------------------------------------------------------------
 //  Delete any idle workers that haven't pinged us in a while.
+//  
+//  TODO: необходимо единовременно получить список Обработчиков 
+//  в состоянии ARMED для заданного Сервиса. PopWorker всегда будет 
+//  возвращать один и тот же экземпляр Обработчика до тех пор, пока 
+//  у него не сменится состояние (к примеру, после окончания срока годности)
+//
 void
 Broker::purge_workers ()
 {
   ServiceList   *sl = m_database->GetServiceList();
   Service       *service = sl->first();
-  Worker        *wrk1, *wrk2;
+  Worker        *wrk;
   int           srv_count;
   int           wrk_count;
 
   srv_count = 0;
+  /* Пройти по списку Сервисов */
   while(NULL != service)
   {
     wrk_count = 0;
-#if 0
-    /* Пройти по списку Сервисов */
-    while (NULL != (wrk = m_database->PopWorker(service)))
+    /* NB: Пока список Обработчиков не реализован - удаляем по одному за раз */
+/*    while (NULL != (*/wrk = m_database->PopWorker(service);/*))*/
+    if (wrk)
     {
-        LOG(INFO) <<srv_count<<":"<<service->GetNAME()<<" => "<<wrk_count<<":"<<wrk->GetIDENTITY();
+        LOG(INFO) <<"Purge workers for "<<srv_count<<":"<<service->GetNAME()
+                  <<" => "<<wrk_count<<":"<<wrk->GetIDENTITY();
         if (wrk->Expired ()) 
         {
           if (m_verbose) 
@@ -133,25 +141,6 @@ Broker::purge_workers ()
         else delete wrk; // Обработчик жив, просто освободить память
         wrk_count++;
     }
-#else
-    wrk1 = m_database->PopWorker(service);
-    if (wrk1)
-    {
-      LOG(INFO)<<"A: "<<srv_count<<":"<<service->GetNAME()
-        <<" => "<<wrk_count<<":"<<wrk1->GetIDENTITY()
-        <<" expire: "<<wrk1->Expired();
-      worker_delete (wrk1, 0);
-    }
-    wrk2 = m_database->PopWorker(service);
-    if (wrk2)
-    {
-      LOG(INFO)<<"B: "<<srv_count<<":"<<service->GetNAME()
-        <<" => "<<wrk_count<<":"<<wrk2->GetIDENTITY()
-        <<" expire: "<<wrk2->Expired();
-      delete wrk2;
-    }
-
-#endif
     service = sl->next();
     srv_count++;
   }
@@ -235,7 +224,7 @@ Broker::service_dispatch (Service *srv, zmsg *processing_msg = NULL)
           break;
         // Передать ожидающую обслуживания команду выбранному Обработчику
         worker_send (wrk, (char*)MDPW_REQUEST, EMPTY_FRAME, header, message_body);
-        // TODO: установить статус IN_PROCESS данному Обработчику
+        // TODO: установить статус OCCUPIED данному Обработчику
       }
       awaiting_messages_exists = false;
       // GEV Пока обрабатывать не более 10 сообщений из очереди ожиданий! 
@@ -256,7 +245,7 @@ Broker::service_internal (const std::string& service_name, zmsg *msg)
     {
         Service * srv = m_database->GetServiceByName(service_name);
         // Если у Сервиса есть активные Обработчики
-        if (m_database->GetServiceState(srv) == Service::ACTIVATED)
+        if (srv->GetSTATE() == Service::ACTIVATED)
         {
             msg->body_set("200");
         }
@@ -342,6 +331,11 @@ Broker::worker_delete (Worker *&wrk, int disconnect)
 
     if (false == m_database->RemoveWorker(wrk))
       LOG(ERROR) << "Unable to remove worker '"<<wrk->GetIDENTITY()<<"'";
+
+    if (Worker::DISARMED != wrk->GetSTATE())
+    {
+        LOG(ERROR) << "worker "<<wrk->GetIDENTITY()<<" del compartido!";
+    }
     // Экземпляр все равно должен быть удален из памяти
     delete wrk;
 }

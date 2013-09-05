@@ -50,6 +50,33 @@ void PrintWorker(Worker* worker)
 
 }
 
+void purge_workers()
+{
+  ServiceList  *sl = broker->get_internal_db_api()->GetServiceList();
+  Service      *service = sl->first();
+  Worker       *wrk = NULL;
+
+  broker->database_snapshot("PURGE_WORKERS");
+  while(NULL != service)
+  {
+    /* Пройти по списку Сервисов */
+    /*while (NULL != (*/wrk = broker->get_internal_db_api()->PopWorker(service);/*))*/
+    if (wrk)
+    {
+        LOG(INFO) <<service->GetID()<<":"<<service->GetNAME()<<" => "<<wrk->GetIDENTITY();
+        if (wrk->Expired ()) 
+        {
+          LOG(INFO) << "Deleting expired worker: " << wrk->GetIDENTITY();
+          broker->worker_delete (wrk, 0); // Обработчик не подавал признаков жизни
+        }
+        else delete wrk; // Обработчик жив, просто освободить память
+    }
+    service = sl->next();
+  }
+  broker->database_snapshot("PURGE_WORKERS");
+}
+
+////////////////////////////////////////////////////////////////////////////////
 TEST(TestUUID, ENCODE)
 {
   unsigned char binary_ident[5];
@@ -69,6 +96,7 @@ TEST(TestUUID, ENCODE)
   delete[] uncoded_ident;
 }
 
+////////////////////////////////////////////////////////////////////////////////
 TEST(TestUUID, DECODE)
 {
   unsigned char binary_ident[5];
@@ -93,6 +121,7 @@ TEST(TestUUID, DECODE)
   delete[] uncoded_ident;
 }
 
+////////////////////////////////////////////////////////////////////////////////
 TEST(TestHelper, CLOCK)
 {
   timer_mark_t now_time;
@@ -132,6 +161,7 @@ TEST(TestHelper, CLOCK)
   delete worker;
 }
 
+////////////////////////////////////////////////////////////////////////////////
 TEST(TestProxy, RUNTIME_VERSION)
 {
   bool status = false;
@@ -346,6 +376,7 @@ broker_task (void *args)
   pthread_exit(NULL);
 }
 
+////////////////////////////////////////////////////////////////////////////////
 /*
  * Этот тест используется для проверки внутренних методов класса Broker;
  * Все функциональные тесты проверяются с экземпляром, созданным в треде broker_task;
@@ -401,50 +432,19 @@ TEST(TestProxy, BROKER_INTERNAL)
    */
   broker->worker_delete(wrk, 0);
   broker->database_snapshot("BROKER_INTERNAL");
+
   wrk = broker->worker_require(worker_identity_1);
   ASSERT_TRUE(wrk != NULL); /* Обработчик зарегистрирован, не активирован */
   EXPECT_EQ(wrk->GetSTATE(), Worker::DISARMED);
-//  PrintWorker(wrk);
-}
 
-TEST(TestProxy, PURGE_WORKERS)
-{
-  ServiceList  *sl = broker->get_internal_db_api()->GetServiceList();
-  Service      *service = sl->first();
-  Worker       *wrk = NULL;
-  int           srv_count;
-  int           wrk_count;
-
-  /*
-   * Добавить Сервису второго Обработчика
-   */
-  wrk = broker->worker_register(service_name_1, worker_identity_2);
-  ASSERT_TRUE(wrk != NULL);
+  broker->get_internal_db_api()->SetWorkerState(wrk, Worker::ARMED);
+  EXPECT_EQ(wrk->GetSTATE(), Worker::ARMED);
+  PrintWorker(wrk);
   delete wrk;
-  // Обработчик успешно зарегистрирован
-  // теперь в базе должно быть два Обработчика, worker_identity_1 и worker_identity_2
-
-  srv_count = 0;
-  while(NULL != service)
-  {
-    wrk_count = 0;
-    /* Пройти по списку Сервисов */
-    while (NULL != (wrk = broker->get_internal_db_api()->PopWorker(service)))
-    {
-        LOG(INFO) <<srv_count<<":"<<service->GetNAME()<<" => "<<wrk_count<<":"<<wrk->GetIDENTITY();
-        if (wrk->Expired ()) 
-        {
-          LOG(INFO) << "Deleting expired worker: " << wrk->GetIDENTITY();
-          broker->worker_delete (wrk, 0); // Обработчик не подавал признаков жизни
-        }
-        else delete wrk; // Обработчик жив, просто освободить память
-        wrk_count++;
-    }
-    service = sl->next();
-    srv_count++;
-  }
 }
 
+
+////////////////////////////////////////////////////////////////////////////////
 /*
  * Проверить поступление сообщений от Клиентов
  *
@@ -489,10 +489,71 @@ TEST(TestProxy, CLIENT_MESSAGE)
 
   // msg удаляется внутри
   broker->client_msg(client_identity_1, msg);
-  broker->database_snapshot("BROKER_INTERNAL");
+  broker->database_snapshot("CLIENT_MESSAGE");
 }
 #endif
 
+////////////////////////////////////////////////////////////////////////////////
+TEST(TestProxy, WAITING_LETTER)
+{
+  int processed_messages_count = 0;
+  std::string header;
+  std::string message_body;
+  ServiceList  *sl = broker->get_internal_db_api()->GetServiceList();
+  Service      *service = sl->first();
+  Worker       *wrk = NULL;
+
+  broker->database_snapshot("WAITING_LETTER");
+  while(NULL != service)
+  {
+
+    while (NULL != (wrk = broker->get_internal_db_api()->PopWorker(service)))
+    {
+      LOG(INFO) << "Pop worker '"<<wrk->GetIDENTITY()<<"' with state "<<wrk->GetSTATE();
+      while (broker->get_internal_db_api()->GetWaitingLetter(service, wrk, header, message_body))
+      {
+        // Передать ожидающую обслуживания команду выбранному Обработчику
+        broker->worker_send (wrk, (char*)MDPW_REQUEST, EMPTY_FRAME, header, message_body);
+        // установить статус OCCUPIED данному Обработчику
+        broker->get_internal_db_api()->SetWorkerState(wrk, Worker::OCCUPED);
+        processed_messages_count++;
+      }
+      delete wrk;
+      break;
+    }
+    service = sl->next();
+  }
+  EXPECT_EQ(processed_messages_count, 1);
+  broker->database_snapshot("WAITING_LETTER");
+}
+
+////////////////////////////////////////////////////////////////////////////////
+TEST(TestProxy, PURGE_WORKERS)
+{
+  Worker       *wrk = NULL;
+  timer_mark_t mark = { 0, 0 };
+
+  broker->database_snapshot("PURGE_WORKERS");
+
+  // Добавить Сервису второго Обработчика
+  wrk = broker->worker_register(service_name_1, worker_identity_2);
+  ASSERT_TRUE(wrk != NULL);
+
+  // Обработчик успешно зарегистрирован.
+  // Теперь в базе должно быть два Обработчика:
+  // worker_identity_1(DISARMED) и worker_identity_2(ARMED)
+  purge_workers();
+  // На выходе не должно быть удаленных Обработчиков
+
+
+  // Установить срок годности Обработчика wrk "в прошлое"
+  // и повторить проверку. На этот раз один обработчик д.б. удален
+  wrk->SetEXPIRATION(mark);
+  delete wrk;
+  purge_workers();
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /*
  * Проверить передачу Клиентсткого сообщения Обработчику
  * У клиенсткого cообщения, отправляемого Брокером Обработчику, д.б. 4 фрейма:
@@ -512,7 +573,7 @@ TEST(TestProxy, SERVICE_DISPATCH)
   // Зарегистрировать нового Обработчика worker_identity_1 для service_name_1
   worker = broker->worker_register(service_name_1, worker_identity_1);
   ASSERT_TRUE(worker != NULL);
-  broker->database_snapshot("BROKER_INTERNAL");
+  broker->database_snapshot("SERVICE_DISPATCH");
 
   pb_header.set_protocol_version(1);
   pb_header.set_exchange_id(9999999);
@@ -535,16 +596,17 @@ TEST(TestProxy, SERVICE_DISPATCH)
   msg->push_front(pb_serialized_request);
   msg->push_front(pb_serialized_header);
 
-  broker->database_snapshot("BROKER_INTERNAL");
+  broker->database_snapshot("SERVICE_DISPATCH");
   // service1 удаляется внутри
   broker->service_dispatch(service1, msg);
  // delete service1;
-  broker->database_snapshot("BROKER_INTERNAL");
+  broker->database_snapshot("SERVICE_DISPATCH");
 
   delete msg;
 }
 
 
+////////////////////////////////////////////////////////////////////////////////
 TEST(TestProxy, BROKER_DELETE)
 {
   delete broker;
@@ -581,6 +643,7 @@ TEST(TestProxy, BROKER_RUNTIME)
 }
 #endif
 
+////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv)
 {
   ::testing::InitGoogleTest(&argc, argv);

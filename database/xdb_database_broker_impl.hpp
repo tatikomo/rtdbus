@@ -86,6 +86,8 @@ class XDBDatabaseBrokerImpl
     Worker* PushWorkerForService(const std::string&, const std::string&);
     /* поместить Обработчик в спул своего Сервиса */
     bool PushWorker(Worker*);
+    /* Установить новое состояние Обработчику */
+    bool SetWorkerState(Worker*, Worker::State);
     /* получить признак существования данного экземпляра Сервиса в БД */
     bool     IsServiceExist(const char*);
     /* получить доступ к текущему списку Сервисов */ 
@@ -114,8 +116,6 @@ class XDBDatabaseBrokerImpl
     Service *GetServiceByName(const std::string&);
     Service *GetServiceById(int64_t _id);
     Service *GetServiceForWorker(const Worker*);
-    // Вернуть текущее состояние Сервиса
-    Service::State GetServiceState(const Service*);
 
 //    Worker *GetWorker(const Service*);
 //    Worker *PopWorker(const char*);

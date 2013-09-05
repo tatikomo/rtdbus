@@ -536,7 +536,7 @@ Service *XDBDatabaseBrokerImpl::AddService(const char *name)
     if (rc) { LOG(ERROR) << "Setting '" << name << "' state"; break; }
 
     rc = service_instance.autoid_get(aid);
-    if (rc) { LOG(ERROR) << "Getting service's "<<name<<" id, rc=" << rc; break; }
+    if (rc) { LOG(ERROR) << "Getting service "<<name<<" id, rc=" << rc; break; }
 
     srv = new Service(aid, name);
     srv->SetSTATE((Service::State)REGISTERED);
@@ -655,7 +655,7 @@ bool XDBDatabaseBrokerImpl::RemoveWorker(Worker *wrk)
 
       wrk->SetSTATE(Worker::State(DISARMED));
 
-      rc = mco_trans_commit(t);
+      mco_trans_commit(t);
   } while(false);
 
   if (rc)
@@ -991,7 +991,12 @@ MCO_RET XDBDatabaseBrokerImpl::LoadWorker(mco_trans_h t,
     if (rc) { LOG(ERROR) << "Unable to get service id for worker "<<ident; break; }
 
     ident[Worker::IDENTITY_MAXLEN] = '\0';
-    if (rc) { LOG(ERROR)<<"Unable to get worker's identity for service id "<<srv_aid<<", rc="<<rc; break; }
+    if (rc)
+    { 
+        LOG(ERROR)<<"Unable to get worker's identity for service id "
+                  <<srv_aid<<", rc="<<rc;
+        break;
+    }
 
     rc = wrk_instance.expiration_read(xdb_expire_time);
     if (rc) { LOG(ERROR)<<"Unable to get worker '"<<ident<<"' expiration mark, rc="<<rc; break; }
@@ -1007,10 +1012,10 @@ MCO_RET XDBDatabaseBrokerImpl::LoadWorker(mco_trans_h t,
     worker->SetEXPIRATION(expire_time);
     /* Состояние объекта полностью соответствует хранимому в БД */
     worker->SetVALID();
-    LOG(INFO) << "Load Worker('" << worker->GetIDENTITY()
+/*    LOG(INFO) << "Load Worker('" << worker->GetIDENTITY()
               << "' id=" << worker->GetID() 
               << " srv_id=" << worker->GetSERVICE_ID() 
-              << " state=" << worker->GetSTATE();
+              << " state=" << worker->GetSTATE();*/
   } while(false);
 
   return rc;
@@ -1244,7 +1249,6 @@ bool XDBDatabaseBrokerImpl::GetWaitingLetter(
         /* OUT */ std::string& header,
         /* OUT */ std::string& body)
 {
-  bool status = false;
   mco_trans_h t;
   MCO_RET rc = MCO_S_OK;
   mco_cursor_t csr;
@@ -1271,8 +1275,12 @@ bool XDBDatabaseBrokerImpl::GetWaitingLetter(
       break;
     }
 
-    rc = xdb_broker::XDBLetter::SK_by_state_for_serv::search(t, &csr, MCO_EQ, srv->GetID(), UNASSIGNED); 
-    // Если курсор пуст, вернуться
+    rc = xdb_broker::XDBLetter::SK_by_state_for_serv::search(t,
+                &csr,
+                MCO_EQ,
+                srv->GetID(),
+                UNASSIGNED); 
+    // Вернуться, если курсор пуст
     if (MCO_S_CURSOR_EMPTY == rc)
       break;
     if (rc) { LOG(ERROR) << "Unable to get Letters list cursor, rc="<<rc; break; }
@@ -1284,28 +1292,8 @@ bool XDBDatabaseBrokerImpl::GetWaitingLetter(
         break;
     }
 
-#if 0
-    while (rc == MCO_S_OK)
-    {
-      rc = letter_instance.from_cursor(t, &csr);
-      if (rc) 
-      { 
-        LOG(ERROR) << "Unable to get item from Letters cursor, rc="<<rc; 
-      }
-
-      rc = letter_instance.name_get(name, (uint2)Service::NAME_MAXLEN);
-      if (rc) { LOG(ERROR) << "Getting service name, rc="<<rc; break; }
-
-      rc = letter_instance.autoid_get(aid);
-      if (rc) { LOG(ERROR) << "Getting ID of service '"<<name<<"', rc=" << rc; break; }
-
-      if (false == AddService(name, aid))
-        LOG(ERROR) << "Unable to add new service '"<<name<<"':"<<aid<<" into list";
-
-      rc = mco_cursor_next(t, &csr);
-    }
-#else
-    // Достаточно получить первый элемент, функция будет вызываться до опустошения содержимого курсора 
+    // Достаточно получить первый элемент,
+    // функция будет вызываться до опустошения содержимого курсора 
     rc = letter_instance.from_cursor(t, &csr);
     if (rc) { LOG(ERROR) << "Unable to get item from Letters cursor, rc="<<rc; break; }
 
@@ -1318,7 +1306,7 @@ bool XDBDatabaseBrokerImpl::GetWaitingLetter(
 
     rc = letter_instance.header_get(header_buffer, sizeof(*header_buffer), sz);
     if (rc) { LOG(ERROR) << "Getting header for letter id"<<aid<<", rc=" << rc; break; }
-    header_buffer[sz] = '\0';
+//    header_buffer[sz] = '\0';
 
     rc = letter_instance.body_size(sz);
     if (rc) { LOG(ERROR) << "Getting message body size for letter id"<<aid<<", rc=" << rc; break; }
@@ -1326,7 +1314,7 @@ bool XDBDatabaseBrokerImpl::GetWaitingLetter(
 
     rc = letter_instance.body_get(body_buffer, sizeof(*body_buffer), sz);
     if (rc) { LOG(ERROR) << "Getting message for letter id"<<aid<<", rc=" << rc; break; }
-    body_buffer[sz] = '\0';
+//    body_buffer[sz] = '\0';
 
     header.assign(header_buffer);
     body.assign(body_buffer);
@@ -1334,22 +1322,54 @@ bool XDBDatabaseBrokerImpl::GetWaitingLetter(
     delete []header_buffer;
     delete []body_buffer;
 
-#endif
   } while(false);
 
   mco_trans_rollback(t);
 
-  return status;
+  return (MCO_S_OK == rc);
 }
 
-Service::State XDBDatabaseBrokerImpl::GetServiceState(const Service *srv)
+bool XDBDatabaseBrokerImpl::SetWorkerState(Worker* worker, Worker::State new_state)
 {
-  assert (srv);
-  Service::State state = Service::DISABLED;
-  // TODO реализация
-  assert(1 == 0);
-  // Проверить состояние самого Сервиса и ее подчиненных Обработчиков
-  return state;
+  bool result = false;
+  mco_trans_h t;
+  MCO_RET rc;
+  xdb_broker::XDBWorker  worker_instance;
+
+  assert(worker);
+  if (!worker)
+    return false;
+
+  const char* ident = worker->GetIDENTITY();
+
+  do
+  {
+    rc = mco_trans_start(m_db, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+    if (rc) { LOG(ERROR)<<"Starting transaction, rc="<<rc; break; }
+
+    /* найти запись в таблице сервисов с заданным именем */
+    rc = xdb_broker::XDBWorker::SK_by_ident::find(t,
+                ident,
+                strlen(ident),
+                worker_instance);
+
+    /* Запись не найдена - нет ошибки */
+    if (MCO_S_NOTFOUND == rc) break;
+    /* Запись не найдена - есть ошибка - сообщить */
+    if (rc) { LOG(ERROR)<<"Worker '"<<ident<<"' location, rc="<<rc; break; }
+
+    // TODO: проверить совместимость WorkerState между Worker::State
+    rc = worker_instance.state_put((WorkerState)new_state);
+    if (rc) { LOG(ERROR)<<"Worker '"<<ident<<"' chaning state to "<<new_state<<", rc="<<rc; break; }
+    worker->SetSTATE(new_state);
+
+    mco_trans_commit(t);
+  } while (false);
+
+  if (rc)
+    mco_trans_rollback(t);
+
+  return result;
 }
 
 Worker *XDBDatabaseBrokerImpl::GetWorkerByIdent(const std::string& ident)
@@ -1402,7 +1422,6 @@ bool XDBDatabaseBrokerImpl::PushRequestToService(Service *srv,
   xdb_broker::XDBService service_instance;
   xdb_broker::XDBWorker  worker_instance;
   autoid_t     aid;
-  bool         status = false;
   xdb_broker::timer_mark   mark;
 
   assert (srv);
@@ -1451,14 +1470,13 @@ bool XDBDatabaseBrokerImpl::PushRequestToService(Service *srv,
     }
 
     mco_trans_commit(t);
-    status = true;
     LOG(INFO) << "PushRequestToService '"<<srv->GetNAME()<<"' id="<<aid;
   } while(false);
 
   if (rc)
     mco_trans_rollback(t);
 
-  return status;
+  return (MCO_S_OK == rc);
 }
 
 
@@ -1475,10 +1493,10 @@ void XDBDatabaseBrokerImpl::MakeSnapshot(const char* msg)
     m_initialized = true;
   }
 
-  sprintf(file_name, "%s.%s.%03d",
+  sprintf(file_name, "%s.%03d.%s",
           m_snapshot_file_prefix,
-          (NULL == msg)? "xdb" : msg,
-          ++m_snapshot_counter);
+          ++m_snapshot_counter,
+          (NULL == msg)? "xdb" : msg);
 
   //fprintf(stdout, "Make snapshot into %s file\n", file_name);
 

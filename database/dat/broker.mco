@@ -71,9 +71,13 @@ enum ServiceState
   UNKNOWN, REGISTERED, DISABLED
 };
 
+/*
+Необходимо поддерживать аналогичный порядок и в заголовочном файле 
+класса Worker - database/xdb_database_worker.hpp 
+*/
 enum WorkerState
 {
-  DISARMED, ARMED, INIT, SHUTDOWN, IN_PROCESS, EXPIRED
+  DISARMED, ARMED, INIT, SHUTDOWN, OCCUPIED, EXPIRED
 };
 
 enum LetterState

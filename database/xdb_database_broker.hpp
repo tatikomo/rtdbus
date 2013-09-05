@@ -5,6 +5,7 @@
 #include <string>
 #include "xdb_database.hpp"
 #include "xdb_database_service.hpp"
+#include "xdb_database_worker.hpp"
 
 class XDBDatabaseBrokerImpl;
 class ServiceList;
@@ -70,7 +71,6 @@ class XDBDatabaseBroker : public XDBDatabase
     Service *GetServiceByName(const std::string&);
     Service *GetServiceById(int64_t);
     Service *GetServiceForWorker(const Worker*);
-    Service::State GetServiceState(const Service*);
 
     /* Вернуть экземпляр Обработчика из БД. Не найден - вернуть NULL */
     Worker *GetWorkerByIdent(const char*);
@@ -92,6 +92,8 @@ class XDBDatabaseBroker : public XDBDatabase
 
     /* Получить первое ожидающее обработки Сообщение */
     bool GetWaitingLetter(Service*, Worker*, std::string&, std::string&);
+    /* Установить новое состояние Обработчика */
+    bool SetWorkerState(Worker*, Worker::State);
 
     /* Разрешить исполнение Команды указанной Службе */
     void EnableServiceCommand (const std::string&, const std::string&);
