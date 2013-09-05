@@ -20,8 +20,14 @@ struct timer_mark {
   uint4 nsec;
 };
 
-struct XDBWorker
+/*
+ * обрабатываемые и ожидающие обработки сообщения находятся 
+ * в XDBLetter по ссылке на XDBService.
+ */
+class XDBWorker
 {
+  /* Автоинкрементный числовой идентификатор */
+  autoid[MAX_WORKERS_ENTRY];
   /* Строковый идентификатор Обработчика */
   identity_t identity;
   /* Состояние */
@@ -29,9 +35,20 @@ struct XDBWorker
   /* Время ожидания получения подтверждения "Я ЖИВ" */
   timer_mark expiration;
   /* ссылка на объект XDBLetter */
-  autoid_t   letter;
+  autoid_t   service_ref;
+  /* ссылка на объект XDBLetter */
+  autoid_t   letter_ref;
+  /* Поиск Обработчика по имени */
+  unique tree  <identity> SK_by_ident;
+  tree   <expiration.sec> SK_expiration;
+  // У одной Службы может быть несколько Обработчиков
+  tree      <service_ref> SK_by_serv_id;
 };
 
+/*
+ * Зарегистрированные Обработчики данного Сервиса находятся
+ * в XDBWorker по ссылке на XDBService.
+ */
 class XDBService
 {
   /* Автоинкрементный числовой идентификатор */
@@ -40,8 +57,6 @@ class XDBService
   service_name_t name;
   /* Текущее состояние */
   ServiceState state = UNKNOWN;
-
-  vector <XDBWorker> workers;
   /* Поиск Сервиса по имени */
   hash           <name> PK_name[MAX_SERVICES_ENTRY];
   /* Доступ ко всем зарегистрированным Сервисам */
@@ -49,16 +64,6 @@ class XDBService
   /*event <checkpoint>   newService;*/
   event <new>   newService;
   event <delete>       delService;
-
-  /*
-   * обрабатываемые и ожидающие обработки сообщения находятся 
-   * в XDBLetter по ссылке на XDBService.
-   * Зарегистрированные Обработчики данного Сервиса находятся
-   * в XDBWorker по ссылке на XDBService.
-   */
-/*  tree   <workers.expiration.sec> SK_workers_expire;*/
-  /* Поиск Обработчика по имени */
-  unique tree <workers.identity> SK_ident;
 };
 
 enum ServiceState
