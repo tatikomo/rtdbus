@@ -496,7 +496,7 @@ TEST(TestProxy, CLIENT_MESSAGE)
 #endif
 
 #if 0
-Этот код уже проверяется в CLIENT_MESSAGE
+//Этот код уже проверяется в CLIENT_MESSAGE
 ////////////////////////////////////////////////////////////////////////////////
 TEST(TestProxy, WAITING_LETTER)
 {

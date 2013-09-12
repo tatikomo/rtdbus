@@ -67,6 +67,7 @@ class XDBDatabaseBroker : public XDBDatabase
     bool PushRequestToService(Service*, 
             const std::string&,
             const std::string&);
+    bool PushRequestToService(Service*, Letter*);
 
     /* Вернуть экземпляр Сервиса, только если он существует в БД */
     Service *GetServiceByName(const char*);

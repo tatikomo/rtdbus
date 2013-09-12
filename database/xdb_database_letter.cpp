@@ -13,12 +13,14 @@ Letter::Letter()
   m_id = m_service_id = m_worker_id = 0;
   m_expiration.tv_sec = 0;
   m_expiration.tv_nsec = 0;
+  m_header = NULL;
   m_modified = false;
 }
 
 Letter::Letter(const int64_t _self_id, const int64_t _srv_id, const int64_t _wrk_id)
 : m_id(_self_id), m_service_id(_srv_id), m_worker_id(_wrk_id)
 {
+  m_header = NULL;
   m_modified = true;
 }
 
@@ -36,8 +38,6 @@ Letter::Letter(void* data) : m_modified(true)
   SetID(0);
   SetWORKER_ID(0);
   SetSERVICE_ID(0);
-
-  msg->dump();
 
   // Прочитать служебные поля транспортного сообщения zmsg
   // и восстановить на его основе прикладное сообщение.
@@ -61,8 +61,12 @@ Letter::Letter(RTDBUS_MessageHeader *h, std::string& b) : m_modified(true)
 // Создать экземпляр на основе заголовка и тела сообщения
 Letter::Letter(const std::string& _head, const std::string& _data) : m_modified(true)
 {
-  m_header = new RTDBUS_MessageHeader(_head);
+  m_frame_header.assign(_head);
   m_frame_data.assign(_data);
+  m_header = new RTDBUS_MessageHeader(m_frame_header);
+  SetID(0);
+  SetWORKER_ID(0);
+  SetSERVICE_ID(0);
 }
 
 void Letter::SetID(int64_t self_id)
@@ -223,11 +227,11 @@ void Letter::Dump()
     <<"Letter:" << m_id
     <<" srv:"   << m_service_id
     <<" wrk:"   << m_worker_id
-    <<" prot:"  << GetPROTOCOL_VERSION()
+    <<" prot:"  << (int)GetPROTOCOL_VERSION()
     <<" exchg:" << GetEXCHANGE_ID()
     <<" spid:"  << GetSOURCE_PID()
-    <<" dest:"  << GetPROC_DEST()
-    <<" orig:"  << GetPROC_ORIGIN()
-    <<" sys_t:" << GetSYS_MSG_TYPE()
+    <<" dest:'"  << GetPROC_DEST()
+    <<"' orig:'"  << GetPROC_ORIGIN()
+    <<"' sys_t:" << GetSYS_MSG_TYPE()
     <<" usr_t:" << GetUSR_MSG_TYPE();
 }

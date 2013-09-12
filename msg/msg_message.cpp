@@ -1,7 +1,9 @@
 #include <assert.h>
+#include <stdio.h>
 
 #include "glog/logging.h"
 #include "msg_message.hpp"
+#include "helper.hpp"
 
 RTDBUS_MessageHeader::RTDBUS_MessageHeader()
 {
@@ -9,12 +11,17 @@ RTDBUS_MessageHeader::RTDBUS_MessageHeader()
 
 RTDBUS_MessageHeader::RTDBUS_MessageHeader(const std::string& frame)
 {
-  m_header_instance.ParseFromString(frame);
+  if (false == m_header_instance.ParseFromString(frame))
+  {
+    LOG(ERROR) << "Unable to unserialize header";
+    hex_dump(frame);
+  }
 }
 
 RTDBUS_MessageHeader::~RTDBUS_MessageHeader()
 {
 }
+
 
 int8_t RTDBUS_MessageHeader::get_protocol_version()
 {

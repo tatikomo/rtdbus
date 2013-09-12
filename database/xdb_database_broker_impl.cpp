@@ -1397,16 +1397,18 @@ Letter* XDBDatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
     if (rc) { LOG(ERROR) << "Getting header size for letter id"<<aid<<", rc=" << rc; break; }
     header_buffer = new char[header_sz + 1];
 
-    rc = letter_instance.header_get(header_buffer, sizeof(*header_buffer), sz);
+    rc = letter_instance.header_get(header_buffer, header_sz, sz);
     if (rc) { LOG(ERROR) << "Getting header for letter id "<<aid<<", size="<<sz<<", rc=" << rc; break; }
+    header_buffer[header_sz] = '\0';
     std::string header(header_buffer, header_sz+1);
 
     rc = letter_instance.body_size(data_sz);
     if (rc) { LOG(ERROR) << "Getting message body size for letter id"<<aid<<", rc=" << rc; break; }
     body_buffer = new char[data_sz + 1];
 
-    rc = letter_instance.body_get(body_buffer, sizeof(*body_buffer), sz);
+    rc = letter_instance.body_get(body_buffer, data_sz, sz);
     if (rc) { LOG(ERROR) << "Getting data for letter id "<<aid<<", size="<<sz<<", rc=" << rc; break; }
+    body_buffer[data_sz] = '\0';
     std::string body(body_buffer, data_sz+1);
 
     rc = letter_instance.expiration_read(xdb_expire_time);
@@ -1508,7 +1510,7 @@ bool XDBDatabaseBrokerImpl::AssignLetterToWorker(Worker* worker, Letter* letter)
 
     if (GetTimerValue(exp_time))
     {
-      exp_time.tv_sec += 1; /* GEV: Letter::ExpirationPeriodValue;*/
+      exp_time.tv_sec += Letter::ExpirationPeriodValue;
     }
     else { LOG(ERROR) << "Unable to calculate expiration time, rc="<<rc; break; }
 
@@ -1565,8 +1567,6 @@ bool XDBDatabaseBrokerImpl::AssignLetterToWorker(Worker* worker, Letter* letter)
             <<" for letter id="<<letter->GetID()<<", rc="<<rc; 
         break; 
     }
-
-    letter->Dump();
 
     mco_trans_commit(t);
 
@@ -1713,6 +1713,7 @@ bool XDBDatabaseBrokerImpl::PushRequestToService(Service *srv,
   xdb_broker::XDBService service_instance;
   xdb_broker::XDBWorker  worker_instance;
   autoid_t     aid;
+  timer_mark_t now_time;
   xdb_broker::timer_mark   mark;
 
   assert (srv);
@@ -1737,23 +1738,28 @@ bool XDBDatabaseBrokerImpl::PushRequestToService(Service *srv,
         break; 
     }
 
-    rc = letter_instance.service_ref_put(srv->GetID());
+    letter_instance.service_ref_put(srv->GetID());
 
-    rc = letter_instance.autoid_get(aid);
-/*
- * Идентификатор Обработчика запишется только после 
- * успешной передачи сообщения этому Обработчику
- */
-//    rc = worker_put( autoid_t value );
+    letter_instance.autoid_get(aid);
 
-    rc = letter_instance.state_put(UNASSIGNED); // ASSIGNED - после передачи Обработчику
+    letter_instance.state_put(UNASSIGNED); // ASSIGNED - после передачи Обработчику
 
-    rc = letter_instance.expiration_write(mark);
+    letter_instance.expiration_write(mark);
+    if (GetTimerValue(now_time))
+    {
+      mark.nsec_put(now_time.tv_nsec);
+      mark.sec_put(now_time.tv_sec + Worker::HEARTBEAT_PERIOD_VALUE);
+    }
+    else 
+    {
+      LOG(WARNING) << "Unable to calculate expiration time"; 
+      mark.nsec_put(0);
+      mark.sec_put(0);
+    }
 
-    rc = letter_instance.header_put(header.c_str(), header.size());
-
-    rc = letter_instance.body_put(body.c_str(), body.size());
-    if (rc)
+    letter_instance.header_put(header.c_str(), header.size());
+    letter_instance.body_put(body.c_str(), body.size());
+    if (mco_get_last_error(t))
     { 
         LOG(ERROR)<<"Unable to set letter attributes for service '"
                   <<srv->GetNAME()<<"', rc="<<rc;
@@ -1768,6 +1774,16 @@ bool XDBDatabaseBrokerImpl::PushRequestToService(Service *srv,
     mco_trans_rollback(t);
 
   return (MCO_S_OK == rc);
+}
+
+bool XDBDatabaseBrokerImpl::PushRequestToService(Service *srv, Letter *letter)
+{
+  assert(letter);
+
+  if (letter)
+    return PushRequestToService(srv, letter->GetHEADER(), letter->GetDATA());
+  else
+    return false;
 }
 
 

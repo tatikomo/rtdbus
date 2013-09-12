@@ -102,4 +102,33 @@ void LogInfo(
 #endif
 }
 
+void hex_dump(const std::string& data)
+{
+   char buf[4000];
+   int offset;
+   int is_text;
+   unsigned int char_nbr;
+
+   // Dump the message as text or binary
+   is_text = 1;
+   for (char_nbr = 0; char_nbr < data.size(); char_nbr++)
+       if (data [char_nbr] < 32 || data [char_nbr] > 127)
+           is_text = 0;
+
+   offset = sprintf(buf, "[%03d] ", (int) data.size());
+   for (char_nbr = 0; char_nbr < data.size(); char_nbr++)
+   {
+       if (is_text) 
+       {
+           strcpy((char*)(&buf[0] + offset++), (const char*) &data [char_nbr]);
+       }
+       else 
+       {
+           snprintf(&buf[offset], 3, "%02X", (unsigned char)data[char_nbr]);
+           offset += 2;
+       }
+   }
+   buf[offset] = '\0';
+   fprintf(stdout, "%s\n", buf); fflush(stdout);
+}
 

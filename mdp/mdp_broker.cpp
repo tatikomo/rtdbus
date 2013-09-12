@@ -191,17 +191,18 @@ Broker::service_dispatch (Service *srv, zmsg *processing_msg = NULL)
     if (processing_msg)
     {
       letter = new Letter(processing_msg);
-      status = m_database->PushRequestToService(srv, letter->GetHEADER(), letter->GetDATA());
+      letter->Dump();
+      status = m_database->PushRequestToService(srv, letter/*->GetHEADER(), letter->GetDATA()*/);
       if (!status) 
         LOG(ERROR) << "Unable to put new letter into queue of '"
                    <<srv->GetNAME()<<"' service";
       delete letter;
     }
 
-    m_database->MakeSnapshot("PRE_PURGE_SERVICE_DISPATCH");
+//    m_database->MakeSnapshot("PRE_PURGE_SERVICE_DISPATCH");
     /* Очистить список Обработчиков Сервиса от зомби */
     purge_workers ();
-    m_database->MakeSnapshot("POST_PURGE_SERVICE_DISPATCH");
+//    m_database->MakeSnapshot("POST_PURGE_SERVICE_DISPATCH");
 
     /*
      * Продолжать обработку, пока
@@ -217,11 +218,12 @@ Broker::service_dispatch (Service *srv, zmsg *processing_msg = NULL)
       LOG(INFO) << "Pop worker '"<<wrk->GetIDENTITY()<<"'";
       while (NULL != (letter = m_database->GetWaitingLetter(srv)))
       {
-        m_database->MakeSnapshot("PRE_SEND_SERVICE_DISPATCH");
+//        m_database->MakeSnapshot("PRE_SEND_SERVICE_DISPATCH");
         LOG(INFO) << "Pop letter id="<<letter->GetID()<<" state="<<letter->GetSTATE();
+        letter->Dump();
         // Передать ожидающую обслуживания команду выбранному Обработчику
         worker_send (wrk, (char*)MDPW_REQUEST, EMPTY_FRAME, letter);
-        m_database->MakeSnapshot("POST_SEND_SERVICE_DISPATCH");
+//        m_database->MakeSnapshot("POST_SEND_SERVICE_DISPATCH");
         delete letter;
       }
       delete wrk;
@@ -469,6 +471,8 @@ Broker::worker_send (Worker *worker,
 
   msg->push_front(const_cast<std::string&>(letter->GetDATA()));
   msg->push_front(const_cast<std::string&>(letter->GetHEADER()));
+  // TODO идентификатор Клиента сюда!
+  msg->push_front("@006B8B4568"); // GEV test
   msg->push_front (const_cast<char*>(command));
   msg->push_front ((char*)MDPW_WORKER); 
   //  Stack routing envelope to start of message

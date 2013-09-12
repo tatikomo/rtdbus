@@ -214,6 +214,15 @@ bool XDBDatabaseBroker::PushRequestToService(Service* srv,
   return m_impl->PushRequestToService(srv, header, data);
 }
 
+/* поместить сообщение во входящую очередь Службы */
+bool XDBDatabaseBroker::PushRequestToService(Service* srv, Letter* letter)
+{
+  assert(m_impl);
+
+  if (!m_impl) return false;
+  return m_impl->PushRequestToService(srv, letter);
+}
+
 /* Очистить спул Обработчиков и всех Сервисов */
 bool XDBDatabaseBroker::ClearServices()
 {

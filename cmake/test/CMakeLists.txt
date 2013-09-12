@@ -35,6 +35,8 @@ include_directories(${LIBGLOG_INCLUDE_DIR})
 
 link_directories(${CMAKE_SOURCE_DIR}/../../gtest-1.6.0/lib/.libs)
 link_directories(${LIBGLOG_LIBRARIES_DIR})
+link_directories(${MDP_DIR})
+link_directories(${XDB_DIR})
 link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
@@ -66,6 +68,7 @@ set (TEST_DATABASE_SOURCES
         ${XDB_DIR}/dat/xdb_broker.hpp
         ${XDB_DIR}/dat/xdb_broker.h
         ${XDB_DIR}/dat/xdb_broker.c
+        ${MDP_DIR}/zmsg.hpp
         ${TEST_RTDBUS_DIR}/database_unittest.cpp)
 
 set (TEST_MSG_SOURCES
@@ -115,7 +118,9 @@ target_link_libraries(${UNITTEST_DEVICE}
 add_executable (${UNITTEST_DATABASE} ${TEST_DATABASE_SOURCES})
 target_link_libraries(${UNITTEST_DATABASE}
     ${XDB_LIBRARY_NAME}
+    ${MDP_LIBRARY_NAME}
     ${TOOLS_LIBRARY_NAME}
+    ${LIBPROTOBUF_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${SYSTEM_EXTERNAL_LIBS})
 
@@ -125,6 +130,8 @@ target_link_libraries(${UNITTEST_MESSAGE}
     ${MDP_LIBRARY_NAME}
     ${LIBPROTOBUF_LIBRARIES}
     ${MSG_LIBRARY_NAME}
+    ${XDB_LIBRARY_NAME}
+    ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${SYSTEM_EXTERNAL_LIBS})
 
 add_test(NAME XDB_TEST COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_DATABASE})

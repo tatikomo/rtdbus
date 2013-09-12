@@ -107,6 +107,7 @@ class XDBDatabaseBrokerImpl
 
     /* поместить сообщение во входящую очередь Службы */
     bool PushRequestToService(Service*, const std::string&, const std::string&);
+    bool PushRequestToService(Service*, Letter*);
 
     /* Вернуть экземпляр Сервиса. Если он не существует в БД - создать */
     Service *RequireServiceByName(const char*);

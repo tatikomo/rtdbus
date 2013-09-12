@@ -25,10 +25,13 @@ void LogInfo(
             ...);*/
 
 
+
 #ifdef __cplusplus
 }
 #endif
 
+#include <string>
 #include "timer.hpp"
+void    hex_dump(const std::string&);
 
 #endif
