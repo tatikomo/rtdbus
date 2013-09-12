@@ -6,31 +6,19 @@
 #include "helper.hpp"
 #include "zmsg.hpp"
 #include "mdp_common.h"
-#include "msg_payload.hpp"
 #include "msg_message.hpp"
 #include "proto/common.pb.h"
+#include "xdb_database_letter.hpp"
 
 std::string        service_name_1 = "service_name_1";
 std::string        pb_serialized_header;
 std::string        pb_serialized_request;
 RTDBM::Header      pb_header;
 RTDBM::ExecResult  pb_exec_result_request;
-Payload           *payload = NULL;
+Letter            *payload = NULL;
 zmsg              *msg = NULL;
 
-TEST(TestMessageFactory, CREATE)
-{
-  RTDBM::ExecResult  *pb_request_exec_result = NULL;
-  pb_request_exec_result = static_cast<RTDBM::ExecResult*>(RTDBUS_MessageFactory::create(ADG_D_MSG_EXECRESULT));
-  ASSERT_TRUE(pb_request_exec_result != NULL);
-
-  pb_request_exec_result->set_user_exchange_id(99999);
-  pb_request_exec_result->set_exec_result(99);
-  pb_request_exec_result->set_failure_cause(1);
-  delete pb_request_exec_result;
-}
-
-TEST(TestProtobuf, VERSION)
+TEST(TestProtobuf, PROTO_VERSION)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 }
@@ -76,11 +64,11 @@ TEST(TestPayload, CREATE_FROM_MSG)
 
   try
   {
-    payload = new Payload(msg);
+    payload = new Letter(msg);
     ASSERT_TRUE(payload != NULL);
 
-    serialized_header = payload->header();
-    serialized_request= payload->data();
+    serialized_header = payload->GetHEADER();
+    serialized_request= payload->GetDATA();
 
     EXPECT_EQ(serialized_header,  pb_serialized_header);
     EXPECT_EQ(serialized_request, pb_serialized_request);
@@ -94,10 +82,10 @@ TEST(TestPayload, CREATE_FROM_MSG)
 TEST(TestPayload, ACCESS)
 {
   RTDBM::ExecResult exec_result;
-  RTDBUS_MessageHeader* header = new RTDBUS_MessageHeader(payload->header());
+  RTDBUS_MessageHeader* header = new RTDBUS_MessageHeader(payload->GetHEADER());
   ASSERT_TRUE(header);
 
-  exec_result.ParseFromString(payload->data());
+  exec_result.ParseFromString(payload->GetDATA());
 
   EXPECT_EQ(pb_header.protocol_version(),            header->get_protocol_version());
   EXPECT_EQ((rtdbExchangeId)pb_header.exchange_id(), header->get_exchange_id());

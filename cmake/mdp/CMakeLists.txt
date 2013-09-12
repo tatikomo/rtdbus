@@ -72,7 +72,7 @@ set (BROKER_SOURCES
         ${MDP_DIR}/zmsg.hpp
         ${MDP_DIR}/zmsg.cpp
         ${MDP_DIR}/mdp_common.h
-        ${MSG_DIR}/msg_payload.hpp
+        ${MSG_DIR}/msg_message.hpp
         ${XDB_DIR}/dat/xdb_broker.h
         ${XDB_DIR}/dat/xdb_broker.c
         ${XDB_DIR}/dat/xdb_broker.hpp

@@ -115,6 +115,7 @@ set (WORKER_IDENTITY_MAXLEN   11)
 set (DBNAME_MAXLEN            10)
 set (HEARTBEAT_PERIOD         10)
 set (WORKERS_SPOOL_SIZE        2)
+set (MESSAGE_EXPIRATION_PERIOD_MSEC  500)
 #set (USE_EXTREMEDB_HTTP_SERVER 1)
 
 OPTION (RTDBUS_USE_EXTREMEDB_HTTP_SERVER "enable internal http server"  OFF)
@@ -143,7 +144,7 @@ endif (CMAKE_COMPILER_IS_GNUCC)
 add_definitions(-DHAVE_CONFIG_H)
 
 set(RTDBUS_LIBRARIES rtdbus-1)
-set(RTDBUS_INTERNAL_LIBRARIES zmq socket nsl stdc++)
+set(RTDBUS_INTERNAL_LIBRARIES socket nsl stdc++)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config.h )
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/rtdbus-env.bat.cmake ${CMAKE_BINARY_DIR}/bin/rtdbus-env.bat )

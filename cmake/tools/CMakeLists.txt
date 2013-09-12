@@ -1,4 +1,5 @@
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
+  # SOLARIS
   set (SYSTEM_EXTERNAL_LIBS
         rt)
 else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")

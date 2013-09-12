@@ -152,8 +152,10 @@ TEST(TestHelper, CLOCK)
   EXPECT_TRUE(2 > (after - before - 500));
 
   EXPECT_TRUE (1 >= (future_time.tv_sec - now_time.tv_sec));
-  // 1млрд = одна секунда, добавим 100тыс (1 мсек) для погрешности.
-  EXPECT_TRUE (100000 > (future_time.tv_nsec - now_time.tv_nsec - 500000000));
+  // 1млрд = одна секунда, добавим 200тыс (2 мсек) для погрешности.
+  EXPECT_TRUE (200000 > 
+        ((future_time.tv_nsec + future_time.tv_sec * 1.0e9) - (now_time.tv_nsec + now_time.tv_sec * 1.0e9)
+          - 5.0e8));
 
   usleep(500000);
 
@@ -493,15 +495,23 @@ TEST(TestProxy, CLIENT_MESSAGE)
 }
 #endif
 
+#if 0
+//Этот код уже проверяется в CLIENT_MESSAGE
 ////////////////////////////////////////////////////////////////////////////////
 TEST(TestProxy, WAITING_LETTER)
 {
   int processed_messages_count = 0;
-  std::string header;
-  std::string message_body;
+  Letter       *letter = NULL;
   ServiceList  *sl = broker->get_internal_db_api()->GetServiceList();
   Service      *service = sl->first();
   Worker       *wrk = NULL;
+
+  broker->database_snapshot("WAITING_LETTER");
+
+  wrk = broker->worker_require(worker_identity_1);
+  ASSERT_TRUE(wrk != NULL); /* Обработчик зарегистрирован, активировать */
+  broker->get_internal_db_api()->SetWorkerState(wrk, Worker::ARMED);
+  EXPECT_EQ(wrk->GetSTATE(), Worker::ARMED);
 
   broker->database_snapshot("WAITING_LETTER");
   while(NULL != service)
@@ -510,22 +520,20 @@ TEST(TestProxy, WAITING_LETTER)
     while (NULL != (wrk = broker->get_internal_db_api()->PopWorker(service)))
     {
       LOG(INFO) << "Pop worker '"<<wrk->GetIDENTITY()<<"' with state "<<wrk->GetSTATE();
-      while (broker->get_internal_db_api()->GetWaitingLetter(service, wrk, header, message_body))
+      while (NULL != (letter = broker->get_internal_db_api()->GetWaitingLetter(service)))
       {
         // Передать ожидающую обслуживания команду выбранному Обработчику
-        broker->worker_send (wrk, (char*)MDPW_REQUEST, EMPTY_FRAME, header, message_body);
-        // установить статус OCCUPIED данному Обработчику
-        broker->get_internal_db_api()->SetWorkerState(wrk, Worker::OCCUPED);
+        broker->worker_send (wrk, (char*)MDPW_REQUEST, EMPTY_FRAME, letter);
         processed_messages_count++;
       }
       delete wrk;
-      break;
     }
     service = sl->next();
   }
   EXPECT_EQ(processed_messages_count, 1);
   broker->database_snapshot("WAITING_LETTER");
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 TEST(TestProxy, PURGE_WORKERS)

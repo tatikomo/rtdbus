@@ -4,17 +4,18 @@
 #include "zmsg.hpp"
 #include "helper.hpp"
 #include "mdp_worker_api.hpp"
+//#include "mdp_letter.hpp"
 #include "wdigger.hpp"
 
 extern int s_interrupted;
 
 int Digger::handle_request(zmsg* request, std::string*& reply_to)
 {
-  assert (request->parts () >= 3);
-  LOG(INFO) << "Process new request with " << request->parts() << " parts and reply to " << reply_to;
+  assert (request->parts () >= 2);
+  LOG(INFO) << "Process new request with " << request->parts() << " parts and reply to " << *reply_to;
 
+#if 0
   std::string operation = request->pop_front ();
-  std::string price     = request->pop_front ();
   std::string volume    = request->pop_front ();
 
   if (operation.compare("SELL") == 0)
@@ -26,6 +27,9 @@ int Digger::handle_request(zmsg* request, std::string*& reply_to)
         zclock_log ("E: invalid message: ");
         request->dump();
   }
+#else
+  request->dump();
+#endif
 
   return 0;
 }
@@ -73,6 +77,7 @@ int main(int argc, char **argv)
   int verbose = (argc > 1 && (0 == strcmp (argv [1], "-v")));
   ::google::InstallFailureSignalHandler();
   ::google::InitGoogleLogging(argv[0]);
+//  Letter *letter = NULL;
 
   try
   {
@@ -85,7 +90,8 @@ int main(int argc, char **argv)
        request = engine->recv (reply_to);
        if (request)
        {
-         engine->handle_request (request, reply_to);
+//         letter = new (request);
+         engine->handle_request (request/*letter*/, reply_to);
          delete reply_to;
        }
        else

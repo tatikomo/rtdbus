@@ -23,6 +23,7 @@ Service::~Service()
   delete []m_name;
 }
 
+// TODO: проверить обоснованность присваивания
 void Service::SetSTATE(State _state)
 {
   m_state = _state;

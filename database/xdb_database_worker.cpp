@@ -84,9 +84,8 @@ const char* Worker::GetIDENTITY()
 
 void Worker::SetEXPIRATION(const timer_mark_t& _expiration)
 {
-  memcpy((void*)&m_expiration, 
-         (void*) &_expiration, 
-         sizeof (m_expiration));
+  m_expiration.tv_sec = _expiration.tv_sec;
+  m_expiration.tv_nsec = _expiration.tv_nsec;
   m_modified = true;
 }
 

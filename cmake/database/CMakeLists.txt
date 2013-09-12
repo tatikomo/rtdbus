@@ -16,9 +16,18 @@ endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
 include_directories(${TOOLS_DIR})
 include_directories(${XDB_DIR})
+
+# Для использования ZMSG и RTDBUS_MessageHeader внутри Letter
+include_directories(${MSG_DIR})
+include_directories(${MDP_DIR})
+include_directories(${LIBZMQ_INCLUDE_DIR})
+include_directories(${LIBPROTOBUF_INCLUDE_DIR})
+
 include_directories(${LIBGLOG_INCLUDE_DIR})
 include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
+
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
+link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 
 set (XDB_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
@@ -38,6 +47,23 @@ set (XDB_SOURCES
         ${XDB_DIR}/xdb_database_service.hpp
         ${XDB_DIR}/xdb_database_worker.cpp
         ${XDB_DIR}/xdb_database_worker.hpp
+        ${XDB_DIR}/xdb_database_letter.cpp
+        ${XDB_DIR}/xdb_database_letter.hpp
+        ${MSG_DIR}/msg_common.h
+        ${MSG_DIR}/proto/common.pb.cc
+        ${MSG_DIR}/proto/common.pb.h
+        )
+
+add_custom_command(
+        OUTPUT
+        ${MSG_DIR}/proto/common.pb.cc
+        ${MSG_DIR}/proto/common.pb.h
+        COMMAND
+        ${PROTOC} --cpp_out=. --proto_path=. common.proto
+        DEPENDS
+        ${MSG_DIR}/proto/common.proto
+        WORKING_DIRECTORY
+        ${MSG_DIR}/proto
         )
 
 add_custom_command(
@@ -62,5 +88,6 @@ add_custom_command(
 add_library (${XDB_LIBRARY_NAME} ${XDB_SOURCES})
 target_link_libraries(${XDB_LIBRARY_NAME}
     ${EXTREMEDB_LIBRARIES_ALL}
+    ${MSG_LIBRARY_NAME}
     ${SYSTEM_EXTERNAL_LIBS})
 

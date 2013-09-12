@@ -129,18 +129,12 @@ ServiceList* XDBDatabaseBroker::GetServiceList()
 }
 
 /* Получить первое ожидающее обработки Сообщение */
-bool XDBDatabaseBroker::GetWaitingLetter(
-        /* IN  */ Service* srv,
-        /* IN  */ Worker* wrk,
-        /* OUT */ std::string& header,
-        /* OUT */ std::string& body)
+Letter* XDBDatabaseBroker::GetWaitingLetter(Service* srv)
 {
-  assert(srv);
-  assert(wrk);
   assert(m_impl);
 
-  if (!m_impl) return false;
-  return m_impl->GetWaitingLetter(srv, wrk, header, body);
+  if (!m_impl) return NULL;
+  return m_impl->GetWaitingLetter(srv);
 }
 
 bool XDBDatabaseBroker::IsServiceCommandEnabled(
@@ -151,6 +145,14 @@ bool XDBDatabaseBroker::IsServiceCommandEnabled(
 
   if (!m_impl) return false;
   return m_impl->IsServiceCommandEnabled(srv, cmd_name);
+}
+
+bool XDBDatabaseBroker::AssignLetterToWorker(Worker* worker, Letter* letter)
+{
+  assert(m_impl);
+
+  if (!m_impl) return false;
+  return m_impl->AssignLetterToWorker(worker, letter);
 }
 
 Service *XDBDatabaseBroker::RequireServiceByName(const char *service_name)
@@ -210,6 +212,15 @@ bool XDBDatabaseBroker::PushRequestToService(Service* srv,
 
   if (!m_impl) return false;
   return m_impl->PushRequestToService(srv, header, data);
+}
+
+/* поместить сообщение во входящую очередь Службы */
+bool XDBDatabaseBroker::PushRequestToService(Service* srv, Letter* letter)
+{
+  assert(m_impl);
+
+  if (!m_impl) return false;
+  return m_impl->PushRequestToService(srv, letter);
 }
 
 /* Очистить спул Обработчиков и всех Сервисов */

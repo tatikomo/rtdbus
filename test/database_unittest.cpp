@@ -313,6 +313,12 @@ TEST(TestBrokerDATABASE, SERVICE_LIST)
 //  ASSERT_TRUE(srv_array != NULL);
 }
 
+TEST(TestBrokerDATABASE, CHECK_LETTER)
+{
+  Letter *letter = new Letter();
+
+}
+
 TEST(TestBrokerDATABASE, CHECK_EXIST_WORKER)
 {
 }
