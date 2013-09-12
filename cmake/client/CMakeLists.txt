@@ -18,6 +18,7 @@ include_directories(${LIBZMQ_INCLUDE_DIR})
 include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 include_directories(${MDP_DIR})
 include_directories(${MSG_DIR})
+include_directories(${XDB_DIR})
 
 link_directories(${LIBGLOG_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
@@ -34,6 +35,7 @@ set (CLIENT_TRADER_SOURCES
 
 set (CLIENT_PULSAR_SOURCES
         ${MDP_DIR}/zmsg.hpp
+        ${XDB_DIR}/xdb_database_letter.hpp
         ${MDP_DIR}/mdp_common.h
         ${MSG_DIR}/proto/common.pb.h
         ${MDP_DIR}/mdp_client_async_api.hpp

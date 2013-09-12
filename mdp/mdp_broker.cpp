@@ -2,11 +2,11 @@
 
 #include "mdp_common.h"
 #include "mdp_broker.hpp"
-#include "msg_payload.hpp"
 #include "zmsg.hpp"
 #include "xdb_database_broker.hpp"
 #include "xdb_database_service.hpp"
 #include "xdb_database_worker.hpp"
+#include "xdb_database_letter.hpp"
 
 
 //  ---------------------------------------------------------------------
@@ -178,30 +178,31 @@ void
 Broker::service_dispatch (Service *srv, zmsg *processing_msg = NULL)
 {
     Worker  *wrk = NULL;
-    Payload *payload = NULL;
+    Letter  *letter = NULL;
     bool     status = false;
     // всегда проверять, есть ли в очереди ранее необслужанные запросы
-    bool     awaiting_messages_exists = true;
-    bool     continue_to_check_queue = true;
-    int      processed_messages_count;
     std::string header;
     std::string message_body;
 
     assert (srv);
 
+    m_database->MakeSnapshot("PRE_SERVICE_DISPATCH");
     // Сообщение может отсутствовать
     if (processing_msg)
     {
-      payload = new Payload(processing_msg);
-      status = m_database->PushRequestToService(srv, payload->header(), payload->data());
+      letter = new Letter(processing_msg);
+      status = m_database->PushRequestToService(srv, letter->GetHEADER(), letter->GetDATA());
       if (!status) 
         LOG(ERROR) << "Unable to put new letter into queue of '"
                    <<srv->GetNAME()<<"' service";
-      delete payload;
+      delete letter;
     }
 
+    m_database->MakeSnapshot("PRE_PURGE_SERVICE_DISPATCH");
     /* Очистить список Обработчиков Сервиса от зомби */
     purge_workers ();
+    m_database->MakeSnapshot("POST_PURGE_SERVICE_DISPATCH");
+
     /*
      * Продолжать обработку, пока
      *  Для Сервиса есть свободные Обработчики
@@ -211,29 +212,23 @@ Broker::service_dispatch (Service *srv, zmsg *processing_msg = NULL)
      *   2. Послать Сообщение указанному Обработчику
      *   3. Удалить Сообщение только после успешной отправки
      */
-    continue_to_check_queue = awaiting_messages_exists;
-    processed_messages_count = 0;
-
-    while (continue_to_check_queue && (NULL != (wrk = m_database->PopWorker(srv))))
+    while (NULL != (wrk = m_database->PopWorker(srv)))
     {
-      LOG(INFO) << "pop worker '"<<wrk->GetIDENTITY()<<"' state="<<wrk->GetSTATE();
-      while (m_database->GetWaitingLetter(srv, wrk, header, message_body))
+      LOG(INFO) << "Pop worker '"<<wrk->GetIDENTITY()<<"'";
+      while (NULL != (letter = m_database->GetWaitingLetter(srv)))
       {
-        awaiting_messages_exists = true;
-        if (10 > processed_messages_count++)
-          break;
+        m_database->MakeSnapshot("PRE_SEND_SERVICE_DISPATCH");
+        LOG(INFO) << "Pop letter id="<<letter->GetID()<<" state="<<letter->GetSTATE();
         // Передать ожидающую обслуживания команду выбранному Обработчику
-        worker_send (wrk, (char*)MDPW_REQUEST, EMPTY_FRAME, header, message_body);
-        // TODO: установить статус OCCUPIED данному Обработчику
+        worker_send (wrk, (char*)MDPW_REQUEST, EMPTY_FRAME, letter);
+        m_database->MakeSnapshot("POST_SEND_SERVICE_DISPATCH");
+        delete letter;
       }
-      awaiting_messages_exists = false;
-      // GEV Пока обрабатывать не более 10 сообщений из очереди ожиданий! 
-      // TODO уточнить критерии останова разгребания очереди для данной Службы.
-      // Может быть, создать отдельный thread для таких случаев.
-      continue_to_check_queue = ((true == awaiting_messages_exists) && (processed_messages_count<10));
       delete wrk;
+      break;
     }
     delete srv;
+    m_database->MakeSnapshot("POST_SERVICE_DISPATCH");
 }
 
 //  ---------------------------------------------------------------------
@@ -326,7 +321,7 @@ Broker::worker_delete (Worker *&wrk, int disconnect)
 {
     assert (wrk);
     if (disconnect) {
-        worker_send (wrk, (char*)MDPW_DISCONNECT, EMPTY_FRAME, (Payload*)NULL);
+        worker_send (wrk, (char*)MDPW_DISCONNECT, EMPTY_FRAME, (Letter*)NULL);
     }
 
     if (false == m_database->RemoveWorker(wrk))
@@ -460,11 +455,43 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
 //  If pointer to message is provided, sends that message
 void
 Broker::worker_send (Worker *worker,
-    const char *command, const std::string& option, Payload *letter)
+    const char *command, const std::string& option, Letter *letter)
 {
   // TODO: удалить сообщение из базы только после успешной передачи
   // NB: это может привести к параллельному исполнению 
   // команды двумя Обработчиками. Как бороться? И стоит ли?
+  assert(worker);
+  zmsg *msg = new zmsg();
+  //  Stack protocol envelope to start of message
+  if (option.size()>0) {                 //  Optional frame after command
+    msg->push_front ((char*)option.c_str());
+  }
+
+  msg->push_front(const_cast<std::string&>(letter->GetDATA()));
+  msg->push_front(const_cast<std::string&>(letter->GetHEADER()));
+  msg->push_front (const_cast<char*>(command));
+  msg->push_front ((char*)MDPW_WORKER); 
+  //  Stack routing envelope to start of message
+  msg->wrap(worker->GetIDENTITY(), EMPTY_FRAME);
+
+  if (m_verbose)
+  {
+    LOG(INFO) << "Sending '" << mdpw_commands [(int) *command]
+            << "' to worker '" << worker->GetIDENTITY() << "'";
+    msg->dump ();
+  }
+  msg->send (*m_socket);
+
+  // Назначить это сообщение данному Обработчику:
+  // 1. установить статус OCCUPIED данному Обработчику
+  // 2. установить статус ASSIGNED данному Сообщению
+  if (false == m_database->AssignLetterToWorker(worker, letter))
+  {
+    LOG(ERROR) << "Unable to assign message id="<<letter->GetID()
+               <<" to worker '"<<worker->GetIDENTITY()<<"'";
+  }
+
+  delete msg;
 }
 
 void
@@ -475,36 +502,30 @@ Broker::worker_send (
     /* IN-OUT */ std::string& header,
     /* IN     */ std::string& body)
 {
-  LOG(INFO) << "Send message #"<<(int)command<<" to worker '"<<worker->GetIDENTITY()<<"'";
+  LOG(INFO) << "Send message #"<<(int)command<<" to worker '"
+            <<worker->GetIDENTITY()<<"'";
   zmsg *msg = new zmsg();
-  /*
-   * TODO Сменить статус сообщения с READY на PROCESSING после его
-   * успешной передачи Обработчику.
-   */
-   //  Stack protocol envelope to start of message
-   if (option.size()>0) {                 //  Optional frame after command
+  //  Stack protocol envelope to start of message
+  if (option.size()>0) {                 //  Optional frame after command
       msg->push_front ((char*)option.c_str());
-   }
+  }
 
-   msg->push_front(body);
-   // TODO: поля в header должны быть правильно заполнены!
-   // Для этого его нужно десериализовать, изменить, и сериализовать обратно
-   // например, нужно присвоить значения системным идентификаторам
-   //
-   // Хотя их можно менять и на стороне Клиента, в mdpcli...
-   msg->push_front(header);
-   msg->push_front (const_cast<char*>(command));
-   msg->push_front ((char*)MDPW_WORKER); 
-   //  Stack routing envelope to start of message
-   msg->wrap(worker->GetIDENTITY(), EMPTY_FRAME);
+  msg->push_front(body);
+  msg->push_front(header);
+  msg->push_front (const_cast<char*>(command));
+  msg->push_front ((char*)MDPW_WORKER); 
+  //  Stack routing envelope to start of message
+  msg->wrap(worker->GetIDENTITY(), EMPTY_FRAME);
 
-   if (m_verbose) {
+  if (m_verbose) {
         LOG(INFO) << "Sending '" << mdpw_commands [(int) *command]
             << "' to worker '" << worker->GetIDENTITY() << "'";
         msg->dump ();
-   }
-   msg->send (*m_socket);
-   delete msg;
+  }
+  msg->send (*m_socket);
+
+  // TODO стоит ли менять состояние Обработчика, ведь экземпляра Letter нет?
+  delete msg;
 }
 
 //  ---------------------------------------------------------------------
@@ -553,8 +574,7 @@ Broker::worker_waiting (Worker *worker)
 #endif
     // +++ послать ответ на HEARTBEAT
 //    NB: В версии zguide/C/mdbroker не вызывается worker_send
-//  Версия worker_send(), работающая с Payload, на 13/08/2013 еще не реализована
-    worker_send (worker, (char*)MDPW_HEARTBEAT, EMPTY_FRAME, /*(Payload*)*/(zmsg*)NULL);
+    worker_send (worker, (char*)MDPW_HEARTBEAT, EMPTY_FRAME, (zmsg*)NULL);
     service = m_database->GetServiceById(worker->GetSERVICE_ID());
     service_dispatch (service);
     //delete service; - он удаляется в service_dispatch()

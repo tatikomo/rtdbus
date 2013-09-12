@@ -11,7 +11,7 @@ class XDBDatabaseBrokerImpl;
 class ServiceList;
 class Service;
 class Worker;
-class Payload;
+class Letter;
 
 
 class ServiceList
@@ -60,6 +60,8 @@ class XDBDatabaseBroker : public XDBDatabase
     bool IsServiceCommandEnabled(const Service*, const std::string&);
     /* получить доступ к текущему списку Сервисов */ 
     ServiceList* GetServiceList();
+    /* назначить Сообщение данному Обработчику */
+    bool AssignLetterToWorker(Worker*, Letter*);
 
     /* поместить сообщение во входящую очередь Службы */
     bool PushRequestToService(Service*, 
@@ -91,7 +93,8 @@ class XDBDatabaseBroker : public XDBDatabase
     bool ClearServices();
 
     /* Получить первое ожидающее обработки Сообщение */
-    bool GetWaitingLetter(Service*, Worker*, std::string&, std::string&);
+    //bool GetWaitingLetter(Service*, Worker*, std::string&, std::string&);
+    Letter* GetWaitingLetter(Service*);
     /* Установить новое состояние Обработчика */
     bool SetWorkerState(Worker*, Worker::State);
 

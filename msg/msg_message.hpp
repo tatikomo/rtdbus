@@ -6,8 +6,6 @@
 #include "msg_common.h"
 #include "proto/common.pb.h"
 
-class Payload;
-
 /*
  * Базовые классы сообщений, передаваемых в сети RTDBUS
  */
@@ -56,32 +54,5 @@ class RTDBUS_MessageHeader
     RTDBM::Header   m_header_instance;
 };
 
-class RTDBUS_MessageBody
-{
-  public:
-    // входные параметры - заголовок и фрейм тела сообщения из zmsg
-    RTDBUS_MessageBody(const RTDBUS_MessageHeader*, const std::string&);
-    virtual ~RTDBUS_MessageBody();
-    rtdbMsgType          get_type();
-    const std::string&   get_serialized();
-    RTDBUS_MessageHeader* header() { return m_header_instance; }
-    ::google::protobuf::Message *dump() { return m_body_instance; }
-
-  private:
-    RTDBUS_MessageBody();
-    RTDBUS_MessageHeader        *m_header_instance;
-    std::string                  pb_serialized;
-    ::google::protobuf::Message *m_body_instance;
-};
-
-class RTDBUS_MessageFactory
-{
-  public:
-    RTDBUS_MessageFactory();
-    ~RTDBUS_MessageFactory();
-
-    // создать экземпляр заданного клиентского типа
-    static ::google::protobuf::Message *create(rtdbMsgType);
-};
-
 #endif
+

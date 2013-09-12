@@ -29,7 +29,7 @@ class Worker
         ARMED       = 1,
         INIT        = 2,
         SHUTDOWN    = 3,
-        OCCUPED     = 4,
+        OCCUPIED    = 4,
         EXPIRED     = 5
     };
 

@@ -17,10 +17,10 @@ extern "C" {
 #include "dat/xdb_broker.hpp"
 #include "xdb_database_broker.hpp"
 #include "xdb_database_service.hpp"
+#include "xdb_database_letter.hpp"
 
 class Service;
 class Worker;
-class ServiceListImpl;
 
 /* 
  * Класс-контейнер объектов Service в БД
@@ -93,11 +93,15 @@ class XDBDatabaseBrokerImpl
     /* получить доступ к текущему списку Сервисов */ 
     ServiceList* GetServiceList();
     /* Получить первое ожидающее обработки Сообщение */
+    // TODO: deprecated
     bool GetWaitingLetter(/* IN */ Service* srv,
         /* IN */  Worker* wrk,
         /* OUT */ std::string& header,
         /* OUT */ std::string& body);
-
+    Letter* GetWaitingLetter(/* IN */ Service* srv);
+    // Изменить состояние Сообщения
+    bool ChangeLetterStatus(Letter*, Letter::State);
+    bool AssignLetterToWorker(Worker*, Letter*);
 
     bool IsServiceCommandEnabled(const Service*, const std::string&);
 

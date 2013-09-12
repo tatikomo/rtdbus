@@ -10,7 +10,6 @@
 #include "mdp_client_async_api.hpp"
 
 #include "mdp_common.h"
-#include "msg_payload.hpp"
 #include "msg_message.hpp"
 #include "proto/common.pb.h"
 
@@ -36,7 +35,7 @@ int main (int argc, char *argv [])
   RTDBM::Header     pb_header;
   RTDBM::AskLife    pb_request_asklife;
   RTDBM::ExecResult pb_responce_exec_result;
-  Payload *payload = NULL;
+//  Letter *payload = NULL;
 
   static int user_exchange_id = 1;
 
@@ -70,7 +69,7 @@ int main (int argc, char *argv [])
         report = client->recv();
         if (report == NULL)
             break;
-        payload = new Payload(report);
+//        payload = new Letter(report);
         
         std::cout << "gotcha!" << std::endl;
         delete report;
@@ -81,7 +80,7 @@ int main (int argc, char *argv [])
       std::cout << "E: " << err.what() << std::endl;
   }
   delete client;
-  delete payload;
+//  delete payload;
 
   ::google::ShutdownGoogleLogging();
   return 0;

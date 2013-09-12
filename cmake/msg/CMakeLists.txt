@@ -43,8 +43,6 @@ set (MSG_SOURCES
         ${MSG_DIR}/proto/common.pb.cc
         ${MSG_DIR}/proto/common.pb.h
         ${MSG_DIR}/msg_common.h
-        ${MSG_DIR}/msg_payload.hpp
-        ${MSG_DIR}/msg_payload.cpp
         ${MSG_DIR}/msg_message.hpp
         ${MSG_DIR}/msg_message.cpp)
 
@@ -52,7 +50,6 @@ set (MSG_SOURCES
 ##########################################################
 add_library (${MSG_LIBRARY_NAME} ${MSG_SOURCES})
 target_link_libraries(${MSG_LIBRARY_NAME}
-    ${LIBZMQ_LIBRARIES}
     ${LIBPROTOBUF_LIBRARIES}
     ${TOOLS_LIBRARY_NAME}
     ${SYSTEM_EXTERNAL_LIBS})
