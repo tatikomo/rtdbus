@@ -13,21 +13,26 @@ namespace msg {
  */
 
 // Служебный заголовок сообщения
-class RTDBUS_MessageHeader
+class Header
 {
   public:
+    // Создать все по умолчанию
+    Header();
     // входной параметр - фрейм заголовка из zmsg
-    RTDBUS_MessageHeader(const std::string&);
-    ~RTDBUS_MessageHeader();
+    Header(const std::string&);
+    ~Header();
+
+    bool ParseFrom(const std::string&);
+    RTDBM::Header& instance() { return m_header_instance; }
 
     // RO-доступ к служебным полям
-    int8_t         get_protocol_version();
-    rtdbExchangeId get_exchange_id();
-    rtdbPid        get_source_pid();
-    const std::string&    get_proc_dest();
-    const std::string&    get_proc_origin();
-    rtdbMsgType    get_sys_msg_type();
-    rtdbMsgType    get_usr_msg_type();
+    const int8_t         get_protocol_version();
+    const rtdbExchangeId get_exchange_id();
+    const rtdbPid        get_source_pid();
+    const std::string&   get_proc_dest();
+    const std::string&   get_proc_origin();
+    const rtdbMsgType    get_sys_msg_type();
+    const rtdbMsgType    get_usr_msg_type();
 
     const std::string&   get_serialized();
 
@@ -35,8 +40,6 @@ class RTDBUS_MessageHeader
     void            set_usr_msg_type(int16_t);
 
   private:
-    RTDBUS_MessageHeader();
-    RTDBM::Header* dump() { return &m_header_instance; }
 #if 0
     /* 
      * Служебные поля заполняются автоматически, [RO]
@@ -50,7 +53,6 @@ class RTDBUS_MessageHeader
     rtdbMsgType     m_sys_msg_type; /* [служебный] общесистемный тип сообщения */
     rtdbMsgType     m_usr_msg_type; /* [пользовательский] клиентский тип сообщения */
 #endif
-
     std::string     pb_serialized;
     // Сам заголовок
     RTDBM::Header   m_header_instance;

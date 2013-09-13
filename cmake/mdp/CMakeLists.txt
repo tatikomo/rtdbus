@@ -88,6 +88,7 @@ set (BROKER_SOURCES
 ##########################################################
 add_library (${MDP_LIBRARY_NAME} ${MDP_SOURCES})
 target_link_libraries(${MDP_LIBRARY_NAME}
+    ${MSG_LIBRARY_NAME}
     ${LIBZMQ_LIBRARIES}
     ${TOOLS_LIBRARY_NAME}
     ${SYSTEM_EXTERNAL_LIBS})

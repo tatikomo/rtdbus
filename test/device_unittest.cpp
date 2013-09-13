@@ -8,6 +8,7 @@
 #include "mdp_common.h"
 #include "mdp_broker.hpp"
 #include "mdp_worker_api.hpp"
+#include "mdp_letter.hpp"
 #include "mdp_client_async_api.hpp"
 #include "xdb_database_worker.hpp"
 #include "xdb_database_broker.hpp"
@@ -161,6 +162,42 @@ TEST(TestHelper, CLOCK)
 
   EXPECT_TRUE(worker->Expired() == true);
   delete worker;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+TEST(TestLetter, USAGE)
+{
+  mdp::Letter* letter1 = NULL;
+  mdp::Letter* letter2 = NULL;
+  RTDBM::Header     pb_header;
+  RTDBM::ExecResult pb_exec_result_request;
+  std::string       pb_serialized_header;
+  std::string       pb_serialized_request;
+
+  pb_header.set_protocol_version(1);
+  pb_header.set_exchange_id(9999999);
+  pb_header.set_source_pid(9999);
+  pb_header.set_proc_dest("Алекс");
+  pb_header.set_proc_origin("Юстас");
+  pb_header.set_sys_msg_type(100);
+  pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
+
+  pb_exec_result_request.set_user_exchange_id(9999999);
+  pb_exec_result_request.set_exec_result(1);
+  pb_exec_result_request.set_failure_cause(0);
+
+  pb_header.SerializeToString(&pb_serialized_header);
+  pb_exec_result_request.SerializeToString(&pb_serialized_request);  
+
+  letter1 = new mdp::Letter(ADG_D_MSG_EXECRESULT, "NYSE", pb_serialized_request);
+  std::cout << (int)letter1->header().get_protocol_version();
+  std::cout << "/" << letter1->header().get_exchange_id();
+  std::cout << "/" << letter1->header().get_source_pid();
+  std::cout << "/" << letter1->header().get_proc_dest();
+  std::cout << "/" << letter1->header().get_proc_origin();
+  std::cout << "/" << letter1->header().get_sys_msg_type();
+  std::cout << "/" << letter1->header().get_usr_msg_type();
+  std::cout << std::endl;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -82,7 +82,7 @@ TEST(TestPayload, CREATE_FROM_MSG)
 TEST(TestPayload, ACCESS)
 {
   RTDBM::ExecResult exec_result;
-  msg::RTDBUS_MessageHeader* header = new msg::RTDBUS_MessageHeader(payload->GetHEADER());
+  msg::Header* header = new msg::Header(payload->GetHEADER());
   ASSERT_TRUE(header);
 
   exec_result.ParseFromString(payload->GetDATA());

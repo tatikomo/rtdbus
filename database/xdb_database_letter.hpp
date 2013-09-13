@@ -37,7 +37,7 @@ class Letter
     // Создать экземпляр на основе двух последних фреймов сообщения
     Letter(void*);
     // Создать экземпляр на основе заголовка и тела сообщения
-    Letter(msg::RTDBUS_MessageHeader *h, std::string& b);
+    Letter(msg::Header *h, std::string& b);
     Letter(const std::string& h, const std::string& b);
 
     ~Letter();
@@ -79,7 +79,7 @@ class Letter
     int64_t  m_worker_id;
     State    m_state;
     timer_mark_t m_expiration;
-    msg::RTDBUS_MessageHeader *m_header;
+    msg::Header *m_header;
     std::string  m_frame_data;
     std::string  m_frame_header;
 };
