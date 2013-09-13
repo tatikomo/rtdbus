@@ -9,7 +9,7 @@
 
 extern int s_interrupted;
 
-int Digger::handle_request(zmsg* request, std::string*& reply_to)
+int Digger::handle_request(mdp::zmsg* request, std::string*& reply_to)
 {
   assert (request->parts () >= 2);
   LOG(INFO) << "Process new request with " << request->parts() << " parts and reply to " << *reply_to;
@@ -42,7 +42,7 @@ int Digger::handle_sell_request(std::string &price,
 
     assert(reply_to != NULL);
     // в ответе д.б. два поля: REPORT_TYPE и VOLUME
-    zmsg * msg = new zmsg();
+    mdp::zmsg * msg = new mdp::zmsg();
     msg->push_front((char*)price.c_str());
     msg->push_front((char*)"SOLD");
     msg->wrap(reply_to->c_str(), "");
@@ -58,7 +58,7 @@ int Digger::handle_buy_request(std::string &price,
     LOG(INFO) << "BUY from '" << reply_to << "' price=" << price << " volume=" << volume;
     assert(reply_to != NULL);
     // в ответе д.б. два поля: REPORT_TYPE и VOLUME
-    zmsg * msg = new zmsg();
+    mdp::zmsg * msg = new mdp::zmsg();
     msg->push_front((char*)price.c_str());
     msg->push_front((char*)"BYED");
     msg->wrap(reply_to->c_str(), "");
@@ -84,8 +84,8 @@ int main(int argc, char **argv)
     Digger *engine = new Digger("tcp://localhost:5555", "NYSE", verbose);
     while (!s_interrupted) 
     {
-       std::string * reply_to = new std::string;
-       zmsg        * request  = NULL;
+       std::string *reply_to = new std::string;
+       mdp::zmsg   *request  = NULL;
 
        request = engine->recv (reply_to);
        if (request)

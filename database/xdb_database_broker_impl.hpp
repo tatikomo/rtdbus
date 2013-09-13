@@ -19,6 +19,8 @@ extern "C" {
 #include "xdb_database_service.hpp"
 #include "xdb_database_letter.hpp"
 
+namespace xdb {
+
 class Service;
 class Worker;
 
@@ -63,12 +65,12 @@ class ServiceListImpl : public  ServiceList
 };
 
 /* Фактическая реализация функциональности Базы Данных для Брокера */
-class XDBDatabaseBrokerImpl
+class DatabaseBrokerImpl
 {
   friend class ServiceListImpl;
   public:
-    XDBDatabaseBrokerImpl(XDBDatabaseBroker*);
-    ~XDBDatabaseBrokerImpl();
+    DatabaseBrokerImpl(DatabaseBroker*);
+    ~DatabaseBrokerImpl();
 
     /* Инициализация служебных структур БД */
     bool Init();
@@ -141,7 +143,7 @@ class XDBDatabaseBrokerImpl
     void MakeSnapshot(const char*);
 
   private:
-    DISALLOW_COPY_AND_ASSIGN(XDBDatabaseBrokerImpl);
+    DISALLOW_COPY_AND_ASSIGN(DatabaseBrokerImpl);
 #if defined DEBUG
     char  m_snapshot_file_prefix[10];
     bool  m_initialized;
@@ -150,7 +152,7 @@ class XDBDatabaseBrokerImpl
     MCO_RET SaveDbToFile(const char*);
 #endif
 
-    XDBDatabaseBroker       *m_self;
+    DatabaseBroker          *m_self;
     mco_db_h                 m_db;
     ServiceListImpl         *m_service_list;
 
@@ -213,4 +215,5 @@ class XDBDatabaseBrokerImpl
 #endif
 };
 
+}; //namespace xdb
 #endif

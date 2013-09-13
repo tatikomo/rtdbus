@@ -5,6 +5,8 @@
 #include "msg_message.hpp"
 #include "helper.hpp"
 
+using namespace msg;
+
 RTDBUS_MessageHeader::RTDBUS_MessageHeader()
 {
 }

@@ -20,6 +20,8 @@
 #include "zmsg.hpp"
 #include "mdp_common.h"
 
+using namespace mdp;
+
 zmsg::zmsg()
 {
 }

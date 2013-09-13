@@ -14,6 +14,8 @@
 #include "zmsg.hpp"
 #include "mdp_common.h"
 
+namespace mdp {
+
 //  Structure of our class
 //  We access these properties only via class methods
 class mdwrk {
@@ -74,4 +76,5 @@ class mdwrk {
     //std::string      m_reply_to;
 };
 
+}; //namespace mdp
 #endif

@@ -2,6 +2,8 @@
 #include "zmsg.hpp"
 #include "mdp_client_async_api.hpp"
 
+using namespace mdp;
+
 //  ---------------------------------------------------------------------
 //  Signal handling
 //

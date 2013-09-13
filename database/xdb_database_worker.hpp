@@ -8,6 +8,8 @@
 #include "config.h"
 #include "helper.hpp"
 
+namespace xdb {
+
 /*
  * Содержит
  * 1. Название Обработчика
@@ -74,6 +76,8 @@ class Worker
     timer_mark_t m_expiration;
 
 };
+
+}; //namespace xdb
 
 #endif
 

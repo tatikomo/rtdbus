@@ -27,9 +27,9 @@ int main (int argc, char *argv [])
   ::google::InstallFailureSignalHandler();
   ::google::InitGoogleLogging(argv[0]);
 
-  zmsg    * request   = NULL;
-  zmsg    * report    = NULL;
-  Pulsar  * client    = new Pulsar ("tcp://localhost:5555", verbose);
+  mdp::zmsg *request   = NULL;
+  mdp::zmsg *report    = NULL;
+  Pulsar    *client    = new Pulsar ("tcp://localhost:5555", verbose);
   std::string pb_serialized_request;
   std::string pb_serialized_header;
   RTDBM::Header     pb_header;
@@ -41,7 +41,7 @@ int main (int argc, char *argv [])
 
   try
   {
-    request = new zmsg ();
+    request = new mdp::zmsg ();
     // TODO: все поля pb_header должны заполняться автоматически, скрыто от клиента!
     pb_header.set_protocol_version(1);
     pb_header.set_exchange_id(9999999);

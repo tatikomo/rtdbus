@@ -2,9 +2,11 @@
 #define MSG_MESSAGE_HPP
 #pragma once
 
-#include <google/protobuf/stubs/common.h>
+//#include "google/protobuf/stubs/common.h"
 #include "msg_common.h"
 #include "proto/common.pb.h"
+
+namespace msg {
 
 /*
  * Базовые классы сообщений, передаваемых в сети RTDBUS
@@ -54,5 +56,6 @@ class RTDBUS_MessageHeader
     RTDBM::Header   m_header_instance;
 };
 
+}; //namespace msg
 #endif
 

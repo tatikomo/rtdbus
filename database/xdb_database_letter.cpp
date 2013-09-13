@@ -8,6 +8,8 @@
 #include "xdb_database_worker.hpp"
 #include "xdb_database_letter.hpp"
 
+using namespace xdb;
+
 Letter::Letter()
 {
   m_id = m_service_id = m_worker_id = 0;
@@ -32,7 +34,7 @@ Letter::~Letter()
 // на входе - объект zmsg
 Letter::Letter(void* data) : m_modified(true)
 {
-  zmsg *msg = static_cast<zmsg*> (data);
+  mdp::zmsg *msg = static_cast<mdp::zmsg*> (data);
 
   assert(msg);
   SetID(0);
@@ -46,13 +48,13 @@ Letter::Letter(void* data) : m_modified(true)
   int msg_frames = msg->parts();
 
   m_frame_header = msg->get_part(msg_frames-2);
-  m_header = new RTDBUS_MessageHeader(m_frame_header);
+  m_header = new msg::RTDBUS_MessageHeader(m_frame_header);
 
   m_frame_data = msg->get_part(msg_frames-1);
 }
 
 // Создать экземпляр на основе заголовка и тела сообщения
-Letter::Letter(RTDBUS_MessageHeader *h, std::string& b) : m_modified(true)
+Letter::Letter(msg::RTDBUS_MessageHeader *h, std::string& b) : m_modified(true)
 {
   // TODO сделать копию заголвка, т.к. он создан в вызывающем контексте и нами не управляется
   throw;
@@ -63,7 +65,7 @@ Letter::Letter(const std::string& _head, const std::string& _data) : m_modified(
 {
   m_frame_header.assign(_head);
   m_frame_data.assign(_data);
-  m_header = new RTDBUS_MessageHeader(m_frame_header);
+  m_header = new msg::RTDBUS_MessageHeader(m_frame_header);
   SetID(0);
   SetWORKER_ID(0);
   SetSERVICE_ID(0);

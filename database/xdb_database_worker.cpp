@@ -5,6 +5,8 @@
 #include "xdb_database_worker.hpp"
 #include "helper.hpp"
 
+using namespace xdb;
+
 Worker::Worker()
 {
   memset((void*)&m_expiration, '\0', sizeof(m_expiration));

@@ -4,6 +4,8 @@
 #include "mdp_broker.hpp"
 #include "proxy.hpp"
 
+using namespace mdp;
+
 /*  ---------------------------------------------------------------------[<]-
     Function: process_server
 

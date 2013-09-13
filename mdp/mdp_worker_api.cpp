@@ -2,6 +2,8 @@
 #include "mdp_common.h"
 #include "mdp_worker_api.hpp"
 
+using namespace mdp;
+
 //  ---------------------------------------------------------------------
 //  Signal handling
 //

@@ -22,6 +22,7 @@ include_directories(${MSG_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})
 include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
+include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 
 link_directories(${LIBGLOG_LIBRARIES_DIR})
 link_directories(${LIBZMQ_LIBRARIES_DIR})
@@ -60,6 +61,8 @@ set (MDP_SOURCES
         ${MDP_DIR}/mdp_common.h
         ${MDP_DIR}/mdp_helpers.hpp
         ${MDP_DIR}/mdp_helpers.cpp
+        ${MDP_DIR}/mdp_letter.hpp
+        ${MDP_DIR}/mdp_letter.cpp
         ${MDP_DIR}/mdp_client_async_api.hpp
         ${MDP_DIR}/mdp_client_async_api.cpp
         ${MDP_DIR}/mdp_worker_api.hpp

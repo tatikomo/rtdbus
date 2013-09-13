@@ -15,8 +15,8 @@ std::string        pb_serialized_header;
 std::string        pb_serialized_request;
 RTDBM::Header      pb_header;
 RTDBM::ExecResult  pb_exec_result_request;
-Letter            *payload = NULL;
-zmsg              *msg = NULL;
+xdb::Letter            *payload = NULL;
+mdp::zmsg              *message = NULL;
 
 TEST(TestProtobuf, PROTO_VERSION)
 {
@@ -26,7 +26,7 @@ TEST(TestProtobuf, PROTO_VERSION)
 /*
  * Создает экземпляр zmsg, содержащий нагрузку из 
  * заголовка и структуры ExecResult
- * NB: после использования необходимо удалить msg
+ * NB: после использования необходимо удалить message
  */
 TEST(TestProtobuf, EXEC_RESULT)
 {
@@ -45,12 +45,12 @@ TEST(TestProtobuf, EXEC_RESULT)
   pb_header.SerializeToString(&pb_serialized_header);
   pb_exec_result_request.SerializeToString(&pb_serialized_request);
 
-  msg = new zmsg();
-  ASSERT_TRUE(msg);
+  message = new mdp::zmsg();
+  ASSERT_TRUE(message);
 
-  msg->push_front(pb_serialized_request);
-  msg->push_front(pb_serialized_header);
-  msg->dump();
+  message->push_front(pb_serialized_request);
+  message->push_front(pb_serialized_header);
+  message->dump();
 }
 
 /*
@@ -64,7 +64,7 @@ TEST(TestPayload, CREATE_FROM_MSG)
 
   try
   {
-    payload = new Letter(msg);
+    payload = new xdb::Letter(message);
     ASSERT_TRUE(payload != NULL);
 
     serialized_header = payload->GetHEADER();
@@ -82,7 +82,7 @@ TEST(TestPayload, CREATE_FROM_MSG)
 TEST(TestPayload, ACCESS)
 {
   RTDBM::ExecResult exec_result;
-  RTDBUS_MessageHeader* header = new RTDBUS_MessageHeader(payload->GetHEADER());
+  msg::RTDBUS_MessageHeader* header = new msg::RTDBUS_MessageHeader(payload->GetHEADER());
   ASSERT_TRUE(header);
 
   exec_result.ParseFromString(payload->GetDATA());
@@ -119,7 +119,7 @@ TEST(TestPayload, ACCESS)
 
 TEST(TespPayload, DELETE)
 {
-  delete msg;
+  delete message;
   delete payload;
 }
 

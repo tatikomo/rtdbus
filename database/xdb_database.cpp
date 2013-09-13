@@ -8,34 +8,36 @@
 #endif
 #include "xdb_database.hpp"
 
-XDBDatabase::XDBDatabase(const char* name)
+using namespace xdb;
+
+Database::Database(const char* name)
 {
     assert (name);
-    m_state = XDBDatabase::UNINITIALIZED;
+    m_state = Database::UNINITIALIZED;
     strncpy(m_name, name, DBNAME_MAXLEN);
     m_name[DBNAME_MAXLEN] = '\0';
 
-//    fprintf(stdout, "\tXDBDatabase(%p, %s)\n", (void*)this, name);
+//    fprintf(stdout, "\tDatabase(%p, %s)\n", (void*)this, name);
 //    fflush(stdout);
 }
 
-XDBDatabase::~XDBDatabase()
+Database::~Database()
 {
-//  fprintf(stdout, "~XDBDatabase(%p, %s)\n", (void*)this, m_name);
+//  fprintf(stdout, "~Database(%p, %s)\n", (void*)this, m_name);
   Disconnect();
 }
 
-const char* XDBDatabase::DatabaseName()
+const char* Database::DatabaseName()
 {
     return m_name;
 }
 
-const XDBDatabase::DBState XDBDatabase::State()
+const Database::DBState Database::State()
 {
     return m_state;
 }
 
-bool XDBDatabase::TransitionToState(DBState new_state)
+bool Database::TransitionToState(DBState new_state)
 {
   bool transition_correctness = false;
   /* 
@@ -102,12 +104,12 @@ bool XDBDatabase::TransitionToState(DBState new_state)
   return transition_correctness;
 }
 
-bool XDBDatabase::Connect()
+bool Database::Connect()
 {
     return TransitionToState(CONNECTED);
 }
 
-bool XDBDatabase::Disconnect()
+bool Database::Disconnect()
 {
     return TransitionToState(DISCONNECTED);
 }

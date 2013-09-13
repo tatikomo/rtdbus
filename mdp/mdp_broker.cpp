@@ -1,4 +1,4 @@
-#include <glog/logging.h>
+#include "glog/logging.h"
 
 #include "mdp_common.h"
 #include "mdp_broker.hpp"
@@ -8,6 +8,7 @@
 #include "xdb_database_worker.hpp"
 #include "xdb_database_letter.hpp"
 
+using namespace mdp;
 
 //  ---------------------------------------------------------------------
 //  Signal handling
@@ -40,7 +41,7 @@ Broker::Broker (bool verbose)
     m_socket = new zmq::socket_t(*m_context, ZMQ_ROUTER);
     m_verbose = verbose;
     m_heartbeat_at = s_clock () + HEARTBEAT_INTERVAL;
-    m_database = new XDBDatabaseBroker();
+    m_database = new xdb::DatabaseBroker();
     assert(m_database);
 }
 
@@ -89,7 +90,7 @@ Broker::bind (const std::string& endpoint)
 
 // Регистрировать новый экземпляр Обработчика для Сервиса
 //  ---------------------------------------------------------------------
-Worker* 
+xdb::Worker* 
 Broker::worker_register(const std::string& service_name, const std::string& worker_identity)
 {
   return m_database->PushWorkerForService(service_name, worker_identity);
@@ -113,9 +114,9 @@ Broker::database_snapshot(const char* msg)
 void
 Broker::purge_workers ()
 {
-  ServiceList   *sl = m_database->GetServiceList();
-  Service       *service = sl->first();
-  Worker        *wrk;
+  xdb::ServiceList   *sl = m_database->GetServiceList();
+  xdb::Service       *service = sl->first();
+  xdb::Worker        *wrk;
   int           srv_count;
   int           wrk_count;
 
@@ -148,10 +149,10 @@ Broker::purge_workers ()
 
 //  ---------------------------------------------------------------------
 //  Locate or create new service entry
-Service *
+xdb::Service *
 Broker::service_require (const std::string& service_name)
 {
-    Service *acquired_service = NULL;
+    xdb::Service *acquired_service = NULL;
 
     assert (service_name.size() > 0);
     if (m_verbose) {
@@ -175,10 +176,10 @@ Broker::service_require (const std::string& service_name)
 //  Dispatch requests to waiting workers as possible
 //  NB: Внутри удаляется srv!
 void
-Broker::service_dispatch (Service *srv, zmsg *processing_msg = NULL)
+Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
 {
-    Worker  *wrk = NULL;
-    Letter  *letter = NULL;
+    xdb::Worker  *wrk = NULL;
+    xdb::Letter  *letter = NULL;
     bool     status = false;
     // всегда проверять, есть ли в очереди ранее необслужанные запросы
     std::string header;
@@ -190,7 +191,7 @@ Broker::service_dispatch (Service *srv, zmsg *processing_msg = NULL)
     // Сообщение может отсутствовать
     if (processing_msg)
     {
-      letter = new Letter(processing_msg);
+      letter = new xdb::Letter(processing_msg);
       letter->Dump();
       status = m_database->PushRequestToService(srv, letter/*->GetHEADER(), letter->GetDATA()*/);
       if (!status) 
@@ -240,9 +241,9 @@ Broker::service_internal (const std::string& service_name, zmsg *msg)
 {
     if (service_name.compare("mmi.service") == 0) 
     {
-        Service * srv = m_database->GetServiceByName(service_name);
+        xdb::Service * srv = m_database->GetServiceByName(service_name);
         // Если у Сервиса есть активные Обработчики
-        if (srv->GetSTATE() == Service::ACTIVATED)
+        if (srv->GetSTATE() == xdb::Service::ACTIVATED)
         {
             msg->body_set("200");
         }
@@ -262,14 +263,14 @@ Broker::service_internal (const std::string& service_name, zmsg *msg)
         std::string command_frame   = msg->pop_front();
 
         if (operation_frame.compare ("enable") == 0) {
-//                Service *service = service_require (service_frame);
+//                xdb::Service *service = service_require (service_frame);
 //                m_database->EnableServiceCommand (service, command_frame);
                 m_database->EnableServiceCommand (service_frame, command_frame);
                 msg->body_set("200");
         }
         else
         if (operation_frame.compare ("disable") == 0) {
-//                Service *service = service_require (service_frame);
+//                xdb::Service *service = service_require (service_frame);
 //                service->disable_command (command_frame);
                 m_database->DisableServiceCommand (service_frame, command_frame);
                 msg->body_set("200");
@@ -299,10 +300,10 @@ Broker::service_internal (const std::string& service_name, zmsg *msg)
 //  Here is the implementation of the methods that work on a worker.
 //  Lazy constructor that locates a worker by identity, or creates a new
 //  worker if there is no worker already with that identity
-Worker *
+xdb::Worker *
 Broker::worker_require (const std::string& identity)
 {
-    Worker * instance = NULL;
+    xdb::Worker * instance = NULL;
 
     if (NULL != (instance = m_database->GetWorkerByIdent(identity)))
     {
@@ -319,17 +320,17 @@ Broker::worker_require (const std::string& identity)
 //  ---------------------------------------------------------------------
 //  Deletes worker from all data structures, and destroys worker
 void
-Broker::worker_delete (Worker *&wrk, int disconnect)
+Broker::worker_delete (xdb::Worker *&wrk, int disconnect)
 {
     assert (wrk);
     if (disconnect) {
-        worker_send (wrk, (char*)MDPW_DISCONNECT, EMPTY_FRAME, (Letter*)NULL);
+        worker_send (wrk, (char*)MDPW_DISCONNECT, EMPTY_FRAME, (xdb::Letter*)NULL);
     }
 
     if (false == m_database->RemoveWorker(wrk))
       LOG(ERROR) << "Unable to remove worker '"<<wrk->GetIDENTITY()<<"'";
 
-    if (Worker::DISARMED != wrk->GetSTATE())
+    if (xdb::Worker::DISARMED != wrk->GetSTATE())
     {
         LOG(ERROR) << "worker "<<wrk->GetIDENTITY()<<" del compartido!";
     }
@@ -344,8 +345,8 @@ void
 Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
 {
     bool status = false;
-    Worker  *wrk = NULL;
-    Service *service = NULL;
+    xdb::Worker  *wrk = NULL;
+    xdb::Service *service = NULL;
 
     assert (msg && msg->parts() >= 1);     //  At least, command
     assert (sender_identity.size() > 0);
@@ -384,7 +385,7 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
                 if (!worker_ready)
                 {
                   // Создать экземпляр Обработчика
-                  wrk = new Worker(service->GetID(), sender_identity.c_str());
+                  wrk = new xdb::Worker(service->GetID(), sender_identity.c_str());
                 }
 
                 // Привязать нового Обработчика к обслуживаемому им Сервису
@@ -456,8 +457,8 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
 //  Send message to worker
 //  If pointer to message is provided, sends that message
 void
-Broker::worker_send (Worker *worker,
-    const char *command, const std::string& option, Letter *letter)
+Broker::worker_send (xdb::Worker *worker,
+    const char *command, const std::string& option, xdb::Letter *letter)
 {
   // TODO: удалить сообщение из базы только после успешной передачи
   // NB: это может привести к параллельному исполнению 
@@ -500,7 +501,7 @@ Broker::worker_send (Worker *worker,
 
 void
 Broker::worker_send (
-    /* IN     */ Worker* worker, 
+    /* IN     */ xdb::Worker* worker, 
     /* IN     */ const char* command,
     /* IN     */ const std::string& option, 
     /* IN-OUT */ std::string& header,
@@ -536,7 +537,7 @@ Broker::worker_send (
 //  Send message to worker
 //  If pointer to message is provided, sends that message
 void
-Broker::worker_send (Worker *worker,
+Broker::worker_send (xdb::Worker *worker,
     const char *command, const std::string& option, zmsg *msg)
 {
     msg = (msg ? new zmsg(*msg) : new zmsg ());
@@ -564,9 +565,9 @@ Broker::worker_send (Worker *worker,
 // TODO: Move worker to the end of the waiting queue,
 // so purge_workers() will only check old worker(s).
 void
-Broker::worker_waiting (Worker *worker)
+Broker::worker_waiting (xdb::Worker *worker)
 {
-    Service *service = NULL;
+    xdb::Service *service = NULL;
     assert (worker);
 #if 0
     m_waiting.push_back(worker);
@@ -596,7 +597,7 @@ Broker::client_msg (const std::string& sender, zmsg *msg)
     assert (msg && msg->parts () >= 2);     //  Service name + body
 //  LOG(INFO) << "Client_msg " << sender; // GEV delete me
     std::string service_frame = msg->pop_front();
-    Service *srv = service_require (service_frame);
+    xdb::Service *srv = service_require (service_frame);
     if (!srv) /* сервис неизвестен - выводим предупреждение */
     {
         LOG(INFO) << "Unknown service " << service_frame;

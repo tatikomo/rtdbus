@@ -5,24 +5,26 @@
 #include "xdb_database_service.hpp"
 #include "xdb_database_worker.hpp"
 
+using namespace xdb;
+
 class Service;
 class Worker;
 
 const char *database_name = "BrokerDB";
 
-XDBDatabaseBroker::XDBDatabaseBroker() : XDBDatabase(database_name)
+DatabaseBroker::DatabaseBroker() : Database(database_name)
 {
-  m_impl = new XDBDatabaseBrokerImpl(this);
+  m_impl = new DatabaseBrokerImpl(this);
   assert(m_impl);
 }
 
-XDBDatabaseBroker::~XDBDatabaseBroker()
+DatabaseBroker::~DatabaseBroker()
 {
   assert(m_impl);
   delete m_impl;
 }
 
-bool XDBDatabaseBroker::Connect()
+bool DatabaseBroker::Connect()
 {
   assert(m_impl);
 
@@ -30,26 +32,26 @@ bool XDBDatabaseBroker::Connect()
   return m_impl->Connect();
 }
 
-bool XDBDatabaseBroker::SetWorkerState(Worker* worker, Worker::State new_state)
+bool DatabaseBroker::SetWorkerState(xdb::Worker* worker, xdb::Worker::State new_state)
 {
   assert(m_impl);
   return m_impl->SetWorkerState(worker, new_state);
 }
 
-Service *XDBDatabaseBroker::GetServiceForWorker(const Worker *wrk)
+xdb::Service *DatabaseBroker::GetServiceForWorker(const xdb::Worker *wrk)
 {
   assert(m_impl);
   return m_impl->GetServiceForWorker(wrk);
 }
 
 /* найти в БД и вернуть объект типа Сервис */
-Service *XDBDatabaseBroker::GetServiceByName(const std::string& service_name)
+xdb::Service *DatabaseBroker::GetServiceByName(const std::string& service_name)
 {
   return GetServiceByName(service_name.c_str());
 }
 
 /* найти в БД и вернуть объект типа Сервис */
-Service *XDBDatabaseBroker::GetServiceByName(const char *service_name)
+xdb::Service *DatabaseBroker::GetServiceByName(const char *service_name)
 {
   assert(m_impl);
 
@@ -57,24 +59,24 @@ Service *XDBDatabaseBroker::GetServiceByName(const char *service_name)
   return m_impl->GetServiceByName(service_name);
 }
 
-Service *XDBDatabaseBroker::AddService(const std::string& service_name)
+xdb::Service *DatabaseBroker::AddService(const std::string& service_name)
 {
   assert(m_impl);
 
-  if (!m_impl) return (Service*)NULL;
+  if (!m_impl) return (xdb::Service*)NULL;
   return m_impl->AddService(service_name);
 }
 
-Service *XDBDatabaseBroker::AddService(const char *service_name)
+xdb::Service *DatabaseBroker::AddService(const char *service_name)
 {
   assert(m_impl);
   assert(service_name);
 
-  if (!m_impl) return (Service*)NULL;
+  if (!m_impl) return (xdb::Service*)NULL;
   return m_impl->AddService(service_name);
 }
 
-bool XDBDatabaseBroker::RemoveService(const char *service_name)
+bool DatabaseBroker::RemoveService(const char *service_name)
 {
   assert(m_impl);
 
@@ -82,14 +84,14 @@ bool XDBDatabaseBroker::RemoveService(const char *service_name)
   return m_impl->RemoveService(service_name);
 }
 
-bool XDBDatabaseBroker::RemoveWorker(Worker *wrk)
+bool DatabaseBroker::RemoveWorker(xdb::Worker *wrk)
 {
   assert (wrk);
   if (!m_impl) return false;
   return m_impl->RemoveWorker(wrk);
 }
 
-bool XDBDatabaseBroker::PushWorker(Worker *wrk)
+bool DatabaseBroker::PushWorker(xdb::Worker *wrk)
 {
   assert (wrk);
   if (!m_impl) return false;
@@ -98,7 +100,7 @@ bool XDBDatabaseBroker::PushWorker(Worker *wrk)
 
 /* Добавить нового Обработчика в спул Сервиса */
 // TODO: delete me
-bool XDBDatabaseBroker::PushWorkerForService(Service *srv, Worker *wrk)
+bool DatabaseBroker::PushWorkerForService(xdb::Service *srv, xdb::Worker *wrk)
 {
   assert (wrk);
   if (!m_impl) return false;
@@ -106,13 +108,13 @@ bool XDBDatabaseBroker::PushWorkerForService(Service *srv, Worker *wrk)
 }
 
 /* Добавить нового Обработчика в спул Сервиса */
-Worker* XDBDatabaseBroker::PushWorkerForService(const std::string& srv_name, const std::string& wrk_ident)
+xdb::Worker* DatabaseBroker::PushWorkerForService(const std::string& srv_name, const std::string& wrk_ident)
 {
   if (!m_impl) return NULL;
   return m_impl->PushWorkerForService(srv_name, wrk_ident);
 }
 
-bool XDBDatabaseBroker::IsServiceExist(const char *service_name)
+bool DatabaseBroker::IsServiceExist(const char *service_name)
 {
   assert(m_impl);
 
@@ -120,7 +122,7 @@ bool XDBDatabaseBroker::IsServiceExist(const char *service_name)
   return m_impl->IsServiceExist(service_name);
 }
 
-ServiceList* XDBDatabaseBroker::GetServiceList()
+ServiceList* DatabaseBroker::GetServiceList()
 {
   assert(m_impl);
 
@@ -129,7 +131,7 @@ ServiceList* XDBDatabaseBroker::GetServiceList()
 }
 
 /* Получить первое ожидающее обработки Сообщение */
-Letter* XDBDatabaseBroker::GetWaitingLetter(Service* srv)
+Letter* DatabaseBroker::GetWaitingLetter(xdb::Service* srv)
 {
   assert(m_impl);
 
@@ -137,8 +139,8 @@ Letter* XDBDatabaseBroker::GetWaitingLetter(Service* srv)
   return m_impl->GetWaitingLetter(srv);
 }
 
-bool XDBDatabaseBroker::IsServiceCommandEnabled(
-        const Service* srv, 
+bool DatabaseBroker::IsServiceCommandEnabled(
+        const xdb::Service* srv, 
         const std::string& cmd_name)
 {
   assert(m_impl);
@@ -147,7 +149,7 @@ bool XDBDatabaseBroker::IsServiceCommandEnabled(
   return m_impl->IsServiceCommandEnabled(srv, cmd_name);
 }
 
-bool XDBDatabaseBroker::AssignLetterToWorker(Worker* worker, Letter* letter)
+bool DatabaseBroker::AssignLetterToWorker(xdb::Worker* worker, Letter* letter)
 {
   assert(m_impl);
 
@@ -155,47 +157,47 @@ bool XDBDatabaseBroker::AssignLetterToWorker(Worker* worker, Letter* letter)
   return m_impl->AssignLetterToWorker(worker, letter);
 }
 
-Service *XDBDatabaseBroker::RequireServiceByName(const char *service_name)
+xdb::Service *DatabaseBroker::RequireServiceByName(const char *service_name)
 {
   assert(m_impl);
 
-  if (!m_impl) return (Service*)NULL;
+  if (!m_impl) return (xdb::Service*)NULL;
   return m_impl->RequireServiceByName(service_name);
 }
 
-Service *XDBDatabaseBroker::RequireServiceByName(const std::string& service_name)
+xdb::Service *DatabaseBroker::RequireServiceByName(const std::string& service_name)
 {
   assert(m_impl);
 
-  if (!m_impl) return (Service*)NULL;
+  if (!m_impl) return (xdb::Service*)NULL;
   return m_impl->RequireServiceByName(service_name);
 }
 
-Service *XDBDatabaseBroker::GetServiceById(int64_t _id)
+xdb::Service *DatabaseBroker::GetServiceById(int64_t _id)
 {
   assert(m_impl);
-  if (!m_impl) return (Service*)NULL;
+  if (!m_impl) return (xdb::Service*)NULL;
   return m_impl->GetServiceById(_id);
 }
 
-Worker *XDBDatabaseBroker::PopWorker(const std::string& service_name)
+xdb::Worker *DatabaseBroker::PopWorker(const std::string& service_name)
 {
   assert(m_impl);
 
-  if (!m_impl) return (Worker*)NULL;
+  if (!m_impl) return (xdb::Worker*)NULL;
   return m_impl->PopWorker(service_name);
 }
 
-Worker *XDBDatabaseBroker::PopWorker(Service *service)
+xdb::Worker *DatabaseBroker::PopWorker(xdb::Service *service)
 {
   assert(m_impl);
 
-  if (!m_impl) return (Worker*)NULL;
+  if (!m_impl) return (xdb::Worker*)NULL;
   return m_impl->PopWorker(service);
 }
 
 /* Очистить спул Обработчиков указанного Сервиса */
-bool XDBDatabaseBroker::ClearWorkersForService(const char *service_name)
+bool DatabaseBroker::ClearWorkersForService(const char *service_name)
 {
   assert(m_impl);
 
@@ -204,7 +206,7 @@ bool XDBDatabaseBroker::ClearWorkersForService(const char *service_name)
 }
 
 /* поместить сообщение во входящую очередь Службы */
-bool XDBDatabaseBroker::PushRequestToService(Service* srv, 
+bool DatabaseBroker::PushRequestToService(xdb::Service* srv, 
         const std::string& header,
         const std::string& data)
 {
@@ -215,7 +217,7 @@ bool XDBDatabaseBroker::PushRequestToService(Service* srv,
 }
 
 /* поместить сообщение во входящую очередь Службы */
-bool XDBDatabaseBroker::PushRequestToService(Service* srv, Letter* letter)
+bool DatabaseBroker::PushRequestToService(xdb::Service* srv, Letter* letter)
 {
   assert(m_impl);
 
@@ -224,7 +226,7 @@ bool XDBDatabaseBroker::PushRequestToService(Service* srv, Letter* letter)
 }
 
 /* Очистить спул Обработчиков и всех Сервисов */
-bool XDBDatabaseBroker::ClearServices()
+bool DatabaseBroker::ClearServices()
 {
   assert(m_impl);
 
@@ -233,39 +235,39 @@ bool XDBDatabaseBroker::ClearServices()
 }
 
 /* Вернуть экземпляр Обработчика из БД. Не найден - вернуть NULL */
-Worker *XDBDatabaseBroker::GetWorkerByIdent(const char *ident)
+xdb::Worker *DatabaseBroker::GetWorkerByIdent(const char *ident)
 {
-  if (!m_impl) return (Worker*) NULL;
+  if (!m_impl) return (xdb::Worker*) NULL;
   return  m_impl->GetWorkerByIdent(ident);
 }
 
-Worker *XDBDatabaseBroker::GetWorkerByIdent(const std::string& ident)
+xdb::Worker *DatabaseBroker::GetWorkerByIdent(const std::string& ident)
 {
   return GetWorkerByIdent(ident.c_str());
 }
  
-void XDBDatabaseBroker::EnableServiceCommand(const std::string &srv_name, 
+void DatabaseBroker::EnableServiceCommand(const std::string &srv_name, 
         const std::string& command)
 {
   assert(m_impl);
   return m_impl->EnableServiceCommand(srv_name, command);
 }
 
-void XDBDatabaseBroker::EnableServiceCommand(const Service *srv, 
+void DatabaseBroker::EnableServiceCommand(const xdb::Service *srv, 
         const std::string& command)
 {
   assert(m_impl);
   return m_impl->EnableServiceCommand(srv, command);
 }
 
-void XDBDatabaseBroker::DisableServiceCommand(const std::string &srv_name, 
+void DatabaseBroker::DisableServiceCommand(const std::string &srv_name, 
         const std::string& command)
 {
   assert(m_impl);
   return m_impl->DisableServiceCommand(srv_name, command);
 }
 
-void XDBDatabaseBroker::DisableServiceCommand(const Service *srv, 
+void DatabaseBroker::DisableServiceCommand(const xdb::Service *srv, 
         const std::string& command)
 {
   assert(m_impl);
@@ -273,7 +275,7 @@ void XDBDatabaseBroker::DisableServiceCommand(const Service *srv,
 }
 
 /* Тестовый API сохранения базы */
-void XDBDatabaseBroker::MakeSnapshot(const char *msg)
+void DatabaseBroker::MakeSnapshot(const char *msg)
 {
   assert(m_impl);
   return m_impl->MakeSnapshot(msg);

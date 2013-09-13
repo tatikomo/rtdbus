@@ -36,6 +36,8 @@ mco_size_sig_t file_writer(void*, const void*, mco_size_t);
 #include "xdb_database_worker.hpp"
 #include "xdb_database_letter.hpp"
 
+using namespace xdb;
+
 const int DATABASE_SIZE = 1024 * 1024 * 1;  // 1Mб
 const int MEMORY_PAGE_SIZE = DATABASE_SIZE; // Вся БД поместится в одной странице ОЗУ 
 const int MAP_ADDRESS = 0x20000000;
@@ -69,8 +71,8 @@ const int DB_DISK_PAGE_SIZE = 0;
 #include "dat/xdb_broker.hpp"
 
 
-XDBDatabaseBrokerImpl::XDBDatabaseBrokerImpl(
-    XDBDatabaseBroker *self) : m_initialized(false)
+DatabaseBrokerImpl::DatabaseBrokerImpl(
+    DatabaseBroker *self) : m_initialized(false)
 #if (EXTREMEDB_VERSION >= 41) && USE_EXTREMEDB_HTTP_SERVER
     , m_metadict_initialized(false)
 #endif
@@ -92,31 +94,31 @@ XDBDatabaseBrokerImpl::XDBDatabaseBrokerImpl(
   strcpy(m_logFileName, name);
   strcat(m_logFileName, ".log");
 #endif
-  ((XDBDatabase*)m_self)->TransitionToState(XDBDatabase::UNINITIALIZED);
+  ((Database*)m_self)->TransitionToState(Database::UNINITIALIZED);
 }
 
-XDBDatabaseBrokerImpl::~XDBDatabaseBrokerImpl()
+DatabaseBrokerImpl::~DatabaseBrokerImpl()
 {
   MCO_RET rc;
 #if (EXTREMEDB_VERSION >= 41) && USE_EXTREMEDB_HTTP_SERVER
   int ret;
 #endif
-  XDBDatabase::DBState state = ((XDBDatabase*)m_self)->State();
+  Database::DBState state = ((Database*)m_self)->State();
 
   LOG(INFO) << "Current state "  << (int)state;
   switch (state)
   {
-    case XDBDatabase::DELETED:
+    case Database::DELETED:
       LOG(WARNING) << "State already DELETED";
     break;
 
-    case XDBDatabase::UNINITIALIZED:
+    case Database::UNINITIALIZED:
     break;
 
-    case XDBDatabase::CONNECTED:
+    case Database::CONNECTED:
       Disconnect();
       // NB: break пропущен специально!
-    case XDBDatabase::DISCONNECTED:
+    case Database::DISCONNECTED:
 #if (EXTREMEDB_VERSION >= 41) && USE_EXTREMEDB_HTTP_SERVER
       if (m_metadict_initialized == true)
       {
@@ -136,7 +138,7 @@ XDBDatabaseBrokerImpl::~XDBDatabaseBrokerImpl()
         LOG(ERROR) << "Unable to stop database runtime, code=" << rc;
       }
       //rc_check("Runtime stop", rc);
-      ((XDBDatabase*)m_self)->TransitionToState(XDBDatabase::DELETED);
+      ((Database*)m_self)->TransitionToState(Database::DELETED);
     break;
   }
 
@@ -151,7 +153,7 @@ XDBDatabaseBrokerImpl::~XDBDatabaseBrokerImpl()
 }
 
 /* NB: Сначала Инициализация (Init), потом Подключение (Connect) */
-bool XDBDatabaseBrokerImpl::Init()
+bool DatabaseBrokerImpl::Init()
 {
     bool status = false;
     MCO_RET rc;
@@ -185,7 +187,7 @@ bool XDBDatabaseBrokerImpl::Init()
     //rc_check("Runtime starting", rc);
     if (!rc)
     {
-      status = ((XDBDatabase*)m_self)->TransitionToState(XDBDatabase::DISCONNECTED);
+      status = ((Database*)m_self)->TransitionToState(Database::DISCONNECTED);
     }
 
 #if (EXTREMEDB_VERSION >= 41) && USE_EXTREMEDB_HTTP_SERVER
@@ -205,7 +207,7 @@ bool XDBDatabaseBrokerImpl::Init()
     {
       m_metadict_initialized = true;
       rc = mco_metadict_register(m_metadict,
-            ((XDBDatabase*)m_self)->DatabaseName(),
+            ((Database*)m_self)->DatabaseName(),
             xdb_broker_get_dictionary(), NULL);
       if (rc)
         LOG(INFO) << "mco_metadict_register=" << rc;
@@ -217,59 +219,59 @@ bool XDBDatabaseBrokerImpl::Init()
 
 
 /* NB: Сначала Инициализация (Init), потом Подключение (Connect) */
-bool XDBDatabaseBrokerImpl::Connect()
+bool DatabaseBrokerImpl::Connect()
 {
   bool status = Init();
 
-  switch (((XDBDatabase*)m_self)->State())
+  switch (((Database*)m_self)->State())
   {
-    case XDBDatabase::UNINITIALIZED:
+    case Database::UNINITIALIZED:
       LOG(WARNING) << "Try connection to uninitialized database " 
-        << ((XDBDatabase*)m_self)->DatabaseName();
+        << ((Database*)m_self)->DatabaseName();
     break;
 
-    case XDBDatabase::CONNECTED:
+    case Database::CONNECTED:
       LOG(WARNING) << "Try to re-open database "
-        << ((XDBDatabase*)m_self)->DatabaseName();
+        << ((Database*)m_self)->DatabaseName();
     break;
 
-    case XDBDatabase::DISCONNECTED:
+    case Database::DISCONNECTED:
         status = AttachToInstance();
     break;
 
     default:
       LOG(WARNING) << "Try to open database '" 
-         << ((XDBDatabase*)m_self)->DatabaseName()
-         << "' with unknown state " << (int)((XDBDatabase*)m_self)->State();
+         << ((Database*)m_self)->DatabaseName()
+         << "' with unknown state " << (int)((Database*)m_self)->State();
     break;
   }
 
   return status;
 }
 
-bool XDBDatabaseBrokerImpl::Disconnect()
+bool DatabaseBrokerImpl::Disconnect()
 {
   MCO_RET rc = MCO_S_OK;
-  XDBDatabase::DBState state = ((XDBDatabase*)m_self)->State();
+  Database::DBState state = ((Database*)m_self)->State();
 
   switch (state)
   {
-    case XDBDatabase::UNINITIALIZED:
+    case Database::UNINITIALIZED:
       LOG(INFO) << "Disconnect from uninitialized state";
     break;
 
-    case XDBDatabase::DISCONNECTED:
+    case Database::DISCONNECTED:
       LOG(INFO) << "Try to disconnect already diconnected database";
     break;
 
-    case XDBDatabase::CONNECTED:
+    case Database::CONNECTED:
       assert(m_self);
       mco_async_event_release_all(m_db/*, MCO_EVENT_newService*/);
       rc = mco_db_disconnect(m_db);
 //      rc_check("Disconnection", rc);
 
       rc = mco_db_close(m_self->DatabaseName());
-      ((XDBDatabase*)m_self)->TransitionToState(XDBDatabase::DISCONNECTED);
+      ((Database*)m_self)->TransitionToState(Database::DISCONNECTED);
 //      rc_check("Closing", rc);
     break;
 
@@ -284,12 +286,12 @@ bool XDBDatabaseBrokerImpl::Disconnect()
  * Статический метод, вызываемый из runtime базы данных 
  * при создании нового экземпляра XDBService
  */
-MCO_RET XDBDatabaseBrokerImpl::new_Service(mco_trans_h t,
+MCO_RET DatabaseBrokerImpl::new_Service(mco_trans_h t,
         XDBService *obj,
         MCO_EVENT_TYPE et,
         void *p)
 {
-  XDBDatabaseBrokerImpl *self = static_cast<XDBDatabaseBrokerImpl*> (p);
+  DatabaseBrokerImpl *self = static_cast<DatabaseBrokerImpl*> (p);
   char name[Service::NAME_MAXLEN + 1];
   MCO_RET rc;
   autoid_t aid;
@@ -330,12 +332,12 @@ MCO_RET XDBDatabaseBrokerImpl::new_Service(mco_trans_h t,
  * Статический метод, вызываемый из runtime базы данных 
  * при удалении экземпляра XDBService
  */
-MCO_RET XDBDatabaseBrokerImpl::del_Service(mco_trans_h t,
+MCO_RET DatabaseBrokerImpl::del_Service(mco_trans_h t,
         XDBService *obj,
         MCO_EVENT_TYPE et,
         void *p)
 {
-  XDBDatabaseBrokerImpl *self = static_cast<XDBDatabaseBrokerImpl*> (p);
+  DatabaseBrokerImpl *self = static_cast<DatabaseBrokerImpl*> (p);
   char name[Service::NAME_MAXLEN + 1];
   MCO_RET rc;
 
@@ -357,7 +359,7 @@ MCO_RET XDBDatabaseBrokerImpl::del_Service(mco_trans_h t,
   return MCO_S_OK;
 }
 
-MCO_RET XDBDatabaseBrokerImpl::RegisterEvents()
+MCO_RET DatabaseBrokerImpl::RegisterEvents()
 {
   MCO_RET rc;
   mco_trans_h t;
@@ -368,7 +370,7 @@ MCO_RET XDBDatabaseBrokerImpl::RegisterEvents()
     if (rc) LOG(ERROR) << "Starting transaction, rc=" << rc;
 
     rc = mco_register_newService_handler(t, 
-            &XDBDatabaseBrokerImpl::new_Service, 
+            &DatabaseBrokerImpl::new_Service, 
             (void*)this
 //#if (EXTREMEDB_VERSION >= 41) && USE_EXTREMEDB_HTTP_SERVER
 //            , MCO_AFTER_UPDATE
@@ -378,7 +380,7 @@ MCO_RET XDBDatabaseBrokerImpl::RegisterEvents()
     if (rc) LOG(ERROR) << "Registering event on XDBService creation, rc=" << rc;
 
     rc = mco_register_delService_handler(t, 
-            &XDBDatabaseBrokerImpl::del_Service, 
+            &DatabaseBrokerImpl::del_Service, 
             (void*)this);
     if (rc) LOG(ERROR) << "Registering event on XDBService deletion, rc=" << rc;
 
@@ -391,7 +393,7 @@ MCO_RET XDBDatabaseBrokerImpl::RegisterEvents()
   return rc;
 }
 
-bool XDBDatabaseBrokerImpl::AttachToInstance()
+bool DatabaseBrokerImpl::AttachToInstance()
 {
   MCO_RET rc = MCO_S_OK;
 
@@ -400,7 +402,7 @@ bool XDBDatabaseBrokerImpl::AttachToInstance()
   m_dev.assignment = MCO_MEMORY_ASSIGN_DATABASE;
   m_dev.size       = DATABASE_SIZE;
   m_dev.type       = MCO_MEMORY_NAMED; /* DB in shared memory */
-  sprintf(m_dev.dev.named.name, "%s-db", ((XDBDatabase*)m_self)->DatabaseName());
+  sprintf(m_dev.dev.named.name, "%s-db", ((Database*)m_self)->DatabaseName());
   m_dev.dev.named.flags = 0;
   m_dev.dev.named.hint  = 0;
 
@@ -429,29 +431,29 @@ bool XDBDatabaseBrokerImpl::AttachToInstance()
    * уже созданный экземпляр БД может использоваться в качестве 
    * persistent-хранилища после аварийного завершения брокера.
    */
-  mco_db_kill(((XDBDatabase*)m_self)->DatabaseName());
+  mco_db_kill(((Database*)m_self)->DatabaseName());
 
   /* подключиться к базе данных, предполагая что она создана */
-  LOG(INFO) << "Attaching to '" << ((XDBDatabase*)m_self)->DatabaseName() << "' instance";
-  rc = mco_db_connect(((XDBDatabase*)m_self)->DatabaseName(), &m_db);
+  LOG(INFO) << "Attaching to '" << ((Database*)m_self)->DatabaseName() << "' instance";
+  rc = mco_db_connect(((Database*)m_self)->DatabaseName(), &m_db);
 
   /* ошибка - экземпляр базы не найден, попробуем создать её */
   if (MCO_E_NOINSTANCE == rc)
   {
-        LOG(INFO) << ((XDBDatabase*)m_self)->DatabaseName() << " instance not found, create";
+        LOG(INFO) << ((Database*)m_self)->DatabaseName() << " instance not found, create";
         /*
          * TODO: Использование mco_db_open() является запрещенным,
          * начиная с версии 4 и старше
          */
 
 #if EXTREMEDB_VERSION >= 40
-        rc = mco_db_open_dev(((XDBDatabase*)m_self)->DatabaseName(),
+        rc = mco_db_open_dev(((Database*)m_self)->DatabaseName(),
                        xdb_broker_get_dictionary(),
                        &m_dev,
                        1,
                        &m_db_params);
 #else
-        rc = mco_db_open(((XDBDatabase*)m_self)->DatabaseName(),
+        rc = mco_db_open(((Database*)m_self)->DatabaseName(),
                          xdb_broker_get_dictionary(),
                          (void*)MAP_ADDRESS,
                          DATABASE_SIZE + DB_DISK_CACHE,
@@ -460,14 +462,14 @@ bool XDBDatabaseBrokerImpl::AttachToInstance()
         if (rc)
         {
           LOG(ERROR) << "Can't open DB dictionary '"
-                << ((XDBDatabase*)m_self)->DatabaseName()
+                << ((Database*)m_self)->DatabaseName()
                 << "', rc=" << rc;
           return false;
         }
 
 #ifdef DISK_DATABASE
         LOG(INFO) << "Opening '" << m_dbsFileName << "' disk database";
-        rc = mco_disk_open(((XDBDatabase*)m_self)->DatabaseName(),
+        rc = mco_disk_open(((Database*)m_self)->DatabaseName(),
                            m_dbsFileName,
                            m_logFileName, 
                            0, 
@@ -484,15 +486,15 @@ bool XDBDatabaseBrokerImpl::AttachToInstance()
 #endif
 
         /* подключиться к базе данных, т.к. она только что создана */
-        LOG(INFO) << "Connecting to instance " << ((XDBDatabase*)m_self)->DatabaseName(); 
-        rc = mco_db_connect(((XDBDatabase*)m_self)->DatabaseName(), &m_db);
+        LOG(INFO) << "Connecting to instance " << ((Database*)m_self)->DatabaseName(); 
+        rc = mco_db_connect(((Database*)m_self)->DatabaseName(), &m_db);
   }
 
   /* ошибка создания экземпляра - выход из системы */
   if (rc)
   {
         LOG(ERROR) << "Unable attaching to instance '" 
-            << ((XDBDatabase*)m_self)->DatabaseName() 
+            << ((Database*)m_self)->DatabaseName() 
             << "' with code " << rc;
         return false;
   }
@@ -505,15 +507,15 @@ bool XDBDatabaseBrokerImpl::AttachToInstance()
     mcohv_start(&m_hv, m_metadict, 0, 0);
 #endif
 
-  return ((XDBDatabase*)m_self)->TransitionToState(XDBDatabase::CONNECTED);
+  return ((Database*)m_self)->TransitionToState(Database::CONNECTED);
 }
 
-Service *XDBDatabaseBrokerImpl::AddService(const std::string& name)
+Service *DatabaseBrokerImpl::AddService(const std::string& name)
 {
   return AddService(name.c_str());
 }
 
-Service *XDBDatabaseBrokerImpl::AddService(const char *name)
+Service *DatabaseBrokerImpl::AddService(const char *name)
 {
   xdb_broker::XDBService service_instance;
   Service       *srv = NULL;
@@ -553,13 +555,13 @@ Service *XDBDatabaseBrokerImpl::AddService(const char *name)
 }
 
 // TODO: возможно стоит удалить этот метод-обертку, оставив GetServiceByName
-Service *XDBDatabaseBrokerImpl::RequireServiceByName(const char *service_name)
+Service *DatabaseBrokerImpl::RequireServiceByName(const char *service_name)
 {
   return GetServiceByName(service_name);
 }
 
 // TODO: возможно стоит удалить этот метод-обертку, оставив GetServiceByName
-Service *XDBDatabaseBrokerImpl::RequireServiceByName(const std::string& service_name)
+Service *DatabaseBrokerImpl::RequireServiceByName(const std::string& service_name)
 {
   return GetServiceByName(service_name);
 }
@@ -570,7 +572,7 @@ Service *XDBDatabaseBrokerImpl::RequireServiceByName(const std::string& service_
  *   - если найдена, удалить её
  *   - если не найдена, вернуть ошибку
  */
-bool XDBDatabaseBrokerImpl::RemoveService(const char *name)
+bool DatabaseBrokerImpl::RemoveService(const char *name)
 {
   bool        status = false;
   xdb_broker::XDBService service_instance;
@@ -605,7 +607,7 @@ bool XDBDatabaseBrokerImpl::RemoveService(const char *name)
   return status;
 }
 
-bool XDBDatabaseBrokerImpl::IsServiceCommandEnabled(const Service* srv, const std::string& cmd_name)
+bool DatabaseBrokerImpl::IsServiceCommandEnabled(const Service* srv, const std::string& cmd_name)
 {
   bool status = false;
   assert(srv);
@@ -617,7 +619,7 @@ bool XDBDatabaseBrokerImpl::IsServiceCommandEnabled(const Service* srv, const st
 
 // Деактивировать Обработчик wrk по идентификатору у его Сервиса
 // NB: При этом сам экземпляр из базы не удаляется, а помечается неактивным (DISARMED)
-bool XDBDatabaseBrokerImpl::RemoveWorker(Worker *wrk)
+bool DatabaseBrokerImpl::RemoveWorker(Worker *wrk)
 {
   MCO_RET       rc = MCO_S_OK;
   mco_trans_h   t;
@@ -669,7 +671,7 @@ bool XDBDatabaseBrokerImpl::RemoveWorker(Worker *wrk)
 // TODO: рассмотреть необходимость расширенной обработки состояния уже 
 // существующего экземпляра. Повторная его регистрация при наличии 
 // незакрытой ссылки на Сообщение может говорить о сбое в его обработке.
-bool XDBDatabaseBrokerImpl::PushWorker(Worker *wrk)
+bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
 {
   MCO_RET       rc = MCO_S_OK;
   mco_trans_h   t;
@@ -807,7 +809,7 @@ bool XDBDatabaseBrokerImpl::PushWorker(Worker *wrk)
  * Добавить нового Обработчика в спул Сервиса.
  * TODO: рассмотреть необходимость данной функции. Сохранить вариант с std::string& ?
  */
-bool XDBDatabaseBrokerImpl::PushWorkerForService(const Service *srv, Worker *wrk)
+bool DatabaseBrokerImpl::PushWorkerForService(const Service *srv, Worker *wrk)
 {
   assert(srv);
   assert(wrk);
@@ -820,7 +822,7 @@ bool XDBDatabaseBrokerImpl::PushWorkerForService(const Service *srv, Worker *wrk
  * Сервис srv должен быть уже зарегистрированным в БД;
  * Экземпляр Обработчика wrk в БД еще не содержится;
  */
-Worker* XDBDatabaseBrokerImpl::PushWorkerForService(const std::string& service_name, const std::string& wrk_identity)
+Worker* DatabaseBrokerImpl::PushWorkerForService(const std::string& service_name, const std::string& wrk_identity)
 {
   bool status = false;
   Service *srv = NULL;
@@ -852,7 +854,7 @@ Worker* XDBDatabaseBrokerImpl::PushWorkerForService(const std::string& service_n
   return wrk;
 }
 
-Service *XDBDatabaseBrokerImpl::GetServiceByName(const std::string& name)
+Service *DatabaseBrokerImpl::GetServiceByName(const std::string& name)
 {
   return GetServiceByName(name.c_str());
 }
@@ -862,7 +864,7 @@ Service *XDBDatabaseBrokerImpl::GetServiceByName(const std::string& name)
  * @return Новый объект, представляющий Сервис
  * Вызываюшая сторона должна сама удалить объект возврата
  */
-Service *XDBDatabaseBrokerImpl::GetServiceByName(const char* name)
+Service *DatabaseBrokerImpl::GetServiceByName(const char* name)
 {
   MCO_RET       rc;
   mco_trans_h   t;
@@ -899,7 +901,7 @@ Service *XDBDatabaseBrokerImpl::GetServiceByName(const char* name)
   return service;
 }
 
-Service *XDBDatabaseBrokerImpl::LoadService(
+Service *DatabaseBrokerImpl::LoadService(
         autoid_t &aid,
         xdb_broker::XDBService& instance)
 {
@@ -929,7 +931,7 @@ Service *XDBDatabaseBrokerImpl::LoadService(
 /*
  * Загрузить данные Обработчика в ранее созданный вручную экземпляр
  */
-MCO_RET XDBDatabaseBrokerImpl::LoadWorkerByIdent(
+MCO_RET DatabaseBrokerImpl::LoadWorkerByIdent(
         /* IN */ mco_trans_h t,
         /* INOUT */ Worker *wrk)
 {
@@ -970,7 +972,7 @@ MCO_RET XDBDatabaseBrokerImpl::LoadWorkerByIdent(
 #endif
 
 // Загрузить данные Обработчика, основываясь на его идентификаторе
-MCO_RET XDBDatabaseBrokerImpl::LoadWorker(mco_trans_h t,
+MCO_RET DatabaseBrokerImpl::LoadWorker(mco_trans_h t,
         /* IN  */ xdb_broker::XDBWorker& wrk_instance,
         /* OUT */ Worker*& worker)
 {
@@ -1032,7 +1034,7 @@ MCO_RET XDBDatabaseBrokerImpl::LoadWorker(mco_trans_h t,
  * TODO: возвращать следует наиболее "старый" экземпляр, временная отметка 
  * которого раньше всех остальных экземпляров с этим же состоянием.
  */
-Worker *XDBDatabaseBrokerImpl::PopWorker(const Service *srv)
+Worker *DatabaseBrokerImpl::PopWorker(const Service *srv)
 {
   Worker       *worker = NULL;
   autoid_t      service_aid;
@@ -1044,7 +1046,7 @@ Worker *XDBDatabaseBrokerImpl::PopWorker(const Service *srv)
   return worker;
 }
 
-Worker *XDBDatabaseBrokerImpl::PopWorker(const std::string& service_name)
+Worker *DatabaseBrokerImpl::PopWorker(const std::string& service_name)
 {
   Service      *service = NULL;
   Worker       *worker = NULL;
@@ -1059,7 +1061,7 @@ Worker *XDBDatabaseBrokerImpl::PopWorker(const std::string& service_name)
   return worker;
 }
 
-Service *XDBDatabaseBrokerImpl::GetServiceForWorker(const Worker *wrk)
+Service *DatabaseBrokerImpl::GetServiceForWorker(const Worker *wrk)
 {
   // TODO реализация
   assert(1 == 0);
@@ -1067,7 +1069,7 @@ Service *XDBDatabaseBrokerImpl::GetServiceForWorker(const Worker *wrk)
 }
 
 
-Service *XDBDatabaseBrokerImpl::GetServiceById(int64_t _id)
+Service *DatabaseBrokerImpl::GetServiceById(int64_t _id)
 {
   autoid_t      aid = _id;
   mco_trans_h   t;
@@ -1094,7 +1096,7 @@ Service *XDBDatabaseBrokerImpl::GetServiceById(int64_t _id)
 /*
  * Вернуть признак существования Сервиса с указанным именем в БД
  */
-bool XDBDatabaseBrokerImpl::IsServiceExist(const char *name)
+bool DatabaseBrokerImpl::IsServiceExist(const char *name)
 {
   MCO_RET       rc;
   mco_trans_h   t;
@@ -1125,7 +1127,7 @@ bool XDBDatabaseBrokerImpl::IsServiceExist(const char *name)
  * самую раннюю отметку времени из всех остальных конкурентов.
  * Это необходимо для более равномерного распределения нагрузки.
  */
-Worker* XDBDatabaseBrokerImpl::GetWorkerByState(autoid_t& service_id,
+Worker* DatabaseBrokerImpl::GetWorkerByState(autoid_t& service_id,
                        WorkerState searched_worker_state)
 {
   MCO_RET      rc = MCO_S_OK;
@@ -1193,13 +1195,13 @@ Worker* XDBDatabaseBrokerImpl::GetWorkerByState(autoid_t& service_id,
 }
 
 
-bool XDBDatabaseBrokerImpl::ClearWorkersForService(const char *name)
+bool DatabaseBrokerImpl::ClearWorkersForService(const char *name)
 {
     /* TODO: Очистить спул Обработчиков указанной Службы */
     return false;
 }
 
-bool XDBDatabaseBrokerImpl::ClearServices()
+bool DatabaseBrokerImpl::ClearServices()
 {
     /* TODO: Очистить спул Обработчиков и всех Служб */
     return false;
@@ -1211,7 +1213,7 @@ bool XDBDatabaseBrokerImpl::ClearServices()
  * @return Новый объект, представляющий Обработчика
  * Вызываюшая сторона должна сама удалить объект возврата
  */
-Worker *XDBDatabaseBrokerImpl::GetWorkerByIdent(const char *ident)
+Worker *DatabaseBrokerImpl::GetWorkerByIdent(const char *ident)
 {
   MCO_RET      rc;
   mco_trans_h  t;
@@ -1249,7 +1251,7 @@ Worker *XDBDatabaseBrokerImpl::GetWorkerByIdent(const char *ident)
 
 #if 0
 /* Получить первое ожидающее обработки Сообщение */
-bool XDBDatabaseBrokerImpl::GetWaitingLetter(
+bool DatabaseBrokerImpl::GetWaitingLetter(
         /* IN  */ Service* srv,
         /* IN  */ Worker* wrk, /* GEV: зачем здесь Worker? Он должен быть закреплен за сообщением после передачи */
         /* OUT */ std::string& header,
@@ -1336,7 +1338,7 @@ bool XDBDatabaseBrokerImpl::GetWaitingLetter(
 }
 #endif
 
-Letter* XDBDatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
+Letter* DatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
 {
   mco_trans_h  t;
   MCO_RET rc = MCO_S_OK;
@@ -1454,7 +1456,7 @@ Letter* XDBDatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
  * 2. Заполнить Letter.expiration
  * 3. Изменить Letter.state с UNASSIGNED на ASSIGNED
  */
-bool XDBDatabaseBrokerImpl::AssignLetterToWorker(Worker* worker, Letter* letter)
+bool DatabaseBrokerImpl::AssignLetterToWorker(Worker* worker, Letter* letter)
 {
   mco_trans_h   t;
   MCO_RET       rc;
@@ -1580,7 +1582,7 @@ bool XDBDatabaseBrokerImpl::AssignLetterToWorker(Worker* worker, Letter* letter)
 
 // Изменить состояние Сообщения
 // NB: Функция не удаляет экземпляр из базы, а только помечает новым состоянием!
-bool XDBDatabaseBrokerImpl::ChangeLetterStatus(Letter* letter, Letter::State _new_state)
+bool DatabaseBrokerImpl::ChangeLetterStatus(Letter* letter, Letter::State _new_state)
 {
   mco_trans_h   t;
   MCO_RET       rc;
@@ -1621,7 +1623,7 @@ bool XDBDatabaseBrokerImpl::ChangeLetterStatus(Letter* letter, Letter::State _ne
   return (MCO_S_OK == rc);
 }
 
-bool XDBDatabaseBrokerImpl::SetWorkerState(Worker* worker, Worker::State new_state)
+bool DatabaseBrokerImpl::SetWorkerState(Worker* worker, Worker::State new_state)
 {
   mco_trans_h t;
   MCO_RET rc;
@@ -1663,33 +1665,33 @@ bool XDBDatabaseBrokerImpl::SetWorkerState(Worker* worker, Worker::State new_sta
   return (MCO_S_OK == rc);
 }
 
-Worker *XDBDatabaseBrokerImpl::GetWorkerByIdent(const std::string& ident)
+Worker *DatabaseBrokerImpl::GetWorkerByIdent(const std::string& ident)
 {
   // TODO: Реализовать для использования локализованных названий сервисов
   //
   return GetWorkerByIdent(ident.c_str());
 }
 
-void XDBDatabaseBrokerImpl::EnableServiceCommand(
+void DatabaseBrokerImpl::EnableServiceCommand(
         const Service *srv, 
         const std::string &command)
 {
   assert(srv);
 }
 
-void XDBDatabaseBrokerImpl::EnableServiceCommand(
+void DatabaseBrokerImpl::EnableServiceCommand(
         const std::string &srv_name, 
         const std::string &command)
 {
 }
 
-void XDBDatabaseBrokerImpl::DisableServiceCommand(
+void DatabaseBrokerImpl::DisableServiceCommand(
         const std::string &srv_name, 
         const std::string &command)
 {
 }
 
-void XDBDatabaseBrokerImpl::DisableServiceCommand(
+void DatabaseBrokerImpl::DisableServiceCommand(
         const Service *srv, 
         const std::string &command)
 {
@@ -1703,7 +1705,7 @@ void XDBDatabaseBrokerImpl::DisableServiceCommand(
    * Состояние после успешной передачи Обработчику: PROCESSING
    * Состояние после получения ответа: DONE_OK или DONE_FAIL
    */
-bool XDBDatabaseBrokerImpl::PushRequestToService(Service *srv,
+bool DatabaseBrokerImpl::PushRequestToService(Service *srv,
             const std::string& header,
             const std::string& body)
 {
@@ -1776,7 +1778,7 @@ bool XDBDatabaseBrokerImpl::PushRequestToService(Service *srv,
   return (MCO_S_OK == rc);
 }
 
-bool XDBDatabaseBrokerImpl::PushRequestToService(Service *srv, Letter *letter)
+bool DatabaseBrokerImpl::PushRequestToService(Service *srv, Letter *letter)
 {
   assert(letter);
 
@@ -1789,7 +1791,7 @@ bool XDBDatabaseBrokerImpl::PushRequestToService(Service *srv, Letter *letter)
 
 #if defined DEBUG
 /* Тестовый API сохранения базы */
-void XDBDatabaseBrokerImpl::MakeSnapshot(const char* msg)
+void DatabaseBrokerImpl::MakeSnapshot(const char* msg)
 {
   static char file_name[50];
 
@@ -1822,7 +1824,7 @@ mco_size_sig_t file_writer(void* stream_handle, const void* from, mco_size_t nby
     return nbs;
 } /* ========================================================================= */
 
-MCO_RET XDBDatabaseBrokerImpl::SaveDbToFile(const char* fname)
+MCO_RET DatabaseBrokerImpl::SaveDbToFile(const char* fname)
 {
   MCO_RET rc = MCO_S_OK;
   mco_xml_policy_t op, np;
@@ -1894,13 +1896,13 @@ MCO_RET XDBDatabaseBrokerImpl::SaveDbToFile(const char* fname)
 } /* ========================================================================= */
 
 #else
-void XDBDatabaseBrokerImpl::MakeSnapshot(const char*)
+void DatabaseBrokerImpl::MakeSnapshot(const char*)
 {
   return;
 }
 #endif
 
-ServiceList* XDBDatabaseBrokerImpl::GetServiceList()
+ServiceList* DatabaseBrokerImpl::GetServiceList()
 {
   if (!m_service_list)
     m_service_list = new ServiceListImpl(m_db);

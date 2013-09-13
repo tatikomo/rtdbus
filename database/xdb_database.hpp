@@ -6,7 +6,9 @@
 #include "config.h"
 #endif
 
-class XDBDatabase
+namespace xdb {
+
+class Database
 {
   public:
     /* Внутренние состояния базы данных */
@@ -17,8 +19,8 @@ class XDBDatabase
         DELETED       = 4
     } DBState;
 
-    XDBDatabase(const char*);
-    virtual ~XDBDatabase();
+    Database(const char*);
+    virtual ~Database();
 
     const char* DatabaseName();
     /* 
@@ -40,5 +42,6 @@ class XDBDatabase
     DBState  m_state;
 };
 
+}; //namespace xdb
 #endif
 

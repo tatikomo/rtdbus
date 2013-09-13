@@ -2,6 +2,8 @@
 #include <string.h>
 #include "xdb_database_service.hpp"
 
+using namespace xdb;
+
 Service::Service()
 {
   m_id = 0;

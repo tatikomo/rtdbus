@@ -8,6 +8,8 @@
 
 #include "zmsg.hpp"
 
+namespace mdp {
+
 class Service;
 class Broker;
 
@@ -86,5 +88,6 @@ class Service
     Service(std::string& name);
 };
 
+}; //namespace mdp
 
 #endif

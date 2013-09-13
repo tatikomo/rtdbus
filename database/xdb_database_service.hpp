@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include "config.h"
 
+namespace xdb {
+
 /*
  * Содержит
  * 1. Название сервиса
@@ -49,6 +51,8 @@ class Service
     char    *m_service_name;
     bool     m_modified;
 };
+
+}; //namespace xdb
 
 #endif
 

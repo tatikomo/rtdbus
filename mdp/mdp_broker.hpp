@@ -11,11 +11,12 @@
 
 #include "config.h"
 #include "mdp_broker.hpp"
+#include "xdb_database_broker.hpp"
+#include "xdb_database_service.hpp"
+#include "xdb_database_worker.hpp"
+#include "xdb_database_letter.hpp"
 
-class XDBDatabaseBroker;
-class Service;
-class Worker;
-class Letter;
+namespace mdp {
 
 //
 //  This defines a single broker
@@ -38,7 +39,7 @@ class Broker {
    /* Инициализация внутренних структур, обычно вызывается из start_brokering() */
    bool Init();
    /* Доступ для тестирования к интерфейсу базы данных */
-   XDBDatabaseBroker* get_internal_db_api() { return m_database; }
+   xdb::DatabaseBroker* get_internal_db_api() { return m_database; }
 #endif
 
    //  ---------------------------------------------------------------------
@@ -54,12 +55,12 @@ class Broker {
 
    // Регистрировать новый экземпляр Обработчика для Сервиса
    //  ---------------------------------------------------------------------
-   Worker *
+   xdb::Worker *
    worker_register(const std::string&, const std::string&);
 
    //  ---------------------------------------------------------------------
    //  Locate or create new service entry
-   Service *
+   xdb::Service *
    service_require (const std::string& name);
 
    zmq::socket_t&
@@ -68,7 +69,7 @@ class Broker {
    //  ---------------------------------------------------------------------
    //  Dispatch requests to waiting workers as possible
    void
-   service_dispatch (Service *srv, zmsg *msg);
+   service_dispatch (xdb::Service *srv, zmsg *msg);
 
    //  ---------------------------------------------------------------------
    //  Handle internal service according to 8/MMI specification
@@ -77,13 +78,13 @@ class Broker {
 
    //  ---------------------------------------------------------------------
    //  Creates worker if necessary
-   Worker *
+   xdb::Worker *
    worker_require (const std::string& sender/*, char* identity*/);
 
    //  ---------------------------------------------------------------------
    //  Deletes worker from all data structures, and destroys worker
    void
-   worker_delete (Worker *&wrk, int disconnect);
+   worker_delete (xdb::Worker *&wrk, int disconnect);
 
 
    //  ---------------------------------------------------------------------
@@ -96,17 +97,17 @@ class Broker {
    //  Send message to worker
    //  If pointer to message is provided, sends that message
    void
-   worker_send (Worker*, const char*, const std::string&, zmsg *msg);
+   worker_send (xdb::Worker*, const char*, const std::string&, zmsg *msg);
    void
-   worker_send (Worker*, const char*, const std::string&, Letter*);
+   worker_send (xdb::Worker*, const char*, const std::string&, xdb::Letter*);
    void
-   worker_send (Worker*, const char*, const std::string&, std::string&, std::string&);
+   worker_send (xdb::Worker*, const char*, const std::string&, std::string&, std::string&);
 
 
    //  ---------------------------------------------------------------------
    //  This worker is now waiting for work
    void
-   worker_waiting (Worker *worker);
+   worker_waiting (xdb::Worker *worker);
 
 
    //  ---------------------------------------------------------------------
@@ -129,21 +130,23 @@ class Broker {
     bool              m_verbose;               //  Print activity to stdout
     std::string       m_endpoint;              //  Broker binds to this endpoint
     int64_t           m_heartbeat_at;          //  When to send HEARTBEAT
-//    std::map<std::string, Service*> m_services;//  Hash of known services
-//    std::map<std::string, Worker*>  m_workers; //  Hash of known workers
-//    std::vector<Worker*>            m_waiting; //  List of waiting workers
+//    std::map<std::string, xdb::Service*> m_services;//  Hash of known services
+//    std::map<std::string, xdb::Worker*>  m_workers; //  Hash of known workers
+//    std::vector<xdb::Worker*>            m_waiting; //  List of waiting workers
 
     /* 
      * Назначение: Локальная база данных в разделяемой памяти.
      * Доступ: монопольное использование экземпляром Брокера
      * Содержание: список Сервисов и их Обработчиков
      */
-    XDBDatabaseBroker *m_database;
+    xdb::DatabaseBroker *m_database;
 
 #if !defined _FUNCTIONAL_TEST
    /* Инициализация внутренних структур, вызывается из start_brokering() */
    bool Init();
 #endif
 };
+
+}; //namespace mdp
 
 #endif

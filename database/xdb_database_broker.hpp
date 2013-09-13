@@ -3,16 +3,18 @@
 #pragma once
 #include <stdint.h>
 #include <string>
+
 #include "xdb_database.hpp"
 #include "xdb_database_service.hpp"
 #include "xdb_database_worker.hpp"
 
-class XDBDatabaseBrokerImpl;
+namespace xdb {
+
+class DatabaseBrokerImpl;
 class ServiceList;
 class Service;
 class Worker;
 class Letter;
-
 
 class ServiceList
 {
@@ -31,12 +33,12 @@ class ServiceList
     virtual bool refresh()   = 0;
 };
 
-class XDBDatabaseBroker : public XDBDatabase
+class DatabaseBroker : public Database
 {
 
   public:
-    XDBDatabaseBroker();
-    ~XDBDatabaseBroker();
+    DatabaseBroker();
+    ~DatabaseBroker();
 
     bool Connect();
 
@@ -111,9 +113,11 @@ class XDBDatabaseBroker : public XDBDatabase
     void MakeSnapshot(const char* = NULL);
 
   private:
-    DISALLOW_COPY_AND_ASSIGN(XDBDatabaseBroker);
+    DISALLOW_COPY_AND_ASSIGN(DatabaseBroker);
     /* Ссылка на физическую реализацию интерфейса с БД */
-    XDBDatabaseBrokerImpl *m_impl;
+    DatabaseBrokerImpl *m_impl;
 };
+
+}; //namespace xdb
 
 #endif
