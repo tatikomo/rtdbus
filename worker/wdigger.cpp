@@ -4,7 +4,7 @@
 #include "zmsg.hpp"
 #include "helper.hpp"
 #include "mdp_worker_api.hpp"
-//#include "mdp_letter.hpp"
+#include "mdp_letter.hpp"
 #include "wdigger.hpp"
 
 extern int s_interrupted;
@@ -15,8 +15,8 @@ int Digger::handle_request(mdp::zmsg* request, std::string*& reply_to)
   LOG(INFO) << "Process new request with " << request->parts() << " parts and reply to " << *reply_to;
 
 #if 0
-  std::string operation = request->pop_front ();
-  std::string volume    = request->pop_front ();
+  std::string message = request->pop_front ();
+  std::string header  = request->pop_front ();
 
   if (operation.compare("SELL") == 0)
         handle_sell_request (price, volume, reply_to);
@@ -28,11 +28,26 @@ int Digger::handle_request(mdp::zmsg* request, std::string*& reply_to)
         request->dump();
   }
 #else
-  request->dump();
+  mdp::Letter *letter = new mdp::Letter(request);
+  handle_rtdbus_message(letter, reply_to);
+  delete letter;
 #endif
 
   return 0;
 }
+
+int Digger::handle_rtdbus_message(mdp::Letter* letter, 
+                                std::string *reply_to)
+{
+    assert(reply_to != NULL);
+    mdp::zmsg * msg = new mdp::zmsg();
+    msg->push_front(letter->SerializedHeader());
+    msg->wrap(reply_to->c_str(), "");
+    send_to_broker((char*) MDPW_REPORT, NULL, msg);
+    delete msg;
+    return 0;
+}
+
 
 int Digger::handle_sell_request(std::string &price, 
                                 std::string &volume,
