@@ -94,7 +94,8 @@ class XDBLetter
   LetterState state = EMPTY;
   /* Время ожидания получения подтверждения о выполнении */
   timer_mark  expiration;
-  unique tree <expiration.sec, service_ref> PK_expire_for_service;
+  // У Сервиса может быть несколько Сообщений в списке на обработку
+  tree <expiration.sec, service_ref> PK_expire_for_service;
   unique tree <worker_ref, service_ref> SK_wrk_srv;
   tree <service_ref, state>  SK_by_state_for_serv;
   string header;

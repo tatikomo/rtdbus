@@ -385,6 +385,7 @@ MCO_RET DatabaseBrokerImpl::RegisterEvents()
     if (rc) LOG(ERROR) << "Registering event on XDBService deletion, rc=" << rc;
 
     rc = mco_trans_commit(t);
+    if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; }
   } while(false);
 
   if (rc)
@@ -577,7 +578,6 @@ Service *DatabaseBrokerImpl::RequireServiceByName(const std::string& service_nam
  */
 bool DatabaseBrokerImpl::RemoveService(const char *name)
 {
-  bool        status = false;
   xdb_broker::XDBService service_instance;
   MCO_RET        rc;
   mco_trans_h    t;
@@ -599,15 +599,14 @@ bool DatabaseBrokerImpl::RemoveService(const char *name)
     rc = service_instance.remove();
     if (rc) { LOG(ERROR) << "Unable to remove service '" << name << "', rc=" << rc; break; }
 
-    status = true;
+    rc = mco_trans_commit(t);
+    if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; }
   } while(false);
 
   if (rc)
     mco_trans_rollback(t);
-  else
-    mco_trans_commit(t);
 
-  return status;
+  return (MCO_S_OK == rc);
 }
 
 bool DatabaseBrokerImpl::IsServiceCommandEnabled(const Service* srv, const std::string& cmd_name)
@@ -661,13 +660,14 @@ bool DatabaseBrokerImpl::RemoveWorker(Worker *wrk)
 
       wrk->SetSTATE(Worker::State(DISARMED));
 
-      mco_trans_commit(t);
+      rc = mco_trans_commit(t);
+      if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; }
   } while(false);
 
   if (rc)
     mco_trans_rollback(t);
 
-  return (MCO_S_OK == rc)? true : false;
+  return (MCO_S_OK == rc);
 }
 
 // Активировать Обработчик wrk своего Сервиса
@@ -799,7 +799,8 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
         break; 
       }
 
-      mco_trans_commit(t);
+      rc = mco_trans_commit(t);
+      if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; }
 
   } while (false);
   
@@ -1541,11 +1542,14 @@ bool DatabaseBrokerImpl::AssignLetterToWorker(Worker* worker, Letter* letter)
     xdb_exp_worker_time.sec_put(exp_time.tv_sec);
     xdb_exp_worker_time.nsec_put(exp_time.tv_nsec);
 
+    letter_instance.checkpoint();
     if (mco_get_last_error(t))
     {
       LOG(ERROR) << "Unable to set expiration time";
       break;
     }
+    rc = worker_instance.checkpoint();
+    if (rc) { LOG(ERROR) << "Worker checkpointing, rc=" << rc; break;}
 
     /* ===== Установлены ограничения времени обработки и для Сообщения, и для Обработчика == */
     
@@ -1569,6 +1573,8 @@ bool DatabaseBrokerImpl::AssignLetterToWorker(Worker* worker, Letter* letter)
                 <<OCCUPIED<<"), rc="<<rc; break; 
     }
     worker->SetSTATE(Worker::OCCUPIED);
+    rc = worker_instance.checkpoint();
+    if (rc) { LOG(ERROR) << "Worker checkpointing, rc=" << rc; break;}
 
     /* ===== Установлены новые значения состояний Сообщения и Обработчика == */
 
@@ -1579,6 +1585,8 @@ bool DatabaseBrokerImpl::AssignLetterToWorker(Worker* worker, Letter* letter)
             <<" for worker '"<<worker->GetIDENTITY()<<"', rc="<<rc; 
         break; 
     }
+    rc = worker_instance.checkpoint();
+    if (rc) { LOG(ERROR) << "Worker checkpointing, rc=" << rc; break;}
 
     rc = letter_instance.worker_ref_put(worker->GetID());
     if (rc) 
@@ -1587,10 +1595,11 @@ bool DatabaseBrokerImpl::AssignLetterToWorker(Worker* worker, Letter* letter)
             <<" for letter id="<<letter->GetID()<<", rc="<<rc; 
         break; 
     }
+    rc = letter_instance.checkpoint();
+    if (rc) { LOG(ERROR) << "Letter checkpointing, rc=" << rc; break;}
 
-    mco_trans_commit(t);
-//    usleep(25000);
-
+    rc = mco_trans_commit(t);
+    if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; }
   } while(false);
 
   if (rc)
@@ -1632,7 +1641,8 @@ bool DatabaseBrokerImpl::ChangeLetterStatus(Letter* letter, Letter::State _new_s
     }
     letter->SetSTATE(_new_state);
 
-    mco_trans_commit(t);
+    rc = mco_trans_commit(t);
+    if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; }
 
   } while(false);
 
@@ -1675,7 +1685,8 @@ bool DatabaseBrokerImpl::SetWorkerState(Worker* worker, Worker::State new_state)
     if (rc) { LOG(ERROR)<<"Worker '"<<ident<<"' changing state to "<<new_state<<", rc="<<rc; break; }
     worker->SetSTATE(new_state);
 
-    mco_trans_commit(t);
+    rc = mco_trans_commit(t);
+    if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; }
   } while (false);
 
   if (rc)
@@ -1787,7 +1798,9 @@ bool DatabaseBrokerImpl::PushRequestToService(Service *srv,
         break; 
     }
 
-    mco_trans_commit(t);
+    rc = mco_trans_commit(t);
+    if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; }
+
     LOG(INFO) << "PushRequestToService '"<<srv->GetNAME()<<"' id="<<aid;
   } while(false);
 
@@ -1901,7 +1914,8 @@ MCO_RET DatabaseBrokerImpl::SaveDbToFile(const char* fname)
       }
       else
       {
-         mco_trans_commit(t);
+         rc = mco_trans_commit(t);
+         if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; }
       }
     }
     else
