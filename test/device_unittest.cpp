@@ -57,7 +57,7 @@ void purge_workers()
   xdb::Service      *service = sl->first();
   xdb::Worker       *wrk = NULL;
 
-  broker->database_snapshot("PURGE_WORKERS");
+  broker->database_snapshot("TEST_PURGE_WORKERS.START");
   while(NULL != service)
   {
     /* Пройти по списку Сервисов */
@@ -74,7 +74,7 @@ void purge_workers()
     }
     service = sl->next();
   }
-  broker->database_snapshot("PURGE_WORKERS");
+  broker->database_snapshot("TEST_PURGE_WORKERS.STOP");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -169,24 +169,23 @@ TEST(TestLetter, USAGE)
 {
   mdp::Letter* letter1 = NULL;
   mdp::Letter* letter2 = NULL;
-  RTDBM::Header     pb_header;
+//  RTDBM::Header     pb_header;
   RTDBM::ExecResult pb_exec_result_request;
   std::string       pb_serialized_header;
   std::string       pb_serialized_request;
 
-  pb_header.set_protocol_version(1);
+/*  pb_header.set_protocol_version(1);
   pb_header.set_exchange_id(9999999);
   pb_header.set_source_pid(9999);
   pb_header.set_proc_dest("Алекс");
   pb_header.set_proc_origin("Юстас");
   pb_header.set_sys_msg_type(100);
   pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
+  pb_header.SerializeToString(&pb_serialized_header); */
 
   pb_exec_result_request.set_user_exchange_id(9999999);
   pb_exec_result_request.set_exec_result(1);
   pb_exec_result_request.set_failure_cause(0);
-
-  pb_header.SerializeToString(&pb_serialized_header);
   pb_exec_result_request.SerializeToString(&pb_serialized_request);  
 
   letter1 = new mdp::Letter(ADG_D_MSG_EXECRESULT, "NYSE", pb_serialized_request);
@@ -197,7 +196,11 @@ TEST(TestLetter, USAGE)
   std::cout << "/" << letter1->header().get_proc_origin();
   std::cout << "/" << letter1->header().get_sys_msg_type();
   std::cout << "/" << letter1->header().get_usr_msg_type();
+  std::cout << "[" << static_cast<RTDBM::ExecResult*>(letter1->data())->user_exchange_id();
+  std::cout << "/" << static_cast<RTDBM::ExecResult*>(letter1->data())->exec_result();
+  std::cout << "/" << static_cast<RTDBM::ExecResult*>(letter1->data())->failure_cause()<<"]";
   std::cout << std::endl;
+  delete letter1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -443,12 +446,12 @@ TEST(TestProxy, BROKER_INTERNAL)
   // Необходимые шаги:
   // 1. Создание Сервиса
   // 2. Регистрация Обработчика для этого Сервиса
-  broker->database_snapshot("BROKER_INTERNAL");
+  broker->database_snapshot("TEST_BROKER_INTERNAL.START");
   service1 = broker->service_require(service_name_1);
   ASSERT_TRUE(service1 != NULL);
   // Сервис успешно зарегистрировался
 
-  broker->database_snapshot("BROKER_INTERNAL");
+  broker->database_snapshot("TEST_BROKER_INTERNAL.PROCESS");
   wrk = broker->worker_require(worker_identity_1);
   ASSERT_TRUE(wrk == NULL); /* Обработчик еще не зарегистрирован */
   delete wrk;
@@ -462,7 +465,7 @@ TEST(TestProxy, BROKER_INTERNAL)
   ASSERT_TRUE(wrk != NULL); /* Обработчик уже зарегистрирован */
   // не удалять пока wrk
 
-  broker->database_snapshot("BROKER_INTERNAL");
+  broker->database_snapshot("TEST_BROKER_INTERNAL.PROCESS");
 
   /*
    * Обработчик wrk будет удален внутри функции
@@ -470,7 +473,7 @@ TEST(TestProxy, BROKER_INTERNAL)
    * Для проверки следует сравнить срезы БД до и после функции worker_delete
    */
   broker->worker_delete(wrk, 0);
-  broker->database_snapshot("BROKER_INTERNAL");
+  broker->database_snapshot("TEST_BROKER_INTERNAL.PROCESS");
 
   wrk = broker->worker_require(worker_identity_1);
   ASSERT_TRUE(wrk != NULL); /* Обработчик зарегистрирован, не активирован */
@@ -478,6 +481,7 @@ TEST(TestProxy, BROKER_INTERNAL)
 
   broker->get_internal_db_api()->SetWorkerState(wrk, xdb::Worker::ARMED);
   EXPECT_EQ(wrk->GetSTATE(), xdb::Worker::ARMED);
+  broker->database_snapshot("TEST_BROKER_INTERNAL.STOP");
   PrintWorker(wrk);
   delete wrk;
 }
@@ -503,18 +507,20 @@ TEST(TestProxy, CLIENT_MESSAGE)
   RTDBM::ExecResult pb_exec_result_request;
   std::string       pb_serialized_header;
   std::string       pb_serialized_request;
+//  mdp::Letter      *letter = NULL;
 
+  broker->database_snapshot("TEST_CLIENT_MESSAGE.START");
   pb_header.set_protocol_version(1);
-  pb_header.set_exchange_id(9999999);
-  pb_header.set_source_pid(9999);
-  pb_header.set_proc_dest("В чащах юга жил-был Цитрус?");
-  pb_header.set_proc_origin("Да! Но фальшивый экземпляр.");
+  pb_header.set_exchange_id(1);
+  pb_header.set_source_pid(getpid());
+  pb_header.set_proc_dest("dest");
+  pb_header.set_proc_origin("src");
   pb_header.set_sys_msg_type(100);
   pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
 
-  pb_exec_result_request.set_user_exchange_id(9999999);
-  pb_exec_result_request.set_exec_result(23145);
-  pb_exec_result_request.set_failure_cause(5);
+  pb_exec_result_request.set_user_exchange_id(1);
+  pb_exec_result_request.set_exec_result(1);
+  pb_exec_result_request.set_failure_cause(1);
 
   pb_header.SerializeToString(&pb_serialized_header);
   pb_exec_result_request.SerializeToString(&pb_serialized_request);
@@ -528,7 +534,7 @@ TEST(TestProxy, CLIENT_MESSAGE)
 
   // msg удаляется внутри
   broker->client_msg(client_identity_1, msg);
-  broker->database_snapshot("CLIENT_MESSAGE");
+  broker->database_snapshot("TEST_CLIENT_MESSAGE.STOP");
 }
 #endif
 
@@ -578,7 +584,7 @@ TEST(TestProxy, PURGE_WORKERS)
   xdb::Worker       *wrk = NULL;
   timer_mark_t mark = { 0, 0 };
 
-  broker->database_snapshot("PURGE_WORKERS");
+  broker->database_snapshot("TEST_PURGE_WORKERS.START");
 
   // Добавить Сервису второго Обработчика
   wrk = broker->worker_register(service_name_1, worker_identity_2);
@@ -596,6 +602,7 @@ TEST(TestProxy, PURGE_WORKERS)
   wrk->SetEXPIRATION(mark);
   delete wrk;
   purge_workers();
+  broker->database_snapshot("TEST_PURGE_WORKERS.STOP");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -618,7 +625,6 @@ TEST(TestProxy, SERVICE_DISPATCH)
   // Зарегистрировать нового Обработчика worker_identity_1 для service_name_1
   worker = broker->worker_register(service_name_1, worker_identity_1);
   ASSERT_TRUE(worker != NULL);
-  broker->database_snapshot("SERVICE_DISPATCH");
 
   pb_header.set_protocol_version(1);
   pb_header.set_exchange_id(9999999);
@@ -641,11 +647,11 @@ TEST(TestProxy, SERVICE_DISPATCH)
   msg->push_front(pb_serialized_request);
   msg->push_front(pb_serialized_header);
 
-  broker->database_snapshot("SERVICE_DISPATCH");
+  broker->database_snapshot("TEST_SERVICE_DISPATCH.START");
   // service1 удаляется внутри
   broker->service_dispatch(service1, msg);
  // delete service1;
-  broker->database_snapshot("SERVICE_DISPATCH");
+  broker->database_snapshot("TEST_SERVICE_DISPATCH.STOP");
 
   delete msg;
 }

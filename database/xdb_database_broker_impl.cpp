@@ -500,6 +500,9 @@ bool DatabaseBrokerImpl::AttachToInstance()
   }
 
   RegisterEvents();
+  MCO_TRANS_ISOLATION_LEVEL isolation_level = mco_trans_set_default_isolation_level(m_db, MCO_REPEATABLE_READ);
+  LOG(INFO) << "Change default transaction isolation level to MCO_REPEATABLE_READ, "<<isolation_level;
+
 
 //  rc_check("Connecting", rc);
 #if (EXTREMEDB_VERSION >= 41) && USE_EXTREMEDB_HTTP_SERVER
@@ -544,8 +547,8 @@ Service *DatabaseBrokerImpl::AddService(const char *name)
     srv = new Service(aid, name);
     srv->SetSTATE((Service::State)REGISTERED);
 
-    if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; break; }
     rc = mco_trans_commit(t);
+    if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; }
   } while(false);
 
   if (rc)
@@ -742,7 +745,7 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
         if (GetTimerValue(now_time))
         {
           next_heartbeat_time.tv_nsec = now_time.tv_nsec;
-          next_heartbeat_time.tv_sec = now_time.tv_sec + Worker::HEARTBEAT_PERIOD_VALUE;
+          next_heartbeat_time.tv_sec = now_time.tv_sec + (Worker::HeartbeatPeriodValue/1000);
         }
         else { LOG(ERROR) << "Unable to calculate expiration time, rc="<<rc; break; }
 
@@ -779,7 +782,7 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
         if (GetTimerValue(now_time))
         {
           next_heartbeat_time.tv_nsec = now_time.tv_nsec;
-          next_heartbeat_time.tv_sec = now_time.tv_sec + Worker::HEARTBEAT_PERIOD_VALUE;
+          next_heartbeat_time.tv_sec = now_time.tv_sec + Worker::HeartbeatPeriodValue/1000;
         }
         else { LOG(ERROR) << "Unable to calculate expiration time, rc="<<rc; break; }
 
@@ -966,6 +969,7 @@ MCO_RET DatabaseBrokerImpl::LoadWorkerByIdent(
     }
 
   } while(false);
+  mco_cursor_close(t, &csr);
 
   return rc;
 }
@@ -1063,9 +1067,9 @@ Worker *DatabaseBrokerImpl::PopWorker(const std::string& service_name)
 
 Service *DatabaseBrokerImpl::GetServiceForWorker(const Worker *wrk)
 {
-  // TODO реализация
-  assert(1 == 0);
-  return NULL;
+  Service *service = NULL;
+  assert (wrk);
+  return GetServiceById(const_cast<Worker*>(wrk)->GetSERVICE_ID());
 }
 
 
@@ -1189,6 +1193,7 @@ Worker* DatabaseBrokerImpl::GetWorkerByState(autoid_t& service_id,
     }
   } while(false);
 
+  mco_cursor_close(t, &csr);
   mco_trans_rollback(t);
 
   return worker;
@@ -1332,6 +1337,7 @@ bool DatabaseBrokerImpl::GetWaitingLetter(
 
   } while(false);
 
+  mco_cursor_close(t, &csr);
   mco_trans_rollback(t);
 
   return (MCO_S_OK == rc);
@@ -1353,6 +1359,8 @@ Letter* DatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
   Letter      *letter = NULL;
   char        *header_buffer = NULL;
   char        *body_buffer = NULL;
+  bool         awaiting_letter_found = false;
+  int          cmp_result = 0;
 
   assert(srv);
 
@@ -1370,73 +1378,82 @@ Letter* DatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
       break;
     }
 
-    rc = xdb_broker::XDBLetter::SK_by_state_for_serv::search(t,
+
+    for (rc = xdb_broker::XDBLetter::SK_by_state_for_serv::search(t, &csr, MCO_EQ, srv->GetID(), UNASSIGNED);
+         (rc == MCO_S_OK) || (false == awaiting_letter_found);
+         rc = mco_cursor_next(t, &csr)) 
+    {
+       if ((MCO_S_NOTFOUND == rc) || (MCO_S_CURSOR_EMPTY == rc))
+         break;
+
+       rc = xdb_broker::XDBLetter::SK_by_state_for_serv::compare(t,
                 &csr,
-                MCO_EQ,
                 srv->GetID(),
-                UNASSIGNED); 
-    // Вернуться, если курсор пуст
-    if (MCO_S_CURSOR_EMPTY == rc || MCO_S_NOTFOUND == rc)
-      break;
-    if (rc) { LOG(ERROR) << "Unable to get Letters list cursor, rc="<<rc; break; }
+                UNASSIGNED,
+                cmp_result);
 
-    rc = mco_cursor_first(t, &csr);
-    if (rc) 
-    { 
-        LOG(ERROR) << "Unable to point at first item in Letters list cursor, rc="<<rc;
-        break;
-    }
+       if (rc == MCO_S_OK && cmp_result == 0)
+       {
+            // Достаточно получить первый элемент,
+            // функция будет вызываться до опустошения содержимого курсора 
+            rc = letter_instance.from_cursor(t, &csr);
+            if (rc) { LOG(ERROR) << "Unable to get item from Letters cursor, rc="<<rc; break; }
 
-    // Достаточно получить первый элемент,
-    // функция будет вызываться до опустошения содержимого курсора 
-    rc = letter_instance.from_cursor(t, &csr);
-    if (rc) { LOG(ERROR) << "Unable to get item from Letters cursor, rc="<<rc; break; }
+            rc = letter_instance.autoid_get(aid);
+            if (rc) { LOG(ERROR) << "Getting letter' id, rc=" << rc; break; }
 
-    rc = letter_instance.autoid_get(aid);
-    if (rc) { LOG(ERROR) << "Getting letter' id, rc=" << rc; break; }
+            rc = letter_instance.header_size(header_sz);
+            if (rc) { LOG(ERROR) << "Getting header size for letter id"<<aid<<", rc=" << rc; break; }
+            header_buffer = new char[header_sz + 1];
 
-    rc = letter_instance.header_size(header_sz);
-    if (rc) { LOG(ERROR) << "Getting header size for letter id"<<aid<<", rc=" << rc; break; }
-    header_buffer = new char[header_sz + 1];
+            rc = letter_instance.header_get(header_buffer, header_sz, sz);
+            if (rc) { LOG(ERROR) << "Getting header for letter id "<<aid<<", size="<<sz<<", rc=" << rc; break; }
+            header_buffer[header_sz] = '\0';
+            std::string header(header_buffer, header_sz+1);
 
-    rc = letter_instance.header_get(header_buffer, header_sz, sz);
-    if (rc) { LOG(ERROR) << "Getting header for letter id "<<aid<<", size="<<sz<<", rc=" << rc; break; }
-    header_buffer[header_sz] = '\0';
-    std::string header(header_buffer, header_sz+1);
+            rc = letter_instance.body_size(data_sz);
+            if (rc) { LOG(ERROR) << "Getting message body size for letter id"<<aid<<", rc=" << rc; break; }
+            body_buffer = new char[data_sz + 1];
 
-    rc = letter_instance.body_size(data_sz);
-    if (rc) { LOG(ERROR) << "Getting message body size for letter id"<<aid<<", rc=" << rc; break; }
-    body_buffer = new char[data_sz + 1];
+            rc = letter_instance.body_get(body_buffer, data_sz, sz);
+            if (rc) { LOG(ERROR) << "Getting data for letter id "<<aid<<", size="<<sz<<", rc=" << rc; break; }
+            body_buffer[data_sz] = '\0';
+            std::string body(body_buffer, data_sz+1);
 
-    rc = letter_instance.body_get(body_buffer, data_sz, sz);
-    if (rc) { LOG(ERROR) << "Getting data for letter id "<<aid<<", size="<<sz<<", rc=" << rc; break; }
-    body_buffer[data_sz] = '\0';
-    std::string body(body_buffer, data_sz+1);
+            rc = letter_instance.expiration_read(xdb_expire_time);
+            if (rc) { LOG(ERROR)<<"Unable to get expiration mark for letter id="<<aid<<", rc="<<rc; break; }
+            rc = xdb_expire_time.sec_get(timer_value);  expire_time.tv_sec = timer_value;
+            rc = xdb_expire_time.nsec_get(timer_value); expire_time.tv_nsec = timer_value;
 
-    rc = letter_instance.expiration_read(xdb_expire_time);
-    if (rc) { LOG(ERROR)<<"Unable to get expiration mark for letter id="<<aid<<", rc="<<rc; break; }
-    rc = xdb_expire_time.sec_get(timer_value);  expire_time.tv_sec = timer_value;
-    rc = xdb_expire_time.nsec_get(timer_value); expire_time.tv_nsec = timer_value;
+            rc = letter_instance.state_get(state);
+            if (rc) { LOG(ERROR)<<"Unable to get state for letter id="<<aid; break; }
+            if (state != UNASSIGNED)
+            {
+              LOG(ERROR) << "Поиск UNASSIGNED ("<<UNASSIGNED
+                         << ") сообщений вернул сообщение в состоянии "<<state;
+              assert (state != UNASSIGNED);
+            }
 
-    rc = letter_instance.state_get(state);
-    if (rc) { LOG(ERROR)<<"Unable to get state for letter id="<<aid; break; }
+            header.assign(header_buffer);
+            body.assign(body_buffer);
+            letter = new Letter(header, body);
 
-    header.assign(header_buffer);
-    body.assign(body_buffer);
-    letter = new Letter(header, body);
-
-    letter->SetID(aid);
-    letter->SetSERVICE_ID(srv->GetID());
-    letter->SetEXPIRATION(expire_time);
-    letter->SetSTATE((Letter::State)state);
-    // Все поля заполнены
-    letter->SetVALID();
+            letter->SetID(aid);
+            letter->SetSERVICE_ID(srv->GetID());
+            letter->SetEXPIRATION(expire_time);
+            letter->SetSTATE((Letter::State)state);
+            // Все поля заполнены
+            letter->SetVALID();
+            awaiting_letter_found = true;
+       } // if database OK and item was found
+    } // for each elements of cursor
 
   } while(false);
 
   delete []header_buffer;
   delete []body_buffer;
 
+  mco_cursor_close(t, &csr);
   mco_trans_rollback(t);
 
   return letter;
@@ -1542,6 +1559,7 @@ bool DatabaseBrokerImpl::AssignLetterToWorker(Worker* worker, Letter* letter)
       break; 
     }
     letter->SetSTATE(Letter::ASSIGNED);
+    letter->SetWORKER_ID(worker->GetID());
 
     // TODO проверить корректность преобразования
     rc = worker_instance.state_put((WorkerState)OCCUPIED);
@@ -1571,6 +1589,7 @@ bool DatabaseBrokerImpl::AssignLetterToWorker(Worker* worker, Letter* letter)
     }
 
     mco_trans_commit(t);
+//    usleep(25000);
 
   } while(false);
 
@@ -1750,7 +1769,7 @@ bool DatabaseBrokerImpl::PushRequestToService(Service *srv,
     if (GetTimerValue(now_time))
     {
       mark.nsec_put(now_time.tv_nsec);
-      mark.sec_put(now_time.tv_sec + Worker::HEARTBEAT_PERIOD_VALUE);
+      mark.sec_put(now_time.tv_sec + (Worker::HeartbeatPeriodValue/1000)); // из мсек в сек
     }
     else 
     {
@@ -2109,6 +2128,7 @@ bool ServiceListImpl::refresh()
 
   } while(false);
 
+  mco_cursor_close(t, &csr);
   mco_trans_rollback(t);
 
   switch(rc)

@@ -12,6 +12,7 @@
 #pragma once
 
 #include "zmsg.hpp"
+#include "config.h"
 #include "mdp_common.h"
 
 namespace mdp {
@@ -20,7 +21,7 @@ namespace mdp {
 //  We access these properties only via class methods
 class mdwrk {
   public:
-
+    static const int HeartbeatInterval = HEARTBEAT_PERIOD_MSEC;
     //  ---------------------------------------------------------------------
     //  Constructor
     mdwrk (std::string broker, std::string service, int verbose);

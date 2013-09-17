@@ -22,6 +22,8 @@ namespace mdp {
 //  This defines a single broker
 class Broker {
  public:
+   static const int HeartbeatInterval = HEARTBEAT_PERIOD_MSEC;
+   static const int HeartbeatExpiration = HEARTBEAT_PERIOD_MSEC * HEARTBEAT_LIVENESS;
    //  ---------------------------------------------------------------------
    //  Constructor for broker object
    Broker (bool verbose);

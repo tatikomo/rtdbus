@@ -40,7 +40,8 @@ Broker::Broker (bool verbose)
     m_context = new zmq::context_t(1);
     m_socket = new zmq::socket_t(*m_context, ZMQ_ROUTER);
     m_verbose = verbose;
-    m_heartbeat_at = s_clock () + HEARTBEAT_INTERVAL;
+    // TODO: объединить значения интервалов Брокера и Обработчика
+    m_heartbeat_at = s_clock () + Broker::HeartbeatInterval;
     m_database = new xdb::DatabaseBroker();
     assert(m_database);
 }
@@ -187,7 +188,7 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
 
     assert (srv);
 
-    m_database->MakeSnapshot("PRE_SERVICE_DISPATCH");
+    m_database->MakeSnapshot("SERVICE_DISPATCH.START");
     // Сообщение может отсутствовать
     if (processing_msg)
     {
@@ -200,10 +201,10 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
       delete letter;
     }
 
-//    m_database->MakeSnapshot("PRE_PURGE_SERVICE_DISPATCH");
+//    m_database->MakeSnapshot("PURGE_SERVICE_DISPATCH.START");
     /* Очистить список Обработчиков Сервиса от зомби */
     purge_workers ();
-//    m_database->MakeSnapshot("POST_PURGE_SERVICE_DISPATCH");
+//    m_database->MakeSnapshot("PURGE_SERVICE_DISPATCH.STOP");
 
     /*
      * Продолжать обработку, пока
@@ -219,19 +220,19 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
       LOG(INFO) << "Pop worker '"<<wrk->GetIDENTITY()<<"'";
       while (NULL != (letter = m_database->GetWaitingLetter(srv)))
       {
-//        m_database->MakeSnapshot("PRE_SEND_SERVICE_DISPATCH");
+        m_database->MakeSnapshot("SEND_SERVICE_DISPATCH.START");
         LOG(INFO) << "Pop letter id="<<letter->GetID()<<" state="<<letter->GetSTATE();
         letter->Dump();
         // Передать ожидающую обслуживания команду выбранному Обработчику
         worker_send (wrk, (char*)MDPW_REQUEST, EMPTY_FRAME, letter);
-//        m_database->MakeSnapshot("POST_SEND_SERVICE_DISPATCH");
+        m_database->MakeSnapshot("SEND_SERVICE_DISPATCH.STOP");
         delete letter;
       }
       delete wrk;
       break;
     }
     delete srv;
-    m_database->MakeSnapshot("POST_SERVICE_DISPATCH");
+    m_database->MakeSnapshot("SERVICE_DISPATCH.STOP");
 }
 
 //  ---------------------------------------------------------------------
@@ -572,7 +573,7 @@ Broker::worker_waiting (xdb::Worker *worker)
 #if 0
     m_waiting.push_back(worker);
     worker->m_service->m_waiting.push_back(worker);
-    worker->m_expiry = s_clock () + HEARTBEAT_EXPIRY;
+    worker->m_expiry = s_clock () + Broker::HeartbeatExpiration;
 #else
     //  Queue to broker and service waiting lists
     m_database->PushWorker(worker);
@@ -658,7 +659,7 @@ Broker::start_brokering()
    {
        zmq::pollitem_t items [] = {
            { *m_socket,  0, ZMQ_POLLIN, 0 } };
-       zmq::poll (items, 1, HEARTBEAT_INTERVAL);
+       zmq::poll (items, 1, Broker::HeartbeatInterval);
 
        //  Process next input message, if any
        if (items [0].revents & ZMQ_POLLIN) {
@@ -703,7 +704,7 @@ Broker::start_brokering()
                  it != m_waiting.end() && (*it)!=0; it++) {
                worker_send (*it, (char*)MDPW_HEARTBEAT, EMPTY_FRAME, NULL);
            }
-           m_heartbeat_at = s_clock () + HEARTBEAT_INTERVAL;
+           m_heartbeat_at = s_clock () + Broker::HeartbeatInterval;
 #endif
        }
    }

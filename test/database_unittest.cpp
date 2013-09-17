@@ -28,6 +28,40 @@ void wait()
 //  getchar();
 }
 
+void show_runtime_info(const char * lead_line)
+{
+  mco_runtime_info_t info;
+  
+  /* get runtime info */
+  mco_get_runtime_info(&info);
+
+  /* Core configuration parameters: */
+  if ( *lead_line )
+    fprintf( stdout, "%s", lead_line );
+
+  fprintf( stdout, "\n" );
+  fprintf( stdout, "\tEvaluation runtime ______ : %s\n", info.mco_evaluation_version   ? "yes":"no" );
+  fprintf( stdout, "\tCheck-level _____________ : %d\n", info.mco_checklevel );
+  fprintf( stdout, "\tMultithread support _____ : %s\n", info.mco_multithreaded        ? "yes":"no" );
+  fprintf( stdout, "\tFixedrec support ________ : %s\n", info.mco_fixedrec_supported   ? "yes":"no" );
+  fprintf( stdout, "\tShared memory support ___ : %s\n", info.mco_shm_supported        ? "yes":"no" );
+  fprintf( stdout, "\tXML support _____________ : %s\n", info.mco_xml_supported        ? "yes":"no" );
+  fprintf( stdout, "\tStatistics support ______ : %s\n", info.mco_stat_supported       ? "yes":"no" );
+  fprintf( stdout, "\tEvents support __________ : %s\n", info.mco_events_supported     ? "yes":"no" );
+  fprintf( stdout, "\tVersioning support ______ : %s\n", info.mco_versioning_supported ? "yes":"no" );
+  fprintf( stdout, "\tSave/Load support _______ : %s\n", info.mco_save_load_supported  ? "yes":"no" );
+  fprintf( stdout, "\tRecovery support ________ : %s\n", info.mco_recovery_supported   ? "yes":"no" );
+#if (EXTREMEDB_VERSION >=41)
+  fprintf( stdout, "\tRTree index support _____ : %s\n", info.mco_rtree_supported      ? "yes":"no" );
+#endif
+  fprintf( stdout, "\tUnicode support _________ : %s\n", info.mco_unicode_supported    ? "yes":"no" );
+  fprintf( stdout, "\tWChar support ___________ : %s\n", info.mco_wchar_supported      ? "yes":"no" );
+  fprintf( stdout, "\tC runtime _______________ : %s\n", info.mco_rtl_supported        ? "yes":"no" );
+  fprintf( stdout, "\tSQL support _____________ : %s\n", info.mco_sql_supported        ? "yes":"no" );
+  fprintf( stdout, "\tPersistent storage support: %s\n", info.mco_disk_supported       ? "yes":"no" );
+  fprintf( stdout, "\tDirect pointers mode ____ : %s\n", info.mco_direct_pointers      ? "yes":"no" );  
+}
+
 TEST(TestBrokerDATABASE, OPEN)
 {
     bool status;
@@ -43,6 +77,8 @@ TEST(TestBrokerDATABASE, OPEN)
 
     state = database->State();
     ASSERT_TRUE(state == xdb::Database::CONNECTED);
+
+    show_runtime_info("Database runtime information:\n=======================================");
 }
 
 TEST(TestBrokerDATABASE, INSERT_SERVICE)

@@ -40,8 +40,8 @@ mdwrk::mdwrk (std::string broker, std::string service, int verbose)
     m_broker = broker;
     m_service = service;
     m_verbose = verbose;
-    m_heartbeat = HEARTBEAT_INTERVAL;     //  msecs
-    m_reconnect = HEARTBEAT_INTERVAL;     //  msecs
+    m_heartbeat = HeartbeatInterval;     //  msecs
+    m_reconnect = HeartbeatInterval;     //  msecs
     m_worker = 0;
     m_expect_reply = false;
 

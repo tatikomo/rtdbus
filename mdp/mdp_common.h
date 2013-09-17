@@ -36,8 +36,6 @@ extern char *mdpw_commands [];
 
 //  We'd normally pull these from config data
 #define HEARTBEAT_LIVENESS  4       //  3-5 is reasonable
-#define HEARTBEAT_INTERVAL  2500     //  2500 msecs -> 2,5 sec
-#define HEARTBEAT_EXPIRY    HEARTBEAT_INTERVAL * HEARTBEAT_LIVENESS
 
 #endif
 

@@ -21,7 +21,7 @@ class Worker
   public:
 
     //  10 секунд между двумя heartbeat
-    static const int HEARTBEAT_PERIOD_VALUE = HEARTBEAT_PERIOD;
+    static const int HeartbeatPeriodValue = HEARTBEAT_PERIOD_MSEC;
     /* NB: должен быть размер поля identity_t из broker.mco */
     static const int IDENTITY_MAXLEN = WORKER_IDENTITY_MAXLEN;
 
