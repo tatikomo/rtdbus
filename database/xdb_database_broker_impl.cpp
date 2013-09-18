@@ -1068,7 +1068,7 @@ Worker *DatabaseBrokerImpl::PopWorker(const std::string& service_name)
 
 Service *DatabaseBrokerImpl::GetServiceForWorker(const Worker *wrk)
 {
-  Service *service = NULL;
+//  Service *service = NULL;
   assert (wrk);
   return GetServiceById(const_cast<Worker*>(wrk)->GetSERVICE_ID());
 }
@@ -1188,9 +1188,9 @@ Worker* DatabaseBrokerImpl::GetWorkerByState(autoid_t& service_id,
       rc = LoadWorker(t, worker_instance, worker);
       if (rc) { LOG(ERROR)<< "Unable to load worker instance, rc="<<rc; break; }
       if (worker->GetSERVICE_ID() != service_id)
-        LOG(ERROR) << "Найден Обработчик "<<worker->GetIDENTITY()
-                   <<" для другого Сервиса ("
-                   << worker->GetSERVICE_ID()<<" != "<<service_id<<")";
+        LOG(ERROR) << "Founded Worker '"<<worker->GetIDENTITY()
+                   <<"' is registered for another Service, "
+                   << worker->GetSERVICE_ID()<<" != "<<service_id;
     }
   } while(false);
 
@@ -1204,13 +1204,41 @@ Worker* DatabaseBrokerImpl::GetWorkerByState(autoid_t& service_id,
 bool DatabaseBrokerImpl::ClearWorkersForService(const char *name)
 {
     /* TODO: Очистить спул Обработчиков указанной Службы */
+
+    /*
+     * Удалить все незавершенные Сообщения, привязанные к Обработчикам Сервиса
+     * Удалить всех Обработчиков Сервиса
+     */
     return false;
 }
 
+/* Очистить спул Обработчиков и всех Служб */
 bool DatabaseBrokerImpl::ClearServices()
 {
-    /* TODO: Очистить спул Обработчиков и всех Служб */
-    return false;
+  Service  *srv;
+  bool      status = false;
+
+  /*
+   * Пройтись по списку Сервисов
+   *      Для каждого вызвать ClearWorkersForService()
+   *      Удалить Сервис
+   */
+  srv = m_service_list->first();
+  while (srv)
+  {
+    if (true == (status = ClearWorkersForService(srv->GetNAME())))
+    {
+      status = RemoveService(srv->GetNAME());
+    }
+    else
+    {
+      LOG(ERROR) << "Unable to clear resources for service '"<<srv->GetNAME()<<"'";
+    }
+
+    srv = m_service_list->next();
+  }
+
+  return status;
 }
 
 /* Вернуть NULL или Обработчика по его идентификационной строке */
@@ -1345,18 +1373,92 @@ bool DatabaseBrokerImpl::GetWaitingLetter(
 }
 #endif
 
+MCO_RET DatabaseBrokerImpl::LoadLetter(xdb_broker::XDBLetter& letter_instance,
+    xdb::Letter*& letter)
+{
+  MCO_RET rc = MCO_S_OK;
+  autoid_t     aid;
+  autoid_t     service_aid, worker_aid;
+  uint2        header_sz, data_sz, sz;
+  timer_mark_t expire_time = {0, 0};
+  xdb_broker::timer_mark xdb_expire_time;
+  LetterState  state;
+  char        *header_buffer = NULL;
+  char        *body_buffer = NULL;
+  char         reply_buffer[Worker::IDENTITY_MAXLEN + 1];
+  uint4        timer_value;
+
+  do
+  {
+    rc = letter_instance.autoid_get(aid);
+    if (rc) { LOG(ERROR) << "Getting letter' id, rc=" << rc; break; }
+
+    rc = letter_instance.service_ref_get(service_aid);
+    if (rc) { LOG(ERROR) << "Getting letter's ("<<aid<<") service id, rc=" << rc; break; }
+    rc = letter_instance.worker_ref_get(worker_aid);
+    if (rc) { LOG(ERROR) << "Getting letter's ("<<aid<<") worker id, rc=" << rc; break; }
+
+    rc = letter_instance.header_size(header_sz);
+    if (rc) { LOG(ERROR) << "Getting header size for letter id"<<aid<<", rc=" << rc; break; }
+    header_buffer = new char[header_sz + 1];
+
+    rc = letter_instance.header_get(header_buffer, header_sz, sz);
+    if (rc) { LOG(ERROR) << "Getting header for letter id "<<aid<<", size="<<sz<<", rc=" << rc; break; }
+    header_buffer[header_sz] = '\0';
+    std::string header(header_buffer, header_sz+1);
+
+    rc = letter_instance.body_size(data_sz);
+    if (rc) { LOG(ERROR) << "Getting message body size for letter id"<<aid<<", rc=" << rc; break; }
+    body_buffer = new char[data_sz + 1];
+
+    rc = letter_instance.body_get(body_buffer, data_sz, sz);
+    if (rc) { LOG(ERROR) << "Getting data for letter id "<<aid<<", size="<<sz<<", rc=" << rc; break; }
+    body_buffer[data_sz] = '\0';
+    std::string body(body_buffer, data_sz+1);
+
+    rc = letter_instance.reply_to_get(reply_buffer, Worker::IDENTITY_MAXLEN);
+    if (rc) { LOG(ERROR) << "Getting client address for letter id "<<aid<<", rc=" << rc; break; }
+    reply_buffer[Worker::IDENTITY_MAXLEN] = '\0';
+    std::string reply_to(reply_buffer, Worker::IDENTITY_MAXLEN+1);
+
+    rc = letter_instance.expiration_read(xdb_expire_time);
+    if (rc) { LOG(ERROR)<<"Unable to get expiration mark for letter id="<<aid<<", rc="<<rc; break; }
+    rc = xdb_expire_time.sec_get(timer_value);  expire_time.tv_sec = timer_value;
+    rc = xdb_expire_time.nsec_get(timer_value); expire_time.tv_nsec = timer_value;
+
+    rc = letter_instance.state_get(state);
+    if (rc) { LOG(ERROR)<<"Unable to get state for letter id="<<aid; break; }
+/*    if (state != UNASSIGNED)
+    {
+      LOG(ERROR) << "Поиск UNASSIGNED ("<<UNASSIGNED
+                 << ") сообщений вернул сообщение в состоянии "<<state;
+      assert (state != UNASSIGNED);
+    }*/
+
+    header.assign(header_buffer);
+    body.assign(body_buffer);
+    reply_to.assign(reply_buffer);
+    letter = new Letter(reply_buffer, header, body);
+
+    letter->SetID(aid);
+    letter->SetSERVICE_ID(service_aid);
+    letter->SetWORKER_ID(worker_aid);
+    letter->SetEXPIRATION(expire_time);
+    letter->SetSTATE((Letter::State)state);
+    // Все поля заполнены
+    letter->SetVALID();
+
+  } while(false);
+
+  return rc;
+}
+
 Letter* DatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
 {
   mco_trans_h  t;
   MCO_RET rc = MCO_S_OK;
   mco_cursor_t csr;
-  LetterState  state;
-  uint4        timer_value;
   xdb_broker::XDBLetter letter_instance;
-  autoid_t     aid;
-  uint2        header_sz, data_sz, sz;
-  timer_mark_t expire_time = {0, 0};
-  xdb_broker::timer_mark xdb_expire_time;
   Letter      *letter = NULL;
   char        *header_buffer = NULL;
   char        *body_buffer = NULL;
@@ -1379,7 +1481,6 @@ Letter* DatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
       break;
     }
 
-
     for (rc = xdb_broker::XDBLetter::SK_by_state_for_serv::search(t, &csr, MCO_EQ, srv->GetID(), UNASSIGNED);
          (rc == MCO_S_OK) || (false == awaiting_letter_found);
          rc = mco_cursor_next(t, &csr)) 
@@ -1395,57 +1496,16 @@ Letter* DatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
 
        if (rc == MCO_S_OK && cmp_result == 0)
        {
-            // Достаточно получить первый элемент,
-            // функция будет вызываться до опустошения содержимого курсора 
-            rc = letter_instance.from_cursor(t, &csr);
-            if (rc) { LOG(ERROR) << "Unable to get item from Letters cursor, rc="<<rc; break; }
+         // Достаточно получить первый элемент,
+         // функция будет вызываться до опустошения содержимого курсора 
+         rc = letter_instance.from_cursor(t, &csr);
+         if (rc) { LOG(ERROR) << "Unable to get item from Letters cursor, rc="<<rc; break; }
 
-            rc = letter_instance.autoid_get(aid);
-            if (rc) { LOG(ERROR) << "Getting letter' id, rc=" << rc; break; }
+         rc = LoadLetter(letter_instance, letter);
+         if (rc) { LOG(ERROR) << "Unable to read Letter instance, rc="<<rc; break; }
 
-            rc = letter_instance.header_size(header_sz);
-            if (rc) { LOG(ERROR) << "Getting header size for letter id"<<aid<<", rc=" << rc; break; }
-            header_buffer = new char[header_sz + 1];
-
-            rc = letter_instance.header_get(header_buffer, header_sz, sz);
-            if (rc) { LOG(ERROR) << "Getting header for letter id "<<aid<<", size="<<sz<<", rc=" << rc; break; }
-            header_buffer[header_sz] = '\0';
-            std::string header(header_buffer, header_sz+1);
-
-            rc = letter_instance.body_size(data_sz);
-            if (rc) { LOG(ERROR) << "Getting message body size for letter id"<<aid<<", rc=" << rc; break; }
-            body_buffer = new char[data_sz + 1];
-
-            rc = letter_instance.body_get(body_buffer, data_sz, sz);
-            if (rc) { LOG(ERROR) << "Getting data for letter id "<<aid<<", size="<<sz<<", rc=" << rc; break; }
-            body_buffer[data_sz] = '\0';
-            std::string body(body_buffer, data_sz+1);
-
-            rc = letter_instance.expiration_read(xdb_expire_time);
-            if (rc) { LOG(ERROR)<<"Unable to get expiration mark for letter id="<<aid<<", rc="<<rc; break; }
-            rc = xdb_expire_time.sec_get(timer_value);  expire_time.tv_sec = timer_value;
-            rc = xdb_expire_time.nsec_get(timer_value); expire_time.tv_nsec = timer_value;
-
-            rc = letter_instance.state_get(state);
-            if (rc) { LOG(ERROR)<<"Unable to get state for letter id="<<aid; break; }
-            if (state != UNASSIGNED)
-            {
-              LOG(ERROR) << "Поиск UNASSIGNED ("<<UNASSIGNED
-                         << ") сообщений вернул сообщение в состоянии "<<state;
-              assert (state != UNASSIGNED);
-            }
-
-            header.assign(header_buffer);
-            body.assign(body_buffer);
-            letter = new Letter(header, body);
-
-            letter->SetID(aid);
-            letter->SetSERVICE_ID(srv->GetID());
-            letter->SetEXPIRATION(expire_time);
-            letter->SetSTATE((Letter::State)state);
-            // Все поля заполнены
-            letter->SetVALID();
-            awaiting_letter_found = true;
+         if ((letter) && (letter->GetSTATE() == xdb::Letter::UNASSIGNED))
+           awaiting_letter_found = true;
        } // if database OK and item was found
     } // for each elements of cursor
 
@@ -1542,14 +1602,14 @@ bool DatabaseBrokerImpl::AssignLetterToWorker(Worker* worker, Letter* letter)
     xdb_exp_worker_time.sec_put(exp_time.tv_sec);
     xdb_exp_worker_time.nsec_put(exp_time.tv_nsec);
 
-    letter_instance.checkpoint();
+//    letter_instance.checkpoint();
     if (mco_get_last_error(t))
     {
       LOG(ERROR) << "Unable to set expiration time";
       break;
     }
-    rc = worker_instance.checkpoint();
-    if (rc) { LOG(ERROR) << "Worker checkpointing, rc=" << rc; break;}
+//    rc = worker_instance.checkpoint();
+//    if (rc) { LOG(ERROR) << "Worker checkpointing, rc=" << rc; break;}
 
     /* ===== Установлены ограничения времени обработки и для Сообщения, и для Обработчика == */
     
@@ -1573,8 +1633,8 @@ bool DatabaseBrokerImpl::AssignLetterToWorker(Worker* worker, Letter* letter)
                 <<OCCUPIED<<"), rc="<<rc; break; 
     }
     worker->SetSTATE(Worker::OCCUPIED);
-    rc = worker_instance.checkpoint();
-    if (rc) { LOG(ERROR) << "Worker checkpointing, rc=" << rc; break;}
+//    rc = worker_instance.checkpoint();
+//    if (rc) { LOG(ERROR) << "Worker checkpointing, rc=" << rc; break;}
 
     /* ===== Установлены новые значения состояний Сообщения и Обработчика == */
 
@@ -1585,8 +1645,8 @@ bool DatabaseBrokerImpl::AssignLetterToWorker(Worker* worker, Letter* letter)
             <<" for worker '"<<worker->GetIDENTITY()<<"', rc="<<rc; 
         break; 
     }
-    rc = worker_instance.checkpoint();
-    if (rc) { LOG(ERROR) << "Worker checkpointing, rc=" << rc; break;}
+//    rc = worker_instance.checkpoint();
+//    if (rc) { LOG(ERROR) << "Worker checkpointing, rc=" << rc; break;}
 
     rc = letter_instance.worker_ref_put(worker->GetID());
     if (rc) 
@@ -1595,8 +1655,8 @@ bool DatabaseBrokerImpl::AssignLetterToWorker(Worker* worker, Letter* letter)
             <<" for letter id="<<letter->GetID()<<", rc="<<rc; 
         break; 
     }
-    rc = letter_instance.checkpoint();
-    if (rc) { LOG(ERROR) << "Letter checkpointing, rc=" << rc; break;}
+//    rc = letter_instance.checkpoint();
+//    if (rc) { LOG(ERROR) << "Letter checkpointing, rc=" << rc; break;}
 
     rc = mco_trans_commit(t);
     if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; }
@@ -1608,9 +1668,59 @@ bool DatabaseBrokerImpl::AssignLetterToWorker(Worker* worker, Letter* letter)
   return (MCO_S_OK == rc);
 }
 
+// Найти экземпляр Сообщения по паре Сервис/Обработчик
+// xdb::Letter::SK_wrk_srv - найти экземпляр по service_id и worker_id
+Letter* DatabaseBrokerImpl::GetLetterBy(Service* service, Worker* worker)
+{
+  mco_trans_h   t;
+  MCO_RET       rc;
+  Letter* letter = NULL;
+  xdb_broker::XDBLetter letter_instance;
+
+  assert(service);
+  assert(worker);
+
+  do
+  {
+    rc = mco_trans_start(m_db, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
+    if (rc) { LOG(ERROR)<<"Starting transaction, rc="<<rc; break; }
+
+    rc = xdb_broker::XDBLetter::SK_wrk_srv::find(t,
+            worker->GetID(),
+            service->GetID(),
+            letter_instance);
+    /* Запись не найдена - нет ошибки */
+    if (MCO_S_NOTFOUND == rc) break;
+    /* Запись не найдена - есть ошибка - сообщить */
+    if (rc)
+    {
+        LOG(ERROR)<<"Unable to locate Letter with service id="<<letter->GetID()
+                  <<" and worker id="<<worker->GetID()<<", rc="<<rc;
+        break;
+    }
+
+    rc = LoadLetter(letter_instance, letter);
+
+    if (rc)
+    {
+      LOG(ERROR)<<"Unable to instantiating Letter located with service id="<<letter->GetID()
+                <<" and worker id="<<worker->GetID()<<", rc="<<rc;
+      break;
+    }
+
+    rc = mco_trans_commit(t);
+    if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; }
+  } while(false);
+
+  if (rc)
+    mco_trans_rollback(t);
+
+  return letter;
+}
+
 // Изменить состояние Сообщения
 // NB: Функция не удаляет экземпляр из базы, а только помечает новым состоянием!
-bool DatabaseBrokerImpl::ChangeLetterStatus(Letter* letter, Letter::State _new_state)
+bool DatabaseBrokerImpl::SetLetterState(Letter* letter, Letter::State _new_state)
 {
   mco_trans_h   t;
   MCO_RET       rc;
@@ -1736,6 +1846,7 @@ void DatabaseBrokerImpl::DisableServiceCommand(
    * Состояние после получения ответа: DONE_OK или DONE_FAIL
    */
 bool DatabaseBrokerImpl::PushRequestToService(Service *srv,
+            const std::string& reply_to,
             const std::string& header,
             const std::string& body)
 {
@@ -1789,14 +1900,16 @@ bool DatabaseBrokerImpl::PushRequestToService(Service *srv,
       mark.sec_put(0);
     }
 
-    letter_instance.header_put(header.c_str(), header.size());
-    letter_instance.body_put(body.c_str(), body.size());
+    letter_instance.header_put(header.data(), header.size());
+    letter_instance.body_put(body.data(), body.size());
+    letter_instance.reply_to_put(reply_to.data(), reply_to.size());
     if (mco_get_last_error(t))
     { 
         LOG(ERROR)<<"Unable to set letter attributes for service '"
                   <<srv->GetNAME()<<"', rc="<<rc;
         break; 
     }
+
 
     rc = mco_trans_commit(t);
     if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; }
@@ -1815,7 +1928,7 @@ bool DatabaseBrokerImpl::PushRequestToService(Service *srv, Letter *letter)
   assert(letter);
 
   if (letter)
-    return PushRequestToService(srv, letter->GetHEADER(), letter->GetDATA());
+    return PushRequestToService(srv, letter->GetREPLY(), letter->GetHEADER(), letter->GetDATA());
   else
     return false;
 }
@@ -2078,7 +2191,7 @@ bool ServiceListImpl::RemoveService(const char* name)
 // Удалить Сервис по его идентификатору
 bool ServiceListImpl::RemoveService(const int64_t id)
 {
-  LOG(INFO) << "EVENT AddService with id="<<id;
+  LOG(INFO) << "EVENT DelService with id="<<id;
   return false;
 }
 

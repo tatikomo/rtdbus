@@ -7,6 +7,7 @@
 #include "xdb_database.hpp"
 #include "xdb_database_service.hpp"
 #include "xdb_database_worker.hpp"
+#include "xdb_database_letter.hpp"
 
 namespace xdb {
 
@@ -66,7 +67,8 @@ class DatabaseBroker : public Database
     bool AssignLetterToWorker(Worker*, Letter*);
 
     /* поместить сообщение во входящую очередь Службы */
-    bool PushRequestToService(Service*, 
+    bool PushRequestToService(Service*,
+            const std::string&,
             const std::string&,
             const std::string&);
     bool PushRequestToService(Service*, Letter*);
@@ -95,11 +97,15 @@ class DatabaseBroker : public Database
     /* Очистить спул Обработчиков и всех Сервисов */
     bool ClearServices();
 
+    /* Найти экземпляр Сообщения по паре Сервис/Обработчик */
+    Letter* GetLetterBy(Service*, Worker*);
     /* Получить первое ожидающее обработки Сообщение */
     //bool GetWaitingLetter(Service*, Worker*, std::string&, std::string&);
     Letter* GetWaitingLetter(Service*);
     /* Установить новое состояние Обработчика */
     bool SetWorkerState(Worker*, Worker::State);
+    /* Изменить состояние Сообщения */
+    bool SetLetterState(Letter*, Letter::State);
 
     /* Разрешить исполнение Команды указанной Службе */
     void EnableServiceCommand (const std::string&, const std::string&);

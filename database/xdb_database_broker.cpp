@@ -38,6 +38,19 @@ bool DatabaseBroker::SetWorkerState(xdb::Worker* worker, xdb::Worker::State new_
   return m_impl->SetWorkerState(worker, new_state);
 }
 
+// Найти экземпляр Сообщения по паре Сервис/Обработчик
+xdb::Letter* DatabaseBroker::GetLetterBy(xdb::Service* service, xdb::Worker* worker)
+{
+  assert(m_impl);
+  return m_impl->GetLetterBy(service, worker);
+}
+
+bool DatabaseBroker::SetLetterState(Letter* letter, Letter::State new_state)
+{
+  assert(m_impl);
+  return m_impl->SetLetterState(letter, new_state);
+}
+
 xdb::Service *DatabaseBroker::GetServiceForWorker(const xdb::Worker *wrk)
 {
   assert(m_impl);
@@ -206,14 +219,15 @@ bool DatabaseBroker::ClearWorkersForService(const char *service_name)
 }
 
 /* поместить сообщение во входящую очередь Службы */
-bool DatabaseBroker::PushRequestToService(xdb::Service* srv, 
+bool DatabaseBroker::PushRequestToService(xdb::Service* srv,
+        const std::string& reply_to,
         const std::string& header,
         const std::string& data)
 {
   assert(m_impl);
 
   if (!m_impl) return false;
-  return m_impl->PushRequestToService(srv, header, data);
+  return m_impl->PushRequestToService(srv, reply_to, header, data);
 }
 
 /* поместить сообщение во входящую очередь Службы */

@@ -36,9 +36,10 @@ class Letter
     Letter(int64_t, int64_t, int64_t);
     // Создать экземпляр на основе двух последних фреймов сообщения
     Letter(void*);
-    // Создать экземпляр на основе заголовка и тела сообщения
-    Letter(msg::Header *h, std::string& b);
-    Letter(const std::string& h, const std::string& b);
+    // Создать экземпляр на основе обратного адреса, заголовка и тела сообщения
+    Letter(std::string&, msg::Header*, std::string&);
+    // Создать экземпляр на основе обратного адреса, заголовка и тела сообщения
+    Letter(const std::string&, const std::string&, const std::string&);
 
     ~Letter();
     void SetID(int64_t);
@@ -47,6 +48,7 @@ class Letter
     void SetWORKER(Worker*);
     void SetWORKER_ID(int64_t);
     void SetSTATE(State);
+//    void SetREPLY(const std::string& reply_to);
     void SetHEADER(const std::string&);
     void SetDATA(const std::string&);
     void SetEXPIRATION(const timer_mark_t&);
@@ -55,6 +57,7 @@ class Letter
     int64_t GetID();
     int64_t GetSERVICE_ID();
     int64_t GetWORKER_ID();
+    const std::string& GetREPLY() { return m_reply_to; }
     const std::string& GetHEADER();
     const std::string& GetDATA();
     Letter::State GetSTATE();
@@ -80,6 +83,7 @@ class Letter
     State    m_state;
     timer_mark_t m_expiration;
     msg::Header *m_header;
+    std::string  m_reply_to;
     std::string  m_frame_data;
     std::string  m_frame_header;
 };

@@ -92,9 +92,11 @@ class XDBLetter
   autoid_t   service_ref;
   autoid_t   worker_ref;
   LetterState state = EMPTY;
+  /* Идентификатор Клиента, ожидающего ответа */
+  identity_t reply_to;
   /* Время ожидания получения подтверждения о выполнении */
   timer_mark  expiration;
-  // У Сервиса может быть несколько Сообщений в списке на обработку
+  /* У Сервиса может быть несколько Сообщений в списке на обработку */
   tree <expiration.sec, service_ref> PK_expire_for_service;
   unique tree <worker_ref, service_ref> SK_wrk_srv;
   tree <service_ref, state>  SK_by_state_for_serv;

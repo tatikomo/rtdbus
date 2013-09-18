@@ -16,15 +16,28 @@ class Letter
     // На основе транспортного сообщения
     Letter(zmsg*);
     // На основе типа сообщения, получателя, и сериализованных данных
-    Letter(const rtdbMsgType, const std::string&, const std::string&);
+    Letter(const rtdbMsgType, const std::string&, const std::string* = NULL);
     ~Letter();
 
-    // доступ к служебному заголовку сообщения
-    /*const */msg::Header& header() { return m_header; }
-    /*const */::google::protobuf::Message* data() { return m_body_instance; }
-    // создание тела сообщения на основе его пользовательского типа и сериализоанного буфера
-    bool UnserializeFrom(const int, const std::string&);
+    // Доступ к служебному заголовку сообщения
+    msg::Header& header() { return m_header; }
+
+    // Продоставление доступа только на чтение. Все модификации будут игнорированы.
+    ::google::protobuf::Message* data() { return m_body_instance; }
+
+    // Предоставление модифицируемой версии данных. После этого, перед любым методом, 
+    // предоставляющим доступ к сериализованным данным, их сериализация должна быть повторена.
+    ::google::protobuf::Message* mutable_data() { m_data_needs_reserialization = true; return m_body_instance; }
+
+    // Создание тела сообщения на основе его пользовательского типа и сериализованного буфера.
+    bool UnserializeFrom(const int, const std::string* = NULL);
+
+    // Вернуть сериализованный заголовок
     std::string& SerializedHeader() { return m_serialized_header; }
+
+    // Вернуть сериализованный буфер данных
+    std::string& SerializedData();
+
     /*
      * Генерация нового системного идентификатора
      * NB: должна гарантироваться монотонно возрастающая уникальная последовательность 
@@ -39,6 +52,7 @@ class Letter
     std::string  m_serialized_data;
     std::string  m_serialized_header;
     bool         m_initialized;
+    bool         m_data_needs_reserialization;
     rtdbExchangeId m_exchange_id;
     std::string  m_source_procname;
 

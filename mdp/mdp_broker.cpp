@@ -194,7 +194,7 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
     {
       letter = new xdb::Letter(processing_msg);
       letter->Dump();
-      status = m_database->PushRequestToService(srv, letter/*->GetHEADER(), letter->GetDATA()*/);
+      status = m_database->PushRequestToService(srv, letter);
       if (!status) 
         LOG(ERROR) << "Unable to put new letter into queue of '"
                    <<srv->GetNAME()<<"' service";
@@ -320,23 +320,170 @@ Broker::worker_require (const std::string& identity)
 
 //  ---------------------------------------------------------------------
 //  Deletes worker from all data structures, and destroys worker
-void
+bool
 Broker::worker_delete (xdb::Worker *&wrk, int disconnect)
 {
-    assert (wrk);
-    if (disconnect) {
-        worker_send (wrk, (char*)MDPW_DISCONNECT, EMPTY_FRAME, (xdb::Letter*)NULL);
-    }
+  bool status;
 
-    if (false == m_database->RemoveWorker(wrk))
-      LOG(ERROR) << "Unable to remove worker '"<<wrk->GetIDENTITY()<<"'";
+  assert (wrk);
+  if (disconnect) 
+  {
+    worker_send (wrk, (char*)MDPW_DISCONNECT, EMPTY_FRAME, (xdb::Letter*)NULL);
+  }
 
-    if (xdb::Worker::DISARMED != wrk->GetSTATE())
+  if (false == (status = m_database->RemoveWorker(wrk)))
+    LOG(ERROR) << "Unable to remove worker '"<<wrk->GetIDENTITY()<<"'";
+
+  if (xdb::Worker::DISARMED != wrk->GetSTATE())
+  {
+        LOG(ERROR) << "Worker "<<wrk->GetIDENTITY()
+        <<" state should be DISARMED ("<<xdb::Worker::DISARMED
+        <<", but it is ("<<wrk->GetSTATE()<<")";
+  }
+
+  // Экземпляр все равно должен быть удален из памяти
+  delete wrk;
+
+  return status;
+}
+
+//  ---------------------------------------------------------------------
+//  MDPW_READY processing sent to us by a worker
+bool 
+Broker::worker_process_READY(xdb::Worker*& worker,
+                             const std::string& sender_identity,
+                             zmsg *msg)
+{
+  bool status = false;
+  xdb::Service *service = NULL;
+
+  if (worker) /* Указанный обработчик уже известен */
+  {
+    /*  Not first command in session */
+    status = worker_delete (worker, 1);
+  }
+  else /* Указанный Обработчик не зарегистрирован */
+  {
+    /* Проверка на служебную */
+    if (sender_identity.size() >= 4  //  Reserved service name
+     && sender_identity.find_first_of("mmi.") == 0) 
     {
-        LOG(ERROR) << "worker "<<wrk->GetIDENTITY()<<" del compartido!";
+      status = worker_delete (worker, 1);
     }
-    // Экземпляр все равно должен быть удален из памяти
-    delete wrk;
+    else /* команда не служебная, зарегистрировать НОВЫЙ ОБРАБОТЧИК */
+    {
+      // Attach worker to service and mark as idle
+      // Получить название сервиса
+      std::string service_name = msg->pop_front();
+
+      // найти сервис по имени или создать новый
+      // NB: Service creation is only possible on first workers call
+      service = service_require(service_name);
+      assert (service);
+      if (!worker)
+      {
+        // Создать экземпляр Обработчика
+        worker = new xdb::Worker(service->GetID(), sender_identity.c_str());
+      }
+
+      // Привязать нового Обработчика к обслуживаемому им Сервису
+      worker_waiting(worker);
+      service_dispatch(service);
+      status = true; // TODO присвоить корректное значение
+      LOG(INFO) << "Created worker " << sender_identity;
+    }
+  }
+
+  return status;
+}
+
+bool 
+Broker::worker_process_REPORT(xdb::Worker*& worker,
+                              const std::string& sender_identity,
+                              zmsg *msg)
+{
+  bool status = false;
+  xdb::Service *service = NULL;
+  xdb::Letter  *letter = NULL;
+  xdb::Letter::State    letter_state;
+
+  LOG(INFO) << "Get REPORT from '" << sender_identity << "' worker=" << worker;
+  if (worker) 
+  {
+     service = m_database->GetServiceForWorker(worker);
+     /*
+      * Установить корректные значения для Сообщения и Обработчика:
+      * 1. Удалить Letter из БД
+      * 2. Установить для Worker-а состояние в ARMED
+      */
+     status = m_database->SetWorkerState(worker, xdb::Worker::ARMED);
+     letter_state = xdb::Letter::DONE_OK; /* или DONE_FAIL */
+     // NB: слишком накладно читать все сообщение, если нам здесь нужно 
+     // просто сменить одно поле у найденного экземпляра Letter
+     // TODO: Заменить на одну функцию ReleaseLetter(service_id, worker_id)
+     if (NULL != (letter = m_database->GetLetterBy(service, worker)))
+     {
+       status = m_database->SetLetterState(letter, letter_state);
+       delete letter;
+     }
+     else
+     {
+       LOG(ERROR) << "Получен отчет об обработке фантомного сообщения"
+        <<" [srv:"<<service->GetNAME()<<", wrk:"<<worker->GetIDENTITY()<<"]";
+     }
+
+     //  Remove & save client return envelope and insert the
+     //  protocol header and service name, then rewrap envelope.
+     char* client = msg->unwrap ();
+     msg->push_front((char*)service->GetNAME());
+     msg->push_front((char*)MDPC_REPORT);
+     msg->push_front((char*)MDPC_CLIENT);
+     msg->wrap (client, EMPTY_FRAME);
+     msg->send (*m_socket);
+     delete client;
+//+++++               worker_waiting (worker);
+     delete service;
+     status = true; // TODO присвоить корректное значение
+  }
+  else 
+  {
+     status = worker_delete (worker, 1);
+  }
+
+  return status;
+}
+
+bool 
+Broker::worker_process_HEARTBEAT(xdb::Worker*& worker,
+                                 const std::string& sender_identity,
+                                 zmsg*)
+{
+  bool status = false;
+
+  LOG(INFO) << "Get HEARTBEAT from '" << sender_identity << "' wr=" << worker;
+  if (worker)
+  {
+    // worker содержит идентификатор своего Сервиса
+    if (false == (status = m_database->PushWorker(worker)))
+    {
+      LOG(ERROR) << "Unable to register worker " << worker->GetIDENTITY();
+    }
+    m_database->MakeSnapshot("HEARTBEAT");
+    worker_waiting(worker);
+  }
+  else
+  {
+    LOG(ERROR) << "Get HEARTBEAT from unknown worker "<<sender_identity;
+  }
+
+  return status;
+}
+
+bool 
+Broker::worker_process_DISCONNECT(xdb::Worker*& worker, const std::string& sender_identity, zmsg*)
+{
+  LOG(INFO) << "Get DISCONNECT from worker " << sender_identity;
+  return worker_delete (worker, 0);
 }
 
 //  ---------------------------------------------------------------------
@@ -345,113 +492,64 @@ Broker::worker_delete (xdb::Worker *&wrk, int disconnect)
 void
 Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
 {
-    bool status = false;
-    xdb::Worker  *wrk = NULL;
-    xdb::Service *service = NULL;
+  bool status = false;
+  xdb::Worker  *wrk = NULL;
+//  xdb::Service *service = NULL;
 
-    assert (msg && msg->parts() >= 1);     //  At least, command
-    assert (sender_identity.size() > 0);
+  assert (msg && msg->parts() >= 1);     //  At least, command
+  assert (sender_identity.size() > 0);
 
-    std::string command = msg->pop_front();
-    /* Зарегистрирован ли Обработчик с данным identity? */
-    wrk = m_database->GetWorkerByIdent(sender_identity);
-    bool worker_ready = (NULL != wrk);
+  std::string command = msg->pop_front();
+  /* Зарегистрирован ли Обработчик с данным identity? */
+  wrk = m_database->GetWorkerByIdent(sender_identity);
 
-    /*
-     * TODO нужно заменить функцию worker_require()
-     * Нельзя допускать неизвестных обработчиков, они все должны 
-     * принаждлежать своему Сервису. Значит, нужно узнать, к какому
-     * Сервису принадлежит сообщение от данного Обработчика.
-     */
-    if (command.compare (MDPW_READY) == 0) {
-        if (worker_ready)  {              //  Not first command in session
-            worker_delete (wrk, 1);
-        }
-        else {
-            if (sender_identity.size() >= 4  //  Reserved service name
-             && sender_identity.find_first_of("mmi.") == 0) {
-                worker_delete (wrk, 1);
-            }
-            else {
-                // Attach worker to service and mark as idle
-                // Получить название сервиса
-                std::string service_name = msg->pop_front();
-
-                // найти сервис по имени или создать новый
-// GEV: "Service creation is only possible on first workers call"                
-#if 1
-                service = service_require/*m_database->RequireServiceByName*/ (service_name);
-                assert (service);
-#endif
-                if (!worker_ready)
-                {
-                  // Создать экземпляр Обработчика
-                  wrk = new xdb::Worker(service->GetID(), sender_identity.c_str());
-                }
-
-                // Привязать нового Обработчика к обслуживаемому им Сервису
-                worker_waiting (wrk);
-                service_dispatch(service);
-
-                LOG(INFO) << "Created worker " << sender_identity;
-            }
-        }
+  /*
+   * TODO нужно заменить функцию worker_require()
+   * Нельзя допускать неизвестных обработчиков, они все должны 
+   * принаждлежать своему Сервису. Значит, нужно узнать, к какому
+   * Сервису принадлежит сообщение от данного Обработчика.
+   */
+  if (command.compare (MDPW_READY) == 0) 
+  {
+    status = worker_process_READY(wrk, sender_identity, msg);
+  }
+  else
+  {
+    if (command.compare (MDPW_REPORT) == 0)
+    {
+      status = worker_process_REPORT(wrk, sender_identity, msg);
     }
-    else {
-       if (command.compare (MDPW_REPORT) == 0) {
-           LOG(INFO) << "Get REPORT from '" << sender_identity << "' wr=" << worker_ready;
-           if (worker_ready) {
-               service = m_database->GetServiceForWorker(wrk);
-               //  Remove & save client return envelope and insert the
-               //  protocol header and service name, then rewrap envelope.
-               char* client = msg->unwrap ();
-               msg->push_front((char*)service->GetNAME());
-               msg->push_front((char*)MDPC_REPORT);
-               msg->push_front((char*)MDPC_CLIENT);
-               msg->wrap (client, EMPTY_FRAME);
-               msg->send (*m_socket);
-               delete client; // ай-яй-яй! +++
-//+++++               worker_waiting (wrk);
-
-               delete service;
-           }
-           else {
-               worker_delete (wrk, 1);
-           }
-       }
-       else {
-          if (command.compare (MDPW_HEARTBEAT) == 0) {
-              LOG(INFO) << "Get HEARTBEAT from '" << sender_identity << "' wr=" << worker_ready;
-              if (worker_ready) {
-                // wrk содержит идентификатор своего Сервиса
-                  if (false == (status = m_database->PushWorker(wrk)))
-                  {
-                    LOG(ERROR) << "Unable to register worker " << wrk->GetIDENTITY();
-                  }
-                  m_database->MakeSnapshot("HEARTBEAT");
-                  worker_waiting(wrk);
-              }
-              else {
-//                  worker_delete (wrk, 1);
-//                  GEV: 13/08/2013 - в этом месте wrk = NULL,
-//                  и в worker_delete() происходит assertion
-              }
-          }
-          else {
-             if (command.compare (MDPW_DISCONNECT) == 0) {
-                 LOG(INFO) << "Get DISCONNECT from " 
-                           << sender_identity;
-                 worker_delete (wrk, 0);
-             }
-             else {
-                 LOG(ERROR) << "Invalid input message " 
-                            << mdpw_commands [(int) *command.c_str()];
-                 msg->dump ();
-             }
-          }
-       }
+    else 
+    {
+      if (command.compare (MDPW_HEARTBEAT) == 0) 
+      {
+         status = worker_process_HEARTBEAT(wrk, sender_identity, msg);
+      }
+      else 
+      {
+        if (command.compare (MDPW_DISCONNECT) == 0) 
+        {
+          status = worker_process_DISCONNECT(wrk, sender_identity, msg);
+        }
+        else
+        {
+          LOG(ERROR) << "Invalid input message " 
+                     << mdpw_commands [(int) *command.c_str()];
+          msg->dump ();
+        }
+      }
     }
-    delete msg;
+  }
+
+  if (false == status)
+  {
+    if (wrk)
+      LOG(ERROR) << "Processing message from worker " << wrk->GetIDENTITY();
+    else
+      LOG(ERROR) << "Processing message from unknown worker";
+  }
+
+  delete msg;
 }
 
 //  ---------------------------------------------------------------------
@@ -474,9 +572,9 @@ Broker::worker_send (xdb::Worker *worker,
   msg->push_front(const_cast<std::string&>(letter->GetDATA()));
   msg->push_front(const_cast<std::string&>(letter->GetHEADER()));
   // TODO идентификатор Клиента сюда!
-  msg->push_front("@006B8B4568"); // GEV test
-  msg->push_front (const_cast<char*>(command));
-  msg->push_front ((char*)MDPW_WORKER); 
+  msg->push_front(const_cast<std::string&>(letter->GetREPLY()));
+  msg->push_front(const_cast<char*>(command));
+  msg->push_front((char*)MDPW_WORKER); 
   //  Stack routing envelope to start of message
   msg->wrap(worker->GetIDENTITY(), EMPTY_FRAME);
 
@@ -680,11 +778,13 @@ Broker::start_brokering()
            std::string header = msg->pop_front ();
            assert(header.size ());
 
-           if (header.compare(MDPC_CLIENT) == 0) {
-               client_msg (sender, msg);
+           if (header.compare(MDPC_CLIENT) == 0) 
+           {
+             client_msg (sender, msg);
            }
-           else if (header.compare(MDPW_WORKER) == 0) {
-                   worker_msg (sender, msg);
+           else if (header.compare(MDPW_WORKER) == 0) 
+           {
+             worker_msg (sender, msg);
            }
            else {
                LOG(ERROR) << "Invalid message:";

@@ -12,11 +12,12 @@
 #include "mdp_client_async_api.hpp"
 #include "xdb_database_worker.hpp"
 #include "xdb_database_broker.hpp"
+#include "xdb_database_letter.hpp"
 #include "xdb_database_service.hpp"
 
 #include "proxy.hpp"
 #include "wdigger.hpp"
-#include "trader.hpp"
+#include "pulsar.hpp"
 
 // Определения пользовательских сообщений и их сериализованных структур
 #include "msg_common.h"
@@ -49,6 +50,10 @@ void PrintWorker(xdb::Worker* worker)
   std::cout << worker->GetID()<<":"<<worker->GetIDENTITY()
     <<"/"<<worker->GetSTATE()<<"/"<<worker->Expired()<<std::endl;
 
+}
+
+Pulsar::Pulsar(std::string broker, int verbose) : mdcli(broker, verbose)
+{
 }
 
 void purge_workers()
@@ -164,12 +169,28 @@ TEST(TestHelper, CLOCK)
   delete worker;
 }
 
+void Dump(mdp::Letter* letter)
+{
+  RTDBM::ExecResult *kokoko = static_cast<RTDBM::ExecResult*>(letter->data());
+
+  std::cout << (int)letter->header().get_protocol_version();
+  std::cout << "/" << letter->header().get_exchange_id();
+  std::cout << "/" << letter->header().get_source_pid();
+  std::cout << "/" << letter->header().get_proc_dest();
+  std::cout << "/" << letter->header().get_proc_origin();
+  std::cout << "/" << letter->header().get_sys_msg_type();
+  std::cout << "/" << letter->header().get_usr_msg_type();
+  std::cout << "[" << kokoko->user_exchange_id();
+  std::cout << "/" << kokoko->exec_result();
+  std::cout << "/" << kokoko->failure_cause()<<"]";
+  std::cout << std::endl;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 TEST(TestLetter, USAGE)
 {
   mdp::Letter* letter1 = NULL;
   mdp::Letter* letter2 = NULL;
-//  RTDBM::Header     pb_header;
   RTDBM::ExecResult pb_exec_result_request;
   std::string       pb_serialized_header;
   std::string       pb_serialized_request;
@@ -183,24 +204,28 @@ TEST(TestLetter, USAGE)
   pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
   pb_header.SerializeToString(&pb_serialized_header); */
 
-  pb_exec_result_request.set_user_exchange_id(9999999);
+  pb_exec_result_request.set_user_exchange_id(102);
   pb_exec_result_request.set_exec_result(1);
   pb_exec_result_request.set_failure_cause(0);
   pb_exec_result_request.SerializeToString(&pb_serialized_request);  
 
-  letter1 = new mdp::Letter(ADG_D_MSG_EXECRESULT, "NYSE", pb_serialized_request);
-  std::cout << (int)letter1->header().get_protocol_version();
-  std::cout << "/" << letter1->header().get_exchange_id();
-  std::cout << "/" << letter1->header().get_source_pid();
-  std::cout << "/" << letter1->header().get_proc_dest();
-  std::cout << "/" << letter1->header().get_proc_origin();
-  std::cout << "/" << letter1->header().get_sys_msg_type();
-  std::cout << "/" << letter1->header().get_usr_msg_type();
-  std::cout << "[" << static_cast<RTDBM::ExecResult*>(letter1->data())->user_exchange_id();
-  std::cout << "/" << static_cast<RTDBM::ExecResult*>(letter1->data())->exec_result();
-  std::cout << "/" << static_cast<RTDBM::ExecResult*>(letter1->data())->failure_cause()<<"]";
-  std::cout << std::endl;
+  letter1 = new mdp::Letter(ADG_D_MSG_EXECRESULT, "NYSE", &pb_serialized_request);
+  Dump(letter1);
+
+  letter2 = new mdp::Letter(ADG_D_MSG_EXECRESULT, "NYSE");
+  RTDBM::ExecResult* exec_result = static_cast<RTDBM::ExecResult*>(letter2->mutable_data());
+  exec_result->set_user_exchange_id(103);
+  exec_result->set_exec_result(104);
+  exec_result->set_failure_cause(105);
+  Dump(letter2);
+
+  pb_exec_result_request.ParseFromString(letter2->SerializedData());
+  ASSERT_EQ(pb_exec_result_request.user_exchange_id(), 103);
+  ASSERT_EQ(pb_exec_result_request.exec_result(), 104);
+  ASSERT_EQ(pb_exec_result_request.failure_cause(), 105);
+
   delete letter1;
+  delete letter2;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -266,7 +291,7 @@ TEST(TestProxy, RUNTIME_VERSION)
 
    //  ---------------------------------------------------------------------
    //  Process a request coming from a client
-   void client_msg (const std::string& sender, zmsg *msg);
++   void client_msg (const std::string& sender, zmsg *msg);
 #endif
 /*
  * Конец списка проверяемых методов класса Broker
@@ -274,7 +299,7 @@ TEST(TestProxy, RUNTIME_VERSION)
 
 
 /*
- * Рабочий цикл клиентской программы TRADER
+ * Рабочий цикл клиентской программы PULSAR
  * Тестируется класс: mdcli
  * Используемая служба: NYSE (service_name_1)
  */
@@ -282,34 +307,40 @@ static void *
 client_task (void *args)
 {
   int        verbose   = 1;
-  char      *s_price   = NULL;
   mdp::zmsg *request   = NULL;
   mdp::zmsg *report    = NULL;
-  Trader    *client    = new Trader (attributes_connection_to_broker, verbose);
+  Pulsar    *client    = new Pulsar (attributes_connection_to_broker, verbose);
   int        count;
+  std::string       pb_serialized_request;
+  RTDBM::AskLife    pb_request_asklife;
+  RTDBM::ExecResult pb_responce_exec_result;
+  mdp::Letter      *letter;
+  const std::string dest = "NYSE";
+  static int        user_exchange_id = 1;
 
   try
   {
-    s_price = new char[10];
-    //  Send 100 sell orders
-    for (count = 0; count < 2; count++) {
+    letter = new mdp::Letter(ADG_D_MSG_ASKLIFE, dest);
+
+    //  Send 100 ADG_D_MSG_ASKLIFE orders
+    for (count = 0; count < 1; count++) {
         request = new mdp::zmsg ();
-        request->push_front ((char*)"8");    // volume
-        sprintf(s_price, "%d", count + 1000);
-        request->push_front ((char*)s_price);
-        request->push_front ((char*)"SELL");
+
+        // Единственное поле, которое может устанавливать клиент напрямую в ADG_D_MSG_ASKLIFE
+        static_cast<RTDBM::AskLife*>(letter->mutable_data())->set_user_exchange_id(user_exchange_id++);
+        request->push_front(letter->SerializedData());
+        request->push_front(letter->SerializedHeader());
         client->send (service_name_1.c_str(), request);
         delete request;
     }
-
-    //  Send 1 buy order.
-    //  This order will match all sell orders.
+    delete letter;
+#if 0
+    //  Send 1 ASKLIFE orders
     request = new mdp::zmsg ();
-    request->push_front ((char*)"800");      // volume
-    request->push_front ((char*)"2000");     // price
     request->push_front ((char*)"BUY");
     client->send (service_name_1.c_str(), request);
     delete request;
+#endif
 
     //  Wait for all trading reports
     while (1) {
@@ -320,10 +351,10 @@ client_task (void *args)
         report->dump();
         assert (report->parts () >= 2);
         
-        std::string report_type = report->pop_front ();
-        std::string volume      = report->pop_front ();
+        letter = new mdp::Letter(report);
+        Dump(letter);
 
-        printf ("%s %s shares\n",  report_type.c_str(), volume.c_str());
+        delete letter;
         delete report;
     }
   }
@@ -331,7 +362,6 @@ client_task (void *args)
   {
       std::cout << "E: " << err.what() << std::endl;
   }
-  delete[] s_price;
   delete client;
 
   pthread_exit(NULL);
@@ -646,11 +676,12 @@ TEST(TestProxy, SERVICE_DISPATCH)
 
   msg->push_front(pb_serialized_request);
   msg->push_front(pb_serialized_header);
+  msg->push_front("");
+  msg->push_front(client_identity_1);
 
   broker->database_snapshot("TEST_SERVICE_DISPATCH.START");
   // service1 удаляется внутри
   broker->service_dispatch(service1, msg);
- // delete service1;
   broker->database_snapshot("TEST_SERVICE_DISPATCH.STOP");
 
   delete msg;

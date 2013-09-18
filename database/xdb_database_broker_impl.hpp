@@ -100,15 +100,17 @@ class DatabaseBrokerImpl
         /* IN */  Worker* wrk,
         /* OUT */ std::string& header,
         /* OUT */ std::string& body);
-    Letter* GetWaitingLetter(/* IN */ Service* srv);
+    Letter* GetWaitingLetter(/* IN */ Service*);
+    // Найти экземпляр Сообщения по паре Сервис/Обработчик
+    Letter* GetLetterBy(Service*, Worker*);
     // Изменить состояние Сообщения
-    bool ChangeLetterStatus(Letter*, Letter::State);
+    bool SetLetterState(Letter*, Letter::State);
     bool AssignLetterToWorker(Worker*, Letter*);
 
     bool IsServiceCommandEnabled(const Service*, const std::string&);
 
     /* поместить сообщение во входящую очередь Службы */
-    bool PushRequestToService(Service*, const std::string&, const std::string&);
+    bool PushRequestToService(Service*, const std::string&, const std::string&, const std::string&);
     bool PushRequestToService(Service*, Letter*);
 
     /* Вернуть экземпляр Сервиса. Если он не существует в БД - создать */
@@ -197,6 +199,11 @@ class DatabaseBrokerImpl
                        xdb_broker::XDBWorker&,
                        Worker*&);
 
+    /*
+     * Заполнить указанный экземпляр Letter на основе своего состояния из БД
+     */
+    MCO_RET LoadLetter(xdb_broker::XDBLetter&,
+                       xdb::Letter*&);
     /*
      * Поиск Обработчика, находящегося в заданном состоянии. 
      * Возвращает статус поиска и экземпляр найденного Обработчика

@@ -43,28 +43,34 @@ Letter::Letter(void* data) : m_modified(true)
 
   // Прочитать служебные поля транспортного сообщения zmsg
   // и восстановить на его основе прикладное сообщение.
-  // два последних фрейма - заголовок и тело сообщения
+  // Первый фрейм - адрес возврата,
+  // Два последних фрейма - заголовок и тело сообщения.
+  m_reply_to.assign(msg->get_part(0));
+  LOG(INFO) << "Reply to " << m_reply_to << std::endl;
+  std::cout << "Reply to " << m_reply_to << std::endl;
+
   assert(msg->parts() >= 2);
   int msg_frames = msg->parts();
 
-  m_frame_header = msg->get_part(msg_frames-2);
+  m_frame_header.assign(msg->get_part(msg_frames-2));
   m_header = new msg::Header(m_frame_header);
 
-  m_frame_data = msg->get_part(msg_frames-1);
+  m_frame_data.assign(msg->get_part(msg_frames-1));
 }
 
 // Создать экземпляр на основе заголовка и тела сообщения
-Letter::Letter(msg::Header *h, std::string& b) : m_modified(true)
+Letter::Letter(std::string& reply, msg::Header *h, std::string& b) : m_modified(true)
 {
-  // TODO сделать копию заголвка, т.к. он создан в вызывающем контексте и нами не управляется
+  // TODO сделать копию заголовка, т.к. он создан в вызывающем контексте и нами не управляется
   throw;
 }
 
 // Создать экземпляр на основе заголовка и тела сообщения
-Letter::Letter(const std::string& _head, const std::string& _data) : m_modified(true)
+Letter::Letter(const std::string& _reply_to, const std::string& _head, const std::string& _data) : m_modified(true)
 {
   m_frame_header.assign(_head);
   m_frame_data.assign(_data);
+  m_reply_to.assign(_reply_to);
   m_header = new msg::Header(m_frame_header);
   SetID(0);
   SetWORKER_ID(0);

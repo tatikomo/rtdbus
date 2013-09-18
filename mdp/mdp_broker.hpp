@@ -85,7 +85,7 @@ class Broker {
 
    //  ---------------------------------------------------------------------
    //  Deletes worker from all data structures, and destroys worker
-   void
+   bool
    worker_delete (xdb::Worker *&wrk, int disconnect);
 
 
@@ -142,6 +142,12 @@ class Broker {
      * Содержание: список Сервисов и их Обработчиков
      */
     xdb::DatabaseBroker *m_database;
+
+    /* Обработка соответствующих команд, полученных от Обработчиков */
+    bool worker_process_READY(xdb::Worker*&, const std::string&, zmsg*);
+    bool worker_process_REPORT(xdb::Worker*&, const std::string&, zmsg*);
+    bool worker_process_HEARTBEAT(xdb::Worker*&, const std::string&, zmsg*);
+    bool worker_process_DISCONNECT(xdb::Worker*&, const std::string&, zmsg*);
 
 #if !defined _FUNCTIONAL_TEST
    /* Инициализация внутренних структур, вызывается из start_brokering() */
