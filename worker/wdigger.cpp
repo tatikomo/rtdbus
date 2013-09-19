@@ -1,5 +1,6 @@
 #include <glog/logging.h>
 
+#include "proto/common.pb.h"
 #include "zmq.hpp"
 #include "zmsg.hpp"
 #include "helper.hpp"
@@ -41,7 +42,16 @@ int Digger::handle_rtdbus_message(mdp::Letter* letter,
 {
     assert(reply_to != NULL);
     mdp::zmsg * msg = new mdp::zmsg();
-    msg->push_front(letter->SerializedHeader());
+
+    /* TODO: поменять местами в заголовке значения полей "Отправитель" и "Получатель" */
+    std::string origin = letter->header().instance().proc_origin();
+    std::string dest = letter->header().instance().proc_dest();
+
+    letter->SetOrigin(dest.c_str());
+    letter->SetDestination(origin.c_str());
+
+    msg->push_front(const_cast<std::string&>(letter->SerializedData()));
+    msg->push_front(const_cast<std::string&>(letter->SerializedHeader()));
     msg->wrap(reply_to->c_str(), "");
     send_to_broker((char*) MDPW_REPORT, NULL, msg);
     delete msg;

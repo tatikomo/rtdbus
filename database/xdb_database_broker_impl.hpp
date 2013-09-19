@@ -106,6 +106,8 @@ class DatabaseBrokerImpl
     // Изменить состояние Сообщения
     bool SetLetterState(Letter*, Letter::State);
     bool AssignLetterToWorker(Worker*, Letter*);
+    // Очистить сообщение после получения квитанции о завершении от Обработчика
+    bool ReleaseLetterFromWorker(Worker*);
 
     bool IsServiceCommandEnabled(const Service*, const std::string&);
 

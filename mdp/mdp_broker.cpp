@@ -130,8 +130,8 @@ Broker::purge_workers ()
 /*    while (NULL != (*/wrk = m_database->PopWorker(service);/*))*/
     if (wrk)
     {
-        LOG(INFO) <<"Purge workers for "<<srv_count<<":"<<service->GetNAME()
-                  <<" => "<<wrk_count<<":"<<wrk->GetIDENTITY();
+//        LOG(INFO) <<"Purge workers for "<<srv_count<<":"<<service->GetNAME()
+//                  <<" => "<<wrk_count<<":"<<wrk->GetIDENTITY();
         if (wrk->Expired ()) 
         {
           if (m_verbose) 
@@ -411,20 +411,16 @@ Broker::worker_process_REPORT(xdb::Worker*& worker,
   if (worker) 
   {
      service = m_database->GetServiceForWorker(worker);
+     assert(service->GetID() == worker->GetSERVICE_ID());
      /*
       * Установить корректные значения для Сообщения и Обработчика:
       * 1. Удалить Letter из БД
       * 2. Установить для Worker-а состояние в ARMED
       */
-     status = m_database->SetWorkerState(worker, xdb::Worker::ARMED);
      letter_state = xdb::Letter::DONE_OK; /* или DONE_FAIL */
-     // NB: слишком накладно читать все сообщение, если нам здесь нужно 
-     // просто сменить одно поле у найденного экземпляра Letter
-     // TODO: Заменить на одну функцию ReleaseLetter(service_id, worker_id)
-     if (NULL != (letter = m_database->GetLetterBy(service, worker)))
+     if (true == (status = m_database->ReleaseLetterFromWorker(worker)))
      {
-       status = m_database->SetLetterState(letter, letter_state);
-       delete letter;
+       LOG(INFO) << "Letter released from worker '"<<worker->GetIDENTITY()<<"'";
      }
      else
      {
@@ -443,7 +439,6 @@ Broker::worker_process_REPORT(xdb::Worker*& worker,
      delete client;
 //+++++               worker_waiting (worker);
      delete service;
-     status = true; // TODO присвоить корректное значение
   }
   else 
   {

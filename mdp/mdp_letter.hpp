@@ -19,24 +19,28 @@ class Letter
     Letter(const rtdbMsgType, const std::string&, const std::string* = NULL);
     ~Letter();
 
+    // Продоставление доступа только на чтение. Модификации данных учтены не будут
     // Доступ к служебному заголовку сообщения
-    msg::Header& header() { return m_header; }
-
-    // Продоставление доступа только на чтение. Все модификации будут игнорированы.
-    ::google::protobuf::Message* data() { return m_body_instance; }
+    msg::Header& header() { return m_header_instance; }
+    ::google::protobuf::Message* data();
 
     // Предоставление модифицируемой версии данных. После этого, перед любым методом, 
     // предоставляющим доступ к сериализованным данным, их сериализация должна быть повторена.
-    ::google::protobuf::Message* mutable_data() { m_data_needs_reserialization = true; return m_body_instance; }
+    ::google::protobuf::Message* mutable_data();
+    msg::Header& mutable_header();
 
     // Создание тела сообщения на основе его пользовательского типа и сериализованного буфера.
     bool UnserializeFrom(const int, const std::string* = NULL);
 
     // Вернуть сериализованный заголовок
-    std::string& SerializedHeader() { return m_serialized_header; }
+    const std::string& SerializedHeader();
 
     // Вернуть сериализованный буфер данных
-    std::string& SerializedData();
+    const std::string& SerializedData();
+
+    // Установить значения полей "Отправитель" и "Получатель"
+    void SetOrigin(const char*);
+    void SetDestination(const char*);
 
     /*
      * Генерация нового системного идентификатора
@@ -47,12 +51,13 @@ class Letter
     rtdbExchangeId GenerateExchangeId();
 
   private:
-    msg::Header  m_header; // содержит protobuf RTDBM::Header
-    zmsg        *m_message_instance;
+    msg::Header  m_header_instance; // содержит protobuf RTDBM::Header
     std::string  m_serialized_data;
     std::string  m_serialized_header;
     bool         m_initialized;
     bool         m_data_needs_reserialization;
+    bool         m_header_needs_reserialization;
+    // TODO нужно ли это поле? идентификатор есть в m_header_instance
     rtdbExchangeId m_exchange_id;
     std::string  m_source_procname;
 

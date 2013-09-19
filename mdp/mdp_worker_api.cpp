@@ -147,8 +147,18 @@ mdwrk::recv (std::string *&reply)
             //  Don't try to handle errors, just assert noisily
             assert (msg->parts () >= 3);
 
+            /* 
+             * NB: если в zmsg [GEV:генерация GUID] закомментирована проверка 
+             * на количество фреймов в сообщении (=5),
+             * то в этом случае empty будет равен
+             * [011] @0000000000
+             * и assert сработает на непустую строку.
+             *
+             * Во случае, если принятое сообщение не первое от данного Обработчика,
+             * empty будет действительно пустым.
+             */
             std::string empty = msg->pop_front ();
-            assert (empty.compare("") == 0);
+            //assert (empty.compare("") == 0);
             //free (empty);
 
             std::string header = msg->pop_front ();

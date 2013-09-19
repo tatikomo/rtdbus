@@ -65,6 +65,8 @@ class DatabaseBroker : public Database
     ServiceList* GetServiceList();
     /* назначить Сообщение данному Обработчику */
     bool AssignLetterToWorker(Worker*, Letter*);
+    /* Очистить сообщение после получения квитанции о завершении от Обработчика */
+    bool ReleaseLetterFromWorker(Worker*);
 
     /* поместить сообщение во входящую очередь Службы */
     bool PushRequestToService(Service*,

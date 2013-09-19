@@ -7,6 +7,7 @@
 
 #include "zmsg.hpp"
 #include "mdp_letter.hpp"
+#include "helper.hpp"
 
 using namespace mdp;
 
@@ -14,9 +15,8 @@ using namespace mdp;
 Letter::Letter(zmsg* _instance)
 {
   assert(_instance);
-  m_exchange_id = rand();
   m_body_instance = NULL;
-  m_data_needs_reserialization = true;
+  m_data_needs_reserialization = m_header_needs_reserialization = true;
 
   // Прочитать служебные поля транспортного сообщения zmsg
   // и восстановить на его основе прикладное сообщение.
@@ -27,9 +27,15 @@ Letter::Letter(zmsg* _instance)
   m_serialized_header = _instance->get_part(msg_frames-2);
   m_serialized_data = _instance->get_part(msg_frames-1);
 
-  m_source_procname.assign("GEV");  // TODO: подставить сюда название своего процесса
-  m_header.ParseFrom(m_serialized_header);
-  m_initialized = UnserializeFrom(m_header.get_usr_msg_type(), &m_serialized_data);
+  if (true == m_header_instance.ParseFrom(m_serialized_header))
+  {
+    m_initialized = UnserializeFrom(m_header_instance.get_usr_msg_type(), &m_serialized_data);
+  }
+  else
+  {
+    LOG(ERROR) << "Unable to unserialize header";
+    hex_dump(m_serialized_header);
+  }
 }
 
 // На основе типа сообщения и сериализованных данных.
@@ -38,18 +44,17 @@ Letter::Letter(zmsg* _instance)
 Letter::Letter(const rtdbMsgType user_type, const std::string& dest, const std::string* b)
 {
   m_source_procname.assign("GEV"); // TODO: подставить сюда название своего процесса
-  m_exchange_id = rand();
   m_body_instance = NULL;
-  m_data_needs_reserialization = true;
+  m_data_needs_reserialization = m_header_needs_reserialization = true;
 
   // TODO Создать Header самостоятельно
-  m_header.instance().set_protocol_version(1);
-  m_header.instance().set_exchange_id(GenerateExchangeId());
-  m_header.instance().set_source_pid(getpid());
-  m_header.instance().set_proc_dest(dest);
-  m_header.instance().set_proc_origin(m_source_procname);
-  m_header.instance().set_sys_msg_type(USER_MESSAGE_TYPE);
-  m_header.instance().set_usr_msg_type(user_type);
+  m_header_instance.instance().set_protocol_version(1);
+  m_header_instance.instance().set_exchange_id(GenerateExchangeId());
+  m_header_instance.instance().set_source_pid(getpid());
+  m_header_instance.instance().set_proc_dest(dest);
+  m_header_instance.instance().set_proc_origin(m_source_procname);
+  m_header_instance.instance().set_sys_msg_type(USER_MESSAGE_TYPE);
+  m_header_instance.instance().set_usr_msg_type(user_type);
 
   if (b)
   {
@@ -64,34 +69,92 @@ Letter::Letter(const rtdbMsgType user_type, const std::string& dest, const std::
     m_initialized = false;
   }
 
-  m_header.instance().SerializeToString(&m_serialized_header);
+  m_header_instance.instance().SerializeToString(&m_serialized_header);
 }
 
 Letter::~Letter()
 {
-  LOG(INFO) << "Letter destructor";
+//  LOG(INFO) << "Letter destructor";
   delete m_body_instance;
+}
+
+// Продоставление доступа только на чтение. Все модификации будут игнорированы.
+::google::protobuf::Message* Letter::data()
+{
+  if (!m_initialized)
+    return NULL;
+
+  return m_body_instance;
+}
+
+// Предоставление модифицируемой версии данных. После этого, перед любым методом, 
+// предоставляющим доступ к сериализованным данным, их сериализация должна быть повторена.
+::google::protobuf::Message* Letter::mutable_data()
+{
+  m_data_needs_reserialization = true;
+
+  if (false == m_initialized)
+    return NULL;
+
+  return m_body_instance;
+}
+
+// Предоставление модифицируемой версии данных. После этого, перед любым методом, 
+// предоставляющим доступ к сериализованным данным, их сериализация должна быть повторена.
+msg::Header& Letter::mutable_header()
+{
+  m_header_needs_reserialization = true;
+
+  return m_header_instance;
+}
+
+// Установить значения полей "Отправитель" и "Получатель"
+void Letter::SetOrigin(const char* _origin)
+{
+  m_header_needs_reserialization = true;
+  m_header_instance.instance().set_proc_origin(_origin);
+}
+
+void Letter::SetDestination(const char* _destination)
+{
+  m_header_needs_reserialization = true;
+  m_header_instance.instance().set_proc_dest(_destination);
+
 }
 
 rtdbExchangeId Letter::GenerateExchangeId()
 {
-  if (m_exchange_id > std::numeric_limits<int>::max())
-    m_exchange_id = 0;
+  rtdbExchangeId current_id = m_header_instance.instance().exchange_id();
+
+  if (current_id > std::numeric_limits<int>::max())
+    m_header_instance.instance().set_exchange_id(0);
 
   // NB: переменная инициализирована с помощью rand() для получения случайного
   // начального значения. Далее нужно реализовать правильный механизм генерации.
-  return ++m_exchange_id;
+  m_header_instance.instance().set_exchange_id(++current_id);
+
+  return current_id;
 }
 
-// Вернуть сериализованный буфер данных
-std::string& Letter::SerializedData()
+// Вернуть сериализованный заголовок
+const std::string& Letter::SerializedHeader()
 {
-  if (m_data_needs_reserialization)
+  if ((true == m_initialized) && m_header_needs_reserialization)
+  {
+    m_header_instance.instance().SerializeToString(&m_serialized_header);
+    m_header_needs_reserialization = false;
+  }
+  return m_serialized_header;
+}
+
+// При необходимости провести сериализацию данных в буфер
+const std::string& Letter::SerializedData()
+{
+  if ((true == m_initialized) && m_data_needs_reserialization)
   {
     m_body_instance->SerializeToString(&m_serialized_data);
     m_data_needs_reserialization = false;
   }
-
   return m_serialized_data;
 }
 

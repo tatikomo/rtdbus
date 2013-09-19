@@ -42,13 +42,13 @@ class Service
     const char   *GetNAME();
     State         GetSTATE();
     bool          GetVALID();
-    const char   *GetSERVICE_NAME();
+//    const char   *GetSERVICE_NAME();
 
   private:
     int64_t  m_id;
     char    *m_name;
     State    m_state;
-    char    *m_service_name;
+//    char    *m_service_name;
     bool     m_modified;
 };
 

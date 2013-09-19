@@ -1668,6 +1668,67 @@ bool DatabaseBrokerImpl::AssignLetterToWorker(Worker* worker, Letter* letter)
   return (MCO_S_OK == rc);
 }
 
+/*
+ * Удалить обработанное Worker-ом сообщение
+ * Вызывается из Брокера по получении REPORT от Обработчика
+ * TODO: рассмотреть возможность ситуаций, когда полученная квитанция не совпадает с хранимым Сообщением
+ */
+bool DatabaseBrokerImpl::ReleaseLetterFromWorker(Worker* worker)
+{
+  mco_trans_h    t;
+  MCO_RET        rc;
+  bool           status = false;
+  xdb_broker::XDBLetter letter_instance;
+
+  assert(worker);
+
+  do
+  {
+    rc = mco_trans_start(m_db, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+    if (rc) { LOG(ERROR)<<"Starting transaction, rc="<<rc; break; }
+
+    rc = xdb_broker::XDBLetter::SK_wrk_srv::find(t,
+            worker->GetID(),
+            worker->GetSERVICE_ID(),
+            letter_instance);
+    if (rc)
+    {
+        LOG(ERROR)<<"Unable to locate released Letter with service id="
+                  <<worker->GetSERVICE_ID()<<" and worker id="<<worker->GetID()<<", rc="<<rc;
+        break;
+    }
+
+    rc = letter_instance.remove();
+    if (rc)
+    {
+      LOG(ERROR) << "Unable to remove the released letter for worker '"
+                 <<worker->GetIDENTITY()<<"'";
+      break;
+    }
+
+    // Сменить состояние Обработчика на ARMED
+    if (false == SetWorkerState(worker, xdb::Worker::ARMED))
+    {
+      LOG(ERROR) << "Unable to set worker '"<<worker->GetIDENTITY()<<"' into ARMED";
+      break;
+    }
+
+    rc = mco_trans_commit(t);
+    if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; break; }
+
+    status = true;
+  } while(false);
+
+
+  if (rc)
+  {
+    LOG(ERROR) << "Unable to find the letter needs to be released for worker '"
+               <<worker->GetIDENTITY()<<"'";
+  }
+
+  return status;
+}
+
 // Найти экземпляр Сообщения по паре Сервис/Обработчик
 // xdb::Letter::SK_wrk_srv - найти экземпляр по service_id и worker_id
 Letter* DatabaseBrokerImpl::GetLetterBy(Service* service, Worker* worker)
@@ -1694,7 +1755,7 @@ Letter* DatabaseBrokerImpl::GetLetterBy(Service* service, Worker* worker)
     /* Запись не найдена - есть ошибка - сообщить */
     if (rc)
     {
-        LOG(ERROR)<<"Unable to locate Letter with service id="<<letter->GetID()
+        LOG(ERROR)<<"Unable to locate Letter with service id="<<service->GetID()
                   <<" and worker id="<<worker->GetID()<<", rc="<<rc;
         break;
     }
@@ -1703,7 +1764,7 @@ Letter* DatabaseBrokerImpl::GetLetterBy(Service* service, Worker* worker)
 
     if (rc)
     {
-      LOG(ERROR)<<"Unable to instantiating Letter located with service id="<<letter->GetID()
+      LOG(ERROR)<<"Unable to instantiating Letter located with service id="<<service->GetID()
                 <<" and worker id="<<worker->GetID()<<", rc="<<rc;
       break;
     }
@@ -2163,7 +2224,7 @@ bool ServiceListImpl::AddService(const char* name, int64_t id)
   srv = new Service(id, name);
   m_array[m_size++] = srv;
   
-  LOG(INFO) << "EVENT AddService '"<<srv->GetNAME()<<"' id="<<srv->GetID();
+//  LOG(INFO) << "EVENT AddService '"<<srv->GetNAME()<<"' id="<<srv->GetID();
   return true;
 }
 
@@ -2175,7 +2236,7 @@ bool ServiceListImpl::AddService(const Service* service)
   if (m_size >= MAX_SERVICES_ENTRY)
     return false;
 
-  LOG(INFO) << "EVENT AddService '"<<srv->GetNAME()<<"' id="<<srv->GetID();
+//  LOG(INFO) << "EVENT AddService '"<<srv->GetNAME()<<"' id="<<srv->GetID();
   m_array[m_size++] = srv;
 
   return true;

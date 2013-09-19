@@ -328,8 +328,8 @@ client_task (void *args)
 
         // Единственное поле, которое может устанавливать клиент напрямую в ADG_D_MSG_ASKLIFE
         static_cast<RTDBM::AskLife*>(letter->mutable_data())->set_user_exchange_id(user_exchange_id++);
-        request->push_front(letter->SerializedData());
-        request->push_front(letter->SerializedHeader());
+        request->push_front(const_cast<std::string&>(letter->SerializedData()));
+        request->push_front(const_cast<std::string&>(letter->SerializedHeader()));
         client->send (service_name_1.c_str(), request);
         delete request;
     }
@@ -694,7 +694,7 @@ TEST(TestProxy, BROKER_DELETE)
   delete broker;
 }
 
-#if 0
+#if 1
 TEST(TestProxy, BROKER_RUNTIME)
 {
     pthread_t broker;

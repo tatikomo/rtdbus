@@ -129,7 +129,8 @@ mdcli::recv ()
         }
         //  Don't try to handle errors, just assert noisily
         assert (msg->parts () >= 4);
-        assert (msg->pop_front ().length() == 0);  // empty message
+        std::string empty = msg->pop_front ();
+//GEV        assert (empty.length() == 0);  // empty message
 
         std::string header = msg->pop_front();
         assert (header.compare(MDPC_CLIENT) == 0);

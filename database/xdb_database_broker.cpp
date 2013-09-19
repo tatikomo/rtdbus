@@ -152,6 +152,16 @@ Letter* DatabaseBroker::GetWaitingLetter(xdb::Service* srv)
   return m_impl->GetWaitingLetter(srv);
 }
 
+/* Очистить сообщение после получения квитанции о завершении от Обработчика */
+bool DatabaseBroker::ReleaseLetterFromWorker(Worker* worker)
+{
+  assert(m_impl);
+
+  if (!m_impl) return false;
+  return m_impl->ReleaseLetterFromWorker(worker);
+}
+
+
 bool DatabaseBroker::IsServiceCommandEnabled(
         const xdb::Service* srv, 
         const std::string& cmd_name)

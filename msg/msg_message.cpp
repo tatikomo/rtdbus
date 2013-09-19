@@ -22,7 +22,7 @@ Header::Header(const std::string& frame)
 
 Header::~Header()
 {
-  LOG(INFO) << "Destructor";
+//  LOG(INFO) << "Destructor";
 }
 
 bool Header::ParseFrom(const std::string& frame)
