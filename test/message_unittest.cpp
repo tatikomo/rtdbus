@@ -15,8 +15,9 @@ std::string        pb_serialized_header;
 std::string        pb_serialized_request;
 RTDBM::Header      pb_header;
 RTDBM::ExecResult  pb_exec_result_request;
-xdb::Letter            *payload = NULL;
-mdp::zmsg              *message = NULL;
+xdb::Letter       *payload = NULL;
+mdp::zmsg         *message = NULL;
+char              *my_name = "message_test";
 
 TEST(TestProtobuf, PROTO_VERSION)
 {
@@ -50,6 +51,8 @@ TEST(TestProtobuf, EXEC_RESULT)
 
   message->push_front(pb_serialized_request);
   message->push_front(pb_serialized_header);
+  message->push_front(const_cast<char*>(EMPTY_FRAME));
+  message->push_front(my_name);
   message->dump();
 }
 

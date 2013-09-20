@@ -193,11 +193,11 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
     if (processing_msg)
     {
       letter = new xdb::Letter(processing_msg);
-      letter->Dump();
+      std::cout << "broker will reply to '"<<letter->GetREPLY_TO()<<"'"<<std::endl;
       status = m_database->PushRequestToService(srv, letter);
       if (!status) 
-        LOG(ERROR) << "Unable to put new letter into queue of '"
-                   <<srv->GetNAME()<<"' service";
+        LOG(ERROR) << "Unable to push new letter "<<letter->GetID()
+                   <<" for service '"<<srv->GetNAME()<<"'";
       delete letter;
     }
 
@@ -221,7 +221,8 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
       while (NULL != (letter = m_database->GetWaitingLetter(srv)))
       {
         m_database->MakeSnapshot("SEND_SERVICE_DISPATCH.START");
-        LOG(INFO) << "Pop letter id="<<letter->GetID()<<" state="<<letter->GetSTATE();
+        LOG(INFO) << "Pop letter id="<<letter->GetID()<<" reply '"
+                  <<letter->GetREPLY_TO()<<"' state="<<letter->GetSTATE();
         letter->Dump();
         // Передать ожидающую обслуживания команду выбранному Обработчику
         worker_send (wrk, (char*)MDPW_REQUEST, EMPTY_FRAME, letter);
@@ -558,28 +559,6 @@ Broker::worker_send (xdb::Worker *worker,
   // NB: это может привести к параллельному исполнению 
   // команды двумя Обработчиками. Как бороться? И стоит ли?
   assert(worker);
-  zmsg *msg = new zmsg();
-  //  Stack protocol envelope to start of message
-  if (option.size()>0) {                 //  Optional frame after command
-    msg->push_front ((char*)option.c_str());
-  }
-
-  msg->push_front(const_cast<std::string&>(letter->GetDATA()));
-  msg->push_front(const_cast<std::string&>(letter->GetHEADER()));
-  // TODO идентификатор Клиента сюда!
-  msg->push_front(const_cast<std::string&>(letter->GetREPLY()));
-  msg->push_front(const_cast<char*>(command));
-  msg->push_front((char*)MDPW_WORKER); 
-  //  Stack routing envelope to start of message
-  msg->wrap(worker->GetIDENTITY(), EMPTY_FRAME);
-
-  if (m_verbose)
-  {
-    LOG(INFO) << "Sending '" << mdpw_commands [(int) *command]
-            << "' to worker '" << worker->GetIDENTITY() << "'";
-    msg->dump ();
-  }
-  msg->send (*m_socket);
 
   // Назначить это сообщение данному Обработчику:
   // 1. установить статус OCCUPIED данному Обработчику
@@ -589,8 +568,32 @@ Broker::worker_send (xdb::Worker *worker,
     LOG(ERROR) << "Unable to assign message id="<<letter->GetID()
                <<" to worker '"<<worker->GetIDENTITY()<<"'";
   }
+  else
+  {
+      zmsg *msg = new zmsg();
+      //  Stack protocol envelope to start of message
+      if (option.size()>0) {                 //  Optional frame after command
+        msg->push_front ((char*)option.c_str());
+      }
 
-  delete msg;
+      msg->push_front(const_cast<std::string&>(letter->GetDATA()));
+      msg->push_front(const_cast<std::string&>(letter->GetHEADER()));
+      msg->push_front(const_cast<char*>(letter->GetREPLY_TO()));
+      msg->push_front(const_cast<char*>(command));
+      msg->push_front((char*)MDPW_WORKER); 
+      //  Stack routing envelope to start of message
+      msg->wrap(worker->GetIDENTITY(), EMPTY_FRAME);
+
+      if (m_verbose)
+      {
+        LOG(INFO) << "Sending '" << mdpw_commands [(int) *command]
+                << "' from '"<<letter->GetREPLY_TO()<<"' to worker '"
+                << worker->GetIDENTITY() << "'";
+        msg->dump ();
+      }
+      msg->send (*m_socket);
+      delete msg;
+  }
 }
 
 void

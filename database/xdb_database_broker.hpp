@@ -100,7 +100,7 @@ class DatabaseBroker : public Database
     bool ClearServices();
 
     /* Найти экземпляр Сообщения по паре Сервис/Обработчик */
-    Letter* GetLetterBy(Service*, Worker*);
+    Letter* GetAssignedLetter(Worker*);
     /* Получить первое ожидающее обработки Сообщение */
     //bool GetWaitingLetter(Service*, Worker*, std::string&, std::string&);
     Letter* GetWaitingLetter(Service*);

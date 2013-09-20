@@ -1,6 +1,8 @@
 #include <glog/logging.h>
 #include <assert.h>
 #include <string.h>
+
+#include "config.h"
 #include "zmsg.hpp"
 #include "msg_common.h"
 #include "msg_message.hpp"
@@ -45,7 +47,8 @@ Letter::Letter(void* data) : m_modified(true)
   // и восстановить на его основе прикладное сообщение.
   // Первый фрейм - адрес возврата,
   // Два последних фрейма - заголовок и тело сообщения.
-  m_reply_to.assign(msg->get_part(0));
+  strncpy(m_reply_to, msg->get_part(0).c_str(), WORKER_IDENTITY_MAXLEN);
+  m_reply_to[WORKER_IDENTITY_MAXLEN] = '\0';
   LOG(INFO) << "Reply to " << m_reply_to << std::endl;
   std::cout << "Reply to " << m_reply_to << std::endl;
 
@@ -62,15 +65,18 @@ Letter::Letter(void* data) : m_modified(true)
 Letter::Letter(std::string& reply, msg::Header *h, std::string& b) : m_modified(true)
 {
   // TODO сделать копию заголовка, т.к. он создан в вызывающем контексте и нами не управляется
-  throw;
+  assert(1 == 0);
 }
 
 // Создать экземпляр на основе заголовка и тела сообщения
-Letter::Letter(const std::string& _reply_to, const std::string& _head, const std::string& _data) : m_modified(true)
+Letter::Letter(const char* _reply_to, const std::string& _head, const std::string& _data) : m_modified(true)
 {
   m_frame_header.assign(_head);
   m_frame_data.assign(_data);
-  m_reply_to.assign(_reply_to);
+
+  strncpy(m_reply_to, _reply_to, WORKER_IDENTITY_MAXLEN);
+  m_reply_to[WORKER_IDENTITY_MAXLEN] = '\0';
+
   m_header = new msg::Header(m_frame_header);
   SetID(0);
   SetWORKER_ID(0);
@@ -165,6 +171,12 @@ void Letter::SetDATA(const std::string& body)
   m_frame_data.assign(body);
 }
 
+void Letter::SetREPLY_TO(const char* reply_to)
+{
+  strncpy(m_reply_to, reply_to, WORKER_IDENTITY_MAXLEN);
+  m_reply_to[WORKER_IDENTITY_MAXLEN] = '\0';
+}
+
 const std::string& Letter::GetDATA()
 {
   return m_frame_data;
@@ -238,8 +250,9 @@ void Letter::Dump()
     <<" prot:"  << (int)GetPROTOCOL_VERSION()
     <<" exchg:" << GetEXCHANGE_ID()
     <<" spid:"  << GetSOURCE_PID()
-    <<" dest:'"  << GetPROC_DEST()
-    <<"' orig:'"  << GetPROC_ORIGIN()
-    <<"' sys_t:" << GetSYS_MSG_TYPE()
+    <<" reply:'"<< GetREPLY_TO()
+    <<"' dest:'"<< GetPROC_DEST()
+    <<"' orig:'"<< GetPROC_ORIGIN()
+    <<"' sys_t:"<< GetSYS_MSG_TYPE()
     <<" usr_t:" << GetUSR_MSG_TYPE();
 }

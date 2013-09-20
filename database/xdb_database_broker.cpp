@@ -38,11 +38,11 @@ bool DatabaseBroker::SetWorkerState(xdb::Worker* worker, xdb::Worker::State new_
   return m_impl->SetWorkerState(worker, new_state);
 }
 
-// Найти экземпляр Сообщения по паре Сервис/Обработчик
-xdb::Letter* DatabaseBroker::GetLetterBy(xdb::Service* service, xdb::Worker* worker)
+// Найти экземпляр Сообщения по его Обработчику
+xdb::Letter* DatabaseBroker::GetAssignedLetter(xdb::Worker* worker)
 {
   assert(m_impl);
-  return m_impl->GetLetterBy(service, worker);
+  return m_impl->GetAssignedLetter(worker);
 }
 
 bool DatabaseBroker::SetLetterState(Letter* letter, Letter::State new_state)

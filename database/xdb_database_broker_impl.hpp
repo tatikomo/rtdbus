@@ -102,7 +102,7 @@ class DatabaseBrokerImpl
         /* OUT */ std::string& body);
     Letter* GetWaitingLetter(/* IN */ Service*);
     // Найти экземпляр Сообщения по паре Сервис/Обработчик
-    Letter* GetLetterBy(Service*, Worker*);
+    Letter* GetAssignedLetter(Worker*);
     // Изменить состояние Сообщения
     bool SetLetterState(Letter*, Letter::State);
     bool AssignLetterToWorker(Worker*, Letter*);
@@ -204,7 +204,8 @@ class DatabaseBrokerImpl
     /*
      * Заполнить указанный экземпляр Letter на основе своего состояния из БД
      */
-    MCO_RET LoadLetter(xdb_broker::XDBLetter&,
+    MCO_RET LoadLetter(mco_trans_h,
+                       xdb_broker::XDBLetter&,
                        xdb::Letter*&);
     /*
      * Поиск Обработчика, находящегося в заданном состоянии. 

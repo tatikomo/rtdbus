@@ -70,6 +70,7 @@ Letter::Letter(const rtdbMsgType user_type, const std::string& dest, const std::
   }
 
   m_header_instance.instance().SerializeToString(&m_serialized_header);
+  m_header_needs_reserialization = false;
 }
 
 Letter::~Letter()
@@ -81,8 +82,8 @@ Letter::~Letter()
 // Продоставление доступа только на чтение. Все модификации будут игнорированы.
 ::google::protobuf::Message* Letter::data()
 {
-  if (!m_initialized)
-    return NULL;
+//  if (!m_initialized)
+//    return NULL;
 
   return m_body_instance;
 }
@@ -93,8 +94,8 @@ Letter::~Letter()
 {
   m_data_needs_reserialization = true;
 
-  if (false == m_initialized)
-    return NULL;
+//  if (false == m_initialized)
+//    return NULL;
 
   return m_body_instance;
 }

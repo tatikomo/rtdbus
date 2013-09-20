@@ -31,6 +31,7 @@ std::string worker_identity_1 = "@W000000001";
 std::string worker_identity_2 = "@W000000002";
 std::string worker_identity_3 = "@W000000003";
 std::string client_identity_1 = "@C000000001";
+std::string client_identity_2 = "@C000000002";
 
 xdb::DatabaseBroker *database = NULL;
 
@@ -41,15 +42,63 @@ xdb::Worker  *worker = NULL;
 int64_t service1_id;
 int64_t service2_id;
 
-void PrintWorker(xdb::Worker*);
+/*
+ * Прототипы функций
+ */
+void         Dump(mdp::Letter*);
+void         PrintWorker(xdb::Worker*);
+xdb::Letter* GetNewLetter(rtdbMsgType, rtdbExchangeId);
 
+/*
+ * Реализация функций
+ */
 void PrintWorker(xdb::Worker* worker)
 {
   if (!worker)
     return;
   std::cout << worker->GetID()<<":"<<worker->GetIDENTITY()
     <<"/"<<worker->GetSTATE()<<"/"<<worker->Expired()<<std::endl;
+}
 
+xdb::Letter* GetNewLetter(rtdbMsgType msg_type, rtdbExchangeId user_exchange)
+{
+  ::google::protobuf::Message* pb_message = NULL;
+  std::string   pb_serialized_request;
+  xdb::Letter  *xdb_letter;
+  mdp::Letter  *mdp_letter;
+
+  switch(msg_type)
+  {
+    case ADG_D_MSG_EXECRESULT:
+        pb_message = new RTDBM::ExecResult;
+        static_cast<RTDBM::ExecResult*>(pb_message)->set_user_exchange_id(user_exchange);
+        static_cast<RTDBM::ExecResult*>(pb_message)->set_exec_result(1);
+        static_cast<RTDBM::ExecResult*>(pb_message)->set_failure_cause(0);
+        break;
+
+    case ADG_D_MSG_ASKLIFE:
+        pb_message = new RTDBM::AskLife;
+        static_cast<RTDBM::AskLife*>(pb_message)->set_user_exchange_id(user_exchange);
+        break;
+
+    default:
+        std::cout << "Unsupported message type: "<< msg_type;
+        break;
+  }
+
+  pb_message->SerializeToString(&pb_serialized_request);
+  mdp_letter = new mdp::Letter(msg_type, 
+                               static_cast<const std::string&>(service_name_1),
+                               static_cast<const std::string*>(&pb_serialized_request));
+
+  xdb_letter = new xdb::Letter(client_identity_2.c_str(),
+                           /* заголовок */
+                           mdp_letter->SerializedHeader(),
+                           /* тело сообщения */
+                           mdp_letter->SerializedData());
+  delete mdp_letter;
+
+  return xdb_letter;
 }
 
 Pulsar::Pulsar(std::string broker, int verbose) : mdcli(broker, verbose)
@@ -195,15 +244,6 @@ TEST(TestLetter, USAGE)
   std::string       pb_serialized_header;
   std::string       pb_serialized_request;
 
-/*  pb_header.set_protocol_version(1);
-  pb_header.set_exchange_id(9999999);
-  pb_header.set_source_pid(9999);
-  pb_header.set_proc_dest("Алекс");
-  pb_header.set_proc_origin("Юстас");
-  pb_header.set_sys_msg_type(100);
-  pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
-  pb_header.SerializeToString(&pb_serialized_header); */
-
   pb_exec_result_request.set_user_exchange_id(102);
   pb_exec_result_request.set_exec_result(1);
   pb_exec_result_request.set_failure_cause(0);
@@ -226,6 +266,8 @@ TEST(TestLetter, USAGE)
 
   delete letter1;
   delete letter2;
+
+  // TODO: создать экземпляры остальных типов сообщений
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -516,6 +558,30 @@ TEST(TestProxy, BROKER_INTERNAL)
   delete wrk;
 }
 
+
+#if 1
+/* 
+ * Проверить механизм массового занесения сообщений в спул Службы, без привязки 
+ * к Обработчикам.
+ *
+ * NB: service1 уже существует
+ */
+TEST(TestProxy, PUSH_REQUEST)
+{
+  xdb::Letter *letter;
+  bool status;
+
+  broker->database_snapshot("TEST_PUSH_REQUEST.START");
+  for (int idx=1; idx<20; idx++)
+  {
+      letter = GetNewLetter(ADG_D_MSG_ASKLIFE, idx);
+      status = broker->get_internal_db_api()->PushRequestToService(service1, letter);
+      EXPECT_EQ(status, true);
+      delete letter;
+  }
+  broker->database_snapshot("TEST_PUSH_REQUEST.STOP");
+}
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 /*
