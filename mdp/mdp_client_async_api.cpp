@@ -136,6 +136,7 @@ mdcli::recv ()
         assert (header.compare(MDPC_CLIENT) == 0);
 
         std::string service = msg->pop_front();
+        // TODO следующая функция всегда вернет 0
         assert (service.compare(service) == 0);
 
         // TODO: добавить фрейм КОМАНДА

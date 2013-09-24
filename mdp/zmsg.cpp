@@ -280,7 +280,7 @@ const std::string zmsg::front() {
 
 // zmsg_pop
 std::string zmsg::pop_front() {
-   if (m_part_data.size() == 0) {
+   if (m_part_data.empty()) {
       return 0;
    }
    std::string part = m_part_data.front();
@@ -300,7 +300,7 @@ void zmsg::append (const char *part)
  * оно конвертируется в символьную форму (5 двоичных байт в '@'+10 символьных байт).
  */
 char *zmsg::address() {
-   if (m_part_data.size()>0) {
+   if (m_part_data.size() > 0) {
       return (char*)m_part_data[0].c_str();
    } else {
       return 0;
@@ -318,7 +318,7 @@ void zmsg::wrap(const char *address, const char *delim) {
 
 char * zmsg::unwrap() 
 {
-   if (m_part_data.size() == 0) {
+   if (m_part_data.empty()) {
       return NULL;
    }
 

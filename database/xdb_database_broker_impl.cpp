@@ -1680,7 +1680,7 @@ bool DatabaseBrokerImpl::AssignLetterToWorker(Worker* worker, Letter* letter)
     }
 #endif
 
-    LOG(ERROR) << "assign letter id:"<<letter->GetID()<<" wkr id:"<<worker->GetID()<<" srv id:"<<worker->GetSERVICE_ID(); 
+    LOG(INFO) << "Assign letter_id:"<<letter->GetID()<<" to wrk_id:"<<worker->GetID()<<" srv_id:"<<worker->GetSERVICE_ID();
     rc = mco_trans_commit(t);
     if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; }
   } while(false);
@@ -1740,7 +1740,7 @@ bool DatabaseBrokerImpl::ReleaseLetterFromWorker(Worker* worker)
     }
     worker->SetSTATE(xdb::Worker::ARMED);
 
-    LOG(ERROR) << "release letter id:"<<letter_aid<<" wkr id:"<<worker_aid<<" srv id:"<<service_aid; 
+    LOG(INFO) << "Release letter_id:"<<letter_aid<<" from wrk_id:"<<worker_aid<<" srv_id:"<<service_aid;
     rc = mco_trans_commit(t);
     if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; break; }
 
