@@ -356,26 +356,28 @@ client_task (void *args)
   std::string       pb_serialized_request;
   RTDBM::AskLife    pb_request_asklife;
   RTDBM::ExecResult pb_responce_exec_result;
-  mdp::Letter      *letter;
+  mdp::Letter      *mdp_letter;
+  xdb::Letter      *xdb_letter;
   const std::string dest = "NYSE";
   static int        user_exchange_id = 1;
 
   try
   {
-    letter = new mdp::Letter(ADG_D_MSG_ASKLIFE, dest);
+    mdp_letter = new mdp::Letter(ADG_D_MSG_ASKLIFE, dest);
 
     //  Send 100 ADG_D_MSG_ASKLIFE orders
     for (count = 0; count < 1; count++) {
         request = new mdp::zmsg ();
 
         // Единственное поле, которое может устанавливать клиент напрямую в ADG_D_MSG_ASKLIFE
-        static_cast<RTDBM::AskLife*>(letter->mutable_data())->set_user_exchange_id(user_exchange_id++);
-        request->push_front(const_cast<std::string&>(letter->SerializedData()));
-        request->push_front(const_cast<std::string&>(letter->SerializedHeader()));
+        //xdb_letter = GetNewLetter(ADG_D_MSG_ASKLIFE, user_exchange_id);
+        static_cast<RTDBM::AskLife*>(mdp_letter->mutable_data())->set_user_exchange_id(user_exchange_id++);
+        request->push_front(const_cast<std::string&>(mdp_letter->SerializedData()));
+        request->push_front(const_cast<std::string&>(mdp_letter->SerializedHeader()));
         client->send (service_name_1.c_str(), request);
         delete request;
     }
-    delete letter;
+    delete mdp_letter;
 #if 0
     //  Send 1 ASKLIFE orders
     request = new mdp::zmsg ();
@@ -393,10 +395,10 @@ client_task (void *args)
         report->dump();
         assert (report->parts () >= 2);
         
-        letter = new mdp::Letter(report);
-        Dump(letter);
+        mdp_letter = new mdp::Letter(report);
+        Dump(mdp_letter);
 
-        delete letter;
+        delete mdp_letter;
         delete report;
     }
   }

@@ -1,8 +1,6 @@
 #include <limits>
 #include <string>
 
-#include <stdlib.h> // rand()
-
 #include "glog/logging.h"
 
 #include "zmsg.hpp"
@@ -11,7 +9,6 @@
 
 using namespace mdp;
 
-// TODO: возможно следует создавать копию вместо хранения ссылки
 Letter::Letter(zmsg* _instance)
 {
   assert(_instance);
@@ -59,15 +56,9 @@ Letter::Letter(const rtdbMsgType user_type, const std::string& dest, const std::
   if (b)
   {
     m_serialized_data.assign(*b);
-    // создать m_body_instance нужного типа, заполнив его данными из буфера
-    m_initialized = UnserializeFrom(user_type, &m_serialized_data);
   }
-  else
-  {
-    // создать m_body_instance нужного типа с пустыми данными
-    UnserializeFrom(user_type);
-    m_initialized = false;
-  }
+  // создать m_body_instance нужного типа, заполнив его данными из буфера
+  m_initialized = UnserializeFrom(user_type, &m_serialized_data);
 
   m_header_instance.instance().SerializeToString(&m_serialized_header);
   m_header_needs_reserialization = false;
@@ -130,8 +121,6 @@ rtdbExchangeId Letter::GenerateExchangeId()
   if (current_id > std::numeric_limits<int>::max())
     m_header_instance.instance().set_exchange_id(0);
 
-  // NB: переменная инициализирована с помощью rand() для получения случайного
-  // начального значения. Далее нужно реализовать правильный механизм генерации.
   m_header_instance.instance().set_exchange_id(++current_id);
 
   return current_id;
@@ -160,6 +149,13 @@ const std::string& Letter::SerializedData()
 }
 
 
+/*
+ * Создать экземпляр данных соответствующего типа, и десериализовать его на основе входной строки.
+ * Если входная строка пуста (это возможно, когда сообщение создается Клиентом), то:
+ * 1. Присвоить m_body_instance значения "по умолчанию", т.к. иначе protobuf 
+ * не сериализует этот экземпляр данных.
+ * 2. Заполнить тестовыми сериализованными данными строковый буфер m_serialized_data
+ */
 bool Letter::UnserializeFrom(const int user_type, const std::string* b)
 {
   bool status = false;
@@ -168,10 +164,27 @@ bool Letter::UnserializeFrom(const int user_type, const std::string* b)
   {
     case ADG_D_MSG_EXECRESULT:
       m_body_instance = new RTDBM::ExecResult;
+      // Присвоить значения по умолчанию, поскольку иначе protobuf не сериализует эти поля
+      if (!b || !b->size())
+      {
+        static_cast<RTDBM::ExecResult*>(m_body_instance)->set_user_exchange_id(0);
+        static_cast<RTDBM::ExecResult*>(m_body_instance)->set_exec_result(0);
+        static_cast<RTDBM::ExecResult*>(m_body_instance)->set_failure_cause(0);
+        // Заполнить строку сериализованными значениями по умолчанию
+        static_cast<RTDBM::ExecResult*>(m_body_instance)->SerializeToString(&m_serialized_data);
+        status = true;
+      }
       break;
 
     case ADG_D_MSG_ASKLIFE:
       m_body_instance = new RTDBM::AskLife;
+      if (!b || !b->size())
+      {
+        static_cast<RTDBM::AskLife*>(m_body_instance)->set_user_exchange_id(0);
+        // Заполнить строку сериализованными значениями по умолчанию
+        static_cast<RTDBM::AskLife*>(m_body_instance)->SerializeToString(&m_serialized_data);
+        status = true;
+      }
       break;
 
     default:
@@ -181,7 +194,7 @@ bool Letter::UnserializeFrom(const int user_type, const std::string* b)
       break;
   }
 
-  if (m_body_instance && b)
+  if (m_body_instance && (b || b->size()))
   {
     if (true == (status = m_body_instance->ParseFromString(*b)))
     {
