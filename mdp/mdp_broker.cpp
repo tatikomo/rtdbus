@@ -101,7 +101,8 @@ Broker::worker_register(const std::string& service_name, const std::string& work
 void
 Broker::database_snapshot(const char* msg)
 {
-  m_database->MakeSnapshot(msg);
+  if (m_verbose)
+    m_database->MakeSnapshot(msg);
 }
 
 //  ---------------------------------------------------------------------
@@ -188,7 +189,7 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
 
     assert (srv);
 
-    m_database->MakeSnapshot("SERVICE_DISPATCH.START");
+    database_snapshot("SERVICE_DISPATCH.START");
     // Сообщение может отсутствовать
     if (processing_msg)
     {
@@ -201,10 +202,10 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
       delete letter;
     }
 
-//    m_database->MakeSnapshot("PURGE_SERVICE_DISPATCH.START");
+//    database_snapshot("PURGE_SERVICE_DISPATCH.START");
     /* Очистить список Обработчиков Сервиса от зомби */
     purge_workers ();
-//    m_database->MakeSnapshot("PURGE_SERVICE_DISPATCH.STOP");
+//    database_snapshot("PURGE_SERVICE_DISPATCH.STOP");
 
     /*
      * Продолжать обработку, пока
@@ -217,25 +218,29 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
      */
     while (NULL != (wrk = m_database->PopWorker(srv)))
     {
-      LOG(INFO) << "Pop worker '"<<wrk->GetIDENTITY()<<"'";
+      if (m_verbose)
+        LOG(INFO) << "Pop worker '"<<wrk->GetIDENTITY()<<"'";
+
       if (NULL != (letter = m_database->GetWaitingLetter(srv)))
       {
-//        m_database->MakeSnapshot("SEND_SERVICE_DISPATCH.START");
-        LOG(INFO) << "Pop letter id="<<letter->GetID()<<" reply '"
-                  <<letter->GetREPLY_TO()<<"' state="<<letter->GetSTATE();
+//        database_snapshot("SEND_SERVICE_DISPATCH.START");
+        if (m_verbose)
+          LOG(INFO) << "Pop letter id="<<letter->GetID()<<" reply '"
+                    <<letter->GetREPLY_TO()<<"' state="<<letter->GetSTATE();
+
         letter->Dump();
         // Передать ожидающую обслуживания команду выбранному Обработчику
         worker_send (wrk, (char*)MDPW_REQUEST, EMPTY_FRAME, letter);
         // После отсылки Сообщения этот экземпляр Обработчика перешел 
         // в состояние OCCUPIED, нужно выбрать нового Обработчика.
-//        m_database->MakeSnapshot("SEND_SERVICE_DISPATCH.STOP");
+//        database_snapshot("SEND_SERVICE_DISPATCH.STOP");
         delete letter;
       }
       delete wrk;
       break;
     }
     delete srv;
-    m_database->MakeSnapshot("SERVICE_DISPATCH.STOP");
+    database_snapshot("SERVICE_DISPATCH.STOP");
 }
 
 //  ---------------------------------------------------------------------
@@ -309,11 +314,9 @@ Broker::worker_require (const std::string& identity)
 {
     xdb::Worker * instance = NULL;
 
-    if (NULL != (instance = m_database->GetWorkerByIdent(identity)))
-    {
-       LOG(INFO) << "Worker '" << identity << "' is registered";
-    }
-    else
+    instance = m_database->GetWorkerByIdent(identity);
+
+    if (NULL == instance && m_verbose)
     {
        LOG(WARNING) << "Unable to find worker " << identity;
     }
@@ -393,7 +396,8 @@ Broker::worker_process_READY(xdb::Worker*& worker,
       worker_waiting(worker);
       service_dispatch(service);
       status = true; // TODO присвоить корректное значение
-      LOG(INFO) << "Created worker " << sender_identity;
+      if (m_verbose)
+        LOG(INFO) << "Worker '" << sender_identity << "' created";
     }
   }
 
@@ -410,7 +414,9 @@ Broker::worker_process_REPORT(xdb::Worker*& worker,
   xdb::Letter  *letter = NULL;
   xdb::Letter::State    letter_state;
 
-  LOG(INFO) << "Get REPORT from '" << sender_identity << "' worker=" << worker;
+  if (m_verbose)
+    LOG(INFO) << "Get REPORT from '" << sender_identity << "' worker=" << worker;
+
   if (worker) 
   {
      service = m_database->GetServiceForWorker(worker);
@@ -423,11 +429,11 @@ Broker::worker_process_REPORT(xdb::Worker*& worker,
      letter_state = xdb::Letter::DONE_OK; /* или DONE_FAIL */
      if (true == (status = m_database->ReleaseLetterFromWorker(worker)))
      {
-       LOG(INFO) << "Letter released from worker '"<<worker->GetIDENTITY()<<"'";
+       if (m_verbose) LOG(INFO) << "Letter released from worker '"<<worker->GetIDENTITY()<<"'";
      }
      else
      {
-       LOG(ERROR) << "Получен отчет об обработке фантомного сообщения"
+       LOG(ERROR) << "Report received about fantom message processing"
         <<" [srv:"<<service->GetNAME()<<", wrk:"<<worker->GetIDENTITY()<<"]";
      }
 
@@ -459,7 +465,7 @@ Broker::worker_process_HEARTBEAT(xdb::Worker*& worker,
 {
   bool status = false;
 
-  LOG(INFO) << "Get HEARTBEAT from '" << sender_identity << "' wr=" << worker;
+  LOG(INFO) << "Get HEARTBEAT from '" << sender_identity << "'";
   if (worker)
   {
     // worker содержит идентификатор своего Сервиса
@@ -467,7 +473,7 @@ Broker::worker_process_HEARTBEAT(xdb::Worker*& worker,
     {
       LOG(ERROR) << "Unable to register worker " << worker->GetIDENTITY();
     }
-    m_database->MakeSnapshot("HEARTBEAT");
+    database_snapshot("HEARTBEAT");
     worker_waiting(worker);
   }
   else
@@ -481,7 +487,7 @@ Broker::worker_process_HEARTBEAT(xdb::Worker*& worker,
 bool 
 Broker::worker_process_DISCONNECT(xdb::Worker*& worker, const std::string& sender_identity, zmsg*)
 {
-  LOG(INFO) << "Get DISCONNECT from worker " << sender_identity;
+  if (m_verbose) LOG(INFO) << "Get DISCONNECT from worker " << sender_identity;
   return worker_delete (worker, 0);
 }
 
@@ -608,8 +614,9 @@ Broker::worker_send (
     /* IN-OUT */ std::string& header,
     /* IN     */ std::string& body)
 {
-  LOG(INFO) << "Send message #"<<(int)command<<" to worker '"
-            <<worker->GetIDENTITY()<<"'";
+  if (m_verbose)
+    LOG(INFO) << "Send message #"<<(int)command<<" to worker '"
+              <<worker->GetIDENTITY()<<"'";
   zmsg *msg = new zmsg();
   //  Stack protocol envelope to start of message
   if (option.size()>0) {                 //  Optional frame after command
@@ -624,9 +631,9 @@ Broker::worker_send (
   msg->wrap(worker->GetIDENTITY(), EMPTY_FRAME);
 
   if (m_verbose) {
-        LOG(INFO) << "Sending '" << mdpw_commands [(int) *command]
-            << "' to worker '" << worker->GetIDENTITY() << "'";
-        msg->dump ();
+    LOG(INFO) << "Sending '" << mdpw_commands [(int) *command]
+              << "' to worker '" << worker->GetIDENTITY() << "'";
+    msg->dump ();
   }
   msg->send (*m_socket);
 
@@ -672,12 +679,9 @@ Broker::worker_waiting (xdb::Worker *worker)
     assert (worker);
     //  Queue to broker and service waiting lists
     m_database->PushWorker(worker);
-    // +++ послать ответ на HEARTBEAT
-//    NB: В версии zguide/C/mdbroker не вызывается worker_send
-    worker_send (worker, (char*)MDPW_HEARTBEAT, EMPTY_FRAME, (zmsg*)NULL);
     service = m_database->GetServiceById(worker->GetSERVICE_ID());
+    // service удаляется в service_dispatch()
     service_dispatch (service);
-    //delete service; - он удаляется в service_dispatch()
 }
 
 
@@ -690,12 +694,12 @@ Broker::client_msg (const std::string& sender, zmsg *msg)
 //    bool enabled = false;
 
     assert (msg && msg->parts () >= 2);     //  Service name + body
-//  LOG(INFO) << "Client_msg " << sender; // GEV delete me
     std::string service_frame = msg->pop_front();
     xdb::Service *srv = service_require (service_frame);
     if (!srv) /* сервис неизвестен - выводим предупреждение */
     {
-        LOG(INFO) << "Unknown service " << service_frame;
+        LOG(ERROR) << "Request from client '"<<sender
+            <<"' to unknown service '"<<service_frame<<"'";
     }
     else /* Сервис известен */
     {
