@@ -699,7 +699,7 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
       if (rc)
       {
         LOG(ERROR) << "Unable to locate service by id "<<wrk->GetSERVICE_ID()
-                   << " for worker "<<wrk_identity;
+                   << " for worker "<<wrk->GetIDENTITY();
         break;
       }
 
@@ -711,7 +711,7 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
       if (wrk->GetSERVICE_ID() != srv_aid)
       {
         LOG(ERROR) << "Database inconsistence: service id ("
-                   << wrk->GetSERVICE_ID()<<") for worker "<<wrk_identity
+                   << wrk->GetSERVICE_ID()<<") for worker "<<wrk->GetIDENTITY()
                    << " did not equal to database value ("<<srv_aid<<")";
       }
 
@@ -722,22 +722,22 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
                 strlen(wrk_identity),
                 worker_instance);
 
-      if (!rc) // Экземпляр найден - обновить данные
+      if (MCO_S_OK == rc) // Экземпляр найден - обновить данные
       {
-        if (!wrk->GetID()) // Нулевой собственный идентификатор - значит ранее не присваивался
+        if (0 == wrk->GetID()) // Нулевой собственный идентификатор - значит ранее не присваивался
         {
           // Обновить идентификатор
           rc = worker_instance.autoid_get(wrk_aid);
-          if (rc) { LOG(ERROR) << "Unable to get worker "<<wrk_identity<<" id"; break; }
+          if (rc) { LOG(ERROR) << "Unable to get worker "<<wrk->GetIDENTITY()<<" id"; break; }
           wrk->SetID(wrk_aid);
         }
         // Сменить ему статус на ARMED и обновить свойства
         rc = worker_instance.state_put(ARMED);
-        if (rc) { LOG(ERROR) << "Unable to change '"<< wrk_identity
+        if (rc) { LOG(ERROR) << "Unable to change '"<< wrk->GetIDENTITY()
                              <<"' worker state, rc="<<rc; break; }
 
         rc = worker_instance.service_ref_put(srv_aid);
-        if (rc) { LOG(ERROR) << "Unable to set '"<< wrk_identity
+        if (rc) { LOG(ERROR) << "Unable to set '"<< wrk->GetIDENTITY()
                              <<"' with service id "<<srv_aid<<", rc="<<rc; break; }
 
         /* Установить новое значение expiration */
@@ -746,6 +746,7 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
         {
           next_heartbeat_time.tv_nsec = now_time.tv_nsec;
           next_heartbeat_time.tv_sec = now_time.tv_sec + (Worker::HeartbeatPeriodValue/1000);
+          LOG(INFO) << "Set new expiration time for reactivated worker "<<wrk->GetIDENTITY();
         }
         else { LOG(ERROR) << "Unable to calculate expiration time, rc="<<rc; break; }
 
@@ -760,22 +761,22 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
       {
         // Создать новый экземпляр
         rc = worker_instance.create(t);
-        if (rc) { LOG(ERROR) << "Creating worker's instance " << wrk_identity << ", rc="<<rc; break; }
+        if (rc) { LOG(ERROR) << "Creating worker's instance " << wrk->GetIDENTITY() << ", rc="<<rc; break; }
 
         rc = worker_instance.identity_put(wrk_identity, strlen(wrk_identity));
-        if (rc) { LOG(ERROR) << "Put worker's identity " << wrk_identity << ", rc="<<rc; break; }
+        if (rc) { LOG(ERROR) << "Put worker's identity " << wrk->GetIDENTITY() << ", rc="<<rc; break; }
 
         // Первоначальное состояние Обработчика - "ГОТОВ"
         rc = worker_instance.state_put(ARMED);
-        if (rc) { LOG(ERROR) << "Unable to change "<< wrk_identity <<" worker state, rc="<<rc; break; }
+        if (rc) { LOG(ERROR) << "Unable to change "<< wrk->GetIDENTITY() <<" worker state, rc="<<rc; break; }
 
         rc = worker_instance.service_ref_put(srv_aid);
-        if (rc) { LOG(ERROR) << "Unable to set '"<< wrk_identity
+        if (rc) { LOG(ERROR) << "Unable to set '"<< wrk->GetIDENTITY()
                              <<"' with service id "<<srv_aid<<", rc="<<rc; break; }
 
         // Обновить идентификатор
         rc = worker_instance.autoid_get(wrk_aid);
-        if (rc) { LOG(ERROR) << "Unable to get worker "<<wrk_identity<<" id"; break; }
+        if (rc) { LOG(ERROR) << "Unable to get worker "<<wrk->GetIDENTITY()<<" id"; break; }
         wrk->SetID(wrk_aid);
 
         /* Установить новое значение expiration */
@@ -783,6 +784,7 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
         {
           next_heartbeat_time.tv_nsec = now_time.tv_nsec;
           next_heartbeat_time.tv_sec = now_time.tv_sec + Worker::HeartbeatPeriodValue/1000;
+          LOG(INFO) << "Set new expiration time for new worker "<<wrk->GetIDENTITY();
         }
         else { LOG(ERROR) << "Unable to calculate expiration time, rc="<<rc; break; }
 
@@ -795,7 +797,7 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
       }
       else 
       { 
-        LOG(ERROR) << "Unable to load worker "<<wrk_identity<<" data"; 
+        LOG(ERROR) << "Unable to load worker "<<wrk->GetIDENTITY()<<" data"; 
         break; 
       }
 

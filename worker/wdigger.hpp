@@ -13,6 +13,7 @@ class Digger : public mdp::mdwrk
   public:
     Digger(std::string broker, std::string service, int verbose) 
         : mdwrk(broker, service, verbose) {};
+    ~Digger() {};
 
     int handle_rtdbus_message(mdp::Letter*, std::string*);
     int handle_request(mdp::zmsg*, std::string *&);

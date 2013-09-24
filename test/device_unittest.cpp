@@ -378,13 +378,6 @@ client_task (void *args)
         delete request;
     }
     delete mdp_letter;
-#if 0
-    //  Send 1 ASKLIFE orders
-    request = new mdp::zmsg ();
-    request->push_front ((char*)"BUY");
-    client->send (service_name_1.c_str(), request);
-    delete request;
-#endif
 
     //  Wait for all trading reports
     while (1) {
@@ -434,10 +427,11 @@ worker_task (void *args)
        if (request)
        {
          engine->handle_request (request, reply_to);
-         delete reply_to;
        }
-       else
-         break;          // Worker has been interrupted
+       delete reply_to;
+
+       if (!request)
+         break;       // Worker has been interrupted
     }
     delete engine;
   }
@@ -783,6 +777,8 @@ TEST(TestProxy, BROKER_RUNTIME)
     /* Дождаться завершения работы клиента */
     pthread_join (client, NULL);
 
+    s_interrupted = 1;
+    sleep(1);
     /* Остановить Обработчика NYSE */
     int cw = pthread_cancel(worker);
     sleep(1);

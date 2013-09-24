@@ -9,6 +9,7 @@ class Pulsar: public mdp::mdcli
 {
   public:
     Pulsar(std::string broker, int verbose);
+    ~Pulsar() {};
 };
 
 #endif

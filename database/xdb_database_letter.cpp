@@ -49,8 +49,8 @@ Letter::Letter(void* data) : m_modified(true)
   // Два последних фрейма - заголовок и тело сообщения.
   strncpy(m_reply_to, msg->get_part(0).c_str(), WORKER_IDENTITY_MAXLEN);
   m_reply_to[WORKER_IDENTITY_MAXLEN] = '\0';
-  LOG(INFO) << "Reply to " << m_reply_to << std::endl;
-  std::cout << "Reply to " << m_reply_to << std::endl;
+//  LOG(INFO) << "Reply to " << m_reply_to << std::endl;
+//  std::cout << "Reply to " << m_reply_to << std::endl;
 
   assert(msg->parts() >= 2);
   int msg_frames = msg->parts();

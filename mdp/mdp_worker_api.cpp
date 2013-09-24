@@ -78,6 +78,7 @@ void mdwrk::send_to_broker(const char *command, const char* option, zmsg *_msg)
         msg->dump ();
     }
     msg->send (*m_worker);
+    delete msg;
 }
 
 //  ---------------------------------------------------------------------

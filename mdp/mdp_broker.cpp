@@ -220,7 +220,7 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
       LOG(INFO) << "Pop worker '"<<wrk->GetIDENTITY()<<"'";
       if (NULL != (letter = m_database->GetWaitingLetter(srv)))
       {
-        m_database->MakeSnapshot("SEND_SERVICE_DISPATCH.START");
+//        m_database->MakeSnapshot("SEND_SERVICE_DISPATCH.START");
         LOG(INFO) << "Pop letter id="<<letter->GetID()<<" reply '"
                   <<letter->GetREPLY_TO()<<"' state="<<letter->GetSTATE();
         letter->Dump();
@@ -228,7 +228,7 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
         worker_send (wrk, (char*)MDPW_REQUEST, EMPTY_FRAME, letter);
         // После отсылки Сообщения этот экземпляр Обработчика перешел 
         // в состояние OCCUPIED, нужно выбрать нового Обработчика.
-        m_database->MakeSnapshot("SEND_SERVICE_DISPATCH.STOP");
+//        m_database->MakeSnapshot("SEND_SERVICE_DISPATCH.STOP");
         delete letter;
       }
       delete wrk;
@@ -440,7 +440,8 @@ Broker::worker_process_REPORT(xdb::Worker*& worker,
      msg->wrap (client, EMPTY_FRAME);
      msg->send (*m_socket);
      delete[] client;
-//+++++               worker_waiting (worker);
+
+     worker_waiting (worker);
      delete service;
   }
   else 
@@ -547,6 +548,7 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
       LOG(ERROR) << "Processing message from unknown worker";
   }
 
+  delete wrk;
   delete msg;
 }
 
@@ -668,14 +670,8 @@ Broker::worker_waiting (xdb::Worker *worker)
 {
     xdb::Service *service = NULL;
     assert (worker);
-#if 0
-    m_waiting.push_back(worker);
-    worker->m_service->m_waiting.push_back(worker);
-    worker->m_expiry = s_clock () + Broker::HeartbeatExpiration;
-#else
     //  Queue to broker and service waiting lists
     m_database->PushWorker(worker);
-#endif
     // +++ послать ответ на HEARTBEAT
 //    NB: В версии zguide/C/mdbroker не вызывается worker_send
     worker_send (worker, (char*)MDPW_HEARTBEAT, EMPTY_FRAME, (zmsg*)NULL);
