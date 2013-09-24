@@ -193,7 +193,7 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
     if (processing_msg)
     {
       letter = new xdb::Letter(processing_msg);
-      std::cout << "broker will reply to '"<<letter->GetREPLY_TO()<<"'"<<std::endl;
+//      std::cout << "broker will reply to '"<<letter->GetREPLY_TO()<<"'"<<std::endl;
       status = m_database->PushRequestToService(srv, letter);
       if (!status) 
         LOG(ERROR) << "Unable to push new letter "<<letter->GetID()
@@ -218,7 +218,7 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
     while (NULL != (wrk = m_database->PopWorker(srv)))
     {
       LOG(INFO) << "Pop worker '"<<wrk->GetIDENTITY()<<"'";
-      while (NULL != (letter = m_database->GetWaitingLetter(srv)))
+      if (NULL != (letter = m_database->GetWaitingLetter(srv)))
       {
         m_database->MakeSnapshot("SEND_SERVICE_DISPATCH.START");
         LOG(INFO) << "Pop letter id="<<letter->GetID()<<" reply '"
@@ -226,6 +226,8 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
         letter->Dump();
         // Передать ожидающую обслуживания команду выбранному Обработчику
         worker_send (wrk, (char*)MDPW_REQUEST, EMPTY_FRAME, letter);
+        // После отсылки Сообщения этот экземпляр Обработчика перешел 
+        // в состояние OCCUPIED, нужно выбрать нового Обработчика.
         m_database->MakeSnapshot("SEND_SERVICE_DISPATCH.STOP");
         delete letter;
       }
@@ -437,7 +439,7 @@ Broker::worker_process_REPORT(xdb::Worker*& worker,
      msg->push_front((char*)MDPC_CLIENT);
      msg->wrap (client, EMPTY_FRAME);
      msg->send (*m_socket);
-     delete client;
+     delete[] client;
 //+++++               worker_waiting (worker);
      delete service;
   }
