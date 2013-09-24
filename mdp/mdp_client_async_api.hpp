@@ -34,6 +34,8 @@
 #include "zmsg.hpp"
 #include "mdp_common.h"
 
+namespace mdp {
+
 //  Structure of our class
 //  We access these properties only via class methods
 class mdcli {
@@ -81,5 +83,7 @@ class mdcli {
    int m_verbose;                //  Print activity to stdout
    int m_timeout;                //  Request timeout
 };
+
+}; //namespace mdp
 
 #endif

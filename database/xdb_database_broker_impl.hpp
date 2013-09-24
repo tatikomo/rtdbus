@@ -19,6 +19,8 @@ extern "C" {
 #include "xdb_database_service.hpp"
 #include "xdb_database_letter.hpp"
 
+namespace xdb {
+
 class Service;
 class Worker;
 
@@ -63,12 +65,12 @@ class ServiceListImpl : public  ServiceList
 };
 
 /* Фактическая реализация функциональности Базы Данных для Брокера */
-class XDBDatabaseBrokerImpl
+class DatabaseBrokerImpl
 {
   friend class ServiceListImpl;
   public:
-    XDBDatabaseBrokerImpl(XDBDatabaseBroker*);
-    ~XDBDatabaseBrokerImpl();
+    DatabaseBrokerImpl(DatabaseBroker*);
+    ~DatabaseBrokerImpl();
 
     /* Инициализация служебных структур БД */
     bool Init();
@@ -98,15 +100,19 @@ class XDBDatabaseBrokerImpl
         /* IN */  Worker* wrk,
         /* OUT */ std::string& header,
         /* OUT */ std::string& body);
-    Letter* GetWaitingLetter(/* IN */ Service* srv);
+    Letter* GetWaitingLetter(/* IN */ Service*);
+    // Найти экземпляр Сообщения по паре Сервис/Обработчик
+    Letter* GetAssignedLetter(Worker*);
     // Изменить состояние Сообщения
-    bool ChangeLetterStatus(Letter*, Letter::State);
+    bool SetLetterState(Letter*, Letter::State);
     bool AssignLetterToWorker(Worker*, Letter*);
+    // Очистить сообщение после получения квитанции о завершении от Обработчика
+    bool ReleaseLetterFromWorker(Worker*);
 
     bool IsServiceCommandEnabled(const Service*, const std::string&);
 
     /* поместить сообщение во входящую очередь Службы */
-    bool PushRequestToService(Service*, const std::string&, const std::string&);
+    bool PushRequestToService(Service*, const std::string&, const std::string&, const std::string&);
     bool PushRequestToService(Service*, Letter*);
 
     /* Вернуть экземпляр Сервиса. Если он не существует в БД - создать */
@@ -141,7 +147,7 @@ class XDBDatabaseBrokerImpl
     void MakeSnapshot(const char*);
 
   private:
-    DISALLOW_COPY_AND_ASSIGN(XDBDatabaseBrokerImpl);
+    DISALLOW_COPY_AND_ASSIGN(DatabaseBrokerImpl);
 #if defined DEBUG
     char  m_snapshot_file_prefix[10];
     bool  m_initialized;
@@ -150,7 +156,7 @@ class XDBDatabaseBrokerImpl
     MCO_RET SaveDbToFile(const char*);
 #endif
 
-    XDBDatabaseBroker       *m_self;
+    DatabaseBroker          *m_self;
     mco_db_h                 m_db;
     ServiceListImpl         *m_service_list;
 
@@ -196,6 +202,12 @@ class XDBDatabaseBrokerImpl
                        Worker*&);
 
     /*
+     * Заполнить указанный экземпляр Letter на основе своего состояния из БД
+     */
+    MCO_RET LoadLetter(mco_trans_h,
+                       xdb_broker::XDBLetter&,
+                       xdb::Letter*&);
+    /*
      * Поиск Обработчика, находящегося в заданном состоянии. 
      * Возвращает статус поиска и экземпляр найденного Обработчика
      */
@@ -213,4 +225,5 @@ class XDBDatabaseBrokerImpl
 #endif
 };
 
+}; //namespace xdb
 #endif

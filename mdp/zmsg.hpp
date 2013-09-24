@@ -19,6 +19,8 @@
 #include <string>
 #include <stdarg.h>
 
+namespace mdp {
+
 class zmsg 
 {
  public:
@@ -103,5 +105,7 @@ class zmsg
  private:
    std::vector<std::string> m_part_data;
 };
+
+}; //namespace mdp
 
 #endif /* ZMSG_HPP_ */

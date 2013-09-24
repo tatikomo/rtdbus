@@ -2,13 +2,14 @@
 #define GEV_PULSAR_HPP
 #pragma once
 
-#include "zmsg.hpp"
+//#include "zmsg.hpp"
 #include "mdp_client_async_api.hpp"
 
-class Pulsar: public mdcli
+class Pulsar: public mdp::mdcli
 {
   public:
     Pulsar(std::string broker, int verbose);
+    ~Pulsar() {};
 };
 
 #endif

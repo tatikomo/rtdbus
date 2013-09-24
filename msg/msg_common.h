@@ -10,6 +10,12 @@ typedef uint16_t rtdbMsgType;   /* тип сообщения */
 
 typedef char rtdbProcessId[10]; /* имя процесса */
 
+/* системный тип служебных сообщений */
+#define CORE_MESSAGE_TYPE       1
+/* системный тип пользовательских сообщений */
+#define USER_MESSAGE_TYPE       100
+
+
 #define GOF_D_BASE_MSG_INTERNAL 1000
 
 /* base number for SINF */

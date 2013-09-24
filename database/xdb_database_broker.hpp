@@ -3,16 +3,19 @@
 #pragma once
 #include <stdint.h>
 #include <string>
+
 #include "xdb_database.hpp"
 #include "xdb_database_service.hpp"
 #include "xdb_database_worker.hpp"
+#include "xdb_database_letter.hpp"
 
-class XDBDatabaseBrokerImpl;
+namespace xdb {
+
+class DatabaseBrokerImpl;
 class ServiceList;
 class Service;
 class Worker;
 class Letter;
-
 
 class ServiceList
 {
@@ -31,12 +34,12 @@ class ServiceList
     virtual bool refresh()   = 0;
 };
 
-class XDBDatabaseBroker : public XDBDatabase
+class DatabaseBroker : public Database
 {
 
   public:
-    XDBDatabaseBroker();
-    ~XDBDatabaseBroker();
+    DatabaseBroker();
+    ~DatabaseBroker();
 
     bool Connect();
 
@@ -62,9 +65,12 @@ class XDBDatabaseBroker : public XDBDatabase
     ServiceList* GetServiceList();
     /* назначить Сообщение данному Обработчику */
     bool AssignLetterToWorker(Worker*, Letter*);
+    /* Очистить сообщение после получения квитанции о завершении от Обработчика */
+    bool ReleaseLetterFromWorker(Worker*);
 
     /* поместить сообщение во входящую очередь Службы */
-    bool PushRequestToService(Service*, 
+    bool PushRequestToService(Service*,
+            const std::string&,
             const std::string&,
             const std::string&);
     bool PushRequestToService(Service*, Letter*);
@@ -93,11 +99,15 @@ class XDBDatabaseBroker : public XDBDatabase
     /* Очистить спул Обработчиков и всех Сервисов */
     bool ClearServices();
 
+    /* Найти экземпляр Сообщения по паре Сервис/Обработчик */
+    Letter* GetAssignedLetter(Worker*);
     /* Получить первое ожидающее обработки Сообщение */
     //bool GetWaitingLetter(Service*, Worker*, std::string&, std::string&);
     Letter* GetWaitingLetter(Service*);
     /* Установить новое состояние Обработчика */
     bool SetWorkerState(Worker*, Worker::State);
+    /* Изменить состояние Сообщения */
+    bool SetLetterState(Letter*, Letter::State);
 
     /* Разрешить исполнение Команды указанной Службе */
     void EnableServiceCommand (const std::string&, const std::string&);
@@ -111,9 +121,11 @@ class XDBDatabaseBroker : public XDBDatabase
     void MakeSnapshot(const char* = NULL);
 
   private:
-    DISALLOW_COPY_AND_ASSIGN(XDBDatabaseBroker);
+    DISALLOW_COPY_AND_ASSIGN(DatabaseBroker);
     /* Ссылка на физическую реализацию интерфейса с БД */
-    XDBDatabaseBrokerImpl *m_impl;
+    DatabaseBrokerImpl *m_impl;
 };
+
+}; //namespace xdb
 
 #endif

@@ -48,6 +48,7 @@ set (TEST_DEVICE_SOURCES
         ${XDB_DIR}/xdb_database_worker.hpp
         ${XDB_DIR}/xdb_database_broker.hpp
         ${XDB_DIR}/xdb_database_service.hpp
+        ${XDB_DIR}/xdb_database_letter.hpp
         ${MDP_DIR}/mdp_broker.hpp
         ${MDP_DIR}/mdp_broker.cpp
         ${MDP_DIR}/mdp_worker_api.hpp
@@ -57,8 +58,7 @@ set (TEST_DEVICE_SOURCES
         ${MDP_DIR}/zmsg.hpp
         ${WORKER_DIR}/wdigger.cpp
         ${WORKER_DIR}/wdigger.hpp
-        ${CLIENT_DIR}/trader.cpp
-        ${CLIENT_DIR}/trader.hpp
+        ${CLIENT_DIR}/pulsar.hpp
         ${MSG_DIR}/msg_common.h
         ${MSG_DIR}/proto/common.pb.cc
         ${MSG_DIR}/proto/common.pb.h

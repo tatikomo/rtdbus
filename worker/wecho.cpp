@@ -7,7 +7,7 @@
 
 extern int s_interrupted;
 
-int Echo::handle_request(zmsg* request, std::string*& reply_to)
+int Echo::handle_request(mdp::zmsg* request, std::string*& reply_to)
 {
   assert (request->parts () >= 1);
   LOG(INFO) << "Process new request with " << request->parts() 
@@ -34,8 +34,8 @@ int main(int argc, char **argv)
     Echo *engine = new Echo("tcp://localhost:5555", "echo", verbose);
     while (!s_interrupted) 
     {
-       std::string * reply_to = new std::string;
-       zmsg        * request  = NULL;
+       std::string *reply_to = new std::string;
+       mdp::zmsg   *request  = NULL;
 
        request = engine->recv (reply_to);
        if (request)

@@ -3,6 +3,8 @@
 #include "mdp_broker.hpp"
 #include "mdp_service.hpp"
 
+using namespace mdp;
+
 //  ---------------------------------------------------------------------
 //  Destroy worker object, called when worker is removed from
 //  broker->workers.

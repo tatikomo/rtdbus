@@ -15,9 +15,10 @@ endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
 include_directories(${LIBGLOG_INCLUDE_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})
+include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 include_directories(${WORKER_DIR})
 include_directories(${MDP_DIR})
-#include_directories(${XDB_DIR})
+include_directories(${MSG_DIR})
 include_directories(${TOOLS_DIR})
 
 link_directories(${LIBGLOG_LIBRARIES_DIR})
@@ -48,7 +49,7 @@ set (WORKER_ECHO_SOURCES
 add_executable (${WORKER_DIGGER} ${WORKER_DIGGER_SOURCES})
 target_link_libraries(${WORKER_DIGGER}
     ${MDP_LIBRARY_NAME}
-    ${XDB_LIBRARY_NAME}
+    ${MSG_LIBRARY_NAME}
     ${TOOLS_LIBRARY_NAME}
     ${LIBPROTOBUF_LIBRARIES}
     ${SYSTEM_EXTERNAL_LIBS}

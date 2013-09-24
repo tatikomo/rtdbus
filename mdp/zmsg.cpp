@@ -20,6 +20,8 @@
 #include "zmsg.hpp"
 #include "mdp_common.h"
 
+using namespace mdp;
+
 zmsg::zmsg()
 {
 }
@@ -113,7 +115,7 @@ bool zmsg::recv(zmq::socket_t & socket) {
        * Конвертируем его в UUID, 10 символов.
        */
       if ((iteration == 1)
-      && (message.size() == 5)
+/* [GEV:генерация GUID]     && (message.size() == 5)*/
       && data[0] == 0) {
          uuidstr = encode_uuid((unsigned char*) message.data());
 //         std::cerr << "identity(uuid) = " << uuidstr << std::endl;

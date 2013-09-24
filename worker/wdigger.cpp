@@ -1,22 +1,23 @@
 #include <glog/logging.h>
 
+#include "proto/common.pb.h"
 #include "zmq.hpp"
 #include "zmsg.hpp"
 #include "helper.hpp"
 #include "mdp_worker_api.hpp"
-//#include "mdp_letter.hpp"
+#include "mdp_letter.hpp"
 #include "wdigger.hpp"
 
 extern int s_interrupted;
 
-int Digger::handle_request(zmsg* request, std::string*& reply_to)
+int Digger::handle_request(mdp::zmsg* request, std::string*& reply_to)
 {
   assert (request->parts () >= 2);
   LOG(INFO) << "Process new request with " << request->parts() << " parts and reply to " << *reply_to;
 
 #if 0
-  std::string operation = request->pop_front ();
-  std::string volume    = request->pop_front ();
+  std::string message = request->pop_front ();
+  std::string header  = request->pop_front ();
 
   if (operation.compare("SELL") == 0)
         handle_sell_request (price, volume, reply_to);
@@ -28,11 +29,35 @@ int Digger::handle_request(zmsg* request, std::string*& reply_to)
         request->dump();
   }
 #else
-  request->dump();
+  mdp::Letter *letter = new mdp::Letter(request);
+  handle_rtdbus_message(letter, reply_to);
+  delete letter;
 #endif
 
   return 0;
 }
+
+int Digger::handle_rtdbus_message(mdp::Letter* letter, 
+                                std::string *reply_to)
+{
+    assert(reply_to != NULL);
+    mdp::zmsg * msg = new mdp::zmsg();
+
+    /* TODO: поменять местами в заголовке значения полей "Отправитель" и "Получатель" */
+    std::string origin = letter->header().instance().proc_origin();
+    std::string dest = letter->header().instance().proc_dest();
+
+    letter->SetOrigin(dest.c_str());
+    letter->SetDestination(origin.c_str());
+
+    msg->push_front(const_cast<std::string&>(letter->SerializedData()));
+    msg->push_front(const_cast<std::string&>(letter->SerializedHeader()));
+    msg->wrap(reply_to->c_str(), "");
+    send_to_broker((char*) MDPW_REPORT, NULL, msg);
+    delete msg;
+    return 0;
+}
+
 
 int Digger::handle_sell_request(std::string &price, 
                                 std::string &volume,
@@ -42,7 +67,7 @@ int Digger::handle_sell_request(std::string &price,
 
     assert(reply_to != NULL);
     // в ответе д.б. два поля: REPORT_TYPE и VOLUME
-    zmsg * msg = new zmsg();
+    mdp::zmsg * msg = new mdp::zmsg();
     msg->push_front((char*)price.c_str());
     msg->push_front((char*)"SOLD");
     msg->wrap(reply_to->c_str(), "");
@@ -58,7 +83,7 @@ int Digger::handle_buy_request(std::string &price,
     LOG(INFO) << "BUY from '" << reply_to << "' price=" << price << " volume=" << volume;
     assert(reply_to != NULL);
     // в ответе д.б. два поля: REPORT_TYPE и VOLUME
-    zmsg * msg = new zmsg();
+    mdp::zmsg * msg = new mdp::zmsg();
     msg->push_front((char*)price.c_str());
     msg->push_front((char*)"BYED");
     msg->wrap(reply_to->c_str(), "");
@@ -84,8 +109,8 @@ int main(int argc, char **argv)
     Digger *engine = new Digger("tcp://localhost:5555", "NYSE", verbose);
     while (!s_interrupted) 
     {
-       std::string * reply_to = new std::string;
-       zmsg        * request  = NULL;
+       std::string *reply_to = new std::string;
+       mdp::zmsg   *request  = NULL;
 
        request = engine->recv (reply_to);
        if (request)

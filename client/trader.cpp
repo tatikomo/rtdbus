@@ -9,7 +9,7 @@
 #include "mdp_client_async_api.hpp"
 
 
-Trader::Trader(std::string broker, int verbose) : mdcli(broker, verbose)
+Trader::Trader(std::string broker, int verbose) : mdp::mdcli(broker, verbose)
 {
 }
 
@@ -17,12 +17,12 @@ Trader::Trader(std::string broker, int verbose) : mdcli(broker, verbose)
 
 int main (int argc, char *argv [])
 {
-    int       verbose   = (argc > 1 && (strcmp (argv [1], "-v") == 0));
-    char    * s_price   = NULL;
-    zmsg    * request   = NULL;
-    zmsg    * report    = NULL;
-    Trader  * client    = new Trader ("tcp://localhost:5555", verbose);
-    int       count;
+    int        verbose   = (argc > 1 && (strcmp (argv [1], "-v") == 0));
+    char      *s_price   = NULL;
+    mdp::zmsg *request   = NULL;
+    mdp::zmsg *report    = NULL;
+    Trader    *client    = new Trader ("tcp://localhost:5555", verbose);
+    int        count;
 
   google::InitGoogleLogging(argv[0]);
   try
@@ -30,7 +30,7 @@ int main (int argc, char *argv [])
     s_price = new char[10];
     //  Send 100 sell orders
     for (count = 0; count < 2; count++) {
-        request = new zmsg ();
+        request = new mdp::zmsg ();
         request->push_front ((char*)"8");    // volume
         sprintf(s_price, "%d", count + 1000);
         request->push_front ((char*)s_price);
@@ -41,7 +41,7 @@ int main (int argc, char *argv [])
 
     //  Send 1 buy order.
     //  This order will match all sell orders.
-    request = new zmsg ();
+    request = new mdp::zmsg ();
     request->push_front ((char*)"800");      // volume
     request->push_front ((char*)"2000");     // price
     request->push_front ((char*)"BUY");

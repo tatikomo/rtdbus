@@ -2,6 +2,8 @@
 #include "mdp_common.h"
 #include "mdp_worker_api.hpp"
 
+using namespace mdp;
+
 //  ---------------------------------------------------------------------
 //  Signal handling
 //
@@ -38,8 +40,8 @@ mdwrk::mdwrk (std::string broker, std::string service, int verbose)
     m_broker = broker;
     m_service = service;
     m_verbose = verbose;
-    m_heartbeat = HEARTBEAT_INTERVAL;     //  msecs
-    m_reconnect = HEARTBEAT_INTERVAL;     //  msecs
+    m_heartbeat = HeartbeatInterval;     //  msecs
+    m_reconnect = HeartbeatInterval;     //  msecs
     m_worker = 0;
     m_expect_reply = false;
 
@@ -76,6 +78,7 @@ void mdwrk::send_to_broker(const char *command, const char* option, zmsg *_msg)
         msg->dump ();
     }
     msg->send (*m_worker);
+    delete msg;
 }
 
 //  ---------------------------------------------------------------------
@@ -145,8 +148,18 @@ mdwrk::recv (std::string *&reply)
             //  Don't try to handle errors, just assert noisily
             assert (msg->parts () >= 3);
 
+            /* 
+             * NB: если в zmsg [GEV:генерация GUID] закомментирована проверка 
+             * на количество фреймов в сообщении (=5),
+             * то в этом случае empty будет равен
+             * [011] @0000000000
+             * и assert сработает на непустую строку.
+             *
+             * Во случае, если принятое сообщение не первое от данного Обработчика,
+             * empty будет действительно пустым.
+             */
             std::string empty = msg->pop_front ();
-            assert (empty.compare("") == 0);
+            //assert (empty.compare("") == 0);
             //free (empty);
 
             std::string header = msg->pop_front ();

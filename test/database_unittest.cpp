@@ -14,12 +14,13 @@ const char *unbelievable_service_name = "unbelievable_service";
 const char *worker_identity_1 = "SN1_AAAAAAA";
 const char *worker_identity_2 = "SN1_WRK2";
 const char *worker_identity_3 = "WRK3";
-XDBDatabaseBroker *database = NULL;
-Service *service1 = NULL;
-Service *service2 = NULL;
+xdb::DatabaseBroker *database = NULL;
+xdb::Service *service1 = NULL;
+xdb::Service *service2 = NULL;
+xdb::Letter  *letter   = NULL;
 int64_t service1_id;
 int64_t service2_id;
-XDBDatabase::DBState state;
+xdb::Database::DBState state;
 
 void wait()
 {
@@ -27,27 +28,63 @@ void wait()
 //  getchar();
 }
 
+void show_runtime_info(const char * lead_line)
+{
+  mco_runtime_info_t info;
+  
+  /* get runtime info */
+  mco_get_runtime_info(&info);
+
+  /* Core configuration parameters: */
+  if ( *lead_line )
+    fprintf( stdout, "%s", lead_line );
+
+  fprintf( stdout, "\n" );
+  fprintf( stdout, "\tEvaluation runtime ______ : %s\n", info.mco_evaluation_version   ? "yes":"no" );
+  fprintf( stdout, "\tCheck-level _____________ : %d\n", info.mco_checklevel );
+  fprintf( stdout, "\tMultithread support _____ : %s\n", info.mco_multithreaded        ? "yes":"no" );
+  fprintf( stdout, "\tFixedrec support ________ : %s\n", info.mco_fixedrec_supported   ? "yes":"no" );
+  fprintf( stdout, "\tShared memory support ___ : %s\n", info.mco_shm_supported        ? "yes":"no" );
+  fprintf( stdout, "\tXML support _____________ : %s\n", info.mco_xml_supported        ? "yes":"no" );
+  fprintf( stdout, "\tStatistics support ______ : %s\n", info.mco_stat_supported       ? "yes":"no" );
+  fprintf( stdout, "\tEvents support __________ : %s\n", info.mco_events_supported     ? "yes":"no" );
+  fprintf( stdout, "\tVersioning support ______ : %s\n", info.mco_versioning_supported ? "yes":"no" );
+  fprintf( stdout, "\tSave/Load support _______ : %s\n", info.mco_save_load_supported  ? "yes":"no" );
+  fprintf( stdout, "\tRecovery support ________ : %s\n", info.mco_recovery_supported   ? "yes":"no" );
+#if (EXTREMEDB_VERSION >=41)
+  fprintf( stdout, "\tRTree index support _____ : %s\n", info.mco_rtree_supported      ? "yes":"no" );
+#endif
+  fprintf( stdout, "\tUnicode support _________ : %s\n", info.mco_unicode_supported    ? "yes":"no" );
+  fprintf( stdout, "\tWChar support ___________ : %s\n", info.mco_wchar_supported      ? "yes":"no" );
+  fprintf( stdout, "\tC runtime _______________ : %s\n", info.mco_rtl_supported        ? "yes":"no" );
+  fprintf( stdout, "\tSQL support _____________ : %s\n", info.mco_sql_supported        ? "yes":"no" );
+  fprintf( stdout, "\tPersistent storage support: %s\n", info.mco_disk_supported       ? "yes":"no" );
+  fprintf( stdout, "\tDirect pointers mode ____ : %s\n", info.mco_direct_pointers      ? "yes":"no" );  
+}
+
 TEST(TestBrokerDATABASE, OPEN)
 {
     bool status;
 
-    database = new XDBDatabaseBroker();
+    database = new xdb::DatabaseBroker();
     ASSERT_TRUE (database != NULL);
 
     state = database->State();
-    EXPECT_EQ(state, XDBDatabase::UNINITIALIZED);
+    EXPECT_EQ(state, xdb::Database::UNINITIALIZED);
 
     status = database->Connect();
     ASSERT_TRUE(status == true);
 
     state = database->State();
-    ASSERT_TRUE(state == XDBDatabase::CONNECTED);
+    ASSERT_TRUE(state == xdb::Database::CONNECTED);
+
+    show_runtime_info("Database runtime information:\n=======================================");
 }
 
 TEST(TestBrokerDATABASE, INSERT_SERVICE)
 {
     bool status;
-    Service *srv;
+    xdb::Service *srv;
 
     /* В пустой базе нет заранее предопределенных Сервисов - ошибка */
     status = database->IsServiceExist(service_name_1);
@@ -59,7 +96,7 @@ TEST(TestBrokerDATABASE, INSERT_SERVICE)
 
     /* Добавим первый Сервис */
     srv = database->AddService(service_name_1);
-    EXPECT_NE(srv, (Service*)NULL);
+    EXPECT_NE(srv, (xdb::Service*)NULL);
     delete srv;
 
     status = database->IsServiceExist(service_name_1);
@@ -74,7 +111,7 @@ TEST(TestBrokerDATABASE, INSERT_SERVICE)
 
     /* Добавим второй Сервис */
     srv = database->AddService(service_name_2);
-    EXPECT_NE(srv, (Service*)NULL);
+    EXPECT_NE(srv, (xdb::Service*)NULL);
     delete srv;
 
     status = database->IsServiceExist(service_name_2);
@@ -91,11 +128,11 @@ TEST(TestBrokerDATABASE, INSERT_SERVICE)
 
 TEST(TestBrokerDATABASE, INSERT_WORKER)
 {
-    Worker  *worker0  = NULL;
-    Worker  *worker1_1= NULL;
-    Worker  *worker1_2= NULL;
-    Worker  *worker2  = NULL;
-    Worker  *worker3  = NULL;
+    xdb::Worker  *worker0  = NULL;
+    xdb::Worker  *worker1_1= NULL;
+    xdb::Worker  *worker1_2= NULL;
+    xdb::Worker  *worker2  = NULL;
+    xdb::Worker  *worker3  = NULL;
     bool status;
 
     worker0 = database->PopWorker(service1);
@@ -107,7 +144,7 @@ TEST(TestBrokerDATABASE, INSERT_WORKER)
      * УСПЕШНО 
      * Поместить первого Обработчика в спул Службы
      */
-    worker1_1 = new Worker(service1_id, worker_identity_1);
+    worker1_1 = new xdb::Worker(service1_id, worker_identity_1);
     status = database->PushWorker(worker1_1);
     EXPECT_EQ(status, true);
     LOG(INFO) << "Worker "<<worker1_1->GetIDENTITY()<<":"<<worker1_1->GetID()
@@ -122,7 +159,7 @@ TEST(TestBrokerDATABASE, INSERT_WORKER)
      * присутствует.
      * Должно призойти замещение предыдущего экземпляра Обработчика worker_identity_1
      */
-    worker1_2 = new Worker(service1_id, worker_identity_1);
+    worker1_2 = new xdb::Worker(service1_id, worker_identity_1);
     status = database->PushWorker(worker1_2);
     EXPECT_EQ(status, true);
     LOG(INFO) << "Worker "<<worker1_2->GetIDENTITY()<<":"<<worker1_2->GetID()
@@ -135,7 +172,7 @@ TEST(TestBrokerDATABASE, INSERT_WORKER)
      * УСПЕШНО
      * Можно поместить нескольких Обработчиков с разными идентификаторами
      */
-    worker2 = new Worker(service1_id, worker_identity_2);
+    worker2 = new xdb::Worker(service1_id, worker_identity_2);
     status = database->PushWorker(worker2);
     EXPECT_EQ(status, true);
     LOG(INFO) << "Worker "<<worker2->GetIDENTITY()<<":"<<worker2->GetID()
@@ -148,7 +185,7 @@ TEST(TestBrokerDATABASE, INSERT_WORKER)
      * УСПЕШНО
      * Помещение экземпляра в спул второго Сервиса 
      */
-    worker3 = new Worker(service2_id, worker_identity_3);
+    worker3 = new xdb::Worker(service2_id, worker_identity_3);
     status = database->PushWorker(worker3);
     EXPECT_EQ(status, true);
     LOG(INFO) << "Worker "<<worker3->GetIDENTITY()<<":"<<worker3->GetID()
@@ -165,14 +202,14 @@ TEST(TestBrokerDATABASE, INSERT_WORKER)
 
 TEST(TestBrokerDATABASE, REMOVE_WORKER)
 {
-    Worker  *worker  = NULL;
+    xdb::Worker  *worker  = NULL;
     timer_mark_t expiration_time_mark;
     bool status;
 
     worker = database->PopWorker(service1);
     ASSERT_TRUE (worker != NULL);
     EXPECT_EQ(worker->GetSERVICE_ID(), service1_id);
-    EXPECT_EQ(worker->GetSTATE(), Worker::ARMED);
+    EXPECT_EQ(worker->GetSTATE(), xdb::Worker::ARMED);
     // Проверка пока не возможна, поскольку порядок возвращения экземпляров
     // может не совпадать с порядком их помещения в базу
     //EXPECT_STREQ(worker->GetIDENTITY(), worker_identity_2);
@@ -190,7 +227,7 @@ TEST(TestBrokerDATABASE, REMOVE_WORKER)
 
     status = database->RemoveWorker(worker);
     EXPECT_EQ(status, true);
-    EXPECT_EQ(worker->GetSTATE(), Worker::DISARMED);
+    EXPECT_EQ(worker->GetSTATE(), xdb::Worker::DISARMED);
     LOG(INFO) << "Worker "<<worker->GetIDENTITY()<<" removed";
     database->MakeSnapshot("DIS_WRK_1");
     wait();
@@ -199,7 +236,7 @@ TEST(TestBrokerDATABASE, REMOVE_WORKER)
     worker = database->PopWorker(service1);
     ASSERT_TRUE (worker != NULL);
     EXPECT_EQ(worker->GetSERVICE_ID(), service1_id);
-    EXPECT_EQ(worker->GetSTATE(), Worker::ARMED);
+    EXPECT_EQ(worker->GetSTATE(), xdb::Worker::ARMED);
     //EXPECT_STREQ(worker->GetIDENTITY(), worker_identity_1);
     expiration_time_mark = worker->GetEXPIRATION();
 #if 0
@@ -215,7 +252,7 @@ TEST(TestBrokerDATABASE, REMOVE_WORKER)
 
     status = database->RemoveWorker(worker);
     EXPECT_EQ(status, true);
-    EXPECT_EQ(worker->GetSTATE(), Worker::DISARMED);
+    EXPECT_EQ(worker->GetSTATE(), xdb::Worker::DISARMED);
     LOG(INFO) << "Worker "<<worker->GetIDENTITY()<<" removed";
     database->MakeSnapshot("DIS_WRK_2");
     wait();
@@ -236,12 +273,12 @@ TEST(TestBrokerDATABASE, REMOVE_WORKER)
     worker = database->PopWorker(service2);
     ASSERT_TRUE (worker != NULL);
     EXPECT_EQ(worker->GetSERVICE_ID(), service2_id);
-    EXPECT_EQ(worker->GetSTATE(), Worker::ARMED);
+    EXPECT_EQ(worker->GetSTATE(), xdb::Worker::ARMED);
     database->MakeSnapshot("POP_WRK_3");
 
     status = database->RemoveWorker(worker);
     EXPECT_EQ(status, true);
-    EXPECT_EQ(worker->GetSTATE(), Worker::DISARMED);
+    EXPECT_EQ(worker->GetSTATE(), xdb::Worker::DISARMED);
     LOG(INFO) << "Worker "<<worker->GetIDENTITY()<<" removed";
     delete worker;
     database->MakeSnapshot("DIS_WRK_3");
@@ -257,7 +294,7 @@ TEST(TestBrokerDATABASE, REMOVE_WORKER)
 TEST(TestBrokerDATABASE, CHECK_SERVICE)
 {
     bool status;
-    Service *service = NULL;
+    xdb::Service *service = NULL;
     
     status = database->IsServiceExist(service_name_1);
     EXPECT_EQ(status, true);
@@ -278,8 +315,8 @@ TEST(TestBrokerDATABASE, CHECK_SERVICE)
 TEST(TestBrokerDATABASE, SERVICE_LIST)
 {
   bool status = false;
-  Service*  srv = NULL;
-  ServiceList *services_list = database->GetServiceList();
+  xdb::Service*  srv = NULL;
+  xdb::ServiceList *services_list = database->GetServiceList();
   ASSERT_TRUE (services_list != NULL);
 
   int services_count = services_list->size();
@@ -315,8 +352,7 @@ TEST(TestBrokerDATABASE, SERVICE_LIST)
 
 TEST(TestBrokerDATABASE, CHECK_LETTER)
 {
-  Letter *letter = new Letter();
-
+  letter = new xdb::Letter();
 }
 
 TEST(TestBrokerDATABASE, CHECK_EXIST_WORKER)
@@ -343,6 +379,9 @@ TEST(TestBrokerDATABASE, REMOVE_SERVICE)
 
 TEST(TestBrokerDATABASE, DESTROY)
 {
+    ASSERT_TRUE(letter != NULL);
+    delete letter;
+
     ASSERT_TRUE (service1 != NULL);
     delete service1;
 
@@ -354,7 +393,7 @@ TEST(TestBrokerDATABASE, DESTROY)
     database->Disconnect();
 
     state = database->State();
-    EXPECT_EQ(state, XDBDatabase::DISCONNECTED);
+    EXPECT_EQ(state, xdb::Database::DISCONNECTED);
 #endif
 
     delete database;

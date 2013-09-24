@@ -113,7 +113,10 @@ set (MAX_WORKERS_ENTRY       800) # WORKERS_SPOOL_SIZE * MAX_SERVICES_ENTRY
 set (SERVICE_NAME_MAXLEN      32)
 set (WORKER_IDENTITY_MAXLEN   11)
 set (DBNAME_MAXLEN            10)
-set (HEARTBEAT_PERIOD         10)
+# TODO Объединить все подобные интервалы (HEARTBEAT) в единую структуру. 
+# Сейчас у Брокера и Обработчиков могут быть разные значения.
+set (HEARTBEAT_PERIOD_MSEC  2500)
+
 set (WORKERS_SPOOL_SIZE        2)
 set (MESSAGE_EXPIRATION_PERIOD_MSEC  500)
 #set (USE_EXTREMEDB_HTTP_SERVER 1)
