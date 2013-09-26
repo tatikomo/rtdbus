@@ -352,7 +352,35 @@ TEST(TestBrokerDATABASE, SERVICE_LIST)
 
 TEST(TestBrokerDATABASE, CHECK_LETTER)
 {
-  letter = new xdb::Letter();
+  char reply[WORKER_IDENTITY_MAXLEN+1];
+  RTDBM::Header     pb_header;
+  RTDBM::ExecResult pb_exec_result_request;
+  std::string       pb_serialized_header;
+  std::string       pb_serialized_request;
+
+  pb_header.set_protocol_version(1);
+  pb_header.set_source_pid(getpid());
+  pb_header.set_proc_dest("dest");
+  pb_header.set_proc_origin("src");
+  pb_header.set_sys_msg_type(100);
+  pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
+
+  pb_exec_result_request.set_exec_result(0);
+  pb_exec_result_request.set_failure_cause(1);
+
+  for (int i=1; i<10; i++)
+  {
+    sprintf(reply, "@C0000000%02d", i);
+    pb_header.set_exchange_id(i);
+    pb_header.SerializeToString(&pb_serialized_header);
+
+    pb_exec_result_request.set_user_exchange_id(i);
+    pb_exec_result_request.SerializeToString(&pb_serialized_request);
+
+    letter = new xdb::Letter(reply, pb_serialized_header, pb_serialized_request);
+    letter->Dump();
+    delete letter;
+  }
 }
 
 TEST(TestBrokerDATABASE, CHECK_EXIST_WORKER)
@@ -379,8 +407,8 @@ TEST(TestBrokerDATABASE, REMOVE_SERVICE)
 
 TEST(TestBrokerDATABASE, DESTROY)
 {
-    ASSERT_TRUE(letter != NULL);
-    delete letter;
+//    ASSERT_TRUE(letter != NULL);
+//    delete letter;
 
     ASSERT_TRUE (service1 != NULL);
     delete service1;
@@ -405,6 +433,7 @@ int main(int argc, char** argv)
   ::testing::InitGoogleTest(&argc, argv);
   ::google::InstallFailureSignalHandler();
   int retval = RUN_ALL_TESTS();
+  ::google::protobuf::ShutdownProtobufLibrary();
   ::google::ShutdownGoogleLogging();
   return retval;
 }

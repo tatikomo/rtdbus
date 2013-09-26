@@ -118,7 +118,7 @@ rtdbExchangeId Letter::GenerateExchangeId()
 {
   rtdbExchangeId current_id = m_header_instance.instance().exchange_id();
 
-  if (current_id > std::numeric_limits<int>::max())
+  if (current_id > std::numeric_limits<unsigned int>::max())
     m_header_instance.instance().set_exchange_id(0);
 
   m_header_instance.instance().set_exchange_id(++current_id);

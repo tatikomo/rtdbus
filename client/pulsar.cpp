@@ -16,7 +16,7 @@
 
 static int system_exchange_id = 100000;
 static int user_exchange_id = 1;
-const int num_iter = 1000;
+static int num_iter = 600;
 
 Pulsar::Pulsar(std::string broker, int verbose) : mdcli(broker, verbose)
 {
@@ -59,16 +59,46 @@ mdp::zmsg* generateNewOrder()
  */
 int main (int argc, char *argv [])
 {
-  int verbose   = (argc > 1 && (strcmp (argv [1], "-v") == 0));
+  mdp::zmsg *request   = NULL;
+  mdp::zmsg *report    = NULL;
+  Pulsar    *client    = NULL;
+  mdp::Letter *letter = NULL;
+  RTDBM::AskLife* pb_asklife = NULL;
+  int verbose = 0;
   int num_received = 0;
+  char  *num_iterations_value = NULL;
+  int opt;
+
   ::google::InstallFailureSignalHandler();
   ::google::InitGoogleLogging(argv[0]);
 
-  mdp::zmsg *request   = NULL;
-  mdp::zmsg *report    = NULL;
-  Pulsar    *client    = new Pulsar ("tcp://localhost:5555", verbose);
-  mdp::Letter *letter = NULL;
-  RTDBM::AskLife*    pb_asklife;
+  while ((opt = getopt (argc, argv, "vn:")) != -1)
+  {
+     switch (opt)
+     {
+       case 'v':
+         verbose = 1;
+         break;
+       case 'n':
+         num_iterations_value = optarg;
+         num_iter = atoi(num_iterations_value);
+         break;
+       case '?':
+         if (optopt == 'n')
+           fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+         else if (isprint (optopt))
+           fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+         else
+           fprintf (stderr,
+                    "Unknown option character `\\x%x'.\n",
+                    optopt);
+         return 1;
+       default:
+         abort ();
+     }
+  }
+
+  client = new Pulsar ("tcp://localhost:5555", verbose);
 
   try
   {
@@ -80,6 +110,7 @@ int main (int argc, char *argv [])
       if (verbose)
         std::cout << "["<<i+1<<"/"<<num_iter<<"] Send" << std::endl;
       delete request;
+#if 1
     }
 
     //  Wait for all trading reports
@@ -116,6 +147,28 @@ int main (int argc, char *argv [])
         delete report;
         delete letter;
     }
+#else
+        report = client->recv();
+        if (report == NULL)
+            break;
+            
+        letter = new mdp::Letter(report);
+        num_received++;
+
+        if (!(num_received % 100))
+        {
+           std::cout << "|";
+        }
+        else if (!(num_received % 10))
+        {
+           std::cout << ".";
+        }
+        fflush(stdout);
+
+        delete report;
+        delete letter;
+    } // end for
+#endif
   }
   catch (zmq::error_t err)
   {

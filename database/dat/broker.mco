@@ -4,7 +4,7 @@
 
 #define MAX_SERVICES_ENTRY  400
 #define MAX_WORKERS_ENTRY   400
-#define LETTERS4SERVICE_QUEUE_MAXLEN  100
+#define LETTERS4SERVICE_QUEUE_MAXLEN  600
 #define uint4               unsigned<4>
 #define uint1               unsigned<1>
 #define uint8               unsigned<8>

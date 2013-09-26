@@ -27,12 +27,12 @@ Database::~Database()
   Disconnect();
 }
 
-const char* Database::DatabaseName()
+const char* Database::DatabaseName() const
 {
     return m_name;
 }
 
-const Database::DBState Database::State()
+Database::DBState Database::State() const
 {
     return m_state;
 }

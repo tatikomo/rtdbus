@@ -17,7 +17,7 @@ using namespace mdp;
 //  your main loop if s_interrupted is ever 1. Works especially well with
 //  zmq_poll.
 int s_interrupted = 0;
-void s_signal_handler (int signal_value)
+void s_signal_handler (int /*signal_value*/)
 {
     s_interrupted = 1;
 }
@@ -176,7 +176,6 @@ Broker::service_require (const std::string& service_name)
 
 //  ---------------------------------------------------------------------
 //  Dispatch requests to waiting workers as possible
-//  NB: Внутри удаляется srv!
 void
 Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
 {
@@ -194,7 +193,6 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
     if (processing_msg)
     {
       letter = new xdb::Letter(processing_msg);
-//      std::cout << "broker will reply to '"<<letter->GetREPLY_TO()<<"'"<<std::endl;
       status = m_database->PushRequestToService(srv, letter);
       if (!status) 
         LOG(ERROR) << "Unable to push new letter "<<letter->GetID()
@@ -225,21 +223,21 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
       {
 //        database_snapshot("SEND_SERVICE_DISPATCH.START");
         if (m_verbose)
+        {
           LOG(INFO) << "Pop letter id="<<letter->GetID()<<" reply '"
                     <<letter->GetREPLY_TO()<<"' state="<<letter->GetSTATE();
-
-        letter->Dump();
+          letter->Dump();
+        }
         // Передать ожидающую обслуживания команду выбранному Обработчику
         worker_send (wrk, (char*)MDPW_REQUEST, EMPTY_FRAME, letter);
+        delete letter;
         // После отсылки Сообщения этот экземпляр Обработчика перешел 
         // в состояние OCCUPIED, нужно выбрать нового Обработчика.
 //        database_snapshot("SEND_SERVICE_DISPATCH.STOP");
-        delete letter;
       }
       delete wrk;
       break;
     }
-    delete srv;
     database_snapshot("SERVICE_DISPATCH.STOP");
 }
 
@@ -302,7 +300,7 @@ Broker::service_internal (const std::string& service_name, zmsg *msg)
     msg->push_front((char*)MDPC_CLIENT);
     msg->wrap (client, EMPTY_FRAME);
     msg->send (*m_socket);
-    delete client;
+    delete[] client;
 }
 
 //  ---------------------------------------------------------------------
@@ -395,6 +393,7 @@ Broker::worker_process_READY(xdb::Worker*& worker,
       // Привязать нового Обработчика к обслуживаемому им Сервису
       worker_waiting(worker);
       service_dispatch(service);
+      delete service;
       status = true; // TODO присвоить корректное значение
       if (m_verbose)
         LOG(INFO) << "Worker '" << sender_identity << "' created";
@@ -411,8 +410,8 @@ Broker::worker_process_REPORT(xdb::Worker*& worker,
 {
   bool status = false;
   xdb::Service *service = NULL;
-  xdb::Letter  *letter = NULL;
-  xdb::Letter::State    letter_state;
+//  xdb::Letter  *letter = NULL;
+//  xdb::Letter::State    letter_state;
 
   if (m_verbose)
     LOG(INFO) << "Get REPORT from '" << sender_identity << "' worker=" << worker;
@@ -426,7 +425,7 @@ Broker::worker_process_REPORT(xdb::Worker*& worker,
       * 1. Удалить Letter из БД
       * 2. Установить для Worker-а состояние в ARMED
       */
-     letter_state = xdb::Letter::DONE_OK; /* или DONE_FAIL */
+//     letter_state = xdb::Letter::DONE_OK; /* или DONE_FAIL */
      if (true == (status = m_database->ReleaseLetterFromWorker(worker)))
      {
        if (m_verbose) LOG(INFO) << "Letter released from worker '"<<worker->GetIDENTITY()<<"'";
@@ -580,6 +579,8 @@ Broker::worker_send (xdb::Worker *worker,
   }
   else
   {
+    try
+    {
       zmsg *msg = new zmsg();
       //  Stack protocol envelope to start of message
       if (option.size()>0) {                 //  Optional frame after command
@@ -603,6 +604,11 @@ Broker::worker_send (xdb::Worker *worker,
       }
       msg->send (*m_socket);
       delete msg;
+    }
+    catch(zmq::error_t err)
+    {
+      LOG(ERROR) << err.what();
+    }
   }
 }
 
@@ -680,8 +686,8 @@ Broker::worker_waiting (xdb::Worker *worker)
     //  Queue to broker and service waiting lists
     m_database->PushWorker(worker);
     service = m_database->GetServiceById(worker->GetSERVICE_ID());
-    // service удаляется в service_dispatch()
     service_dispatch (service);
+    delete service;
 }
 
 
@@ -726,6 +732,7 @@ Broker::client_msg (const std::string& sender, zmsg *msg)
 
             /* внести команду в очередь и обработать её */
             service_dispatch (srv, msg);
+            delete srv;
 #if 0
 #error "continue here!"
 

@@ -29,7 +29,7 @@ class Worker;
  * TODO: Получать уведомления о создании/удалении экземпляра объекта Service в БД.
  * TODO: Переделать с использованием итераторов.
  */
-class ServiceListImpl : public  ServiceList
+class ServiceListImpl : public ServiceList
 {
   public:
     ServiceListImpl(mco_db_h);
@@ -50,7 +50,7 @@ class ServiceListImpl : public  ServiceList
     bool RemoveService(const int64_t);
 
     // Получить количество зарегистрированных объектов
-    const int size();
+    int size() const;
     // Перечитать список Сервисов из базы данных
     bool refresh();
 

@@ -117,18 +117,22 @@ int main(int argc, char **argv)
        {
 //         letter = new (request);
          engine->handle_request (request/*letter*/, reply_to);
-         delete reply_to;
+         delete request;
        }
        else
-         break;          // Worker has been interrupted
+       {
+         s_interrupted = true; // Worker has been interrupted
+       }
+       delete reply_to;
     }
     delete engine;
   }
   catch(zmq::error_t err)
   {
-    std::cout << "E: " << err.what() << std::endl;
+    LOG(ERROR) << err.what();
   }
 
+  ::google::protobuf::ShutdownProtobufLibrary();
   ::google::ShutdownGoogleLogging();
   return 0;
 }

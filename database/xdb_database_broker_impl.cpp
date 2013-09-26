@@ -286,9 +286,9 @@ bool DatabaseBrokerImpl::Disconnect()
  * Статический метод, вызываемый из runtime базы данных 
  * при создании нового экземпляра XDBService
  */
-MCO_RET DatabaseBrokerImpl::new_Service(mco_trans_h t,
+MCO_RET DatabaseBrokerImpl::new_Service(mco_trans_h /*t*/,
         XDBService *obj,
-        MCO_EVENT_TYPE et,
+        MCO_EVENT_TYPE /*et*/,
         void *p)
 {
   DatabaseBrokerImpl *self = static_cast<DatabaseBrokerImpl*> (p);
@@ -332,9 +332,9 @@ MCO_RET DatabaseBrokerImpl::new_Service(mco_trans_h t,
  * Статический метод, вызываемый из runtime базы данных 
  * при удалении экземпляра XDBService
  */
-MCO_RET DatabaseBrokerImpl::del_Service(mco_trans_h t,
+MCO_RET DatabaseBrokerImpl::del_Service(mco_trans_h /*t*/,
         XDBService *obj,
-        MCO_EVENT_TYPE et,
+        MCO_EVENT_TYPE /*et*/,
         void *p)
 {
   DatabaseBrokerImpl *self = static_cast<DatabaseBrokerImpl*> (p);
@@ -615,6 +615,7 @@ bool DatabaseBrokerImpl::IsServiceCommandEnabled(const Service* srv, const std::
   assert(srv);
   // TODO реализация
   assert(1 == 0);
+  assert(!cmd_name.empty());
   return status;
 }
 
@@ -979,7 +980,7 @@ MCO_RET DatabaseBrokerImpl::LoadWorkerByIdent(
 #endif
 
 // Загрузить данные Обработчика, основываясь на его идентификаторе
-MCO_RET DatabaseBrokerImpl::LoadWorker(mco_trans_h t,
+MCO_RET DatabaseBrokerImpl::LoadWorker(mco_trans_h /*t*/,
         /* IN  */ xdb_broker::XDBWorker& wrk_instance,
         /* OUT */ Worker*& worker)
 {
@@ -1211,6 +1212,7 @@ bool DatabaseBrokerImpl::ClearWorkersForService(const char *name)
      * Удалить все незавершенные Сообщения, привязанные к Обработчикам Сервиса
      * Удалить всех Обработчиков Сервиса
      */
+    assert(name);
     return false;
 }
 
@@ -1375,9 +1377,9 @@ bool DatabaseBrokerImpl::GetWaitingLetter(
 }
 #endif
 
-MCO_RET DatabaseBrokerImpl::LoadLetter(mco_trans_h t,
-    xdb_broker::XDBLetter& letter_instance,
-    xdb::Letter*& letter)
+MCO_RET DatabaseBrokerImpl::LoadLetter(mco_trans_h /*t*/,
+    /* IN  */xdb_broker::XDBLetter& letter_instance,
+    /* OUT */xdb::Letter*& letter)
 {
   MCO_RET rc = MCO_S_OK;
   autoid_t     aid;
@@ -1457,7 +1459,7 @@ MCO_RET DatabaseBrokerImpl::LoadLetter(mco_trans_h t,
     header.assign(header_buffer);
     body.assign(body_buffer);
 
-    letter = new Letter(reply_buffer, header, body);
+    letter = new xdb::Letter(reply_buffer, header, body);
 
     letter->SetID(aid);
     letter->SetSERVICE_ID(service_aid);
@@ -1760,8 +1762,8 @@ bool DatabaseBrokerImpl::ReleaseLetterFromWorker(Worker* worker)
 // xdb::Letter::SK_wrk_srv - найти экземпляр по service_id и worker_id
 Letter* DatabaseBrokerImpl::GetAssignedLetter(Worker* worker)
 {
-  mco_trans_h   t;
-  MCO_RET       rc;
+//  mco_trans_h   t;
+//  MCO_RET       rc;
   Letter* letter = NULL;
   xdb_broker::XDBLetter letter_instance;
 
@@ -1904,18 +1906,26 @@ void DatabaseBrokerImpl::EnableServiceCommand(
         const std::string &command)
 {
   assert(srv);
+  assert(!command.empty());
+  assert (1 == 0);
 }
 
 void DatabaseBrokerImpl::EnableServiceCommand(
         const std::string &srv_name, 
         const std::string &command)
 {
+  assert(!srv_name.empty());
+  assert(!command.empty());
+  assert (1 == 0);
 }
 
 void DatabaseBrokerImpl::DisableServiceCommand(
         const std::string &srv_name, 
         const std::string &command)
 {
+  assert(!srv_name.empty());
+  assert(!command.empty());
+  assert (1 == 0);
 }
 
 void DatabaseBrokerImpl::DisableServiceCommand(
@@ -1923,6 +1933,8 @@ void DatabaseBrokerImpl::DisableServiceCommand(
         const std::string &command)
 {
   assert(srv);
+  assert(!command.empty());
+  assert (1 == 0);
 }
 
 /* TODO: deprecated */
@@ -1931,6 +1943,10 @@ bool DatabaseBrokerImpl::PushRequestToService(Service *srv,
             const std::string& header,
             const std::string& body)
 {
+  assert(srv);
+  assert(!reply_to.empty());
+  assert(!header.empty());
+  assert(!body.empty());
   assert (1 == 0);
 }
 
@@ -2250,7 +2266,7 @@ Service* ServiceListImpl::prev()
 
 
 // Получить количество зарегистрированных объектов
-const int ServiceListImpl::size()
+int ServiceListImpl::size() const
 {
   return m_size;
 }

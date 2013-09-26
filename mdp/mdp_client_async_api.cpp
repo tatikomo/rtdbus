@@ -15,6 +15,7 @@ int s_interrupted = 0;
 void s_signal_handler (int signal_value)
 {
     s_interrupted = 1;
+    LOG(INFO) << "Got signal "<<signal_value;
 }
 
 void s_catch_signals ()
@@ -120,8 +121,10 @@ mdcli::recv ()
    zmq::pollitem_t items [] = { { *m_client, 0, ZMQ_POLLIN, 0 } };
    zmq::poll (items, 1, m_timeout /** 1000*/); // 1000 -> msec
 
-   //  If we got a reply, process it
-   if (items [0].revents & ZMQ_POLLIN) {
+   try
+   {
+     //  If we got a reply, process it
+     if (items [0].revents & ZMQ_POLLIN) {
         zmsg *msg = new zmsg (*m_client);
         if (m_verbose) {
             LOG(INFO) << "received reply:";
@@ -142,6 +145,11 @@ mdcli::recv ()
         // TODO: добавить фрейм КОМАНДА
 
         return msg;     //  Success
+     }
+   }
+   catch(zmq::error_t err)
+   {
+     LOG(ERROR) << err.what();
    }
 
    if (s_interrupted)

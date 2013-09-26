@@ -2,6 +2,7 @@
 #define XDB_DATABASE_LETTER_HPP
 #pragma once
 
+#include <iostream>
 #include <stdint.h>
 #include <string>
 
@@ -55,25 +56,26 @@ class Letter
     void SetEXPIRATION(const timer_mark_t&);
     void SetVALID();
     bool GetVALID();
-    int64_t GetID();
-    int64_t GetSERVICE_ID();
-    int64_t GetWORKER_ID();
-    const char* GetREPLY_TO() { return m_reply_to; }
+    int64_t GetID() const;
+    int64_t GetSERVICE_ID() const;
+    int64_t GetWORKER_ID() const;
+    const char* GetREPLY_TO() const { return m_reply_to; }
     const std::string& GetHEADER();
     const std::string& GetDATA();
     Letter::State GetSTATE();
 
+    friend std::ostream& operator<<(std::ostream&, const Letter&);
     void Dump();
 
     //
     // Поля Заголовка Сообщения
-    int8_t GetPROTOCOL_VERSION();
-    rtdbExchangeId GetEXCHANGE_ID();
-    rtdbPid GetSOURCE_PID();
-    const std::string& GetPROC_DEST();
-    const std::string& GetPROC_ORIGIN();
-    rtdbMsgType GetSYS_MSG_TYPE();
-    rtdbMsgType GetUSR_MSG_TYPE();
+    int8_t GetPROTOCOL_VERSION() const;
+    rtdbExchangeId GetEXCHANGE_ID() const;
+    rtdbPid GetSOURCE_PID() const;
+    const std::string& GetPROC_DEST() const;
+    const std::string& GetPROC_ORIGIN() const;
+    rtdbMsgType GetSYS_MSG_TYPE() const;
+    rtdbMsgType GetUSR_MSG_TYPE() const;
 
 
   private:
@@ -83,7 +85,7 @@ class Letter
     int64_t  m_worker_id;
     State    m_state;
     timer_mark_t m_expiration;
-    msg::Header *m_header;
+    msg::Header  m_header;
     char     m_reply_to[WORKER_IDENTITY_MAXLEN + 1];
     std::string  m_frame_data;
     std::string  m_frame_header;

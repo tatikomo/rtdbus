@@ -112,7 +112,7 @@ void hex_dump(const std::string& data)
    // Dump the message as text or binary
    is_text = 1;
    for (char_nbr = 0; char_nbr < data.size(); char_nbr++)
-       if (data [char_nbr] < 32 || data [char_nbr] > 127)
+       if (static_cast<unsigned char>(data[char_nbr]) < 32 || static_cast<unsigned char>(data[char_nbr]) > 127)
            is_text = 0;
 
    offset = sprintf(buf, "[%03d] ", (int) data.size());

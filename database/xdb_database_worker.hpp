@@ -50,19 +50,19 @@ class Worker
      */
     void SetSTATE(const State);
     void SetVALID();
-    const timer_mark_t GetEXPIRATION();
-    const State   GetSTATE();
-    const int64_t GetSERVICE_ID() { return m_service_id; }
-    const int64_t GetID()         { return m_id; }
-    const char   *GetIDENTITY();
-    bool          Expired();
+    timer_mark_t GetEXPIRATION() const;
+    State   GetSTATE() const;
+    int64_t GetSERVICE_ID() const { return m_service_id; }
+    int64_t GetID() const        { return m_id; }
+    const char   *GetIDENTITY() const;
+    bool          Expired() const;
     /*
      * Определяет консистентность
      * true:  объект загружен из БД, ручных модификаций не было;
      * false: объект создан вручную, может полностью 
      *        или частично несоответствовать базе;
      */
-    bool          GetVALID();
+    bool          GetVALID() const;
 
   private:
     // Нельзя менять привязку уже существующему серверу

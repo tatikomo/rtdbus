@@ -29,7 +29,7 @@ class ServiceList
     virtual Service* next()  = 0;
     virtual Service* prev()  = 0;
     // Получить количество зарегистрированных объектов
-    virtual const int size() = 0;
+    virtual int size() const { return 0; }
     // Перечитать список Сервисов из базы данных
     virtual bool refresh()   = 0;
 };

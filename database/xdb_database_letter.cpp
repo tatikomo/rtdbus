@@ -1,5 +1,6 @@
 #include <glog/logging.h>
 #include <assert.h>
+#include <iostream>
 #include <string.h>
 
 #include "config.h"
@@ -17,20 +18,17 @@ Letter::Letter()
   m_id = m_service_id = m_worker_id = 0;
   m_expiration.tv_sec = 0;
   m_expiration.tv_nsec = 0;
-  m_header = NULL;
   m_modified = false;
 }
 
 Letter::Letter(const int64_t _self_id, const int64_t _srv_id, const int64_t _wrk_id)
 : m_id(_self_id), m_service_id(_srv_id), m_worker_id(_wrk_id)
 {
-  m_header = NULL;
   m_modified = true;
 }
 
 Letter::~Letter()
 {
-  delete m_header;
 }
 
 // на входе - объект zmsg
@@ -56,7 +54,6 @@ Letter::Letter(void* data) : m_modified(true)
   int msg_frames = msg->parts();
 
   m_frame_header.assign(msg->get_part(msg_frames-2));
-  m_header = new msg::Header(m_frame_header);
 
   m_frame_data.assign(msg->get_part(msg_frames-1));
 }
@@ -65,19 +62,24 @@ Letter::Letter(void* data) : m_modified(true)
 Letter::Letter(std::string& reply, msg::Header *h, std::string& b) : m_modified(true)
 {
   // TODO сделать копию заголовка, т.к. он создан в вызывающем контексте и нами не управляется
+  assert(!reply.empty());
+  assert(h);
+  assert(!b.empty());
   assert(1 == 0);
 }
 
 // Создать экземпляр на основе заголовка и тела сообщения
-Letter::Letter(const char* _reply_to, const std::string& _head, const std::string& _data) : m_modified(true)
+Letter::Letter(const char* _reply_to, const std::string& _head, const std::string& _data)
 {
-  m_frame_header.assign(_head);
-  m_frame_data.assign(_data);
+  m_frame_header = _head;
+  m_frame_data = _data;
 
   strncpy(m_reply_to, _reply_to, WORKER_IDENTITY_MAXLEN);
   m_reply_to[WORKER_IDENTITY_MAXLEN] = '\0';
 
-  m_header = new msg::Header(m_frame_header);
+  if (false == m_header.ParseFrom(m_frame_header))
+    LOG(ERROR) << "Unable to deserialize header for reply to "<<m_reply_to;
+
   SetID(0);
   SetWORKER_ID(0);
   SetSERVICE_ID(0);
@@ -141,17 +143,17 @@ void Letter::SetSTATE(State new_state)
   m_state = new_state;
 }
 
-int64_t Letter::GetID()
+int64_t Letter::GetID() const
 {
   return m_id;
 }
 
-int64_t Letter::GetSERVICE_ID()
+int64_t Letter::GetSERVICE_ID() const
 {
   return m_service_id;
 }
 
-int64_t Letter::GetWORKER_ID()
+int64_t Letter::GetWORKER_ID() const
 {
   return m_worker_id;
 }
@@ -199,46 +201,58 @@ bool Letter::GetVALID()
   return (m_modified == false);
 }
 
-int8_t Letter::GetPROTOCOL_VERSION()
+int8_t Letter::GetPROTOCOL_VERSION() const
 {
-  assert(m_header);
-  return m_header->get_protocol_version();
+//  assert(m_header);
+  return m_header.get_protocol_version();
 }
 
-rtdbExchangeId Letter::GetEXCHANGE_ID()
+rtdbExchangeId Letter::GetEXCHANGE_ID() const
 {
-  assert(m_header);
-  return m_header->get_exchange_id();
+//  assert(m_header);
+  return m_header.get_exchange_id();
 }
 
-rtdbPid Letter::GetSOURCE_PID()
+rtdbPid Letter::GetSOURCE_PID() const
 {
-  assert(m_header);
-  return m_header->get_source_pid();
+//  assert(m_header);
+  return m_header.get_source_pid();
 }
 
-const std::string& Letter::GetPROC_DEST()
+const std::string& Letter::GetPROC_DEST() const
 {
-  assert(m_header);
-  return m_header->get_proc_dest();
+  return m_header.get_proc_dest();
 }
 
-const std::string& Letter::GetPROC_ORIGIN()
+const std::string& Letter::GetPROC_ORIGIN() const
 {
-  assert(m_header);
-  return m_header->get_proc_origin();
+  return m_header.get_proc_origin();
 }
 
-rtdbMsgType Letter::GetSYS_MSG_TYPE()
+rtdbMsgType Letter::GetSYS_MSG_TYPE() const
 {
-  assert(m_header);
-  return m_header->get_sys_msg_type();
+  return m_header.get_sys_msg_type();
 }
 
-rtdbMsgType Letter::GetUSR_MSG_TYPE()
+rtdbMsgType Letter::GetUSR_MSG_TYPE() const
 {
-  assert(m_header);
-  return m_header->get_usr_msg_type();
+  return m_header.get_usr_msg_type();
+}
+
+std::ostream& operator<<(std::ostream& os, const Letter& letter)
+{
+  os << "Letter:"<<letter.GetID()
+    <<" srv:"   << letter.GetSERVICE_ID()
+    <<" wrk:"   << letter.GetWORKER_ID()
+    <<" prot:"  << letter.GetPROTOCOL_VERSION()
+    <<" exchg:" << letter.GetEXCHANGE_ID()
+    <<" spid:"  << letter.GetSOURCE_PID()
+    <<" reply:'"<< letter.GetREPLY_TO()
+    <<"' dest:'"<< letter.GetPROC_DEST()
+    <<"' orig:'"<< letter.GetPROC_ORIGIN()
+    <<"' sys_t:"<< letter.GetSYS_MSG_TYPE()
+    <<" usr_t:" << letter.GetUSR_MSG_TYPE() << std::endl;
+    return os;
 }
 
 void Letter::Dump()

@@ -16,6 +16,7 @@
 #include <stdarg.h>
 #include <glog/logging.h>
 
+#include "config.h"
 #include "helper.hpp"
 #include "zmsg.hpp"
 #include "mdp_common.h"
@@ -104,11 +105,6 @@ bool zmsg::recv(zmq::socket_t & socket) {
       }
       std::string data = (char*) message.data();
 
-#if 0
-      std::cerr << "recv: \"" 
-                << (unsigned char*) message.data() 
-                << "\", size " << message.size() << std::endl;
-#endif      
       /*
        * В первом пакете приходит идентификатор отправителя в бинарном формате.
        * Длина фрейма 5 байтов, начинается с 0.
@@ -118,7 +114,6 @@ bool zmsg::recv(zmq::socket_t & socket) {
 /* [GEV:генерация GUID]     && (message.size() == 5)*/
       && data[0] == 0) {
          uuidstr = encode_uuid((unsigned char*) message.data());
-//         std::cerr << "identity(uuid) = " << uuidstr << std::endl;
          push_back(uuidstr);
          delete[] uuidstr;
       }
@@ -146,7 +141,7 @@ void zmsg::send(zmq::socket_t & socket) {
         * 11 байт - это первый символ '@' + 10 байт представления Адресата (identity)
         */
 //       std::cerr << "part_nbr=" << part_nbr << "; data size=" << data.size() << "; data[0]=" << data [0] << std::endl;
-       if (part_nbr == 0 && data.size() == 11 && data [0] == '@') {
+       if (part_nbr == 0 && data.size() == WORKER_IDENTITY_MAXLEN && data [0] == '@') {
           unsigned char * uuidbin = decode_uuid(data);
 //          std::cerr << "decode identity(" << data << ")" << std::endl;
           message.rebuild(5);
@@ -230,16 +225,22 @@ zmsg::encode_uuid (unsigned char* data)
         hex_char [] = "0123456789ABCDEF";
 
     assert (data);
-    assert (data [0] == 0);
+    assert (data[0] == '\0');
 
-    char *uuidstr = new char[11 + 1];
+    if ((NULL == data) || ('\0' != data[0]))
+    {
+      LOG(ERROR) << "Try to encode empty string";
+      return NULL;
+    }
+
+    char *uuidstr = new char[WORKER_IDENTITY_MAXLEN + 1];
     uuidstr [0] = '@';
     int byte_nbr;
     for (byte_nbr = 0; byte_nbr < 5; byte_nbr++) {
         uuidstr [byte_nbr * 2 + 1] = hex_char [data [byte_nbr + 0] >> 4];
         uuidstr [byte_nbr * 2 + 2] = hex_char [data [byte_nbr + 0] & 15];
     }
-    uuidstr [11] = 0;
+    uuidstr [WORKER_IDENTITY_MAXLEN] = 0;
     return (uuidstr);
 }
 
@@ -262,12 +263,13 @@ zmsg::decode_uuid (std::string& uuidstr)
            -1,10,11,12,13,14,15,-1,-1,-1,-1,-1,-1,-1,-1,-1, /* a..f */
            -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1 }; /* */
 
-    assert (uuidstr.size() == 11);
+    assert (uuidstr.size() == WORKER_IDENTITY_MAXLEN);
     assert (uuidstr [0] == '@');
-    unsigned char *data = new unsigned char[5];
+    unsigned char *data = new unsigned char[5+1];
     int byte_nbr;
+    data [0] = 0;
     for (byte_nbr = 0; byte_nbr < 5; byte_nbr++)
-        data [byte_nbr]
+        data [byte_nbr + 0]
             = (hex_to_bin [uuidstr [byte_nbr * 2 + 1] & 0x7F] << 4)
             + (hex_to_bin [uuidstr [byte_nbr * 2 + 2] & 0x7F]);
 
@@ -349,12 +351,10 @@ void zmsg::dump()
    for (part_nbr = 0; part_nbr < m_part_data.size(); part_nbr++) 
    {
        std::string data = m_part_data [part_nbr];
-//       buf = new char[data.size()+1];
-
        // Dump the message as text or binary
        is_text = 1;
        for (char_nbr = 0; char_nbr < data.size(); char_nbr++)
-           if (data [char_nbr] < 32 || data [char_nbr] > 127)
+           if (static_cast<unsigned char>(data[char_nbr]) < 32 || static_cast<unsigned char>(data[char_nbr]) > 127)
                is_text = 0;
 
        offset = sprintf(buf, "[%03d] ", (int) data.size());
@@ -372,7 +372,6 @@ void zmsg::dump()
        }
        buf[offset] = '\0';
        LOG(INFO) << buf;
-//       delete []buf;
    }
 }
 

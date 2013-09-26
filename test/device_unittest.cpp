@@ -87,6 +87,7 @@ xdb::Letter* GetNewLetter(rtdbMsgType msg_type, rtdbExchangeId user_exchange)
   }
 
   pb_message->SerializeToString(&pb_serialized_request);
+  delete pb_message;
   mdp_letter = new mdp::Letter(msg_type, 
                                static_cast<const std::string&>(service_name_1),
                                static_cast<const std::string*>(&pb_serialized_request));
@@ -346,7 +347,7 @@ TEST(TestProxy, RUNTIME_VERSION)
  * Используемая служба: NYSE (service_name_1)
  */
 static void *
-client_task (void *args)
+client_task (void* /*args*/)
 {
   int        verbose   = 1;
   mdp::zmsg *request   = NULL;
@@ -357,7 +358,7 @@ client_task (void *args)
   RTDBM::AskLife    pb_request_asklife;
   RTDBM::ExecResult pb_responce_exec_result;
   mdp::Letter      *mdp_letter;
-  xdb::Letter      *xdb_letter;
+//  xdb::Letter      *xdb_letter;
   const std::string dest = "NYSE";
   static int        user_exchange_id = 1;
 
@@ -409,7 +410,7 @@ client_task (void *args)
  * Тестируется класс mdwrk
  */
 static void *
-worker_task (void *args)
+worker_task (void* /*args*/)
 {
   int verbose = 1;
 
@@ -450,7 +451,7 @@ worker_task (void *args)
  * NB: Не использует глобальных переменных
  */
 static void *
-broker_task (void *args)
+broker_task (void* /*args*/)
 {
   int verbose = 1;
   std::string sender;
@@ -738,14 +739,14 @@ TEST(TestProxy, SERVICE_DISPATCH)
 
   msg->push_front(pb_serialized_request);
   msg->push_front(pb_serialized_header);
-  msg->push_front("");
+  msg->push_front(const_cast<char*>(EMPTY_FRAME));
   msg->push_front(client_identity_1);
 
   broker->database_snapshot("TEST_SERVICE_DISPATCH.START");
-  // service1 удаляется внутри
   broker->service_dispatch(service1, msg);
   broker->database_snapshot("TEST_SERVICE_DISPATCH.STOP");
 
+  delete service1;
   delete msg;
 }
 

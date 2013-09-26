@@ -64,7 +64,7 @@ void Worker::SetVALID()
   m_modified = false;
 }
 
-bool Worker::GetVALID()
+bool Worker::GetVALID() const
 {
   return (m_modified == false);
 }
@@ -74,12 +74,12 @@ void Worker::SetSTATE(const State _state)
   m_state = _state;
 }
 
-const Worker::State Worker::GetSTATE()
+Worker::State Worker::GetSTATE() const
 {
   return m_state;
 }
 
-const char* Worker::GetIDENTITY()
+const char* Worker::GetIDENTITY() const
 {
   return m_identity;
 }
@@ -91,14 +91,14 @@ void Worker::SetEXPIRATION(const timer_mark_t& _expiration)
   m_modified = true;
 }
 
-const timer_mark_t Worker::GetEXPIRATION()
+timer_mark_t Worker::GetEXPIRATION() const
 {
   return m_expiration;
 }
 
 // Проверка превышения текущего времени отметки expiration
 // NB: Может учитывать и милисекунды, но пока проверка разницы 'мс' отключена
-bool Worker::Expired()
+bool Worker::Expired() const
 {
   timer_mark_t now_time;
   bool expired = false;

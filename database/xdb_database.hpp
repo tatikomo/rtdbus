@@ -22,7 +22,7 @@ class Database
     Database(const char*);
     virtual ~Database();
 
-    const char* DatabaseName();
+    const char* DatabaseName() const;
     /* 
      * Каждая реализация базы данных использует 
      * свой собственный словарь, и должна сама
@@ -31,7 +31,7 @@ class Database
     virtual bool Connect();
     virtual bool Disconnect();
 
-    const DBState State();
+    DBState State() const;
     /* Сменить текущее состояние на новое */
     bool TransitionToState(DBState);
 
