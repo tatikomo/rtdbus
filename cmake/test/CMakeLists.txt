@@ -4,6 +4,8 @@ SET(UNITTEST_DEVICE   device_unittest)
 SET(UNITTEST_DATABASE database_unittest)
 SET(UNITTEST_MESSAGE  message_unittest)
 
+SET (GTEST_VERSION "1.7.0")
+
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # SOLARIS
   set (SYSTEM_EXTERNAL_LIBS
@@ -21,7 +23,7 @@ else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
         gtest)
 endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
-include_directories(${CMAKE_SOURCE_DIR}/../../gtest-1.6.0/include)
+include_directories(${CMAKE_SOURCE_DIR}/../../gtest-${GTEST_VERSION}/include)
 include_directories(${TOOLS_DIR})
 include_directories(${MDP_DIR})
 include_directories(${MSG_DIR})
@@ -33,7 +35,7 @@ include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})
 
-link_directories(${CMAKE_SOURCE_DIR}/../../gtest-1.6.0/lib/.libs)
+link_directories(${CMAKE_SOURCE_DIR}/../../gtest-${GTEST_VERSION}/lib/.libs)
 link_directories(${LIBGLOG_LIBRARIES_DIR})
 link_directories(${MDP_DIR})
 link_directories(${XDB_DIR})

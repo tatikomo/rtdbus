@@ -7,6 +7,7 @@
 #include "xdb_database_service.hpp"
 #include "xdb_database_worker.hpp"
 #include "dat/xdb_broker.hpp"
+#include "proto/common.pb.h"
 
 const char *service_name_1 = "service_test_1";
 const char *service_name_2 = "service_test_2";
@@ -33,7 +34,7 @@ void show_runtime_info(const char * lead_line)
   mco_runtime_info_t info;
   
   /* get runtime info */
-  mco_get_runtime_info(&info);
+  //mco_get_runtime_info(&info);
 
   /* Core configuration parameters: */
   if ( *lead_line )
