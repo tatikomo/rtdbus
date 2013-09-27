@@ -1,3 +1,4 @@
+#include <new>
 #include <assert.h>
 #include <stdio.h>
 #include <glog/logging.h>
@@ -1459,15 +1460,25 @@ MCO_RET DatabaseBrokerImpl::LoadLetter(mco_trans_h /*t*/,
     header.assign(header_buffer);
     body.assign(body_buffer);
 
-    letter = new xdb::Letter(reply_buffer, header, body);
+    assert(letter == NULL);
+    try
+    {
+      letter = new xdb::Letter(reply_buffer, header, body);
 
-    letter->SetID(aid);
-    letter->SetSERVICE_ID(service_aid);
-    letter->SetWORKER_ID(worker_aid);
-    letter->SetEXPIRATION(expire_time);
-    letter->SetSTATE((Letter::State)state);
-    // Все поля заполнены
-    letter->SetVALID();
+      letter->SetID(aid);
+      letter->SetSERVICE_ID(service_aid);
+      letter->SetWORKER_ID(worker_aid);
+      letter->SetEXPIRATION(expire_time);
+      letter->SetSTATE((Letter::State)state);
+      // Все поля заполнены
+      letter->SetVALID();
+    }
+    catch (std::bad_alloc &ba)
+    {
+      LOG(ERROR) << "Unable to allocaling letter instance (head size="
+                 << header_sz << " data size=" << data_sz << "), "
+                 << ba.what();
+    }
 
   } while(false);
 
@@ -1485,7 +1496,6 @@ Letter* DatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
   Letter      *letter = NULL;
   char        *header_buffer = NULL;
   char        *body_buffer = NULL;
-  bool         awaiting_letter_found = false;
   int          cmp_result = 0;
 
   assert(srv);
@@ -1504,8 +1514,10 @@ Letter* DatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
       break;
     }
 
+    assert(letter == NULL);
+
     for (rc = xdb_broker::XDBLetter::SK_by_state_for_serv::search(t, &csr, MCO_EQ, srv->GetID(), UNASSIGNED);
-         (rc == MCO_S_OK) || (false == awaiting_letter_found);
+         (rc == MCO_S_OK);
          rc = mco_cursor_next(t, &csr)) 
     {
        if ((MCO_S_NOTFOUND == rc) || (MCO_S_CURSOR_EMPTY == rc))
@@ -1516,7 +1528,6 @@ Letter* DatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
                 srv->GetID(),
                 UNASSIGNED,
                 cmp_result);
-
        if (rc == MCO_S_OK && cmp_result == 0)
        {
          // Достаточно получить первый элемент,
@@ -1527,8 +1538,8 @@ Letter* DatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
          rc = LoadLetter(t, letter_instance, letter);
          if (rc) { LOG(ERROR) << "Unable to read Letter instance, rc="<<rc; break; }
 
-         if ((letter) && (letter->GetSTATE() == xdb::Letter::UNASSIGNED))
-           awaiting_letter_found = true;
+         assert(letter->GetSTATE() == xdb::Letter::UNASSIGNED);
+         break;
        } // if database OK and item was found
     } // for each elements of cursor
 
