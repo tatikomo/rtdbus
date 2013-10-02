@@ -13,18 +13,26 @@
 
 using namespace xdb;
 
-Letter::Letter()
+Letter::Letter() :
+  m_id(0),
+  m_service_id(0),
+  m_worker_id(0),
+  m_state(EMPTY),
+  m_modified(false)
 {
-  m_id = m_service_id = m_worker_id = 0;
-  m_expiration.tv_sec = 0;
-  m_expiration.tv_nsec = 0;
-  m_modified = false;
+  timer_mark_t tictac = {0, 0};
+  SetEXPIRATION(tictac);
 }
 
-Letter::Letter(const int64_t _self_id, const int64_t _srv_id, const int64_t _wrk_id)
-: m_id(_self_id), m_service_id(_srv_id), m_worker_id(_wrk_id)
+Letter::Letter(const int64_t _self_id, const int64_t _srv_id, const int64_t _wrk_id) :
+  m_id(_self_id),
+  m_service_id(_srv_id),
+  m_worker_id(_wrk_id),
+  m_state(UNASSIGNED),
+  m_modified(true)
 {
-  m_modified = true;
+  timer_mark_t tictac = {0, 0};
+  SetEXPIRATION(tictac);
 }
 
 Letter::~Letter()
@@ -32,44 +40,52 @@ Letter::~Letter()
 }
 
 // на входе - объект zmsg
-Letter::Letter(void* data) : m_modified(true)
+Letter::Letter(void* data) :
+  m_id(0),
+  m_service_id(0),
+  m_worker_id(0),
+  m_state(UNASSIGNED),
+  m_modified(true)
 {
   mdp::zmsg *msg = static_cast<mdp::zmsg*> (data);
+  timer_mark_t tictac = {0, 0};
+  SetEXPIRATION(tictac);
 
   assert(msg);
-  SetID(0);
-  SetWORKER_ID(0);
-  SetSERVICE_ID(0);
-
   // Прочитать служебные поля транспортного сообщения zmsg
   // и восстановить на его основе прикладное сообщение.
   // Первый фрейм - адрес возврата,
   // Два последних фрейма - заголовок и тело сообщения.
-  strncpy(m_reply_to, msg->get_part(0).c_str(), WORKER_IDENTITY_MAXLEN);
+  strncpy(m_reply_to, msg->get_part(0)->c_str(), WORKER_IDENTITY_MAXLEN);
   m_reply_to[WORKER_IDENTITY_MAXLEN] = '\0';
-//  LOG(INFO) << "Reply to " << m_reply_to << std::endl;
-//  std::cout << "Reply to " << m_reply_to << std::endl;
 
-  assert(msg->parts() >= 2);
   int msg_frames = msg->parts();
+  assert(msg_frames >= 2);
 
-  m_frame_header.assign(msg->get_part(msg_frames-2));
+  const std::string* head = msg->get_part(msg_frames-2);
+  const std::string* body = msg->get_part(msg_frames-1);
 
-  m_frame_data.assign(msg->get_part(msg_frames-1));
+  assert (head);
+  assert (body);
+
+  m_frame_header.assign(head->data(), head->size());
+  m_frame_data.assign(body->data(), body->size());
 }
 
 // Создать экземпляр на основе заголовка и тела сообщения
-Letter::Letter(const char* _reply_to, const std::string& _head, const std::string& _data)
+Letter::Letter(const char* _reply_to, const std::string& _head, const std::string& _data) :
+  m_frame_header(_head),
+  m_frame_data(_data),
+  m_id(0),
+  m_service_id(0),
+  m_worker_id(0),
+  m_state(UNASSIGNED),
+  m_modified(true)
 {
-  m_frame_header = _head;
-  m_frame_data = _data;
-
+  timer_mark_t tictac = {0, 0};
   strncpy(m_reply_to, _reply_to, WORKER_IDENTITY_MAXLEN);
   m_reply_to[WORKER_IDENTITY_MAXLEN] = '\0';
-
-  SetID(0);
-  SetWORKER_ID(0);
-  SetSERVICE_ID(0);
+  SetEXPIRATION(tictac);
 }
 
 void Letter::SetID(int64_t self_id)

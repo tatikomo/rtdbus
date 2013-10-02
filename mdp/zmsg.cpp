@@ -74,12 +74,12 @@ void zmsg::set_part(size_t part_nbr, unsigned char *data) {
     }
 }
 
-const std::string& zmsg::get_part(size_t part_nbr) {
+const std::string* zmsg::get_part(size_t part_nbr) {
     if (part_nbr < m_part_data.size() /*&& part_nbr >= 0*/) {
-        return m_part_data[part_nbr];
+        return &m_part_data[part_nbr];
     }
-    // TODO что возвращать, если индекс невалиден?
-    return m_part_data[0];
+    // индекс невалиден
+    return NULL;
 }
 
 
@@ -103,7 +103,9 @@ bool zmsg::recv(zmq::socket_t & socket) {
          LOG(ERROR) << "Catch '" << error.what() << "', code=" << error.num();
          return false;
       }
-      std::string data = (char*) message.data();
+      std::string data;
+      data.assign(static_cast<const char*>(message.data()), message.size());
+      data[message.size()] = 0;
 
       /*
        * В первом пакете приходит идентификатор отправителя в бинарном формате.
@@ -111,7 +113,7 @@ bool zmsg::recv(zmq::socket_t & socket) {
        * Конвертируем его в UUID, 10 символов.
        */
       if ((iteration == 1)
-/* [GEV:генерация GUID]     && (message.size() == 5)*/
+/* [GEV:генерация GUID] */    && (message.size() == 5)
       && data[0] == 0) {
          uuidstr = encode_uuid((unsigned char*) message.data());
          push_back(uuidstr);
@@ -119,8 +121,11 @@ bool zmsg::recv(zmq::socket_t & socket) {
       }
       else
       {
-         data[message.size()] = 0;
-         push_back((char *)data.c_str());
+         push_back(data);
+//         LOG(ERROR)<<"R "<<iteration<<"/"<<m_part_data.size()
+//                   <<" dsize="<<data.size()
+//                   <<" msize="<<message.size()
+//                   <<" "<<hex_dump(static_cast<const char*>(data.data()), data.size());
       }
       socket.getsockopt(ZMQ_RCVMORE, &more, &more_size);
       if (!more) {
@@ -130,33 +135,46 @@ bool zmsg::recv(zmq::socket_t & socket) {
    return true;
 }
 
-void zmsg::send(zmq::socket_t & socket) {
-    for (size_t part_nbr = 0; part_nbr < m_part_data.size(); part_nbr++) {
+void zmsg::send(zmq::socket_t & socket)
+{
+  unsigned char * uuidbin;
+
+    for (size_t part_nbr = 0; part_nbr < m_part_data.size(); part_nbr++)
+    {
        zmq::message_t message;
        std::string data = m_part_data[part_nbr];
-#if 1
+
+//       LOG(ERROR)<<"s "<<part_nbr+1<<"/"<<m_part_data.size()
+//                 <<" dsize="<<data.size()
+//                 <<" "<<hex_dump(static_cast<const char*>(message.data()), message.size());
+
        /*
         * Первый фрейм - символьное представление адреса получателя.
         * Необходимо обратное преобразование в двоичное представление.
         * 11 байт - это первый символ '@' + 10 байт представления Адресата (identity)
         */
-//       std::cerr << "part_nbr=" << part_nbr << "; data size=" << data.size() << "; data[0]=" << data [0] << std::endl;
-       if (part_nbr == 0 && data.size() == WORKER_IDENTITY_MAXLEN && data [0] == '@') {
-          unsigned char * uuidbin = decode_uuid(data);
-//          std::cerr << "decode identity(" << data << ")" << std::endl;
+       if (part_nbr == 0 && data.size() == WORKER_IDENTITY_MAXLEN && data [0] == '@')
+       {
+          uuidbin = decode_uuid(data);
           message.rebuild(5);
           memcpy(message.data(), uuidbin, 5);
           delete[] uuidbin;
        }
        else 
-#endif
        {
           message.rebuild(data.size());
-          memcpy(message.data(), data.c_str(), data.size());
+          memcpy(message.data(), data.data(), data.size());
+//          LOG(ERROR)<<"S "<<part_nbr+1<<"/"<<m_part_data.size()
+//                 <<" dsize="<<data.size()
+//                 <<" "<<hex_dump(static_cast<const char*>(message.data()), message.size());
        }
-       try {
+
+       try
+       {
           socket.send(message, part_nbr < m_part_data.size() - 1 ? ZMQ_SNDMORE : 0);
-       } catch (zmq::error_t error) {
+       }
+       catch (zmq::error_t error)
+       {
           assert(error.num()!=0);
        }
     }
@@ -312,9 +330,9 @@ char *zmsg::address() {
 
 void zmsg::wrap(const char *address, const char *delim) {
    if (delim) {
-      push_front((char*)delim);
+      push_front(const_cast<char*>(delim));
    }
-   push_front((char*)address);
+   push_front(const_cast<char*>(address));
 }
 
 
@@ -354,7 +372,8 @@ void zmsg::dump()
        // Dump the message as text or binary
        is_text = 1;
        for (char_nbr = 0; char_nbr < data.size(); char_nbr++)
-           if (static_cast<unsigned char>(data[char_nbr]) < 32 || static_cast<unsigned char>(data[char_nbr]) > 127)
+           if (static_cast<unsigned char>(data[char_nbr]) < 32 
+            || static_cast<unsigned char>(data[char_nbr]) > 127)
                is_text = 0;
 
        offset = sprintf(buf, "[%03d] ", (int) data.size());

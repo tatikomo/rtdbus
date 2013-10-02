@@ -51,7 +51,7 @@ class zmsg
 
    void set_part(size_t part_nbr, unsigned char *data);
    // GEV вернуть нужный фрейм но его номеру
-   const std::string& get_part(size_t);
+   const std::string* get_part(size_t);
 
    bool recv(zmq::socket_t & socket);
 
@@ -106,6 +106,6 @@ class zmsg
    std::vector<std::string> m_part_data;
 };
 
-}; //namespace mdp
+} //namespace mdp
 
 #endif /* ZMSG_HPP_ */

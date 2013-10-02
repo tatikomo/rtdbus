@@ -225,5 +225,5 @@ class DatabaseBrokerImpl
 #endif
 };
 
-}; //namespace xdb
+} //namespace xdb
 #endif

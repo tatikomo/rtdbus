@@ -31,6 +31,7 @@
 #ifndef __MDP_CLIENT_ASYNC_API_HPP_INCLUDED__
 #define __MDP_CLIENT_ASYNC_API_HPP_INCLUDED__
 
+#include "config.h"
 #include "zmsg.hpp"
 #include "mdp_common.h"
 
@@ -77,13 +78,14 @@ class mdcli {
    recv ();
 
   private:
-   std::string      m_broker;
-   zmq::context_t * m_context;
-   zmq::socket_t  * m_client;    //  Socket to broker
+   DISALLOW_COPY_AND_ASSIGN(mdcli);
+   std::string     m_broker;
+   zmq::context_t *m_context;
+   zmq::socket_t  *m_client;    //  Socket to broker
    int m_verbose;                //  Print activity to stdout
    int m_timeout;                //  Request timeout
 };
 
-}; //namespace mdp
+} //namespace mdp
 
 #endif

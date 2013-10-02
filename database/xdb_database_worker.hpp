@@ -71,13 +71,12 @@ class Worker
     int64_t  m_id;
     int64_t  m_service_id;
     char     m_identity[WORKER_IDENTITY_MAXLEN + 1];
-    bool     m_modified;
     State    m_state;
     timer_mark_t m_expiration;
-
+    bool     m_modified;
 };
 
-}; //namespace xdb
+} //namespace xdb
 
 #endif
 

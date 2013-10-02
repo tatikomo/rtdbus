@@ -66,18 +66,18 @@ class Letter
     void Dump();
 
   private:
-    bool     m_modified;
     int64_t  m_id;
     int64_t  m_service_id;
     int64_t  m_worker_id;
     State    m_state;
+    std::string  m_frame_header;
+    std::string  m_frame_data;
     timer_mark_t m_expiration;
     char     m_reply_to[WORKER_IDENTITY_MAXLEN + 1];
-    std::string  m_frame_data;
-    std::string  m_frame_header;
+    bool     m_modified;
 };
 
-}; //namespace xdb
+} //namespace xdb
 
 #endif
 

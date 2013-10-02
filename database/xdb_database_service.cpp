@@ -4,17 +4,17 @@
 
 using namespace xdb;
 
-Service::Service()
+Service::Service() :
+  m_id(0),
+  m_name(NULL),
+  m_state(DISABLED),
+  m_modified(false)
 {
-  m_id = 0;
-  m_name = NULL;
-  m_state = DISABLED;
-  m_modified = false;
 }
 
-Service::Service(const int64_t _id, const char *_name)
+Service::Service(const int64_t _id, const char *_name) :
+  m_name(NULL)
 {
-  m_name = NULL;
   SetID(_id);
   SetSTATE(DISABLED);
   SetNAME(_name);

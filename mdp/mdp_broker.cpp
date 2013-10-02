@@ -34,12 +34,15 @@ void s_catch_signals ()
 
 //  ---------------------------------------------------------------------
 //  Constructor for broker object
-Broker::Broker (bool verbose)
+Broker::Broker (bool verbose) :
+  m_verbose(verbose),
+  m_context(NULL),
+  m_socket(NULL),
+  m_database(NULL)
 {
     //  Initialize broker state
     m_context = new zmq::context_t(1);
     m_socket = new zmq::socket_t(*m_context, ZMQ_ROUTER);
-    m_verbose = verbose;
     // TODO: объединить значения интервалов Брокера и Обработчика
     m_heartbeat_at = s_clock () + Broker::HeartbeatInterval;
     m_database = new xdb::DatabaseBroker();
@@ -710,7 +713,7 @@ Broker::client_msg (const std::string& sender, zmsg *msg)
     else /* Сервис известен */
     {
       /* является служебным (mmi.*) или одним из внешних */
-      /*  Установить обратный адрес */
+      /* Установить обратный адрес */
       msg->wrap (sender.c_str(), EMPTY_FRAME);
       if (service_frame.length() >= 4
       &&  service_frame.find_first_of("mmi.") == 0) {
@@ -777,19 +780,19 @@ Broker::start_brokering()
            assert (msg->parts () >= 3);
 
            std::string sender = msg->pop_front ();
-           assert(sender.size ());
+           assert(sender.empty () == 0);
 
            std::string empty = msg->pop_front (); //empty message
-           assert(empty.size () == 0);
+           assert(empty.empty () == 1);
 
            std::string header = msg->pop_front ();
-           assert(header.size ());
+           assert(header.empty () == 0);
 
-           if (header.compare(MDPC_CLIENT) == 0) 
+           if (header.compare(MDPC_CLIENT) == 0)
            {
              client_msg (sender, msg);
            }
-           else if (header.compare(MDPW_WORKER) == 0) 
+           else if (header.compare(MDPW_WORKER) == 0)
            {
              worker_msg (sender, msg);
            }

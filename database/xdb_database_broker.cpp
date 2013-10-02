@@ -12,7 +12,9 @@ class Worker;
 
 const char *database_name = "BrokerDB";
 
-DatabaseBroker::DatabaseBroker() : Database(database_name)
+DatabaseBroker::DatabaseBroker() :
+  Database(database_name),
+  m_impl(NULL)
 {
   m_impl = new DatabaseBrokerImpl(this);
   assert(m_impl);

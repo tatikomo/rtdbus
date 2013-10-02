@@ -34,6 +34,7 @@ set (CLIENT_TRADER_SOURCES
         ${CLIENT_DIR}/trader.cpp)
 
 set (CLIENT_PULSAR_SOURCES
+        ${CMAKE_SOURCE_DIR}/config.h
         ${MDP_DIR}/zmsg.hpp
         ${XDB_DIR}/xdb_database_letter.hpp
         ${MDP_DIR}/mdp_common.h

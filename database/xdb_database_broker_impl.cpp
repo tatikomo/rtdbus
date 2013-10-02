@@ -39,9 +39,9 @@ mco_size_sig_t file_writer(void*, const void*, mco_size_t);
 
 using namespace xdb;
 
-const int DATABASE_SIZE = 1024 * 1024 * 1;  // 1Mб
-const int MEMORY_PAGE_SIZE = DATABASE_SIZE; // Вся БД поместится в одной странице ОЗУ 
-const int MAP_ADDRESS = 0x20000000;
+const unsigned int DATABASE_SIZE = 1024 * 1024 * 1;  // 1Mб
+const unsigned int MEMORY_PAGE_SIZE = DATABASE_SIZE; // Вся БД поместится в одной странице ОЗУ 
+const unsigned int MAP_ADDRESS = 0x20000000;
 
 #ifndef MCO_PLATFORM_X64
     static const unsigned int PAGESIZE = 128;
@@ -72,16 +72,19 @@ const int DB_DISK_PAGE_SIZE = 0;
 #include "dat/xdb_broker.hpp"
 
 
-DatabaseBrokerImpl::DatabaseBrokerImpl(
-    DatabaseBroker *self) : m_initialized(false)
+DatabaseBrokerImpl::DatabaseBrokerImpl(DatabaseBroker *self) : 
+    m_initialized(false),
+    m_save_to_xml_feature(false),
+    m_snapshot_counter(0),
+    m_self(self),
+    m_service_list(NULL),
+    m_metadict_initialized(false)
+
 #if (EXTREMEDB_VERSION >= 41) && USE_EXTREMEDB_HTTP_SERVER
     , m_metadict_initialized(false)
 #endif
 {
   assert(self);
-
-  m_self = self;
-  m_service_list = NULL;
 
 #ifdef DISK_DATABASE
   const char* name = m_self->DatabaseName();
@@ -410,8 +413,10 @@ bool DatabaseBrokerImpl::AttachToInstance()
 
   mco_db_params_init (&m_db_params);
   m_db_params.db_max_connections = 10;
-  m_db_params.mem_page_size      = MEMORY_PAGE_SIZE; /* set page size for in memory part */
-  m_db_params.disk_page_size     = DB_DISK_PAGE_SIZE;/* set page size for persistent storage */
+  /* set page size for in memory part */
+  m_db_params.mem_page_size      = static_cast<uint2>(MEMORY_PAGE_SIZE);
+  /* set page size for persistent storage */
+  m_db_params.disk_page_size     = DB_DISK_PAGE_SIZE;
 # if USE_EXTREMEDB_HTTP_SERVER
   rc = mco_uda_db_open(m_metadict,
                        0,
@@ -1405,23 +1410,36 @@ MCO_RET DatabaseBrokerImpl::LoadLetter(mco_trans_h /*t*/,
     rc = letter_instance.worker_ref_get(worker_aid);
     if (rc) { LOG(ERROR) << "Getting letter's ("<<aid<<") worker id, rc=" << rc; break; }
 
+    // Выгрузка Заголовка Сообщения
     rc = letter_instance.header_size(header_sz);
     if (rc) { LOG(ERROR) << "Getting header size for letter id"<<aid<<", rc=" << rc; break; }
     header_buffer = new char[header_sz + 1];
-
     rc = letter_instance.header_get(header_buffer, header_sz, sz);
-    if (rc) { LOG(ERROR) << "Getting header for letter id "<<aid<<", size="<<sz<<", rc=" << rc; break; }
+    if (rc)
+    {
+        LOG(ERROR) << "Getting header for letter id "<<aid<<", size="<<sz<<", rc=" << rc;
+        break;
+    }
     header_buffer[header_sz] = '\0';
-    std::string header(header_buffer, header_sz+1);
+    std::string header(header_buffer, header_sz);
 
+    // Выгрузка тела Сообщения
     rc = letter_instance.body_size(data_sz);
-    if (rc) { LOG(ERROR) << "Getting message body size for letter id"<<aid<<", rc=" << rc; break; }
+    if (rc)
+    {
+        LOG(ERROR) << "Getting message body size for letter id"<<aid<<", rc=" << rc;
+        break;
+    }
     body_buffer = new char[data_sz + 1];
 
     rc = letter_instance.body_get(body_buffer, data_sz, sz);
-    if (rc) { LOG(ERROR) << "Getting data for letter id "<<aid<<", size="<<sz<<", rc=" << rc; break; }
+    if (rc)
+    {
+        LOG(ERROR) << "Getting data for letter id "<<aid<<", size="<<sz<<", rc=" << rc;
+        break;
+    }
     body_buffer[data_sz] = '\0';
-    std::string body(body_buffer, data_sz+1);
+    std::string body(body_buffer, data_sz);
 
 #if 0
     // Привязка к Обработчику уже была выполнена
@@ -1450,15 +1468,6 @@ MCO_RET DatabaseBrokerImpl::LoadLetter(mco_trans_h /*t*/,
 
     rc = letter_instance.state_get(state);
     if (rc) { LOG(ERROR)<<"Unable to get state for letter id="<<aid; break; }
-/*    if (state != UNASSIGNED)
-    {
-      LOG(ERROR) << "Поиск UNASSIGNED ("<<UNASSIGNED
-                 << ") сообщений вернул сообщение в состоянии "<<state;
-      assert (state != UNASSIGNED);
-    }*/
-
-    header.assign(header_buffer);
-    body.assign(body_buffer);
 
     assert(letter == NULL);
     try
@@ -1510,13 +1519,18 @@ Letter* DatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
         break; /* В индексе нет ни одной записи */
     if (rc) 
     {
-      LOG(ERROR)<<"Unable to initialize cursor for '"<<srv->GetNAME()<<"', rc="<<rc;
+      LOG(ERROR)<<"Unable to initialize cursor for '"<<srv->GetNAME()
+                <<"', rc="<<rc;
       break;
     }
 
     assert(letter == NULL);
 
-    for (rc = xdb_broker::XDBLetter::SK_by_state_for_serv::search(t, &csr, MCO_EQ, srv->GetID(), UNASSIGNED);
+    for (rc = xdb_broker::XDBLetter::SK_by_state_for_serv::search(t,
+                                    &csr,
+                                    MCO_EQ,
+                                    srv->GetID(),
+                                    UNASSIGNED);
          (rc == MCO_S_OK);
          rc = mco_cursor_next(t, &csr)) 
     {
@@ -2192,12 +2206,13 @@ ServiceList* DatabaseBrokerImpl::GetServiceList()
 }
 
 
-ServiceListImpl::ServiceListImpl(mco_db_h _db)
+ServiceListImpl::ServiceListImpl(mco_db_h _db) :
+    m_current_index(0),
+    m_db(_db),
+    m_size(0)
 {
   m_array = new Service*[MAX_SERVICES_ENTRY];
   memset(m_array, '\0', sizeof(m_array)); // NB: подразумевается что 0 и NULL равны
-  m_size = 0;
-  m_db = _db;
   assert(m_db);
 }
 

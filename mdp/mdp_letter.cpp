@@ -9,20 +9,28 @@
 
 using namespace mdp;
 
-Letter::Letter(zmsg* _instance)
+Letter::Letter(zmsg* _instance) :
+  m_data_needs_reserialization(true),
+  m_header_needs_reserialization(true),
+  m_body_instance(NULL)
 {
   assert(_instance);
-  m_body_instance = NULL;
-  m_data_needs_reserialization = m_header_needs_reserialization = true;
-
   // Прочитать служебные поля транспортного сообщения zmsg
   // и восстановить на его основе прикладное сообщение.
   int msg_frames = _instance->parts();
   // два последних фрейма - заголовок и тело сообщения
   assert(msg_frames >= 2);
 
-  m_serialized_header = _instance->get_part(msg_frames-2);
-  m_serialized_data = _instance->get_part(msg_frames-1);
+  const std::string* head = _instance->get_part(msg_frames-2);
+  const std::string* body = _instance->get_part(msg_frames-1);
+
+  assert (head);
+  assert (body);
+
+  m_serialized_header.assign(head->data(), head->size());
+//  hex_dump(m_serialized_header);
+  m_serialized_data.assign(body->data(), body->size());
+//  hex_dump(m_serialized_data);
 
   if (true == m_header_instance.ParseFrom(m_serialized_header))
   {
@@ -38,12 +46,12 @@ Letter::Letter(zmsg* _instance)
 // На основе типа сообщения и сериализованных данных.
 // Если последний параметр равен NULL, создается пустая структура 
 // нужного типа с тем, чтобы потом её заполнил пользователь самостоятельно.
-Letter::Letter(const rtdbMsgType user_type, const std::string& dest, const std::string* b)
+Letter::Letter(const rtdbMsgType user_type, const std::string& dest, const std::string* b) :
+  m_source_procname("DELME"), // TODO: подставить сюда название своего процесса
+  m_data_needs_reserialization(true),
+  m_header_needs_reserialization(true),
+  m_body_instance(NULL)
 {
-  m_source_procname.assign("GEV"); // TODO: подставить сюда название своего процесса
-  m_body_instance = NULL;
-  m_data_needs_reserialization = m_header_needs_reserialization = true;
-
   // TODO Создать Header самостоятельно
   m_header_instance.instance().set_protocol_version(1);
   m_header_instance.instance().set_exchange_id(GenerateExchangeId());

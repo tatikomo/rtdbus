@@ -10,20 +10,15 @@
 
 using namespace xdb;
 
-Database::Database(const char* name)
+Database::Database(const char* name) : m_state(Database::UNINITIALIZED)
 {
     assert (name);
-    m_state = Database::UNINITIALIZED;
     strncpy(m_name, name, DBNAME_MAXLEN);
     m_name[DBNAME_MAXLEN] = '\0';
-
-//    fprintf(stdout, "\tDatabase(%p, %s)\n", (void*)this, name);
-//    fflush(stdout);
 }
 
 Database::~Database()
 {
-//  fprintf(stdout, "~Database(%p, %s)\n", (void*)this, m_name);
   Disconnect();
 }
 

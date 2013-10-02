@@ -126,6 +126,6 @@ class DatabaseBroker : public Database
     DatabaseBrokerImpl *m_impl;
 };
 
-}; //namespace xdb
+} //namespace xdb
 
 #endif

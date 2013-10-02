@@ -27,7 +27,15 @@ static void s_catch_signals ()
     sigaction (SIGTERM, &action, NULL);
 }
 
-mdwrk::mdwrk (std::string broker, std::string service, int verbose)
+mdwrk::mdwrk (std::string broker, std::string service, int verbose) :
+  m_context(NULL),
+  m_broker(broker),
+  m_service(service),
+  m_verbose(verbose),
+  m_heartbeat(HeartbeatInterval), //  msecs
+  m_reconnect(HeartbeatInterval), //  msecs
+  m_worker(0),
+  m_expect_reply(false)
 {
     /* NB
      * Отличия в версиях 2.1       3.2
@@ -38,17 +46,8 @@ mdwrk::mdwrk (std::string broker, std::string service, int verbose)
     s_version_assert (3, 2);
 
     m_context = new zmq::context_t (1);
-    m_broker = broker;
-    m_service = service;
-    m_verbose = verbose;
-    m_heartbeat = HeartbeatInterval;     //  msecs
-    m_reconnect = HeartbeatInterval;     //  msecs
-    m_worker = 0;
-    m_expect_reply = false;
-
     s_catch_signals ();
     connect_to_broker ();
-//    set_heartbeat(m_heartbeat);
 }
 
 //  ---------------------------------------------------------------------
@@ -163,12 +162,10 @@ mdwrk::recv (std::string *&reply)
              * empty будет действительно пустым.
              */
             std::string empty = msg->pop_front ();
-            //assert (empty.compare("") == 0);
-            //free (empty);
+            assert (empty.empty() == 1);
 
             std::string header = msg->pop_front ();
             assert (header.compare(MDPW_WORKER) == 0);
-            //free (header);
 
             std::string command = msg->pop_front ();
             if (command.compare (MDPW_REQUEST) == 0) {

@@ -58,6 +58,6 @@ class Header
     RTDBM::Header   m_header_instance;
 };
 
-}; //namespace msg
+} //namespace msg
 #endif
 

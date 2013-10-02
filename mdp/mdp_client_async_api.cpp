@@ -29,16 +29,15 @@ void s_catch_signals ()
 }
 
 
-mdcli::mdcli (std::string broker, int verbose)
+mdcli::mdcli (std::string broker, int verbose) :
+   m_broker(broker),
+   m_context(NULL),
+   m_client(0),
+   m_verbose(verbose),
+   m_timeout(2500)       //  msecs
 {
    s_version_assert (3, 2);
-
-   m_broker = broker;
    m_context = new zmq::context_t (1);
-   m_verbose = verbose;
-   m_timeout = 2500;           //  msecs
-   m_client = 0;
-
    s_catch_signals ();
    connect_to_broker ();
 }
@@ -133,7 +132,7 @@ mdcli::recv ()
         //  Don't try to handle errors, just assert noisily
         assert (msg->parts () >= 4);
         std::string empty = msg->pop_front ();
-//GEV        assert (empty.length() == 0);  // empty message
+        assert (empty.length() == 0);  // empty message
 
         std::string header = msg->pop_front();
         assert (header.compare(MDPC_CLIENT) == 0);

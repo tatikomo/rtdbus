@@ -42,6 +42,6 @@ class Database
     DBState  m_state;
 };
 
-}; //namespace xdb
+} //namespace xdb
 #endif
 

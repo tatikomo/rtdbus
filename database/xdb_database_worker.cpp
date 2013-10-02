@@ -7,27 +7,31 @@
 
 using namespace xdb;
 
-Worker::Worker()
+Worker::Worker() :
+  m_id(0),
+  m_service_id(0),
+  m_state(DISARMED),
+  m_modified(false)
 {
+  timer_mark_t mark = {0, 0};
   memset((void*)&m_expiration, '\0', sizeof(m_expiration));
   m_identity[0] = '\0';
-  m_id = m_service_id = 0;
-  m_state = DISARMED;
-  m_modified = false;
+  SetEXPIRATION(mark);
 }
 
 // NB: Если self_id равен нулю, значит объект пока не содержится в базе данных
 Worker::Worker(int64_t     _service_id,
                const char *_self_identity,
-               int64_t     _self_id)
+               int64_t     _self_id) :
+  m_id(_self_id),
+  m_service_id(_service_id),
+  m_state(INIT),
+  m_modified(true)
 {
   timer_mark_t mark = {0, 0};
 
-  SetID(_self_id);
-  SetSERVICE_ID(_service_id);
   SetIDENTITY(_self_identity);
   SetEXPIRATION(mark);
-  SetSTATE(INIT);
 }
 
 Worker::~Worker()

@@ -42,17 +42,17 @@ class Service
     const char   *GetNAME();
     State         GetSTATE();
     bool          GetVALID();
-//    const char   *GetSERVICE_NAME();
 
   private:
+    // Заблокировать конструктор копирования
+    DISALLOW_COPY_AND_ASSIGN(Service);
     int64_t  m_id;
     char    *m_name;
     State    m_state;
-//    char    *m_service_name;
     bool     m_modified;
 };
 
-}; //namespace xdb
+} //namespace xdb
 
 #endif
 
