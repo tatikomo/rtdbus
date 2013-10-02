@@ -12,6 +12,7 @@
 #include "helper.hpp"
 
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+char buf[4000];
 
 void LogError(int rc,
             const char *functionName,
@@ -104,7 +105,6 @@ void LogInfo(
 
 void hex_dump(const std::string& data)
 {
-   char buf[4000];
    int offset;
    int is_text;
    unsigned int char_nbr;
@@ -130,5 +130,34 @@ void hex_dump(const std::string& data)
    }
    buf[offset] = '\0';
    fprintf(stdout, "%s\n", buf); fflush(stdout);
+}
+
+char* hex_dump(const char* data, unsigned int size)
+{
+   int offset;
+   int is_text;
+   unsigned int char_nbr;
+
+   // Dump the message as text or binary
+   is_text = 1;
+   for (char_nbr = 0; char_nbr < size; char_nbr++)
+       if (static_cast<unsigned char>(data[char_nbr]) < 32 || static_cast<unsigned char>(data[char_nbr]) > 127)
+           is_text = 0;
+
+   offset = sprintf(buf, "[%03d] ", size);
+   for (char_nbr = 0; char_nbr < size; char_nbr++)
+   {
+       if (is_text) 
+       {
+           strcpy((char*)(&buf[0] + offset++), (const char*)&data[char_nbr]);
+       }
+       else 
+       {
+           snprintf(&buf[offset], 3, "%02X", (unsigned char)data[char_nbr]);
+           offset += 2;
+       }
+   }
+   buf[offset] = '\0';
+   return buf;
 }
 

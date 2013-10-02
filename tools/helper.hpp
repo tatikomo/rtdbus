@@ -33,5 +33,6 @@ void LogInfo(
 #include <string>
 #include "timer.hpp"
 void    hex_dump(const std::string&);
+char*   hex_dump(const char*, unsigned int);
 
 #endif
