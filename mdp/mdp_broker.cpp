@@ -2,11 +2,11 @@
 
 #include "mdp_common.h"
 #include "mdp_broker.hpp"
-#include "zmsg.hpp"
-#include "xdb_database_broker.hpp"
-#include "xdb_database_service.hpp"
-#include "xdb_database_worker.hpp"
-#include "xdb_database_letter.hpp"
+#include "mdp_zmsg.hpp"
+#include "xdb_broker.hpp"
+#include "xdb_broker_service.hpp"
+#include "xdb_broker_worker.hpp"
+#include "xdb_broker_letter.hpp"
 
 using namespace mdp;
 
@@ -35,9 +35,9 @@ void s_catch_signals ()
 //  ---------------------------------------------------------------------
 //  Constructor for broker object
 Broker::Broker (bool verbose) :
-  m_verbose(verbose),
   m_context(NULL),
   m_socket(NULL),
+  m_verbose(verbose),
   m_database(NULL)
 {
     //  Initialize broker state
@@ -373,7 +373,7 @@ Broker::worker_process_READY(xdb::Worker*& worker,
   {
     /* Проверка на служебную */
     if (sender_identity.size() >= 4  //  Reserved service name
-     && sender_identity.find_first_of("mmi.") == 0) 
+     && sender_identity.find("mmi.") != std::string::npos)
     {
       status = worker_delete (worker, 1);
     }
@@ -716,7 +716,7 @@ Broker::client_msg (const std::string& sender, zmsg *msg)
       /* Установить обратный адрес */
       msg->wrap (sender.c_str(), EMPTY_FRAME);
       if (service_frame.length() >= 4
-      &&  service_frame.find_first_of("mmi.") == 0) {
+      &&  service_frame.find("mmi.") != std::string::npos) {
           /* Запрос к служебному сервису */
           service_internal (service_frame, msg);
       }

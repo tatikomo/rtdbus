@@ -13,7 +13,7 @@ extern "C" {
 #endif
 
 #include "mco.h"
-#include "xdb_database_common.h"
+#include "xdb_broker_common.h"
 
 #if defined DEBUG
 # if (EXTREMEDB_VERSION <= 40)
@@ -30,12 +30,12 @@ mco_size_sig_t file_writer(void*, const void*, mco_size_t);
 #endif
 
 #include "helper.hpp"
-#include "dat/xdb_broker.hpp"
-#include "xdb_database_broker.hpp"
-#include "xdb_database_broker_impl.hpp"
-#include "xdb_database_service.hpp"
-#include "xdb_database_worker.hpp"
-#include "xdb_database_letter.hpp"
+#include "dat/broker_db.hpp"
+#include "xdb_broker.hpp"
+#include "xdb_broker_impl.hpp"
+#include "xdb_broker_service.hpp"
+#include "xdb_broker_worker.hpp"
+#include "xdb_broker_letter.hpp"
 
 using namespace xdb;
 
@@ -68,8 +68,8 @@ const int DB_DISK_PAGE_SIZE = 0;
  * Регенерация осуществляется командой mcocomp 
  * на основе содержимого файла broker.mco
  */
-#include "dat/xdb_broker.h"
-#include "dat/xdb_broker.hpp"
+#include "dat/broker_db.h"
+#include "dat/broker_db.hpp"
 
 
 DatabaseBrokerImpl::DatabaseBrokerImpl(DatabaseBroker *self) : 
@@ -77,9 +77,7 @@ DatabaseBrokerImpl::DatabaseBrokerImpl(DatabaseBroker *self) :
     m_save_to_xml_feature(false),
     m_snapshot_counter(0),
     m_self(self),
-    m_service_list(NULL),
-    m_metadict_initialized(false)
-
+    m_service_list(NULL)
 #if (EXTREMEDB_VERSION >= 41) && USE_EXTREMEDB_HTTP_SERVER
     , m_metadict_initialized(false)
 #endif
@@ -212,7 +210,7 @@ bool DatabaseBrokerImpl::Init()
       m_metadict_initialized = true;
       rc = mco_metadict_register(m_metadict,
             ((Database*)m_self)->DatabaseName(),
-            xdb_broker_get_dictionary(), NULL);
+            broker_db_get_dictionary(), NULL);
       if (rc)
         LOG(INFO) << "mco_metadict_register=" << rc;
     }
@@ -300,7 +298,7 @@ MCO_RET DatabaseBrokerImpl::new_Service(mco_trans_h /*t*/,
   MCO_RET rc;
   autoid_t aid;
   Service *service;
-  xdb_broker::XDBService service_instance;
+  broker_db::XDBService service_instance;
   bool status = false;
 
   assert(self);
@@ -455,13 +453,13 @@ bool DatabaseBrokerImpl::AttachToInstance()
 
 #if EXTREMEDB_VERSION >= 40
         rc = mco_db_open_dev(((Database*)m_self)->DatabaseName(),
-                       xdb_broker_get_dictionary(),
+                       broker_db_get_dictionary(),
                        &m_dev,
                        1,
                        &m_db_params);
 #else
         rc = mco_db_open(((Database*)m_self)->DatabaseName(),
-                         xdb_broker_get_dictionary(),
+                         broker_db_get_dictionary(),
                          (void*)MAP_ADDRESS,
                          DATABASE_SIZE + DB_DISK_CACHE,
                          PAGESIZE);
@@ -527,7 +525,7 @@ Service *DatabaseBrokerImpl::AddService(const std::string& name)
 
 Service *DatabaseBrokerImpl::AddService(const char *name)
 {
-  xdb_broker::XDBService service_instance;
+  broker_db::XDBService service_instance;
   Service       *srv = NULL;
   MCO_RET        rc;
   mco_trans_h    t;
@@ -584,7 +582,7 @@ Service *DatabaseBrokerImpl::RequireServiceByName(const std::string& service_nam
  */
 bool DatabaseBrokerImpl::RemoveService(const char *name)
 {
-  xdb_broker::XDBService service_instance;
+  broker_db::XDBService service_instance;
   MCO_RET        rc;
   mco_trans_h    t;
 
@@ -595,7 +593,7 @@ bool DatabaseBrokerImpl::RemoveService(const char *name)
     if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
 
     /* найти запись в таблице сервисов с заданным именем */
-    rc = xdb_broker::XDBService::PK_name::find(t, name, strlen(name), service_instance);
+    rc = broker_db::XDBService::PK_name::find(t, name, strlen(name), service_instance);
     if (MCO_S_NOTFOUND == rc) 
     { 
         LOG(ERROR) << "Removed service '" << name << "' doesn't exists, rc=" << rc; break;
@@ -632,8 +630,8 @@ bool DatabaseBrokerImpl::RemoveWorker(Worker *wrk)
 {
   MCO_RET       rc = MCO_S_OK;
   mco_trans_h   t;
-  xdb_broker::XDBService service_instance;
-  xdb_broker::XDBWorker  worker_instance;
+  broker_db::XDBService service_instance;
+  broker_db::XDBWorker  worker_instance;
 
   assert(wrk);
   const char* identity = wrk->GetIDENTITY();
@@ -643,7 +641,7 @@ bool DatabaseBrokerImpl::RemoveWorker(Worker *wrk)
       rc = mco_trans_start(m_db, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
       if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
 
-      rc = xdb_broker::XDBWorker::SK_by_ident::find(t,
+      rc = broker_db::XDBWorker::SK_by_ident::find(t,
             identity,
             strlen(identity),
             worker_instance);
@@ -685,10 +683,10 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
 {
   MCO_RET       rc = MCO_S_OK;
   mco_trans_h   t;
-  xdb_broker::XDBService service_instance;
-  xdb_broker::XDBWorker  worker_instance;
+  broker_db::XDBService service_instance;
+  broker_db::XDBWorker  worker_instance;
   timer_mark_t  now_time, next_heartbeat_time;
-  xdb_broker::timer_mark xdb_next_heartbeat_time;
+  broker_db::timer_mark xdb_next_heartbeat_time;
   autoid_t      srv_aid;
   autoid_t      wrk_aid;
 
@@ -700,7 +698,7 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
       rc = mco_trans_start(m_db, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
       if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
 
-      rc = xdb_broker::XDBService::autoid::find(t,
+      rc = broker_db::XDBService::autoid::find(t,
                             wrk->GetSERVICE_ID(),
                             service_instance);
       if (rc)
@@ -724,7 +722,7 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
 
       // Проверить наличие Обработчика с таким ident в базе,
       // в случае успеха получив его worker_instance
-      rc = xdb_broker::XDBWorker::SK_by_ident::find(t,
+      rc = broker_db::XDBWorker::SK_by_ident::find(t,
                 wrk_identity,
                 strlen(wrk_identity),
                 worker_instance);
@@ -881,7 +879,7 @@ Service *DatabaseBrokerImpl::GetServiceByName(const char* name)
 {
   MCO_RET       rc;
   mco_trans_h   t;
-  xdb_broker::XDBService service_instance;
+  broker_db::XDBService service_instance;
   Service *service = NULL;
   autoid_t      service_id;
 
@@ -891,7 +889,7 @@ Service *DatabaseBrokerImpl::GetServiceByName(const char* name)
     if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
 
     /* найти запись в таблице сервисов с заданным именем */
-    rc = xdb_broker::XDBService::PK_name::find(t,
+    rc = broker_db::XDBService::PK_name::find(t,
             name,
             strlen(name),
             service_instance);
@@ -916,7 +914,7 @@ Service *DatabaseBrokerImpl::GetServiceByName(const char* name)
 
 Service *DatabaseBrokerImpl::LoadService(
         autoid_t &aid,
-        xdb_broker::XDBService& instance)
+        broker_db::XDBService& instance)
 {
   Service      *service = NULL;
   MCO_RET       rc = MCO_S_OK;
@@ -950,7 +948,7 @@ MCO_RET DatabaseBrokerImpl::LoadWorkerByIdent(
 {
   MCO_RET rc = MCO_S_OK;
   mco_cursor_t csr;
-  xdb_broker::XDBWorker worker_instance;
+  broker_db::XDBWorker worker_instance;
   uint2 idx;
   char name[SERVICE_NAME_MAXLEN+1];
 
@@ -960,7 +958,7 @@ MCO_RET DatabaseBrokerImpl::LoadWorkerByIdent(
 
   do
   {
-    rc = xdb_broker::XDBWorker::SK_by_ident::find(t,
+    rc = broker_db::XDBWorker::SK_by_ident::find(t,
                 identity,
                 strlen(identity),
                 worker_instance);
@@ -979,7 +977,9 @@ MCO_RET DatabaseBrokerImpl::LoadWorkerByIdent(
     }
 
   } while(false);
+#if EXTREMEDB_VERSION > 40
   mco_cursor_close(t, &csr);
+#endif
 
   return rc;
 }
@@ -987,12 +987,12 @@ MCO_RET DatabaseBrokerImpl::LoadWorkerByIdent(
 
 // Загрузить данные Обработчика, основываясь на его идентификаторе
 MCO_RET DatabaseBrokerImpl::LoadWorker(mco_trans_h /*t*/,
-        /* IN  */ xdb_broker::XDBWorker& wrk_instance,
+        /* IN  */ broker_db::XDBWorker& wrk_instance,
         /* OUT */ Worker*& worker)
 {
   MCO_RET       rc = MCO_S_OK;
   char          ident[WORKER_IDENTITY_MAXLEN + 1];
-  xdb_broker::timer_mark  xdb_expire_time;
+  broker_db::timer_mark  xdb_expire_time;
   timer_mark_t  expire_time = {0, 0};
   uint4         timer_value;
   WorkerState   state;
@@ -1089,14 +1089,14 @@ Service *DatabaseBrokerImpl::GetServiceById(int64_t _id)
   mco_trans_h   t;
   MCO_RET       rc;
   Service      *service = NULL;
-  xdb_broker::XDBService service_instance;
+  broker_db::XDBService service_instance;
 
   do
   {
     rc = mco_trans_start(m_db, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
     if (rc) { LOG(ERROR)<<"Starting transaction, rc="<<rc; break; }
 
-    rc = xdb_broker::XDBService::autoid::find(t, aid, service_instance);
+    rc = broker_db::XDBService::autoid::find(t, aid, service_instance);
     if (rc) { LOG(ERROR)<<"Locating service by id="<<_id<<", rc="<<rc; break; }
 
     service = LoadService(aid, service_instance);
@@ -1114,7 +1114,7 @@ bool DatabaseBrokerImpl::IsServiceExist(const char *name)
 {
   MCO_RET       rc;
   mco_trans_h   t;
-  xdb_broker::XDBService instance;
+  broker_db::XDBService instance;
 
   assert(name);
   do
@@ -1122,7 +1122,7 @@ bool DatabaseBrokerImpl::IsServiceExist(const char *name)
     rc = mco_trans_start(m_db, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
     if (rc) { LOG(ERROR)<<"Starting transaction, rc="<<rc; break; }
 
-    rc = xdb_broker::XDBService::PK_name::find(t, name, strlen(name), instance);
+    rc = broker_db::XDBService::PK_name::find(t, name, strlen(name), instance);
     // Если объект не найден - это не ошибка
     if (rc == MCO_S_NOTFOUND) break;
 
@@ -1150,7 +1150,7 @@ Worker* DatabaseBrokerImpl::GetWorkerByState(autoid_t& service_id,
   WorkerState  worker_state;
   mco_cursor_t csr;
   bool         awaiting_worker_found = false;
-  xdb_broker::XDBWorker    worker_instance;
+  broker_db::XDBWorker    worker_instance;
   int          cmp_result;
 
   do
@@ -1158,16 +1158,16 @@ Worker* DatabaseBrokerImpl::GetWorkerByState(autoid_t& service_id,
     rc = mco_trans_start(m_db, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
     if (rc) { LOG(ERROR)<<"Starting transaction, rc="<<rc; break; }
 
-    rc = xdb_broker::XDBWorker::SK_by_serv_id::cursor(t, &csr);
+    rc = broker_db::XDBWorker::SK_by_serv_id::cursor(t, &csr);
     if (MCO_S_CURSOR_EMPTY == rc) // если индекс еще не содержит ни одной записи
       break;
     if (rc) { LOG(ERROR)<< "Unable to get cursor, rc="<<rc; break; }
 
-    for (rc = xdb_broker::XDBWorker::SK_by_serv_id::search(t, &csr, MCO_EQ, service_id);
+    for (rc = broker_db::XDBWorker::SK_by_serv_id::search(t, &csr, MCO_EQ, service_id);
          (rc == MCO_S_OK) || (false == awaiting_worker_found);
          rc = mco_cursor_next(t, &csr)) 
     {
-       rc = xdb_broker::XDBWorker::SK_by_serv_id::compare(t,
+       rc = broker_db::XDBWorker::SK_by_serv_id::compare(t,
                 &csr,
                 service_id,
                 cmp_result);
@@ -1203,7 +1203,9 @@ Worker* DatabaseBrokerImpl::GetWorkerByState(autoid_t& service_id,
     }
   } while(false);
 
+#if EXTREMEDB_VERSION > 40
   mco_cursor_close(t, &csr);
+#endif
   mco_trans_rollback(t);
 
   return worker;
@@ -1261,8 +1263,8 @@ Worker *DatabaseBrokerImpl::GetWorkerByIdent(const char *ident)
 {
   MCO_RET      rc;
   mco_trans_h  t;
-  xdb_broker::XDBService service_instance;
-  xdb_broker::XDBWorker  worker_instance;
+  broker_db::XDBService service_instance;
+  broker_db::XDBWorker  worker_instance;
   Worker      *worker = NULL;
 
   do
@@ -1271,7 +1273,7 @@ Worker *DatabaseBrokerImpl::GetWorkerByIdent(const char *ident)
     if (rc) { LOG(ERROR)<<"Starting transaction, rc="<<rc; break; }
 
     /* найти запись в таблице сервисов с заданным именем */
-    rc = xdb_broker::XDBWorker::SK_by_ident::find(t,
+    rc = broker_db::XDBWorker::SK_by_ident::find(t,
                 ident,
                 strlen(ident),
                 worker_instance);
@@ -1304,7 +1306,7 @@ bool DatabaseBrokerImpl::GetWaitingLetter(
   mco_trans_h t;
   MCO_RET rc = MCO_S_OK;
   mco_cursor_t csr;
-  xdb_broker::XDBLetter letter_instance;
+  broker_db::XDBLetter letter_instance;
   autoid_t  aid;
   uint2     sz;
   char*     header_buffer = NULL;
@@ -1318,7 +1320,7 @@ bool DatabaseBrokerImpl::GetWaitingLetter(
     rc = mco_trans_start(m_db, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
     if (rc) { LOG(ERROR) << "Starting transaction, rc="<<rc; break; }
 
-    rc = xdb_broker::XDBLetter::SK_by_state_for_serv::cursor(t, &csr);
+    rc = broker_db::XDBLetter::SK_by_state_for_serv::cursor(t, &csr);
     if (MCO_S_CURSOR_EMPTY == rc) 
         break; /* В индексе нет ни одной записи */
     if (rc) 
@@ -1327,7 +1329,7 @@ bool DatabaseBrokerImpl::GetWaitingLetter(
       break;
     }
 
-    rc = xdb_broker::XDBLetter::SK_by_state_for_serv::search(t,
+    rc = broker_db::XDBLetter::SK_by_state_for_serv::search(t,
                 &csr,
                 MCO_EQ,
                 srv->GetID(),
@@ -1376,7 +1378,9 @@ bool DatabaseBrokerImpl::GetWaitingLetter(
 
   } while(false);
 
+#if EXTREMEDB_VERSION > 40
   mco_cursor_close(t, &csr);
+#endif
   mco_trans_rollback(t);
 
   return (MCO_S_OK == rc);
@@ -1384,7 +1388,7 @@ bool DatabaseBrokerImpl::GetWaitingLetter(
 #endif
 
 MCO_RET DatabaseBrokerImpl::LoadLetter(mco_trans_h /*t*/,
-    /* IN  */xdb_broker::XDBLetter& letter_instance,
+    /* IN  */broker_db::XDBLetter& letter_instance,
     /* OUT */xdb::Letter*& letter)
 {
   MCO_RET rc = MCO_S_OK;
@@ -1392,9 +1396,9 @@ MCO_RET DatabaseBrokerImpl::LoadLetter(mco_trans_h /*t*/,
   autoid_t     service_aid, worker_aid;
   uint2        header_sz, data_sz, sz;
   timer_mark_t expire_time = {0, 0};
-  xdb_broker::timer_mark xdb_expire_time;
+  broker_db::timer_mark xdb_expire_time;
   LetterState  state;
-  xdb_broker::XDBWorker worker_instance;
+  broker_db::XDBWorker worker_instance;
   char        *header_buffer = NULL;
   char        *body_buffer = NULL;
   char         reply_buffer[WORKER_IDENTITY_MAXLEN + 1];
@@ -1446,7 +1450,7 @@ MCO_RET DatabaseBrokerImpl::LoadLetter(mco_trans_h /*t*/,
     if (worker_aid)
     {
       /* По идентификатору Обработчика прочитать его IDENTITY */
-      rc = xdb_broker::XDBWorker::autoid::find(t, worker_aid, worker_instance);
+      rc = broker_db::XDBWorker::autoid::find(t, worker_aid, worker_instance);
       if (rc)
       {
         LOG(ERROR) << "Locating assigned worker with id="<<worker_aid
@@ -1501,7 +1505,7 @@ Letter* DatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
   mco_trans_h  t;
   MCO_RET rc = MCO_S_OK;
   mco_cursor_t csr;
-  xdb_broker::XDBLetter letter_instance;
+  broker_db::XDBLetter letter_instance;
   Letter      *letter = NULL;
   char        *header_buffer = NULL;
   char        *body_buffer = NULL;
@@ -1514,7 +1518,7 @@ Letter* DatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
     rc = mco_trans_start(m_db, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
     if (rc) { LOG(ERROR) << "Starting transaction, rc="<<rc; break; }
 
-    rc = xdb_broker::XDBLetter::SK_by_state_for_serv::cursor(t, &csr);
+    rc = broker_db::XDBLetter::SK_by_state_for_serv::cursor(t, &csr);
     if (MCO_S_CURSOR_EMPTY == rc) 
         break; /* В индексе нет ни одной записи */
     if (rc) 
@@ -1526,7 +1530,7 @@ Letter* DatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
 
     assert(letter == NULL);
 
-    for (rc = xdb_broker::XDBLetter::SK_by_state_for_serv::search(t,
+    for (rc = broker_db::XDBLetter::SK_by_state_for_serv::search(t,
                                     &csr,
                                     MCO_EQ,
                                     srv->GetID(),
@@ -1537,7 +1541,7 @@ Letter* DatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
        if ((MCO_S_NOTFOUND == rc) || (MCO_S_CURSOR_EMPTY == rc))
          break;
 
-       rc = xdb_broker::XDBLetter::SK_by_state_for_serv::compare(t,
+       rc = broker_db::XDBLetter::SK_by_state_for_serv::compare(t,
                 &csr,
                 srv->GetID(),
                 UNASSIGNED,
@@ -1562,7 +1566,9 @@ Letter* DatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
   delete []header_buffer;
   delete []body_buffer;
 
+#if EXTREMEDB_VERSION > 40
   mco_cursor_close(t, &csr);
+#endif
   mco_trans_rollback(t);
 
   return letter;
@@ -1586,15 +1592,15 @@ bool DatabaseBrokerImpl::AssignLetterToWorker(Worker* worker, Letter* letter)
 {
   mco_trans_h   t;
   MCO_RET       rc;
-  xdb_broker::XDBLetter  letter_instance;
-  xdb_broker::XDBWorker  worker_instance;
+  broker_db::XDBLetter  letter_instance;
+  broker_db::XDBWorker  worker_instance;
 //  Worker::State worker_state;
 //  Letter::State letter_state;
   autoid_t      worker_aid;
   autoid_t      letter_aid;
   timer_mark_t  exp_time;
-  xdb_broker::timer_mark xdb_exp_worker_time;
-  xdb_broker::timer_mark xdb_exp_letter_time;
+  broker_db::timer_mark xdb_exp_worker_time;
+  broker_db::timer_mark xdb_exp_letter_time;
 
   assert(worker);
   assert(letter);
@@ -1604,13 +1610,13 @@ bool DatabaseBrokerImpl::AssignLetterToWorker(Worker* worker, Letter* letter)
     rc = mco_trans_start(m_db, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
     if (rc) { LOG(ERROR)<<"Starting transaction, rc="<<rc; break; }
 
-    rc = xdb_broker::XDBLetter::autoid::find(t, letter->GetID(), letter_instance);
+    rc = broker_db::XDBLetter::autoid::find(t, letter->GetID(), letter_instance);
     /* Запись не найдена - нет ошибки */
     if (MCO_S_NOTFOUND == rc) break;
     /* Запись не найдена - есть ошибка - сообщить */
     if (rc) { LOG(ERROR)<<"Unable to locate Letter with id="<<letter->GetID()<<", rc="<<rc; break; }
 
-    rc = xdb_broker::XDBWorker::autoid::find(t, worker->GetID(), worker_instance);
+    rc = broker_db::XDBWorker::autoid::find(t, worker->GetID(), worker_instance);
     /* Запись не найдена - есть ошибка - сообщить */
     if (rc) { LOG(ERROR)<<"Unable to locate Worker with id="<<worker->GetID()<<", rc="<<rc; break; }
 
@@ -1727,7 +1733,7 @@ bool DatabaseBrokerImpl::ReleaseLetterFromWorker(Worker* worker)
 {
   mco_trans_h    t;
   MCO_RET        rc;
-  xdb_broker::XDBLetter letter_instance;
+  broker_db::XDBLetter letter_instance;
 
   assert(worker);
 
@@ -1736,7 +1742,7 @@ bool DatabaseBrokerImpl::ReleaseLetterFromWorker(Worker* worker)
     rc = mco_trans_start(m_db, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
     if (rc) { LOG(ERROR)<<"Starting transaction, rc="<<rc; break; }
 
-    rc = xdb_broker::XDBLetter::SK_by_worker_id::find(t, worker->GetID(), letter_instance);
+    rc = broker_db::XDBLetter::SK_by_worker_id::find(t, worker->GetID(), letter_instance);
     if (rc)
     {
       LOG(ERROR) << "Unable to find letter assigned to worker "<<worker->GetIDENTITY();
@@ -1790,7 +1796,7 @@ Letter* DatabaseBrokerImpl::GetAssignedLetter(Worker* worker)
 //  mco_trans_h   t;
 //  MCO_RET       rc;
   Letter* letter = NULL;
-  xdb_broker::XDBLetter letter_instance;
+  broker_db::XDBLetter letter_instance;
 
   assert(worker);
 
@@ -1800,7 +1806,7 @@ Letter* DatabaseBrokerImpl::GetAssignedLetter(Worker* worker)
     rc = mco_trans_start(m_db, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
     if (rc) { LOG(ERROR)<<"Starting transaction, rc="<<rc; break; }
 
-    rc = xdb_broker::XDBLetter::SK_by_worker_id::find(t,
+    rc = broker_db::XDBLetter::SK_by_worker_id::find(t,
             worker->GetID(),
             letter_instance);
     /* Запись не найдена - нет ошибки */
@@ -1838,7 +1844,7 @@ bool DatabaseBrokerImpl::SetLetterState(Letter* letter, Letter::State _new_state
 {
   mco_trans_h   t;
   MCO_RET       rc;
-  xdb_broker::XDBLetter  letter_instance;
+  broker_db::XDBLetter  letter_instance;
 
   assert(letter);
   if (!letter)
@@ -1849,7 +1855,7 @@ bool DatabaseBrokerImpl::SetLetterState(Letter* letter, Letter::State _new_state
     rc = mco_trans_start(m_db, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
     if (rc) { LOG(ERROR)<<"Starting transaction, rc="<<rc; break; }
 
-    rc = xdb_broker::XDBLetter::autoid::find(t, letter->GetID(), letter_instance);
+    rc = broker_db::XDBLetter::autoid::find(t, letter->GetID(), letter_instance);
     /* Запись не найдена - нет ошибки */
     if (MCO_S_NOTFOUND == rc) break;
     /* Запись не найдена - есть ошибка - сообщить */
@@ -1880,7 +1886,7 @@ bool DatabaseBrokerImpl::SetWorkerState(Worker* worker, Worker::State new_state)
 {
   mco_trans_h t;
   MCO_RET rc;
-  xdb_broker::XDBWorker  worker_instance;
+  broker_db::XDBWorker  worker_instance;
 
   assert(worker);
   if (!worker)
@@ -1894,7 +1900,7 @@ bool DatabaseBrokerImpl::SetWorkerState(Worker* worker, Worker::State new_state)
     if (rc) { LOG(ERROR)<<"Starting transaction, rc="<<rc; break; }
 
     /* найти запись в таблице сервисов с заданным именем */
-    rc = xdb_broker::XDBWorker::SK_by_ident::find(t,
+    rc = broker_db::XDBWorker::SK_by_ident::find(t,
                 ident,
                 strlen(ident),
                 worker_instance);
@@ -1987,12 +1993,12 @@ bool DatabaseBrokerImpl::PushRequestToService(Service *srv, Letter *letter)
 
   MCO_RET      rc;
   mco_trans_h  t;
-  xdb_broker::XDBLetter  letter_instance;
-  xdb_broker::XDBService service_instance;
-  xdb_broker::XDBWorker  worker_instance;
+  broker_db::XDBLetter  letter_instance;
+  broker_db::XDBService service_instance;
+  broker_db::XDBWorker  worker_instance;
   autoid_t     aid;
   timer_mark_t what_time;
-  xdb_broker::timer_mark   mark;
+  broker_db::timer_mark   mark;
 
   assert (srv);
   assert(letter);
@@ -2347,7 +2353,7 @@ bool ServiceListImpl::refresh()
   mco_trans_h t;
   MCO_RET rc = MCO_S_OK;
   mco_cursor_t csr;
-  xdb_broker::XDBService service_instance;
+  broker_db::XDBService service_instance;
   char name[Service::NAME_MAXLEN + 1];
   autoid_t aid;
 
@@ -2365,7 +2371,7 @@ bool ServiceListImpl::refresh()
     rc = mco_trans_start(m_db, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
     if (rc) { LOG(ERROR) << "Starting transaction, rc="<<rc; break; }
 
-    rc = xdb_broker::XDBService::list_cursor(t, &csr);
+    rc = broker_db::XDBService::list_cursor(t, &csr);
     // Если курсор пуст, вернуться
     if (MCO_S_CURSOR_EMPTY == rc)
       break;
@@ -2400,7 +2406,9 @@ bool ServiceListImpl::refresh()
 
   } while(false);
 
+#if EXTREMEDB_VERSION > 40
   mco_cursor_close(t, &csr);
+#endif
   mco_trans_rollback(t);
 
   switch(rc)

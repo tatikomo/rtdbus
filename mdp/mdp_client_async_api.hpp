@@ -32,7 +32,7 @@
 #define __MDP_CLIENT_ASYNC_API_HPP_INCLUDED__
 
 #include "config.h"
-#include "zmsg.hpp"
+#include "mdp_zmsg.hpp"
 #include "mdp_common.h"
 
 namespace mdp {

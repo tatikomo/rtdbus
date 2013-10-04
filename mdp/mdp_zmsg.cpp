@@ -18,7 +18,7 @@
 
 #include "config.h"
 #include "helper.hpp"
-#include "zmsg.hpp"
+#include "mdp_zmsg.hpp"
 #include "mdp_common.h"
 
 using namespace mdp;

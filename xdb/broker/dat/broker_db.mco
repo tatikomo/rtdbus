@@ -13,7 +13,7 @@
 #define WORKERS_FOR_SERVICE 2
 
 
-declare database xdb_broker;
+declare database broker_db;
 
 struct timer_mark {
   uint4 sec;

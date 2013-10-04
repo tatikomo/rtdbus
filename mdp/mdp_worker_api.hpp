@@ -11,8 +11,8 @@
 #define __MDP_WORKER_API_HPP_INCLUDED__
 #pragma once
 
-#include "zmsg.hpp"
 #include "config.h"
+#include "mdp_zmsg.hpp"
 #include "mdp_common.h"
 
 namespace mdp {

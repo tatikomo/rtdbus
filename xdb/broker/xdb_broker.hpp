@@ -4,10 +4,10 @@
 #include <stdint.h>
 #include <string>
 
-#include "xdb_database.hpp"
-#include "xdb_database_service.hpp"
-#include "xdb_database_worker.hpp"
-#include "xdb_database_letter.hpp"
+#include "xdb_broker_base.hpp"
+#include "xdb_broker_service.hpp"
+#include "xdb_broker_worker.hpp"
+#include "xdb_broker_letter.hpp"
 
 namespace xdb {
 

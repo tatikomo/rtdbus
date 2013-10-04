@@ -5,7 +5,7 @@
 #include <string>
 
 #include "config.h"
-#include "zmsg.hpp"
+#include "mdp_zmsg.hpp"
 #include "msg_message.hpp"
 #include "msg_common.h"
 

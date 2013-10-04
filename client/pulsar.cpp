@@ -5,26 +5,26 @@
 #include <google/protobuf/stubs/common.h>
 #include <glog/logging.h>
 
-#include "zmsg.hpp"
-#include "pulsar.hpp"
+#include "config.h"
+
+#include "mdp_common.h"
+#include "mdp_zmsg.hpp"
 #include "mdp_client_async_api.hpp"
 #include "mdp_letter.hpp"
-
-#include "config.h"
-#include "mdp_common.h"
 #include "msg_message.hpp"
 #include "proto/common.pb.h"
+#include "pulsar.hpp"
 
-const unsigned int MAX_LETTERS = 600;
+const unsigned int MAX_LETTERS = 1200;
 
 //static unsigned int system_exchange_id = 100000;
 static unsigned int user_exchange_id = 1;
-static unsigned int num_iter = 600;
+static unsigned int num_iter = 1200;
 
 rtdbExchangeId id_list[MAX_LETTERS];
 typedef enum {
-  SENT_OUT,
-  RECEIVED_IN
+  SENT_OUT      = 1,
+  RECEIVED_IN   = 2
 } Status;
 
 Pulsar::Pulsar(std::string broker, int verbose) : mdcli(broker, verbose)
@@ -79,13 +79,14 @@ int main (int argc, char *argv [])
   mdp::zmsg *report    = NULL;
   Pulsar    *client    = NULL;
   mdp::Letter *letter = NULL;
-//  RTDBM::AskLife* pb_asklife = NULL;
+  RTDBM::AskLife* pb_asklife = NULL;
   int verbose = 0;
   int num_received = 0; // общее количество полученных сообщений
   int num_good_received = 0; // количество полученных сообщений, на которые мы ожидали ответ
   int opt;
   char service_name[SERVICE_NAME_MAXLEN + 1];
   bool is_service_name_given = false;
+  rtdbExchangeId sent_exchange_id;
 
   ::google::InstallFailureSignalHandler();
   ::google::InitGoogleLogging(argv[0]);
@@ -101,7 +102,10 @@ int main (int argc, char *argv [])
        case 'n':
          num_iter = atoi(optarg);
          if (num_iter > MAX_LETTERS)
+         {
+            std::cout << "W: truncate given messages count ("<<num_iter<<") to "<<MAX_LETTERS<<std::endl;
             num_iter = MAX_LETTERS;
+         }
          break;
 
        case 's':
@@ -135,15 +139,16 @@ int main (int argc, char *argv [])
 
   try
   {
-    for (rtdbExchangeId i=1; i<num_iter; i++)
+    for (sent_exchange_id=1; sent_exchange_id<=num_iter; sent_exchange_id++)
     {
-      request = generateNewOrder(i);
+      request = generateNewOrder(sent_exchange_id);
 
       client->send (service_name, request);
       if (verbose)
-        std::cout << "["<<i<<"/"<<num_iter<<"] Send" << std::endl;
+        std::cout << "["<<sent_exchange_id<<"/"<<num_iter<<"] Send" << std::endl;
       delete request;
-      id_list[i] = SENT_OUT;
+
+      id_list[sent_exchange_id] = SENT_OUT;
 #if 0
     }
 
@@ -152,10 +157,28 @@ int main (int argc, char *argv [])
         report = client->recv();
         if (report == NULL)
             break;
-//        report->dump();
         
         letter = new mdp::Letter(report);
         num_received++;
+        rtdbExchangeId recv_message_exchange_id = (static_cast<RTDBM::AskLife*>(letter->data()))->user_exchange_id();
+        if ((1 <= recv_message_exchange_id) && (recv_message_exchange_id <= num_iter))
+        {
+          // Идентификатор в пределах положенного
+          if (id_list[recv_message_exchange_id] != SENT_OUT)
+          {
+            LOG(ERROR) << "Get responce with unwilling exchange id: "<<recv_message_exchange_id;
+          }
+          else if (id_list[recv_message_exchange_id] == SENT_OUT)
+          {
+            id_list[recv_message_exchange_id] = RECEIVED_IN;
+            num_good_received++;
+          }
+        }
+        else
+        {
+          LOG(ERROR) << "Get responce with unknown exchange id: "<<recv_message_exchange_id;
+        }
+
         if (verbose)
         {
             std::cout << "gotcha!"      << std::endl;
@@ -185,11 +208,14 @@ int main (int argc, char *argv [])
         report = client->recv();
         if (report == NULL)
             break;
+
+        if (verbose)
+          report->dump();
             
         letter = new mdp::Letter(report);
         num_received++;
         rtdbExchangeId recv_message_exchange_id = (static_cast<RTDBM::AskLife*>(letter->data()))->user_exchange_id();
-        if ((0 < recv_message_exchange_id) && (recv_message_exchange_id < num_iter))
+        if ((1 <= recv_message_exchange_id) && (recv_message_exchange_id <= num_iter))
         {
           // Идентификатор в пределах положенного
           if (id_list[recv_message_exchange_id] != SENT_OUT)
@@ -239,7 +265,7 @@ int main (int argc, char *argv [])
     {
       if (id_list[k] != RECEIVED_IN)
       {
-        std::cout << "Response for letter with id "<<k<<"wasn't receided"<<std::endl;
+        std::cout << "Response for letter with id "<<k<<" wasn't receided"<<std::endl;
       }
     }
   }

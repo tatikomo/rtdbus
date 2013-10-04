@@ -17,7 +17,7 @@ endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
 include_directories(${TOOLS_DIR})
 include_directories(${MDP_DIR})
-include_directories(${XDB_DIR})
+include_directories(${XDB_BROKER_DIR})
 include_directories(${MSG_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})
@@ -43,21 +43,21 @@ add_custom_command(
 
 add_custom_command(
         OUTPUT 
-        ${XDB_DIR}/dat/xdb_broker.h
-        ${XDB_DIR}/dat/xdb_broker.c
-        ${XDB_DIR}/dat/xdb_broker.hpp
+        ${XDB_BROKER_DIR}/dat/broker_db.h
+        ${XDB_BROKER_DIR}/dat/broker_db.c
+        ${XDB_BROKER_DIR}/dat/broker_db.hpp
         COMMAND
-        ${LIBEXTREMEDB_MCOCOMP} -hpp broker.mco -P${XDB_DIR}/dat
+        ${LIBEXTREMEDB_MCOCOMP} -hpp broker_db.mco -P${XDB_BROKER_DIR}/dat
         DEPENDS
-        ${XDB_DIR}/dat/broker.mco
+        ${XDB_BROKER_DIR}/dat/broker_db.mco
         WORKING_DIRECTORY
-        ${XDB_DIR}/dat
+        ${XDB_BROKER_DIR}/dat
         )
 
 set (MDP_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
-        ${MDP_DIR}/zmsg.hpp
-        ${MDP_DIR}/zmsg.cpp
+        ${MDP_DIR}/mdp_zmsg.hpp
+        ${MDP_DIR}/mdp_zmsg.cpp
         ${MDP_DIR}/mdp_common.h
         ${MDP_DIR}/mdp_helpers.hpp
         ${MDP_DIR}/mdp_helpers.cpp
@@ -70,15 +70,15 @@ set (MDP_SOURCES
 
 set (BROKER_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
-        ${MDP_DIR}/proxy.hpp
-        ${MDP_DIR}/proxy.cpp
-        ${MDP_DIR}/zmsg.hpp
-        ${MDP_DIR}/zmsg.cpp
+        ${MDP_DIR}/mdp_proxy.hpp
+        ${MDP_DIR}/mdp_proxy.cpp
+        ${MDP_DIR}/mdp_zmsg.hpp
+        ${MDP_DIR}/mdp_zmsg.cpp
         ${MDP_DIR}/mdp_common.h
         ${MSG_DIR}/msg_message.hpp
-        ${XDB_DIR}/dat/xdb_broker.h
-        ${XDB_DIR}/dat/xdb_broker.c
-        ${XDB_DIR}/dat/xdb_broker.hpp
+        ${XDB_BROKER_DIR}/dat/broker_db.h
+        ${XDB_BROKER_DIR}/dat/broker_db.c
+        ${XDB_BROKER_DIR}/dat/broker_db.hpp
         ${MDP_DIR}/mdp_helpers.hpp
         ${MDP_DIR}/mdp_helpers.cpp
         ${MDP_DIR}/mdp_broker.hpp
@@ -102,7 +102,7 @@ target_link_libraries(${MDP_BROKER}
     ${TOOLS_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
     ${MSG_LIBRARY_NAME}
-    ${XDB_LIBRARY_NAME}
+    ${XDB_BROKER_LIBRARY_NAME}
     ${LIBGLOG_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${LIBPROTOBUF_LIBRARIES}

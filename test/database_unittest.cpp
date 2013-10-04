@@ -2,11 +2,11 @@
 #include <glog/logging.h>
 #include "gtest/gtest.h"
 
-#include "xdb_database_broker_impl.hpp"
-#include "xdb_database_broker.hpp"
-#include "xdb_database_service.hpp"
-#include "xdb_database_worker.hpp"
-#include "dat/xdb_broker.hpp"
+#include "xdb_broker_impl.hpp"
+#include "xdb_broker.hpp"
+#include "xdb_broker_service.hpp"
+#include "xdb_broker_worker.hpp"
+#include "dat/broker_db.hpp"
 #include "proto/common.pb.h"
 
 const char *service_name_1 = "service_test_1";

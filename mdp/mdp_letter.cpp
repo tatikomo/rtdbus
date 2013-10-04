@@ -3,9 +3,10 @@
 
 #include "glog/logging.h"
 
-#include "zmsg.hpp"
-#include "mdp_letter.hpp"
 #include "helper.hpp"
+
+#include "mdp_zmsg.hpp"
+#include "mdp_letter.hpp"
 
 using namespace mdp;
 
@@ -47,9 +48,9 @@ Letter::Letter(zmsg* _instance) :
 // Если последний параметр равен NULL, создается пустая структура 
 // нужного типа с тем, чтобы потом её заполнил пользователь самостоятельно.
 Letter::Letter(const rtdbMsgType user_type, const std::string& dest, const std::string* b) :
-  m_source_procname("DELME"), // TODO: подставить сюда название своего процесса
   m_data_needs_reserialization(true),
   m_header_needs_reserialization(true),
+  m_source_procname("DELME"), // TODO: подставить сюда название своего процесса
   m_body_instance(NULL)
 {
   // TODO Создать Header самостоятельно

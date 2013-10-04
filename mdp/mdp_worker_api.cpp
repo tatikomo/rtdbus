@@ -1,4 +1,5 @@
 #include <glog/logging.h>
+#include "config.h"
 #include "mdp_common.h"
 #include "mdp_worker_api.hpp"
 
@@ -10,7 +11,7 @@ using namespace mdp;
 //  Call s_catch_signals() in your application at startup, and then exit
 //  your main loop if s_interrupted is ever 1. Works especially well with
 //  zmq_poll.
-static int s_interrupted = 0;
+extern int s_interrupted;
 static void s_signal_handler (int signal_value)
 {
     s_interrupted = 1;
@@ -28,13 +29,13 @@ static void s_catch_signals ()
 }
 
 mdwrk::mdwrk (std::string broker, std::string service, int verbose) :
-  m_context(NULL),
   m_broker(broker),
   m_service(service),
+  m_context(NULL),
+  m_worker(0),
   m_verbose(verbose),
   m_heartbeat(HeartbeatInterval), //  msecs
   m_reconnect(HeartbeatInterval), //  msecs
-  m_worker(0),
   m_expect_reply(false)
 {
     /* NB

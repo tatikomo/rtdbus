@@ -6,7 +6,7 @@
 #if defined HAVE_CONFIG_H
 #include "config.h"
 #endif
-#include "xdb_database.hpp"
+#include "xdb_broker_base.hpp"
 
 using namespace xdb;
 

@@ -4,12 +4,12 @@
 #include <string.h>
 
 #include "config.h"
-#include "zmsg.hpp"
+#include "mdp_zmsg.hpp"
 #include "msg_common.h"
 #include "msg_message.hpp"
-#include "xdb_database_service.hpp"
-#include "xdb_database_worker.hpp"
-#include "xdb_database_letter.hpp"
+#include "xdb_broker_service.hpp"
+#include "xdb_broker_worker.hpp"
+#include "xdb_broker_letter.hpp"
 
 using namespace xdb;
 
@@ -74,12 +74,12 @@ Letter::Letter(void* data) :
 
 // Создать экземпляр на основе заголовка и тела сообщения
 Letter::Letter(const char* _reply_to, const std::string& _head, const std::string& _data) :
-  m_frame_header(_head),
-  m_frame_data(_data),
   m_id(0),
   m_service_id(0),
   m_worker_id(0),
   m_state(UNASSIGNED),
+  m_frame_header(_head),
+  m_frame_data(_data),
   m_modified(true)
 {
   timer_mark_t tictac = {0, 0};

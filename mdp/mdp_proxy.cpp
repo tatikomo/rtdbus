@@ -2,7 +2,7 @@
 
 #include "mdp_common.h"
 #include "mdp_broker.hpp"
-#include "proxy.hpp"
+#include "mdp_proxy.hpp"
 
 using namespace mdp;
 

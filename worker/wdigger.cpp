@@ -1,11 +1,11 @@
 #include <glog/logging.h>
 
-#include "proto/common.pb.h"
 #include "zmq.hpp"
-#include "zmsg.hpp"
 #include "helper.hpp"
+#include "mdp_zmsg.hpp"
 #include "mdp_worker_api.hpp"
 #include "mdp_letter.hpp"
+#include "proto/common.pb.h"
 #include "wdigger.hpp"
 
 extern int s_interrupted;

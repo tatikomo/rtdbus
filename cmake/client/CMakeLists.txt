@@ -18,7 +18,7 @@ include_directories(${LIBZMQ_INCLUDE_DIR})
 include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 include_directories(${MDP_DIR})
 include_directories(${MSG_DIR})
-include_directories(${XDB_DIR})
+include_directories(${XDB_BROKER_DIR})
 
 link_directories(${LIBGLOG_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
@@ -27,7 +27,7 @@ link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${CMAKE_SOURCE_DIR}/../cmake/lib)
 
 set (CLIENT_TRADER_SOURCES
-        ${MDP_DIR}/zmsg.hpp
+        ${MDP_DIR}/mdp_zmsg.hpp
         ${MDP_DIR}/mdp_common.h
         ${MDP_DIR}/mdp_client_async_api.hpp
         ${CLIENT_DIR}/trader.hpp
@@ -35,11 +35,11 @@ set (CLIENT_TRADER_SOURCES
 
 set (CLIENT_PULSAR_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
-        ${MDP_DIR}/zmsg.hpp
-        ${XDB_DIR}/xdb_database_letter.hpp
+        ${MDP_DIR}/mdp_zmsg.hpp
         ${MDP_DIR}/mdp_common.h
-        ${MSG_DIR}/proto/common.pb.h
         ${MDP_DIR}/mdp_client_async_api.hpp
+        ${MSG_DIR}/proto/common.pb.h
+        ${XDB_BROKER_DIR}/xdb_broker_letter.hpp
         ${CLIENT_DIR}/pulsar.hpp
         ${CLIENT_DIR}/pulsar.cpp)
 
