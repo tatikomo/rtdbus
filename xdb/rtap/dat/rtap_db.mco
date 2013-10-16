@@ -1,0 +1,160 @@
+/* 
+ * Instance of RTAP database description
+ *
+ * AUTHOR:     GEV
+ * START DATE: 17/03/2009
+ */
+
+#define int1        signed<1>
+#define int2        signed<2>
+#define int4        signed<4>
+#define int8        signed<8>
+#define uint8       unsigned<8>
+#define uint4       unsigned<4>
+#define uint2       unsigned<2>
+#define uint1       unsigned<1>
+#define s_code      char<8>
+#define s_label     char<80>
+#define s_univname  char<32>
+#define s_valabel   char<12>
+#define s_shortlabel    char<16>
+#define s_attnamei      char<16>
+#define s_statelabel    char<32>
+
+declare database  rtap_db;
+
+/* Common part of each db points */
+struct Header
+{
+  s_univname    univName;
+  s_code   objectCode;
+  uint1    objectClass;
+  s_shortlabel    shortLabel;
+  s_label    longLabel;
+};
+
+/* Common part of equipment */
+struct EquipmentPart
+{
+  uint1    valid;
+  uint1    state;
+  s_statelabel    stateLabel;
+};
+
+/* Telemetry */
+class TM
+{
+  Header    header;
+  time    modifTime;
+  uint1    valid;
+  double    val;
+  autoid_t  linkSA; /*reference to SA object */
+  autoid[1000];    /* max to 1000 telemetries per local object */
+  hash < header.univName > tmHash[1000];
+};
+
+class Valve
+{
+  Header    header;
+  EquipmentPart    eqt;
+  time    modifTime;
+  autoid_t  linkSA; /*reference to SA object */
+  autoid[500];   /* max to 500 valves per DIPL */
+  hash <header.univName> valveHash[500];
+};
+
+/* Acquisition system */
+class SA
+{
+  Header    header;
+  EquipmentPart    eqt;
+  autoid[40];    /* max to 40 SA per DIPL */
+  hash <header.univName> saHash[40];
+  list;
+};
+
+/* Distant groups of valves */
+class SV
+{
+  Header    header;
+  EquipmentPart    eqt;
+  time    modifTime;
+  autoid[200];    /* max to 200 SV per DIPL */
+  hash <header.univName> svHash[200];
+};
+
+class SV_Valve {
+    autoid_t SV;
+    autoid_t Valve;
+    tree <SV, Valve> pair;
+};
+
+class SV_TM {
+    autoid_t SV;
+    autoid_t TM;
+    tree <SV, TM> pair;
+};
+
+
+/* Workshop */
+class ATC
+{
+  Header    header;
+  EquipmentPart    eqt;
+  time    modifTime;
+  autoid[10];    /* max to 10 ATC per DIPL */
+  hash <header.univName> atcHash[10];
+};
+
+class ATC_Valve {
+    autoid_t ATC;
+    autoid_t Valve;
+    tree <ATC, Valve> pair;
+};
+
+class ATC_TM {
+    autoid_t ATC;
+    autoid_t TM;
+    tree <ATC, TM> pair;
+};
+
+class ATC_SV {
+    autoid_t ATC;
+    autoid_t SV;
+    tree <ATC, SV> pair;
+};
+
+
+/* Main local object */
+class DIPL
+{
+  Header    header;
+  EquipmentPart    eqt;
+  time    modifTime;
+  autoid[10];
+};
+
+class DIPL_SV {
+    autoid_t DIPL;
+    autoid_t SV;
+    tree <DIPL, SV> pair;
+};
+
+class DIPL_ATC {
+    autoid_t DIPL;
+    autoid_t ATC;
+    tree <DIPL, ATC> pair;
+};
+
+class DIPL_TM {
+    autoid_t DIPL;
+    autoid_t TM;
+    tree <DIPL, TM> pair;
+};
+
+class DIPL_Valve {
+    autoid_t DIPL;
+    autoid_t Valve;
+    tree <DIPL, Valve> pair;
+};
+
