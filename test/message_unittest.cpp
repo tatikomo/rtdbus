@@ -4,11 +4,11 @@
 #include "glog/logging.h"
 
 #include "helper.hpp"
-#include "zmsg.hpp"
+#include "mdp_zmsg.hpp"
 #include "mdp_common.h"
 #include "msg_message.hpp"
 #include "proto/common.pb.h"
-#include "xdb_database_letter.hpp"
+#include "xdb_broker_letter.hpp"
 
 std::string        service_name_1 = "service_name_1";
 std::string        pb_serialized_header;

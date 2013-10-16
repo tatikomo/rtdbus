@@ -28,7 +28,7 @@ link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${CMAKE_SOURCE_DIR}/../cmake/lib)
 
 set (WORKER_DIGGER_SOURCES
-        ${MDP_DIR}/zmsg.hpp
+        ${MDP_DIR}/mdp_zmsg.hpp
         ${MDP_DIR}/mdp_common.h
         ${MDP_DIR}/mdp_client_async_api.hpp
         ${MDP_DIR}/mdp_worker_api.hpp
@@ -36,7 +36,7 @@ set (WORKER_DIGGER_SOURCES
         ${WORKER_DIR}/wdigger.cpp)
 
 set (WORKER_ECHO_SOURCES
-        ${MDP_DIR}/zmsg.hpp
+        ${MDP_DIR}/mdp_zmsg.hpp
         ${MDP_DIR}/mdp_common.h
         ${MDP_DIR}/mdp_client_async_api.hpp
         ${MDP_DIR}/mdp_worker_api.hpp

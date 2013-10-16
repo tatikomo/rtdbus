@@ -3,7 +3,7 @@
 #pragma once
 
 #include <string>
-#include "zmsg.hpp"
+#include "mdp_zmsg.hpp"
 #include "mdp_worker_api.hpp"
 
 class Echo : public mdp::mdwrk

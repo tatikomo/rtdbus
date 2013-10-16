@@ -1,86 +1,91 @@
 #include <glog/logging.h>
 #include <assert.h>
+#include <iostream>
 #include <string.h>
 
 #include "config.h"
-#include "zmsg.hpp"
+#include "mdp_zmsg.hpp"
 #include "msg_common.h"
 #include "msg_message.hpp"
-#include "xdb_database_service.hpp"
-#include "xdb_database_worker.hpp"
-#include "xdb_database_letter.hpp"
+#include "xdb_broker_service.hpp"
+#include "xdb_broker_worker.hpp"
+#include "xdb_broker_letter.hpp"
 
 using namespace xdb;
 
-Letter::Letter()
+Letter::Letter() :
+  m_id(0),
+  m_service_id(0),
+  m_worker_id(0),
+  m_state(EMPTY),
+  m_modified(false)
 {
-  m_id = m_service_id = m_worker_id = 0;
-  m_expiration.tv_sec = 0;
-  m_expiration.tv_nsec = 0;
-  m_header = NULL;
-  m_modified = false;
+  timer_mark_t tictac = {0, 0};
+  SetEXPIRATION(tictac);
 }
 
-Letter::Letter(const int64_t _self_id, const int64_t _srv_id, const int64_t _wrk_id)
-: m_id(_self_id), m_service_id(_srv_id), m_worker_id(_wrk_id)
+Letter::Letter(const int64_t _self_id, const int64_t _srv_id, const int64_t _wrk_id) :
+  m_id(_self_id),
+  m_service_id(_srv_id),
+  m_worker_id(_wrk_id),
+  m_state(UNASSIGNED),
+  m_modified(true)
 {
-  m_header = NULL;
-  m_modified = true;
+  timer_mark_t tictac = {0, 0};
+  SetEXPIRATION(tictac);
 }
 
 Letter::~Letter()
 {
-  delete m_header;
 }
 
 // на входе - объект zmsg
-Letter::Letter(void* data) : m_modified(true)
+Letter::Letter(void* data) :
+  m_id(0),
+  m_service_id(0),
+  m_worker_id(0),
+  m_state(UNASSIGNED),
+  m_modified(true)
 {
   mdp::zmsg *msg = static_cast<mdp::zmsg*> (data);
+  timer_mark_t tictac = {0, 0};
+  SetEXPIRATION(tictac);
 
   assert(msg);
-  SetID(0);
-  SetWORKER_ID(0);
-  SetSERVICE_ID(0);
-
   // Прочитать служебные поля транспортного сообщения zmsg
   // и восстановить на его основе прикладное сообщение.
   // Первый фрейм - адрес возврата,
   // Два последних фрейма - заголовок и тело сообщения.
-  strncpy(m_reply_to, msg->get_part(0).c_str(), WORKER_IDENTITY_MAXLEN);
-  m_reply_to[WORKER_IDENTITY_MAXLEN] = '\0';
-//  LOG(INFO) << "Reply to " << m_reply_to << std::endl;
-//  std::cout << "Reply to " << m_reply_to << std::endl;
+  strncpy(m_reply_to, msg->get_part(0)->c_str(), IDENTITY_MAXLEN);
+  m_reply_to[IDENTITY_MAXLEN] = '\0';
 
-  assert(msg->parts() >= 2);
   int msg_frames = msg->parts();
+  assert(msg_frames >= 2);
 
-  m_frame_header.assign(msg->get_part(msg_frames-2));
-  m_header = new msg::Header(m_frame_header);
+  const std::string* head = msg->get_part(msg_frames-2);
+  const std::string* body = msg->get_part(msg_frames-1);
 
-  m_frame_data.assign(msg->get_part(msg_frames-1));
+  assert (head);
+  assert (body);
+
+  m_frame_header.assign(head->data(), head->size());
+  m_frame_data.assign(body->data(), body->size());
 }
 
 // Создать экземпляр на основе заголовка и тела сообщения
-Letter::Letter(std::string& reply, msg::Header *h, std::string& b) : m_modified(true)
+Letter::Letter(const char* _reply_to, const std::string& _head, const std::string& _data) :
+  m_id(0),
+  m_service_id(0),
+  m_worker_id(0),
+  m_state(UNASSIGNED),
+  m_frame_header(_head),
+  m_frame_data(_data),
+  m_modified(true)
 {
-  // TODO сделать копию заголовка, т.к. он создан в вызывающем контексте и нами не управляется
-  assert(1 == 0);
-}
-
-// Создать экземпляр на основе заголовка и тела сообщения
-Letter::Letter(const char* _reply_to, const std::string& _head, const std::string& _data) : m_modified(true)
-{
-  m_frame_header.assign(_head);
-  m_frame_data.assign(_data);
-
-  strncpy(m_reply_to, _reply_to, WORKER_IDENTITY_MAXLEN);
-  m_reply_to[WORKER_IDENTITY_MAXLEN] = '\0';
-
-  m_header = new msg::Header(m_frame_header);
-  SetID(0);
-  SetWORKER_ID(0);
-  SetSERVICE_ID(0);
+  timer_mark_t tictac = {0, 0};
+  strncpy(m_reply_to, _reply_to, IDENTITY_MAXLEN);
+  m_reply_to[IDENTITY_MAXLEN] = '\0';
+  SetEXPIRATION(tictac);
 }
 
 void Letter::SetID(int64_t self_id)
@@ -141,17 +146,17 @@ void Letter::SetSTATE(State new_state)
   m_state = new_state;
 }
 
-int64_t Letter::GetID()
+int64_t Letter::GetID() const
 {
   return m_id;
 }
 
-int64_t Letter::GetSERVICE_ID()
+int64_t Letter::GetSERVICE_ID() const
 {
   return m_service_id;
 }
 
-int64_t Letter::GetWORKER_ID()
+int64_t Letter::GetWORKER_ID() const
 {
   return m_worker_id;
 }
@@ -173,8 +178,8 @@ void Letter::SetDATA(const std::string& body)
 
 void Letter::SetREPLY_TO(const char* reply_to)
 {
-  strncpy(m_reply_to, reply_to, WORKER_IDENTITY_MAXLEN);
-  m_reply_to[WORKER_IDENTITY_MAXLEN] = '\0';
+  strncpy(m_reply_to, reply_to, IDENTITY_MAXLEN);
+  m_reply_to[IDENTITY_MAXLEN] = '\0';
 }
 
 const std::string& Letter::GetDATA()
@@ -199,60 +204,10 @@ bool Letter::GetVALID()
   return (m_modified == false);
 }
 
-int8_t Letter::GetPROTOCOL_VERSION()
-{
-  assert(m_header);
-  return m_header->get_protocol_version();
-}
-
-rtdbExchangeId Letter::GetEXCHANGE_ID()
-{
-  assert(m_header);
-  return m_header->get_exchange_id();
-}
-
-rtdbPid Letter::GetSOURCE_PID()
-{
-  assert(m_header);
-  return m_header->get_source_pid();
-}
-
-const std::string& Letter::GetPROC_DEST()
-{
-  assert(m_header);
-  return m_header->get_proc_dest();
-}
-
-const std::string& Letter::GetPROC_ORIGIN()
-{
-  assert(m_header);
-  return m_header->get_proc_origin();
-}
-
-rtdbMsgType Letter::GetSYS_MSG_TYPE()
-{
-  assert(m_header);
-  return m_header->get_sys_msg_type();
-}
-
-rtdbMsgType Letter::GetUSR_MSG_TYPE()
-{
-  assert(m_header);
-  return m_header->get_usr_msg_type();
-}
-
 void Letter::Dump()
 {
   LOG(INFO)
     <<"Letter:" << m_id
     <<" srv:"   << m_service_id
-    <<" wrk:"   << m_worker_id
-    <<" prot:"  << (int)GetPROTOCOL_VERSION()
-    <<" exchg:" << GetEXCHANGE_ID()
-    <<" spid:"  << GetSOURCE_PID()
-    <<" reply:'"<< GetREPLY_TO()
-    <<"' dest:'"<< GetPROC_DEST()
-    <<"' orig:'"<< GetPROC_ORIGIN()
-    <<"' sys_t:"<< GetSYS_MSG_TYPE()
-    <<" usr_t:" << GetUSR_MSG_TYPE();
+    <<" wrk:"   << m_worker_id;
 }

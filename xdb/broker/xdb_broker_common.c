@@ -11,7 +11,7 @@ extern "C" {
 }
 #endif
 
-#include "xdb_database_common.h"
+#include "xdb_broker_common.h"
 
 /* implement error handler */
 void errhandler(MCO_RET n)

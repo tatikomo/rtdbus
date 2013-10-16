@@ -4,18 +4,19 @@
 #include <google/protobuf/stubs/common.h>
 
 #include "helper.hpp"
-#include "zmsg.hpp"
+#include "mdp_zmsg.hpp"
 #include "mdp_common.h"
 #include "mdp_broker.hpp"
 #include "mdp_worker_api.hpp"
 #include "mdp_letter.hpp"
 #include "mdp_client_async_api.hpp"
-#include "xdb_database_worker.hpp"
-#include "xdb_database_broker.hpp"
-#include "xdb_database_letter.hpp"
-#include "xdb_database_service.hpp"
+#include "mdp_proxy.hpp"
 
-#include "proxy.hpp"
+#include "xdb_broker.hpp"
+#include "xdb_broker_worker.hpp"
+#include "xdb_broker_letter.hpp"
+#include "xdb_broker_service.hpp"
+
 #include "wdigger.hpp"
 #include "pulsar.hpp"
 
@@ -87,6 +88,7 @@ xdb::Letter* GetNewLetter(rtdbMsgType msg_type, rtdbExchangeId user_exchange)
   }
 
   pb_message->SerializeToString(&pb_serialized_request);
+  delete pb_message;
   mdp_letter = new mdp::Letter(msg_type, 
                                static_cast<const std::string&>(service_name_1),
                                static_cast<const std::string*>(&pb_serialized_request));
@@ -346,7 +348,7 @@ TEST(TestProxy, RUNTIME_VERSION)
  * Используемая служба: NYSE (service_name_1)
  */
 static void *
-client_task (void *args)
+client_task (void* /*args*/)
 {
   int        verbose   = 1;
   mdp::zmsg *request   = NULL;
@@ -357,34 +359,39 @@ client_task (void *args)
   RTDBM::AskLife    pb_request_asklife;
   RTDBM::ExecResult pb_responce_exec_result;
   mdp::Letter      *mdp_letter;
-  xdb::Letter      *xdb_letter;
   const std::string dest = "NYSE";
-  static int        user_exchange_id = 1;
+  static int        user_exchange_id = 0;
 
+  LOG(INFO) << "Start client thread";
   try
   {
     mdp_letter = new mdp::Letter(ADG_D_MSG_ASKLIFE, dest);
 
-    //  Send 100 ADG_D_MSG_ASKLIFE orders
-    for (count = 0; count < 1; count++) {
+    //  Send 10 ADG_D_MSG_ASKLIFE orders
+    for (user_exchange_id = 0; user_exchange_id < 10; user_exchange_id++) {
         request = new mdp::zmsg ();
 
-        // Единственное поле, которое может устанавливать клиент напрямую в ADG_D_MSG_ASKLIFE
-        //xdb_letter = GetNewLetter(ADG_D_MSG_ASKLIFE, user_exchange_id);
-        static_cast<RTDBM::AskLife*>(mdp_letter->mutable_data())->set_user_exchange_id(user_exchange_id++);
+        // Единственное поле, которое может устанавливать клиент
+        // напрямую в ADG_D_MSG_ASKLIFE
+        static_cast<RTDBM::AskLife*>(mdp_letter->mutable_data())->set_user_exchange_id(user_exchange_id);
         request->push_front(const_cast<std::string&>(mdp_letter->SerializedData()));
         request->push_front(const_cast<std::string&>(mdp_letter->SerializedHeader()));
+        LOG(INFO) << "Send message id="<<user_exchange_id<<" from client";
         client->send (service_name_1.c_str(), request);
         delete request;
     }
     delete mdp_letter;
+
+    EXPECT_EQ(user_exchange_id, 10);
+    count = 0;
 
     //  Wait for all trading reports
     while (1) {
         report = client->recv ();
         if (report == NULL)
             break;
-        printf("client recived this:");
+        count++;
+        LOG(INFO) << "Receive message id="<<count<<" from worker";
         report->dump();
         assert (report->parts () >= 2);
         
@@ -394,6 +401,8 @@ client_task (void *args)
         delete mdp_letter;
         delete report;
     }
+    // Приняли ровно столько, сколько ранее отправили
+    EXPECT_TRUE(count == user_exchange_id);
   }
   catch (zmq::error_t err)
   {
@@ -401,6 +410,9 @@ client_task (void *args)
   }
   delete client;
 
+  // Завершить исполнение Брокера - все сообщения отправлены/получены
+  s_interrupted = 1;
+  LOG(INFO) << "Stop client thread";
   pthread_exit(NULL);
 }
 
@@ -409,10 +421,11 @@ client_task (void *args)
  * Тестируется класс mdwrk
  */
 static void *
-worker_task (void *args)
+worker_task (void* /*args*/)
 {
   int verbose = 1;
 
+  LOG(INFO) << "Start worker thread";
   try
   {
     Digger *engine = new Digger(attributes_connection_to_broker,
@@ -424,6 +437,7 @@ worker_task (void *args)
        mdp::zmsg   *request  = NULL;
 
        request = engine->recv (reply_to);
+       LOG(INFO) << "Receive message "<<request<<" from client";
        if (request)
        {
          engine->handle_request (request, reply_to);
@@ -440,6 +454,7 @@ worker_task (void *args)
     std::cout << "E: " << err.what() << std::endl;
   }
 
+  LOG(INFO) << "Stop worker thread";
   pthread_exit(NULL);
 }
 
@@ -450,7 +465,7 @@ worker_task (void *args)
  * NB: Не использует глобальных переменных
  */
 static void *
-broker_task (void *args)
+broker_task (void* /*args*/)
 {
   int verbose = 1;
   std::string sender;
@@ -458,6 +473,7 @@ broker_task (void *args)
   std::string header;
   mdp::Broker *broker = NULL;
 
+  LOG(INFO) << "Start broker thread";
   try
   {
      s_version_assert (3, 2);
@@ -478,9 +494,10 @@ broker_task (void *args)
 
   if (s_interrupted)
   {
-     printf ("W: interrupt received, shutting down...\n");
+     LOG(WARNING)<<"Interrupt received, shutting down...";
   }
 
+  LOG(INFO) << "Stop broker thread";
   delete broker;
 
   pthread_exit(NULL);
@@ -510,8 +527,7 @@ TEST(TestProxy, BROKER_INTERNAL)
   status = broker->Init();
   EXPECT_EQ(status, true);
 
-  // TODO: Зарегистрировать Обработчик в БД
-  // Необходимые шаги:
+  // Зарегистрировать Обработчик в БД
   // 1. Создание Сервиса
   // 2. Регистрация Обработчика для этого Сервиса
   broker->database_snapshot("TEST_BROKER_INTERNAL.START");
@@ -555,7 +571,6 @@ TEST(TestProxy, BROKER_INTERNAL)
 }
 
 
-#if 1
 /* 
  * Проверить механизм массового занесения сообщений в спул Службы, без привязки 
  * к Обработчикам.
@@ -577,7 +592,6 @@ TEST(TestProxy, PUSH_REQUEST)
   }
   broker->database_snapshot("TEST_PUSH_REQUEST.STOP");
 }
-#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 /*
@@ -591,7 +605,6 @@ TEST(TestProxy, PUSH_REQUEST)
  * [0XX] Сериализованный заголовок
  * [XXX] Сериализованное тело сообщения
 */
-#if 1
 TEST(TestProxy, CLIENT_MESSAGE)
 {
   mdp::zmsg        *msg = NULL;
@@ -599,7 +612,6 @@ TEST(TestProxy, CLIENT_MESSAGE)
   RTDBM::ExecResult pb_exec_result_request;
   std::string       pb_serialized_header;
   std::string       pb_serialized_request;
-//  mdp::Letter      *letter = NULL;
 
   broker->database_snapshot("TEST_CLIENT_MESSAGE.START");
   pb_header.set_protocol_version(1);
@@ -628,7 +640,6 @@ TEST(TestProxy, CLIENT_MESSAGE)
   broker->client_msg(client_identity_1, msg);
   broker->database_snapshot("TEST_CLIENT_MESSAGE.STOP");
 }
-#endif
 
 #if 0
 //Этот код уже проверяется в CLIENT_MESSAGE
@@ -738,14 +749,14 @@ TEST(TestProxy, SERVICE_DISPATCH)
 
   msg->push_front(pb_serialized_request);
   msg->push_front(pb_serialized_header);
-  msg->push_front("");
+  msg->push_front(const_cast<char*>(EMPTY_FRAME));
   msg->push_front(client_identity_1);
 
   broker->database_snapshot("TEST_SERVICE_DISPATCH.START");
-  // service1 удаляется внутри
   broker->service_dispatch(service1, msg);
   broker->database_snapshot("TEST_SERVICE_DISPATCH.STOP");
 
+  delete service1;
   delete msg;
 }
 
@@ -756,38 +767,39 @@ TEST(TestProxy, BROKER_DELETE)
   delete broker;
 }
 
-#if 1
 TEST(TestProxy, BROKER_RUNTIME)
 {
+    int code;
     pthread_t broker;
     pthread_t worker;
     pthread_t client;
 
     /* Создать экземпляр Брокера */
     pthread_create (&broker, NULL, broker_task, NULL);
-    sleep(1);
+    usleep(100000);
 
-    /* Создать одного Обработчика службы NYSE */
+    /* Создать одного Обработчика Службы NYSE */
     pthread_create (&worker, NULL, worker_task, NULL);
-    sleep(1);
+    usleep(100000);
 
-    /* Создать одного клиента службы NYSE */
+    /* Создать одного клиента Службы NYSE */
     pthread_create (&client, NULL, client_task, NULL);
 
-    /* Дождаться завершения работы клиента */
-    pthread_join (client, NULL);
-
+    /* Дождаться завершения работы Клиента */
+    code = pthread_join (client, NULL);
+    EXPECT_TRUE(code == 0);
     s_interrupted = 1;
-    sleep(1);
-    /* Остановить Обработчика NYSE */
-    int cw = pthread_cancel(worker);
-    sleep(1);
 
-    /* Остановить Брокера */
-    int cb = pthread_cancel(broker);
-    printf("%d %d\n", cw, cb);
+    /* Дождаться завершения работы Обработчика */
+    usleep(100000);
+    code = pthread_join(worker, NULL);
+    EXPECT_TRUE(code == 0);
+
+    /* Дождаться завершения работы Брокера */
+    usleep(100000);
+    code = pthread_join(broker, NULL);
+    EXPECT_TRUE(code == 0);
 }
-#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv)

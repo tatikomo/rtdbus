@@ -2,11 +2,12 @@
 #include <glog/logging.h>
 #include "gtest/gtest.h"
 
-#include "xdb_database_broker_impl.hpp"
-#include "xdb_database_broker.hpp"
-#include "xdb_database_service.hpp"
-#include "xdb_database_worker.hpp"
-#include "dat/xdb_broker.hpp"
+#include "xdb_broker_impl.hpp"
+#include "xdb_broker.hpp"
+#include "xdb_broker_service.hpp"
+#include "xdb_broker_worker.hpp"
+#include "dat/broker_db.hpp"
+#include "proto/common.pb.h"
 
 const char *service_name_1 = "service_test_1";
 const char *service_name_2 = "service_test_2";
@@ -33,7 +34,7 @@ void show_runtime_info(const char * lead_line)
   mco_runtime_info_t info;
   
   /* get runtime info */
-  mco_get_runtime_info(&info);
+  //mco_get_runtime_info(&info);
 
   /* Core configuration parameters: */
   if ( *lead_line )
@@ -352,7 +353,35 @@ TEST(TestBrokerDATABASE, SERVICE_LIST)
 
 TEST(TestBrokerDATABASE, CHECK_LETTER)
 {
-  letter = new xdb::Letter();
+  char reply[IDENTITY_MAXLEN+1];
+  RTDBM::Header     pb_header;
+  RTDBM::ExecResult pb_exec_result_request;
+  std::string       pb_serialized_header;
+  std::string       pb_serialized_request;
+
+  pb_header.set_protocol_version(1);
+  pb_header.set_source_pid(getpid());
+  pb_header.set_proc_dest("dest");
+  pb_header.set_proc_origin("src");
+  pb_header.set_sys_msg_type(100);
+  pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
+
+  pb_exec_result_request.set_exec_result(0);
+  pb_exec_result_request.set_failure_cause(1);
+
+  for (int i=1; i<10; i++)
+  {
+    sprintf(reply, "@C0000000%02d", i);
+    pb_header.set_exchange_id(i);
+    pb_header.SerializeToString(&pb_serialized_header);
+
+    pb_exec_result_request.set_user_exchange_id(i);
+    pb_exec_result_request.SerializeToString(&pb_serialized_request);
+
+    letter = new xdb::Letter(reply, pb_serialized_header, pb_serialized_request);
+    letter->Dump();
+    delete letter;
+  }
 }
 
 TEST(TestBrokerDATABASE, CHECK_EXIST_WORKER)
@@ -379,8 +408,8 @@ TEST(TestBrokerDATABASE, REMOVE_SERVICE)
 
 TEST(TestBrokerDATABASE, DESTROY)
 {
-    ASSERT_TRUE(letter != NULL);
-    delete letter;
+//    ASSERT_TRUE(letter != NULL);
+//    delete letter;
 
     ASSERT_TRUE (service1 != NULL);
     delete service1;
@@ -405,6 +434,7 @@ int main(int argc, char** argv)
   ::testing::InitGoogleTest(&argc, argv);
   ::google::InstallFailureSignalHandler();
   int retval = RUN_ALL_TESTS();
+  ::google::protobuf::ShutdownProtobufLibrary();
   ::google::ShutdownGoogleLogging();
   return retval;
 }

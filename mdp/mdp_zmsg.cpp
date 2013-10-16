@@ -16,8 +16,9 @@
 #include <stdarg.h>
 #include <glog/logging.h>
 
+#include "config.h"
 #include "helper.hpp"
-#include "zmsg.hpp"
+#include "mdp_zmsg.hpp"
 #include "mdp_common.h"
 
 using namespace mdp;
@@ -73,12 +74,12 @@ void zmsg::set_part(size_t part_nbr, unsigned char *data) {
     }
 }
 
-const std::string& zmsg::get_part(size_t part_nbr) {
+const std::string* zmsg::get_part(size_t part_nbr) {
     if (part_nbr < m_part_data.size() /*&& part_nbr >= 0*/) {
-        return m_part_data[part_nbr];
+        return &m_part_data[part_nbr];
     }
-    // TODO что возвращать, если индекс невалиден?
-    return m_part_data[0];
+    // индекс невалиден
+    return NULL;
 }
 
 
@@ -102,30 +103,29 @@ bool zmsg::recv(zmq::socket_t & socket) {
          LOG(ERROR) << "Catch '" << error.what() << "', code=" << error.num();
          return false;
       }
-      std::string data = (char*) message.data();
+      std::string data;
+      data.assign(static_cast<const char*>(message.data()), message.size());
+      data[message.size()] = 0;
 
-#if 0
-      std::cerr << "recv: \"" 
-                << (unsigned char*) message.data() 
-                << "\", size " << message.size() << std::endl;
-#endif      
       /*
        * В первом пакете приходит идентификатор отправителя в бинарном формате.
        * Длина фрейма 5 байтов, начинается с 0.
        * Конвертируем его в UUID, 10 символов.
        */
       if ((iteration == 1)
-/* [GEV:генерация GUID]     && (message.size() == 5)*/
+/* [GEV:генерация GUID] */    && (message.size() == 5)
       && data[0] == 0) {
          uuidstr = encode_uuid((unsigned char*) message.data());
-//         std::cerr << "identity(uuid) = " << uuidstr << std::endl;
          push_back(uuidstr);
          delete[] uuidstr;
       }
       else
       {
-         data[message.size()] = 0;
-         push_back((char *)data.c_str());
+         push_back(data);
+//         LOG(ERROR)<<"R "<<iteration<<"/"<<m_part_data.size()
+//                   <<" dsize="<<data.size()
+//                   <<" msize="<<message.size()
+//                   <<" "<<hex_dump(static_cast<const char*>(data.data()), data.size());
       }
       socket.getsockopt(ZMQ_RCVMORE, &more, &more_size);
       if (!more) {
@@ -135,33 +135,46 @@ bool zmsg::recv(zmq::socket_t & socket) {
    return true;
 }
 
-void zmsg::send(zmq::socket_t & socket) {
-    for (size_t part_nbr = 0; part_nbr < m_part_data.size(); part_nbr++) {
+void zmsg::send(zmq::socket_t & socket)
+{
+  unsigned char * uuidbin;
+
+    for (size_t part_nbr = 0; part_nbr < m_part_data.size(); part_nbr++)
+    {
        zmq::message_t message;
        std::string data = m_part_data[part_nbr];
-#if 1
+
+//       LOG(ERROR)<<"s "<<part_nbr+1<<"/"<<m_part_data.size()
+//                 <<" dsize="<<data.size()
+//                 <<" "<<hex_dump(static_cast<const char*>(message.data()), message.size());
+
        /*
         * Первый фрейм - символьное представление адреса получателя.
         * Необходимо обратное преобразование в двоичное представление.
         * 11 байт - это первый символ '@' + 10 байт представления Адресата (identity)
         */
-//       std::cerr << "part_nbr=" << part_nbr << "; data size=" << data.size() << "; data[0]=" << data [0] << std::endl;
-       if (part_nbr == 0 && data.size() == 11 && data [0] == '@') {
-          unsigned char * uuidbin = decode_uuid(data);
-//          std::cerr << "decode identity(" << data << ")" << std::endl;
+       if (part_nbr == 0 && data.size() == IDENTITY_MAXLEN && data [0] == '@')
+       {
+          uuidbin = decode_uuid(data);
           message.rebuild(5);
           memcpy(message.data(), uuidbin, 5);
           delete[] uuidbin;
        }
        else 
-#endif
        {
           message.rebuild(data.size());
-          memcpy(message.data(), data.c_str(), data.size());
+          memcpy(message.data(), data.data(), data.size());
+//          LOG(ERROR)<<"S "<<part_nbr+1<<"/"<<m_part_data.size()
+//                 <<" dsize="<<data.size()
+//                 <<" "<<hex_dump(static_cast<const char*>(message.data()), message.size());
        }
-       try {
+
+       try
+       {
           socket.send(message, part_nbr < m_part_data.size() - 1 ? ZMQ_SNDMORE : 0);
-       } catch (zmq::error_t error) {
+       }
+       catch (zmq::error_t error)
+       {
           assert(error.num()!=0);
        }
     }
@@ -230,16 +243,22 @@ zmsg::encode_uuid (unsigned char* data)
         hex_char [] = "0123456789ABCDEF";
 
     assert (data);
-    assert (data [0] == 0);
+    assert (data[0] == '\0');
 
-    char *uuidstr = new char[11 + 1];
+    if ((NULL == data) || ('\0' != data[0]))
+    {
+      LOG(ERROR) << "Try to encode empty string";
+      return NULL;
+    }
+
+    char *uuidstr = new char[IDENTITY_MAXLEN + 1];
     uuidstr [0] = '@';
     int byte_nbr;
     for (byte_nbr = 0; byte_nbr < 5; byte_nbr++) {
         uuidstr [byte_nbr * 2 + 1] = hex_char [data [byte_nbr + 0] >> 4];
         uuidstr [byte_nbr * 2 + 2] = hex_char [data [byte_nbr + 0] & 15];
     }
-    uuidstr [11] = 0;
+    uuidstr [IDENTITY_MAXLEN] = 0;
     return (uuidstr);
 }
 
@@ -262,12 +281,13 @@ zmsg::decode_uuid (std::string& uuidstr)
            -1,10,11,12,13,14,15,-1,-1,-1,-1,-1,-1,-1,-1,-1, /* a..f */
            -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1 }; /* */
 
-    assert (uuidstr.size() == 11);
+    assert (uuidstr.size() == IDENTITY_MAXLEN);
     assert (uuidstr [0] == '@');
-    unsigned char *data = new unsigned char[5];
+    unsigned char *data = new unsigned char[5+1];
     int byte_nbr;
+    data [0] = 0;
     for (byte_nbr = 0; byte_nbr < 5; byte_nbr++)
-        data [byte_nbr]
+        data [byte_nbr + 0]
             = (hex_to_bin [uuidstr [byte_nbr * 2 + 1] & 0x7F] << 4)
             + (hex_to_bin [uuidstr [byte_nbr * 2 + 2] & 0x7F]);
 
@@ -310,9 +330,9 @@ char *zmsg::address() {
 
 void zmsg::wrap(const char *address, const char *delim) {
    if (delim) {
-      push_front((char*)delim);
+      push_front(const_cast<char*>(delim));
    }
-   push_front((char*)address);
+   push_front(const_cast<char*>(address));
 }
 
 
@@ -349,12 +369,11 @@ void zmsg::dump()
    for (part_nbr = 0; part_nbr < m_part_data.size(); part_nbr++) 
    {
        std::string data = m_part_data [part_nbr];
-//       buf = new char[data.size()+1];
-
        // Dump the message as text or binary
        is_text = 1;
        for (char_nbr = 0; char_nbr < data.size(); char_nbr++)
-           if (data [char_nbr] < 32 || data [char_nbr] > 127)
+           if (static_cast<unsigned char>(data[char_nbr]) < 32 
+            || static_cast<unsigned char>(data[char_nbr]) > 127)
                is_text = 0;
 
        offset = sprintf(buf, "[%03d] ", (int) data.size());
@@ -372,7 +391,6 @@ void zmsg::dump()
        }
        buf[offset] = '\0';
        LOG(INFO) << buf;
-//       delete []buf;
    }
 }
 

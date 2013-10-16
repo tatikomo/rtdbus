@@ -1,18 +1,20 @@
 #include <assert.h>
 
-#include "xdb_database_broker.hpp"
-#include "xdb_database_broker_impl.hpp"
-#include "xdb_database_service.hpp"
-#include "xdb_database_worker.hpp"
+#include "xdb_broker.hpp"
+#include "xdb_broker_impl.hpp"
+#include "xdb_broker_service.hpp"
+#include "xdb_broker_worker.hpp"
 
 using namespace xdb;
 
 class Service;
 class Worker;
 
-const char *database_name = "BrokerDB";
+const char *database_name = "broker_db";
 
-DatabaseBroker::DatabaseBroker() : Database(database_name)
+DatabaseBroker::DatabaseBroker() :
+  Database(database_name),
+  m_impl(NULL)
 {
   m_impl = new DatabaseBrokerImpl(this);
   assert(m_impl);

@@ -1,7 +1,7 @@
 #include <glog/logging.h>
 
 #include "zmq.hpp"
-#include "zmsg.hpp"
+#include "mdp_zmsg.hpp"
 #include "mdp_worker_api.hpp"
 #include "wecho.hpp"
 

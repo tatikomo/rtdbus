@@ -1,6 +1,7 @@
 #include <glog/logging.h>
+
 #include "config.h"
-#include "zmsg.hpp"
+#include "mdp_zmsg.hpp"
 #include "mdp_client_async_api.hpp"
 
 using namespace mdp;
@@ -15,6 +16,7 @@ int s_interrupted = 0;
 void s_signal_handler (int signal_value)
 {
     s_interrupted = 1;
+    LOG(INFO) << "Got signal "<<signal_value;
 }
 
 void s_catch_signals ()
@@ -28,16 +30,15 @@ void s_catch_signals ()
 }
 
 
-mdcli::mdcli (std::string broker, int verbose)
+mdcli::mdcli (std::string broker, int verbose) :
+   m_broker(broker),
+   m_context(NULL),
+   m_client(0),
+   m_verbose(verbose),
+   m_timeout(2500)       //  msecs
 {
    s_version_assert (3, 2);
-
-   m_broker = broker;
    m_context = new zmq::context_t (1);
-   m_verbose = verbose;
-   m_timeout = 2500;           //  msecs
-   m_client = 0;
-
    s_catch_signals ();
    connect_to_broker ();
 }
@@ -120,8 +121,10 @@ mdcli::recv ()
    zmq::pollitem_t items [] = { { *m_client, 0, ZMQ_POLLIN, 0 } };
    zmq::poll (items, 1, m_timeout /** 1000*/); // 1000 -> msec
 
-   //  If we got a reply, process it
-   if (items [0].revents & ZMQ_POLLIN) {
+   try
+   {
+     //  If we got a reply, process it
+     if (items [0].revents & ZMQ_POLLIN) {
         zmsg *msg = new zmsg (*m_client);
         if (m_verbose) {
             LOG(INFO) << "received reply:";
@@ -130,7 +133,7 @@ mdcli::recv ()
         //  Don't try to handle errors, just assert noisily
         assert (msg->parts () >= 4);
         std::string empty = msg->pop_front ();
-//GEV        assert (empty.length() == 0);  // empty message
+        assert (empty.length() == 0);  // empty message
 
         std::string header = msg->pop_front();
         assert (header.compare(MDPC_CLIENT) == 0);
@@ -142,6 +145,11 @@ mdcli::recv ()
         // TODO: добавить фрейм КОМАНДА
 
         return msg;     //  Success
+     }
+   }
+   catch(zmq::error_t err)
+   {
+     LOG(ERROR) << err.what();
    }
 
    if (s_interrupted)

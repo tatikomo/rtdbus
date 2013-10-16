@@ -4,7 +4,8 @@
 
 #include <string>
 
-#include "zmsg.hpp"
+#include "config.h"
+#include "mdp_zmsg.hpp"
 #include "msg_message.hpp"
 #include "msg_common.h"
 
@@ -50,21 +51,22 @@ class Letter
      */
     rtdbExchangeId GenerateExchangeId();
 
+    // признак корректности данных объекта
+    bool GetVALIDITY() const { return m_initialized; }
+
   private:
+    DISALLOW_COPY_AND_ASSIGN(Letter);
     msg::Header  m_header_instance; // содержит protobuf RTDBM::Header
     std::string  m_serialized_data;
     std::string  m_serialized_header;
     bool         m_initialized;
     bool         m_data_needs_reserialization;
     bool         m_header_needs_reserialization;
-    // TODO нужно ли это поле? идентификатор есть в m_header_instance
-    rtdbExchangeId m_exchange_id;
     std::string  m_source_procname;
-
     ::google::protobuf::Message *m_body_instance;
 };
 
-};
+}
 
 #endif
 

@@ -30,38 +30,38 @@ bool Header::ParseFrom(const std::string& frame)
   return m_header_instance.ParseFromString(frame);
 }
 
-const int8_t Header::get_protocol_version()
+int8_t Header::get_protocol_version() const
 {
   return m_header_instance.protocol_version();
 }
 
 
-const rtdbExchangeId Header::get_exchange_id()
+rtdbExchangeId Header::get_exchange_id() const
 {
   return m_header_instance.exchange_id();
 }
 
-const rtdbPid Header::get_source_pid()
+rtdbPid Header::get_source_pid() const
 {
   return m_header_instance.source_pid();
 }
 
-const std::string& Header::get_proc_dest()
+const std::string& Header::get_proc_dest() const
 {
   return m_header_instance.proc_dest();
 }
 
-const std::string& Header::get_proc_origin()
+const std::string& Header::get_proc_origin() const
 {
   return m_header_instance.proc_origin();
 }
 
-const rtdbMsgType Header::get_sys_msg_type()
+rtdbMsgType Header::get_sys_msg_type() const
 {
   return static_cast<rtdbMsgType>(m_header_instance.sys_msg_type());
 }
 
-const rtdbMsgType Header::get_usr_msg_type()
+rtdbMsgType Header::get_usr_msg_type() const
 {
   return static_cast<rtdbMsgType>(m_header_instance.usr_msg_type());
 }

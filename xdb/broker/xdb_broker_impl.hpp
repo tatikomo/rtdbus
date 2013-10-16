@@ -14,10 +14,10 @@ extern "C" {
 }
 #endif
 
-#include "dat/xdb_broker.hpp"
-#include "xdb_database_broker.hpp"
-#include "xdb_database_service.hpp"
-#include "xdb_database_letter.hpp"
+#include "dat/broker_db.hpp"
+#include "xdb_broker.hpp"
+#include "xdb_broker_service.hpp"
+#include "xdb_broker_letter.hpp"
 
 namespace xdb {
 
@@ -29,7 +29,7 @@ class Worker;
  * TODO: Получать уведомления о создании/удалении экземпляра объекта Service в БД.
  * TODO: Переделать с использованием итераторов.
  */
-class ServiceListImpl : public  ServiceList
+class ServiceListImpl : public ServiceList
 {
   public:
     ServiceListImpl(mco_db_h);
@@ -50,7 +50,7 @@ class ServiceListImpl : public  ServiceList
     bool RemoveService(const int64_t);
 
     // Получить количество зарегистрированных объектов
-    const int size();
+    int size() const;
     // Перечитать список Сервисов из базы данных
     bool refresh();
 
@@ -191,21 +191,21 @@ class DatabaseBrokerImpl
      * Вернуть Service, построенный на основе прочитанных из БД данных
      */
     Service* LoadService(autoid_t&,
-                         xdb_broker::XDBService&);
+                         broker_db::XDBService&);
 
     /* 
      * Вернуть новый Worker, построенный на основе прочитанных из БД данных
      * autoid_t - идентификатор Сервиса, содержащий данный Обработчик
      */
     MCO_RET LoadWorker(mco_trans_h,
-                       xdb_broker::XDBWorker&,
+                       broker_db::XDBWorker&,
                        Worker*&);
 
     /*
      * Заполнить указанный экземпляр Letter на основе своего состояния из БД
      */
     MCO_RET LoadLetter(mco_trans_h,
-                       xdb_broker::XDBLetter&,
+                       broker_db::XDBLetter&,
                        xdb::Letter*&);
     /*
      * Поиск Обработчика, находящегося в заданном состоянии. 
@@ -225,5 +225,5 @@ class DatabaseBrokerImpl
 #endif
 };
 
-}; //namespace xdb
+} //namespace xdb
 #endif

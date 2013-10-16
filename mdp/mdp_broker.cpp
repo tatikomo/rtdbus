@@ -2,11 +2,11 @@
 
 #include "mdp_common.h"
 #include "mdp_broker.hpp"
-#include "zmsg.hpp"
-#include "xdb_database_broker.hpp"
-#include "xdb_database_service.hpp"
-#include "xdb_database_worker.hpp"
-#include "xdb_database_letter.hpp"
+#include "mdp_zmsg.hpp"
+#include "xdb_broker.hpp"
+#include "xdb_broker_service.hpp"
+#include "xdb_broker_worker.hpp"
+#include "xdb_broker_letter.hpp"
 
 using namespace mdp;
 
@@ -17,7 +17,7 @@ using namespace mdp;
 //  your main loop if s_interrupted is ever 1. Works especially well with
 //  zmq_poll.
 int s_interrupted = 0;
-void s_signal_handler (int signal_value)
+void s_signal_handler (int /*signal_value*/)
 {
     s_interrupted = 1;
 }
@@ -34,12 +34,15 @@ void s_catch_signals ()
 
 //  ---------------------------------------------------------------------
 //  Constructor for broker object
-Broker::Broker (bool verbose)
+Broker::Broker (bool verbose) :
+  m_context(NULL),
+  m_socket(NULL),
+  m_verbose(verbose),
+  m_database(NULL)
 {
     //  Initialize broker state
     m_context = new zmq::context_t(1);
     m_socket = new zmq::socket_t(*m_context, ZMQ_ROUTER);
-    m_verbose = verbose;
     // TODO: объединить значения интервалов Брокера и Обработчика
     m_heartbeat_at = s_clock () + Broker::HeartbeatInterval;
     m_database = new xdb::DatabaseBroker();
@@ -176,7 +179,6 @@ Broker::service_require (const std::string& service_name)
 
 //  ---------------------------------------------------------------------
 //  Dispatch requests to waiting workers as possible
-//  NB: Внутри удаляется srv!
 void
 Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
 {
@@ -194,7 +196,6 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
     if (processing_msg)
     {
       letter = new xdb::Letter(processing_msg);
-//      std::cout << "broker will reply to '"<<letter->GetREPLY_TO()<<"'"<<std::endl;
       status = m_database->PushRequestToService(srv, letter);
       if (!status) 
         LOG(ERROR) << "Unable to push new letter "<<letter->GetID()
@@ -225,21 +226,21 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
       {
 //        database_snapshot("SEND_SERVICE_DISPATCH.START");
         if (m_verbose)
+        {
           LOG(INFO) << "Pop letter id="<<letter->GetID()<<" reply '"
                     <<letter->GetREPLY_TO()<<"' state="<<letter->GetSTATE();
-
-        letter->Dump();
+          letter->Dump();
+        }
         // Передать ожидающую обслуживания команду выбранному Обработчику
         worker_send (wrk, (char*)MDPW_REQUEST, EMPTY_FRAME, letter);
+        delete letter;
         // После отсылки Сообщения этот экземпляр Обработчика перешел 
         // в состояние OCCUPIED, нужно выбрать нового Обработчика.
 //        database_snapshot("SEND_SERVICE_DISPATCH.STOP");
-        delete letter;
       }
       delete wrk;
       break;
     }
-    delete srv;
     database_snapshot("SERVICE_DISPATCH.STOP");
 }
 
@@ -302,7 +303,7 @@ Broker::service_internal (const std::string& service_name, zmsg *msg)
     msg->push_front((char*)MDPC_CLIENT);
     msg->wrap (client, EMPTY_FRAME);
     msg->send (*m_socket);
-    delete client;
+    delete[] client;
 }
 
 //  ---------------------------------------------------------------------
@@ -372,7 +373,7 @@ Broker::worker_process_READY(xdb::Worker*& worker,
   {
     /* Проверка на служебную */
     if (sender_identity.size() >= 4  //  Reserved service name
-     && sender_identity.find_first_of("mmi.") == 0) 
+     && sender_identity.find("mmi.") != std::string::npos)
     {
       status = worker_delete (worker, 1);
     }
@@ -395,6 +396,7 @@ Broker::worker_process_READY(xdb::Worker*& worker,
       // Привязать нового Обработчика к обслуживаемому им Сервису
       worker_waiting(worker);
       service_dispatch(service);
+      delete service;
       status = true; // TODO присвоить корректное значение
       if (m_verbose)
         LOG(INFO) << "Worker '" << sender_identity << "' created";
@@ -411,8 +413,8 @@ Broker::worker_process_REPORT(xdb::Worker*& worker,
 {
   bool status = false;
   xdb::Service *service = NULL;
-  xdb::Letter  *letter = NULL;
-  xdb::Letter::State    letter_state;
+//  xdb::Letter  *letter = NULL;
+//  xdb::Letter::State    letter_state;
 
   if (m_verbose)
     LOG(INFO) << "Get REPORT from '" << sender_identity << "' worker=" << worker;
@@ -426,7 +428,7 @@ Broker::worker_process_REPORT(xdb::Worker*& worker,
       * 1. Удалить Letter из БД
       * 2. Установить для Worker-а состояние в ARMED
       */
-     letter_state = xdb::Letter::DONE_OK; /* или DONE_FAIL */
+//     letter_state = xdb::Letter::DONE_OK; /* или DONE_FAIL */
      if (true == (status = m_database->ReleaseLetterFromWorker(worker)))
      {
        if (m_verbose) LOG(INFO) << "Letter released from worker '"<<worker->GetIDENTITY()<<"'";
@@ -580,6 +582,8 @@ Broker::worker_send (xdb::Worker *worker,
   }
   else
   {
+    try
+    {
       zmsg *msg = new zmsg();
       //  Stack protocol envelope to start of message
       if (option.size()>0) {                 //  Optional frame after command
@@ -603,6 +607,11 @@ Broker::worker_send (xdb::Worker *worker,
       }
       msg->send (*m_socket);
       delete msg;
+    }
+    catch(zmq::error_t err)
+    {
+      LOG(ERROR) << err.what();
+    }
   }
 }
 
@@ -680,8 +689,8 @@ Broker::worker_waiting (xdb::Worker *worker)
     //  Queue to broker and service waiting lists
     m_database->PushWorker(worker);
     service = m_database->GetServiceById(worker->GetSERVICE_ID());
-    // service удаляется в service_dispatch()
     service_dispatch (service);
+    delete service;
 }
 
 
@@ -704,10 +713,10 @@ Broker::client_msg (const std::string& sender, zmsg *msg)
     else /* Сервис известен */
     {
       /* является служебным (mmi.*) или одним из внешних */
-      /*  Установить обратный адрес */
+      /* Установить обратный адрес */
       msg->wrap (sender.c_str(), EMPTY_FRAME);
       if (service_frame.length() >= 4
-      &&  service_frame.find_first_of("mmi.") == 0) {
+      &&  service_frame.find("mmi.") != std::string::npos) {
           /* Запрос к служебному сервису */
           service_internal (service_frame, msg);
       }
@@ -726,6 +735,7 @@ Broker::client_msg (const std::string& sender, zmsg *msg)
 
             /* внести команду в очередь и обработать её */
             service_dispatch (srv, msg);
+            delete srv;
 #if 0
 #error "continue here!"
 
@@ -770,19 +780,19 @@ Broker::start_brokering()
            assert (msg->parts () >= 3);
 
            std::string sender = msg->pop_front ();
-           assert(sender.size ());
+           assert(sender.empty () == 0);
 
            std::string empty = msg->pop_front (); //empty message
-           assert(empty.size () == 0);
+           assert(empty.empty () == 1);
 
            std::string header = msg->pop_front ();
-           assert(header.size ());
+           assert(header.empty () == 0);
 
-           if (header.compare(MDPC_CLIENT) == 0) 
+           if (header.compare(MDPC_CLIENT) == 0)
            {
              client_msg (sender, msg);
            }
-           else if (header.compare(MDPW_WORKER) == 0) 
+           else if (header.compare(MDPW_WORKER) == 0)
            {
              worker_msg (sender, msg);
            }

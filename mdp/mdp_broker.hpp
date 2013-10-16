@@ -7,14 +7,14 @@
 #include <string>
 
 #include <zmq.hpp>
-#include "zmsg.hpp"
 
 #include "config.h"
+#include "mdp_zmsg.hpp"
 #include "mdp_broker.hpp"
-#include "xdb_database_broker.hpp"
-#include "xdb_database_service.hpp"
-#include "xdb_database_worker.hpp"
-#include "xdb_database_letter.hpp"
+#include "xdb_broker.hpp"
+#include "xdb_broker_service.hpp"
+#include "xdb_broker_worker.hpp"
+#include "xdb_broker_letter.hpp"
 
 namespace mdp {
 
@@ -155,6 +155,6 @@ class Broker {
 #endif
 };
 
-}; //namespace mdp
+} //namespace mdp
 
 #endif

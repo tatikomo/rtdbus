@@ -23,7 +23,7 @@ class Worker
     //  10 секунд между двумя heartbeat
     static const int HeartbeatPeriodValue = HEARTBEAT_PERIOD_MSEC;
     /* NB: должен быть размер поля identity_t из broker.mco */
-    static const int IDENTITY_MAXLEN = WORKER_IDENTITY_MAXLEN;
+    static const int IdentityMaxLen = IDENTITY_MAXLEN;
 
     // NB: создан на основе WorkerState из генерируемого dat/xdb_broker.h
     enum State {
@@ -50,19 +50,19 @@ class Worker
      */
     void SetSTATE(const State);
     void SetVALID();
-    const timer_mark_t GetEXPIRATION();
-    const State   GetSTATE();
-    const int64_t GetSERVICE_ID() { return m_service_id; }
-    const int64_t GetID()         { return m_id; }
-    const char   *GetIDENTITY();
-    bool          Expired();
+    timer_mark_t GetEXPIRATION() const;
+    State   GetSTATE() const;
+    int64_t GetSERVICE_ID() const { return m_service_id; }
+    int64_t GetID() const        { return m_id; }
+    const char   *GetIDENTITY() const;
+    bool          Expired() const;
     /*
      * Определяет консистентность
      * true:  объект загружен из БД, ручных модификаций не было;
      * false: объект создан вручную, может полностью 
      *        или частично несоответствовать базе;
      */
-    bool          GetVALID();
+    bool          GetVALID() const;
 
   private:
     // Нельзя менять привязку уже существующему серверу
@@ -70,14 +70,13 @@ class Worker
 
     int64_t  m_id;
     int64_t  m_service_id;
-    char     m_identity[WORKER_IDENTITY_MAXLEN + 1];
-    bool     m_modified;
+    char     m_identity[IDENTITY_MAXLEN + 1];
     State    m_state;
     timer_mark_t m_expiration;
-
+    bool     m_modified;
 };
 
-}; //namespace xdb
+} //namespace xdb
 
 #endif
 

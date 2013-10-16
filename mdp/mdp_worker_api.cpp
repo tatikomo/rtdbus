@@ -1,4 +1,5 @@
 #include <glog/logging.h>
+#include "config.h"
 #include "mdp_common.h"
 #include "mdp_worker_api.hpp"
 
@@ -10,10 +11,11 @@ using namespace mdp;
 //  Call s_catch_signals() in your application at startup, and then exit
 //  your main loop if s_interrupted is ever 1. Works especially well with
 //  zmq_poll.
-static int s_interrupted = 0;
+extern int s_interrupted;
 static void s_signal_handler (int signal_value)
 {
     s_interrupted = 1;
+    LOG(INFO) << "Got signal "<<signal_value;
 }
 
 static void s_catch_signals ()
@@ -26,7 +28,15 @@ static void s_catch_signals ()
     sigaction (SIGTERM, &action, NULL);
 }
 
-mdwrk::mdwrk (std::string broker, std::string service, int verbose)
+mdwrk::mdwrk (std::string broker, std::string service, int verbose) :
+  m_broker(broker),
+  m_service(service),
+  m_context(NULL),
+  m_worker(0),
+  m_verbose(verbose),
+  m_heartbeat(HeartbeatInterval), //  msecs
+  m_reconnect(HeartbeatInterval), //  msecs
+  m_expect_reply(false)
 {
     /* NB
      * Отличия в версиях 2.1       3.2
@@ -37,23 +47,15 @@ mdwrk::mdwrk (std::string broker, std::string service, int verbose)
     s_version_assert (3, 2);
 
     m_context = new zmq::context_t (1);
-    m_broker = broker;
-    m_service = service;
-    m_verbose = verbose;
-    m_heartbeat = HeartbeatInterval;     //  msecs
-    m_reconnect = HeartbeatInterval;     //  msecs
-    m_worker = 0;
-    m_expect_reply = false;
-
     s_catch_signals ();
     connect_to_broker ();
-//    set_heartbeat(m_heartbeat);
 }
 
 //  ---------------------------------------------------------------------
 //  Destructor
 mdwrk::~mdwrk ()
 {
+  LOG(INFO) << "Worker destructor";
     delete m_worker;
     delete m_context;
 }
@@ -128,9 +130,11 @@ mdwrk::set_reconnect (int reconnect)
 zmsg *
 mdwrk::recv (std::string *&reply)
 {
-    //  Format and send the reply if we were provided one
-    assert (reply || !m_expect_reply);
+  //  Format and send the reply if we were provided one
+  assert (reply || !m_expect_reply);
 
+  try
+  {
     m_expect_reply = true;
     while (!s_interrupted) {
         zmq::pollitem_t items [] = {
@@ -159,18 +163,18 @@ mdwrk::recv (std::string *&reply)
              * empty будет действительно пустым.
              */
             std::string empty = msg->pop_front ();
-            //assert (empty.compare("") == 0);
-            //free (empty);
+            assert (empty.empty() == 1);
 
             std::string header = msg->pop_front ();
             assert (header.compare(MDPW_WORKER) == 0);
-            //free (header);
 
             std::string command = msg->pop_front ();
             if (command.compare (MDPW_REQUEST) == 0) {
                 //  We should pop and save as many addresses as there are
                 //  up to a null part, but for now, just save one...
-                *reply = msg->unwrap ();
+                char *frame_reply = msg->unwrap ();
+                (*reply).assign(frame_reply);
+                delete[] frame_reply;
                 return msg;     //  We have a request to process
             }
             else if (command.compare (MDPW_HEARTBEAT) == 0) {
@@ -200,8 +204,14 @@ mdwrk::recv (std::string *&reply)
             m_heartbeat_at = s_clock () + m_heartbeat;
         }
     }
-    if (s_interrupted)
-        LOG(WARNING) << "Interrupt received, killing worker...";
-    return NULL;
+  }
+  catch(zmq::error_t err)
+  {
+    LOG(ERROR) << err.what();
+  }
+
+  if (s_interrupted)
+      LOG(WARNING) << "Interrupt received, killing worker...";
+  return NULL;
 }
 

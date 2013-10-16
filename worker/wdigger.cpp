@@ -1,11 +1,11 @@
 #include <glog/logging.h>
 
-#include "proto/common.pb.h"
 #include "zmq.hpp"
-#include "zmsg.hpp"
 #include "helper.hpp"
+#include "mdp_zmsg.hpp"
 #include "mdp_worker_api.hpp"
 #include "mdp_letter.hpp"
+#include "proto/common.pb.h"
 #include "wdigger.hpp"
 
 extern int s_interrupted;
@@ -30,7 +30,15 @@ int Digger::handle_request(mdp::zmsg* request, std::string*& reply_to)
   }
 #else
   mdp::Letter *letter = new mdp::Letter(request);
-  handle_rtdbus_message(letter, reply_to);
+  if (letter->GetVALIDITY())
+  {
+    handle_rtdbus_message(letter, reply_to);
+  }
+  else
+  {
+    LOG(ERROR) << "Readed letter "<<letter->header().get_exchange_id()<<" not valid";
+  }
+
   delete letter;
 #endif
 
@@ -99,14 +107,53 @@ int Digger::handle_buy_request(std::string &price,
 #if !defined _FUNCTIONAL_TEST
 int main(int argc, char **argv)
 {
-  int verbose = (argc > 1 && (0 == strcmp (argv [1], "-v")));
+  int  verbose = (argc > 1 && (0 == strcmp (argv [1], "-v")));
+  char service_name[SERVICE_NAME_MAXLEN + 1];
+  bool is_service_name_given = false;
+  int  opt;
+
   ::google::InstallFailureSignalHandler();
   ::google::InitGoogleLogging(argv[0]);
 //  Letter *letter = NULL;
 
+  while ((opt = getopt (argc, argv, "vs:")) != -1)
+  {
+     switch (opt)
+     {
+       case 'v':
+         verbose = 1;
+         break;
+
+       case 's':
+         strncpy(service_name, optarg, SERVICE_NAME_MAXLEN);
+         service_name[SERVICE_NAME_MAXLEN] = '\0';
+         is_service_name_given = true;
+         break;
+
+       case '?':
+         if (optopt == 'n')
+           fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+         else if (isprint (optopt))
+           fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+         else
+           fprintf (stderr,
+                    "Unknown option character `\\x%x'.\n",
+                    optopt);
+         return 1;
+       default:
+         abort ();
+     }
+  }
+
+  if (!is_service_name_given)
+  {
+    std::cout << "Service name not given.\nUse '-s <service>' option.\n";
+    return(1);
+  }
+
   try
   {
-    Digger *engine = new Digger("tcp://localhost:5555", "NYSE", verbose);
+    Digger *engine = new Digger("tcp://localhost:5555", service_name, verbose);
     while (!s_interrupted) 
     {
        std::string *reply_to = new std::string;
@@ -117,18 +164,22 @@ int main(int argc, char **argv)
        {
 //         letter = new (request);
          engine->handle_request (request/*letter*/, reply_to);
-         delete reply_to;
+         delete request;
        }
        else
-         break;          // Worker has been interrupted
+       {
+         s_interrupted = true; // Worker has been interrupted
+       }
+       delete reply_to;
     }
     delete engine;
   }
   catch(zmq::error_t err)
   {
-    std::cout << "E: " << err.what() << std::endl;
+    LOG(ERROR) << err.what();
   }
 
+  ::google::protobuf::ShutdownProtobufLibrary();
   ::google::ShutdownGoogleLogging();
   return 0;
 }

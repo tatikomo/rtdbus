@@ -26,13 +26,13 @@ class Header
     RTDBM::Header& instance() { return m_header_instance; }
 
     // RO-доступ к служебным полям
-    const int8_t         get_protocol_version();
-    const rtdbExchangeId get_exchange_id();
-    const rtdbPid        get_source_pid();
-    const std::string&   get_proc_dest();
-    const std::string&   get_proc_origin();
-    const rtdbMsgType    get_sys_msg_type();
-    const rtdbMsgType    get_usr_msg_type();
+    int8_t         get_protocol_version() const;
+    rtdbExchangeId get_exchange_id() const;
+    rtdbPid        get_source_pid() const;
+    const std::string&   get_proc_dest() const;
+    const std::string&   get_proc_origin() const;
+    rtdbMsgType    get_sys_msg_type() const;
+    rtdbMsgType    get_usr_msg_type() const;
 
     const std::string&   get_serialized();
 
@@ -58,6 +58,6 @@ class Header
     RTDBM::Header   m_header_instance;
 };
 
-}; //namespace msg
+} //namespace msg
 #endif
 

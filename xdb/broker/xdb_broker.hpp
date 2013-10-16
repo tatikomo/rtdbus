@@ -4,10 +4,10 @@
 #include <stdint.h>
 #include <string>
 
-#include "xdb_database.hpp"
-#include "xdb_database_service.hpp"
-#include "xdb_database_worker.hpp"
-#include "xdb_database_letter.hpp"
+#include "xdb_broker_base.hpp"
+#include "xdb_broker_service.hpp"
+#include "xdb_broker_worker.hpp"
+#include "xdb_broker_letter.hpp"
 
 namespace xdb {
 
@@ -29,7 +29,7 @@ class ServiceList
     virtual Service* next()  = 0;
     virtual Service* prev()  = 0;
     // Получить количество зарегистрированных объектов
-    virtual const int size() = 0;
+    virtual int size() const { return 0; }
     // Перечитать список Сервисов из базы данных
     virtual bool refresh()   = 0;
 };
@@ -126,6 +126,6 @@ class DatabaseBroker : public Database
     DatabaseBrokerImpl *m_impl;
 };
 
-}; //namespace xdb
+} //namespace xdb
 
 #endif

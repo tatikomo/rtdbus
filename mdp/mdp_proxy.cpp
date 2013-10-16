@@ -2,7 +2,7 @@
 
 #include "mdp_common.h"
 #include "mdp_broker.hpp"
-#include "proxy.hpp"
+#include "mdp_proxy.hpp"
 
 using namespace mdp;
 
@@ -40,8 +40,8 @@ using namespace mdp;
 
 int
 process_server (
-    const char *workdir,                /*  Where server runs, or NULL/""    */
-    const char *lockfile,               /*  For exclusive execution          */
+    /*const char *workdir,*/                /*  Where server runs, or NULL/""    */
+    /*const char *lockfile,*/               /*  For exclusive execution          */
     int   argc,                         /*  Original command-line arguments  */
     char *argv [],                      /*  Original command-line arguments  */
     const char *sswitch [])             /*  Filter these options from argv   */
@@ -159,7 +159,8 @@ int main (int argc, char *argv [])
     std::string header;
     Broker *broker = NULL;
 
-    google::InitGoogleLogging(argv[0]);
+    ::google::InstallFailureSignalHandler();
+    ::google::InitGoogleLogging(argv[0]);
 
     try
     {
@@ -186,6 +187,8 @@ int main (int argc, char *argv [])
 
     delete broker;
 
+//    ::google::protobuf::ShutdownProtobufLibrary();
+    ::google::ShutdownGoogleLogging();
     return 0;
 }
 

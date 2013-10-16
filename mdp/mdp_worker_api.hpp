@@ -11,8 +11,8 @@
 #define __MDP_WORKER_API_HPP_INCLUDED__
 #pragma once
 
-#include "zmsg.hpp"
 #include "config.h"
+#include "mdp_zmsg.hpp"
 #include "mdp_common.h"
 
 namespace mdp {
@@ -58,24 +58,21 @@ class mdwrk {
     recv (std::string *&reply);
 
   private:
+    DISALLOW_COPY_AND_ASSIGN(mdwrk);
+
     std::string      m_broker;
     std::string      m_service;
     zmq::context_t * m_context;
     zmq::socket_t  * m_worker;      //  Socket to broker
     int              m_verbose;     //  Print activity to stdout
-
     //  Heartbeat management
     int64_t          m_heartbeat_at;//  When to send HEARTBEAT
     size_t           m_liveness;    //  How many attempts left
     int              m_heartbeat;   //  Heartbeat delay, msecs
     int              m_reconnect;   //  Reconnect delay, msecs
-
     //  Internal state
     bool             m_expect_reply;//  Zero only at start
-
-    //  Return address, if any
-    //std::string      m_reply_to;
 };
 
-}; //namespace mdp
+} //namespace mdp
 #endif

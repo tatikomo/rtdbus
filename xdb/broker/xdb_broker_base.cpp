@@ -6,33 +6,28 @@
 #if defined HAVE_CONFIG_H
 #include "config.h"
 #endif
-#include "xdb_database.hpp"
+#include "xdb_broker_base.hpp"
 
 using namespace xdb;
 
-Database::Database(const char* name)
+Database::Database(const char* name) : m_state(Database::UNINITIALIZED)
 {
     assert (name);
-    m_state = Database::UNINITIALIZED;
     strncpy(m_name, name, DBNAME_MAXLEN);
     m_name[DBNAME_MAXLEN] = '\0';
-
-//    fprintf(stdout, "\tDatabase(%p, %s)\n", (void*)this, name);
-//    fflush(stdout);
 }
 
 Database::~Database()
 {
-//  fprintf(stdout, "~Database(%p, %s)\n", (void*)this, m_name);
   Disconnect();
 }
 
-const char* Database::DatabaseName()
+const char* Database::DatabaseName() const
 {
     return m_name;
 }
 
-const Database::DBState Database::State()
+Database::DBState Database::State() const
 {
     return m_state;
 }

@@ -39,7 +39,7 @@ add_custom_command(
 
 set (MSG_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
-        ${MDP_DIR}/zmsg.hpp
+        ${MDP_DIR}/mdp_zmsg.hpp
         ${MSG_DIR}/proto/common.pb.cc
         ${MSG_DIR}/proto/common.pb.h
         ${MSG_DIR}/msg_common.h

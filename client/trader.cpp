@@ -4,10 +4,9 @@
 
 #include <glog/logging.h>
 
-#include "zmsg.hpp"
-#include "trader.hpp"
+#include "mdp_zmsg.hpp"
 #include "mdp_client_async_api.hpp"
-
+#include "trader.hpp"
 
 Trader::Trader(std::string broker, int verbose) : mdp::mdcli(broker, verbose)
 {
