@@ -153,7 +153,7 @@ void zmsg::send(zmq::socket_t & socket)
         * Необходимо обратное преобразование в двоичное представление.
         * 11 байт - это первый символ '@' + 10 байт представления Адресата (identity)
         */
-       if (part_nbr == 0 && data.size() == WORKER_IDENTITY_MAXLEN && data [0] == '@')
+       if (part_nbr == 0 && data.size() == IDENTITY_MAXLEN && data [0] == '@')
        {
           uuidbin = decode_uuid(data);
           message.rebuild(5);
@@ -251,14 +251,14 @@ zmsg::encode_uuid (unsigned char* data)
       return NULL;
     }
 
-    char *uuidstr = new char[WORKER_IDENTITY_MAXLEN + 1];
+    char *uuidstr = new char[IDENTITY_MAXLEN + 1];
     uuidstr [0] = '@';
     int byte_nbr;
     for (byte_nbr = 0; byte_nbr < 5; byte_nbr++) {
         uuidstr [byte_nbr * 2 + 1] = hex_char [data [byte_nbr + 0] >> 4];
         uuidstr [byte_nbr * 2 + 2] = hex_char [data [byte_nbr + 0] & 15];
     }
-    uuidstr [WORKER_IDENTITY_MAXLEN] = 0;
+    uuidstr [IDENTITY_MAXLEN] = 0;
     return (uuidstr);
 }
 
@@ -281,7 +281,7 @@ zmsg::decode_uuid (std::string& uuidstr)
            -1,10,11,12,13,14,15,-1,-1,-1,-1,-1,-1,-1,-1,-1, /* a..f */
            -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1 }; /* */
 
-    assert (uuidstr.size() == WORKER_IDENTITY_MAXLEN);
+    assert (uuidstr.size() == IDENTITY_MAXLEN);
     assert (uuidstr [0] == '@');
     unsigned char *data = new unsigned char[5+1];
     int byte_nbr;

@@ -73,7 +73,7 @@ class Letter
     std::string  m_frame_header;
     std::string  m_frame_data;
     timer_mark_t m_expiration;
-    char     m_reply_to[WORKER_IDENTITY_MAXLEN + 1];
+    char     m_reply_to[IDENTITY_MAXLEN + 1];
     bool     m_modified;
 };
 

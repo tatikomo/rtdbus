@@ -23,7 +23,7 @@ class Worker
     //  10 секунд между двумя heartbeat
     static const int HeartbeatPeriodValue = HEARTBEAT_PERIOD_MSEC;
     /* NB: должен быть размер поля identity_t из broker.mco */
-    static const int IDENTITY_MAXLEN = WORKER_IDENTITY_MAXLEN;
+    static const int IdentityMaxLen = IDENTITY_MAXLEN;
 
     // NB: создан на основе WorkerState из генерируемого dat/xdb_broker.h
     enum State {
@@ -70,7 +70,7 @@ class Worker
 
     int64_t  m_id;
     int64_t  m_service_id;
-    char     m_identity[WORKER_IDENTITY_MAXLEN + 1];
+    char     m_identity[IDENTITY_MAXLEN + 1];
     State    m_state;
     timer_mark_t m_expiration;
     bool     m_modified;

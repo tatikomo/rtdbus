@@ -56,8 +56,8 @@ Letter::Letter(void* data) :
   // и восстановить на его основе прикладное сообщение.
   // Первый фрейм - адрес возврата,
   // Два последних фрейма - заголовок и тело сообщения.
-  strncpy(m_reply_to, msg->get_part(0)->c_str(), WORKER_IDENTITY_MAXLEN);
-  m_reply_to[WORKER_IDENTITY_MAXLEN] = '\0';
+  strncpy(m_reply_to, msg->get_part(0)->c_str(), IDENTITY_MAXLEN);
+  m_reply_to[IDENTITY_MAXLEN] = '\0';
 
   int msg_frames = msg->parts();
   assert(msg_frames >= 2);
@@ -83,8 +83,8 @@ Letter::Letter(const char* _reply_to, const std::string& _head, const std::strin
   m_modified(true)
 {
   timer_mark_t tictac = {0, 0};
-  strncpy(m_reply_to, _reply_to, WORKER_IDENTITY_MAXLEN);
-  m_reply_to[WORKER_IDENTITY_MAXLEN] = '\0';
+  strncpy(m_reply_to, _reply_to, IDENTITY_MAXLEN);
+  m_reply_to[IDENTITY_MAXLEN] = '\0';
   SetEXPIRATION(tictac);
 }
 
@@ -178,8 +178,8 @@ void Letter::SetDATA(const std::string& body)
 
 void Letter::SetREPLY_TO(const char* reply_to)
 {
-  strncpy(m_reply_to, reply_to, WORKER_IDENTITY_MAXLEN);
-  m_reply_to[WORKER_IDENTITY_MAXLEN] = '\0';
+  strncpy(m_reply_to, reply_to, IDENTITY_MAXLEN);
+  m_reply_to[IDENTITY_MAXLEN] = '\0';
 }
 
 const std::string& Letter::GetDATA()

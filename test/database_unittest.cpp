@@ -353,7 +353,7 @@ TEST(TestBrokerDATABASE, SERVICE_LIST)
 
 TEST(TestBrokerDATABASE, CHECK_LETTER)
 {
-  char reply[WORKER_IDENTITY_MAXLEN+1];
+  char reply[IDENTITY_MAXLEN+1];
   RTDBM::Header     pb_header;
   RTDBM::ExecResult pb_exec_result_request;
   std::string       pb_serialized_header;

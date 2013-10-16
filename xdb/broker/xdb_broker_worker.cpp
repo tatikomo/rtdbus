@@ -58,8 +58,8 @@ void Worker::SetIDENTITY(const char *_identity)
   if (!_identity) return;
 
   /* удалить старое значение идентификатора Обработчика */
-  strncpy(m_identity, _identity, WORKER_IDENTITY_MAXLEN);
-  m_identity[WORKER_IDENTITY_MAXLEN] = '\0';
+  strncpy(m_identity, _identity, Worker::IdentityMaxLen);
+  m_identity[Worker::IdentityMaxLen] = '\0';
 
   m_modified = true;
 }

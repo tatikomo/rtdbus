@@ -294,7 +294,7 @@ MCO_RET DatabaseBrokerImpl::new_Service(mco_trans_h /*t*/,
         void *p)
 {
   DatabaseBrokerImpl *self = static_cast<DatabaseBrokerImpl*> (p);
-  char name[Service::NAME_MAXLEN + 1];
+  char name[Service::NameMaxLen + 1];
   MCO_RET rc;
   autoid_t aid;
   Service *service;
@@ -308,8 +308,8 @@ MCO_RET DatabaseBrokerImpl::new_Service(mco_trans_h /*t*/,
   {
     name[0] = '\0';
 
-    rc = XDBService_name_get(obj, name, (uint2)Service::NAME_MAXLEN);
-    name[Service::NAME_MAXLEN] = '\0';
+    rc = XDBService_name_get(obj, name, (uint2)Service::NameMaxLen);
+    name[Service::NameMaxLen] = '\0';
     if (rc) { LOG(ERROR)<<"Unable to get service's name, rc="<<rc; break; }
 
     rc = XDBService_autoid_get(obj, &aid);
@@ -340,7 +340,7 @@ MCO_RET DatabaseBrokerImpl::del_Service(mco_trans_h /*t*/,
         void *p)
 {
   DatabaseBrokerImpl *self = static_cast<DatabaseBrokerImpl*> (p);
-  char name[Service::NAME_MAXLEN + 1];
+  char name[Service::NameMaxLen + 1];
   MCO_RET rc;
 
   assert(self);
@@ -350,8 +350,8 @@ MCO_RET DatabaseBrokerImpl::del_Service(mco_trans_h /*t*/,
   {
     name[0] = '\0';
 
-    rc = XDBService_name_get(obj, name, (uint2)Service::NAME_MAXLEN);
-    name[Service::NAME_MAXLEN] = '\0';
+    rc = XDBService_name_get(obj, name, (uint2)Service::NameMaxLen);
+    name[Service::NameMaxLen] = '\0';
     if (rc) { LOG(ERROR)<<"Unable to get service's name, rc="<<rc; break; }
 
   } while (false);
@@ -918,13 +918,13 @@ Service *DatabaseBrokerImpl::LoadService(
 {
   Service      *service = NULL;
   MCO_RET       rc = MCO_S_OK;
-  char          name[Service::NAME_MAXLEN + 1];
+  char          name[Service::NameMaxLen + 1];
   ServiceState  state;
 
   do
   {
-    rc = instance.name_get(name, (uint2)Service::NAME_MAXLEN);
-    name[Service::NAME_MAXLEN] = '\0';
+    rc = instance.name_get(name, (uint2)Service::NameMaxLen);
+    name[Service::NameMaxLen] = '\0';
     if (rc) { LOG(ERROR)<<"Unable to get service's name, rc="<<rc; break; }
     rc = instance.state_get(state);
     if (rc) { LOG(ERROR)<<"Unable to get service id for "<<name; break; }
@@ -991,7 +991,7 @@ MCO_RET DatabaseBrokerImpl::LoadWorker(mco_trans_h /*t*/,
         /* OUT */ Worker*& worker)
 {
   MCO_RET       rc = MCO_S_OK;
-  char          ident[WORKER_IDENTITY_MAXLEN + 1];
+  char          ident[IDENTITY_MAXLEN + 1];
   broker_db::timer_mark  xdb_expire_time;
   timer_mark_t  expire_time = {0, 0};
   uint4         timer_value;
@@ -1004,13 +1004,13 @@ MCO_RET DatabaseBrokerImpl::LoadWorker(mco_trans_h /*t*/,
     rc = wrk_instance.autoid_get(wrk_aid);
     if (rc) { LOG(ERROR) << "Unable to get worker id"; break; }
 
-    rc = wrk_instance.identity_get(ident, (uint2)WORKER_IDENTITY_MAXLEN);
+    rc = wrk_instance.identity_get(ident, (uint2)IDENTITY_MAXLEN);
     if (rc) { LOG(ERROR) << "Unable to get identity for worker id "<<wrk_aid; break; }
 
     rc = wrk_instance.service_ref_get(srv_aid);
     if (rc) { LOG(ERROR) << "Unable to get service id for worker "<<ident; break; }
 
-    ident[WORKER_IDENTITY_MAXLEN] = '\0';
+    ident[IDENTITY_MAXLEN] = '\0';
     if (rc)
     { 
         LOG(ERROR)<<"Unable to get worker's identity for service id "
@@ -1401,7 +1401,7 @@ MCO_RET DatabaseBrokerImpl::LoadLetter(mco_trans_h /*t*/,
   broker_db::XDBWorker worker_instance;
   char        *header_buffer = NULL;
   char        *body_buffer = NULL;
-  char         reply_buffer[WORKER_IDENTITY_MAXLEN + 1];
+  char         reply_buffer[IDENTITY_MAXLEN + 1];
   uint4        timer_value;
 
   do
@@ -1457,11 +1457,11 @@ MCO_RET DatabaseBrokerImpl::LoadLetter(mco_trans_h /*t*/,
                    <<" for letter id "<<aid<<", rc=" << rc; 
         break;
       }
-      worker_instance.identity_get(reply_buffer, (uint2)WORKER_IDENTITY_MAXLEN);
+      worker_instance.identity_get(reply_buffer, (uint2)IDENTITY_MAXLEN);
       if (rc) { LOG(ERROR) << "Unable to get identity for worker id="<<worker_aid<<", rc="<<rc; break; }
     }
 #else
-    rc = letter_instance.origin_get(reply_buffer, (uint2)WORKER_IDENTITY_MAXLEN);
+    rc = letter_instance.origin_get(reply_buffer, (uint2)IDENTITY_MAXLEN);
     if (rc) { LOG(ERROR) << "Getting reply address for letter id "<<aid<<", rc=" << rc; break; }
 #endif
 
@@ -2354,7 +2354,7 @@ bool ServiceListImpl::refresh()
   MCO_RET rc = MCO_S_OK;
   mco_cursor_t csr;
   broker_db::XDBService service_instance;
-  char name[Service::NAME_MAXLEN + 1];
+  char name[Service::NameMaxLen + 1];
   autoid_t aid;
 
   //delete m_array;
@@ -2392,7 +2392,7 @@ bool ServiceListImpl::refresh()
         LOG(ERROR) << "Unable to get item from Services list cursor, rc="<<rc; 
       }
 
-      rc = service_instance.name_get(name, (uint2)Service::NAME_MAXLEN);
+      rc = service_instance.name_get(name, (uint2)Service::NameMaxLen);
       if (rc) { LOG(ERROR) << "Getting service name, rc="<<rc; break; }
 
       rc = service_instance.autoid_get(aid);

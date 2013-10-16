@@ -113,7 +113,7 @@ OPTION(RTDBUS_BUILD_TESTS "enable unit test code" ON)
 set (MAX_SERVICES_ENTRY      400)
 set (MAX_WORKERS_ENTRY       800) # WORKERS_SPOOL_SIZE * MAX_SERVICES_ENTRY
 set (SERVICE_NAME_MAXLEN      32)
-set (WORKER_IDENTITY_MAXLEN   11)
+set (IDENTITY_MAXLEN          11)
 set (DBNAME_MAXLEN            10)
 # TODO Объединить все подобные интервалы (HEARTBEAT) в единую структуру. 
 # Сейчас у Брокера и Обработчиков могут быть разные значения.

@@ -4,7 +4,7 @@ SET(UNITTEST_DEVICE   device_unittest)
 SET(UNITTEST_DATABASE database_unittest)
 SET(UNITTEST_MESSAGE  message_unittest)
 
-SET (GTEST_VERSION "1.6.0")
+SET (GTEST_VERSION "1.7.0")
 
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # SOLARIS
