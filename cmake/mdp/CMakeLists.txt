@@ -17,6 +17,7 @@ endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
 include_directories(${TOOLS_DIR})
 include_directories(${MDP_DIR})
+include_directories(${XDB_CORE_DIR})
 include_directories(${XDB_BROKER_DIR})
 include_directories(${MSG_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})

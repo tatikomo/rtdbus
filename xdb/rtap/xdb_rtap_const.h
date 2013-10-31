@@ -106,7 +106,7 @@ typedef enum
 typedef struct
 {
   uint16_t size;
-  unsigned char *data;
+  char *data;
 } variable_t;
 
 typedef union

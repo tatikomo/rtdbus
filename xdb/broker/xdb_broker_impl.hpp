@@ -8,7 +8,7 @@
 #ifdef __cplusplus
 extern "C" {
 #include "mco.h"
-#if EXTREMEDB_VERSION >= 41
+#if (EXTREMEDB_VERSION >= 41) && USE_EXTREMEDB_HTTP_SERVER
 #include "mcohv.h"
 #endif
 }

@@ -10,6 +10,9 @@
 
 
 class Letter;
+class RtApplication;
+class RtDbConnection;
+class RtEnvironment;
 
 class Lurker : public mdp::mdwrk
 {
@@ -23,6 +26,9 @@ class Lurker : public mdp::mdwrk
 
   private:
     int m_flag;
+    xdb::RtApplication*  m_appli;
+    xdb::RtEnvironment*  m_environment;
+    xdb::RtDbConnection* m_db_connection;
 };
 
 #endif

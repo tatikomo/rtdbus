@@ -3,12 +3,13 @@
 #pragma once
 
 #include <string>
+#include <bitset>
 #include "config.h"
 
 #ifdef __cplusplus
 extern "C" {
 #include "mco.h"
-#if EXTREMEDB_VERSION >= 41 && USE_EXTREMEDB_HTTP_SERVER
+#if EXTREMEDB_VERSION >= 40 && USE_EXTREMEDB_HTTP_SERVER
 #include "mcohv.h"
 #endif
 }
@@ -18,6 +19,18 @@ extern "C" {
 
 namespace xdb
 {
+
+typedef std::bitset<8> BitSet8;
+
+// Позиции бит в флагах, передаваемых конструктору
+typedef enum
+{
+  OF_POS_CREATE   = 1, // создать БД в случае, если это не было сделано ранее
+  OF_POS_READONLY = 2, // открыть в режиме "только для чтения"
+  OF_POS_RDWR     = 3, // открыть в режиме "чтение|запись" (по умолчанию)
+  OF_POS_TRUNCATE = 4, // открыть пустую базу, удалив данные в существующем экземпляре
+  OF_POS_LOAD_SNAP= 5  // открыть базу, заполнив ее данными из последнего снапшота
+} FlagPos_t;
 
 class RtCoreDatabase : public Database
 {
@@ -37,17 +50,23 @@ class RtCoreDatabase : public Database
 #endif 
 
 
-    RtCoreDatabase(const char*);
+    RtCoreDatabase(const char*, BitSet8);
     ~RtCoreDatabase();
 
+    // Инициализация рантайма
     bool Init();
+    // создание нового экземпяра (с возможностью удаления старого) mco_db_open
+    bool Create();
+    // открытие подключения с помощью mco_db_connect
     bool Connect();
+    // Останов рантайма
     bool Disconnect();
 
   private:
     DISALLOW_COPY_AND_ASSIGN(RtCoreDatabase);
     mco_db_h     m_db;
     const char*  m_name;
+    BitSet8      m_db_access_flags;
 #if defined DEBUG
     char  m_snapshot_file_prefix[10];
     bool  m_initialized;
@@ -59,7 +78,7 @@ class RtCoreDatabase : public Database
     char* m_dbsFileName;
     char* m_logFileName;
 #endif
-#if EXTREMEDB_VERSION >= 41
+#if EXTREMEDB_VERSION >= 40
     mco_db_params_t   m_db_params;
     mco_device_t      m_dev;
 #  if USE_EXTREMEDB_HTTP_SERVER  
@@ -76,7 +95,9 @@ class RtCoreDatabase : public Database
      * Зарегистрировать все обработчики событий, заявленные в БД
      */
     MCO_RET RegisterEvents();
-    bool    AttachToInstance();
+    bool    ConnectToInstance();
+    bool    LoadFromSnapshot();
+    bool    MakeSnapshot();
 };
 
 }

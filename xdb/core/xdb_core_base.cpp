@@ -6,7 +6,7 @@
 #if defined HAVE_CONFIG_H
 #include "config.h"
 #endif
-#include "xdb_broker_base.hpp"
+#include "xdb_core_base.hpp"
 
 using namespace xdb;
 
@@ -32,6 +32,14 @@ Database::DBState Database::State() const
     return m_state;
 }
 
+/*
+ * UNINITIALIZED = 1, // первоначальное состояние
+ * INITIALIZED   = 2, // инициализирован runtime
+ * ATTACHED      = 3, // вызван mco_db_open
+ * CONNECTED     = 4, // вызван mco_db_connect
+ * DISCONNECTED  = 5, // вызван mco_db_disconnect
+ * CLOSED        = 6  // вызван mco_db_close
+ */
 bool Database::TransitionToState(DBState new_state)
 {
   bool transition_correctness = false;
@@ -41,13 +49,14 @@ bool Database::TransitionToState(DBState new_state)
    */
   switch (m_state)
   {
-    // Состояние "ОТКЛЮЧЕНО" может перейти в "ПОДКЛЮЧЕНО" или "РАЗРУШЕНО"
+    // Состояние "ОТКЛЮЧЕНО" может перейти в "ПОДКЛЮЧЕНО" или "ЗАКРЫТО"
     case DISCONNECTED:
     {
       switch (new_state)
       {
         case CONNECTED:
-        case DELETED:
+        case CLOSED:
+        case INITIALIZED:
           transition_correctness = true;
         break;
         default:
@@ -70,20 +79,52 @@ bool Database::TransitionToState(DBState new_state)
     }
     break;
 
-    // Состояние "РАЗРУШЕНО" не может перейти ни в какое другое состояние
-    case DELETED:
+    // Состояние "ПРИСОЕДИНЕНО" может перейти в состояние "ПОДКЛЮЧЕНО"\"ОТКЛЮЧЕНО"
+    case ATTACHED:
+    {
+      switch (new_state)
+      {
+        case CONNECTED:
+        case DISCONNECTED:
+          transition_correctness = true;
+        break;
+        default:
+          transition_correctness = false;
+      }
+    }
+    break;
+
+    // Состояние "ЗАКРЫТО" не может перейти ни в какое другое состояние
+    case CLOSED:
     {
        transition_correctness = false;
     }
     break;
 
-    // Неинициализированное состояние БД может перейти в "ОТКЛЮЧЕНО" или "РАЗРУШЕНО"
+    case INITIALIZED:
+    {
+      switch (new_state)
+      {
+        case ATTACHED:
+        case CONNECTED:
+        case DISCONNECTED:
+          transition_correctness = true;
+        break;
+        default:
+          transition_correctness = false;
+      }
+
+    }
+    break;
+
+    // Неинициализированное состояние БД может перейти в "ОТКЛЮЧЕНО" или "ЗАКРЫТО"
     case UNINITIALIZED:
     {
       switch (new_state)
       {
         case DISCONNECTED:
-        case DELETED:
+        case INITIALIZED:
+        case CLOSED:
           transition_correctness = true;
         break;
         default:
@@ -107,5 +148,10 @@ bool Database::Connect()
 bool Database::Disconnect()
 {
     return TransitionToState(DISCONNECTED);
+}
+
+bool Database::Init()
+{
+    return TransitionToState(INITIALIZED);
 }
 

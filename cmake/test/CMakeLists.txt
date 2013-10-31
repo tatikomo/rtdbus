@@ -28,6 +28,8 @@ include_directories(${TOOLS_DIR})
 include_directories(${MDP_DIR})
 include_directories(${MSG_DIR})
 include_directories(${XDB_BROKER_DIR})
+include_directories(${XDB_CORE_DIR})
+include_directories(${XDB_RTAP_DIR})
 include_directories(${WORKER_DIR})
 include_directories(${CLIENT_DIR})
 include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
@@ -70,6 +72,9 @@ set (TEST_DATABASE_SOURCES
         ${XDB_BROKER_DIR}/dat/broker_db.hpp
         ${XDB_BROKER_DIR}/dat/broker_db.h
         ${XDB_BROKER_DIR}/dat/broker_db.c
+        ${XDB_RTAP_DIR}/xdb_rtap_application.hpp
+        ${XDB_RTAP_DIR}/xdb_rtap_connection.hpp
+        ${XDB_RTAP_DIR}/xdb_rtap_environment.hpp
         ${MDP_DIR}/mdp_zmsg.hpp
         ${TEST_RTDBUS_DIR}/database_unittest.cpp)
 
@@ -120,10 +125,12 @@ target_link_libraries(${UNITTEST_DEVICE}
 add_executable (${UNITTEST_DATABASE} ${TEST_DATABASE_SOURCES})
 target_link_libraries(${UNITTEST_DATABASE}
     ${XDB_BROKER_LIBRARY_NAME}
+    ${XDB_RTAP_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
     ${TOOLS_LIBRARY_NAME}
     ${LIBPROTOBUF_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
+    "-lmcoseri_debug"
     ${SYSTEM_EXTERNAL_LIBS})
 
 add_executable (${UNITTEST_MESSAGE} ${TEST_MSG_SOURCES})

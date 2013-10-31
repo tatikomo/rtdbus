@@ -6,26 +6,26 @@
 #include "config.h"
 #include "xdb_rtap_attribute.hpp"
 #include "xdb_rtap_point.hpp"
+#include "xdb_rtap_error.hpp"
 
 namespace xdb
 {
 
-class RtConnection
+class RtEnvironment;
+
+class RtDbConnection
 {
   public:
-    typedef enum {
-      ERROR_NONE = 0
-    } RtError;
-
-    RtConnection();
-    ~RtConnection();
+    RtDbConnection(RtEnvironment*);
+    ~RtDbConnection();
 
     // Копировать точку под новым именем
     RtError copy(RtAttribute&, RtPoint&, std::string&);
 
   private:
-    DISALLOW_COPY_AND_ASSIGN(RtConnection);
-    RtError m_last_error;
+    DISALLOW_COPY_AND_ASSIGN(RtDbConnection);
+    RtEnvironment* m_environment;
+    RtError        m_last_error;
 };
 
 }

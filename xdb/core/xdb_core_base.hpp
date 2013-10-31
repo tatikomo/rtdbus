@@ -13,10 +13,12 @@ class Database
   public:
     /* Внутренние состояния базы данных */
     typedef enum {
-        UNINITIALIZED = 1,
-        CONNECTED     = 2,
-        DISCONNECTED  = 3,
-        DELETED       = 4
+        UNINITIALIZED = 1, // первоначальное состояние
+        INITIALIZED   = 2, // инициализирован runtime
+        ATTACHED      = 3, // вызван mco_db_open
+        CONNECTED     = 4, // вызван mco_db_connect
+        DISCONNECTED  = 5, // вызван mco_db_disconnect
+        CLOSED        = 6  // вызван mco_db_close
     } DBState;
 
     Database(const char*);
@@ -30,6 +32,7 @@ class Database
      */
     virtual bool Connect();
     virtual bool Disconnect();
+    virtual bool Init();
 
     DBState State() const;
     /* Сменить текущее состояние на новое */

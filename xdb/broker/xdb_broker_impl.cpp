@@ -1,11 +1,11 @@
 #include <new>
 #include <assert.h>
 #include <stdio.h>
-#include <glog/logging.h>
 #include <stdlib.h> // free
 #include <stdarg.h>
 #include <string.h>
 
+#include "glog/logging.h"
 #include "config.h"
 
 #ifdef __cplusplus
@@ -13,7 +13,7 @@ extern "C" {
 #endif
 
 #include "mco.h"
-#include "xdb_broker_common.h"
+#include "xdb_core_common.h"
 
 #if defined DEBUG
 # if (EXTREMEDB_VERSION <= 40)
@@ -96,7 +96,7 @@ DatabaseBrokerImpl::DatabaseBrokerImpl(DatabaseBroker *self) :
   strcpy(m_logFileName, name);
   strcat(m_logFileName, ".log");
 #endif
-  ((Database*)m_self)->TransitionToState(Database::UNINITIALIZED);
+  static_cast<Database*>(m_self)->TransitionToState(Database::UNINITIALIZED);
 }
 
 DatabaseBrokerImpl::~DatabaseBrokerImpl()
@@ -105,13 +105,13 @@ DatabaseBrokerImpl::~DatabaseBrokerImpl()
 #if (EXTREMEDB_VERSION >= 41) && USE_EXTREMEDB_HTTP_SERVER
   int ret;
 #endif
-  Database::DBState state = ((Database*)m_self)->State();
+  Database::DBState state = static_cast<Database*>(m_self)->State();
 
   LOG(INFO) << "Current state "  << (int)state;
   switch (state)
   {
-    case Database::DELETED:
-      LOG(WARNING) << "State already DELETED";
+    case Database::CLOSED:
+      LOG(WARNING) << "State already CLOSED";
     break;
 
     case Database::UNINITIALIZED:
@@ -119,6 +119,10 @@ DatabaseBrokerImpl::~DatabaseBrokerImpl()
 
     case Database::CONNECTED:
       Disconnect();
+      // NB: break пропущен специально!
+    case Database::ATTACHED:
+      // NB: break пропущен специально!
+    case Database::INITIALIZED:
       // NB: break пропущен специально!
     case Database::DISCONNECTED:
 #if (EXTREMEDB_VERSION >= 41) && USE_EXTREMEDB_HTTP_SERVER
@@ -140,7 +144,7 @@ DatabaseBrokerImpl::~DatabaseBrokerImpl()
         LOG(ERROR) << "Unable to stop database runtime, code=" << rc;
       }
       //rc_check("Runtime stop", rc);
-      ((Database*)m_self)->TransitionToState(Database::DELETED);
+      ((Database*)m_self)->TransitionToState(Database::CLOSED);
     break;
   }
 
@@ -267,14 +271,13 @@ bool DatabaseBrokerImpl::Disconnect()
     break;
 
     case Database::CONNECTED:
-      assert(m_self);
       mco_async_event_release_all(m_db/*, MCO_EVENT_newService*/);
       rc = mco_db_disconnect(m_db);
-//      rc_check("Disconnection", rc);
-
+      // NB: break пропущен специально
+    case Database::ATTACHED:
+      assert(m_self);
       rc = mco_db_close(m_self->DatabaseName());
       ((Database*)m_self)->TransitionToState(Database::DISCONNECTED);
-//      rc_check("Closing", rc);
     break;
 
     default:
@@ -2218,7 +2221,7 @@ ServiceListImpl::ServiceListImpl(mco_db_h _db) :
     m_size(0)
 {
   m_array = new Service*[MAX_SERVICES_ENTRY];
-  memset(m_array, '\0', sizeof(m_array)); // NB: подразумевается что 0 и NULL равны
+  memset(m_array, '\0', MAX_SERVICES_ENTRY*sizeof(Service*));
   assert(m_db);
 }
 

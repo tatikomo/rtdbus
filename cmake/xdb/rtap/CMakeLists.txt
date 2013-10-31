@@ -14,15 +14,31 @@ else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
         rt)
 endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
+set (XDB_RTAP_SNAP_NAME "xdb_snap")
+
 include_directories(${TOOLS_DIR})
 include_directories(${MDP_DIR})
 include_directories(${MSG_DIR})
+include_directories(${XDB_CORE_DIR})
 include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})
 include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
 
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
+link_directories(${LIBGLOG_LIBRARIES_DIR})
+
+set (XDB_RTAP_SNAP_SOURCES
+        ${CMAKE_SOURCE_DIR}/config.h
+        ${XDB_RTAP_DIR}/dat/rtap_db.h
+        ${XDB_RTAP_DIR}/dat/rtap_db.hpp
+        ${XDB_RTAP_DIR}/dat/rtap_db.c
+        ${XDB_RTAP_DIR}/xdb_rtap_snap_main.cpp
+        ${XDB_RTAP_DIR}/xdb_rtap_snap_main.hpp
+        ${XDB_RTAP_DIR}/xdb_rtap_snap_trans.cpp
+        ${XDB_RTAP_DIR}/xdb_rtap_snap_load.cpp
+        ${XDB_RTAP_DIR}/xdb_rtap_snap_save.cpp
+        )
 
 set (XDB_RTAP_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
@@ -31,10 +47,18 @@ set (XDB_RTAP_SOURCES
         ${XDB_RTAP_DIR}/dat/rtap_db.h
         ${XDB_RTAP_DIR}/dat/rtap_db.hpp
         ${XDB_RTAP_DIR}/dat/rtap_db.c
+        ${XDB_CORE_DIR}/xdb_core_base.cpp
+        ${XDB_CORE_DIR}/xdb_core_base.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_const.h
         ${XDB_RTAP_DIR}/xdb_rtap_common.h
         ${XDB_RTAP_DIR}/xdb_rtap_application.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_application.hpp
+        ${XDB_CORE_DIR}/xdb_core_base.cpp
+        ${XDB_CORE_DIR}/xdb_core_base.hpp
+        ${XDB_CORE_DIR}/xdb_core_common.c
+        ${XDB_CORE_DIR}/xdb_core_common.h
+        ${XDB_RTAP_DIR}/xdb_rtap_database.cpp
+        ${XDB_RTAP_DIR}/xdb_rtap_database.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_attribute.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_attribute.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_connection.cpp
@@ -59,6 +83,14 @@ set (XDB_RTAP_SOURCES
         ${XDB_RTAP_DIR}/xdb_rtap_binary.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_discrete.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_discrete.hpp)
+
+set (XDB_LURKER_SOURCES
+        ${CMAKE_SOURCE_DIR}/config.h
+        ${MDP_DIR}/mdp_letter.hpp
+        ${MDP_DIR}/mdp_worker_api.hpp
+        ${MDP_DIR}/mdp_zmsg.hpp
+        ${XDB_RTAP_DIR}/xdb_rtap_lurker.cpp
+        ${XDB_RTAP_DIR}/xdb_rtap_lurker.hpp)
 
 add_custom_command(
         OUTPUT
@@ -87,7 +119,25 @@ add_custom_command(
 
 add_library (${XDB_RTAP_LIBRARY_NAME} ${XDB_RTAP_SOURCES})
 target_link_libraries(${XDB_RTAP_LIBRARY_NAME}
-    ${EXTREMEDB_LIBRARIES_ALL}
     ${MSG_LIBRARY_NAME}
+    ${SYSTEM_EXTERNAL_LIBS})
+
+add_executable (${XDB_RTAP_LURKER_NAME} ${XDB_LURKER_SOURCES})
+target_link_libraries(${XDB_RTAP_LURKER_NAME}
+    ${XDB_RTAP_LIBRARY_NAME}
+    ${MDP_LIBRARY_NAME}
+    ${LIBGLOG_LIBRARIES}
+    ${LIBEXTREMEDB_LIBRARIES_ALL}
+    "-lmcoseri_debug"
+    ${LIBPROTOBUF_LIBRARIES}
+    ${SYSTEM_EXTERNAL_LIBS})
+
+add_executable (${XDB_RTAP_SNAP_NAME} ${XDB_RTAP_SNAP_SOURCES})
+target_link_libraries(${XDB_RTAP_SNAP_NAME}
+    ${XDB_RTAP_LIBRARY_NAME}
+    ${MDP_LIBRARY_NAME}
+    ${LIBGLOG_LIBRARIES}
+    ${LIBEXTREMEDB_LIBRARIES_ALL}
+    "-lmcoseri_debug"
     ${SYSTEM_EXTERNAL_LIBS})
 

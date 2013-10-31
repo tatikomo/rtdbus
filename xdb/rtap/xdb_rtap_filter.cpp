@@ -8,6 +8,9 @@
 
 using namespace xdb;
 
+RtError   RtPointFilter::m_last_error;
+RtPointFilter::ScopeType RtPointFilter::m_scope_type;
+
 RtPointFilter::RtPointFilter()
 {
 }

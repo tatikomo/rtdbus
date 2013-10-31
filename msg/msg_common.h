@@ -234,6 +234,17 @@ const rtdbMsgType SIG_D_MSG_SETTSPASS           = GOF_D_BASE_MSG_SINF + 123;
 const rtdbMsgType SIG_D_MSG_ACDLIST             = GOF_D_BASE_MSG_SINF + 124;
 const rtdbMsgType SIG_D_MSG_ACDQUERY            = GOF_D_BASE_MSG_SINF + 125;
 /*
+ * GEV
+ * Нижеследующие константы добавлены для сообщений о чтении/записи 
+ * одного/многих атрибутов
+ * Данные константы отсутствуют в ГОФО
+ */
+const rtdbMsgType SIG_D_MSG_READ_SINGLE         = GOF_D_BASE_MSG_SINF + 200;
+const rtdbMsgType SIG_D_MSG_READ_MULTI          = GOF_D_BASE_MSG_SINF + 201;
+const rtdbMsgType SIG_D_MSG_WRITE_SINGLE        = GOF_D_BASE_MSG_SINF + 202;
+const rtdbMsgType SIG_D_MSG_WRITE_MULTI         = GOF_D_BASE_MSG_SINF + 203;
+
+/*
  * NB: Есть дополнительные константы типов, расположенные в sig/ext/dat: 
  * sig_ext_MsgDefInt.dat и sig_ext_MsgProcnumToInt.dat
  */

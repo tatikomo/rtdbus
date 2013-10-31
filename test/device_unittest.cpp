@@ -1,7 +1,7 @@
 #include <string>
 #include "gtest/gtest.h"
 #include "glog/logging.h"
-#include <google/protobuf/stubs/common.h>
+#include "google/protobuf/stubs/common.h"
 
 #include "helper.hpp"
 #include "mdp_zmsg.hpp"

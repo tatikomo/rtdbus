@@ -1,5 +1,5 @@
 #include <string>
-#include <glog/logging.h>
+#include "glog/logging.h"
 #include "gtest/gtest.h"
 
 #include "xdb_broker_impl.hpp"
@@ -8,6 +8,10 @@
 #include "xdb_broker_worker.hpp"
 #include "dat/broker_db.hpp"
 #include "proto/common.pb.h"
+
+#include "xdb_rtap_application.hpp"
+#include "xdb_rtap_environment.hpp"
+#include "xdb_rtap_connection.hpp"
 
 const char *service_name_1 = "service_test_1";
 const char *service_name_2 = "service_test_2";
@@ -22,6 +26,9 @@ xdb::Letter  *letter   = NULL;
 int64_t service1_id;
 int64_t service2_id;
 xdb::Database::DBState state;
+xdb::RtApplication* app = NULL;
+xdb::RtEnvironment* env = NULL;
+xdb::RtDbConnection* connection = NULL;
 
 void wait()
 {
@@ -426,6 +433,52 @@ TEST(TestBrokerDATABASE, DESTROY)
 #endif
 
     delete database;
+}
+
+TEST(TestLurkerDATABASE, CREATION)
+{
+  bool status = false;
+  const int argc = 3;
+  xdb::RtEnvironment *env1 = NULL;
+  char *argv[argc] = {
+                    "test",
+                    "параметр_1",
+                    "параметр_2"
+                    };
+
+  app = new xdb::RtApplication("test");
+  ASSERT_TRUE(app != NULL);
+
+  app->setOption("OF_CREATE", 1);
+  app->setOption("OF_RDWR", 1);
+  EXPECT_EQ(app->getLastError().getCode(), xdb::rtE_NONE);
+
+//  app->setEnvName("RTAP");
+
+  LOG(INFO) << "Initialize: " << app->initialize().getCode();
+  LOG(INFO) << "Operation mode: " << app->getOperationMode();
+  LOG(INFO) << "Operation state: " << app->getOperationState();
+
+  env = app->getEnvironment("SINF");
+  EXPECT_TRUE(env != NULL);
+
+  env1 = app->getEnvironment("SINF");
+  EXPECT_TRUE(env1 != NULL);
+  // Это должен быть один и тот же объект SINF
+  // с одинаковым именем
+  EXPECT_TRUE(0 == strcmp(env->getName(), env1->getName()));
+  // и аресом
+  EXPECT_TRUE(env == env1);
+
+  connection = env->createDbConnection();
+  EXPECT_TRUE(connection != NULL);
+}
+
+TEST(TestLurkerDATABASE, DESTROY)
+{
+  delete connection;
+  delete env;
+  delete app;
 }
 
 int main(int argc, char** argv)

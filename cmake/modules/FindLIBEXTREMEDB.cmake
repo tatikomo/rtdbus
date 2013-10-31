@@ -55,7 +55,7 @@
     elseif (${COMPILER_PLATFORM} MATCHES "Linux")
       # LINUX EXTREMEDB 5.0 EVALUATION
       set (LIBEXTREMEDB_LIBRARIES "mcolib mcovtdsk mcofu98 mcoslnx mcomipc mcotmvcc mcolib mcouwrt")
-      set (LIBEXTREMEDB_LIBRARIES_ALL "mcolib_debug -lmcovtdsk_debug -lmcofu98_debug -lmcoslnx_debug -lmcomipc_debug -lmcotmvcc_debug -lmcolib_debug -lmcouwrt_debug")
+      set (LIBEXTREMEDB_LIBRARIES_ALL "-lmcolib_debug -lmcovtdsk_debug -lmcofu98_debug -lmcoslnx_debug -lmcomipc_debug -lmcotmvcc_debug -lmcolib_debug -lmcouwrt_debug")
     endif()
 
     if (${USE_EXTREMEDB_HTTP_SERVER})

@@ -19,12 +19,22 @@ extern int s_interrupted;
 Lurker::Lurker(std::string broker, std::string service, int verbose)
    : mdwrk(broker, service, verbose)
 {
-  m_flag = 1;
+  m_appli = new xdb::RtApplication("LURKER");
+  m_appli->setOption("OF_CREATE",1);    // Создать если БД не было ранее
+  m_appli->setOption("OF_RDWR",1);      // Открыть БД для чтения/записи
+  m_appli->setEnvName("RTAP");
+  m_appli->initialize();
+
+  m_environment = m_appli->getEnvironment("RTAP");
+  m_db_connection = m_environment->createDbConnection();
 }
 
 Lurker::~Lurker()
 {
-  m_flag = 0; // :-)
+  delete m_db_connection;
+  delete m_environment;
+  // NB Проверить - RtEnvironment удаляется в деструкторе RtApplication ?
+  delete m_appli;
 }
 
 int Lurker::handle_request(mdp::zmsg* request, std::string*& reply_to)
@@ -86,8 +96,8 @@ int main(int argc, char **argv)
   int  opt;
   Lurker *engine = NULL;
 
-  ::google::InstallFailureSignalHandler();
   ::google::InitGoogleLogging(argv[0]);
+  ::google::InstallFailureSignalHandler();
 
   while ((opt = getopt (argc, argv, "vs:")) != -1)
   {
@@ -128,11 +138,6 @@ int main(int argc, char **argv)
   try
   {
     engine = new Lurker("tcp://localhost:5555", service_name, verbose);
-
-    RtApplication* app = new RtApplication("connect");
-    app->setOptions(argc, argv);
-    app->setEnvName("pengdmo");
-    app->initialize();
 
     LOG(INFO) << "Hello lurker!";
 

@@ -154,7 +154,7 @@ int main(int argc, char **argv)
   try
   {
     Digger *engine = new Digger("tcp://localhost:5555", service_name, verbose);
-    while (!s_interrupted) 
+    while (!s_interrupted)
     {
        std::string *reply_to = new std::string;
        mdp::zmsg   *request  = NULL;

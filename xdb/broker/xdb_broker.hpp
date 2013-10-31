@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <string>
 
-#include "xdb_broker_base.hpp"
+#include "xdb_core_base.hpp"
 #include "xdb_broker_service.hpp"
 #include "xdb_broker_worker.hpp"
 #include "xdb_broker_letter.hpp"

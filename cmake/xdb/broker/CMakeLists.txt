@@ -20,6 +20,7 @@ include_directories(${XDB_BROKER_DIR})
 # Для использования ZMSG и RTDBUS_MessageHeader внутри Letter
 include_directories(${MSG_DIR})
 include_directories(${MDP_DIR})
+include_directories(${XDB_CORE_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})
 include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 
@@ -35,10 +36,10 @@ set (XDB_BROKER_SOURCES
         ${XDB_BROKER_DIR}/dat/broker_db.h
         ${XDB_BROKER_DIR}/dat/broker_db.c
         ${XDB_BROKER_DIR}/dat/broker_db.hpp
-        ${XDB_BROKER_DIR}/xdb_broker_common.c
-        ${XDB_BROKER_DIR}/xdb_broker_common.h
-        ${XDB_BROKER_DIR}/xdb_broker_base.cpp
-        ${XDB_BROKER_DIR}/xdb_broker_base.hpp
+        ${XDB_CORE_DIR}/xdb_core_common.c
+        ${XDB_CORE_DIR}/xdb_core_common.h
+        ${XDB_CORE_DIR}/xdb_core_base.cpp
+        ${XDB_CORE_DIR}/xdb_core_base.hpp
         ${XDB_BROKER_DIR}/xdb_broker.cpp
         ${XDB_BROKER_DIR}/xdb_broker.hpp
         ${XDB_BROKER_DIR}/xdb_broker_impl.cpp

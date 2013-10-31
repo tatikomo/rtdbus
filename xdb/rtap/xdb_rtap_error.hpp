@@ -14,6 +14,8 @@ typedef enum
   rtE_NOT_IMPLEMENTED,
   rtE_STRING_TOO_LONG,
   rtE_STRING_IS_EMPTY,
+  rtE_DB_NOT_FOUND,
+  rtE_DB_NOT_OPENED,
   rtE_LAST
 } ErrorType_t;
 
@@ -37,7 +39,8 @@ class RtError
 
   private:
     void init();
-    static const char* m_error_descriptions[MaxErrorCode + 1];
+    static bool m_initialized;
+    static char* m_error_descriptions[MaxErrorCode + 1];
     ErrorType_t m_error_type;
 };
 

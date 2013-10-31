@@ -29,19 +29,32 @@ class RtData
      //
      double   getDoubleValue() const;
      // Предоставить доступ к внутреннему значению как к массиву байт
-     unsigned char* getBytesValue() const;
+     char* getBytesValue() const;
      //
      DbType_t getDeType() const;
      //
+     void setValue(uint8_t);
+     void setValue(int8_t);
+     void setValue(uint16_t);
+     void setValue(int16_t);
+     void setValue(uint32_t);
+     void setValue(int32_t);
+     void setValue(float);
+     void setValue(double);
+     void setValue(char*);
+     void setValue(variable_t);
+
      const RtError& getLastError() const { return m_last_error; }
 
    private:
      DISALLOW_COPY_AND_ASSIGN(RtData);
-     RtError m_last_error;
+     static bool m_initialized;
      static const char* DbTypeDescription[DB_TYPE_LAST];
-     void init();
-     DbType_t  m_attr_type;
-     AttrVal_t m_attr_value;
+     RtError    m_last_error;
+     void       init();
+     DbType_t   m_attr_type;
+     AttrVal_t  m_attr_value;
+     bool       m_modified;
 };
 
 }
