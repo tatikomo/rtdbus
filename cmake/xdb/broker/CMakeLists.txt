@@ -55,6 +55,8 @@ set (XDB_BROKER_SOURCES
         ${MSG_DIR}/proto/common.pb.h
         )
 
+add_definitions (-Wno-missing-field-initializers)
+
 add_custom_command(
         OUTPUT
         ${MSG_DIR}/proto/common.pb.cc

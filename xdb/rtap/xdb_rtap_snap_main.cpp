@@ -14,7 +14,7 @@ xdb::RtApplication *app = NULL;
 xdb::RtEnvironment *env = NULL;
 xdb::RtDbConnection *connection = NULL;
 char database_name[SERVICE_NAME_MAXLEN + 1];
-char file_name[400];
+char file_name[400+1];
 const char* command_name_LOAD_FROM_XML = "load";
 const char* command_name_SAVE_TO_XML = "save";
 bool verbose = false;
@@ -49,8 +49,8 @@ int main(int argc, char** argv)
         // Задание имени файла
         // -f <имя файла>
         case 'f':
-          strncpy(file_name, optarg, SERVICE_NAME_MAXLEN);
-          file_name[SERVICE_NAME_MAXLEN] = '\0';
+          strncpy(file_name, optarg, 400);
+          file_name[400] = '\0';
           is_file_name_given = true;
         break;
 

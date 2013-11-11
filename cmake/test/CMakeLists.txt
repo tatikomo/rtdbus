@@ -85,6 +85,8 @@ set (TEST_MSG_SOURCES
         ${MSG_DIR}/proto/common.pb.h
         ${TEST_RTDBUS_DIR}/message_unittest.cpp)
 
+add_definitions (-Wno-missing-field-initializers)
+
 add_custom_command(
         OUTPUT 
         ${XDB_BROKER_DIR}/dat/broker_db.h

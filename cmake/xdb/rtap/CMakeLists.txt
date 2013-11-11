@@ -33,6 +33,9 @@ set (XDB_RTAP_SNAP_SOURCES
         ${XDB_RTAP_DIR}/dat/rtap_db.h
         ${XDB_RTAP_DIR}/dat/rtap_db.hpp
         ${XDB_RTAP_DIR}/dat/rtap_db.c
+        ${XDB_RTAP_DIR}/xdb_rtap_common.h
+        ${XDB_RTAP_DIR}/xdb_rtap_const.cpp
+        ${XDB_RTAP_DIR}/xdb_rtap_const.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_snap_main.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_snap_main.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_snap_trans.cpp
@@ -49,7 +52,8 @@ set (XDB_RTAP_SOURCES
         ${XDB_RTAP_DIR}/dat/rtap_db.c
         ${XDB_CORE_DIR}/xdb_core_base.cpp
         ${XDB_CORE_DIR}/xdb_core_base.hpp
-        ${XDB_RTAP_DIR}/xdb_rtap_const.h
+        ${XDB_RTAP_DIR}/xdb_rtap_const.cpp
+        ${XDB_RTAP_DIR}/xdb_rtap_const.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_common.h
         ${XDB_RTAP_DIR}/xdb_rtap_application.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_application.hpp

@@ -4,7 +4,7 @@
 
 #include <string>
 #include "config.h"
-#include "xdb_rtap_const.h"
+#include "xdb_rtap_const.hpp"
 #include "xdb_rtap_data.hpp"
 #include "xdb_rtap_point.hpp"
 #include "xdb_rtap_error.hpp"

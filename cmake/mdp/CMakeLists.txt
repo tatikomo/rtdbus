@@ -30,6 +30,8 @@ link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 
+add_definitions (-Wno-missing-field-initializers)
+
 add_custom_command(
         OUTPUT
         ${MSG_DIR}/proto/common.pb.cc

@@ -2,6 +2,12 @@
 #define XDB_RTAP_SNAP_TRANS_H_
 #pragma once
 
+#include "config.h"
+#include "xdb_rtap_const.hpp"
+
+namespace xdb
+{
+
 /*--------------------------*/
 /* buffer sizes             */
 /*--------------------------*/
@@ -9,6 +15,7 @@
 #define CE_RECORD_SIZE   2100
 #define ALIAS_RECORD_SIZE 100
 
+#define rtMAX_FIELD_CNT              255     /* allows fields 0 to 254 */
 /*--------------------------*/
 /* return codes             */
 /*--------------------------*/
@@ -120,7 +127,6 @@ typedef enum
     UNKNOWN
 } attrCategory;
 
-
 typedef enum
 {
     C_TYPE,
@@ -148,9 +154,13 @@ bool initBranch(const char*);
 
 bool deleteBranch(const char*);
 
-bool copyPoint(const char*, const char*);
+bool copyPoint(char*, char*);
 
 recordType getRecordType(char*);
+
+void skipStr(char* laChaine);
+
+bool extractRow(char*, int*);
 
 bool processClassFile(const char*);
 
@@ -161,4 +171,16 @@ bool addClassPoint(char *buffer,
                    char* className,
                    char* cloneName,
                    char* buffAttrRef);
+
+bool addScalar(char*, char*, attrCategory*, char*);
+
+bool setInfoScalar(char*, formatType, attrCategory*, char*);
+
+bool setInfoVector(char*, formatType, attrCategory*);
+
+bool setInfoTable(char*, formatType, attrCategory*);
+
+bool initFieldTable(char*, char*[], int);
+
+}
 #endif
