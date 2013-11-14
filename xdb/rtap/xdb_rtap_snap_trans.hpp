@@ -182,5 +182,9 @@ bool setInfoTable(char*, formatType, attrCategory*);
 
 bool initFieldTable(char*, char*[], int);
 
+bool GetDbTypeFromString(std::string&, xdb::DbType_t&);
+
+char* GetNextWord(char**, char*);
+
 }
 #endif

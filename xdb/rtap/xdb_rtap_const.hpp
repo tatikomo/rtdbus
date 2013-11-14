@@ -203,13 +203,14 @@ typedef struct
   autoid_t      id_unity;
 } PointDescription_t;
 
+typedef std::vector <AttributeInfo_t> att_list_t;
 
 /* Хранилище набора атрибутов, их типов, кода и описания для каждого objclass */
 typedef struct
 {
   univname_t        name;   /* название класса */
   int8_t            code;   /* код класса */
-  std::vector       <AttributeInfo_t>* attr_info_list_t;
+  att_list_t       *attr_info_list;
 } ObjClassDescr_t;
 
 extern ObjClassDescr_t ObjClassDescrTable[];

@@ -7,7 +7,7 @@
 
 using namespace xdb;
 
-rtDataElemDescription rtDataElem[] =
+rtDataElemDescription xdb::rtDataElem[] =
 {
     { rtRESERVED0,   0,               "RESERVED(0)" },
     { rtLOGICAL, sizeof(uint8_t),     "LOGICAL" },
@@ -45,7 +45,7 @@ rtDataElemDescription rtDataElem[] =
 };
 
 
-ObjClassDescr_t ObjClassDescrTable[] = {
+ObjClassDescr_t xdb::ObjClassDescrTable[] = {
     {"TS",      0, 0},          /* Телесигнализация */
     {"TM",      1, 0},          /* Телеизмерение */
     {"TR",      2, 0},          /* Телерегулировка */

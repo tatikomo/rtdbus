@@ -1,5 +1,8 @@
 #include <assert.h>
 #include <map>
+#include <iostream>
+#include <fstream>
+#include <vector>
 #include <string>
 #include <stdlib.h> // atoi()
 #include <stdio.h>  // fopen()
@@ -22,7 +25,8 @@ char     currentStrDeType[DETYPE_SIZE+1];
 rtDeType currentDeType;
  	
 typedef std::map  <const std::string, xdb::DbType_t> DbTypesHash_t;
-typedef std:pair  <const std::string, xdb::DbType_t> DbTypesHashPair_t;
+typedef std::map  <const std::string, xdb::DbType_t>::iterator DbTypesHashIterator_t;
+typedef std::pair <const std::string, xdb::DbType_t> DbTypesHashPair_t;
 typedef std::map  <std::string, int> DbPointsTypeHash_t;
 typedef std::pair <std::string, int> DbPointsTypeHashPair_t;
 DbTypesHash_t       dbTypesHash;
@@ -219,9 +223,11 @@ bool addScalar(char *buffer, char *alias, attrCategory* category, char *scalarVa
     LOG(ERROR)<<"Must be "<<STR_PUBLIC<<" or "<<STR_PRIVATE<<" : "<<categ<<" invalid",
 
   /* init global variables for the attribute name and DeType */
-  strcpy(currentAttrName, attrName); 
+  strcpy(currentAttrName, attrName);
   strcpy(currentStrDeType, deType);
   currentDeType = extractDeType(deType);
+
+  std::cout << "Add scalar " << std::endl;
 
   return status;
 }
@@ -273,42 +279,93 @@ void LoadDbTypesDictionary()
    dbTypesHash.insert(DbTypesHashPair_t("rtABS_TIME",   DB_TYPE_INTEGER64));
 
    /* TODO release memory */
-   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("DISP_TABLE_H",  GOF_D_BDR_OBJCLASS_DISP_TABLE_H));
-   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("DISP_TABLE_J",  GOF_D_BDR_OBJCLASS_DISP_TABLE_J));
-   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("DISP_TABLE_M",  GOF_D_BDR_OBJCLASS_DISP_TABLE_M));
-   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("DISP_TABLE_QH", GOF_D_BDR_OBJCLASS_DISP_TABLE_QH));
-   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("FIXEDPOINT",    GOF_D_BDR_OBJCLASS_FIXEDPOINT));
-   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("HIST_SET",      GOF_D_BDR_OBJCLASS_HIST_SET));
-   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("HIST_TABLE_H",  GOF_D_BDR_OBJCLASS_HIST_TABLE_H));
-   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("HIST_TABLE_J",  GOF_D_BDR_OBJCLASS_HIST_TABLE_J));
-   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("HIST_TABLE_M",  GOF_D_BDR_OBJCLASS_HIST_TABLE_M));
-   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("HIST_TABLE_QH", GOF_D_BDR_OBJCLASS_HIST_TABLE_QH));
-   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("HIST_TABLE_SAMPLE", GOF_D_BDR_OBJCLASS_HIST_TABLE_SAMPLE));
-   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("TIME_AVAILABLE",GOF_D_BDR_OBJCLASS_TIME_AVAILABLE));
-   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("config",        GOF_D_BDR_OBJCLASS_CONFIG));
+   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("DISP_TABLE_H",
+                           GOF_D_BDR_OBJCLASS_DISP_TABLE_H));
+   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("DISP_TABLE_J",
+                           GOF_D_BDR_OBJCLASS_DISP_TABLE_J));
+   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("DISP_TABLE_M",  
+                           GOF_D_BDR_OBJCLASS_DISP_TABLE_M));
+   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("DISP_TABLE_QH",
+                           GOF_D_BDR_OBJCLASS_DISP_TABLE_QH));
+   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("FIXEDPOINT",
+                           GOF_D_BDR_OBJCLASS_FIXEDPOINT));
+   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("HIST_SET",
+                           GOF_D_BDR_OBJCLASS_HIST_SET));
+   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("HIST_TABLE_H",
+                           GOF_D_BDR_OBJCLASS_HIST_TABLE_H));
+   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("HIST_TABLE_J",
+                           GOF_D_BDR_OBJCLASS_HIST_TABLE_J));
+   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("HIST_TABLE_M",
+                           GOF_D_BDR_OBJCLASS_HIST_TABLE_M));
+   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("HIST_TABLE_QH",
+                           GOF_D_BDR_OBJCLASS_HIST_TABLE_QH));
+   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("HIST_TABLE_SAMPLE",
+                           GOF_D_BDR_OBJCLASS_HIST_TABLE_SAMPLE));
+   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("TIME_AVAILABLE",
+                           GOF_D_BDR_OBJCLASS_TIME_AVAILABLE));
+   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("config",
+                           GOF_D_BDR_OBJCLASS_CONFIG));
 
    /* Используется в ts.c в качестве словаря соответствия между алиасами и универсальными именами */
    //dbAliasHash = g_hash_table_new(g_str_hash, g_str_equal);
 }
 
 /*
+ Получить следующую лексему из строки, пропуская пробелы.
+ Побочные эфекты: изменяется указатель на строку
+*/
+char* GetNextWord(char** p_data, char* dest)
+{
+  char* p_line;
+  int   length = 0;
+
+  assert(p_data);
+  assert(*p_data);
+  assert(dest);
+
+  p_line = *p_data;
+
+  if (*p_line != '\0')
+  {
+      /* пропустить первые пробельные символы */
+      while (*p_line && *p_line == ' ' && p_line++);
+  
+      /* TODO replace constant '18' by definition */
+      while (*p_line && *p_line!=' ' && (length <= 18))
+      {
+        dest[length++] = *p_line;
+        p_line++;
+      }
+      dest[length] = '\0';
+  }
+  else 
+  {
+    dest[0] = '\0';
+  }
+
+  /* передвинем курсор дальше по строке */
+  *p_data = p_line;
+
+  return p_line;
+}
+
+/*
  * По каждому классу точек прочитать справочные данные
  *
  */
-bool processClassFile(const char* fname)
+bool xdb::processClassFile(const char* fname)
 {
   bool status = false;
   int        objclass;
-  FILE*      rfile;
   char       fpath[255];
-  univname_t s_univname;
-  univname_t s_access;
-  univname_t s_type;
-  DbType_t   db_type;
+  std::string s_univname;
+  std::string s_access;
+  std::string s_type;
+  DbType_t    db_type;
   AttributeInfo_t* p_attr_info; 
   char*      p_line   = NULL;
   char*      p_cursor = NULL;
-  char       fline[LINE_BUFFER_LEN+1];
+  std::string line;
 
   LoadDbTypesDictionary();
 
@@ -317,68 +374,101 @@ bool processClassFile(const char* fname)
     if (strcmp(ObjClassDescrTable[objclass].name, D_MISSING_OBJCODE)==0)
       continue;
 
-    sprintf(fpath, "/export/home/users/stmd/SCADA/dat/dict/%02d_%s.dat",
+    sprintf(fpath, "%02d_%s.dat",
             ObjClassDescrTable[objclass].code, ObjClassDescrTable[objclass].name);
 
-    g_printf("%s\n", fpath);
+    std::cout << fpath << std::endl;
+    std::ifstream ifs(fpath);
 
-    if ((rfile = fopen(fpath, "r"))!=NULL)
+    if (!ifs.is_open())
     {
-      while (!feof(rfile) && fgets(fline, LINE_BUFFER_LEN, rfile))
+      while (getline(ifs, line))
       {
         /* пропускать строки, начинающиеся с символов [C#TV] */
-        switch ((int)fline[0])
+        switch (line[0])
         {
-          case 'C':
-          case 'V':
-          case 'T':
-          case 'F':
-          case 'D':
-          case '#':
-               break;
+          case 'I':
+            // начало новой точки
+            std::cout << "new point" << std::endl;
+            break;
+
+          case 'S':
+            // S OBJCLASS           PUB        rtUINT8        0
+            // TODO: создать массив лексем
+            std::cout << line << std::endl;
+
+            std::istringstream iss(line);
+
+            break;
+
+          case 'A': // CE
+          case 'L': // словарные значения поля таблицы
+          case 'J': // Свойство точки "Enabled|Disabled"
+          case 'C': // окончание перечисления словарных значений поля таблицы
+          case 'V': // вектор
+          case 'T': // таблица
+          case 'F': // поле таблицы
+          case 'D': // элемент вектора
+          case '#': // комментарий
+            break;
+
           default:
-              p_line = p_cursor = g_strdup(fline);
-              p_cursor = g_strstrip(p_line);
+#if 0
+              p_cursor = strdup(fline);
+              skipStr(p_cursor);
               p_cursor += 2; /* skip first symbol */
-              p_cursor = GetNextWord(&p_cursor, (char*)s_univname);
-              p_cursor = GetNextWord(&p_cursor, (char*)s_access);
-              p_cursor = GetNextWord(&p_cursor, (char*)s_type);
-              g_free(p_line);
+              p_cursor = GetNextWord(&p_cursor, static_cast<char*>(s_univname));
+              p_cursor = GetNextWord(&p_cursor, static_cast<char*>(s_access));
+              p_cursor = GetNextWord(&p_cursor, static_cast<char*>(s_type));
+              free(p_cursor);
+#endif
               /* type может быть: строковое, с плав. точкой, целое */
-              if (!GetDbTypeFromString((const char*)s_type, &db_type))
+              if (false == GetDbTypeFromString(s_type, db_type))
               {
                 /* ошибка определения типа атрибута */
-                g_error("Given attribute type '%s' is unknown for class '%s'",
-                    s_type, s_univname);
+                LOG(ERROR)<<"Given attribute type '"<<s_type
+                          <<"' is unknown for class '"<<s_univname<<"'";
               }
-              g_printf("%-8s attribute %-18s type %-10s:%d\n", 
-                    ObjClassDescrTable[objclass].name, s_univname, s_type, db_type);
+              printf("%-8s attribute %-18s type %-10s:%d\n", 
+                    ObjClassDescrTable[objclass].name,
+                    s_univname.c_str(),
+                    s_type.c_str(),
+                    db_type);
 
               /*
                  Добавить для экземпляра данного objclass перечень атрибутов,
                  подлежащих чтению из instances_total.dat, и их родовые типы
                  (целое, дробь, строка)
                */
-              p_attr_info = (AttributeInfo_t*) g_new(AttributeInfo_t, 1);
-              g_assert(p_attr_info != NULL);
+              if (!ObjClassDescrTable[objclass].attr_info_list)
+                ObjClassDescrTable[objclass].attr_info_list = new att_list_t;
+
+              p_attr_info = (AttributeInfo_t*) new AttributeInfo_t;
               memset((void*)p_attr_info, '\0', sizeof(AttributeInfo_t));
 //              g_printf("CREATE NEW AttributeInfo_t for objclassdescr at %p\n", p_attr_info);
-              strcpy(p_attr_info->name, s_univname /*, sizeof(p_attr_info->name)*/);
+              strcpy(p_attr_info->name, s_univname.c_str());
               p_attr_info->db_type = db_type;
 
-              ObjClassDescrTable[objclass].attr_info_list = 
-                    g_slist_append(ObjClassDescrTable[objclass].attr_info_list, p_attr_info);
+              ObjClassDescrTable[objclass].attr_info_list->push_back(*p_attr_info);
         }
       }
+      ifs.close();
+      status = true;
+    }
+    else
+    {
+      LOG(ERROR) << "Ошибка чтения входного файла";
+      status = false;
     }
   }
 
   return status;
 }
 
-bool processInstanceFile(const char* fname)
+bool xdb::processInstanceFile(const char* fname)
 {
   bool status = false;
+#if 0
   char *rc;
   FILE             *ficInst;
   int               indiceTab;
@@ -543,7 +633,7 @@ bool processInstanceFile(const char* fname)
   {
     LOG(INFO) << "Add table values";
   }
-
+#endif
   return status;
 }
 
@@ -712,21 +802,6 @@ bool initFieldTable(char *buffer, char* tableStrDeType[], int fieldCount)
   return status;
 }
 
-void skipStr(char* laChaine)
-{
-   char *ptr;
-   int   lg;
-
-   if ((ptr = strchr(laChaine, '\n')) != NULL)
-      *ptr = CNULL;
-
-   lg = strlen(laChaine) - 1;
-   while(laChaine[lg] == ' ')
-   {
-      lg--;
-   }
-   laChaine[lg+1] = CNULL;
-}
 
 bool addClassPoint(char *buffer,
                    int classNum,
@@ -743,37 +818,84 @@ bool addClassPoint(char *buffer,
   char *aux;
   bool status = false;
 
-   /*-----------------------------------*/
-   /* extracts the data from the buffer */
-   /*-----------------------------------*/
-   aux = buffer + TYPE_ENREG_SIZE;
-   strncpy(classKey, aux, NUMERIC_SIZE);
-   classKey[NUMERIC_SIZE] = CNULL;
+  /*-----------------------------------*/
+  /* extracts the data from the buffer */
+  /*-----------------------------------*/
+  aux = buffer + TYPE_ENREG_SIZE;
+  strncpy(classKey, aux, NUMERIC_SIZE);
+  classKey[NUMERIC_SIZE] = CNULL;
 
-   aux += NUMERIC_SIZE;
-   strncpy(pointName, aux, NAME_SIZE);
-   pointName[NAME_SIZE] = CNULL;
-   skipStr(pointName); 
+  aux += NUMERIC_SIZE;
+  strncpy(pointName, aux, NAME_SIZE);
+  pointName[NAME_SIZE] = CNULL;
+  skipStr(static_cast<char*>(pointName));
 
-   aux += NAME_SIZE;
-   strncpy(className, aux, NAME_SIZE);
-   className[NAME_SIZE] = CNULL;      /* output parameter */
-   skipStr(className);
+  aux += NAME_SIZE;
+  strncpy(className, aux, NAME_SIZE);
+  className[NAME_SIZE] = CNULL;      /* output parameter */
+  skipStr(className);
 
-   aux += NAME_SIZE;
-   strncpy(residence, aux, RESIDENCE_SIZE);
-   residence[RESIDENCE_SIZE] = CNULL;
+  aux += NAME_SIZE;
+  strncpy(residence, aux, RESIDENCE_SIZE);
+  residence[RESIDENCE_SIZE] = CNULL;
 
-   aux += RESIDENCE_SIZE;
-   strncpy(ceOrder, aux, CE_ORDER_SIZE);
-   ceOrder[CE_ORDER_SIZE] = CNULL;
+  aux += RESIDENCE_SIZE;
+  strncpy(ceOrder, aux, CE_ORDER_SIZE);
+  ceOrder[CE_ORDER_SIZE] = CNULL;
 
-   aux += CE_ORDER_SIZE;
-   strncpy(ceIndicator, aux, CE_INDICATOR_SIZE);
-   ceIndicator[CE_INDICATOR_SIZE] = CNULL;
+  aux += CE_ORDER_SIZE;
+  strncpy(ceIndicator, aux, CE_INDICATOR_SIZE);
+  ceIndicator[CE_INDICATOR_SIZE] = CNULL;
 
-   classId = atoi(classKey);
+  classId = atoi(classKey);
   return status;
 }
 
+void xdb::skipStr(char* laChaine)
+{
+   char *ptr;
+   int   lg;
+
+   if ((ptr = strchr(laChaine, '\n')) != NULL)
+      *ptr = CNULL;
+
+   lg = strlen(laChaine) - 1;
+   while(laChaine[lg] == ' ')
+   {
+      lg--;
+   }
+   laChaine[lg+1] = CNULL;
+}
+
+/*
+  Получить числовое представление типа данных в словаре на основе строки
+  типа rtBYTES...
+
+  Все типы данных в виде строк находятся в хеше в качестве ключей, значениями
+  для них являются соответствующие значения типа DbType_t.
+  Заполняется хеш в функции LoadDbTypesDictionary()
+
+  Возвращаемое значение перечисляемого типа, может принимать значения:
+    - целое
+    - с плав. точкой
+    - строковое
+ */
+bool xdb::GetDbTypeFromString(std::string& s_t, xdb::DbType_t& db_t)
+{
+  bool status = false;
+  DbTypesHashIterator_t it;
+
+  db_t = DB_TYPE_UNDEF;
+
+  it = dbTypesHash.find(s_t);
+  if (it != dbTypesHash.end())
+  {
+    db_t= it->second;
+  }
+
+  if (db_t != DB_TYPE_UNDEF)
+    status = true;
+
+  return status;
+}
 
