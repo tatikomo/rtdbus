@@ -45,6 +45,7 @@ link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 
+
 set (TEST_DEVICE_SOURCES
         ${XDB_BROKER_DIR}/dat/broker_db.hpp
         ${XDB_BROKER_DIR}/dat/broker_db.h
@@ -72,6 +73,11 @@ set (TEST_DATABASE_SOURCES
         ${XDB_BROKER_DIR}/dat/broker_db.hpp
         ${XDB_BROKER_DIR}/dat/broker_db.h
         ${XDB_BROKER_DIR}/dat/broker_db.c
+        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.hxx
+        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.cxx
+        ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.hxx
+        ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.cxx
+        ${XDB_RTAP_DIR}/rtap_db.hxx
         ${XDB_RTAP_DIR}/xdb_rtap_application.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_connection.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_environment.hpp
@@ -88,7 +94,7 @@ set (TEST_MSG_SOURCES
 add_definitions (-Wno-missing-field-initializers)
 
 add_custom_command(
-        OUTPUT 
+        OUTPUT
         ${XDB_BROKER_DIR}/dat/broker_db.h
         ${XDB_BROKER_DIR}/dat/broker_db.c
         ${XDB_BROKER_DIR}/dat/broker_db.hpp
@@ -112,8 +118,21 @@ add_custom_command(
         ${MSG_DIR}/proto
         )
 
+add_custom_command(
+        OUTPUT
+        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.hxx
+        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.cxx
+        COMMAND
+        /usr/bin/xsd cxx-parser --type-map rtap_db.map --location-map http://www.example.com/rtap_db.xsd=rtap_db.xsd rtap_db.xsd
+        DEPENDS
+        ${XDB_RTAP_DIR}/dat/rtap_db.xsd
+        WORKING_DIRECTORY
+        ${XDB_RTAP_DIR}/dat
+        )
+
 add_executable (${UNITTEST_DEVICE} ${TEST_DEVICE_SOURCES})
 add_definitions (-D_FUNCTIONAL_TEST)
+add_definitions(-fpermissive)
 target_link_libraries(${UNITTEST_DEVICE}
     ${MDP_LIBRARY_NAME}
     ${TOOLS_LIBRARY_NAME}
@@ -133,6 +152,7 @@ target_link_libraries(${UNITTEST_DATABASE}
     ${LIBPROTOBUF_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     "-lmcoseri_debug"
+    "-lxerces-c"
     ${SYSTEM_EXTERNAL_LIBS})
 
 add_executable (${UNITTEST_MESSAGE} ${TEST_MSG_SOURCES})

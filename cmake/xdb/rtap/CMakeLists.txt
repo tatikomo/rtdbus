@@ -122,6 +122,21 @@ add_custom_command(
         ${XDB_RTAP_DIR}/dat
         )
 
+# Команда вида:
+# xsd cxx-parser --generate-validation --generate-noop-impl rtap_db.xsd
+# будет дополнительно генерировать заглушки реализации (rtap_db-pimpl.*)
+add_custom_command(
+        OUTPUT
+        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.hxx
+        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.cxx
+        COMMAND
+        /usr/bin/xsd cxx-parser --generate-validation --generate-noop-impl rtap_db.xsd
+        DEPENDS
+        ${XDB_RTAP_DIR}/dat/rtap_db.xsd
+        WORKING_DIRECTORY
+        ${XDB_RTAP_DIR}/dat
+        )
+
 add_library (${XDB_RTAP_LIBRARY_NAME} ${XDB_RTAP_SOURCES})
 target_link_libraries(${XDB_RTAP_LIBRARY_NAME}
     ${MSG_LIBRARY_NAME}

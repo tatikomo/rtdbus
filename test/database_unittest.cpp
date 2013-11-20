@@ -1,4 +1,8 @@
+#include <iostream>
 #include <string>
+
+#include <xercesc/util/PlatformUtils.hpp>
+
 #include "glog/logging.h"
 #include "gtest/gtest.h"
 
@@ -7,6 +11,8 @@
 #include "xdb_broker_service.hpp"
 #include "xdb_broker_worker.hpp"
 #include "dat/broker_db.hpp"
+#include "dat/rtap_db-pimpl.hxx"
+#include "dat/rtap_db-pskel.hxx"
 #include "proto/common.pb.h"
 
 #include "xdb_rtap_application.hpp"
@@ -438,8 +444,8 @@ TEST(TestBrokerDATABASE, DESTROY)
 TEST(TestLurkerDATABASE, CREATION)
 {
   bool status = false;
-  const int argc = 3;
   xdb::RtEnvironment *env1 = NULL;
+  const int argc = 3;
   char *argv[argc] = {
                     "test",
                     "параметр_1",
@@ -479,6 +485,78 @@ TEST(TestLurkerDATABASE, DESTROY)
   delete connection;
   delete env;
   delete app;
+}
+
+using namespace xercesc;
+TEST(TestTools, INIT)
+{
+  const int argc = 2;
+  char *argv[argc] = {
+                    "TestTools",
+                    "/tmp/toto.xml"
+                    };
+
+ try
+ {
+    XMLPlatformUtils::Initialize();
+  }
+  catch (const XMLException& toCatch)
+  {
+    // Do your failure processing here
+    std::cerr << "Error during initialization! :\n"
+              << toCatch.getMessage() << std::endl;
+    return;
+  }
+
+
+  try
+  {
+    // Do your actual work with Xerces-C++ here.
+    std::cout << "Hello, World!"<<std::endl;
+
+    // Instantiate individual parsers.
+    //
+    ::rtap_db::Class_pimpl Class_p;
+    ::rtap_db::Code_pimpl Code_p;
+    ::rtap_db::ClassType_pimpl ClassType_p;
+    ::rtap_db::Attr_pimpl Attr_p;
+    ::rtap_db::PointKind_pimpl PointKind_p;
+    ::rtap_db::Accessibility_pimpl Accessibility_p;
+    ::rtap_db::AttributeType_pimpl AttributeType_p;
+
+    // Connect the parsers together.
+    //
+    Class_p.parsers (Code_p,
+                     ClassType_p,
+                     Attr_p);
+
+    Attr_p.parsers (PointKind_p,
+                    Accessibility_p,
+                    AttributeType_p);
+
+    // Parse the XML document.
+    //
+    ::xml_schema::document doc_p (
+      Class_p,
+      "http://www.codesynthesis.com/rtap_db",
+      "Class");
+
+    Class_p.pre ();
+    doc_p.parse (argv[1]);
+    Class_p.post_Class ();
+
+    XMLPlatformUtils::Terminate();
+  }
+  catch (const ::xml_schema::exception& e)
+  {
+    std::cerr << e << std::endl;
+    return 1;
+  }
+  catch (const std::ios_base::failure&)
+  {
+    std::cerr << argv[1] << ": error: io failure" << std::endl;
+    return 1;
+  }
 }
 
 int main(int argc, char** argv)

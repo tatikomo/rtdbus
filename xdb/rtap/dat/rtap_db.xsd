@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+xmlns="http://www.example.com/rtap_db" 
+targetNamespace="http://www.example.com/rtap_db" 
+elementFormDefault="qualified" attributeFormDefault="qualified">
+
+<xs:simpleType name="ClassType">
+  <xs:restriction base="xs:string">
+    <xs:enumeration value="TS"/>
+    <xs:enumeration value="TM"/>
+    <xs:enumeration value="TR"/>
+    <xs:enumeration value="TSA"/>
+    <xs:enumeration value="TSC"/>
+    <xs:enumeration value="TC"/>
+    <xs:enumeration value="AL"/>
+    <xs:enumeration value="ICS"/>
+    <xs:enumeration value="ICM"/>
+    <xs:enumeration value="PIPE"/>
+    <xs:enumeration value="BORDER"/>
+    <xs:enumeration value="CONSUMER"/>
+    <xs:enumeration value="CORRIDOR"/>
+    <xs:enumeration value="PIPELINE"/>
+    <xs:enumeration value="TL"/>
+    <xs:enumeration value="VA"/>
+    <xs:enumeration value="SC"/>
+    <xs:enumeration value="ATC"/>
+    <xs:enumeration value="GRC"/>
+    <xs:enumeration value="SV"/>
+    <xs:enumeration value="SDG"/>
+    <xs:enumeration value="TSA"/>
+    <xs:enumeration value="RGA"/>
+    <xs:enumeration value="SSDG"/>
+    <xs:enumeration value="BRG"/>
+    <xs:enumeration value="SCP"/>
+    <xs:enumeration value="STG"/>
+    <xs:enumeration value="DIR"/>
+    <xs:enumeration value="DIPL"/>
+    <xs:enumeration value="METLINE"/>
+    <xs:enumeration value="ESDG"/>
+    <xs:enumeration value="SVLINE"/>
+    <xs:enumeration value="SCPLINE"/>
+    <xs:enumeration value="TLLINE"/>
+    <xs:enumeration value="INVT"/>
+    <xs:enumeration value="AUX1"/>
+    <xs:enumeration value="AUX2"/>
+    <xs:enumeration value="SITE"/>
+    <xs:enumeration value="SA"/>
+    <xs:enumeration value="GENAL"/>
+    <xs:enumeration value="USERAL"/>
+    <xs:enumeration value="HISTSET"/>
+    <xs:enumeration value="DRIVE_TYPE"/>
+    <xs:enumeration value="COMPRESSOR_TYPE"/>
+    <xs:enumeration value="GRC_TYPE"/>
+    <xs:enumeration value="ATC_TYPE"/>
+    <xs:enumeration value="SC_TYP"/>
+    <xs:enumeration value="SDG_TYP"/>
+    <xs:enumeration value="SCP_TYP"/>
+    <xs:enumeration value="PIPE_TYPE"/>
+    <xs:enumeration value="VA_TYPE"/>
+    <xs:enumeration value="TS_TYPE"/>
+    <xs:enumeration value="AL_TYPE"/>
+    <xs:enumeration value="TSC_TYPE"/>
+    <xs:enumeration value="AUX_TYPE"/>
+    <xs:enumeration value="VERSION"/>
+    <xs:enumeration value="DISP_TABLE_H"/>
+    <xs:enumeration value="DISP_TABLE_J"/>
+    <xs:enumeration value="DISP_TABLE_M"/>
+    <xs:enumeration value="DISP_TABLE_QH"/>
+    <xs:enumeration value="FIXEDPOINT"/>
+    <xs:enumeration value="HIST_SET"/>
+    <xs:enumeration value="HIST_TABLE_H"/>
+    <xs:enumeration value="HIST_TABLE_J"/>
+    <xs:enumeration value="HIST_TABLE_M"/>
+    <xs:enumeration value="HIST_TABLE_QH"/>
+    <xs:enumeration value="HIST_TABLE_SAMPLE"/>
+    <xs:enumeration value="TIME_AVAILABLE"/>
+    <xs:enumeration value="CONFIG"/>
+  </xs:restriction>
+</xs:simpleType>
+
+<xs:simpleType name="AttributeType">
+  <xs:restriction base="xs:string">
+    <xs:enumeration value="rtLOGICAL"/>
+    <xs:enumeration value="rtINT8"/>
+    <xs:enumeration value="rtUINT8"/>
+    <xs:enumeration value="rtINT16"/>
+    <xs:enumeration value="rtUINT16"/>
+    <xs:enumeration value="rtINT32"/>
+    <xs:enumeration value="rtUINT32"/>
+    <xs:enumeration value="rtFLOAT"/>
+    <xs:enumeration value="rtDOUBLE"/>
+    <xs:enumeration value="rtPOLAR"/>
+    <xs:enumeration value="rtRECTANGULAR"/>
+    <xs:enumeration value="rtBYTES4"/>
+    <xs:enumeration value="rtBYTES8"/>
+    <xs:enumeration value="rtBYTES12"/>
+    <xs:enumeration value="rtBYTES16"/>
+    <xs:enumeration value="rtBYTES20"/>
+    <xs:enumeration value="rtBYTES32"/>
+    <xs:enumeration value="rtBYTES48"/>
+    <xs:enumeration value="rtBYTES64"/>
+    <xs:enumeration value="rtBYTES80"/>
+    <xs:enumeration value="rtBYTES128"/>
+    <xs:enumeration value="rtBYTES256"/>
+    <xs:enumeration value="rtDB_XREF"/>
+    <xs:enumeration value="rtDATE"/>
+    <xs:enumeration value="rtTIME_OF_DAY"/>
+    <xs:enumeration value="rtASB_TIME"/>
+  </xs:restriction>
+</xs:simpleType>
+
+<xs:simpleType name="PointKind">
+  <xs:restriction base="xs:string">
+    <xs:enumeration value="SCALAR"/>
+    <xs:enumeration value="VECTOR"/>
+    <xs:enumeration value="TABLE"/>
+  </xs:restriction>
+</xs:simpleType>
+
+<!-- Class definition start -->
+<xs:element name="Class">
+  <xs:complexType>
+  <xs:sequence>
+
+    <!-- Code definition start -->
+    <xs:element name="Code">
+      <xs:simpleType>
+        <xs:restriction base="xs:integer">
+          <xs:minInclusive value="0"/>
+          <xs:maxInclusive value="87"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:element> 
+    <!-- Code definition end -->
+
+    <!-- Name definition start -->
+    <xs:element name="Name" type="ClassType"/>
+    <!-- Name definition end -->
+
+    <!-- Attr definition start -->
+    <xs:element name="Attr">
+      <xs:complexType>
+      <xs:sequence>
+
+        <!-- Kind definition start -->
+        <xs:element name="Kind" type="PointKind"/>
+        <!-- Kind definition end -->
+
+        <!-- Accessibility definition start -->
+        <xs:element name="Accessibility">
+          <xs:simpleType>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="PUBLIC"/>
+              <xs:enumeration value="PRIVATE"/>
+            </xs:restriction>
+          </xs:simpleType>
+        </xs:element>
+        <!-- Accessibility definition end -->
+
+        <!-- DeType definition start -->
+        <xs:element name="DeType" type="AttributeType"/>
+        <!-- DeType definition end -->
+
+      </xs:sequence>
+      </xs:complexType>
+    </xs:element>
+    <!-- Attr definition end -->
+
+  </xs:sequence>
+  </xs:complexType>
+</xs:element> 
+<!-- Class definition end -->
+
+</xs:schema>

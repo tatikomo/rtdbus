@@ -366,6 +366,7 @@ bool xdb::processClassFile(const char* fname)
   char*      p_line   = NULL;
   char*      p_cursor = NULL;
   std::string line;
+  std::string::size_type found;
 
   LoadDbTypesDictionary();
 
@@ -384,74 +385,77 @@ bool xdb::processClassFile(const char* fname)
     {
       while (getline(ifs, line))
       {
-        /* пропускать строки, начинающиеся с символов [C#TV] */
-        switch (line[0])
+        /* пропускать строки, начинающиеся с символов [ALJCVTFD#] */
+        if (std::string::npos == (found = line.find_first_of("ALJCVTFD#")))
         {
-          case 'I':
-            // начало новой точки
-            std::cout << "new point" << std::endl;
-            break;
+          // 'A': CE
+          // 'L': словарные значения поля таблицы
+          // 'J': Свойство точки "Enabled|Disabled"
+          // 'C': окончание перечисления словарных значений поля таблицы
+          // 'V': вектор
+          // 'T': таблица
+          // 'F': поле таблицы
+          // 'D': элемент вектора
+          // '#': комментарий
+          continue;
+        }
 
-          case 'S':
-            // S OBJCLASS           PUB        rtUINT8        0
-            // TODO: создать массив лексем
-            std::cout << line << std::endl;
+        if (std::string::npos == (found = line.find_first_of("I")))
+        {
+          // начало новой точки
+          std::cout << "new point" << std::endl;
+          continue;
+        }
 
-            std::istringstream iss(line);
+        if (std::string::npos == (found = line.find_first_of("S")))
+        {
+          // S OBJCLASS           PUB        rtUINT8        0
+          // TODO: создать массив лексем
+          std::cout << line << std::endl;
+          std::istringstream iss(line);
+          continue;
+        }
 
-            break;
-
-          case 'A': // CE
-          case 'L': // словарные значения поля таблицы
-          case 'J': // Свойство точки "Enabled|Disabled"
-          case 'C': // окончание перечисления словарных значений поля таблицы
-          case 'V': // вектор
-          case 'T': // таблица
-          case 'F': // поле таблицы
-          case 'D': // элемент вектора
-          case '#': // комментарий
-            break;
-
-          default:
+        // default
 #if 0
-              p_cursor = strdup(fline);
-              skipStr(p_cursor);
-              p_cursor += 2; /* skip first symbol */
-              p_cursor = GetNextWord(&p_cursor, static_cast<char*>(s_univname));
-              p_cursor = GetNextWord(&p_cursor, static_cast<char*>(s_access));
-              p_cursor = GetNextWord(&p_cursor, static_cast<char*>(s_type));
-              free(p_cursor);
+        p_cursor = strdup(fline);
+        skipStr(p_cursor);
+        p_cursor += 2; /* skip first symbol */
+        p_cursor = GetNextWord(&p_cursor, static_cast<char*>(s_univname));
+        p_cursor = GetNextWord(&p_cursor, static_cast<char*>(s_access));
+        p_cursor = GetNextWord(&p_cursor, static_cast<char*>(s_type));
+        free(p_cursor);
 #endif
-              /* type может быть: строковое, с плав. точкой, целое */
-              if (false == GetDbTypeFromString(s_type, db_type))
-              {
+        /* type может быть: строковое, с плав. точкой, целое */
+        if (false == GetDbTypeFromString(s_type, db_type))
+        {
                 /* ошибка определения типа атрибута */
                 LOG(ERROR)<<"Given attribute type '"<<s_type
                           <<"' is unknown for class '"<<s_univname<<"'";
-              }
-              printf("%-8s attribute %-18s type %-10s:%d\n", 
+        }
+        printf("%-8s attribute %-18s type %-10s:%d\n", 
                     ObjClassDescrTable[objclass].name,
                     s_univname.c_str(),
                     s_type.c_str(),
                     db_type);
 
-              /*
+        /*
                  Добавить для экземпляра данного objclass перечень атрибутов,
                  подлежащих чтению из instances_total.dat, и их родовые типы
                  (целое, дробь, строка)
-               */
-              if (!ObjClassDescrTable[objclass].attr_info_list)
+        */
+        if (!ObjClassDescrTable[objclass].attr_info_list)
                 ObjClassDescrTable[objclass].attr_info_list = new att_list_t;
 
-              p_attr_info = (AttributeInfo_t*) new AttributeInfo_t;
-              memset((void*)p_attr_info, '\0', sizeof(AttributeInfo_t));
-//              g_printf("CREATE NEW AttributeInfo_t for objclassdescr at %p\n", p_attr_info);
-              strcpy(p_attr_info->name, s_univname.c_str());
-              p_attr_info->db_type = db_type;
+        p_attr_info = (AttributeInfo_t*) new AttributeInfo_t;
+        memset((void*)p_attr_info, '\0', sizeof(AttributeInfo_t));
+//      g_printf("CREATE NEW AttributeInfo_t for objclassdescr at %p\n", p_attr_info);
+        strcpy(p_attr_info->name, s_univname.c_str());
+        p_attr_info->db_type = db_type;
 
-              ObjClassDescrTable[objclass].attr_info_list->push_back(*p_attr_info);
-        }
+        ObjClassDescrTable[objclass].attr_info_list->push_back(*p_attr_info);
       }
+
       ifs.close();
       status = true;
     }
