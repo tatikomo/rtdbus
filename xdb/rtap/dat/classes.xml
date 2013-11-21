@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rtdb:RTDB_STRUCT xmlns:rtdb="http://www.example.com/rtap_db"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.example.com/rtap_db rtap_db.xsd">
+
+	<rtdb:Class>
+	  <rtdb:Code>00</rtdb:Code>
+	  <rtdb:Name>TS</rtdb:Name>
+	  <rtdb:Attr>
+		<rtdb:Kind>SCALAR</rtdb:Kind>
+		<rtdb:Accessibility>PUBLIC</rtdb:Accessibility>
+		<rtdb:DeType>rtLOGICAL</rtdb:DeType>
+		<rtdb:AttrName>OBJCLASS</rtdb:AttrName>
+		<rtdb:Value>0</rtdb:Value>
+	  </rtdb:Attr>
+	</rtdb:Class>
+
+	<rtdb:Class>
+	  <rtdb:Code>01</rtdb:Code>
+	  <rtdb:Name>TSA</rtdb:Name>
+	  <rtdb:Attr>
+		<rtdb:Kind>SCALAR</rtdb:Kind>
+		<rtdb:Accessibility>PUBLIC</rtdb:Accessibility>
+		<rtdb:DeType>rtINT8</rtdb:DeType>
+		<rtdb:AttrName>OBJCLASS</rtdb:AttrName>
+		<rtdb:Value>1</rtdb:Value>
+	  </rtdb:Attr>
+	  <rtdb:Attr>
+		<rtdb:Kind>SCALAR</rtdb:Kind>
+		<rtdb:Accessibility>PUBLIC</rtdb:Accessibility>
+		<rtdb:DeType>rtBYTES20</rtdb:DeType>
+		<rtdb:AttrName>LABEL</rtdb:AttrName>
+		<rtdb:Value>"Описание атрибута-1"</rtdb:Value>
+	  </rtdb:Attr>
+	</rtdb:Class>
+
+	<rtdb:Class>
+	  <rtdb:Code>02</rtdb:Code>
+	  <rtdb:Name>TSA</rtdb:Name>
+	  <rtdb:Attr>
+		<rtdb:Kind>SCALAR</rtdb:Kind>
+		<rtdb:Accessibility>PRIVATE</rtdb:Accessibility>
+		<rtdb:DeType>rtUINT8</rtdb:DeType>
+		<rtdb:AttrName>OBJCLASS</rtdb:AttrName>
+		<rtdb:Value>2</rtdb:Value>
+	  </rtdb:Attr>
+	</rtdb:Class>
+
+</rtdb:RTDB_STRUCT>
+
+

@@ -9,6 +9,24 @@
 
 namespace rtap_db
 {
+  // AttrNameType_pimpl
+  //
+
+  void AttrNameType_pimpl::
+  pre ()
+  {
+  }
+
+  rtap_db::AttrNameType& AttrNameType_pimpl::
+  post_AttrNameType ()
+  {
+    const ::std::string& v (post_string ());
+
+    // TODO
+    //
+    return m_impl;
+  }
+
   // ClassType_pimpl
   //
 
@@ -17,13 +35,14 @@ namespace rtap_db
   {
   }
 
-  void ClassType_pimpl::
+  rtap_db::ClassType& ClassType_pimpl::
   post_ClassType ()
   {
     const ::std::string& v (post_string ());
 
     // TODO
     //
+    return m_impl;
   }
 
   // AttributeType_pimpl
@@ -34,13 +53,14 @@ namespace rtap_db
   {
   }
 
-  void AttributeType_pimpl::
+  rtap_db::AttributeType& AttributeType_pimpl::
   post_AttributeType ()
   {
     const ::std::string& v (post_string ());
 
     // TODO
     //
+    return m_impl;
   }
 
   // PointKind_pimpl
@@ -51,13 +71,34 @@ namespace rtap_db
   {
   }
 
-  void PointKind_pimpl::
+  rtap_db::PointKind& PointKind_pimpl::
   post_PointKind ()
   {
     const ::std::string& v (post_string ());
 
     // TODO
     //
+    return m_impl;
+  }
+
+  // RTDB_STRUCT_pimpl
+  //
+
+  void RTDB_STRUCT_pimpl::
+  pre ()
+  {
+  }
+
+  void RTDB_STRUCT_pimpl::
+  Class (rtap_db::Class& Class)
+  {
+    // TODO
+    //
+  }
+
+  void RTDB_STRUCT_pimpl::
+  post_RTDB_STRUCT ()
+  {
   }
 
   // Class_pimpl
@@ -69,13 +110,19 @@ namespace rtap_db
   }
 
   void Class_pimpl::
-  Code ()
+  Code (rtap_db::Code Code)
   {
+    // TODO
+    //
+    m_impl.m_class_code = Code;
   }
 
   void Class_pimpl::
-  Name ()
+  Name (rtap_db::ClassType& Name)
   {
+    // TODO
+    //
+    m_impl.m_class_name.assign(Name);
   }
 
   void Class_pimpl::
@@ -83,9 +130,12 @@ namespace rtap_db
   {
   }
 
-  void Class_pimpl::
+  rtap_db::Class& Class_pimpl::
   post_Class ()
   {
+    // TODO
+    //
+    return m_impl;
   }
 
   // Code_pimpl
@@ -96,13 +146,14 @@ namespace rtap_db
   {
   }
 
-  void Code_pimpl::
+  rtap_db::Code Code_pimpl::
   post_Code ()
   {
     long long v (post_integer ());
 
     // TODO
     //
+    return m_impl;
   }
 
   // Attr_pimpl
@@ -114,18 +165,42 @@ namespace rtap_db
   }
 
   void Attr_pimpl::
-  Kind ()
+  Kind (rtap_db::PointKind& Kind)
   {
+    // TODO
+    m_impl.m_attrib_string_kind = Kind;
   }
 
   void Attr_pimpl::
-  Accessibility ()
+  Accessibility (rtap_db::Accessibility& Accessibility)
   {
+    // TODO
+    //
+    m_impl.m_accessibility = Accessibility;
   }
 
   void Attr_pimpl::
-  DeType ()
+  DeType (rtap_db::AttributeType& DeType)
   {
+    // TODO
+    //
+    m_impl.m_attrib_type = DeType;
+  }
+
+  void Attr_pimpl::
+  AttrName (rtap_db::AttrNameType& AttrName)
+  {
+    // TODO
+    //
+    m_impl.m_name.assign(AttrName);
+  }
+
+  void Attr_pimpl::
+  Value (const ::std::string& Value)
+  {
+    // TODO
+    //
+    m_impl.m_value.assign(Value);
   }
 
   void Attr_pimpl::
@@ -141,13 +216,14 @@ namespace rtap_db
   {
   }
 
-  void Accessibility_pimpl::
+  rtap_db::Accessibility& Accessibility_pimpl::
   post_Accessibility ()
   {
     const ::std::string& v (post_string ());
 
     // TODO
     //
+    return m_impl;
   }
 }
 

@@ -125,14 +125,17 @@ add_custom_command(
 # Команда вида:
 # xsd cxx-parser --generate-validation --generate-noop-impl rtap_db.xsd
 # будет дополнительно генерировать заглушки реализации (rtap_db-pimpl.*)
+# перезаписать старые "pimpl.[hc]xx" можно флагом --force-overwrite
+# создать тестовый код, использующий сгенерированные классы: --generate-test-drive
 add_custom_command(
         OUTPUT
         ${XDB_RTAP_DIR}/dat/rtap_db-pskel.hxx
         ${XDB_RTAP_DIR}/dat/rtap_db-pskel.cxx
         COMMAND
-        /usr/bin/xsd cxx-parser --generate-validation --generate-noop-impl rtap_db.xsd
+        /usr/bin/xsd cxx-parser --type-map rtap_db.map --generate-validation rtap_db.xsd
         DEPENDS
         ${XDB_RTAP_DIR}/dat/rtap_db.xsd
+        ${XDB_RTAP_DIR}/dat/rtap_db.map
         WORKING_DIRECTORY
         ${XDB_RTAP_DIR}/dat
         )

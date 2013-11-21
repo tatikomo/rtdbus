@@ -493,12 +493,12 @@ TEST(TestTools, INIT)
   const int argc = 2;
   char *argv[argc] = {
                     "TestTools",
-                    "/tmp/toto.xml"
+                    "classes.xml"
                     };
 
- try
- {
-    XMLPlatformUtils::Initialize();
+  try
+  {
+    XMLPlatformUtils::Initialize("UTF-8");
   }
   catch (const XMLException& toCatch)
   {
@@ -508,7 +508,6 @@ TEST(TestTools, INIT)
     return;
   }
 
-
   try
   {
     // Do your actual work with Xerces-C++ here.
@@ -516,6 +515,7 @@ TEST(TestTools, INIT)
 
     // Instantiate individual parsers.
     //
+    ::rtap_db::RTDB_STRUCT_pimpl RTDB_STRUCT_p;
     ::rtap_db::Class_pimpl Class_p;
     ::rtap_db::Code_pimpl Code_p;
     ::rtap_db::ClassType_pimpl ClassType_p;
@@ -523,27 +523,60 @@ TEST(TestTools, INIT)
     ::rtap_db::PointKind_pimpl PointKind_p;
     ::rtap_db::Accessibility_pimpl Accessibility_p;
     ::rtap_db::AttributeType_pimpl AttributeType_p;
+    ::rtap_db::AttrNameType_pimpl AttrNameType_p;
+    ::xml_schema::string_pimpl string_p;
 
     // Connect the parsers together.
     //
+    RTDB_STRUCT_p.parsers (Class_p);
+
     Class_p.parsers (Code_p,
                      ClassType_p,
                      Attr_p);
 
     Attr_p.parsers (PointKind_p,
                     Accessibility_p,
-                    AttributeType_p);
+                    AttributeType_p,
+                    AttrNameType_p,
+                    string_p);
 
     // Parse the XML document.
     //
     ::xml_schema::document doc_p (
-      Class_p,
-      "http://www.codesynthesis.com/rtap_db",
-      "Class");
+      RTDB_STRUCT_p,
+      "http://www.example.com/rtap_db",
+      "RTDB_STRUCT");
 
-    Class_p.pre ();
+    RTDB_STRUCT_p.pre ();
     doc_p.parse (argv[1]);
-    Class_p.post_Class ();
+    RTDB_STRUCT_p.post_RTDB_STRUCT ();
+
+
+
+
+
+
+
+
+
+
+
+
+#if 0
+    // Print the object model.
+    //
+    for (::rtap_db::Class_pimpl::iterator i (rtdb.begin ()); i != rtdb.end (); ++i)
+    {
+      std::cout << "code:  " << i->Code () << std::endl
+         << "name:   " << i->Name () << std::endl
+         << endl;
+    }
+#endif
+
+
+
+
+
 
     XMLPlatformUtils::Terminate();
   }

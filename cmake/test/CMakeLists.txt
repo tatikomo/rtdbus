@@ -77,7 +77,7 @@ set (TEST_DATABASE_SOURCES
         ${XDB_RTAP_DIR}/dat/rtap_db-pskel.cxx
         ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.hxx
         ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.cxx
-        ${XDB_RTAP_DIR}/rtap_db.hxx
+        ${XDB_RTAP_DIR}/dat/rtap_db.hxx
         ${XDB_RTAP_DIR}/xdb_rtap_application.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_connection.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_environment.hpp
@@ -123,9 +123,10 @@ add_custom_command(
         ${XDB_RTAP_DIR}/dat/rtap_db-pskel.hxx
         ${XDB_RTAP_DIR}/dat/rtap_db-pskel.cxx
         COMMAND
-        /usr/bin/xsd cxx-parser --type-map rtap_db.map --location-map http://www.example.com/rtap_db.xsd=rtap_db.xsd rtap_db.xsd
+        /usr/bin/xsd cxx-parser --type-map rtap_db.map rtap_db.xsd
         DEPENDS
         ${XDB_RTAP_DIR}/dat/rtap_db.xsd
+        ${XDB_RTAP_DIR}/dat/rtap_db.map
         WORKING_DIRECTORY
         ${XDB_RTAP_DIR}/dat
         )

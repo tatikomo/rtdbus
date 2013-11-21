@@ -2,8 +2,33 @@
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
 xmlns="http://www.example.com/rtap_db" 
 targetNamespace="http://www.example.com/rtap_db" 
-elementFormDefault="qualified" attributeFormDefault="qualified">
+elementFormDefault="qualified" attributeFormDefault="unqualified">
 
+<!-- TODO: 
+     Рассмотреть целесообразность определения здесь словаря допустимых типов классов 
+     Для каждого класса ввести перечисление допустимых атрибутов точек, то есть класс
+     будет иметь заранее определенный в этом словаре набор атрибутов.
+-->
+
+<!-- Перечисление допустимых атрибутов точек -->
+<xs:simpleType name="AttrNameType">
+  <xs:restriction base="xs:string">
+    <xs:enumeration value="CODE"/>
+    <xs:enumeration value="UNIVNAME"/>
+    <xs:enumeration value="OBJCLASS"/>
+    <xs:enumeration value="LABEL"/>
+    <xs:enumeration value="SHORTLABEL"/>
+    <xs:enumeration value="L_SA"/>
+    <xs:enumeration value="VALID"/>
+    <xs:enumeration value="VALIDACQ"/>
+    <xs:enumeration value="DATEHOURM"/>
+    <xs:enumeration value="VAL"/>
+    <xs:enumeration value="VALACQ"/>
+    <xs:enumeration value="VALMANUAL"/>
+  </xs:restriction>
+</xs:simpleType>
+
+<!-- Перечисление допустимых типов класса -->
 <xs:simpleType name="ClassType">
   <xs:restriction base="xs:string">
     <xs:enumeration value="TS"/>
@@ -117,58 +142,77 @@ elementFormDefault="qualified" attributeFormDefault="qualified">
   </xs:restriction>
 </xs:simpleType>
 
-<!-- Class definition start -->
-<xs:element name="Class">
-  <xs:complexType>
+<!-- RTDB_STRUCT definition start -->
+<xs:element name="RTDB_STRUCT">
+ <xs:complexType>
   <xs:sequence>
 
-    <!-- Code definition start -->
-    <xs:element name="Code">
-      <xs:simpleType>
-        <xs:restriction base="xs:integer">
-          <xs:minInclusive value="0"/>
-          <xs:maxInclusive value="87"/>
-        </xs:restriction>
-      </xs:simpleType>
-    </xs:element> 
-    <!-- Code definition end -->
-
-    <!-- Name definition start -->
-    <xs:element name="Name" type="ClassType"/>
-    <!-- Name definition end -->
-
-    <!-- Attr definition start -->
-    <xs:element name="Attr">
+    <!-- Class definition start -->
+    <xs:element name="Class" maxOccurs="unbounded">
       <xs:complexType>
       <xs:sequence>
 
-        <!-- Kind definition start -->
-        <xs:element name="Kind" type="PointKind"/>
-        <!-- Kind definition end -->
-
-        <!-- Accessibility definition start -->
-        <xs:element name="Accessibility">
+        <!-- Code definition start -->
+        <xs:element name="Code">
           <xs:simpleType>
-            <xs:restriction base="xs:string">
-              <xs:enumeration value="PUBLIC"/>
-              <xs:enumeration value="PRIVATE"/>
+            <xs:restriction base="xs:integer">
+              <xs:minInclusive value="0"/>
+              <xs:maxInclusive value="87"/>
             </xs:restriction>
           </xs:simpleType>
-        </xs:element>
-        <!-- Accessibility definition end -->
+        </xs:element> 
+        <!-- Code definition end -->
 
-        <!-- DeType definition start -->
-        <xs:element name="DeType" type="AttributeType"/>
-        <!-- DeType definition end -->
+        <!-- Name definition start -->
+        <xs:element name="Name" type="ClassType"/>
+        <!-- Name definition end -->
+
+        <!-- Attr definition start -->
+        <!-- NB: Максимум 20 атрибутов для класса -->
+        <xs:element name="Attr" maxOccurs="20">
+          <xs:complexType>
+          <xs:sequence>
+
+            <!-- Kind definition start -->
+            <xs:element name="Kind" type="PointKind"/>
+            <!-- Kind definition end -->
+
+            <!-- Accessibility definition start -->
+            <xs:element name="Accessibility">
+              <xs:simpleType>
+                <xs:restriction base="xs:string">
+                  <xs:enumeration value="PUBLIC"/>
+                  <xs:enumeration value="PRIVATE"/>
+                </xs:restriction>
+              </xs:simpleType>
+            </xs:element>
+            <!-- Accessibility definition end -->
+
+            <!-- DeType definition start -->
+            <xs:element name="DeType" type="AttributeType"/>
+            <!-- DeType definition end -->
+
+            <!-- AttrName definition start -->
+            <xs:element name="AttrName" type="AttrNameType"/>
+            <!-- AttrName definition end -->
+
+            <!-- Value definition start -->
+            <xs:element name="Value" type="xs:string"/>
+            <!-- Value definition end -->
+
+          </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <!-- Attr definition end -->
 
       </xs:sequence>
       </xs:complexType>
-    </xs:element>
-    <!-- Attr definition end -->
+    </xs:element> 
+    <!-- Class definition end -->
 
   </xs:sequence>
-  </xs:complexType>
-</xs:element> 
-<!-- Class definition end -->
+ </xs:complexType>
+</xs:element>
+<!-- RTDB_STRUCT definition end -->
 
 </xs:schema>

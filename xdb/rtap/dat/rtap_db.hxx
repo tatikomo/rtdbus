@@ -9,15 +9,25 @@
 
 namespace rtap_db
 {
+  // Значение Атрибута
+  //
+  typedef std::string Value;
+
+  // Код Класса
+  //
   typedef unsigned int Code;
 
-  // Наименование типа класса - TS, TM, TSA,...
+  // Наименование типа Класса - TS, TM, TSA,...
   // 
   typedef std::string ClassType;
 
-  // Наименование класса
+  // Наименование Класса
   // 
   typedef std::string ClassName;
+
+  // Наименование атрибута
+  // 
+  typedef std::string AttrNameType;
 
   // Наименование типа точки - SCALAR, VECTOR, TABLE
   //
@@ -34,29 +44,9 @@ namespace rtap_db
   // Точный размер строкового поля
   typedef unsigned int BytesLength;
 
-  // Основной класс-хранилище экземпляров
-  struct Class
+  // Атрибут класса
+  struct Attrib
   {
-    // 
-    //
-    unsigned int code() const
-    {
-      return m_class_code;
-    }
-
-    const std::string& name () const
-    {
-      return m_class_name;
-    }
-
-    private:
-      Code      m_class_code;
-      ClassType m_class_type;
-      ClassName m_class_name;
-};
-
-struct Attrib
-{
     void kind(const std::string& _kind)
     {
       m_attrib_string_kind = _kind;
@@ -71,6 +61,12 @@ struct Attrib
     {
       m_accessibility = _accessibility;
     }
+
+    void name(const std::string& _name)
+    {
+      m_name = _name;
+    }
+
 
     const std::string& kind() const
     {
@@ -87,13 +83,35 @@ struct Attrib
       return m_accessibility;
     }
 
-  private:
-    PointKind m_attrib_string_kind;
-    AttributeType m_attrib_type;
-    Accessibility m_accessibility;
-};
+    PointKind       m_attrib_string_kind;
+    AttributeType   m_attrib_type;
+    Accessibility   m_accessibility;
+    AttrNameType    m_name;
+    Value           m_value;
+  };
 
-typedef std::vector<Attrib> attributes;
+  // Основной класс-хранилище экземпляров для каждого OBJCLASS (Rtap)
+  struct Class
+  {
+    // 
+    //
+    unsigned int code() const
+    {
+      return m_class_code;
+    }
+
+    const std::string& name () const
+    {
+      return m_class_name;
+    }
+
+    Code      m_class_code;
+    ClassType m_class_type;
+    ClassName m_class_name;
+    typedef std::vector<Attrib> m_attributes;
+  };
+
+  typedef std::vector<Class> m_classes;
 
 } // namespace
 
