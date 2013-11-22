@@ -44,6 +44,9 @@ namespace rtap_db
   // Точный размер строкового поля
   typedef unsigned int BytesLength;
 
+
+  // ===================================================================
+  //
   // Атрибут класса
   struct Attrib
   {
@@ -90,6 +93,9 @@ namespace rtap_db
     Value           m_value;
   };
 
+  // Набор Атрибутов Класса
+  typedef std::vector<rtap_db::Attrib> AttibuteList;
+
   // Основной класс-хранилище экземпляров для каждого OBJCLASS (Rtap)
   struct Class
   {
@@ -106,12 +112,12 @@ namespace rtap_db
     }
 
     Code      m_class_code;
-    ClassType m_class_type;
     ClassName m_class_name;
-    typedef std::vector<Attrib> m_attributes;
+    AttibuteList m_attributes;
   };
 
-  typedef std::vector<Class> m_classes;
+  // Список Классов
+  typedef std::vector<rtap_db::Class> ClassesList;
 
 } // namespace
 

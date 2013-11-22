@@ -36,7 +36,7 @@
 
 	<rtdb:Class>
 	  <rtdb:Code>02</rtdb:Code>
-	  <rtdb:Name>TSA</rtdb:Name>
+	  <rtdb:Name>TM</rtdb:Name>
 	  <rtdb:Attr>
 		<rtdb:Kind>SCALAR</rtdb:Kind>
 		<rtdb:Accessibility>PRIVATE</rtdb:Accessibility>

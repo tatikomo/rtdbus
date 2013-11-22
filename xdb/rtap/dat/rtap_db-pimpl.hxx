@@ -9,6 +9,7 @@
 #define RTAP_DB_PIMPL_HXX
 
 #include "rtap_db-pskel.hxx"
+#include "rtap_db.hxx"
 
 namespace rtap_db
 {
@@ -72,7 +73,7 @@ namespace rtap_db
   {
     public:
     virtual void
-    pre ();
+    pre (rtap_db::ClassesList*);
 
     virtual void
     Class (rtap_db::Class&);
@@ -143,6 +144,7 @@ namespace rtap_db
 
     private:
     Attrib m_impl;
+    Class *m_class;
   };
 
   class Accessibility_pimpl: public virtual Accessibility_pskel,

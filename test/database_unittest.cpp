@@ -490,6 +490,7 @@ TEST(TestLurkerDATABASE, DESTROY)
 using namespace xercesc;
 TEST(TestTools, INIT)
 {
+  rtap_db::ClassesList class_list;
   const int argc = 2;
   char *argv[argc] = {
                     "TestTools",
@@ -547,36 +548,17 @@ TEST(TestTools, INIT)
       "http://www.example.com/rtap_db",
       "RTDB_STRUCT");
 
-    RTDB_STRUCT_p.pre ();
+    RTDB_STRUCT_p.pre (&class_list);
     doc_p.parse (argv[1]);
     RTDB_STRUCT_p.post_RTDB_STRUCT ();
 
-
-
-
-
-
-
-
-
-
-
-
-#if 0
-    // Print the object model.
-    //
-    for (::rtap_db::Class_pimpl::iterator i (rtdb.begin ()); i != rtdb.end (); ++i)
+    std::cout << "Parsing XML is over, processed " << class_list.size() << " element(s)" << std::endl;
+    for (int i=0; i<class_list.size(); i++)
     {
-      std::cout << "code:  " << i->Code () << std::endl
-         << "name:   " << i->Name () << std::endl
-         << endl;
+      std::cout << "\tCODE:  " << class_list[i].code() << std::endl;
+      std::cout << "\tNAME:  " << class_list[i].name() << std::endl;
+      std::cout << "\t#ATTR: " << class_list[i].m_attributes.size() << std::endl;
     }
-#endif
-
-
-
-
-
 
     XMLPlatformUtils::Terminate();
   }
