@@ -132,4 +132,18 @@ PushWorker() для существующего Обработчика обнов
 Если Обработчик устарел, и не имеет связанного сообщения, удалить его из БД.
 Если Сообщение устарело, передать его на исполнение другому обработчику или ответить Клиенту отказом.
 
-Добавлен сетевой репозиторий gev@gev-itg:/var/git/rtdbus.git
+Удаленные сетевые и локальные репозитории
+На gev-book добавлен сетевой репозиторий gev@gev-itg:/var/git/rtdbus.git
+На gev-itg добавлен локальный промежуточный репозиторий integration
+  gev@gev-itg:/var/git/rtdbus.git$ git remote -v
+    origin  /home/gev/ITG/sandbox/rtdbus (fetch)
+    origin  /home/gev/ITG/sandbox/rtdbus (push)
+  gev@gev-book ~/ITG/rtdbus $ git remote -v
+    origin  gev@gev-itg:/var/git/rtdbus.git (fetch)
+    origin  gev@gev-itg:/var/git/rtdbus.git (push)
+  gev@gev-itg:~/ITG/sandbox/rtdbus$ git remote -v
+    integration   /var/git/rtdbus.git (fetch)
+    integration   /var/git/rtdbus.git (push)
+    origin    git@bitbucket.org:gev76/rtdbus.git (fetch)
+    origin    git@bitbucket.org:gev76/rtdbus.git (push)
+
