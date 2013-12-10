@@ -82,96 +82,42 @@ rtDeType extractDeType(char* laChaine)
       return(rtUNDEFINED);
 }
 
-xdb::recordType getRecordType(char *typeEnreg)
+xdb::recordType xdb::getRecordType(std::string& typeEnreg)
 {
-   if (strncmp(typeEnreg, "C ", TYPE_ENREG_SIZE) == 0)
+   if (typeEnreg.compare(0, TYPE_ENREG_SIZE, "C ") == 0)
       return C_TYPE;
-   else if (strncmp(typeEnreg, "I ", TYPE_ENREG_SIZE) == 0)
+   else if (typeEnreg.compare(0, TYPE_ENREG_SIZE, "I ") == 0)
       return I_TYPE;
-   else if (strncmp(typeEnreg, "S ", TYPE_ENREG_SIZE) == 0)
+   else if (typeEnreg.compare(0, TYPE_ENREG_SIZE, "S ") == 0)
       return S_TYPE;
-   else if (strncmp(typeEnreg, "V ", TYPE_ENREG_SIZE) == 0)
+   else if (typeEnreg.compare(0, TYPE_ENREG_SIZE, "V ") == 0)
       return V_TYPE;
-   else if (strncmp(typeEnreg, "DV", TYPE_ENREG_SIZE) == 0)
+   else if (typeEnreg.compare(0, TYPE_ENREG_SIZE, "DV") == 0)
       return DV_TYPE;
-   else if (strncmp(typeEnreg, "T ", TYPE_ENREG_SIZE) == 0)
+   else if (typeEnreg.compare(0, TYPE_ENREG_SIZE, "T ") == 0)
       return T_TYPE;
-   else if (strncmp(typeEnreg, "F ", TYPE_ENREG_SIZE) == 0)
+   else if (typeEnreg.compare(0, TYPE_ENREG_SIZE, "F ") == 0)
       return F_TYPE;
-   else if (strncmp(typeEnreg, "DF", TYPE_ENREG_SIZE) == 0)
+   else if (typeEnreg.compare(0, TYPE_ENREG_SIZE, "DF") == 0)
       return DF_TYPE;
-   else if (strncmp(typeEnreg, "A ", TYPE_ENREG_SIZE) == 0)
+   else if (typeEnreg.compare(0, TYPE_ENREG_SIZE, "A ") == 0)
       return A_TYPE;
-   else if (strncmp(typeEnreg, "H ", TYPE_ENREG_SIZE) == 0)
+   else if (typeEnreg.compare(0, TYPE_ENREG_SIZE, "H ") == 0)
       return H_TYPE;
-   else if (strncmp(typeEnreg, "J ", TYPE_ENREG_SIZE) == 0)
+   else if (typeEnreg.compare(0, TYPE_ENREG_SIZE, "J ") == 0)
       return J_TYPE;
-   else if (strncmp(typeEnreg, "LF", TYPE_ENREG_SIZE) == 0)
+   else if (typeEnreg.compare(0, TYPE_ENREG_SIZE, "LF") == 0)
       return LF_TYPE;
-   else if (strncmp(typeEnreg, "CF", TYPE_ENREG_SIZE) == 0)
+   else if (typeEnreg.compare(0, TYPE_ENREG_SIZE, "CF") == 0)
       return CF_TYPE;
-   else if (strncmp(typeEnreg, "AV", TYPE_ENREG_SIZE) == 0)
+   else if (typeEnreg.compare(0, TYPE_ENREG_SIZE, "AV") == 0)
       return AV_TYPE;
-   else if (strncmp(typeEnreg, "C0", TYPE_ENREG_SIZE) == 0)
+   else if (typeEnreg.compare(0, TYPE_ENREG_SIZE, "C0") == 0)
       return C0_TYPE;
-   else if (strncmp(typeEnreg, "L0", TYPE_ENREG_SIZE) == 0)
+   else if (typeEnreg.compare(0, TYPE_ENREG_SIZE, "L0") == 0)
       return L0_TYPE;
    else
       return UNKNOWN_RECORD_TYPE;  
-}
-
-// buffer - строка из входного файла
-// 2 байта = тип точки:
-//  "I "
-//  "S "
-//  "V "
-//  "DV"
-//  "T "
-//  "F "
-//  "DF"
-//  "A "
-//  "H "
-//  "J "
-//  "LF"
-//  "CF"
-//  "AV"
-//  "C0"
-//  "L0"
-//  
-bool copyPoint(char* buffer, char* instance)
-{
-  bool status = true;
-  char               aliasInst[NAME_SIZE+1];
-  char               className[NAME_SIZE+1];
-  char               pointName[NAME_SIZE+1];
-  char               aliasFather[NAME_SIZE+1];
-  char              *aux;
-  
-  /* extracts the data from the buffer */
-  aux = buffer + TYPE_ENREG_SIZE;
-  strncpy(aliasInst, aux, NAME_SIZE);
-  aliasInst[NAME_SIZE] = CNULL;
-  skipStr(aliasInst); 
-
-  aux += NAME_SIZE;
-  strncpy(className, aux, NAME_SIZE);
-  className[NAME_SIZE] = CNULL; 
-  skipStr(className); 
-
-  aux += NAME_SIZE;
-  strncpy(pointName, aux, NAME_SIZE);
-  pointName[NAME_SIZE] = CNULL;
-
-  aux += NAME_SIZE;
-  strncpy(aliasFather, aux, NAME_SIZE);
-  aliasFather[NAME_SIZE] = CNULL;
-
-  /* init output parameter */
-  strcpy(instance, aliasInst);
-
-  LOG(INFO) << className<<":"<<pointName<<"("<<aliasInst<<") "<<"father "<<aliasFather;
-
-  return status;
 }
 
 bool addScalar(char *buffer, char *alias, attrCategory* category, char *scalarValue)
@@ -231,20 +177,6 @@ bool addScalar(char *buffer, char *alias, attrCategory* category, char *scalarVa
 
   return status;
 }
-
-bool extractRow(char *buffer, int* row)
-{
-   bool status = true;
-   char  rang[NUMERIC_SIZE + 1];
-   char *aux;
-
-   aux = buffer + TYPE_ENREG_SIZE;
-   strncpy(rang, aux, NUMERIC_SIZE);
-   rang[NUMERIC_SIZE] = CNULL;
-   *row = atoi(rang);
-   return status;
-}
-
 
 /*
  all RTAP data types from /opt/rtap/A.08.60/include/rtap/dataElem.h
@@ -358,13 +290,13 @@ bool xdb::processClassFile(const char* fname)
   bool status = false;
   int        objclass;
   char       fpath[255];
+  std::string s_skip;
   std::string s_univname;
   std::string s_access;
   std::string s_type;
+  std::string s_default_value;
   DbType_t    db_type;
   AttributeInfo_t* p_attr_info; 
-  char*      p_line   = NULL;
-  char*      p_cursor = NULL;
   std::string line;
   std::string::size_type found;
 
@@ -372,21 +304,22 @@ bool xdb::processClassFile(const char* fname)
 
   for (objclass=0; objclass <= GOF_D_BDR_OBJCLASS_LASTUSED; objclass++)
   {
-    if (strcmp(ObjClassDescrTable[objclass].name, D_MISSING_OBJCODE)==0)
+    if (!ObjClassDescrTable[objclass].name.compare(D_MISSING_OBJCODE))
       continue;
 
     sprintf(fpath, "%02d_%s.dat",
-            ObjClassDescrTable[objclass].code, ObjClassDescrTable[objclass].name);
+            ObjClassDescrTable[objclass].code,
+            ObjClassDescrTable[objclass].name.c_str());
 
-    std::cout << fpath << std::endl;
+    LOG(INFO) << "translate input file "<<fpath;
     std::ifstream ifs(fpath);
 
-    if (!ifs.is_open())
+    if (ifs.is_open())
     {
       while (getline(ifs, line))
       {
         /* пропускать строки, начинающиеся с символов [ALJCVTFD#] */
-        if (std::string::npos == (found = line.find_first_of("ALJCVTFD#")))
+        if (0 /*std::string::npos*/ == (found = line.find_first_of("ALJCVTFD#")))
         {
           // 'A': CE
           // 'L': словарные значения поля таблицы
@@ -400,32 +333,38 @@ bool xdb::processClassFile(const char* fname)
           continue;
         }
 
-        if (std::string::npos == (found = line.find_first_of("I")))
+        if (0 /*std::string::npos*/ == (found = line.find_first_of("I")))
         {
           // начало новой точки
-          std::cout << "new point" << std::endl;
+          // создать массив лексем
+          //
+          // std::cout << line << std::endl;
+          // std::istringstream iss(line);
+          // std::cout << "new point: " << line << std::endl;
           continue;
         }
 
-        if (std::string::npos == (found = line.find_first_of("S")))
+        if (0 /*std::string::npos*/ == (found = line.find_first_of("S")))
         {
           // S OBJCLASS           PUB        rtUINT8        0
-          // TODO: создать массив лексем
-          std::cout << line << std::endl;
+          // создать массив лексем
           std::istringstream iss(line);
-          continue;
+          if (iss >> s_skip >> s_univname >> s_access >> s_type)
+          {
+            std::cout << "OK: "<<s_univname<<" : "<<s_type;
+
+            if (iss >> s_default_value)
+            {
+              std::cout << " : "<<s_default_value<<std::endl;
+              //   iss >> std::ws;
+            }
+            
+            if (iss.eof()) {
+              std::cout << std::endl;
+            }
+          }
         }
 
-        // default
-#if 0
-        p_cursor = strdup(fline);
-        skipStr(p_cursor);
-        p_cursor += 2; /* skip first symbol */
-        p_cursor = GetNextWord(&p_cursor, static_cast<char*>(s_univname));
-        p_cursor = GetNextWord(&p_cursor, static_cast<char*>(s_access));
-        p_cursor = GetNextWord(&p_cursor, static_cast<char*>(s_type));
-        free(p_cursor);
-#endif
         /* type может быть: строковое, с плав. точкой, целое */
         if (false == GetDbTypeFromString(s_type, db_type))
         {
@@ -433,24 +372,24 @@ bool xdb::processClassFile(const char* fname)
                 LOG(ERROR)<<"Given attribute type '"<<s_type
                           <<"' is unknown for class '"<<s_univname<<"'";
         }
+#if 0
         printf("%-8s attribute %-18s type %-10s:%d\n", 
-                    ObjClassDescrTable[objclass].name,
+                    ObjClassDescrTable[objclass].name.c_str(),
                     s_univname.c_str(),
                     s_type.c_str(),
                     db_type);
+#endif
 
         /*
                  Добавить для экземпляра данного objclass перечень атрибутов,
                  подлежащих чтению из instances_total.dat, и их родовые типы
-                 (целое, дробь, строка)
+                 (целое, дробное, строка, ...)
         */
         if (!ObjClassDescrTable[objclass].attr_info_list)
                 ObjClassDescrTable[objclass].attr_info_list = new att_list_t;
 
         p_attr_info = (AttributeInfo_t*) new AttributeInfo_t;
-        memset((void*)p_attr_info, '\0', sizeof(AttributeInfo_t));
-//      g_printf("CREATE NEW AttributeInfo_t for objclassdescr at %p\n", p_attr_info);
-        strcpy(p_attr_info->name, s_univname.c_str());
+        p_attr_info->name.assign(s_univname);
         p_attr_info->db_type = db_type;
 
         ObjClassDescrTable[objclass].attr_info_list->push_back(*p_attr_info);
@@ -461,7 +400,7 @@ bool xdb::processClassFile(const char* fname)
     }
     else
     {
-      LOG(ERROR) << "Ошибка чтения входного файла";
+      LOG(ERROR) << "Ошибка "<<ifs.rdstate()<<" чтения входного файла";
       status = false;
     }
   }
@@ -469,44 +408,71 @@ bool xdb::processClassFile(const char* fname)
   return status;
 }
 
+//
+// Прочитать сгенерированный файл с содержимым БДРВ
+// Часть атрибутов и/или значений по-умолчанию может 
+// отсутствовать, в этом случае нужно брать их из 
+// структуры ObjClassDescrTable[]
+//
 bool xdb::processInstanceFile(const char* fname)
 {
   bool status = false;
-#if 0
+  std::string buffer;
+  std::string type;
+  univname_t  className;
+  univname_t  pointName;
+  univname_t  aliasFather;
+  univname_t  instanceAlias;
+  univname_t  value;
+  std::string::size_type found;
   char *rc;
-  FILE             *ficInst;
   int               indiceTab;
   int               colonne;
   int               colvect;
   int               ligne;
   int               fieldCount;
   int               classCounter;
-  recordType        typeRecord;
+  xdb::recordType   typeRecord;
   attrCategory      attrCateg;
-  char              buffer[RECORD_SIZE];
-  char              classAlias[NAME_SIZE+1];
-  char              instanceAlias[NAME_SIZE+1];
-  char              value[VALUE_SIZE + 1];
   char*             tableStrDeType[rtMAX_FIELD_CNT];
 
   /*------------------------------------*/
   /* opens the file of the Rtap classes */
   /*------------------------------------*/
-  if ((ficInst = fopen(fname,"r")) == NULL)
-  {
-    LOG(INFO) << "Unable to open file '"<<fname<<"': "<<strerror(errno);
-    return false;
-  }
+  std::ifstream ifs(fname);
 
-  /*------------------------------------------*/
-  /* reads the file and processes each record */
-  /*------------------------------------------*/
-  classCounter = 0;
-
-  while (NULL != (rc=fgets(buffer, RECORD_SIZE, ficInst)))
+  if (ifs.is_open())
   {
+    // 2 первый байта = тип точки:
+    //  "I "
+    //  "S "
+    //  "V "
+    //  "DV"
+    //  "T "
+    //  "F "
+    //  "DF"
+    //  "A "
+    //  "H "
+    //  "J "
+    //  "LF"
+    //  "CF"
+    //  "AV"
+    //  "C0"
+    //  "L0"
+    //  
+    while (getline(ifs, buffer))
+    {
+      /*------------------------------------------*/
+      /* reads the file and processes each record */
+      /*------------------------------------------*/
+      classCounter = 0;
+
       /* research the type of the record */
       typeRecord = getRecordType(buffer);
+      // TODO: проверить, что происходит с памятью при разборе большого файла
+      // поскольку istringstream не удаляется
+      std::istringstream iss(buffer);
+      LOG(INFO) << "\tparse " << buffer;
 
       switch(typeRecord)
       {
@@ -519,7 +485,13 @@ bool xdb::processInstanceFile(const char* fname)
               LOG(INFO) << "I_TYPE Table";
             }
 
-            status = copyPoint(buffer, instanceAlias);
+            if (!instanceAlias.empty())
+              LOG(INFO) << "DUMP " << instanceAlias;
+            
+            if (iss >> type >> instanceAlias >> className >> pointName >> aliasFather)
+            {
+              status = true; 
+            }
          break;
 
          /*--------*/
@@ -527,7 +499,7 @@ bool xdb::processInstanceFile(const char* fname)
          /*--------*/
          case S_TYPE :
            /* adds the scalar in the class --> init currentAttrName, currentDeType */
-           status = setInfoScalar(buffer, INSTANCE_FORMAT, &attrCateg, value);
+           status = setInfoScalar(const_cast<char*>(buffer.c_str()), INSTANCE_FORMAT, &attrCateg, value);
            /* sets the data structure with the new value of the scalar */
            //status = initNewScalarValue(instanceAlias, value);
          break;
@@ -537,7 +509,7 @@ bool xdb::processInstanceFile(const char* fname)
          /*--------*/
          case V_TYPE :  /* and DV_TYPE */
            /* sets vector info ---> init currentAttrName, currentDeType */
-           status = setInfoVector(buffer, INSTANCE_FORMAT, &attrCateg);
+           //status = setInfoVector(buffer, INSTANCE_FORMAT, &attrCateg);
            colvect = 0;
          break;
 
@@ -557,13 +529,12 @@ bool xdb::processInstanceFile(const char* fname)
            colvect++;
          break;
 
-
          /*--------*/
          /* TABLE  */
          /*--------*/
          case T_TYPE :
            /* sets table info ---> init currentAttrName */
-           status = setInfoTable(buffer, INSTANCE_FORMAT, &attrCateg); 
+           //status = setInfoTable(buffer, INSTANCE_FORMAT, &attrCateg); 
            fieldCount = 0;
            colonne = 0;
            ligne = 0;
@@ -574,7 +545,7 @@ bool xdb::processInstanceFile(const char* fname)
          /*-------------*/
          case F_TYPE : 
            /* initializes the fields data of tableField structure */
-           status = initFieldTable(buffer, tableStrDeType, fieldCount);
+           //status = initFieldTable(buffer, tableStrDeType, fieldCount);
            fieldCount++;
          break;
 
@@ -582,21 +553,25 @@ bool xdb::processInstanceFile(const char* fname)
          /* TABLE DATA */
          /*------------*/
          case DF_TYPE :
-           status = extractRow(buffer, &ligne);
+           // ligne = buffer[со 2 по 7 позицию]
+           std::istringstream(buffer.substr(2, 7)) >> ligne;
+           LOG(INFO) << "ligne="<<ligne;
          break;
 
          /*------------*/
          /* TABLE DATA */
          /*------------*/
          case LF_TYPE :
-           status = extractRow(buffer, &ligne);
+           std::istringstream(buffer.substr(2, 7)) >> ligne;
+           LOG(INFO) << "ligne="<<ligne;
          break;
 
          /*------------*/
          /* TABLE DATA */
          /*------------*/
          case CF_TYPE :
-           status = extractRow(buffer, &colonne);
+           std::istringstream(buffer.substr(2, 7)) >> colonne;
+           LOG(INFO) << "ligne="<<colonne;
          break;
 
          /*------------*/
@@ -625,10 +600,16 @@ bool xdb::processInstanceFile(const char* fname)
            break;
 
          default:
+           instanceAlias.clear();
            status = false;
       }
+    }
   }
-  fclose(ficInst);
+  else
+  {
+    LOG(INFO) << "Unable to open file '"<<fname<<"': "<<strerror(errno);
+    return false;
+  }
 
   /*------------------------------------*/
   /* adds all the values in the Rtap DB */
@@ -637,11 +618,10 @@ bool xdb::processInstanceFile(const char* fname)
   {
     LOG(INFO) << "Add table values";
   }
-#endif
   return status;
 }
 
-bool setInfoScalar(char *buffer, formatType leFormat, attrCategory* category, char *scalarValue)
+bool xdb::setInfoScalar(char *buffer, formatType leFormat, attrCategory* category, std::string& scalarValue)
 {
    bool  status = true;
    char  attrName[NAME_SIZE+1];
@@ -682,7 +662,7 @@ bool setInfoScalar(char *buffer, formatType leFormat, attrCategory* category, ch
    skipStr(value);
 
    /* init output parameters */
-   strcpy(scalarValue, value);
+   scalarValue.assign(value);
    if (strncmp(categ, STR_PUBLIC, CATEGORY_SIZE) == 0)
       *category = PUBLIC;
    else if (strncmp(categ, STR_PRIVATE, CATEGORY_SIZE) == 0)
@@ -791,10 +771,9 @@ bool setInfoTable(char *buffer, formatType leFormat, attrCategory* category)
 bool xdb::translateInstance(const char* fname)
 {
   bool status = false;
-  LOG(INFO) << "translate input file "<<fname;
 
   processClassFile(fname);
-  processInstanceFile(fname);
+  status = processInstanceFile(fname);
 
   return status;
 }

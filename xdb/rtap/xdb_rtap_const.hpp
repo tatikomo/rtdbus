@@ -3,6 +3,7 @@
 #pragma once
 
 #include <vector>
+#include <string>
 #include <stdint.h>
 
 #include "mco.h"
@@ -95,10 +96,17 @@ namespace xdb
 #define GOF_D_BDR_OBJCLASS_LASTUSED   87
 #define GOF_D_BDR_OBJCLASS_UNUSED    127
 
+#if 0
 typedef char   shortlabel_t[SHORTLABEL_LENGTH+1];
 typedef char   longlabel_t[LABEL_LENGTH+1];
 typedef char   univname_t[UNIVNAME_LENGTH+1];
 typedef char   code_t[CODE_LENGTH+1];
+#else
+typedef std::string   shortlabel_t;
+typedef std::string   longlabel_t;
+typedef std::string   univname_t;
+typedef std::string   code_t;
+#endif
 
 #define D_MISSING_OBJCODE   "MISSING"
 
@@ -216,7 +224,7 @@ typedef struct
 extern ObjClassDescr_t ObjClassDescrTable[];
 extern rtDataElemDescription rtDataElem[];
 /* Получить универсальное имя на основе его алиаса */
-extern int GetPointNameByAlias(univname_t, univname_t);
+extern int GetPointNameByAlias(univname_t&, univname_t&);
 
 }
 

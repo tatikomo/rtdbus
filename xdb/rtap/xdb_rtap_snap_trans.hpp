@@ -156,7 +156,7 @@ bool deleteBranch(const char*);
 
 bool copyPoint(char*, char*);
 
-recordType getRecordType(char*);
+xdb::recordType getRecordType(std::string&);
 
 void skipStr(char* laChaine);
 
@@ -174,7 +174,7 @@ bool addClassPoint(char *buffer,
 
 bool addScalar(char*, char*, attrCategory*, char*);
 
-bool setInfoScalar(char*, formatType, attrCategory*, char*);
+bool setInfoScalar(char*, formatType, attrCategory*, std::string&);
 
 bool setInfoVector(char*, formatType, attrCategory*);
 
