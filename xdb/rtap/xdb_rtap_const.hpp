@@ -16,6 +16,7 @@ namespace xdb
 #define CODE_LENGTH         8
 #define LABEL_LENGTH        80
 #define UNIVNAME_LENGTH     32
+#define NAME_LENGTH         19
 
 /* NB: GOF_D_BDR_OBJCLASS... definitions are copied from $GOF/inc/gof_bdr_d.h file */
 /* values of the OBJCLASS attributes */
@@ -216,7 +217,7 @@ typedef std::vector <AttributeInfo_t> att_list_t;
 /* Хранилище набора атрибутов, их типов, кода и описания для каждого objclass */
 typedef struct
 {
-  univname_t        name;   /* название класса */
+  char              name[UNIVNAME_LENGTH+1];   /* название класса */
   int8_t            code;   /* код класса */
   att_list_t       *attr_info_list;
 } ObjClassDescr_t;

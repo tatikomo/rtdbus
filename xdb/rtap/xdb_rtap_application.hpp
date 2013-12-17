@@ -52,7 +52,7 @@ class RtApplication
     AppMode_t   getOperationMode() const;
     AppState_t  getOperationState() const;
     bool getOption(const std::string&, int&);
-    void setOption(char*, int);
+    void setOption(const char*, int);
 
     const RtError& getLastError() const;
 

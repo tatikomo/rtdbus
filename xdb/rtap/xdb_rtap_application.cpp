@@ -139,7 +139,7 @@ bool RtApplication::getOption(const std::string& key, int& val)
   return status;
 }
 
-void RtApplication::setOption(char* key, int val)
+void RtApplication::setOption(const char* key, int val)
 {
   m_map_options.insert(Pair(std::string(key), val));
   LOG(INFO)<<"Parameter '"<<key<<"': "<<val;

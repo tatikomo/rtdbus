@@ -4,7 +4,9 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include <algorithm>
 #include <stdlib.h> // atoi()
+#include <string.h> // memcpy()
 #include <stdio.h>  // fopen()
 #include <time.h>   // timeval
 #include "glog/logging.h"
@@ -120,64 +122,6 @@ xdb::recordType xdb::getRecordType(std::string& typeEnreg)
       return UNKNOWN_RECORD_TYPE;  
 }
 
-bool addScalar(char *buffer, char *alias, attrCategory* category, char *scalarValue)
-{
-  bool  status = false;
-  char  attrName[NAME_SIZE+1];
-  char  categ[CATEGORY_SIZE+1];
-  char  rmask[MASK_SIZE+1];
-  char  wmask[MASK_SIZE+1];
-  char  deType[DETYPE_SIZE+1];
-  char  value[VALUE_SIZE+1];
-  char *aux;
-
-  /* extracts the data from the buffer */
-  aux = buffer + TYPE_ENREG_SIZE;
-  strncpy(attrName, aux, NAME_SIZE);
-  attrName[NAME_SIZE] = CNULL;
-  skipStr(attrName);
-
-  aux += NAME_SIZE;
-  strncpy(categ, aux, CATEGORY_SIZE);
-  categ[CATEGORY_SIZE] = CNULL;
-   
-  aux += CATEGORY_SIZE;
-  strncpy(rmask, aux, MASK_SIZE);
-  rmask[MASK_SIZE] = CNULL;
-
-  aux += MASK_SIZE;
-  strncpy(wmask, aux, MASK_SIZE);
-  wmask[MASK_SIZE] = CNULL;
-
-  aux += MASK_SIZE;
-  strncpy(deType, aux, DETYPE_SIZE);
-  deType[DETYPE_SIZE] = CNULL;  
-  skipStr(deType); 
-
-  aux += DETYPE_SIZE;
-  strncpy(value, aux, VALUE_SIZE);
-  value[VALUE_SIZE] = CNULL;
-  skipStr(value);
-
-  /* init output parameters */
-  strcpy(scalarValue, value); 
-  if (strncmp(categ, STR_PUBLIC, CATEGORY_SIZE) == 0)
-    *category = PUBLIC;
-  else if (strncmp(categ, STR_PRIVATE, CATEGORY_SIZE) == 0)
-    *category = PRIVATE;
-  else
-    LOG(ERROR)<<"Must be "<<STR_PUBLIC<<" or "<<STR_PRIVATE<<" : "<<categ<<" invalid",
-
-  /* init global variables for the attribute name and DeType */
-  strcpy(currentAttrName, attrName);
-  strcpy(currentStrDeType, deType);
-  currentDeType = extractDeType(deType);
-
-  std::cout << "Add scalar " << std::endl;
-
-  return status;
-}
-
 /*
  all RTAP data types from /opt/rtap/A.08.60/include/rtap/dataElem.h
  */
@@ -243,53 +187,15 @@ void LoadDbTypesDictionary()
 }
 
 /*
- Получить следующую лексему из строки, пропуская пробелы.
- Побочные эфекты: изменяется указатель на строку
-*/
-char* GetNextWord(char** p_data, char* dest)
-{
-  char* p_line;
-  int   length = 0;
-
-  assert(p_data);
-  assert(*p_data);
-  assert(dest);
-
-  p_line = *p_data;
-
-  if (*p_line != '\0')
-  {
-      /* пропустить первые пробельные символы */
-      while (*p_line && *p_line == ' ' && p_line++);
-  
-      /* TODO replace constant '18' by definition */
-      while (*p_line && *p_line!=' ' && (length <= 18))
-      {
-        dest[length++] = *p_line;
-        p_line++;
-      }
-      dest[length] = '\0';
-  }
-  else 
-  {
-    dest[0] = '\0';
-  }
-
-  /* передвинем курсор дальше по строке */
-  *p_data = p_line;
-
-  return p_line;
-}
-
-/*
  * По каждому классу точек прочитать справочные данные
  *
  */
-bool xdb::processClassFile(const char* fname)
+int xdb::processClassFile(const char* fpath)
 {
   bool status = false;
   int        objclass;
-  char       fpath[255];
+  int        loadedClasses = 0;
+  char       fname[255];
   std::string s_skip;
   std::string s_univname;
   std::string s_access;
@@ -300,19 +206,21 @@ bool xdb::processClassFile(const char* fname)
   std::string line;
   std::string::size_type found;
 
+  assert(fpath);
   LoadDbTypesDictionary();
 
   for (objclass=0; objclass <= GOF_D_BDR_OBJCLASS_LASTUSED; objclass++)
   {
-    if (!ObjClassDescrTable[objclass].name.compare(D_MISSING_OBJCODE))
+    ObjClassDescrTable[objclass].attr_info_list = NULL;
+    if (!strncmp(ObjClassDescrTable[objclass].name, D_MISSING_OBJCODE, UNIVNAME_LENGTH))
       continue;
 
-    sprintf(fpath, "%02d_%s.dat",
+    sprintf(fname, "%s/%02d_%s.dat",
+            fpath,
             ObjClassDescrTable[objclass].code,
-            ObjClassDescrTable[objclass].name.c_str());
+            ObjClassDescrTable[objclass].name);
 
-    LOG(INFO) << "translate input file "<<fpath;
-    std::ifstream ifs(fpath);
+    std::ifstream ifs(fname);
 
     if (ifs.is_open())
     {
@@ -351,16 +259,21 @@ bool xdb::processClassFile(const char* fname)
           std::istringstream iss(line);
           if (iss >> s_skip >> s_univname >> s_access >> s_type)
           {
-            std::cout << "OK: "<<s_univname<<" : "<<s_type;
+//            std::cout << "OK: "<<s_univname<<" : "<<s_type;
 
             if (iss >> s_default_value)
             {
-              std::cout << " : "<<s_default_value<<std::endl;
+//              std::cout << " : "<<s_default_value<<std::endl;
               //   iss >> std::ws;
+            }
+            else
+            {
+              // нет значения по умолчанию для этого атрибута
+              s_default_value.clear();
             }
             
             if (iss.eof()) {
-              std::cout << std::endl;
+//              std::cout << std::endl;
             }
           }
         }
@@ -372,40 +285,69 @@ bool xdb::processClassFile(const char* fname)
                 LOG(ERROR)<<"Given attribute type '"<<s_type
                           <<"' is unknown for class '"<<s_univname<<"'";
         }
-#if 0
-        printf("%-8s attribute %-18s type %-10s:%d\n", 
-                    ObjClassDescrTable[objclass].name.c_str(),
-                    s_univname.c_str(),
-                    s_type.c_str(),
-                    db_type);
-#endif
 
         /*
-                 Добавить для экземпляра данного objclass перечень атрибутов,
-                 подлежащих чтению из instances_total.dat, и их родовые типы
-                 (целое, дробное, строка, ...)
+          Добавить для экземпляра данного objclass перечень атрибутов,
+          подлежащих чтению из instances_total.dat, и их родовые типы
+          (целое, дробное, строка, ...)
         */
         if (!ObjClassDescrTable[objclass].attr_info_list)
-                ObjClassDescrTable[objclass].attr_info_list = new att_list_t;
+             ObjClassDescrTable[objclass].attr_info_list = new att_list_t;
 
         p_attr_info = (AttributeInfo_t*) new AttributeInfo_t;
-        p_attr_info->name.assign(s_univname);
+        p_attr_info->name.assign(s_univname.c_str());
         p_attr_info->db_type = db_type;
+        // Присвоить значение атрибуту в соответствии с полученным типом
+        switch(p_attr_info->db_type)
+        {
+          case xdb::DB_TYPE_BYTES:
+            p_attr_info->value.val_bytes.size = s_default_value.size();
+            // для пустого значения
+            if (p_attr_info->value.val_bytes.size)
+            {
+               p_attr_info->value.val_bytes.data = new char[p_attr_info->value.val_bytes.size + 1];
+               memcpy(p_attr_info->value.val_bytes.data,
+                   s_default_value.c_str(),
+                   p_attr_info->value.val_bytes.size);
+            }
+            else p_attr_info->value.val_bytes.data = NULL;
+            break;
+
+          case xdb::DB_TYPE_INTEGER8:
+                  p_attr_info->value.val_int8 = atoi(s_default_value.c_str());
+                  break;
+          case xdb::DB_TYPE_INTEGER16:
+                  p_attr_info->value.val_int16 = atoi(s_default_value.c_str());
+                  break;
+          case xdb::DB_TYPE_INTEGER32:
+                  p_attr_info->value.val_int32 = atoi(s_default_value.c_str());
+                  break;
+          case xdb::DB_TYPE_INTEGER64:
+                  p_attr_info->value.val_int64 = atoi(s_default_value.c_str());
+                  break;
+          case xdb::DB_TYPE_FLOAT:
+                  p_attr_info->value.val_float = atof(s_default_value.c_str());
+                  break;
+          case xdb::DB_TYPE_DOUBLE:
+                  p_attr_info->value.val_double = atof(s_default_value.c_str());
+                  break;
+        }
 
         ObjClassDescrTable[objclass].attr_info_list->push_back(*p_attr_info);
+        delete p_attr_info;
       }
 
       ifs.close();
-      status = true;
+      loadedClasses++;
+      LOG(INFO) << "Class file "<<fname<<" loaded";
     }
     else
     {
-      LOG(ERROR) << "Ошибка "<<ifs.rdstate()<<" чтения входного файла";
-      status = false;
+//      LOG(ERROR) << "Ошибка "<<ifs.rdstate()<<" чтения входного файла "<<fname;
     }
   }
 
-  return status;
+  return loadedClasses;
 }
 
 //
@@ -414,19 +356,26 @@ bool xdb::processClassFile(const char* fname)
 // отсутствовать, в этом случае нужно брать их из 
 // структуры ObjClassDescrTable[]
 //
-bool xdb::processInstanceFile(const char* fname)
+bool xdb::processInstanceFile(const char* fpath)
 {
   bool status = false;
   std::string buffer;
   std::string type;
+  std::string value;
+  // NB: значения могут быть строковыми, и содержать пробелы
+  // В таком случае необходимо читать до конца кавычек.
+  // Или до конца строки, поскольку поле "Значение" является
+  // последним в строке.
+  std::string::size_type first;
+  std::string::size_type second;
   univname_t  className;
   univname_t  pointName;
   univname_t  aliasFather;
   univname_t  instanceAlias;
-  univname_t  value;
+  std::string instance_file_name(fpath);
   std::string::size_type found;
   char *rc;
-  int               indiceTab;
+  int               indiceTab = 0;
   int               colonne;
   int               colvect;
   int               ligne;
@@ -439,7 +388,8 @@ bool xdb::processInstanceFile(const char* fname)
   /*------------------------------------*/
   /* opens the file of the Rtap classes */
   /*------------------------------------*/
-  std::ifstream ifs(fname);
+  instance_file_name += "/instances_total.dat";
+  std::ifstream ifs(instance_file_name.c_str());
 
   if (ifs.is_open())
   {
@@ -472,7 +422,8 @@ bool xdb::processInstanceFile(const char* fname)
       // TODO: проверить, что происходит с памятью при разборе большого файла
       // поскольку istringstream не удаляется
       std::istringstream iss(buffer);
-      LOG(INFO) << "\tparse " << buffer;
+//      LOG(INFO) << "\tparse " << buffer;
+      value.clear();
 
       switch(typeRecord)
       {
@@ -480,17 +431,40 @@ bool xdb::processInstanceFile(const char* fname)
          /* INSTANCE */
          /*----------*/
          case I_TYPE :
+            status = false;
+            //instanceAlias.clear();
+
             if (indiceTab)
             {
-              LOG(INFO) << "I_TYPE Table";
+               // writes all the data of the previous class
+              LOG(INFO) << "DUMP " << instanceAlias;
+//              LOG(INFO) << "I_TYPE Table";
             }
 
-            if (!instanceAlias.empty())
-              LOG(INFO) << "DUMP " << instanceAlias;
-            
-            if (iss >> type >> instanceAlias >> className >> pointName >> aliasFather)
+            // NB: Если длина алиаса равна 19 символов, во входном файле значение
+            // instanceAlias склеивается с className. 
+            // TODO: Предусмотреть обработку этого случая
+            if (iss >> type >> instanceAlias)
             {
-              status = true; 
+              if (NAME_LENGTH < instanceAlias.size()-1)
+              {
+                LOG(INFO) << "#" << instanceAlias;
+
+                className = instanceAlias.substr(NAME_LENGTH, strlen("ClassXX"));
+                instanceAlias.resize(NAME_LENGTH);
+              }
+              else {
+                iss >> className;
+              }
+
+              if (iss >> pointName >> aliasFather)
+              {
+                indiceTab++;
+                status = true;
+              }
+            }
+            else {
+              LOG (WARNING) << "Check engine - " << instanceAlias << " fails";
             }
          break;
 
@@ -499,9 +473,35 @@ bool xdb::processInstanceFile(const char* fname)
          /*--------*/
          case S_TYPE :
            /* adds the scalar in the class --> init currentAttrName, currentDeType */
-           status = setInfoScalar(const_cast<char*>(buffer.c_str()), INSTANCE_FORMAT, &attrCateg, value);
+           // Получить в глобальных переменных currentAttrName и currentDeType 
+           // значения "Название атрибута" и "Тип данных" соответственно.
+           // NB: По умолчанию в файле инстанса для всех атрибутов доступ PUBLIC
+           //
+           if (iss >> type >> currentAttrName >> type)
+           {
+             // Если в iss еще остались данные, и тип атрибута символьный,
+             // нужно получить все это содержимое вместе с кавычками и пробелами.
+             // NB: Приведенный здесь подход работает, если кавычки встречаются
+             // у атрибутов только в колонке значения.
+             first = buffer.find('\"');
+             if (first != std::string::npos)
+             {
+                second = buffer.rfind('\"');
+                if (second != std::string::npos)
+                {
+                    value = buffer.substr(first, ++second);
+                }
+             }
+
            /* sets the data structure with the new value of the scalar */
            //status = initNewScalarValue(instanceAlias, value);
+             LOG (INFO) << " Разбирается "<< instanceAlias << "." << currentAttrName << " : " << type << " : " << value;
+           }
+           else
+           {
+             LOG(ERROR) << "Ошибка разбора " << instanceAlias << "." << currentAttrName;
+           }
+
          break;
 
          /*--------*/
@@ -545,7 +545,7 @@ bool xdb::processInstanceFile(const char* fname)
          /*-------------*/
          case F_TYPE : 
            /* initializes the fields data of tableField structure */
-           //status = initFieldTable(buffer, tableStrDeType, fieldCount);
+           status = initFieldTable(buffer, tableStrDeType, fieldCount);
            fieldCount++;
          break;
 
@@ -600,14 +600,14 @@ bool xdb::processInstanceFile(const char* fname)
            break;
 
          default:
-           instanceAlias.clear();
+           LOG (INFO) << "default";
            status = false;
       }
     }
   }
   else
   {
-    LOG(INFO) << "Unable to open file '"<<fname<<"': "<<strerror(errno);
+    LOG(INFO) << "Unable to open file '"<<instance_file_name<<"': "<<strerror(errno);
     return false;
   }
 
@@ -616,67 +616,9 @@ bool xdb::processInstanceFile(const char* fname)
   /*------------------------------------*/
   if (indiceTab != 0)
   {
-    LOG(INFO) << "Add table values";
+    LOG(INFO) << "Add " << indiceTab << " value(s)";
   }
   return status;
-}
-
-bool xdb::setInfoScalar(char *buffer, formatType leFormat, attrCategory* category, std::string& scalarValue)
-{
-   bool  status = true;
-   char  attrName[NAME_SIZE+1];
-   char  categ[CATEGORY_SIZE+1];
-   char  deType[DETYPE_SIZE+1];
-   char  value[VALUE_SIZE+1];
-   char *pAttr;
-   char *pCateg;
-   char *pType;
-   char *pValue;
-
-   /* extracts the data from the buffer */
-   pAttr = buffer + TYPE_ENREG_SIZE;
-   pCateg = pAttr + NAME_SIZE;
-   if (leFormat == CLASS_FORMAT)
-      pType = pCateg + CATEGORY_SIZE + (MASK_SIZE * 2);
-   else
-      pType = pAttr + NAME_SIZE;
-   pValue = pType + DETYPE_SIZE;
-
-   strncpy(attrName, pAttr, NAME_SIZE);
-   attrName[NAME_SIZE] = CNULL;
-   skipStr(attrName);
-
-   if (leFormat == CLASS_FORMAT)
-      strncpy(categ, pCateg, CATEGORY_SIZE);
-   else
-      /* instance => surcharge d'attributs publics uniquement */
-      strncpy(categ, STR_PUBLIC, CATEGORY_SIZE);
-   categ[CATEGORY_SIZE] = CNULL;
-   skipStr(categ);
-
-   strncpy(deType, pType, DETYPE_SIZE);
-   deType[DETYPE_SIZE] = CNULL;
-
-   strncpy(value, pValue, VALUE_SIZE);
-   value[VALUE_SIZE] = CNULL;
-   skipStr(value);
-
-   /* init output parameters */
-   scalarValue.assign(value);
-   if (strncmp(categ, STR_PUBLIC, CATEGORY_SIZE) == 0)
-      *category = PUBLIC;
-   else if (strncmp(categ, STR_PRIVATE, CATEGORY_SIZE) == 0)
-      *category = PRIVATE;
-   else
-      LOG(ERROR) << "Must be 'PUBLIC' or 'PRIVATE', not '"<<categ<<"'";
-
-   /* init global variables for the attribute name and DeType */
-   strcpy(currentAttrName, attrName); 
-   strcpy(currentStrDeType, deType);
-   currentDeType = extractDeType(deType);
-
-   LOG(INFO)<<categ<<" | "<<attrName<<"["<<deType<<"] = "<<scalarValue;
-   return status;   
 }
 
 bool setInfoVector(char *buffer, formatType leFormat, attrCategory* category)
@@ -768,17 +710,17 @@ bool setInfoTable(char *buffer, formatType leFormat, attrCategory* category)
    return status;   
 }
 
-bool xdb::translateInstance(const char* fname)
+bool xdb::translateInstance(const char* fpath)
 {
   bool status = false;
 
-  processClassFile(fname);
-  status = processInstanceFile(fname);
+  status = processClassFile(fpath);
+  status = processInstanceFile(fpath);
 
   return status;
 }
 
-bool initFieldTable(char *buffer, char* tableStrDeType[], int fieldCount)
+bool xdb::initFieldTable(std::string& buffer, char* tableStrDeType[], int fieldCount)
 {
   bool status = true;
   LOG(INFO) << "initFieldTable";

@@ -14,7 +14,7 @@ xdb::RtApplication *app = NULL;
 xdb::RtEnvironment *env = NULL;
 xdb::RtDbConnection *connection = NULL;
 char database_name[SERVICE_NAME_MAXLEN + 1];
-char file_name[400+1];
+char file_path[400+1];
 const char* command_name_LOAD_FROM_XML = "load";
 const char* command_name_SAVE_TO_XML = "save";
 bool verbose = false;
@@ -24,16 +24,16 @@ int main(int argc, char** argv)
 {
   bool is_database_name_given = false;
   bool is_command_name_given = false;
-  bool is_file_name_given = false;
+  bool is_file_path_given = false;
   bool is_translation_given = false;
   char command_name[SERVICE_NAME_MAXLEN + 1];
   int  opt;
 
-  file_name[0] = '\0';
+  file_path[0] = '\0';
   command_name[0] = '\0';
   database_name[0] = '\0';
 
-  while ((opt = getopt (argc, argv, "vc:f:e:g")) != -1)
+  while ((opt = getopt (argc, argv, "vc:p:e:g")) != -1)
   {
      switch (opt)
      {
@@ -47,11 +47,11 @@ int main(int argc, char** argv)
         break;
 
         // Задание имени файла
-        // -f <имя файла>
-        case 'f':
-          strncpy(file_name, optarg, 400);
-          file_name[400] = '\0';
-          is_file_name_given = true;
+        // -p <путь>
+        case 'p':
+          strncpy(file_path, optarg, 400);
+          file_path[400] = '\0';
+          is_file_path_given = true;
         break;
 
         // -c <имя команды>
@@ -108,14 +108,12 @@ int main(int argc, char** argv)
 //    LOG(ERROR) << "Database '-e <name>' not given";
   if (is_translation_given)
   {
-    if (!is_file_name_given)
+    if (!is_file_path_given)
     {
-      LOG(WARNING) << "Unspecified input file name, 'instances_total.dat' will be used";
-      is_file_name_given = true;
-      strcpy(file_name, "instances_total.dat");
+     getcwd(file_path, sizeof(file_path));
     }
     // взять входной файл и выдать его в поток выхода
-    translateInstance(file_name);
+    translateInstance(file_path);
   }
   else
   {
@@ -133,14 +131,14 @@ int main(int argc, char** argv)
       switch (command)
       {
         case LOAD_FROM_XML:
-          if (true == loadFromXML(env, file_name))
+          if (true == loadFromXML(env, file_path))
           {
             LOG(INFO) << "XML data was successfuly loaded";
           }
         break;
 
         case SAVE_TO_XML:
-          if (true == saveToXML(env, file_name))
+          if (true == saveToXML(env, file_path))
           {
             LOG(INFO) << "XML data was successfuly saved";
           }

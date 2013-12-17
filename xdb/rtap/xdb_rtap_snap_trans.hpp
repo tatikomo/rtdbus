@@ -162,7 +162,7 @@ void skipStr(char* laChaine);
 
 bool extractRow(char*, int*);
 
-bool processClassFile(const char*);
+int processClassFile(const char*);
 
 bool processInstanceFile(const char*);
 
@@ -180,11 +180,9 @@ bool setInfoVector(char*, formatType, attrCategory*);
 
 bool setInfoTable(char*, formatType, attrCategory*);
 
-bool initFieldTable(char*, char*[], int);
+bool initFieldTable(std::string&, char*[], int);
 
 bool GetDbTypeFromString(std::string&, xdb::DbType_t&);
-
-char* GetNextWord(char**, char*);
 
 }
 #endif
