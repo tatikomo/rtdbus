@@ -81,6 +81,8 @@ set (TEST_DATABASE_SOURCES
         ${XDB_RTAP_DIR}/xdb_rtap_application.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_connection.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_environment.hpp
+        ${XDB_RTAP_DIR}/xdb_rtap_snap_trans.hpp
+        ${XDB_RTAP_DIR}/xdb_rtap_snap_trans.cpp
         ${MDP_DIR}/mdp_zmsg.hpp
         ${TEST_RTDBUS_DIR}/database_unittest.cpp)
 

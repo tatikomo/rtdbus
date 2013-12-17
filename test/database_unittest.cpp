@@ -15,9 +15,11 @@
 #include "dat/rtap_db-pskel.hxx"
 #include "proto/common.pb.h"
 
+#include "xdb_rtap_const.hpp"
 #include "xdb_rtap_application.hpp"
 #include "xdb_rtap_environment.hpp"
 #include "xdb_rtap_connection.hpp"
+#include "xdb_rtap_snap_trans.hpp"
 
 const char *service_name_1 = "service_test_1";
 const char *service_name_2 = "service_test_2";
@@ -491,6 +493,8 @@ using namespace xercesc;
 TEST(TestTools, INIT)
 {
   rtap_db::ClassesList class_list;
+  int   class_item;
+  int   attribute_item;
   const int argc = 2;
   char *argv[argc] = {
                     "TestTools",
@@ -553,11 +557,26 @@ TEST(TestTools, INIT)
     RTDB_STRUCT_p.post_RTDB_STRUCT ();
 
     std::cout << "Parsing XML is over, processed " << class_list.size() << " element(s)" << std::endl;
-    for (int i=0; i<class_list.size(); i++)
+    for (class_item=0; class_item<class_list.size(); class_item++)
     {
-      std::cout << "\tCODE:  " << class_list[i].code() << std::endl;
-      std::cout << "\tNAME:  " << class_list[i].name() << std::endl;
-      std::cout << "\t#ATTR: " << class_list[i].m_attributes.size() << std::endl;
+      std::cout << "\tCODE:  " << class_list[class_item].code() << std::endl;
+      std::cout << "\tNAME:  " << class_list[class_item].name() << std::endl;
+      std::cout << "\t#ATTR: " << class_list[class_item].m_attributes.size() << std::endl;
+      if (class_list[class_item].m_attributes.size())
+      {
+        for (attribute_item=0;
+             attribute_item<class_list[class_item].m_attributes.size();
+             attribute_item++)
+        {
+          std::cout << "\t\t" << class_list[class_item].m_attributes[attribute_item].name()
+                    << " : "  << class_list[class_item].m_attributes[attribute_item].value()
+                    << " : "  << class_list[class_item].m_attributes[attribute_item].kind()
+                    << " : "  << class_list[class_item].m_attributes[attribute_item].type()
+                    << " : "  << class_list[class_item].m_attributes[attribute_item].accessibility()
+                    << std::endl;
+        }
+      }
+      std::cout << std::endl;
     }
 
     XMLPlatformUtils::Terminate();
@@ -565,14 +584,134 @@ TEST(TestTools, INIT)
   catch (const ::xml_schema::exception& e)
   {
     std::cerr << e << std::endl;
-    return 1;
+    return;
   }
   catch (const std::ios_base::failure&)
   {
-    std::cerr << argv[1] << ": error: io failure" << std::endl;
-    return 1;
+    std::cerr << argv[1] << ": error: i/o failure" << std::endl;
+    return;
   }
 }
+
+TEST(TestTools, LOAD_CLASSES)
+{
+  bool status = false;
+  int  objclass_idx;
+  int  attrib_idx;
+  int  loaded;
+  char fpath[255];
+  char msg_info[255];
+  char msg_val[255];
+  xdb::att_list_t *list;
+
+  getcwd(fpath, 255);
+  loaded = xdb::processClassFile(fpath);
+  EXPECT_TRUE(loaded > 0); // загружен хотя бы один класс
+
+  for (objclass_idx=0; objclass_idx <= GOF_D_BDR_OBJCLASS_LASTUSED; objclass_idx++)
+  {
+    list = xdb::ObjClassDescrTable[objclass_idx].attr_info_list;
+    if (!strncmp(xdb::ObjClassDescrTable[objclass_idx].name, D_MISSING_OBJCODE, UNIVNAME_LENGTH))
+      continue;
+
+    if (list)
+    {
+        std::cout << "#" << objclass_idx << " : " 
+            << xdb::ObjClassDescrTable[objclass_idx].code
+            << " " << xdb::ObjClassDescrTable[objclass_idx].name 
+            << "(" << list->size() << ")" << std::endl;
+        for (attrib_idx=0; attrib_idx<list->size(); attrib_idx++)
+        {
+            sprintf(msg_info, "\"%s\" : %02d", 
+                list->at(attrib_idx).name.c_str(), list->at(attrib_idx).db_type);
+
+            switch(list->at(attrib_idx).db_type)
+            {
+              case xdb::DB_TYPE_INTEGER8:
+                  sprintf(msg_val, "%02X", list->at(attrib_idx).value.val_int8);
+                  break;
+
+              case xdb::DB_TYPE_INTEGER16:
+                  sprintf(msg_val, "%04X", list->at(attrib_idx).value.val_int16);
+                  break;
+
+              case xdb::DB_TYPE_INTEGER32:
+                  sprintf(msg_val, "%08X", list->at(attrib_idx).value.val_int32);
+                  break;
+
+              case xdb::DB_TYPE_INTEGER64:
+                  sprintf(msg_val, "%16X", list->at(attrib_idx).value.val_int64);
+                  break;
+
+              case xdb::DB_TYPE_FLOAT:
+                  sprintf(msg_val, "%f", list->at(attrib_idx).value.val_float);
+                  break;
+
+              case xdb::DB_TYPE_DOUBLE:
+                  sprintf(msg_val, "%g", list->at(attrib_idx).value.val_double);
+                  break;
+
+              case xdb::DB_TYPE_BYTES:
+                  sprintf(msg_val, "[%02X] \"%s\"", 
+                    list->at(attrib_idx).value.val_bytes.size,
+                    list->at(attrib_idx).value.val_bytes.data);
+                  break;
+
+              case xdb::DB_TYPE_UNDEF:
+                  sprintf(msg_val, ": undef %02d");
+                  break;
+
+              default:
+                  LOG(ERROR) << ": <error>=" << list->at(attrib_idx).db_type;
+            }
+            std::cout << msg_info << " | " << msg_val << std::endl;
+        }
+    }
+
+  }
+//  status = xdb::processInstanceFile(fpath);
+//  EXPECT_TRUE(status);
+}
+
+#if 1
+// Принудительная очистка ресурсов, чтоб valgrind был доволен
+// NB: для рабочей системы в этом нет необходимости, 
+// память выделяется только один раз.
+TEST(TestTools, FREE_RESOURCES)
+{
+  xdb::att_list_t* p_attr_list;
+  xdb::AttributeInfo_t* p_attr_info;
+  int objclass_idx;
+  int attribute_idx;
+
+  for (objclass_idx=0; objclass_idx <= GOF_D_BDR_OBJCLASS_LASTUSED; objclass_idx++)
+  {
+    p_attr_list = xdb::ObjClassDescrTable[objclass_idx].attr_info_list;
+
+    if (!p_attr_list)
+      continue;
+
+    for (attribute_idx=0; attribute_idx<p_attr_list->size(); attribute_idx++)
+    {
+      if (NULL == (p_attr_info = &p_attr_list->at(attribute_idx)))
+        continue;
+
+      switch(p_attr_info->db_type)
+      {
+        case xdb::DB_TYPE_BYTES:
+          delete[] p_attr_info->value.val_bytes.data;
+          break;
+        default:
+          // nothing to do here
+          break;
+      }
+//      NB: p_attr_info удаляется в processClassFile()
+//      сразу после помещения в attr_info_list;
+    }
+    delete p_attr_list;
+  }
+}
+#endif
 
 int main(int argc, char** argv)
 {
