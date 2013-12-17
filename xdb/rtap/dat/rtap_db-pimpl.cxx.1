@@ -113,8 +113,7 @@ namespace rtap_db
     // TODO
     //
     std::cout << "RTDB_STRUCT_pimpl::Class("<<Class.code()<<", "<<Class.name()<<")"<<std::endl;
-    m_classes->push_back(Class);
-    delete &Class;
+//    m_classes->push_back(Class);
   }
 
   void RTDB_STRUCT_pimpl::
@@ -129,9 +128,8 @@ namespace rtap_db
   void Class_pimpl::
   pre ()
   {
-    // NB экземпляр удаляется в RTDB_STRUCT_pimpl::Class
     m_impl = new Class;
-    std::cout << "\t\tClass::m_impl=" << m_impl << std::endl;
+    std::cout << "\t\tClass::m_impl=" << &m_impl << std::endl;
     m_impl->m_class_code = 0;
     current_class_instance = m_impl;
   }
@@ -170,6 +168,8 @@ namespace rtap_db
         << m_impl->name() << ","
         << m_impl->m_attributes.size() <<")"
     << std::endl;
+
+    m_classes->push_back(*m_impl);
 
     return *m_impl;
   }

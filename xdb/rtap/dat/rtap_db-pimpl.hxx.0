@@ -101,7 +101,7 @@ namespace rtap_db
     post_Class ();
 
     private:
-    Class *m_impl;
+    Class   m_impl;
   };
 
   class Code_pimpl: public virtual Code_pskel,

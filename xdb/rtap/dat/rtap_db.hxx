@@ -70,6 +70,10 @@ namespace rtap_db
       m_name = _name;
     }
 
+    void value(const std::string& _value)
+    {
+      m_value = _value;
+    }
 
     const std::string& kind() const
     {
@@ -84,6 +88,16 @@ namespace rtap_db
     const std::string& accessibility() const
     {
       return m_accessibility;
+    }
+
+    const std::string& name()
+    {
+      return m_name;
+    }
+
+    const std::string& value()
+    {
+      return m_value;
     }
 
     PointKind       m_attrib_string_kind;
@@ -109,6 +123,13 @@ namespace rtap_db
     const std::string& name () const
     {
       return m_class_name;
+    }
+
+    void clear()
+    {
+      m_class_code = 0;
+      m_class_name.clear();
+      m_attributes.clear();
     }
 
     Code      m_class_code;

@@ -103,7 +103,7 @@ namespace rtap_db
   void RTDB_STRUCT_pimpl::
   pre (rtap_db::ClassesList* class_list)
   {
-//    std::cout << "RTDB_STRUCT_pimpl::pre"<<std::endl;
+    std::cout << "RTDB_STRUCT_pimpl::pre"<<std::endl;
     m_classes = class_list;
   }
 
@@ -113,8 +113,6 @@ namespace rtap_db
     // TODO
     //
     std::cout << "RTDB_STRUCT_pimpl::Class("<<Class.code()<<", "<<Class.name()<<")"<<std::endl;
-    m_classes->push_back(Class);
-    delete &Class;
   }
 
   void RTDB_STRUCT_pimpl::
@@ -129,11 +127,8 @@ namespace rtap_db
   void Class_pimpl::
   pre ()
   {
-    // NB экземпляр удаляется в RTDB_STRUCT_pimpl::Class
-    m_impl = new Class;
-    std::cout << "\t\tClass::m_impl=" << m_impl << std::endl;
-    m_impl->m_class_code = 0;
-    current_class_instance = m_impl;
+    m_impl.m_class_code = 0;
+    current_class_instance = &m_impl;
   }
 
   void Class_pimpl::
@@ -142,7 +137,7 @@ namespace rtap_db
     // TODO
     //
     std::cout << "\tClass_pimpl::Code = "<<static_cast<unsigned int>(Code)<<std::endl;
-    m_impl->m_class_code = static_cast<unsigned int>(Code);
+    m_impl.m_class_code = static_cast<unsigned int>(Code);
   }
 
   void Class_pimpl::
@@ -151,13 +146,13 @@ namespace rtap_db
     // TODO
     //
     std::cout << "\tClass_pimpl::Name = "<<Name<<std::endl;
-    m_impl->m_class_name.assign(Name);
+    m_impl.m_class_name.assign(Name);
   }
 
   void Class_pimpl::
   Attr ()
   {
-    std::cout << "\tClass_pimpl::Attr: count = "<< m_impl->m_attributes.size()<<std::endl;
+    std::cout << "\tClass_pimpl::Attr: count = "<< m_impl.m_attributes.size()<<std::endl;
   }
 
   rtap_db::Class& Class_pimpl::
@@ -166,12 +161,14 @@ namespace rtap_db
     // TODO
     //
     std::cout << "\tClass_pimpl::post_Class("
-        << m_impl->code() << ","
-        << m_impl->name() << ","
-        << m_impl->m_attributes.size() <<")"
+        << m_impl.code() << ","
+        << m_impl.name() << ","
+        << m_impl.m_attributes.size() <<")"
     << std::endl;
 
-    return *m_impl;
+    m_classes->push_back(m_impl);
+
+    return m_impl;
   }
 
   // Code_pimpl
@@ -179,7 +176,7 @@ namespace rtap_db
   void Code_pimpl::
   pre ()
   {
-//    std::cout << "\t\tCode_pimpl::pre" << std::endl;
+    std::cout << "\t\tCode_pimpl::pre" << std::endl;
   }
 
   rtap_db::Code Code_pimpl::
@@ -200,7 +197,7 @@ namespace rtap_db
   void Attr_pimpl::
   pre ()
   {
-//    std::cout << "\t\tAttr_pimpl::pre" << std::endl;
+    std::cout << "\t\tAttr_pimpl::pre" << std::endl;
     m_class = current_class_instance;
   }
 
@@ -266,7 +263,7 @@ namespace rtap_db
   void Accessibility_pimpl::
   pre ()
   {
-//    std::cout << "\t\tAccessibility_pimpl::pre" << std::endl;
+    std::cout << "\t\tAccessibility_pimpl::pre" << std::endl;
   }
 
   rtap_db::Accessibility& Accessibility_pimpl::
