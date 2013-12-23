@@ -17,7 +17,7 @@
 
 	<rtdb:Class>
 	  <rtdb:Code>01</rtdb:Code>
-	  <rtdb:Name>TSA</rtdb:Name>
+	  <rtdb:Name>TM</rtdb:Name>
 	  <rtdb:Attr>
 		<rtdb:Kind>SCALAR</rtdb:Kind>
 		<rtdb:Accessibility>PUBLIC</rtdb:Accessibility>
@@ -35,14 +35,14 @@
 	</rtdb:Class>
 
 	<rtdb:Class>
-	  <rtdb:Code>02</rtdb:Code>
-	  <rtdb:Name>TM</rtdb:Name>
+	  <rtdb:Code>03</rtdb:Code>
+	  <rtdb:Name>TSA</rtdb:Name>
 	  <rtdb:Attr>
 		<rtdb:Kind>SCALAR</rtdb:Kind>
 		<rtdb:Accessibility>PRIVATE</rtdb:Accessibility>
 		<rtdb:DeType>rtUINT8</rtdb:DeType>
 		<rtdb:AttrName>OBJCLASS</rtdb:AttrName>
-		<rtdb:Value>2</rtdb:Value>
+		<rtdb:Value>3</rtdb:Value>
 	  </rtdb:Attr>
 	</rtdb:Class>
 

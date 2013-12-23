@@ -2,12 +2,12 @@
 #include <map>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <vector>
 #include <string>
-#include <algorithm>
+//#include <algorithm>
 #include <stdlib.h> // atoi()
 #include <string.h> // memcpy()
-#include <stdio.h>  // fopen()
 #include <time.h>   // timeval
 #include "glog/logging.h"
 
@@ -66,6 +66,7 @@ bool deleteBranch(const char* pointName)
   LOG(INFO) << "delete point "<<pointName;
 }
 
+#if 0
 rtDeType extractDeType(char* laChaine)
 {
   int j;
@@ -83,6 +84,8 @@ rtDeType extractDeType(char* laChaine)
   else 
       return(rtUNDEFINED);
 }
+
+#endif
 
 xdb::recordType xdb::getRecordType(std::string& typeEnreg)
 {
@@ -205,6 +208,8 @@ int xdb::processClassFile(const char* fpath)
   AttributeInfo_t* p_attr_info; 
   std::string line;
   std::string::size_type found;
+  std::string::size_type first;
+  std::string::size_type second;
 
   assert(fpath);
   LoadDbTypesDictionary();
@@ -261,20 +266,24 @@ int xdb::processClassFile(const char* fpath)
           {
 //            std::cout << "OK: "<<s_univname<<" : "<<s_type;
 
-            if (iss >> s_default_value)
-            {
-//              std::cout << " : "<<s_default_value<<std::endl;
-              //   iss >> std::ws;
-            }
-            else
-            {
-              // нет значения по умолчанию для этого атрибута
-              s_default_value.clear();
-            }
-            
-            if (iss.eof()) {
-//              std::cout << std::endl;
-            }
+             // Если в iss еще остались данные, и тип атрибута символьный,
+             // нужно получить все это содержимое вместе с кавычками и пробелами.
+             // NB: Приведенный здесь подход работает, если кавычки встречаются
+             // у атрибутов только в колонке значения.
+             first = line.find('\"');
+             if (first != std::string::npos)
+             {
+                second = line.rfind('\"');
+                if (second != std::string::npos)
+                {
+                  s_default_value = line.substr(first, ++second);
+                }
+                else
+                {
+                  // нет значения по умолчанию для этого атрибута
+                  s_default_value.clear();
+                }
+             }
           }
         }
 
@@ -295,7 +304,7 @@ int xdb::processClassFile(const char* fpath)
              ObjClassDescrTable[objclass].attr_info_list = new att_list_t;
 
         p_attr_info = (AttributeInfo_t*) new AttributeInfo_t;
-        p_attr_info->name.assign(s_univname.c_str());
+        p_attr_info->name.assign(s_univname);
         p_attr_info->db_type = db_type;
         // Присвоить значение атрибуту в соответствии с полученным типом
         switch(p_attr_info->db_type)
@@ -309,6 +318,8 @@ int xdb::processClassFile(const char* fpath)
                memcpy(p_attr_info->value.val_bytes.data,
                    s_default_value.c_str(),
                    p_attr_info->value.val_bytes.size);
+               p_attr_info->value.val_bytes.data[p_attr_info->value.val_bytes.size] = '\0';
+               
             }
             else p_attr_info->value.val_bytes.data = NULL;
             break;
@@ -380,7 +391,6 @@ bool xdb::processInstanceFile(const char* fpath)
   int               colvect;
   int               ligne;
   int               fieldCount;
-  int               classCounter;
   xdb::recordType   typeRecord;
   attrCategory      attrCateg;
   char*             tableStrDeType[rtMAX_FIELD_CNT];
@@ -415,7 +425,6 @@ bool xdb::processInstanceFile(const char* fpath)
       /*------------------------------------------*/
       /* reads the file and processes each record */
       /*------------------------------------------*/
-      classCounter = 0;
 
       /* research the type of the record */
       typeRecord = getRecordType(buffer);
@@ -621,6 +630,7 @@ bool xdb::processInstanceFile(const char* fpath)
   return status;
 }
 
+#if 0
 bool setInfoVector(char *buffer, formatType leFormat, attrCategory* category)
 {
    bool  status = true;
@@ -709,6 +719,7 @@ bool setInfoTable(char *buffer, formatType leFormat, attrCategory* category)
    LOG(INFO)<<categ<<" | "<<currentAttrName;
    return status;   
 }
+#endif
 
 bool xdb::translateInstance(const char* fpath)
 {
@@ -728,6 +739,7 @@ bool xdb::initFieldTable(std::string& buffer, char* tableStrDeType[], int fieldC
 }
 
 
+#if 0
 bool addClassPoint(char *buffer,
                    int classNum,
                    char* className,
@@ -791,6 +803,7 @@ void xdb::skipStr(char* laChaine)
    }
    laChaine[lg+1] = CNULL;
 }
+#endif
 
 /*
   Получить числовое представление типа данных в словаре на основе строки

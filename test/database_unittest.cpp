@@ -490,7 +490,7 @@ TEST(TestLurkerDATABASE, DESTROY)
 }
 
 using namespace xercesc;
-TEST(TestTools, INIT)
+TEST(TestTools, LOAD_XML)
 {
   rtap_db::ClassesList class_list;
   int   class_item;
@@ -560,7 +560,7 @@ TEST(TestTools, INIT)
     for (class_item=0; class_item<class_list.size(); class_item++)
     {
       std::cout << "\tCODE:  " << class_list[class_item].code() << std::endl;
-      std::cout << "\tNAME:  " << class_list[class_item].name() << std::endl;
+      std::cout << "\tNAME:  '" << class_list[class_item].name() << "'" << std::endl;
       std::cout << "\t#ATTR: " << class_list[class_item].m_attributes.size() << std::endl;
       if (class_list[class_item].m_attributes.size())
       {
@@ -576,6 +576,25 @@ TEST(TestTools, INIT)
                     << std::endl;
         }
       }
+
+      switch(class_item)
+      {
+        case GOF_D_BDR_OBJCLASS_TS:
+            EXPECT_TRUE(class_list[class_item].name().compare("TS") == 0);
+            EXPECT_EQ(class_list[class_item].m_attributes.size(), 1);
+            break;
+
+        case GOF_D_BDR_OBJCLASS_TM:
+            EXPECT_TRUE(class_list[class_item].name().compare("TM") == 0);
+            EXPECT_EQ(class_list[class_item].m_attributes.size(), 2);
+            break;
+
+        case GOF_D_BDR_OBJCLASS_TSA:
+            EXPECT_TRUE(class_list[class_item].name().compare("TSA") == 0);
+            EXPECT_EQ(class_list[class_item].m_attributes.size(), 1);
+            break;
+      }
+
       std::cout << std::endl;
     }
 
@@ -669,8 +688,16 @@ TEST(TestTools, LOAD_CLASSES)
     }
 
   }
-//  status = xdb::processInstanceFile(fpath);
-//  EXPECT_TRUE(status);
+}
+
+TEST(TestTools, LOAD_INSTANCE)
+{
+  bool status = false;
+  char fpath[255];
+
+  getcwd(fpath, 255);
+  status = xdb::processInstanceFile(fpath);
+  EXPECT_TRUE(status);
 }
 
 #if 1

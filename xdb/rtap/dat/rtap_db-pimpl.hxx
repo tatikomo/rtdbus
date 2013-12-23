@@ -100,6 +100,8 @@ namespace rtap_db
     virtual rtap_db::Class&
     post_Class ();
 
+    ~Class_pimpl();
+
     private:
     Class *m_impl;
   };

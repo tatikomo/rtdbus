@@ -5,6 +5,8 @@
 2. eXtremeDB 3.5
 3. google protobuf 2.4.1
 4. google logging 1.6.0
+5. xercesc 3.1.1
+6. CodeSynthesis XSD XML Schema to C++ compiler 3.3.0
 
 ОТЛАДКА
 --------------------------------------------------------------------------------

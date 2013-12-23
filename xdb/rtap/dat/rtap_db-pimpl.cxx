@@ -174,6 +174,13 @@ namespace rtap_db
     return *m_impl;
   }
 
+  Class_pimpl::~Class_pimpl()
+  {
+    // TODO Вызывается только один раз - проверить причины
+    std::cout << "\tClass_pimpl::~Class_pimpl()" << std::endl;
+  }
+
+
   // Code_pimpl
   //
   void Code_pimpl::
@@ -201,7 +208,6 @@ namespace rtap_db
   pre ()
   {
 //    std::cout << "\t\tAttr_pimpl::pre" << std::endl;
-    m_class = current_class_instance;
   }
 
   void Attr_pimpl::
@@ -257,7 +263,7 @@ namespace rtap_db
         << ")" << std::endl;
     */
     // Атрибут помещает себя в список своего Класса
-    m_class->m_attributes.push_back(m_impl);
+    current_class_instance->m_attributes.push_back(m_impl);
   }
 
   // Accessibility_pimpl
