@@ -1,8 +1,8 @@
+#pragma once
 #ifndef GEV_XDB_RTAP_CONST_H_
 #define GEV_XDB_RTAP_CONST_H_
-#pragma once
 
-#include <vector>
+#include <map>
 #include <string>
 #include <stdint.h>
 
@@ -200,29 +200,33 @@ typedef struct
   AttrVal_t  value;     /* значение атрибута */
 } AttributeInfo_t;
 
+typedef std::map  <const std::string, xdb::AttributeInfo_t> AttributeMap_t;
+typedef std::map  <const std::string, xdb::AttributeInfo_t>::iterator AttributeMapIterator_t;
+typedef std::pair <const std::string, xdb::AttributeInfo_t> AttributeMapPair_t;
+
 /* общие сведения по точке базы данных */
 typedef struct
 {
-  int16_t       objclass;
-  univname_t    alias;
-  std::vector   <AttributeInfo_t> attr_info_list;
-  univname_t    parent_alias;
-  univname_t    code;
-  autoid_t      id_SA;
-  autoid_t      id_unity;
+  int16_t        objclass;
+  univname_t     alias;
+  AttributeMap_t attributes;
+  univname_t     parent_alias;
+  univname_t     code;
+  autoid_t       id_SA;
+  autoid_t       id_unity;
 } PointDescription_t;
-
-typedef std::vector <AttributeInfo_t> att_list_t;
 
 /* Хранилище набора атрибутов, их типов, кода и описания для каждого objclass */
 typedef struct
 {
-  char              name[UNIVNAME_LENGTH+1];   /* название класса */
-  int8_t            code;   /* код класса */
-  att_list_t       *attr_info_list;
-} ObjClassDescr_t;
+  char              name[UNIVNAME_LENGTH+1];  // название класса
+  int8_t            code;                     // код класса
+  // NB: Используется указатель AttributeMap_t* для облегчения 
+  // статической инициализации массива
+  AttributeMap_t   *attributes_pool; // набор атрибутов с доступом по имени
+} ClassDescription_t;
 
-extern ObjClassDescr_t ObjClassDescrTable[];
+extern ClassDescription_t ClassDescriptionTable[];
 extern rtDataElemDescription rtDataElem[];
 /* Получить универсальное имя на основе его алиаса */
 extern int GetPointNameByAlias(univname_t&, univname_t&);

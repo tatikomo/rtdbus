@@ -5,7 +5,6 @@
 #include <sstream>
 #include <vector>
 #include <string>
-//#include <algorithm>
 #include <stdlib.h> // atoi()
 #include <string.h> // memcpy()
 #include <time.h>   // timeval
@@ -15,6 +14,8 @@
 #include "xdb_rtap_const.hpp"
 #include "xdb_rtap_snap_main.hpp"
 #include "xdb_rtap_snap_trans.hpp"
+
+static const char id[] = "@(#) $Id$";
 
 using namespace xdb;
 
@@ -49,6 +50,11 @@ int nbPointActivationFailed;
 int nbHist;
 int nbHistFailed;
 
+// ###############################################################
+// Заполнить структуру AttributeInfo_t по заданным DbType_t и 
+// строковому представлению значения
+bool getAttrValue(DbType_t, AttributeInfo_t*, const std::string&);
+// ###############################################################
 
 // Создать точку c заданным именем и без атрибутов, подключив её к ROOT
 //
@@ -205,7 +211,7 @@ int xdb::processClassFile(const char* fpath)
   std::string s_type;
   std::string s_default_value;
   DbType_t    db_type;
-  AttributeInfo_t* p_attr_info; 
+  AttributeInfo_t *p_attr_info; 
   std::string line;
   std::string::size_type found;
   std::string::size_type first;
@@ -216,14 +222,14 @@ int xdb::processClassFile(const char* fpath)
 
   for (objclass=0; objclass <= GOF_D_BDR_OBJCLASS_LASTUSED; objclass++)
   {
-    ObjClassDescrTable[objclass].attr_info_list = NULL;
-    if (!strncmp(ObjClassDescrTable[objclass].name, D_MISSING_OBJCODE, UNIVNAME_LENGTH))
+    ClassDescriptionTable[objclass].attributes_pool = NULL;
+    if (!strncmp(ClassDescriptionTable[objclass].name, D_MISSING_OBJCODE, UNIVNAME_LENGTH))
       continue;
 
     sprintf(fname, "%s/%02d_%s.dat",
             fpath,
-            ObjClassDescrTable[objclass].code,
-            ObjClassDescrTable[objclass].name);
+            ClassDescriptionTable[objclass].code,
+            ClassDescriptionTable[objclass].name);
 
     std::ifstream ifs(fname);
 
@@ -285,6 +291,10 @@ int xdb::processClassFile(const char* fpath)
                 }
              }
           }
+          else
+          {
+            LOG(ERROR) << "Error parsing '" << line << "', should be 4 fields" << std::endl;
+          }
         }
 
         /* type может быть: строковое, с плав. точкой, целое */
@@ -300,51 +310,16 @@ int xdb::processClassFile(const char* fpath)
           подлежащих чтению из instances_total.dat, и их родовые типы
           (целое, дробное, строка, ...)
         */
-        if (!ObjClassDescrTable[objclass].attr_info_list)
-             ObjClassDescrTable[objclass].attr_info_list = new att_list_t;
+        if (!ClassDescriptionTable[objclass].attributes_pool)
+             ClassDescriptionTable[objclass].attributes_pool = new AttributeMap_t;
 
-        p_attr_info = (AttributeInfo_t*) new AttributeInfo_t;
+        p_attr_info = new AttributeInfo_t;
         p_attr_info->name.assign(s_univname);
-        p_attr_info->db_type = db_type;
         // Присвоить значение атрибуту в соответствии с полученным типом
-        switch(p_attr_info->db_type)
-        {
-          case xdb::DB_TYPE_BYTES:
-            p_attr_info->value.val_bytes.size = s_default_value.size();
-            // для пустого значения
-            if (p_attr_info->value.val_bytes.size)
-            {
-               p_attr_info->value.val_bytes.data = new char[p_attr_info->value.val_bytes.size + 1];
-               memcpy(p_attr_info->value.val_bytes.data,
-                   s_default_value.c_str(),
-                   p_attr_info->value.val_bytes.size);
-               p_attr_info->value.val_bytes.data[p_attr_info->value.val_bytes.size] = '\0';
-               
-            }
-            else p_attr_info->value.val_bytes.data = NULL;
-            break;
+        getAttrValue(db_type, p_attr_info, s_default_value);
 
-          case xdb::DB_TYPE_INTEGER8:
-                  p_attr_info->value.val_int8 = atoi(s_default_value.c_str());
-                  break;
-          case xdb::DB_TYPE_INTEGER16:
-                  p_attr_info->value.val_int16 = atoi(s_default_value.c_str());
-                  break;
-          case xdb::DB_TYPE_INTEGER32:
-                  p_attr_info->value.val_int32 = atoi(s_default_value.c_str());
-                  break;
-          case xdb::DB_TYPE_INTEGER64:
-                  p_attr_info->value.val_int64 = atoi(s_default_value.c_str());
-                  break;
-          case xdb::DB_TYPE_FLOAT:
-                  p_attr_info->value.val_float = atof(s_default_value.c_str());
-                  break;
-          case xdb::DB_TYPE_DOUBLE:
-                  p_attr_info->value.val_double = atof(s_default_value.c_str());
-                  break;
-        }
-
-        ObjClassDescrTable[objclass].attr_info_list->push_back(*p_attr_info);
+        // Поместить новый атрибут в список атрибутов класса
+        ClassDescriptionTable[objclass].attributes_pool->insert(AttributeMapPair_t(s_univname,  *p_attr_info));
         delete p_attr_info;
       }
 
@@ -361,11 +336,183 @@ int xdb::processClassFile(const char* fpath)
   return loadedClasses;
 }
 
+bool getAttrValue(DbType_t db_type, AttributeInfo_t* p_attr_info, const std::string& given_value)
+{
+    bool status = true;
+
+    assert(p_attr_info);
+
+    p_attr_info->db_type = db_type;
+    switch(db_type)
+    {
+      case xdb::DB_TYPE_BYTES:
+        p_attr_info->value.val_bytes.size = given_value.size();
+        // для пустого значения
+        if (p_attr_info->value.val_bytes.size)
+        {
+           p_attr_info->value.val_bytes.data = new char[p_attr_info->value.val_bytes.size + 1];
+           memcpy(p_attr_info->value.val_bytes.data,
+               given_value.c_str(),
+               p_attr_info->value.val_bytes.size);
+           p_attr_info->value.val_bytes.data[p_attr_info->value.val_bytes.size] = '\0';
+        }
+        else p_attr_info->value.val_bytes.data = NULL;
+        break;
+
+      case xdb::DB_TYPE_INTEGER8:
+              p_attr_info->value.val_int8 = atoi(given_value.c_str());
+              break;
+      case xdb::DB_TYPE_INTEGER16:
+              p_attr_info->value.val_int16 = atoi(given_value.c_str());
+              break;
+      case xdb::DB_TYPE_INTEGER32:
+              p_attr_info->value.val_int32 = atoi(given_value.c_str());
+              break;
+      case xdb::DB_TYPE_INTEGER64:
+              p_attr_info->value.val_int64 = atoi(given_value.c_str());
+              break;
+      case xdb::DB_TYPE_FLOAT:
+              p_attr_info->value.val_float = atof(given_value.c_str());
+              break;
+      case xdb::DB_TYPE_DOUBLE:
+              p_attr_info->value.val_double = atof(given_value.c_str());
+              break;
+
+      default:
+        status = false;
+    }
+
+    return status;
+}
+
+std::string getValueAsString(AttributeInfo_t& attr_info)
+{
+  std::string s_val;
+  std::stringstream ss;
+
+  switch(attr_info.db_type)
+  {
+      case xdb::DB_TYPE_BYTES:
+        s_val.assign(attr_info.value.val_bytes.data, attr_info.value.val_bytes.size);
+        break;
+      case xdb::DB_TYPE_INTEGER8:
+        ss << attr_info.value.val_int8;
+        s_val.assign(ss.str());
+        break;
+      case xdb::DB_TYPE_INTEGER16:
+        ss << attr_info.value.val_int16;
+        s_val.assign(ss.str());
+        break;
+      case xdb::DB_TYPE_INTEGER32:
+        ss << attr_info.value.val_int32;
+        s_val.assign(ss.str());
+        break;
+      case xdb::DB_TYPE_INTEGER64:
+        ss << attr_info.value.val_int64;
+        s_val.assign(ss.str());
+        break;
+      case xdb::DB_TYPE_FLOAT:
+        ss << attr_info.value.val_float;
+        s_val.assign(ss.str());
+        break;
+      case xdb::DB_TYPE_DOUBLE:
+        ss << attr_info.value.val_double;
+        s_val.assign(ss.str());
+        break;
+
+      default:
+        s_val.assign("<unknown>");
+  }
+
+  return s_val;
+}
+
+// Сброс законченного набора атрибутов точки в XML-файл
+bool xdb::dump(const std::string& instanceAlias,
+    int class_idx,
+    const std::string& pointName,
+    const std::string& aliasFather,
+    AttributeMap_t& attributes_given)
+{
+    bool status = true;
+    // Получить доступ к Атрибутам из шаблонных файлов Классов
+    AttributeMap_t *attributes_template;
+    AttributeMapIterator_t it_given;
+    std::string univname;
+
+    if (class_idx == GOF_D_BDR_OBJCLASS_UNUSED)
+    {
+      LOG(ERROR) << "Processing unsupported class for point " << pointName;
+      return false;
+    }
+
+//  std::cout << "DUMP " << instanceAlias
+//    << " with " << attributes.size() << " attribute(s)" << std::endl;
+
+    if (NULL != (attributes_template = xdb::ClassDescriptionTable[class_idx].attributes_pool))
+    {
+        std::cout << "#" << class_idx << " : " 
+            << xdb::ClassDescriptionTable[class_idx].code
+            << " " << xdb::ClassDescriptionTable[class_idx].name 
+            << "(" << attributes_template->size() << ")" << std::endl;
+
+        // Найти тег БДРВ (атрибут ".UNIVNAME")
+        it_given = attributes_given.find("UNIVNAME");
+        if (it_given != attributes_given.end())
+        {
+          univname.assign(it_given->second.value.val_bytes.data,
+                          it_given->second.value.val_bytes.size);
+        }
+        else
+        {
+          LOG(ERROR) << "RTDB tag 'UNIVNAME' not found for point " << instanceAlias;
+        }
+
+        for (xdb::AttributeMapIterator_t it=attributes_template->begin();
+             it!=attributes_template->end();
+             ++it)
+        {
+          it_given = attributes_given.find(it->first);
+
+          // Если Атрибут из шаблона найден во входном перечне Атрибутов, то
+          //    (1) Значения по умолчанию следует брать из входного перечня
+          // Иначе 
+          //    (2) Значения по умолчанию брать из шаблона
+          if (it_given != attributes_given.end())
+          {
+             // Этот Атрибут есть во входном перечне -> (1)
+             std::cout << "\t"
+                << "/" << univname << "." << it->second.name 
+                << ": "
+                << it->second.db_type << ": "
+                << getValueAsString(it_given->second)
+                << ": " << std::endl;
+          }
+          else
+          {
+             // Этот Атрибут есть только в шаблоне Атрибутов -> (2)
+             std::cout << "\t"
+                << "/" << univname << "." << it->second.name 
+                << it->second.db_type << ": "
+                << getValueAsString(it->second)
+                << ": " << std::endl;
+          }
+        }
+    }
+    else
+    {
+        status = false;
+    }
+
+    attributes_given.clear();
+    return status;
+}
+
 //
 // Прочитать сгенерированный файл с содержимым БДРВ
 // Часть атрибутов и/или значений по-умолчанию может 
 // отсутствовать, в этом случае нужно брать их из 
-// структуры ObjClassDescrTable[]
+// структуры ClassDescriptionTable[]
 //
 bool xdb::processInstanceFile(const char* fpath)
 {
@@ -373,6 +520,13 @@ bool xdb::processInstanceFile(const char* fpath)
   std::string buffer;
   std::string type;
   std::string value;
+  // Хранение Атрибутов точки до момента их сброса на диск
+  AttributeMap_t attributes;
+  // Буфер для хранения состояния прочитанного Атрибута
+  AttributeInfo_t attr_info; 
+  // Сконвертированный из строки тип Атрибута
+  DbType_t    db_type;
+  int         class_idx;
   // NB: значения могут быть строковыми, и содержать пробелы
   // В таком случае необходимо читать до конца кавычек.
   // Или до конца строки, поскольку поле "Значение" является
@@ -446,7 +600,7 @@ bool xdb::processInstanceFile(const char* fpath)
             if (indiceTab)
             {
                // writes all the data of the previous class
-              LOG(INFO) << "DUMP " << instanceAlias;
+              dump(instanceAlias, class_idx, pointName, aliasFather, attributes);
 //              LOG(INFO) << "I_TYPE Table";
             }
 
@@ -466,6 +620,45 @@ bool xdb::processInstanceFile(const char* fpath)
                 iss >> className;
               }
 
+              if (std::string::npos != className.find("Class"))
+              {
+                // Получить числовой идентификатор Класса из строки className вида Class[0-9][0-9]
+                class_idx = atoi(className.substr(5,2).c_str());
+              }
+              else
+              {
+                // Помимо названий вида ClassXX, допускаются:
+                // [87] config
+                // [75] FIXEDPOINT
+                // [??] HISH_SITE
+                // [??] HIST
+                // [53 или 83] HIST_SET
+                // [81] HIST_TABLE_H
+                // [82] HIST_TABLE_J
+                // [83] HIST_TABLE_M
+                // [84] HIST_TABLE_QH
+                //
+                if (!className.compare("FIXEDPOINT"))
+                  class_idx = GOF_D_BDR_OBJCLASS_FIXEDPOINT;
+                else if (!className.compare("HIST_SET"))
+                  class_idx = GOF_D_BDR_OBJCLASS_HIST_SET;
+                else if (!className.compare("HIST_TABLE_H"))
+                  class_idx = GOF_D_BDR_OBJCLASS_HIST_TABLE_H;
+                else if (!className.compare("HIST_TABLE_J"))
+                  class_idx = GOF_D_BDR_OBJCLASS_HIST_TABLE_J;
+                else if (!className.compare("HIST_TABLE_M"))
+                  class_idx = GOF_D_BDR_OBJCLASS_HIST_TABLE_M;
+                else if (!className.compare("HIST_TABLE_QH"))
+                  class_idx = GOF_D_BDR_OBJCLASS_HIST_TABLE_QH;
+                else if (!className.compare("config"))
+                  class_idx = GOF_D_BDR_OBJCLASS_CONFIG;
+                else
+                {
+                  LOG(ERROR) << "Unknown class code: " << className;
+                  class_idx = GOF_D_BDR_OBJCLASS_UNUSED;
+                }
+              }
+
               if (iss >> pointName >> aliasFather)
               {
                 indiceTab++;
@@ -481,34 +674,61 @@ bool xdb::processInstanceFile(const char* fpath)
          /* SCALAR */
          /*--------*/
          case S_TYPE :
-           /* adds the scalar in the class --> init currentAttrName, currentDeType */
+           // adds the scalar in the class --> init currentAttrName, currentDeType
            // Получить в глобальных переменных currentAttrName и currentDeType 
            // значения "Название атрибута" и "Тип данных" соответственно.
            // NB: По умолчанию в файле инстанса для всех атрибутов доступ PUBLIC
            //
            if (iss >> type >> currentAttrName >> type)
            {
-             // Если в iss еще остались данные, и тип атрибута символьный,
-             // нужно получить все это содержимое вместе с кавычками и пробелами.
-             // NB: Приведенный здесь подход работает, если кавычки встречаются
-             // у атрибутов только в колонке значения.
-             first = buffer.find('\"');
-             if (first != std::string::npos)
+             // type может быть: строковое, с плав. точкой, целое
+             if (GetDbTypeFromString(type, db_type))
              {
-                second = buffer.rfind('\"');
-                if (second != std::string::npos)
-                {
-                    value = buffer.substr(first, ++second);
-                }
+               attr_info.name.assign(currentAttrName); // имя атрибута
+
+               // Если в iss еще остались данные, и тип атрибута символьный,
+               // нужно получить все это содержимое вместе с кавычками и пробелами.
+               // NB: Приведенный здесь подход работает, если кавычки встречаются
+               // у атрибутов только в колонке значения.
+               first = buffer.find('\"');
+               if (first != std::string::npos)
+               {
+                  second = buffer.rfind('\"');
+                  if (second != std::string::npos)
+                  {
+                      value = buffer.substr(first, ++second);
+                  }
+               }
+               
+               // Присвоить значение атрибуту в соответствии с полученным типом
+               if (getAttrValue(db_type, &attr_info, value))
+               {
+                 LOG(INFO) << instanceAlias << "." << currentAttrName << " := " << getValueAsString(attr_info);
+               }
+               else
+               {
+                 LOG(ERROR) << "Unable process type info '" << type << "' for " << currentAttrName;
+               }
+
+
+               attributes.insert(AttributeMapPair_t(currentAttrName, attr_info));
+               if (db_type == DB_TYPE_BYTES && attr_info.value.val_bytes.size)
+                 delete[] attr_info.value.val_bytes.data;
+             }
+             else
+             {
+                /* ошибка определения типа атрибута */
+                LOG(ERROR)<<"Given attribute type '"<<type
+                          <<"' is unknown for attribute '"<<currentAttrName<<"'";
              }
 
            /* sets the data structure with the new value of the scalar */
            //status = initNewScalarValue(instanceAlias, value);
-             LOG (INFO) << " Разбирается "<< instanceAlias << "." << currentAttrName << " : " << type << " : " << value;
+//             LOG (INFO) << " Разбирается "<< instanceAlias << "." << currentAttrName << " : " << type << " : " << value;
            }
            else
            {
-             LOG(ERROR) << "Ошибка разбора " << instanceAlias << "." << currentAttrName;
+             LOG(ERROR) << "Error parsing " << instanceAlias << "." << currentAttrName;
            }
 
          break;
@@ -564,7 +784,7 @@ bool xdb::processInstanceFile(const char* fpath)
          case DF_TYPE :
            // ligne = buffer[со 2 по 7 позицию]
            std::istringstream(buffer.substr(2, 7)) >> ligne;
-           LOG(INFO) << "ligne="<<ligne;
+//           LOG(INFO) << "ligne="<<ligne;
          break;
 
          /*------------*/
@@ -572,7 +792,7 @@ bool xdb::processInstanceFile(const char* fpath)
          /*------------*/
          case LF_TYPE :
            std::istringstream(buffer.substr(2, 7)) >> ligne;
-           LOG(INFO) << "ligne="<<ligne;
+//           LOG(INFO) << "ligne="<<ligne;
          break;
 
          /*------------*/
@@ -580,7 +800,7 @@ bool xdb::processInstanceFile(const char* fpath)
          /*------------*/
          case CF_TYPE :
            std::istringstream(buffer.substr(2, 7)) >> colonne;
-           LOG(INFO) << "ligne="<<colonne;
+//           LOG(INFO) << "ligne="<<colonne;
          break;
 
          /*------------*/
@@ -609,7 +829,7 @@ bool xdb::processInstanceFile(const char* fpath)
            break;
 
          default:
-           LOG (INFO) << "default";
+//           LOG (INFO) << "default";
            status = false;
       }
     }
@@ -626,6 +846,7 @@ bool xdb::processInstanceFile(const char* fpath)
   if (indiceTab != 0)
   {
     LOG(INFO) << "Add " << indiceTab << " value(s)";
+    status = true; // TODO Что делать с ранее полученным статусом false?
   }
   return status;
 }
@@ -734,7 +955,7 @@ bool xdb::translateInstance(const char* fpath)
 bool xdb::initFieldTable(std::string& buffer, char* tableStrDeType[], int fieldCount)
 {
   bool status = true;
-  LOG(INFO) << "initFieldTable";
+//  LOG(INFO) << "initFieldTable";
   return status;
 }
 

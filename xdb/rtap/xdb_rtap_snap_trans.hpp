@@ -1,6 +1,6 @@
+#pragma once
 #if !defined XDB_RTAP_SNAP_TRANS_H_
 #define XDB_RTAP_SNAP_TRANS_H_
-#pragma once
 
 #include "config.h"
 #include "xdb_rtap_const.hpp"
@@ -158,13 +158,19 @@ bool copyPoint(char*, char*);
 
 xdb::recordType getRecordType(std::string&);
 
-void skipStr(char* laChaine);
+//void skipStr(char* laChaine);
 
-bool extractRow(char*, int*);
+//bool extractRow(char*, int*);
 
 int processClassFile(const char*);
 
 bool processInstanceFile(const char*);
+
+bool dump(const std::string& instanceAlias,
+    int,
+    const std::string& pointName,
+    const std::string& aliasFather,
+    AttributeMap_t& attributes);
 
 bool addClassPoint(char *buffer,
                    int classNum,

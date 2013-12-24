@@ -1,8 +1,9 @@
+#pragma once
 #if !defined XDB_RTAP_POINT_H_
 #define XDB_RTAP_POINT_H_
-#pragma once
 
 #include <string>
+#include <vector>
 
 #include "config.h"
 #include "xdb_rtap_const.hpp"

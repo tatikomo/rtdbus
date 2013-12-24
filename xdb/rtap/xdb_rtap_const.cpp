@@ -45,8 +45,8 @@ rtDataElemDescription xdb::rtDataElem[] =
 };
 
 
-ObjClassDescr_t xdb::ObjClassDescrTable[] = {
-    {"TS",      0, 0},          /* Телесигнализация */
+ClassDescription_t xdb::ClassDescriptionTable[] = {
+    {"TS",      GOF_D_BDR_OBJCLASS_TS, 0},          /* Телесигнализация */
     {"TM",      1, 0},          /* Телеизмерение */
     {"TR",      2, 0},          /* Телерегулировка */
     {"TSA",     3, 0},

@@ -21,6 +21,8 @@
 #include "xdb_rtap_connection.hpp"
 #include "xdb_rtap_snap_trans.hpp"
 
+static const char rcs_id[] = "$Id$";
+
 const char *service_name_1 = "service_test_1";
 const char *service_name_2 = "service_test_2";
 const char *unbelievable_service_name = "unbelievable_service";
@@ -621,7 +623,7 @@ TEST(TestTools, LOAD_CLASSES)
   char fpath[255];
   char msg_info[255];
   char msg_val[255];
-  xdb::att_list_t *list;
+  xdb::AttributeMap_t *pool;
 
   getcwd(fpath, 255);
   loaded = xdb::processClassFile(fpath);
@@ -629,51 +631,52 @@ TEST(TestTools, LOAD_CLASSES)
 
   for (objclass_idx=0; objclass_idx <= GOF_D_BDR_OBJCLASS_LASTUSED; objclass_idx++)
   {
-    list = xdb::ObjClassDescrTable[objclass_idx].attr_info_list;
-    if (!strncmp(xdb::ObjClassDescrTable[objclass_idx].name, D_MISSING_OBJCODE, UNIVNAME_LENGTH))
+    pool = xdb::ClassDescriptionTable[objclass_idx].attributes_pool;
+    if (!strncmp(xdb::ClassDescriptionTable[objclass_idx].name, D_MISSING_OBJCODE, UNIVNAME_LENGTH))
       continue;
 
-    if (list)
+    if (pool)
     {
         std::cout << "#" << objclass_idx << " : " 
-            << xdb::ObjClassDescrTable[objclass_idx].code
-            << " " << xdb::ObjClassDescrTable[objclass_idx].name 
-            << "(" << list->size() << ")" << std::endl;
-        for (attrib_idx=0; attrib_idx<list->size(); attrib_idx++)
+            << xdb::ClassDescriptionTable[objclass_idx].code
+            << " " << xdb::ClassDescriptionTable[objclass_idx].name 
+            << "(" << pool->size() << ")" << std::endl;
+
+        for (xdb::AttributeMapIterator_t it=pool->begin(); it!=pool->end(); ++it)
         {
             sprintf(msg_info, "\"%s\" : %02d", 
-                list->at(attrib_idx).name.c_str(), list->at(attrib_idx).db_type);
+                it->second.name.c_str(), it->second.db_type);
 
-            switch(list->at(attrib_idx).db_type)
+            switch(it->second.db_type)
             {
               case xdb::DB_TYPE_INTEGER8:
-                  sprintf(msg_val, "%02X", list->at(attrib_idx).value.val_int8);
+                  sprintf(msg_val, "%02X", it->second.value.val_int8);
                   break;
 
               case xdb::DB_TYPE_INTEGER16:
-                  sprintf(msg_val, "%04X", list->at(attrib_idx).value.val_int16);
+                  sprintf(msg_val, "%04X", it->second.value.val_int16);
                   break;
 
               case xdb::DB_TYPE_INTEGER32:
-                  sprintf(msg_val, "%08X", list->at(attrib_idx).value.val_int32);
+                  sprintf(msg_val, "%08X", it->second.value.val_int32);
                   break;
 
               case xdb::DB_TYPE_INTEGER64:
-                  sprintf(msg_val, "%16X", list->at(attrib_idx).value.val_int64);
+                  sprintf(msg_val, "%16X", it->second.value.val_int64);
                   break;
 
               case xdb::DB_TYPE_FLOAT:
-                  sprintf(msg_val, "%f", list->at(attrib_idx).value.val_float);
+                  sprintf(msg_val, "%f", it->second.value.val_float);
                   break;
 
               case xdb::DB_TYPE_DOUBLE:
-                  sprintf(msg_val, "%g", list->at(attrib_idx).value.val_double);
+                  sprintf(msg_val, "%g", it->second.value.val_double);
                   break;
 
               case xdb::DB_TYPE_BYTES:
                   sprintf(msg_val, "[%02X] \"%s\"", 
-                    list->at(attrib_idx).value.val_bytes.size,
-                    list->at(attrib_idx).value.val_bytes.data);
+                    it->second.value.val_bytes.size,
+                    it->second.value.val_bytes.data);
                   break;
 
               case xdb::DB_TYPE_UNDEF:
@@ -681,7 +684,7 @@ TEST(TestTools, LOAD_CLASSES)
                   break;
 
               default:
-                  LOG(ERROR) << ": <error>=" << list->at(attrib_idx).db_type;
+                  LOG(ERROR) << ": <error>=" << it->second.db_type;
             }
             std::cout << msg_info << " | " << msg_val << std::endl;
         }
@@ -706,21 +709,21 @@ TEST(TestTools, LOAD_INSTANCE)
 // память выделяется только один раз.
 TEST(TestTools, FREE_RESOURCES)
 {
-  xdb::att_list_t* p_attr_list;
-  xdb::AttributeInfo_t* p_attr_info;
+  xdb::AttributeMap_t  *p_attr_pool;
+  xdb::AttributeInfo_t *p_attr_info;
   int objclass_idx;
   int attribute_idx;
 
   for (objclass_idx=0; objclass_idx <= GOF_D_BDR_OBJCLASS_LASTUSED; objclass_idx++)
   {
-    p_attr_list = xdb::ObjClassDescrTable[objclass_idx].attr_info_list;
+    p_attr_pool = xdb::ClassDescriptionTable[objclass_idx].attributes_pool;
 
-    if (!p_attr_list)
+    if (!p_attr_pool)
       continue;
 
-    for (attribute_idx=0; attribute_idx<p_attr_list->size(); attribute_idx++)
+    for (attribute_idx=0; attribute_idx<p_attr_pool->size(); attribute_idx++)
     {
-      if (NULL == (p_attr_info = &p_attr_list->at(attribute_idx)))
+      if (NULL == (p_attr_info = &p_attr_pool->at(attribute_idx)))
         continue;
 
       switch(p_attr_info->db_type)
@@ -733,9 +736,9 @@ TEST(TestTools, FREE_RESOURCES)
           break;
       }
 //      NB: p_attr_info удаляется в processClassFile()
-//      сразу после помещения в attr_info_list;
+//      сразу после помещения в attributes_pool;
     }
-    delete p_attr_list;
+    delete p_attr_pool;
   }
 }
 #endif
