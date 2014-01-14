@@ -1,0 +1,32 @@
+C 11070SV                 Class23            RAM Natural     Optimized
+S CODE               PUB        rtBYTES8       
+S UNIVNAME           PUB        rtBYTES32           
+S OBJCLASS           PUB        rtUINT8        23   
+S LABEL              PUB        rtBYTES80       
+S SHORTLABEL         PUB        rtBYTES16           
+#S LOCALFLAG          PUB        rtLOGICAL      0    
+#S STATUS             PUB        rtLOGICAL      0    
+#S L_EQTTYP           PUB        rtBYTES32      
+#S INHIB              PUB        rtLOGICAL      0    
+#S INHIBLOCAL         PUB        rtLOGICAL      0    
+#S ALINHIB            PUB        rtLOGICAL      0    
+#S CONFREMOTECMD      PUB        rtLOGICAL      0    
+#S LISTIMAG_REALCNT   PUB        rtUINT16       0    
+#S LISTIMAG_LASTINDEX PUB        rtUINT16       0    
+#S LISTIMAG_FIRSTFREE PUB        rtUINT16       0    
+#V LISTIMAG_KEYS      PUB        rtUINT16       32   
+#T T_LISTIMAG         PUB        0003200004
+#F key                rtUINT16
+#F label              rtBYTES32
+#F type               rtUINT16
+#F name               rtBYTES16
+#S EQV_REALCNT        PUB        rtUINT16       0    
+#S EQV_LASTINDEX      PUB        rtUINT16       0    
+#S EQV_FIRSTFREE      PUB        rtUINT16       0    
+#V EQV_KEYS           PUB        rtUINT16       20    
+#T T_EQV              PUB        0002000005
+#F key                rtUINT16
+#F date               rtABS_TIME
+#F value              rtUINT16
+#F valid              rtUINT16
+#F dispatcher         rtBYTES20

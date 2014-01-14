@@ -106,6 +106,8 @@ namespace xdb
 #define DETYPE_SIZE         15
 #define VALUE_SIZE         255
 #define CE_DEF_SIZE       2000
+// Начальная позиция поля значения в файле instances
+#define VALUE_POSITION      36
 
 /*-------------------------------------------------*/
 /* type of formats (class file or instance file)   */
