@@ -638,8 +638,7 @@ TEST(TestTools, LOAD_CLASSES)
     if (pool)
     {
         std::cout << "#" << objclass_idx << " : " 
-            << xdb::ClassDescriptionTable[objclass_idx].code
-            << " " << xdb::ClassDescriptionTable[objclass_idx].name 
+            << xdb::ClassDescriptionTable[objclass_idx].name 
             << "(" << pool->size() << ")" << std::endl;
 
         for (xdb::AttributeMapIterator_t it=pool->begin(); it!=pool->end(); ++it)

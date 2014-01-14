@@ -124,6 +124,8 @@ typedef enum
   DB_TYPE_LAST      = 8 // fake type, used for limit array types
 } DbType_t;
 
+
+// NB: формат хранения строк UTF-8
 typedef struct
 {
   uint16_t size;

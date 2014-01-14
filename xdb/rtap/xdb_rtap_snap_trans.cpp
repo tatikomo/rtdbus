@@ -7,7 +7,6 @@
 #include <string>
 #include <stdlib.h> // atoi()
 #include <string.h> // memcpy()
-#include <time.h>   // timeval
 #include "glog/logging.h"
 
 #include "config.h"
@@ -276,18 +275,17 @@ int xdb::processClassFile(const char* fpath)
              // нужно получить все это содержимое вместе с кавычками и пробелами.
              // NB: Приведенный здесь подход работает, если кавычки встречаются
              // у атрибутов только в колонке значения.
+             s_default_value.clear();
              first = line.find('\"');
              if (first != std::string::npos)
              {
                 second = line.rfind('\"');
                 if (second != std::string::npos)
                 {
-                  s_default_value = line.substr(first, ++second);
-                }
-                else
-                {
-                  // нет значения по умолчанию для этого атрибута
-                  s_default_value.clear();
+                    if (first < second)
+                    {
+                      s_default_value = line.substr(first+1, (second-first-1));
+                    }
                 }
              }
           }
@@ -336,7 +334,12 @@ int xdb::processClassFile(const char* fpath)
   return loadedClasses;
 }
 
-bool getAttrValue(DbType_t db_type, AttributeInfo_t* p_attr_info, const std::string& given_value)
+// 
+bool getAttrValue(DbType_t db_type,
+    // OUTPUT
+    AttributeInfo_t* p_attr_info,
+    // INPUT
+    const std::string& given_value)
 {
     bool status = true;
 
@@ -352,8 +355,9 @@ bool getAttrValue(DbType_t db_type, AttributeInfo_t* p_attr_info, const std::str
         {
            p_attr_info->value.val_bytes.data = new char[p_attr_info->value.val_bytes.size + 1];
            memcpy(p_attr_info->value.val_bytes.data,
-               given_value.c_str(),
-               p_attr_info->value.val_bytes.size);
+               given_value.data(),
+               given_value.length());
+//               p_attr_info->value.val_bytes.size);
            p_attr_info->value.val_bytes.data[p_attr_info->value.val_bytes.size] = '\0';
         }
         else p_attr_info->value.val_bytes.data = NULL;
@@ -451,10 +455,9 @@ bool xdb::dump(const std::string& instanceAlias,
 
     if (NULL != (attributes_template = xdb::ClassDescriptionTable[class_idx].attributes_pool))
     {
-        std::cout << "#" << class_idx << " : " 
-            << xdb::ClassDescriptionTable[class_idx].code
-            << " " << xdb::ClassDescriptionTable[class_idx].name 
-            << "(" << attributes_template->size() << ")" << std::endl;
+        std::cout << "<rtdb:Class>" << std::endl
+                  << "  <rtdb:Code>"<< (int)class_idx <<"/<rtdb:Code>" << std::endl
+                  << "  <rtdb:Name>"<< xdb::ClassDescriptionTable[class_idx].name <<"</rtdb:Name>" << std::endl;
 
         // Найти тег БДРВ (атрибут ".UNIVNAME")
         it_given = attributes_given.find("UNIVNAME");
@@ -478,24 +481,31 @@ bool xdb::dump(const std::string& instanceAlias,
           //    (1) Значения по умолчанию следует брать из входного перечня
           // Иначе 
           //    (2) Значения по умолчанию брать из шаблона
+          //
+          //    TODO: Объединить код сохдания XML для шаблонных и заданных значений
           if (it_given != attributes_given.end())
           {
              // Этот Атрибут есть во входном перечне -> (1)
-             std::cout << "\t"
-                << "/" << univname << "." << it->second.name 
-                << ": "
-                << it->second.db_type << ": "
-                << getValueAsString(it_given->second)
-                << ": " << std::endl;
+             std::cout
+                << "  <rtdb:Attr>" << std::endl
+                << "    <rtdb:Kind>SCALAR</rtdb:Kind>" << std::endl
+        		<< "    <rtdb:Accessibility>PUBLIC</rtdb:Accessibility>" << std::endl
+        		<< "    <rtdb:DeType>" << it->second.db_type << "</rtdb:DeType>" << std::endl
+        		<< "    <rtdb:AttrName>" << it->second.name << "</rtdb:AttrName>" << std::endl
+        		<< "    <rtdb:Value>" << getValueAsString(it_given->second) << "</rtdb:Value>" << std::endl
+                << "  </rtdb:Attr>"<< std::endl;
           }
           else
           {
              // Этот Атрибут есть только в шаблоне Атрибутов -> (2)
-             std::cout << "\t"
-                << "/" << univname << "." << it->second.name 
-                << it->second.db_type << ": "
-                << getValueAsString(it->second)
-                << ": " << std::endl;
+             std::cout
+                << "  <rtdb:Attr>" << std::endl
+                << "    <rtdb:Kind>SCALAR</rtdb:Kind>" << std::endl
+        		<< "    <rtdb:Accessibility>PUBLIC</rtdb:Accessibility>" << std::endl
+        		<< "    <rtdb:DeType>" << it->second.db_type << "</rtdb:DeType>" << std::endl
+        		<< "    <rtdb:AttrName>" << it->second.name << "</rtdb:AttrName>" << std::endl
+        		<< "    <rtdb:Value>" << getValueAsString(it->second) << "</rtdb:Value>" << std::endl
+                << "  </rtdb:Attr>"<< std::endl;
           }
         }
     }
@@ -504,6 +514,7 @@ bool xdb::dump(const std::string& instanceAlias,
         status = false;
     }
 
+    std::cout << "/<rtdb:Class>" << std::endl;
     attributes_given.clear();
     return status;
 }
@@ -611,7 +622,7 @@ bool xdb::processInstanceFile(const char* fpath)
             {
               if (NAME_LENGTH < instanceAlias.size()-1)
               {
-                LOG(INFO) << "#" << instanceAlias;
+//                LOG(INFO) << "#" << instanceAlias;
 
                 className = instanceAlias.substr(NAME_LENGTH, strlen("ClassXX"));
                 instanceAlias.resize(NAME_LENGTH);
@@ -696,7 +707,19 @@ bool xdb::processInstanceFile(const char* fpath)
                   second = buffer.rfind('\"');
                   if (second != std::string::npos)
                   {
-                      value = buffer.substr(first, ++second);
+                    if (first < second)
+                    {
+                      // Взять все содержимое, кроме крайних кавычек
+                      value = buffer.substr(first+1, (second-first-1));
+                    }
+                  }
+               }
+               else // Строковое поле, но кавычек нет - так бывает (например, у UNIVNAME)
+               {
+                  if (VALUE_POSITION < buffer.size())
+                  {
+                    // В этом случае берем весь остаток строки
+                    value = buffer.substr(VALUE_POSITION);
                   }
                }
                
@@ -712,8 +735,8 @@ bool xdb::processInstanceFile(const char* fpath)
 
 
                attributes.insert(AttributeMapPair_t(currentAttrName, attr_info));
-               if (db_type == DB_TYPE_BYTES && attr_info.value.val_bytes.size)
-                 delete[] attr_info.value.val_bytes.data;
+//               if (db_type == DB_TYPE_BYTES && attr_info.value.val_bytes.size)
+//+++                 delete[] attr_info.value.val_bytes.data;
              }
              else
              {
