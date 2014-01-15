@@ -61,6 +61,7 @@ bool initBranch(const char* pointName)
 {
   assert(pointName);
   LOG(INFO) << "creates point root/"<<pointName;
+  return true;
 }
 
 // Удалить точку c заданным именем
@@ -69,6 +70,7 @@ bool deleteBranch(const char* pointName)
 {
   assert(pointName);
   LOG(INFO) << "delete point "<<pointName;
+  return true;
 }
 
 #if 0
@@ -200,7 +202,6 @@ void LoadDbTypesDictionary()
  */
 int xdb::processClassFile(const char* fpath)
 {
-  bool status = false;
   int        objclass;
   int        loadedClasses = 0;
   char       fname[255];
@@ -389,38 +390,41 @@ bool getAttrValue(DbType_t db_type,
     return status;
 }
 
-std::string getValueAsString(AttributeInfo_t& attr_info)
+std::string getValueAsString(AttributeInfo_t* attr_info)
 {
   std::string s_val;
   std::stringstream ss;
 
-  switch(attr_info.db_type)
+  assert(attr_info);
+  switch(attr_info->db_type)
   {
       case xdb::DB_TYPE_BYTES:
-        s_val.assign(attr_info.value.val_bytes.data, attr_info.value.val_bytes.size);
+        s_val.assign(attr_info->value.val_bytes.data, attr_info->value.val_bytes.size);
         break;
       case xdb::DB_TYPE_INTEGER8:
-        ss << attr_info.value.val_int8;
+        // NB: простой вывод int8 значением < '0' в поток проводит к
+        // занесению туда непечатных символов, нужно приводить int8 к int16
+        ss << static_cast<int>(attr_info->value.val_int8);
         s_val.assign(ss.str());
         break;
       case xdb::DB_TYPE_INTEGER16:
-        ss << attr_info.value.val_int16;
+        ss << attr_info->value.val_int16;
         s_val.assign(ss.str());
         break;
       case xdb::DB_TYPE_INTEGER32:
-        ss << attr_info.value.val_int32;
+        ss << attr_info->value.val_int32;
         s_val.assign(ss.str());
         break;
       case xdb::DB_TYPE_INTEGER64:
-        ss << attr_info.value.val_int64;
+        ss << attr_info->value.val_int64;
         s_val.assign(ss.str());
         break;
       case xdb::DB_TYPE_FLOAT:
-        ss << attr_info.value.val_float;
+        ss << attr_info->value.val_float;
         s_val.assign(ss.str());
         break;
       case xdb::DB_TYPE_DOUBLE:
-        ss << attr_info.value.val_double;
+        ss << attr_info->value.val_double;
         s_val.assign(ss.str());
         break;
 
@@ -432,17 +436,19 @@ std::string getValueAsString(AttributeInfo_t& attr_info)
 }
 
 // Сброс законченного набора атрибутов точки в XML-файл
-bool xdb::dump(const std::string& instanceAlias,
+bool xdb::dump(/*const std::string& instanceAlias,*/
     int class_idx,
     const std::string& pointName,
-    const std::string& aliasFather,
-    AttributeMap_t& attributes_given)
+    /*const std::string& aliasFather,*/
+    xdb::AttributeMap_t& attributes_given)
 {
     bool status = true;
     // Получить доступ к Атрибутам из шаблонных файлов Классов
-    AttributeMap_t *attributes_template;
-    AttributeMapIterator_t it_given;
-    std::string univname;
+    xdb::AttributeMap_t *attributes_template;
+    xdb::AttributeInfo_t *element;
+    xdb::AttributeMapIterator_t it_given;
+//    std::string univname;
+    std::stringstream class_item_presentation;
 
     if (class_idx == GOF_D_BDR_OBJCLASS_UNUSED)
     {
@@ -455,10 +461,12 @@ bool xdb::dump(const std::string& instanceAlias,
 
     if (NULL != (attributes_template = xdb::ClassDescriptionTable[class_idx].attributes_pool))
     {
-        std::cout << "<rtdb:Class>" << std::endl
-                  << "  <rtdb:Code>"<< (int)class_idx <<"/<rtdb:Code>" << std::endl
-                  << "  <rtdb:Name>"<< xdb::ClassDescriptionTable[class_idx].name <<"</rtdb:Name>" << std::endl;
+        class_item_presentation
+            << "<rtdb:Class>" << std::endl
+            << "  <rtdb:Code>"<< (int)class_idx <<"/<rtdb:Code>" << std::endl
+            << "  <rtdb:Name>"<< xdb::ClassDescriptionTable[class_idx].name <<"</rtdb:Name>" << std::endl;
 
+#if 0
         // Найти тег БДРВ (атрибут ".UNIVNAME")
         it_given = attributes_given.find("UNIVNAME");
         if (it_given != attributes_given.end())
@@ -470,51 +478,48 @@ bool xdb::dump(const std::string& instanceAlias,
         {
           LOG(ERROR) << "RTDB tag 'UNIVNAME' not found for point " << instanceAlias;
         }
+#endif
 
         for (xdb::AttributeMapIterator_t it=attributes_template->begin();
              it!=attributes_template->end();
              ++it)
         {
-          it_given = attributes_given.find(it->first);
+          class_item_presentation
+                << "  <rtdb:Attr>" << std::endl
+                << "    <rtdb:Kind>SCALAR</rtdb:Kind>" << std::endl
+        		<< "    <rtdb:Accessibility>PUBLIC</rtdb:Accessibility>" << std::endl
+        		<< "    <rtdb:DeType>" << it->second.db_type << "</rtdb:DeType>" << std::endl
+        		<< "    <rtdb:AttrName>" << it->second.name << "</rtdb:AttrName>" << std::endl;
 
           // Если Атрибут из шаблона найден во входном перечне Атрибутов, то
           //    (1) Значения по умолчанию следует брать из входного перечня
           // Иначе 
           //    (2) Значения по умолчанию брать из шаблона
-          //
-          //    TODO: Объединить код сохдания XML для шаблонных и заданных значений
+          it_given = attributes_given.find(it->first);
           if (it_given != attributes_given.end())
           {
-             // Этот Атрибут есть во входном перечне -> (1)
-             std::cout
-                << "  <rtdb:Attr>" << std::endl
-                << "    <rtdb:Kind>SCALAR</rtdb:Kind>" << std::endl
-        		<< "    <rtdb:Accessibility>PUBLIC</rtdb:Accessibility>" << std::endl
-        		<< "    <rtdb:DeType>" << it->second.db_type << "</rtdb:DeType>" << std::endl
-        		<< "    <rtdb:AttrName>" << it->second.name << "</rtdb:AttrName>" << std::endl
-        		<< "    <rtdb:Value>" << getValueAsString(it_given->second) << "</rtdb:Value>" << std::endl
-                << "  </rtdb:Attr>"<< std::endl;
+            // Этот Атрибут есть во входном перечне -> (1)
+            element = &it_given->second;
           }
           else
           {
-             // Этот Атрибут есть только в шаблоне Атрибутов -> (2)
-             std::cout
-                << "  <rtdb:Attr>" << std::endl
-                << "    <rtdb:Kind>SCALAR</rtdb:Kind>" << std::endl
-        		<< "    <rtdb:Accessibility>PUBLIC</rtdb:Accessibility>" << std::endl
-        		<< "    <rtdb:DeType>" << it->second.db_type << "</rtdb:DeType>" << std::endl
-        		<< "    <rtdb:AttrName>" << it->second.name << "</rtdb:AttrName>" << std::endl
-        		<< "    <rtdb:Value>" << getValueAsString(it->second) << "</rtdb:Value>" << std::endl
-                << "  </rtdb:Attr>"<< std::endl;
+            // Этот Атрибут есть только в шаблоне Атрибутов -> (2)
+            element = &it->second;
           }
+
+          class_item_presentation
+            << "    <rtdb:Value>"<< getValueAsString(element) <<"</rtdb:Value>"<< std::endl
+            << "  </rtdb:Attr>"<< std::endl;
         }
+
+        class_item_presentation << "/<rtdb:Class>" << std::endl;
+        std::cout << class_item_presentation.str();
     }
     else
     {
-        status = false;
+      status = false;
     }
 
-    std::cout << "/<rtdb:Class>" << std::endl;
     attributes_given.clear();
     return status;
 }
@@ -549,15 +554,15 @@ bool xdb::processInstanceFile(const char* fpath)
   univname_t  aliasFather;
   univname_t  instanceAlias;
   std::string instance_file_name(fpath);
-  std::string::size_type found;
-  char *rc;
+//  std::string::size_type found;
+//  char *rc;
   int               indiceTab = 0;
   int               colonne;
   int               colvect;
   int               ligne;
   int               fieldCount;
   xdb::recordType   typeRecord;
-  attrCategory      attrCateg;
+//  attrCategory      attrCateg;
   char*             tableStrDeType[rtMAX_FIELD_CNT];
 
   /*------------------------------------*/
@@ -611,7 +616,7 @@ bool xdb::processInstanceFile(const char* fpath)
             if (indiceTab)
             {
                // writes all the data of the previous class
-              dump(instanceAlias, class_idx, pointName, aliasFather, attributes);
+              xdb::dump(/*instanceAlias,*/ class_idx, pointName/*, aliasFather*/, attributes);
 //              LOG(INFO) << "I_TYPE Table";
             }
 
@@ -726,7 +731,7 @@ bool xdb::processInstanceFile(const char* fpath)
                // Присвоить значение атрибуту в соответствии с полученным типом
                if (getAttrValue(db_type, &attr_info, value))
                {
-                 LOG(INFO) << instanceAlias << "." << currentAttrName << " := " << getValueAsString(attr_info);
+//                 LOG(INFO) << instanceAlias << "." << currentAttrName << " := " << getValueAsString(attr_info);
                }
                else
                {
@@ -859,7 +864,7 @@ bool xdb::processInstanceFile(const char* fpath)
   }
   else
   {
-    LOG(INFO) << "Unable to open file '"<<instance_file_name<<"': "<<strerror(errno);
+    LOG(ERROR) << "Unable to open file '"<<instance_file_name<<"': "<<strerror(errno);
     return false;
   }
 
@@ -978,6 +983,9 @@ bool xdb::translateInstance(const char* fpath)
 bool xdb::initFieldTable(std::string& buffer, char* tableStrDeType[], int fieldCount)
 {
   bool status = true;
+  assert(!buffer.empty());
+  assert(tableStrDeType);
+  assert(fieldCount>=0);
 //  LOG(INFO) << "initFieldTable";
   return status;
 }

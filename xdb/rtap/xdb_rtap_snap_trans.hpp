@@ -168,10 +168,10 @@ int processClassFile(const char*);
 
 bool processInstanceFile(const char*);
 
-bool dump(const std::string& instanceAlias,
+bool dump(/*const std::string& instanceAlias,*/
     int,
     const std::string& pointName,
-    const std::string& aliasFather,
+    /*const std::string& aliasFather,*/
     AttributeMap_t& attributes);
 
 bool addClassPoint(char *buffer,
