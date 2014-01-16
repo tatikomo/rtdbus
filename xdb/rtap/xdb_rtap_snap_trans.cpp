@@ -466,20 +466,6 @@ bool xdb::dump(/*const std::string& instanceAlias,*/
             << "  <rtdb:Code>"<< (int)class_idx <<"/<rtdb:Code>" << std::endl
             << "  <rtdb:Name>"<< xdb::ClassDescriptionTable[class_idx].name <<"</rtdb:Name>" << std::endl;
 
-#if 0
-        // Найти тег БДРВ (атрибут ".UNIVNAME")
-        it_given = attributes_given.find("UNIVNAME");
-        if (it_given != attributes_given.end())
-        {
-          univname.assign(it_given->second.value.val_bytes.data,
-                          it_given->second.value.val_bytes.size);
-        }
-        else
-        {
-          LOG(ERROR) << "RTDB tag 'UNIVNAME' not found for point " << instanceAlias;
-        }
-#endif
-
         for (xdb::AttributeMapIterator_t it=attributes_template->begin();
              it!=attributes_template->end();
              ++it)
