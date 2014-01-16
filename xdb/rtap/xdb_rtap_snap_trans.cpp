@@ -139,30 +139,31 @@ void LoadDbTypesDictionary()
 {
    /* TODO: release dbTypesHash memory */
    dbTypesHash.insert(DbTypesHashPair_t("rtUNDEFINED",  DB_TYPE_UNDEF));
-   dbTypesHash.insert(DbTypesHashPair_t("rtLOGICAL",    DB_TYPE_INTEGER8));
-   dbTypesHash.insert(DbTypesHashPair_t("rtINT8",       DB_TYPE_INTEGER8));
-   dbTypesHash.insert(DbTypesHashPair_t("rtUINT8",      DB_TYPE_INTEGER8));
-   dbTypesHash.insert(DbTypesHashPair_t("rtINT16",      DB_TYPE_INTEGER16));
-   dbTypesHash.insert(DbTypesHashPair_t("rtUINT16",     DB_TYPE_INTEGER16));
-   dbTypesHash.insert(DbTypesHashPair_t("rtINT32",      DB_TYPE_INTEGER32));
-   dbTypesHash.insert(DbTypesHashPair_t("rtUINT32",     DB_TYPE_INTEGER32));
+   dbTypesHash.insert(DbTypesHashPair_t("rtLOGICAL",    DB_TYPE_INT8));
+   dbTypesHash.insert(DbTypesHashPair_t("rtINT8",       DB_TYPE_INT8));
+   dbTypesHash.insert(DbTypesHashPair_t("rtUINT8",      DB_TYPE_UINT8));
+   dbTypesHash.insert(DbTypesHashPair_t("rtINT16",      DB_TYPE_INT16));
+   dbTypesHash.insert(DbTypesHashPair_t("rtUINT16",     DB_TYPE_UINT16));
+   dbTypesHash.insert(DbTypesHashPair_t("rtINT32",      DB_TYPE_INT32));
+   dbTypesHash.insert(DbTypesHashPair_t("rtUINT32",     DB_TYPE_UINT32));
    dbTypesHash.insert(DbTypesHashPair_t("rtFLOAT",      DB_TYPE_FLOAT));
    dbTypesHash.insert(DbTypesHashPair_t("rtDOUBLE",     DB_TYPE_DOUBLE));
-   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES4",     DB_TYPE_BYTES));
-   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES8",     DB_TYPE_BYTES));
-   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES12",    DB_TYPE_BYTES));
-   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES16",    DB_TYPE_BYTES));
-   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES20",    DB_TYPE_BYTES));
-   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES32",    DB_TYPE_BYTES));
-   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES48",    DB_TYPE_BYTES));
-   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES64",    DB_TYPE_BYTES));
-   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES80",    DB_TYPE_BYTES));
-   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES128",   DB_TYPE_BYTES));
-   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES256",   DB_TYPE_BYTES));
-   dbTypesHash.insert(DbTypesHashPair_t("rtDB_XREF",    DB_TYPE_INTEGER64)); // autoid_t eXtremeDB
-   dbTypesHash.insert(DbTypesHashPair_t("rtDATE",       DB_TYPE_INTEGER64));
-   dbTypesHash.insert(DbTypesHashPair_t("rtTIME_OF_DAY",DB_TYPE_INTEGER64));
-   dbTypesHash.insert(DbTypesHashPair_t("rtABS_TIME",   DB_TYPE_INTEGER64));
+   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES",      DB_TYPE_BYTES)); // NB: в RTAP отсутствует
+   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES4",     DB_TYPE_BYTES4));
+   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES8",     DB_TYPE_BYTES8));
+   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES12",    DB_TYPE_BYTES12));
+   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES16",    DB_TYPE_BYTES16));
+   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES20",    DB_TYPE_BYTES20));
+   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES32",    DB_TYPE_BYTES32));
+   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES48",    DB_TYPE_BYTES48));
+   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES64",    DB_TYPE_BYTES64));
+   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES80",    DB_TYPE_BYTES80));
+   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES128",   DB_TYPE_BYTES128));
+   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES256",   DB_TYPE_BYTES256));
+   dbTypesHash.insert(DbTypesHashPair_t("rtDB_XREF",    DB_TYPE_INT64)); // autoid_t eXtremeDB
+   dbTypesHash.insert(DbTypesHashPair_t("rtDATE",       DB_TYPE_INT64));
+   dbTypesHash.insert(DbTypesHashPair_t("rtTIME_OF_DAY",DB_TYPE_INT64));
+   dbTypesHash.insert(DbTypesHashPair_t("rtABS_TIME",   DB_TYPE_INT64));
 
    /* TODO release memory */
    dbPointsTypeHash.insert(DbPointsTypeHashPair_t("DISP_TABLE_H",
@@ -191,9 +192,6 @@ void LoadDbTypesDictionary()
                            GOF_D_BDR_OBJCLASS_TIME_AVAILABLE));
    dbPointsTypeHash.insert(DbPointsTypeHashPair_t("config",
                            GOF_D_BDR_OBJCLASS_CONFIG));
-
-   /* Используется в ts.c в качестве словаря соответствия между алиасами и универсальными именами */
-   //dbAliasHash = g_hash_table_new(g_str_hash, g_str_equal);
 }
 
 /*
@@ -213,7 +211,6 @@ int xdb::processClassFile(const char* fpath)
   DbType_t    db_type;
   AttributeInfo_t *p_attr_info; 
   std::string line;
-  std::string::size_type found;
   std::string::size_type first;
   std::string::size_type second;
 
@@ -238,7 +235,7 @@ int xdb::processClassFile(const char* fpath)
       while (getline(ifs, line))
       {
         /* пропускать строки, начинающиеся с символов [ALJCVTFD#] */
-        if (0 /*std::string::npos*/ == (found = line.find_first_of("ALJCVTFD#")))
+        if (0 == line.find_first_of("ALJCVTFD#"))
         {
           // 'A': CE
           // 'L': словарные значения поля таблицы
@@ -252,26 +249,20 @@ int xdb::processClassFile(const char* fpath)
           continue;
         }
 
-        if (0 /*std::string::npos*/ == (found = line.find_first_of("I")))
+        if (0 == line.find_first_of("I"))
         {
           // начало новой точки
           // создать массив лексем
-          //
-          // std::cout << line << std::endl;
-          // std::istringstream iss(line);
-          // std::cout << "new point: " << line << std::endl;
           continue;
         }
 
-        if (0 /*std::string::npos*/ == (found = line.find_first_of("S")))
+        if (0 == line.find_first_of("S"))
         {
           // S OBJCLASS           PUB        rtUINT8        0
           // создать массив лексем
           std::istringstream iss(line);
           if (iss >> s_skip >> s_univname >> s_access >> s_type)
           {
-//            std::cout << "OK: "<<s_univname<<" : "<<s_type;
-
              // Если в iss еще остались данные, и тип атрибута символьный,
              // нужно получить все это содержимое вместе с кавычками и пробелами.
              // NB: Приведенный здесь подход работает, если кавычки встречаются
@@ -349,32 +340,57 @@ bool getAttrValue(DbType_t db_type,
     p_attr_info->db_type = db_type;
     switch(db_type)
     {
+      // TODO: учитывать данное ограничение размера строки
+      // NB: сейчас ограничение не применяется, используется
+      // фактическая поданная длина
       case xdb::DB_TYPE_BYTES:
+      case xdb::DB_TYPE_BYTES4:
+      case xdb::DB_TYPE_BYTES8:
+      case xdb::DB_TYPE_BYTES12:
+      case xdb::DB_TYPE_BYTES16:
+      case xdb::DB_TYPE_BYTES20:
+      case xdb::DB_TYPE_BYTES32:
+      case xdb::DB_TYPE_BYTES48:
+      case xdb::DB_TYPE_BYTES64:
+      case xdb::DB_TYPE_BYTES80:
+      case xdb::DB_TYPE_BYTES128:
+      case xdb::DB_TYPE_BYTES256:
         p_attr_info->value.val_bytes.size = given_value.size();
-        // для пустого значения
+        // для непустого значения
         if (p_attr_info->value.val_bytes.size)
         {
            p_attr_info->value.val_bytes.data = new char[p_attr_info->value.val_bytes.size + 1];
            memcpy(p_attr_info->value.val_bytes.data,
                given_value.data(),
                given_value.length());
-//               p_attr_info->value.val_bytes.size);
            p_attr_info->value.val_bytes.data[p_attr_info->value.val_bytes.size] = '\0';
         }
         else p_attr_info->value.val_bytes.data = NULL;
         break;
 
-      case xdb::DB_TYPE_INTEGER8:
+      case xdb::DB_TYPE_INT8:
               p_attr_info->value.val_int8 = atoi(given_value.c_str());
               break;
-      case xdb::DB_TYPE_INTEGER16:
+      case xdb::DB_TYPE_UINT8:
+              p_attr_info->value.val_uint8 = atoi(given_value.c_str());
+              break;
+      case xdb::DB_TYPE_INT16:
               p_attr_info->value.val_int16 = atoi(given_value.c_str());
               break;
-      case xdb::DB_TYPE_INTEGER32:
+      case xdb::DB_TYPE_UINT16:
+              p_attr_info->value.val_uint16 = atoi(given_value.c_str());
+              break;
+      case xdb::DB_TYPE_INT32:
               p_attr_info->value.val_int32 = atoi(given_value.c_str());
               break;
-      case xdb::DB_TYPE_INTEGER64:
+      case xdb::DB_TYPE_UINT32:
+              p_attr_info->value.val_uint32 = atoi(given_value.c_str());
+              break;
+      case xdb::DB_TYPE_INT64:
               p_attr_info->value.val_int64 = atoi(given_value.c_str());
+              break;
+      case xdb::DB_TYPE_UINT64:
+              p_attr_info->value.val_uint64 = atoi(given_value.c_str());
               break;
       case xdb::DB_TYPE_FLOAT:
               p_attr_info->value.val_float = atof(given_value.c_str());
@@ -399,30 +415,62 @@ std::string getValueAsString(AttributeInfo_t* attr_info)
   switch(attr_info->db_type)
   {
       case xdb::DB_TYPE_BYTES:
+      case xdb::DB_TYPE_BYTES4:
+      case xdb::DB_TYPE_BYTES8:
+      case xdb::DB_TYPE_BYTES12:
+      case xdb::DB_TYPE_BYTES16:
+      case xdb::DB_TYPE_BYTES20:
+      case xdb::DB_TYPE_BYTES32:
+      case xdb::DB_TYPE_BYTES64:
+      case xdb::DB_TYPE_BYTES80:
+      case xdb::DB_TYPE_BYTES128:
+      case xdb::DB_TYPE_BYTES256:
         s_val.assign(attr_info->value.val_bytes.data, attr_info->value.val_bytes.size);
         break;
-      case xdb::DB_TYPE_INTEGER8:
+
+      case xdb::DB_TYPE_INT8:
         // NB: простой вывод int8 значением < '0' в поток проводит к
         // занесению туда непечатных символов, нужно приводить int8 к int16
         ss << static_cast<int>(attr_info->value.val_int8);
         s_val.assign(ss.str());
         break;
-      case xdb::DB_TYPE_INTEGER16:
+      case xdb::DB_TYPE_UINT8:
+        ss << static_cast<int>(attr_info->value.val_uint8);
+        s_val.assign(ss.str());
+        break;
+
+      case xdb::DB_TYPE_INT16:
         ss << attr_info->value.val_int16;
         s_val.assign(ss.str());
         break;
-      case xdb::DB_TYPE_INTEGER32:
+      case xdb::DB_TYPE_UINT16:
+        ss << attr_info->value.val_uint16;
+        s_val.assign(ss.str());
+        break;
+
+      case xdb::DB_TYPE_INT32:
         ss << attr_info->value.val_int32;
         s_val.assign(ss.str());
         break;
-      case xdb::DB_TYPE_INTEGER64:
+      case xdb::DB_TYPE_UINT32:
+        ss << attr_info->value.val_uint32;
+        s_val.assign(ss.str());
+        break;
+
+      case xdb::DB_TYPE_INT64:
         ss << attr_info->value.val_int64;
         s_val.assign(ss.str());
         break;
+      case xdb::DB_TYPE_UINT64:
+        ss << attr_info->value.val_uint64;
+        s_val.assign(ss.str());
+        break;
+
       case xdb::DB_TYPE_FLOAT:
         ss << attr_info->value.val_float;
         s_val.assign(ss.str());
         break;
+
       case xdb::DB_TYPE_DOUBLE:
         ss << attr_info->value.val_double;
         s_val.assign(ss.str());
@@ -436,34 +484,33 @@ std::string getValueAsString(AttributeInfo_t* attr_info)
 }
 
 // Сброс законченного набора атрибутов точки в XML-файл
-bool xdb::dump(/*const std::string& instanceAlias,*/
+std::string& xdb::dump_point(
+    // IN
     int class_idx,
     const std::string& pointName,
-    /*const std::string& aliasFather,*/
-    xdb::AttributeMap_t& attributes_given)
+    // IN-OUT
+    xdb::AttributeMap_t& attributes_given,
+    // OUT
+    std::string& dump)
 {
-    bool status = true;
     // Получить доступ к Атрибутам из шаблонных файлов Классов
-    xdb::AttributeMap_t *attributes_template;
-    xdb::AttributeInfo_t *element;
-    xdb::AttributeMapIterator_t it_given;
-//    std::string univname;
-    std::stringstream class_item_presentation;
+    xdb::AttributeMap_t         *attributes_template;
+    xdb::AttributeInfo_t        *element;
+    xdb::AttributeMapIterator_t  it_given;
+    std::stringstream            class_item_presentation;
 
     if (class_idx == GOF_D_BDR_OBJCLASS_UNUSED)
     {
       LOG(ERROR) << "Processing unsupported class for point " << pointName;
-      return false;
+      dump.clear();
+      return dump;
     }
-
-//  std::cout << "DUMP " << instanceAlias
-//    << " with " << attributes.size() << " attribute(s)" << std::endl;
 
     if (NULL != (attributes_template = xdb::ClassDescriptionTable[class_idx].attributes_pool))
     {
         class_item_presentation
             << "<rtdb:Class>" << std::endl
-            << "  <rtdb:Code>"<< (int)class_idx <<"/<rtdb:Code>" << std::endl
+            << "  <rtdb:Code>"<< (int)class_idx <<"</rtdb:Code>" << std::endl
             << "  <rtdb:Name>"<< xdb::ClassDescriptionTable[class_idx].name <<"</rtdb:Name>" << std::endl;
 
         for (xdb::AttributeMapIterator_t it=attributes_template->begin();
@@ -474,12 +521,12 @@ bool xdb::dump(/*const std::string& instanceAlias,*/
                 << "  <rtdb:Attr>" << std::endl
                 << "    <rtdb:Kind>SCALAR</rtdb:Kind>" << std::endl
         		<< "    <rtdb:Accessibility>PUBLIC</rtdb:Accessibility>" << std::endl
-        		<< "    <rtdb:DeType>" << it->second.db_type << "</rtdb:DeType>" << std::endl
+        		<< "    <rtdb:DbType>" << GetDbNameFromType(it->second.db_type) << "</rtdb:DbType>" << std::endl
         		<< "    <rtdb:AttrName>" << it->second.name << "</rtdb:AttrName>" << std::endl;
 
           // Если Атрибут из шаблона найден во входном перечне Атрибутов, то
           //    (1) Значения по умолчанию следует брать из входного перечня
-          // Иначе 
+          // Иначе
           //    (2) Значения по умолчанию брать из шаблона
           it_given = attributes_given.find(it->first);
           if (it_given != attributes_given.end())
@@ -498,16 +545,16 @@ bool xdb::dump(/*const std::string& instanceAlias,*/
             << "  </rtdb:Attr>"<< std::endl;
         }
 
-        class_item_presentation << "/<rtdb:Class>" << std::endl;
-        std::cout << class_item_presentation.str();
+        class_item_presentation << "</rtdb:Class>" << std::endl;
+        dump.assign(class_item_presentation.str());
     }
     else
     {
-      status = false;
+      dump.clear();
     }
 
     attributes_given.clear();
-    return status;
+    return dump;
 }
 
 //
@@ -539,13 +586,14 @@ bool xdb::processInstanceFile(const char* fpath)
   univname_t  pointName;
   univname_t  aliasFather;
   univname_t  instanceAlias;
-  std::string instance_file_name(fpath);
-//  std::string::size_type found;
-//  char *rc;
+  std::string instance_file_name(fpath); // полное имя файла instances
+  std::string xml_file_name(fpath);      // полное имя выходного XML-файла
+  std::string point_view;
   int               indiceTab = 0;
   int               colonne;
   int               colvect;
   int               ligne;
+  int               input_file_line = 0; // номер текущей строки во входном файле
   int               fieldCount;
   xdb::recordType   typeRecord;
 //  attrCategory      attrCateg;
@@ -555,10 +603,26 @@ bool xdb::processInstanceFile(const char* fpath)
   /* opens the file of the Rtap classes */
   /*------------------------------------*/
   instance_file_name += "/instances_total.dat";
+  xml_file_name += "/instances_total.xml";
   std::ifstream ifs(instance_file_name.c_str());
+  std::ofstream ofs(xml_file_name.c_str());
 
-  if (ifs.is_open())
+  if (!ofs.is_open())
   {
+    LOG(ERROR) << "Unable to open output file '"<<xml_file_name<<"': "<<strerror(errno);
+    return false;
+  }
+  ofs << "<?xml version=\"1.0\" encoding=\"utf-8\"?>" << std::endl
+      << "<rtdb:RTDB_STRUCT xmlns:rtdb=\"http://www.example.com/rtap_db\"" << std::endl
+      << "  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"" << std::endl
+      << "  xsi:schemaLocation=\"http://www.example.com/rtap_db rtap_db.xsd\">" << std::endl;
+
+  if (!ifs.is_open())
+  {
+    LOG(ERROR) << "Unable to open input file '"<<instance_file_name<<"': "<<strerror(errno);
+    return false;
+  }
+
     // 2 первый байта = тип точки:
     //  "I "
     //  "S "
@@ -578,6 +642,10 @@ bool xdb::processInstanceFile(const char* fpath)
     //  
     while (getline(ifs, buffer))
     {
+      input_file_line++;
+      if (buffer.empty())
+        continue;
+
       /*------------------------------------------*/
       /* reads the file and processes each record */
       /*------------------------------------------*/
@@ -587,7 +655,6 @@ bool xdb::processInstanceFile(const char* fpath)
       // TODO: проверить, что происходит с памятью при разборе большого файла
       // поскольку istringstream не удаляется
       std::istringstream iss(buffer);
-//      LOG(INFO) << "\tparse " << buffer;
       value.clear();
 
       switch(typeRecord)
@@ -597,24 +664,23 @@ bool xdb::processInstanceFile(const char* fpath)
          /*----------*/
          case I_TYPE :
             status = false;
-            //instanceAlias.clear();
 
             if (indiceTab)
             {
                // writes all the data of the previous class
-              xdb::dump(/*instanceAlias,*/ class_idx, pointName/*, aliasFather*/, attributes);
-//              LOG(INFO) << "I_TYPE Table";
+              xdb::dump_point(class_idx, pointName, attributes, point_view);
+              if (false == point_view.empty());
+              {
+                ofs << point_view;
+              }
             }
 
             // NB: Если длина алиаса равна 19 символов, во входном файле значение
             // instanceAlias склеивается с className. 
-            // TODO: Предусмотреть обработку этого случая
             if (iss >> type >> instanceAlias)
             {
               if (NAME_LENGTH < instanceAlias.size()-1)
               {
-//                LOG(INFO) << "#" << instanceAlias;
-
                 className = instanceAlias.substr(NAME_LENGTH, strlen("ClassXX"));
                 instanceAlias.resize(NAME_LENGTH);
               }
@@ -622,9 +688,11 @@ bool xdb::processInstanceFile(const char* fpath)
                 iss >> className;
               }
 
+              // Обработка случая склейки алиаса с полем Class
               if (std::string::npos != className.find("Class"))
               {
-                // Получить числовой идентификатор Класса из строки className вида Class[0-9][0-9]
+                // Получить числовой идентификатор Класса из строки:
+                // className вида Class[0-9][0-9]
                 class_idx = atoi(className.substr(5,2).c_str());
               }
               else
@@ -715,17 +783,15 @@ bool xdb::processInstanceFile(const char* fpath)
                }
                
                // Присвоить значение атрибуту в соответствии с полученным типом
-               if (getAttrValue(db_type, &attr_info, value))
-               {
-//                 LOG(INFO) << instanceAlias << "." << currentAttrName << " := " << getValueAsString(attr_info);
-               }
-               else
+               if (!getAttrValue(db_type, &attr_info, value))
                {
                  LOG(ERROR) << "Unable process type info '" << type << "' for " << currentAttrName;
                }
 
 
                attributes.insert(AttributeMapPair_t(currentAttrName, attr_info));
+               // TODO: задать функцию удаления элемента при освобождении attributes,
+               // иначе valgrind показывает утечку памяти
 //               if (db_type == DB_TYPE_BYTES && attr_info.value.val_bytes.size)
 //+++                 delete[] attr_info.value.val_bytes.data;
              }
@@ -839,20 +905,20 @@ bool xdb::processInstanceFile(const char* fpath)
          /* ALIAS CE DEFINITION  */
          /*----------------------*/
          case J_TYPE :
-           status = false;
+//           LOG (INFO) << "(" << typeRecord 
+//            << ") : LINK_HIST|CE_DEFINITION|ALIAS_CE_DEFINITION : "
+//            << buffer;
            break;
 
          default:
-//           LOG (INFO) << "default";
-           status = false;
+           LOG (INFO) << "#" << input_file_line 
+            << " : (" << typeRecord << ") : UNKNOWN : '" << buffer <<"'";
       }
     }
-  }
-  else
-  {
-    LOG(ERROR) << "Unable to open file '"<<instance_file_name<<"': "<<strerror(errno);
-    return false;
-  }
+
+  ifs.close();
+  ofs << "</rtdb:RTDB_STRUCT>" << std::endl;
+  ofs.close();
 
   /*------------------------------------*/
   /* adds all the values in the Rtap DB */
@@ -1075,3 +1141,12 @@ bool xdb::GetDbTypeFromString(std::string& s_t, xdb::DbType_t& db_t)
   return status;
 }
 
+// На входе код типа БДРВ, на выходе строковое представление типа, 
+// согласно шаблону AttributeType файла rtap_db.xsd
+const char* xdb::GetDbNameFromType(xdb::DbType_t& db_t)
+{
+  assert((DB_TYPE_UNDEF < db_t) && (db_t < DB_TYPE_LAST));
+  assert(xdb::DbTypeDescription[db_t].code == db_t);
+
+  return xdb::DbTypeDescription[db_t].name;
+}

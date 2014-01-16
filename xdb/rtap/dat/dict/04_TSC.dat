@@ -53,43 +53,43 @@ DV000191
 DV000201
 S VALID              PUB        rtUINT16       0    
 S VALIDACQ           PUB        rtLOGICAL      1    
-S DISPATCH           PUB        rtBYTES20      
+#S DISPATCH           PUB        rtBYTES20      
 S VAL                PUB        rtUINT16       1    
 S VALMANUAL          PUB        rtUINT16       0    
-S OLDSASTATE         PUB        rtUINT8        0    
-S VAL_ALINHIB        PUB        rtUINT16       0    
+#S OLDSASTATE         PUB        rtUINT8        0    
+#S VAL_ALINHIB        PUB        rtUINT16       0    
 S INHIBLOCAL         PUB        rtLOGICAL      0    
 S ALARMBEGIN         PUB        rtUINT32       0    
 S ALARMBEGINACK      PUB        rtUINT32       0    
 S ALARMENDACK        PUB        rtUINT32       0    
 S ALARMSYNTH         PUB        rtUINT8        0    
-S VALID_INT          PUB        rtUINT16       0    
-S OLDVALID_INT       PUB        rtUINT16       0    
+#S VALID_INT          PUB        rtUINT16       0    
+#S OLDVALID_INT       PUB        rtUINT16       0    
 S DATEHOURM          PUB        rtABS_TIME     
-S SASTATE            PUB        rtUINT8        0    
+#S SASTATE            PUB        rtUINT8        0    
 S VALACQ             PUB        rtUINT16       0    
 S VALIDCHANGE        PUB        rtUINT16       9    
-S VALIDR             PUB        rtUINT16       0    
+#S VALIDR             PUB        rtUINT16       0    
 S VAL_LABEL          PUB        rtBYTES12      " "
 V ALARMV_VAL         PUB        rtUINT8        1    
-S LASTVALQH          PUB        rtUINT16       0    
-S LASTVALH           PUB        rtUINT16       0    
-S LASTVALJ           PUB        rtUINT16       0    
-S LASTVALM           PUB        rtUINT16       0    
-S LASTVALIDQH        PUB        rtUINT16       0    
-S LASTVALIDH         PUB        rtUINT16       0    
-S LASTVALIDJ         PUB        rtUINT16       0    
-S LASTVALIDM         PUB        rtUINT16       0    
+#S LASTVALQH          PUB        rtUINT16       0    
+#S LASTVALH           PUB        rtUINT16       0    
+#S LASTVALJ           PUB        rtUINT16       0    
+#S LASTVALM           PUB        rtUINT16       0    
+#S LASTVALIDQH        PUB        rtUINT16       0    
+#S LASTVALIDH         PUB        rtUINT16       0    
+#S LASTVALIDJ         PUB        rtUINT16       0    
+#S LASTVALIDM         PUB        rtUINT16       0    
 S LINK_HIST          PUB        rtDB_XREF      @[]
-S HISTOTYPE          PUB        rtINT32        0    
+#S HISTOTYPE          PUB        rtINT32        0    
 S ACQMOD             PUB        rtINT16        0    
 S L_DIPL             PUB        rtBYTES32
-S ORACLE_LOG_TYPE    PUB        rtUINT8        0    
-S RTAP_LOG_TYPE      PUB        rtUINT8        0
-S LISTACD_REALCNT    PUB        rtUINT16       0
-S LISTACD_LASTINDEX  PUB        rtUINT16       0
-S LISTACD_FIRSTFREE  PUB        rtUINT16       0
-V LISTACD_KEYS       PUB        rtUINT16       10
+#S ORACLE_LOG_TYPE    PUB        rtUINT8        0    
+#S RTAP_LOG_TYPE      PUB        rtUINT8        0
+#S LISTACD_REALCNT    PUB        rtUINT16       0
+#S LISTACD_LASTINDEX  PUB        rtUINT16       0
+#S LISTACD_FIRSTFREE  PUB        rtUINT16       0
+#V LISTACD_KEYS       PUB        rtUINT16       10
 T T_LISTACD          PUB        0001000007
 F key                rtUINT16
 F date               rtABS_TIME

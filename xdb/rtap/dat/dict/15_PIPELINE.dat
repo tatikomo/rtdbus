@@ -4,10 +4,10 @@ S UNIVNAME           PUB        rtBYTES32
 S OBJCLASS           PUB        rtUINT8        15   
 S LABEL              PUB        rtBYTES80       
 S SHORTLABEL         PUB        rtBYTES16           
-S LOCALFLAG          PUB        rtLOGICAL      0    
+#S LOCALFLAG          PUB        rtLOGICAL      0    
 S STATUS             PUB        rtLOGICAL      0    
-S L_CORRIDOR         PUB        rtBYTES32      
-S RELCORRIDOR        PUB        rtINT16        0    
+#S L_CORRIDOR         PUB        rtBYTES32      
+#S RELCORRIDOR        PUB        rtINT16        0    
 S FUNCTION           PUB        rtBYTES20      
 S MXPRESSURE         PUB        rtDOUBLE       0    
 S NMFLOW             PUB        rtDOUBLE       0    

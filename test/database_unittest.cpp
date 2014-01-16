@@ -648,20 +648,32 @@ TEST(TestTools, LOAD_CLASSES)
 
             switch(it->second.db_type)
             {
-              case xdb::DB_TYPE_INTEGER8:
+              case xdb::DB_TYPE_INT8:
                   sprintf(msg_val, "%02X", it->second.value.val_int8);
                   break;
+              case xdb::DB_TYPE_UINT8:
+                  sprintf(msg_val, "%+02X", it->second.value.val_uint8);
+                  break;
 
-              case xdb::DB_TYPE_INTEGER16:
+              case xdb::DB_TYPE_INT16:
                   sprintf(msg_val, "%04X", it->second.value.val_int16);
                   break;
-
-              case xdb::DB_TYPE_INTEGER32:
-                  sprintf(msg_val, "%08X", it->second.value.val_int32);
+              case xdb::DB_TYPE_UINT16:
+                  sprintf(msg_val, "%+04X", it->second.value.val_uint16);
                   break;
 
-              case xdb::DB_TYPE_INTEGER64:
+              case xdb::DB_TYPE_INT32:
+                  sprintf(msg_val, "%08X", it->second.value.val_int32);
+                  break;
+              case xdb::DB_TYPE_UINT32:
+                  sprintf(msg_val, "%+08X", it->second.value.val_uint32);
+                  break;
+
+              case xdb::DB_TYPE_INT64:
                   sprintf(msg_val, "%16X", it->second.value.val_int64);
+                  break;
+              case xdb::DB_TYPE_UINT64:
+                  sprintf(msg_val, "%+16X", it->second.value.val_uint64);
                   break;
 
               case xdb::DB_TYPE_FLOAT:
@@ -673,6 +685,16 @@ TEST(TestTools, LOAD_CLASSES)
                   break;
 
               case xdb::DB_TYPE_BYTES:
+              case xdb::DB_TYPE_BYTES4:
+              case xdb::DB_TYPE_BYTES8:
+              case xdb::DB_TYPE_BYTES12:
+              case xdb::DB_TYPE_BYTES16:
+              case xdb::DB_TYPE_BYTES20:
+              case xdb::DB_TYPE_BYTES32:
+              case xdb::DB_TYPE_BYTES48:
+              case xdb::DB_TYPE_BYTES64:
+              case xdb::DB_TYPE_BYTES128:
+              case xdb::DB_TYPE_BYTES256:
                   sprintf(msg_val, "[%02X] \"%s\"", 
                     it->second.value.val_bytes.size,
                     it->second.value.val_bytes.data);

@@ -25,6 +25,41 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     <xs:enumeration value="VAL"/>
     <xs:enumeration value="VALACQ"/>
     <xs:enumeration value="VALMANUAL"/>
+    <xs:enumeration value="ALINHIB"/>
+    <xs:enumeration value="DISPP"/>
+    <xs:enumeration value="FUNCTION"/>
+    <xs:enumeration value="INHIB"/>
+    <xs:enumeration value="MNVALPHY"/>
+    <xs:enumeration value="MXPRESSURE"/>
+    <xs:enumeration value="MXVALPHY"/>
+    <xs:enumeration value="NMFLOW"/>
+    <xs:enumeration value="STATUS"/>
+    <xs:enumeration value="SUPPLIERMODE"/>
+    <xs:enumeration value="SUPPLIERSTATE"/>
+    <xs:enumeration value="SYNTHSTATE"/>
+    <xs:enumeration value="DELEGABLE"/>
+    <xs:enumeration value="ETGCODE"/>
+    <xs:enumeration value="SITEFLG"/>
+    <xs:enumeration value="LOCALFLAG"/>
+    <xs:enumeration value="ALARMBEGIN"/>
+    <xs:enumeration value="ALARMBEGINACK"/>
+    <xs:enumeration value="ALARMENDACK"/>
+    <xs:enumeration value="ALARMSYNTH"/>
+    <xs:enumeration value="L_TYPINFO"/>
+    <xs:enumeration value="L_EQT"/>
+    <xs:enumeration value="L_SA"/>
+    <xs:enumeration value="REMOTECONTROL"/>
+    <xs:enumeration value="NONEXE"/>
+    <xs:enumeration value="RESPNEG"/>
+    <xs:enumeration value="ACTIONTYP"/>
+    <xs:enumeration value="VALIDCHANGE"/>
+    <xs:enumeration value="VAL_LABEL"/>
+    <xs:enumeration value="LINK_HIST"/>
+    <xs:enumeration value="ACQMOD"/>
+    <xs:enumeration value="L_DIPL"/>
+    <xs:enumeration value="ALDEST"/>
+    <xs:enumeration value="INHIBLOCAL"/>
+    <xs:enumeration value="UNITY"/>
   </xs:restriction>
 </xs:simpleType>
 
@@ -98,39 +133,39 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     <xs:enumeration value="HIST_TABLE_M"/>
     <xs:enumeration value="HIST_TABLE_QH"/>
     <xs:enumeration value="HIST_TABLE_SAMPLE"/>
-    <xs:enumeration value="TIME_AVAILABLE"/>
     <xs:enumeration value="CONFIG"/>
   </xs:restriction>
 </xs:simpleType>
 
 <xs:simpleType name="AttributeType">
   <xs:restriction base="xs:string">
-    <xs:enumeration value="rtLOGICAL"/>
-    <xs:enumeration value="rtINT8"/>
-    <xs:enumeration value="rtUINT8"/>
-    <xs:enumeration value="rtINT16"/>
-    <xs:enumeration value="rtUINT16"/>
-    <xs:enumeration value="rtINT32"/>
-    <xs:enumeration value="rtUINT32"/>
-    <xs:enumeration value="rtFLOAT"/>
-    <xs:enumeration value="rtDOUBLE"/>
-    <xs:enumeration value="rtPOLAR"/>
-    <xs:enumeration value="rtRECTANGULAR"/>
-    <xs:enumeration value="rtBYTES4"/>
-    <xs:enumeration value="rtBYTES8"/>
-    <xs:enumeration value="rtBYTES12"/>
-    <xs:enumeration value="rtBYTES16"/>
-    <xs:enumeration value="rtBYTES20"/>
-    <xs:enumeration value="rtBYTES32"/>
-    <xs:enumeration value="rtBYTES48"/>
-    <xs:enumeration value="rtBYTES64"/>
-    <xs:enumeration value="rtBYTES80"/>
-    <xs:enumeration value="rtBYTES128"/>
-    <xs:enumeration value="rtBYTES256"/>
-    <xs:enumeration value="rtDB_XREF"/>
-    <xs:enumeration value="rtDATE"/>
-    <xs:enumeration value="rtTIME_OF_DAY"/>
-    <xs:enumeration value="rtASB_TIME"/>
+    <xs:enumeration value="LOGICAL"/>
+    <xs:enumeration value="INT8"/>
+    <xs:enumeration value="UINT8"/>
+    <xs:enumeration value="INT16"/>
+    <xs:enumeration value="UINT16"/>
+    <xs:enumeration value="INT32"/>
+    <xs:enumeration value="UINT32"/>
+    <xs:enumeration value="INT64"/>
+    <xs:enumeration value="UINT64"/>
+    <xs:enumeration value="FLOAT"/>
+    <xs:enumeration value="DOUBLE"/>
+    <xs:enumeration value="BYTES"/>
+    <xs:enumeration value="BYTES4"/>
+    <xs:enumeration value="BYTES8"/>
+    <xs:enumeration value="BYTES12"/>
+    <xs:enumeration value="BYTES16"/>
+    <xs:enumeration value="BYTES20"/>
+    <xs:enumeration value="BYTES32"/>
+    <xs:enumeration value="BYTES48"/>
+    <xs:enumeration value="BYTES64"/>
+    <xs:enumeration value="BYTES80"/>
+    <xs:enumeration value="BYTES128"/>
+    <xs:enumeration value="BYTES256"/>
+    <xs:enumeration value="DB_XREF"/>
+    <xs:enumeration value="DATE"/>
+    <xs:enumeration value="TIME_OF_DAY"/>
+    <xs:enumeration value="ASB_TIME"/>
   </xs:restriction>
 </xs:simpleType>
 
@@ -168,8 +203,8 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
         <!-- Name definition end -->
 
         <!-- Attr definition start -->
-        <!-- NB: Максимум 20 атрибутов для класса -->
-        <xs:element name="Attr" maxOccurs="20">
+        <!-- NB: Максимум 30 атрибутов для класса -->
+        <xs:element name="Attr" maxOccurs="30">
           <xs:complexType>
           <xs:sequence>
 
@@ -188,9 +223,9 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
             </xs:element>
             <!-- Accessibility definition end -->
 
-            <!-- DeType definition start -->
-            <xs:element name="DeType" type="AttributeType"/>
-            <!-- DeType definition end -->
+            <!-- DbType definition start -->
+            <xs:element name="DbType" type="AttributeType"/>
+            <!-- DbType definition end -->
 
             <!-- AttrName definition start -->
             <xs:element name="AttrName" type="AttrNameType"/>

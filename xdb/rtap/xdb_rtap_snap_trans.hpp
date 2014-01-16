@@ -2,6 +2,7 @@
 #if !defined XDB_RTAP_SNAP_TRANS_H_
 #define XDB_RTAP_SNAP_TRANS_H_
 
+#include <string>
 #include "config.h"
 #include "xdb_rtap_const.hpp"
 
@@ -131,7 +132,7 @@ typedef enum
 
 typedef enum
 {
-    C_TYPE,
+    C_TYPE = 1,
     I_TYPE,
     S_TYPE,
     V_TYPE,
@@ -168,11 +169,15 @@ int processClassFile(const char*);
 
 bool processInstanceFile(const char*);
 
-bool dump(/*const std::string& instanceAlias,*/
-    int,
+// Сброс законченного набора атрибутов точки в XML-файл
+std::string& dump_point(
+    // IN
+    int class_idx,
     const std::string& pointName,
-    /*const std::string& aliasFather,*/
-    AttributeMap_t& attributes);
+    // IN-OUT
+    AttributeMap_t& attributes_given,
+    // OUT
+    std::string& dump);
 
 bool addClassPoint(char *buffer,
                    int classNum,
@@ -192,5 +197,7 @@ bool initFieldTable(std::string&, char*[], int);
 
 bool GetDbTypeFromString(std::string&, xdb::DbType_t&);
 
-}
+const char* GetDbNameFromType(xdb::DbType_t& db_t);
+
+} // namespace xdb
 #endif

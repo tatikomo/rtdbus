@@ -7,12 +7,8 @@
 
 using namespace xdb;
 
-const char* RtData::DbTypeDescription[DB_TYPE_LAST];
-bool RtData::m_initialized = false;
-
 RtData::RtData() : m_modified(false)
 {
-  init();
 }
 
 RtData::~RtData()
@@ -21,19 +17,6 @@ RtData::~RtData()
 
 void RtData::init()
 {
-  if (!m_initialized)
-  {
-    m_initialized = true;
-    DbTypeDescription[DB_TYPE_UNDEF]       = "undef";
-    DbTypeDescription[DB_TYPE_INTEGER8]    = "int8";
-    DbTypeDescription[DB_TYPE_INTEGER16]   = "int16";
-    DbTypeDescription[DB_TYPE_INTEGER32]   = "int32";
-    DbTypeDescription[DB_TYPE_INTEGER64]   = "int64";
-    DbTypeDescription[DB_TYPE_FLOAT]       = "float";
-    DbTypeDescription[DB_TYPE_DOUBLE]      = "double";
-    DbTypeDescription[DB_TYPE_BYTES]       = "bytes";
-  }
-
   m_modified = false;
 }
 
