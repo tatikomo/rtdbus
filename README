@@ -16,6 +16,14 @@ valgrind --tool=memcheck --leak-check=full --suppressions=valgrind.supp someprog
 
 Перед компиляцией создать ссылки для zmq.h zmq.hpp из cppzmq/include в zeromq/src.
 
+XML
+--------------------------------------------------------------------------------
+Валидация XML по примеру статьи http://stackoverflow.com/questions/124865/xml-schema-xsd-validation-tool
+1) xmllint --noout --schema XSD_FILE XML_FILE
+2) StdInParse -n -s -f -v=always < XML_FILE
+Онлайн-инструменты по валидации и сравнению версий XML-документов http://www.corefiling.com/opensource
+
+
 Настройка отладочного вывода 
 --------------------------------------------------------------------------------
 Используется библиотека glog от GOOGLE, устанавливается в /usr/local
@@ -44,7 +52,7 @@ There are some other flags defined in logging.cc. Please grep the source code fo
 ctags -R --c++-kinds=+p --fields=+iaS --extra=+q .
 
 Используется cppcheck для статической проверки исходных текстов:
-cppcheck . --force -Icmake -Imdp -I../zeromq-3.2.2/src -Imsg -Itools -Idatabase -I../eXtremeDB_5_fusion_eval/include -I../glog-0.3.2/src -I../gtest-1.6.0/include -Iclient -Iworker
+cppcheck . --force -Icmake -Imdp -I../libzmq/src -Imsg -Itools -Ixdb -I../eXtremeDB_5_fusion_eval/include -I../glog-0.3.3/src -I../gtest-1.7.0/include -Iclient -Iworker
 
 Хронология проблем:
 --------------------------------------------------------------------------------

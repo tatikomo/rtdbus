@@ -541,10 +541,10 @@ TEST(TestTools, LOAD_XML)
                      ClassType_p,
                      Attr_p);
 
-    Attr_p.parsers (PointKind_p,
+    Attr_p.parsers (AttrNameType_p,
+                    PointKind_p,
                     Accessibility_p,
                     AttributeType_p,
-                    AttrNameType_p,
                     string_p);
 
     // Parse the XML document.
@@ -618,7 +618,6 @@ TEST(TestTools, LOAD_CLASSES)
 {
   bool status = false;
   int  objclass_idx;
-  int  attrib_idx;
   int  loaded;
   char fpath[255];
   char msg_info[255];
@@ -661,7 +660,7 @@ TEST(TestTools, LOAD_CLASSES)
                   break;
 
               case xdb::DB_TYPE_INTEGER64:
-                  sprintf(msg_val, "%16X", it->second.value.val_int64);
+                  sprintf(msg_val, "%ll", it->second.value.val_int64);
                   break;
 
               case xdb::DB_TYPE_FLOAT:
@@ -679,7 +678,7 @@ TEST(TestTools, LOAD_CLASSES)
                   break;
 
               case xdb::DB_TYPE_UNDEF:
-                  sprintf(msg_val, ": undef %02d");
+                  sprintf(msg_val, ": undef %02d", xdb::DB_TYPE_UNDEF);
                   break;
 
               default:
@@ -701,46 +700,6 @@ TEST(TestTools, LOAD_INSTANCE)
   status = xdb::processInstanceFile(fpath);
   EXPECT_TRUE(status);
 }
-
-#if 1
-// Принудительная очистка ресурсов, чтоб valgrind был доволен
-// NB: для рабочей системы в этом нет необходимости, 
-// память выделяется только один раз.
-TEST(TestTools, FREE_RESOURCES)
-{
-  xdb::AttributeMap_t  *p_attr_pool;
-  xdb::AttributeInfo_t *p_attr_info;
-  int objclass_idx;
-  int attribute_idx;
-
-  for (objclass_idx=0; objclass_idx <= GOF_D_BDR_OBJCLASS_LASTUSED; objclass_idx++)
-  {
-    p_attr_pool = xdb::ClassDescriptionTable[objclass_idx].attributes_pool;
-
-    if (!p_attr_pool)
-      continue;
-
-    for (attribute_idx=0; attribute_idx<p_attr_pool->size(); attribute_idx++)
-    {
-      if (NULL == (p_attr_info = &p_attr_pool->at(attribute_idx)))
-        continue;
-
-      switch(p_attr_info->db_type)
-      {
-        case xdb::DB_TYPE_BYTES:
-          delete[] p_attr_info->value.val_bytes.data;
-          break;
-        default:
-          // nothing to do here
-          break;
-      }
-//      NB: p_attr_info удаляется в processClassFile()
-//      сразу после помещения в attributes_pool;
-    }
-    delete p_attr_pool;
-  }
-}
-#endif
 
 int main(int argc, char** argv)
 {

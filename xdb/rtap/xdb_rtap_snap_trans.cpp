@@ -349,6 +349,7 @@ bool getAttrValue(DbType_t db_type,
     switch(db_type)
     {
       case xdb::DB_TYPE_BYTES:
+        // TODO: проверить работу с UTF-8
         p_attr_info->value.val_bytes.size = given_value.size();
         // для пустого значения
         if (p_attr_info->value.val_bytes.size)
@@ -357,7 +358,6 @@ bool getAttrValue(DbType_t db_type,
            memcpy(p_attr_info->value.val_bytes.data,
                given_value.data(),
                given_value.length());
-//               p_attr_info->value.val_bytes.size);
            p_attr_info->value.val_bytes.data[p_attr_info->value.val_bytes.size] = '\0';
         }
         else p_attr_info->value.val_bytes.data = NULL;
@@ -442,6 +442,7 @@ bool xdb::dump(const std::string& instanceAlias,
     // Получить доступ к Атрибутам из шаблонных файлов Классов
     AttributeMap_t *attributes_template;
     AttributeMapIterator_t it_given;
+    AttributeMapIterator_t it_attr_pool;
     std::string univname;
 
     if (class_idx == GOF_D_BDR_OBJCLASS_UNUSED)
@@ -450,13 +451,10 @@ bool xdb::dump(const std::string& instanceAlias,
       return false;
     }
 
-//  std::cout << "DUMP " << instanceAlias
-//    << " with " << attributes.size() << " attribute(s)" << std::endl;
-
     if (NULL != (attributes_template = xdb::ClassDescriptionTable[class_idx].attributes_pool))
     {
         std::cout << "<rtdb:Class>" << std::endl
-                  << "  <rtdb:Code>"<< (int)class_idx <<"/<rtdb:Code>" << std::endl
+                  << "  <rtdb:Code>"<< (int)class_idx <<"</rtdb:Code>" << std::endl
                   << "  <rtdb:Name>"<< xdb::ClassDescriptionTable[class_idx].name <<"</rtdb:Name>" << std::endl;
 
         // Найти тег БДРВ (атрибут ".UNIVNAME")
@@ -488,10 +486,10 @@ bool xdb::dump(const std::string& instanceAlias,
              // Этот Атрибут есть во входном перечне -> (1)
              std::cout
                 << "  <rtdb:Attr>" << std::endl
+        		<< "    <rtdb:AttrName>" << it->second.name << "</rtdb:AttrName>" << std::endl
                 << "    <rtdb:Kind>SCALAR</rtdb:Kind>" << std::endl
         		<< "    <rtdb:Accessibility>PUBLIC</rtdb:Accessibility>" << std::endl
         		<< "    <rtdb:DeType>" << it->second.db_type << "</rtdb:DeType>" << std::endl
-        		<< "    <rtdb:AttrName>" << it->second.name << "</rtdb:AttrName>" << std::endl
         		<< "    <rtdb:Value>" << getValueAsString(it_given->second) << "</rtdb:Value>" << std::endl
                 << "  </rtdb:Attr>"<< std::endl;
           }
@@ -500,21 +498,35 @@ bool xdb::dump(const std::string& instanceAlias,
              // Этот Атрибут есть только в шаблоне Атрибутов -> (2)
              std::cout
                 << "  <rtdb:Attr>" << std::endl
+        		<< "    <rtdb:AttrName>" << it->second.name << "</rtdb:AttrName>" << std::endl
                 << "    <rtdb:Kind>SCALAR</rtdb:Kind>" << std::endl
         		<< "    <rtdb:Accessibility>PUBLIC</rtdb:Accessibility>" << std::endl
         		<< "    <rtdb:DeType>" << it->second.db_type << "</rtdb:DeType>" << std::endl
-        		<< "    <rtdb:AttrName>" << it->second.name << "</rtdb:AttrName>" << std::endl
         		<< "    <rtdb:Value>" << getValueAsString(it->second) << "</rtdb:Value>" << std::endl
                 << "  </rtdb:Attr>"<< std::endl;
           }
         }
+
+        std::cout << "</rtdb:Class>" << std::endl;
     }
     else
     {
         status = false;
     }
 
-    std::cout << "/<rtdb:Class>" << std::endl;
+    // Удалить из attributes_given динамически выделенные данные (тип данных DB_TYPE_BYTES)
+    for (it_attr_pool = attributes_given.begin(); it_attr_pool != attributes_given.end(); ++it_attr_pool)
+    {
+      switch(it_attr_pool->second.db_type)
+      {
+        case xdb::DB_TYPE_BYTES:
+          delete[] it_attr_pool->second.value.val_bytes.data;
+          break;
+        default:
+          // nothing to do here
+          break;
+      }
+    }
     attributes_given.clear();
     return status;
 }
@@ -733,10 +745,7 @@ bool xdb::processInstanceFile(const char* fpath)
                  LOG(ERROR) << "Unable process type info '" << type << "' for " << currentAttrName;
                }
 
-
                attributes.insert(AttributeMapPair_t(currentAttrName, attr_info));
-//               if (db_type == DB_TYPE_BYTES && attr_info.value.val_bytes.size)
-//+++                 delete[] attr_info.value.val_bytes.data;
              }
              else
              {

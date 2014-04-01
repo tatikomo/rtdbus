@@ -173,6 +173,10 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
           <xs:complexType>
           <xs:sequence>
 
+            <!-- AttrName definition start -->
+            <xs:element name="AttrName" type="AttrNameType"/>
+            <!-- AttrName definition end -->
+
             <!-- Kind definition start -->
             <xs:element name="Kind" type="PointKind"/>
             <!-- Kind definition end -->
@@ -191,10 +195,6 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
             <!-- DeType definition start -->
             <xs:element name="DeType" type="AttributeType"/>
             <!-- DeType definition end -->
-
-            <!-- AttrName definition start -->
-            <xs:element name="AttrName" type="AttrNameType"/>
-            <!-- AttrName definition end -->
 
             <!-- Value definition start -->
             <xs:element name="Value" type="xs:string"/>
