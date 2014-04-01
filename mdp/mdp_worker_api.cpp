@@ -56,6 +56,7 @@ mdwrk::mdwrk (std::string broker, std::string service, int verbose) :
 mdwrk::~mdwrk ()
 {
   LOG(INFO) << "Worker destructor";
+    send_to_broker (MDPW_DISCONNECT, NULL, NULL);
     delete m_worker;
     delete m_context;
 }

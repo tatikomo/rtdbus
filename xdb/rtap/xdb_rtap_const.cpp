@@ -7,44 +7,146 @@
 
 using namespace xdb;
 
-rtDataElemDescription xdb::rtDataElem[] =
+// Перекодировочная таблица замены типам RTAP на тип eXtremeDB
+// Индекс элемента - код типа данных RTAP
+// Значение элемента - соответствующий индексу тип данных в eXtremeDB
+// 
+const DeTypeToDbTypeLink DeTypeToDbType[] = 
 {
-    { rtRESERVED0,   0,               "RESERVED(0)" },
-    { rtLOGICAL, sizeof(uint8_t),     "LOGICAL" },
-    { rtINT8,    sizeof(int8_t),      "INT8" },
-    { rtUINT8,   sizeof(uint8_t),     "UINT8" },
-    { rtINT16,   sizeof(int16_t),     "INT16" },
-    { rtUINT16,  sizeof(uint16_t),    "UINT16" },
-    { rtINT32,   sizeof(int32_t),     "INT32" },
-    { rtUINT32,  sizeof(uint32_t),    "UINT32" },
-    { rtFLOAT,   sizeof(float),       "FLOAT" },
-    { rtDOUBLE,  sizeof(double),      "DOUBLE" },
-    { rtPOLAR,       0,               "POLAR" },         // not used
-    { rtRECTANGULAR, 0,               "RECTANGULAR" },   // not used
-    { rtRESERVED12,  0,               "RESERVED(12)" },  // not used
-    { rtRESERVED13,  0,               "RESERVED(13)" },  // not used
-    { rtRESERVED14,  0,               "RESERVED(14)" },  // not used
-    { rtRESERVED15,  0,               "RESERVED(15)" },  // not used
-    { rtBYTES4,  sizeof(uint8_t)*4,   "BYTES4" },
-    { rtBYTES8,  sizeof(uint8_t)*8,   "BYTES8" },
-    { rtBYTES12, sizeof(uint8_t)*12,  "BYTES12" },
-    { rtBYTES16, sizeof(uint8_t)*16,  "BYTES16" },
-    { rtBYTES20, sizeof(uint8_t)*20,  "BYTES20" },
-    { rtBYTES32, sizeof(uint8_t)*32,  "BYTES32" },
-    { rtBYTES48, sizeof(uint8_t)*48,  "BYTES48" },
-    { rtBYTES64, sizeof(uint8_t)*64,  "BYTES64" },
-    { rtBYTES80, sizeof(uint8_t)*80,  "BYTES80" },
-    { rtBYTES128,sizeof(uint8_t)*128, "BYTES128" },
-    { rtBYTES256,sizeof(uint8_t)*256, "BYTES256" },
-    { rtRESERVED27,  0,               "RESERVED(27)" },
-    { rtDB_XREF,     0,               "XREF" },
-    { rtDATE,        sizeof(timeval), "DATE" },
-    { rtTIME_OF_DAY, sizeof(timeval), "TIME_OF_DAY" },
-    { rtASB_TIME,    sizeof(timeval), "ABSTIME" },
-    { rtUNDEFINED,   0,               "UNDEFINED" }
+    { rtRESERVED0,  DB_TYPE_UNDEF },
+    { rtLOGICAL,    DB_TYPE_INT8 },
+    { rtINT8,       DB_TYPE_INT8 },
+    { rtUINT8,      DB_TYPE_UINT8 },
+    { rtINT16,      DB_TYPE_INT16 },
+    { rtUINT16,     DB_TYPE_UINT16 },
+    { rtINT32,      DB_TYPE_INT32 },
+    { rtUINT32,     DB_TYPE_UINT32 },
+    { rtFLOAT,      DB_TYPE_FLOAT },
+    { rtDOUBLE,     DB_TYPE_DOUBLE },
+    { rtPOLAR,      DB_TYPE_UNDEF },
+    { rtRECTANGULAR,DB_TYPE_UNDEF },
+    { rtRESERVED12, DB_TYPE_UNDEF },
+    { rtRESERVED13, DB_TYPE_UNDEF },
+    { rtRESERVED14, DB_TYPE_UNDEF },
+    { rtRESERVED15, DB_TYPE_UNDEF },
+    { rtBYTES4,     DB_TYPE_BYTES4 },
+    { rtBYTES8,     DB_TYPE_BYTES8 },
+    { rtBYTES12,    DB_TYPE_BYTES12 },
+    { rtBYTES16,    DB_TYPE_BYTES16 },
+    { rtBYTES20,    DB_TYPE_BYTES20 },
+    { rtBYTES32,    DB_TYPE_BYTES32 },
+    { rtBYTES48,    DB_TYPE_BYTES48 },
+    { rtBYTES64,    DB_TYPE_BYTES64 },
+    { rtBYTES80,    DB_TYPE_BYTES80 },
+    { rtBYTES128,   DB_TYPE_BYTES128 },
+    { rtBYTES256,   DB_TYPE_BYTES256 },
+    { rtRESERVED27, DB_TYPE_UNDEF },
+    { rtDB_XREF,    DB_TYPE_UINT64 },
+    { rtDATE,       DB_TYPE_UINT64 },
+    { rtTIME_OF_DAY,DB_TYPE_UINT64 },
+    { rtASB_TIME,   DB_TYPE_UINT64 },
+    { rtUNDEFINED,  DB_TYPE_UNDEF },
 };
 
+// Соответствие между кодом типа БДРВ и его аналогом в RTAP
+const DbTypeToDeTypeLink DbTypeToDeType[] = 
+{
+  { DB_TYPE_UNDEF,  rtUNDEFINED },
+  { DB_TYPE_INT8,   rtINT8 },
+  { DB_TYPE_UINT8,  rtUINT8 },
+  { DB_TYPE_INT16,  rtINT16 },
+  { DB_TYPE_UINT16, rtUINT16 },
+  { DB_TYPE_INT32,  rtINT32 },
+  { DB_TYPE_UINT32, rtUINT32 },
+  { DB_TYPE_INT64,  rtUNDEFINED }, // RTAP не поддерживает
+  { DB_TYPE_UINT64, rtUNDEFINED }, // RTAP не поддерживает
+  { DB_TYPE_FLOAT,  rtFLOAT },
+  { DB_TYPE_DOUBLE, rtDOUBLE },
+  { DB_TYPE_BYTES,  rtUNDEFINED }, // RTAP не поддерживает
+  { DB_TYPE_BYTES4, rtBYTES4 },
+  { DB_TYPE_BYTES8, rtBYTES8 },
+  { DB_TYPE_BYTES12, rtBYTES12 },
+  { DB_TYPE_BYTES16, rtBYTES16 },
+  { DB_TYPE_BYTES20, rtBYTES20 },
+  { DB_TYPE_BYTES32, rtBYTES32 },
+  { DB_TYPE_BYTES48, rtBYTES48 },
+  { DB_TYPE_BYTES64, rtBYTES64 },
+  { DB_TYPE_BYTES80 , rtBYTES80 },
+  { DB_TYPE_BYTES128, rtBYTES128 },
+  { DB_TYPE_BYTES256, rtBYTES256 }
+};
 
+// Описание типов данных БДРВ
+const DbTypeDescription_t xdb::DbTypeDescription[] = 
+{
+  { DB_TYPE_UNDEF,  "UNDEF",    0 },
+  { DB_TYPE_INT8,   "INT8",     sizeof(int8_t) },
+  { DB_TYPE_UINT8,  "UINT8",    sizeof(uint8_t) },
+  { DB_TYPE_INT16,  "INT16",    sizeof(int16_t) },
+  { DB_TYPE_UINT16, "UINT16",   sizeof(uint16_t) },
+  { DB_TYPE_INT32,  "INT32",    sizeof(int32_t) },
+  { DB_TYPE_UINT32, "UINT32",   sizeof(uint32_t) },
+  { DB_TYPE_INT64,  "INT64",    sizeof(int32_t) },
+  { DB_TYPE_UINT64, "UINT64",   sizeof(uint32_t) },
+  { DB_TYPE_FLOAT,  "FLOAT",    sizeof(float) },
+  { DB_TYPE_DOUBLE, "DOUBLE",   sizeof(double) },
+  { DB_TYPE_BYTES,  "BYTES",    0 },    // может варьироваться
+  { DB_TYPE_BYTES4, "BYTES4",   sizeof(wchar_t)*4 },
+  { DB_TYPE_BYTES8, "BYTES8",   sizeof(wchar_t)*8 },
+  { DB_TYPE_BYTES12, "BYTES12", sizeof(wchar_t)*12 },
+  { DB_TYPE_BYTES16, "BYTES16", sizeof(wchar_t)*16 },
+  { DB_TYPE_BYTES20, "BYTES20", sizeof(wchar_t)*20 },
+  { DB_TYPE_BYTES32, "BYTES32", sizeof(wchar_t)*32 },
+  { DB_TYPE_BYTES48, "BYTES48", sizeof(wchar_t)*48 },
+  { DB_TYPE_BYTES64, "BYTES64", sizeof(wchar_t)*64 },
+  { DB_TYPE_BYTES80 , "BYTES80",    sizeof(wchar_t)*80 },
+  { DB_TYPE_BYTES128, "BYTES128",   sizeof(wchar_t)*128 },
+  { DB_TYPE_BYTES256, "BYTES256",   sizeof(wchar_t)*256 }
+};
+
+// Описание типов данных RTAP
+const DeTypeDescription_t xdb::rtDataElem[] =
+{
+    { rtRESERVED0,   "RESERVED0",     0 },
+    { rtLOGICAL,     "rtLOGICAL",  sizeof(uint8_t) },
+    { rtINT8,        "rtINT8",     sizeof(int8_t) },
+    { rtUINT8,       "rtUINT8",    sizeof(uint8_t) },
+    { rtINT16,       "rtINT16",    sizeof(int16_t) },
+    { rtUINT16,      "rtUINT16",   sizeof(uint16_t) },
+    { rtINT32,       "rtINT32",    sizeof(int32_t) },
+    { rtUINT32,      "rtUINT32",   sizeof(uint32_t) },
+    { rtFLOAT,       "rtFLOAT",    sizeof(float) },
+    { rtDOUBLE,      "rtDOUBLE",   sizeof(double) },
+    { rtPOLAR,       "rtPOLAR",       0 }, // not used
+    { rtRECTANGULAR, "rtRECTANGULAR", 0 }, // not used
+    { rtRESERVED12,  "RESERVED12",    0 }, // not used
+    { rtRESERVED13,  "RESERVED13",    0 }, // not used
+    { rtRESERVED14,  "RESERVED14",    0 }, // not used
+    { rtRESERVED15,  "RESERVED15",    0 }, // not used
+    { rtBYTES4,      "rtBYTES4",   sizeof(uint8_t)*4 },
+    { rtBYTES8,      "rtBYTES8",   sizeof(uint8_t)*8 },
+    { rtBYTES12,     "rtBYTES12",  sizeof(uint8_t)*12 },
+    { rtBYTES16,     "rtBYTES16",  sizeof(uint8_t)*16 },
+    { rtBYTES20,     "rtBYTES20",  sizeof(uint8_t)*20 },
+    { rtBYTES32,     "rtBYTES32",  sizeof(uint8_t)*32 },
+    { rtBYTES48,     "rtBYTES48",  sizeof(uint8_t)*48 },
+    { rtBYTES64,     "rtBYTES64",  sizeof(uint8_t)*64 },
+    { rtBYTES80,     "rtBYTES80",  sizeof(uint8_t)*80 },
+    { rtBYTES128,    "rtBYTES128", sizeof(uint8_t)*128 },
+    { rtBYTES256,    "rtBYTES256", sizeof(uint8_t)*256 },
+    { rtRESERVED27,  "RESERVED27",    0 },
+    { rtDB_XREF,     "rtXREF",        0 }, // TODO: возможно, это д.б. символьная ссылка
+    { rtDATE,        "rtDATE",        sizeof(timeval) },
+    { rtTIME_OF_DAY, "rtTIME_OF_DAY", sizeof(timeval) },
+    { rtASB_TIME,    "rtABSTIME",     sizeof(timeval) },
+    { rtUNDEFINED,   "rtUNDEFINED",   0 }
+};
+
+// Динамическая таблдица описаний классов
+// Заполняется из шаблонных файлов вида XX_YYY.dat
+// где 
+//  XX = номер класса
+//  YYY = название класса
 ClassDescription_t xdb::ClassDescriptionTable[] = {
     {"TS",      GOF_D_BDR_OBJCLASS_TS, 0},          /* Телесигнализация */
     {"TM",      1, 0},          /* Телеизмерение */

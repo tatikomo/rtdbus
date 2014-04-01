@@ -1,0 +1,23 @@
+C 12020INVT               Class37            RAM Natural     Optimized
+S CODE               PUB        rtBYTES8       INVT1
+S UNIVNAME           PUB        rtBYTES32      /INVT1
+S OBJCLASS           PUB        rtUINT8        37   
+S LABEL              PUB        rtBYTES80      INVERTER
+S SHORTLABEL         PUB        rtBYTES16           
+#S LOCALFLAG          PUB        rtLOGICAL      0    
+#S STATUS             PUB        rtLOGICAL      1    
+#S L_EQTTYP           PUB        rtBYTES32      
+#S INHIB              PUB        rtLOGICAL      0    
+#S INHIBLOCAL         PUB        rtLOGICAL      0    
+#S ALINHIB            PUB        rtLOGICAL      0    
+#S L_EQT              PUB        rtBYTES32      
+#S TSSYNTHETICAL      PUB        rtUINT8        0    
+#S LISTIMAG_REALCNT   PUB        rtUINT16       0    
+#S LISTIMAG_LASTINDEX PUB        rtUINT16       0    
+#S LISTIMAG_FIRSTFREE PUB        rtUINT16       0    
+#V LISTIMAG_KEYS      PUB        rtUINT16       32   
+#T T_LISTIMAG         PUB        0003200004
+#F key                rtUINT16
+#F label              rtBYTES32
+#F type               rtUINT16
+#F name               rtBYTES16

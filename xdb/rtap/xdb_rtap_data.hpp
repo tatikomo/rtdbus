@@ -48,8 +48,6 @@ class RtData
 
    private:
      DISALLOW_COPY_AND_ASSIGN(RtData);
-     static bool m_initialized;
-     static const char* DbTypeDescription[DB_TYPE_LAST];
      RtError    m_last_error;
      void       init();
      DbType_t   m_attr_type;

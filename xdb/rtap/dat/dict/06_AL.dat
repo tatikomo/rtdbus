@@ -1,0 +1,52 @@
+C 14050AL                 Class06            RAM User definedOptimized
+S CODE               PUB        rtBYTES8       
+S UNIVNAME           PUB        rtBYTES32      
+S OBJCLASS           PUB        rtUINT8        6    
+S LABEL              PUB        rtBYTES80      
+S SHORTLABEL         PUB        rtBYTES16      
+#S L_TYPINFO          PUB        rtBYTES32      
+#S L_EQT              PUB        rtBYTES32      
+#S STATUS             PUB        rtLOGICAL      0    
+#S ALDEST             PUB        rtLOGICAL      0    
+S L_SA               PUB        rtBYTES32      
+#S INHIBLOCAL         PUB        rtLOGICAL      0    
+S VALID              PUB        rtUINT16       0    
+S VALIDACQ           PUB        rtLOGICAL      1    
+S DATEHOURM          PUB        rtABS_TIME     
+#S OLDSASTATE         PUB        rtUINT8        0    
+#S VAL_ALINHIB        PUB        rtUINT16       0    
+#S INHIBIT            PUB        rtLOGICAL      0    
+S ALARMBEGIN         PUB        rtUINT32       0    
+S ALARMBEGINACK      PUB        rtUINT32       0    
+S ALARMENDACK        PUB        rtUINT32       0    
+S ALARMSYNTH         PUB        rtUINT8        0    
+S VAL                PUB        rtUINT16       0    
+S VALACQ             PUB        rtUINT16       0    
+#S DATERTU            PUB        rtABS_TIME     
+#S SASTATE            PUB        rtUINT8        0    
+#S VALIDCHANGE        PUB        rtUINT16       9    
+#S VALIDR             PUB        rtUINT16       0    
+#S VAL_LABEL          PUB        rtBYTES12      " "      
+#V ALARMV_VAL         PUB        rtUINT8        1    
+#S ACQMOD             PUB        rtINT16        0    
+#S L_DIPL             PUB        rtBYTES32
+#S ORACLE_LOG_TYPE    PUB        rtUINT8        0    
+#S RTAP_LOG_TYPE      PUB        rtUINT8        0
+#V CATAL              PUB        rtUINT8        2    
+#DV000011
+#DV000021
+#V DEGREE             PUB        rtUINT8        2    
+#DV000011
+#DV000021
+#S LISTACD_REALCNT    PUB        rtUINT16       0
+#S LISTACD_LASTINDEX  PUB        rtUINT16       0
+#S LISTACD_FIRSTFREE  PUB        rtUINT16       0
+#V LISTACD_KEYS       PUB        rtUINT16       10
+#T T_LISTACD          PUB        0001000007
+#F key                rtUINT16
+#F date               rtABS_TIME
+#F type_al            rtUINT8
+#F value              rtDOUBLE
+#F degree             rtUINT8
+#F cat                rtUINT8
+#F dispatcher         rtBYTES20

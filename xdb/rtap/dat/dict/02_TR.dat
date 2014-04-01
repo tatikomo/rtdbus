@@ -1,0 +1,24 @@
+C 14010TR                 Class02            RAM Natural     Enabled  
+S CODE               PUB        rtBYTES8       
+S UNIVNAME           PUB        rtBYTES32           
+S OBJCLASS           PUB        rtUINT8        2    
+S LABEL              PUB        rtBYTES80       
+S SHORTLABEL         PUB        rtBYTES16           
+S L_TYPINFO          PUB        rtBYTES32      
+S STATUS             PUB        rtLOGICAL      0    
+S L_EQT              PUB        rtBYTES32      
+S L_SA               PUB        rtBYTES32      
+S L_TM               PUB        rtBYTES32      
+S MINVAL             PUB        rtDOUBLE       0    
+S MAXVAL             PUB        rtDOUBLE       0    
+S VAL                PUB        rtDOUBLE       0    
+S CONFREMOTECMD      PUB        rtLOGICAL      0    
+S FLGREMOTECMD       PUB        rtLOGICAL      0    
+S REMOTECONTROL      PUB        rtLOGICAL      0    
+S NONEXE             PUB        rtLOGICAL      0    
+S RESPNEG            PUB        rtLOGICAL      0    
+V ALARMV_NONEXE      PUB        rtUINT8        1    
+V ALARMV_RESPNEG     PUB        rtUINT8        1    
+S VALEX              PUB        rtDOUBLE       0    
+S UNITY              PUB        rtBYTES20      
+S UNITYCATEG         PUB        rtUINT8        1

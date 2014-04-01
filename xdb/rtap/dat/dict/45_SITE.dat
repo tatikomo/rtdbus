@@ -1,0 +1,38 @@
+C 00001SITE               Class45            RAM Natural     Enabled  
+S CODE               PUB        rtBYTES8       SITE
+S UNIVNAME           PUB        rtBYTES32      /SITE
+S OBJCLASS           PUB        rtUINT8        45   
+S SITEFLG            PUB        rtLOGICAL      0    
+#S L_CURRENTSITE      PUB        rtBYTES32      
+S ETGCODE            PUB        rtBYTES8        
+#S BEGINDAY           PUB        rtUINT16       10   
+#S SHIFTHOUR1         PUB        rtUINT16       0
+#S SHIFTHOUR2         PUB        rtUINT16       0
+#S SHIFTHOUR3         PUB        rtUINT16       0
+#S SHIFTHOUR4         PUB        rtUINT16       0
+S DISPP              PUB        rtBYTES20           
+#S PREV_DISPATCHER    PUB        rtBYTES20           
+#S CURRENT_SHIFT_TIME PUB        rtABS_TIME     
+#S PREV_SHIFT_TIME    PUB        rtABS_TIME     
+#S MXWAITTC           PUB        rtUINT32       0
+#S MXORDERS1          PUB        rtUINT32       0
+#S MXORDERS2          PUB        rtUINT32       0
+#S MXORDERSTRANS1     PUB        rtUINT32       0
+#S MXORDERSTRANS2     PUB        rtUINT32       0
+#S NUMSITE            PUB        rtUINT16       0
+#S SHIFTDURATION      PUB        rtUINT16       0
+#S NUMBERSHIFTS       PUB        rtUINT16       0
+#S LAST_AL_DATE       PUB        rtABS_TIME     
+#S LINK_HIST          PUB        rtDB_XREF      @[]
+#S LASTVALH           PUB        rtBYTES20           
+#S LASTVALIDH         PUB        rtUINT16       0
+#S HISTOTYPE          PUB        rtINT32        1
+#S LISTIMAG_REALCNT   PUB        rtUINT16       0    
+#S LISTIMAG_LASTINDEX PUB        rtUINT16       0    
+#S LISTIMAG_FIRSTFREE PUB        rtUINT16       0    
+#V LISTIMAG_KEYS      PUB        rtUINT16       32   
+#T T_LISTIMAG         PUB        0003200004
+#F key                rtUINT16
+#F label              rtBYTES32
+#F type               rtUINT16
+#F name               rtBYTES16

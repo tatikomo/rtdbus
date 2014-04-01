@@ -114,21 +114,35 @@ typedef std::string   code_t;
 typedef enum
 {
   DB_TYPE_UNDEF     = 0,
-  DB_TYPE_INTEGER8  = 1,
-  DB_TYPE_INTEGER16 = 2,
-  DB_TYPE_INTEGER32 = 3,
-  DB_TYPE_INTEGER64 = 4,
-  DB_TYPE_FLOAT     = 5,
-  DB_TYPE_DOUBLE    = 6,
-  DB_TYPE_BYTES     = 7,
-  DB_TYPE_LAST      = 8 // fake type, used for limit array types
+  DB_TYPE_INT8      = 1,
+  DB_TYPE_UINT8     = 2,
+  DB_TYPE_INT16     = 3,
+  DB_TYPE_UINT16    = 4,
+  DB_TYPE_INT32     = 5,
+  DB_TYPE_UINT32    = 6,
+  DB_TYPE_INT64     = 7,
+  DB_TYPE_UINT64    = 8,
+  DB_TYPE_FLOAT     = 9,
+  DB_TYPE_DOUBLE    = 10,
+  DB_TYPE_BYTES     = 11, // переменная длина строки
+  DB_TYPE_BYTES4    = 12,
+  DB_TYPE_BYTES8    = 13,
+  DB_TYPE_BYTES12   = 14,
+  DB_TYPE_BYTES16   = 15,
+  DB_TYPE_BYTES20   = 16,
+  DB_TYPE_BYTES32   = 17,
+  DB_TYPE_BYTES48   = 18,
+  DB_TYPE_BYTES64   = 19,
+  DB_TYPE_BYTES80   = 20,
+  DB_TYPE_BYTES128  = 21,
+  DB_TYPE_BYTES256  = 22,
+  DB_TYPE_LAST      = 23 // fake type, used for limit array types
 } DbType_t;
-
 
 // NB: формат хранения строк UTF-8
 typedef struct
 {
-  uint16_t size;
+  uint16_t size; // 16384
   char *data;
 } variable_t;
 
@@ -172,24 +186,53 @@ typedef enum
 
 #define GOF_D_BDR_MAX_DE_TYPE rtUNDEFINED
 
+// Таблица описателей типов данных БДРВ
+typedef struct
+{
+  // порядковый номер
+  DbType_t   code;
+  const char name[ELEMENT_DESCRIPTION_MAXLEN+1];
+  // размер типа данных
+  size_t     size;
+} DbTypeDescription_t;
+
+// Элемент соответствия между кодом типа RTAP и БДРВ
+typedef struct
+{
+  rtDeType de_type; // код RTAP
+  DbType_t db_type; // код eXtremeDB
+} DeTypeToDbTypeLink;
+
+// Элемент соответствия между кодом типа БДРВ и RTAP
+typedef struct
+{
+  DbType_t db_type; // код eXtremeDB
+  rtDeType de_type; // код RTAP
+} DbTypeToDeTypeLink;
+
+// Таблица описателей типов данных RTAP
 typedef struct
 {
   // порядковый номер
   rtDeType code;
-  // размер типа данных
-  int size;
   // описание
   char name[ELEMENT_DESCRIPTION_MAXLEN+1];
-} rtDataElemDescription;
+  // размер типа данных
+  size_t size;
+} DeTypeDescription_t;
 
 
 typedef union
 {
-  int64_t  val_int64;
-  int32_t  val_int32;
-  int16_t  val_int16;
   int8_t   val_int8;
-  variable_t val_bytes; /* TODO: определить максимальное значение строки */
+  uint8_t  val_uint8;
+  int16_t  val_int16;
+  uint16_t val_uint16;
+  int32_t  val_int32;
+  uint32_t val_uint32;
+  int64_t  val_int64;
+  uint64_t val_uint64;
+  variable_t val_bytes; // NB: максимальное значение строки =16384
   float    val_float;
   double   val_double;
 } AttrVal_t;
@@ -229,10 +272,13 @@ typedef struct
 } ClassDescription_t;
 
 extern ClassDescription_t ClassDescriptionTable[];
-extern rtDataElemDescription rtDataElem[];
-/* Получить универсальное имя на основе его алиаса */
+extern const DeTypeDescription_t rtDataElem[];
+// Получить универсальное имя на основе его алиаса
 extern int GetPointNameByAlias(univname_t&, univname_t&);
 
+// Хранилище описаний типов данных БДРВ
+extern const DbTypeDescription_t DbTypeDescription[];
+extern const DeTypeToDbTypeLink DeTypeToDbType[];
 }
 
 #endif
