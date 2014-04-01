@@ -692,6 +692,7 @@ TEST(TestTools, LOAD_CLASSES)
               case xdb::DB_TYPE_BYTES32:
               case xdb::DB_TYPE_BYTES48:
               case xdb::DB_TYPE_BYTES64:
+              case xdb::DB_TYPE_BYTES80:
               case xdb::DB_TYPE_BYTES128:
               case xdb::DB_TYPE_BYTES256:
                   sprintf(msg_val, "[%02X] \"%s\"", 
