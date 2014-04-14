@@ -407,10 +407,13 @@ bool getAttrValue(DbType_t db_type,
     return status;
 }
 
-std::string getValueAsString(AttributeInfo_t* attr_info)
+// Экранировать символы '&', '<', '>' на '&amp;', '&lt;', '&gt'
+// перед использованием строки в составе XML
+std::string getValueAsString(AttributeInfo_t* attr_info, bool masquerade)
 {
   std::string s_val;
   std::stringstream ss;
+  std::string::size_type found;
 
   assert(attr_info);
   switch(attr_info->db_type)
@@ -481,6 +484,27 @@ std::string getValueAsString(AttributeInfo_t* attr_info)
         s_val.assign("<unknown>");
   }
 
+  if (masquerade)
+  {
+    while (std::string::npos != (found=s_val.find('&')))
+    {
+      s_val.erase(found, 1);
+      s_val.insert(found, "&amp;");
+    }
+
+    while (std::string::npos != (found=s_val.find('<')))
+    {
+      s_val.erase(found, 1);
+      s_val.insert(found, "&lt;");
+    }
+
+    while (std::string::npos != (found=s_val.find('>')))
+    {
+      s_val.erase(found, 1);
+      s_val.insert(found, "&gt;");
+    }
+
+  }
   return s_val;
 }
 
@@ -534,10 +558,10 @@ std::string& xdb::dump_point(
         {
           class_item_presentation
                 << "  <rtdb:Attr>" << std::endl
+        		<< "    <rtdb:AttrName>" << it->second.name << "</rtdb:AttrName>" << std::endl
                 << "    <rtdb:Kind>SCALAR</rtdb:Kind>" << std::endl
         		<< "    <rtdb:Accessibility>PUBLIC</rtdb:Accessibility>" << std::endl
-        		<< "    <rtdb:DbType>" << GetDbNameFromType(it->second.db_type) << "</rtdb:DbType>" << std::endl
-        		<< "    <rtdb:AttrName>" << it->second.name << "</rtdb:AttrName>" << std::endl;
+        		<< "    <rtdb:DbType>" << GetDbNameFromType(it->second.db_type) << "</rtdb:DbType>" << std::endl;
 
           // Если Атрибут из шаблона найден во входном перечне Атрибутов, то
           //    (1) Значения по умолчанию следует брать из входного перечня
@@ -556,7 +580,7 @@ std::string& xdb::dump_point(
           }
 
           class_item_presentation
-            << "    <rtdb:Value>"<< getValueAsString(element) <<"</rtdb:Value>"<< std::endl
+            << "    <rtdb:Value>"<< getValueAsString(element, true) <<"</rtdb:Value>"<< std::endl
             << "  </rtdb:Attr>"<< std::endl;
         }
 
@@ -698,7 +722,7 @@ bool xdb::processInstanceFile(const char* fpath)
             {
                // writes all the data of the previous class
               xdb::dump_point(class_idx, pointName, attributes, point_view);
-              if (false == point_view.empty());
+              if (false == point_view.empty())
               {
                 ofs << point_view;
               }
