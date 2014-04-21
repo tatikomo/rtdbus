@@ -61,6 +61,8 @@ class RtCoreDatabase : public Database
     bool Connect();
     // Останов рантайма
     bool Disconnect();
+    // Загрузка данных из указанного файла
+    bool LoadSnapshotFromFile(const char*);
 
   private:
     DISALLOW_COPY_AND_ASSIGN(RtCoreDatabase);

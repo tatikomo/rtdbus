@@ -133,6 +133,7 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     <xs:enumeration value="HIST_TABLE_M"/>
     <xs:enumeration value="HIST_TABLE_QH"/>
     <xs:enumeration value="HIST_TABLE_SAMPLE"/>
+    <xs:enumeration value="TIME_AVAILABLE"/>
     <xs:enumeration value="CONFIG"/>
   </xs:restriction>
 </xs:simpleType>

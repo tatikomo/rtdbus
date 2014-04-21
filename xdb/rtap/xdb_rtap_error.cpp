@@ -1,5 +1,7 @@
 #include "config.h"
 #include "xdb_rtap_error.hpp"
+#include "dat/rtap_db-pimpl.hxx"
+#include "dat/rtap_db-pskel.hxx"
 
 using namespace xdb;
 
@@ -40,6 +42,7 @@ void RtError::init()
     m_error_descriptions[rtE_STRING_IS_EMPTY]  = "Given string is empty";
     m_error_descriptions[rtE_DB_NOT_FOUND]     = "Database is not found";
     m_error_descriptions[rtE_DB_NOT_OPENED]    = "Database is not opened";
+    m_error_descriptions[rtE_XML_NOT_FOUND]    = "XML couldn't be opened";
   }
 }
 

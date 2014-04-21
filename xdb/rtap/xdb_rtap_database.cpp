@@ -462,6 +462,16 @@ bool RtCoreDatabase::LoadFromSnapshot()
 }
 
 
+bool RtCoreDatabase::LoadSnapshotFromFile(const char* filename)
+{
+  MCO_RET rc = MCO_S_OK;
+
+  assert(filename);
+
+  return false;
+}
+
+
 // Создать базу данных с помощью mco_db_open
 bool RtCoreDatabase::Create()
 {

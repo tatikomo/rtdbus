@@ -20,6 +20,7 @@ include_directories(${TOOLS_DIR})
 include_directories(${MDP_DIR})
 include_directories(${MSG_DIR})
 include_directories(${XDB_CORE_DIR})
+include_directories(${XDB_RTAP_DIR}/dat)
 include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})
 include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
@@ -28,8 +29,57 @@ link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${LIBGLOG_LIBRARIES_DIR})
 
+add_custom_command(
+        OUTPUT
+        ${MSG_DIR}/proto/common.pb.cc
+        ${MSG_DIR}/proto/common.pb.h
+        COMMAND
+        ${PROTOC} --cpp_out=. --proto_path=. common.proto
+        DEPENDS
+        ${MSG_DIR}/proto/common.proto
+        WORKING_DIRECTORY
+        ${MSG_DIR}/proto
+        )
+
+add_custom_command(
+        OUTPUT 
+        ${XDB_RTAP_DIR}/dat/rtap_db.h
+        ${XDB_RTAP_DIR}/dat/rtap_db.c
+        ${XDB_RTAP_DIR}/dat/rtap_db.hpp
+        COMMAND
+        ${LIBEXTREMEDB_MCOCOMP} -hpp rtap_db.mco -P${XDB_RTAP_DIR}/dat
+        DEPENDS
+        ${XDB_RTAP_DIR}/dat/rtap_db.mco
+        WORKING_DIRECTORY
+        ${XDB_RTAP_DIR}/dat
+        )
+
+# Команда вида:
+# xsd cxx-parser --generate-validation --generate-noop-impl rtap_db.xsd
+# будет дополнительно генерировать заглушки реализации (rtap_db-pimpl.*)
+# перезаписать старые "pimpl.[hc]xx" можно флагом --force-overwrite
+# создать тестовый код, использующий сгенерированные классы: --generate-test-drive
+add_custom_command(
+        OUTPUT
+        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.hxx
+        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.cxx
+        COMMAND
+        /usr/bin/xsd cxx-parser --type-map rtap_db.map --generate-validation rtap_db.xsd
+        DEPENDS
+        ${XDB_RTAP_DIR}/dat/rtap_db.xsd
+        ${XDB_RTAP_DIR}/dat/rtap_db.map
+        WORKING_DIRECTORY
+        ${XDB_RTAP_DIR}/dat
+        )
+
+
 set (XDB_RTAP_SNAP_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
+        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.hxx
+        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.cxx
+        ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.hxx
+        ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.cxx
+        ${XDB_RTAP_DIR}/dat/rtap_db.hxx
         ${XDB_RTAP_DIR}/dat/rtap_db.h
         ${XDB_RTAP_DIR}/dat/rtap_db.hpp
         ${XDB_RTAP_DIR}/dat/rtap_db.c
@@ -48,6 +98,10 @@ set (XDB_RTAP_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
         ${TOOLS_DIR}/helper.hpp
         ${MDP_DIR}/mdp_letter.hpp
+        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.hxx
+        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.cxx
+        ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.hxx
+        ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.cxx
         ${XDB_RTAP_DIR}/dat/rtap_db.h
         ${XDB_RTAP_DIR}/dat/rtap_db.hpp
         ${XDB_RTAP_DIR}/dat/rtap_db.c
@@ -94,51 +148,15 @@ set (XDB_LURKER_SOURCES
         ${MDP_DIR}/mdp_letter.hpp
         ${MDP_DIR}/mdp_worker_api.hpp
         ${MDP_DIR}/mdp_zmsg.hpp
+        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.hxx
+        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.cxx
+        ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.hxx
+        ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.cxx
+        ${XDB_RTAP_DIR}/dat/rtap_db.hxx
         ${XDB_RTAP_DIR}/xdb_rtap_lurker.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_lurker.hpp)
 
-add_custom_command(
-        OUTPUT
-        ${MSG_DIR}/proto/common.pb.cc
-        ${MSG_DIR}/proto/common.pb.h
-        COMMAND
-        ${PROTOC} --cpp_out=. --proto_path=. common.proto
-        DEPENDS
-        ${MSG_DIR}/proto/common.proto
-        WORKING_DIRECTORY
-        ${MSG_DIR}/proto
-        )
-
-add_custom_command(
-        OUTPUT 
-        ${XDB_RTAP_DIR}/dat/rtap_db.h
-        ${XDB_RTAP_DIR}/dat/rtap_db.c
-        ${XDB_RTAP_DIR}/dat/rtap_db.hpp
-        COMMAND
-        ${LIBEXTREMEDB_MCOCOMP} -hpp rtap_db.mco -P${XDB_RTAP_DIR}/dat
-        DEPENDS
-        ${XDB_RTAP_DIR}/dat/rtap_db.mco
-        WORKING_DIRECTORY
-        ${XDB_RTAP_DIR}/dat
-        )
-
-# Команда вида:
-# xsd cxx-parser --generate-validation --generate-noop-impl rtap_db.xsd
-# будет дополнительно генерировать заглушки реализации (rtap_db-pimpl.*)
-# перезаписать старые "pimpl.[hc]xx" можно флагом --force-overwrite
-# создать тестовый код, использующий сгенерированные классы: --generate-test-drive
-add_custom_command(
-        OUTPUT
-        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.hxx
-        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.cxx
-        COMMAND
-        /usr/bin/xsd cxx-parser --type-map rtap_db.map --generate-validation rtap_db.xsd
-        DEPENDS
-        ${XDB_RTAP_DIR}/dat/rtap_db.xsd
-        ${XDB_RTAP_DIR}/dat/rtap_db.map
-        WORKING_DIRECTORY
-        ${XDB_RTAP_DIR}/dat
-        )
+add_definitions(-fpermissive)
 
 add_library (${XDB_RTAP_LIBRARY_NAME} ${XDB_RTAP_SOURCES})
 target_link_libraries(${XDB_RTAP_LIBRARY_NAME}
@@ -152,6 +170,7 @@ target_link_libraries(${XDB_RTAP_LURKER_NAME}
     ${LIBGLOG_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     "-lmcoseri_debug"
+    "-lxerces-c"
     ${LIBPROTOBUF_LIBRARIES}
     ${SYSTEM_EXTERNAL_LIBS})
 
@@ -162,5 +181,6 @@ target_link_libraries(${XDB_RTAP_SNAP_NAME}
     ${LIBGLOG_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     "-lmcoseri_debug"
+    "-lxerces-c"
     ${SYSTEM_EXTERNAL_LIBS})
 

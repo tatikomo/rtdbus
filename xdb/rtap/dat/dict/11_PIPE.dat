@@ -6,21 +6,21 @@ S LABEL              PUB        rtBYTES80
 S SHORTLABEL         PUB        rtBYTES16           
 S LOCALFLAG          PUB        rtLOGICAL      0    
 S STATUS             PUB        rtLOGICAL      0    
-S L_NETTYPE          PUB        rtBYTES32      
-S L_NET              PUB        rtBYTES32      
-S L_EQTORBORUPS      PUB        rtBYTES32      
-S L_EQTORBORDWN      PUB        rtBYTES32      
-S NMPRESSURE         PUB        rtDOUBLE       0    
-S KMREFUPS           PUB        rtDOUBLE       0    
-S KMREFDWN           PUB        rtDOUBLE       0    
-S L_TL               PUB        rtBYTES32      
+#S L_NETTYPE          PUB        rtBYTES32      
+#S L_NET              PUB        rtBYTES32      
+#S L_EQTORBORUPS      PUB        rtBYTES32      
+#S L_EQTORBORDWN      PUB        rtBYTES32      
+#S NMPRESSURE         PUB        rtDOUBLE       0    
+#S KMREFUPS           PUB        rtDOUBLE       0    
+#S KMREFDWN           PUB        rtDOUBLE       0    
+#S L_TL               PUB        rtBYTES32      
 S INHIB              PUB        rtLOGICAL      0    
 S INHIBLOCAL         PUB        rtLOGICAL      0    
 S ALINHIB            PUB        rtLOGICAL      0    
-S EQV_REALCNT        PUB        rtUINT16       0    
-S EQV_LASTINDEX      PUB        rtUINT16       0    
-S EQV_FIRSTFREE      PUB        rtUINT16       0    
-V EQV_KEYS           PUB        rtUINT16       20    
+#S EQV_REALCNT        PUB        rtUINT16       0    
+#S EQV_LASTINDEX      PUB        rtUINT16       0    
+#S EQV_FIRSTFREE      PUB        rtUINT16       0    
+#V EQV_KEYS           PUB        rtUINT16       20    
 T T_EQV              PUB        0002000005
 F key                rtUINT16
 F date               rtABS_TIME

@@ -40,6 +40,13 @@ xdb::RtApplication* app = NULL;
 xdb::RtEnvironment* env = NULL;
 xdb::RtDbConnection* connection = NULL;
 
+/* 
+ * Содержимое базы данных RTDB после чтения из файла classes.xml
+ * Инициализируется в функции TestTools.LOAD_XML
+ * Используется в функции TestRtapDATABASE.CREATE
+ */
+rtap_db::ClassesList class_list;
+
 void wait()
 {
 //  puts("\nNext...");
@@ -96,7 +103,9 @@ TEST(TestBrokerDATABASE, OPEN)
     state = database->State();
     ASSERT_TRUE(state == xdb::Database::CONNECTED);
 
+#if VERBOSE
     show_runtime_info("Database runtime information:\n=======================================");
+#endif
 }
 
 TEST(TestBrokerDATABASE, INSERT_SERVICE)
@@ -494,7 +503,6 @@ TEST(TestLurkerDATABASE, DESTROY)
 using namespace xercesc;
 TEST(TestTools, LOAD_XML)
 {
-  rtap_db::ClassesList class_list;
   int   class_item;
   int   attribute_item;
   const int argc = 2;
@@ -517,9 +525,6 @@ TEST(TestTools, LOAD_XML)
 
   try
   {
-    // Do your actual work with Xerces-C++ here.
-    std::cout << "Hello, World!"<<std::endl;
-
     // Instantiate individual parsers.
     //
     ::rtap_db::RTDB_STRUCT_pimpl RTDB_STRUCT_p;
@@ -558,9 +563,15 @@ TEST(TestTools, LOAD_XML)
     doc_p.parse (argv[1]);
     RTDB_STRUCT_p.post_RTDB_STRUCT ();
 
+#if VERBOSE
     std::cout << "Parsing XML is over, processed " << class_list.size() << " element(s)" << std::endl;
+#endif
+    /* В cmake/classes.xml есть 3 точки */
+    EXPECT_EQ(class_list.size(), 3);
+
     for (class_item=0; class_item<class_list.size(); class_item++)
     {
+#if VERBOSE
       std::cout << "\tCODE:  " << class_list[class_item].code() << std::endl;
       std::cout << "\tNAME:  '" << class_list[class_item].name() << "'" << std::endl;
       std::cout << "\t#ATTR: " << class_list[class_item].m_attributes.size() << std::endl;
@@ -578,6 +589,7 @@ TEST(TestTools, LOAD_XML)
                     << std::endl;
         }
       }
+#endif
 
       switch(class_item)
       {
@@ -597,7 +609,9 @@ TEST(TestTools, LOAD_XML)
             break;
       }
 
+#if VERBOSE
       std::cout << std::endl;
+#endif
     }
 
     XMLPlatformUtils::Terminate();
@@ -616,7 +630,6 @@ TEST(TestTools, LOAD_XML)
 
 TEST(TestTools, LOAD_CLASSES)
 {
-  bool status = false;
   int  objclass_idx;
   int  loaded;
   char fpath[255];
@@ -636,9 +649,11 @@ TEST(TestTools, LOAD_CLASSES)
 
     if (pool)
     {
+#if VERBOSE
         std::cout << "#" << objclass_idx << " : " 
             << xdb::ClassDescriptionTable[objclass_idx].name 
             << "(" << pool->size() << ")" << std::endl;
+#endif
 
         for (xdb::AttributeMapIterator_t it=pool->begin(); it!=pool->end(); ++it)
         {
@@ -658,21 +673,21 @@ TEST(TestTools, LOAD_CLASSES)
                   sprintf(msg_val, "%04X", it->second.value.val_int16);
                   break;
               case xdb::DB_TYPE_UINT16:
-                  sprintf(msg_val, "%+04X", it->second.value.val_uint16);
+                  sprintf(msg_val, "%04X", it->second.value.val_uint16);
                   break;
 
               case xdb::DB_TYPE_INT32:
                   sprintf(msg_val, "%08X", it->second.value.val_int32);
                   break;
               case xdb::DB_TYPE_UINT32:
-                  sprintf(msg_val, "%+08X", it->second.value.val_uint32);
+                  sprintf(msg_val, "%08X", it->second.value.val_uint32);
                   break;
 
               case xdb::DB_TYPE_INT64:
-                  sprintf(msg_val, "%ll", it->second.value.val_int64);
+                  sprintf(msg_val, "%ld", it->second.value.val_int64);
                   break;
               case xdb::DB_TYPE_UINT64:
-                  sprintf(msg_val, "%+ll", it->second.value.val_uint64);
+                  sprintf(msg_val, "%ld", it->second.value.val_uint64);
                   break;
 
               case xdb::DB_TYPE_FLOAT:
@@ -707,7 +722,9 @@ TEST(TestTools, LOAD_CLASSES)
               default:
                   LOG(ERROR) << ": <error>=" << it->second.db_type;
             }
+#if VERBOSE
             std::cout << msg_info << " | " << msg_val << std::endl;
+#endif
         }
     }
 
@@ -723,6 +740,52 @@ TEST(TestTools, LOAD_INSTANCE)
   status = xdb::processInstanceFile(fpath);
   EXPECT_TRUE(status);
 }
+
+#if 0
+/* Заполнить контент RTDB на основе прочитанных из XML данных */
+TEST(TestRtapDATABASE, CREATE)
+{
+  bool status = false;
+  const int argc = 3;
+  char *argv[argc] = {
+                    "RTDB_TEST",
+                    "OF_CREATE=1",
+                    "OF_TRUNCATE=1"
+                    };
+
+  app = new xdb::RtApplication("RTDB_TEST");
+  ASSERT_TRUE(app != NULL);
+
+  app->setOption("OF_CREATE", 1);
+  app->setOption("OF_TRUNCATE", 1);
+  EXPECT_EQ(app->getLastError().getCode(), xdb::rtE_NONE);
+
+  app->setEnvName("RTAP");
+
+  LOG(INFO) << "Initialize: " << app->initialize().getCode();
+  LOG(INFO) << "Operation mode: " << app->getOperationMode();
+  LOG(INFO) << "Operation state: " << app->getOperationState();
+
+  env = app->getEnvironment("SINF");
+  EXPECT_TRUE(env != NULL);
+
+  connection = env->createDbConnection();
+  EXPECT_TRUE(connection != NULL);
+
+  env->LoadSnapshotFromFile("classes.xml");
+}
+
+TEST(TestRtapDATABASE, SHOW_CONTENT)
+{
+//  env->Dump();
+}
+
+TEST(TestRtapDATABASE, TERMINATE)
+{
+  delete env;
+  delete app;
+}
+#endif
 
 int main(int argc, char** argv)
 {

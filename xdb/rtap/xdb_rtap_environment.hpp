@@ -61,8 +61,10 @@ class RtEnvironment
     const char* getName() const;
     // Отправить сообщение адресату
     RtError& sendMessage(mdp::Letter*);
-    // получить состояние Среды
+    // Получить состояние Среды
     EnvState_t getEnvState() const { return m_state; }
+    // Загрузить содержимое БД данной среды из указанного XML файла
+    RtError& LoadSnapshotFromFile(const char*);
 
   private:
     DISALLOW_COPY_AND_ASSIGN(RtEnvironment);

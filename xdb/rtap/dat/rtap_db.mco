@@ -13,6 +13,7 @@
 #define uint4       unsigned<4>
 #define uint2       unsigned<2>
 #define uint1       unsigned<1>
+#define i_objclass  unsigned<1>
 #define s_code      char<8>
 #define s_label     char<80>
 #define s_univname  char<32>
@@ -23,138 +24,102 @@
 
 declare database  rtap_db;
 
+/* Linkage table between 'OBJCLASS' and 'CODE' */
+class Link_OBJCLASS_CODE
+{
+  s_code        objectCode;        /* class name (ex. "TM", "TS", "ATC", "SA",... */
+  i_objclass    objectClass;       /* class id */
+  hash <objectCode> codeHash[100]; /* get objclass by code */
+};
+
 /* Common part of each db points */
 struct Header
 {
   s_univname    univName;
-  s_code   objectCode;
-  uint1    objectClass;
-  s_shortlabel    shortLabel;
-  s_label    longLabel;
+  i_objclass    objectClass; /* class id */
+  s_shortlabel  shortLabel;  /* short human-readable designation */
+  s_label       longLabel;   /* full human-readable designation */
+  time          modifTime;   /* last modification time */
+  uint1         validity;    /* VALID|INVALID|MANUAL|... */
+  autoid_t      linkSA;      /* reference to SA object */
 };
 
-/* Common part of equipment */
-struct EquipmentPart
+/* Common part for discrete-state objects */
+struct DiscreteInfoType
 {
-  uint1    valid;
-  uint1    state;
-  s_statelabel    stateLabel;
+  uint1         state;
+  s_statelabel  stateLabel;
 };
 
-/* Telemetry */
-class TM
+/* Common part for analog-state objects */
+struct AnalogInfoType
 {
-  Header    header;
-  time    modifTime;
-  uint1    valid;
-  double    val;
-  autoid_t  linkSA; /*reference to SA object */
-  autoid[1000];    /* max to 1000 telemetries per local object */
-  hash < header.univName > tmHash[1000];
+  uint1         state; /* TODO: check it is useless */
+  double        val;
 };
 
-class Valve
+/* Analog Information Object */
+class AnalogInformation
 {
   Header    header;
-  EquipmentPart    eqt;
-  time    modifTime;
-  autoid_t  linkSA; /*reference to SA object */
-  autoid[500];   /* max to 500 valves per DIPL */
-  hash <header.univName> valveHash[500];
+  AnalogInfoType ai;
+  autoid[10000];     /* max to 10000 analog-state-objects */
+  hash < header.univName > tiHash[10000];
 };
 
-/* Acquisition system */
-class SA
+/* Discrete Information Object */
+class DiscreteInformation
 {
   Header    header;
-  EquipmentPart    eqt;
-  autoid[40];    /* max to 40 SA per DIPL */
-  hash <header.univName> saHash[40];
-  list;
+  DiscreteInfoType ai;
+  autoid[10000];    /* max to 10000 discrete-states-objects */
+  hash < header.univName > tsHash[10000];
 };
 
-/* Distant groups of valves */
-class SV
-{
-  Header    header;
-  EquipmentPart    eqt;
-  time    modifTime;
-  autoid[200];    /* max to 200 SV per DIPL */
-  hash <header.univName> svHash[200];
-};
-
-class SV_Valve {
+/*class SV_Valve {
     autoid_t SV;
     autoid_t Valve;
     tree <SV, Valve> pair;
 };
-
 class SV_TM {
     autoid_t SV;
     autoid_t TM;
     tree <SV, TM> pair;
 };
-
-
-/* Workshop */
-class ATC
-{
-  Header    header;
-  EquipmentPart    eqt;
-  time    modifTime;
-  autoid[10];    /* max to 10 ATC per DIPL */
-  hash <header.univName> atcHash[10];
-};
-
 class ATC_Valve {
     autoid_t ATC;
     autoid_t Valve;
     tree <ATC, Valve> pair;
 };
-
 class ATC_TM {
     autoid_t ATC;
     autoid_t TM;
     tree <ATC, TM> pair;
 };
-
 class ATC_SV {
     autoid_t ATC;
     autoid_t SV;
     tree <ATC, SV> pair;
 };
-
-
-/* Main local object */
-class DIPL
-{
-  Header    header;
-  EquipmentPart    eqt;
-  time    modifTime;
-  autoid[10];
-};
-
 class DIPL_SV {
     autoid_t DIPL;
     autoid_t SV;
     tree <DIPL, SV> pair;
 };
-
 class DIPL_ATC {
     autoid_t DIPL;
     autoid_t ATC;
     tree <DIPL, ATC> pair;
 };
-
 class DIPL_TM {
     autoid_t DIPL;
     autoid_t TM;
     tree <DIPL, TM> pair;
 };
-
 class DIPL_Valve {
     autoid_t DIPL;
     autoid_t Valve;
     tree <DIPL, Valve> pair;
 };
+*/
 

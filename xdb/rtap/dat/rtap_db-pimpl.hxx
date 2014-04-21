@@ -74,6 +74,9 @@ namespace rtap_db
     public:
     virtual void
     pre (rtap_db::ClassesList*);
+    // GEV
+    virtual void
+    pre (const char*);
 
     virtual void
     Class (rtap_db::Class&);

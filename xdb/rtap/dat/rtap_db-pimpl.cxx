@@ -32,7 +32,9 @@ namespace rtap_db
 
     // TODO
     //
-//    std::cout << "\t\t\tAttrNameType_pimpl::post_AttrNameType:" << v << std::endl;
+#if VERBOSE
+    std::cout << "\t\t\tAttrNameType_pimpl::post_AttrNameType:" << v << std::endl;
+#endif
     m_impl.assign(v);
     return m_impl;
   }
@@ -52,7 +54,9 @@ namespace rtap_db
 
     // TODO
     //
-//    std::cout << "\t\tClassType_pimpl::post_ClassType:" << v << std::endl;
+#if VERBOSE
+    std::cout << "\t\tClassType_pimpl::post_ClassType:" << v << std::endl;
+#endif
     m_impl.assign(v);
     return m_impl;
   }
@@ -72,7 +76,9 @@ namespace rtap_db
 
     // TODO
     //
-//    std::cout << "\t\t\tAttributeType_pimpl::post_AttributeType:" << v << std::endl;
+#if VERBOSE
+    std::cout << "\t\t\tAttributeType_pimpl::post_AttributeType:" << v << std::endl;
+#endif
     m_impl.assign(v);
     return m_impl;
   }
@@ -92,7 +98,9 @@ namespace rtap_db
 
     // TODO
     //
-//    std::cout << "\t\tPointKind_pimpl::post_PointKind:" << v << std::endl;
+#if VERBOSE
+    std::cout << "\t\tPointKind_pimpl::post_PointKind:" << v << std::endl;
+#endif
     m_impl.assign(v);
     return m_impl;
   }
@@ -108,19 +116,37 @@ namespace rtap_db
   }
 
   void RTDB_STRUCT_pimpl::
+  pre (const char* fname)
+  {
+    m_classes = NULL;
+    std::cout << "GEV: construct xExtremeDB from XML file " << fname << std::endl;
+  }
+
+  void RTDB_STRUCT_pimpl::
   Class (rtap_db::Class& Class)
   {
     // TODO
     //
+#if VERBOSE
     std::cout << "RTDB_STRUCT_pimpl::Class("<<Class.code()<<", "<<Class.name()<<")"<<std::endl;
-    m_classes->push_back(Class);
+#endif
+    if (m_classes)
+    {
+      m_classes->push_back(Class);
+    }
+    else
+    {
+      std::cout << "GEV: dump class "<< Class.name() <<" as XML" << std::endl;
+    }
     delete &Class;
   }
 
   void RTDB_STRUCT_pimpl::
   post_RTDB_STRUCT ()
   {
+#if VERBOSE
     std::cout << "Job done!" << std::endl;
+#endif
   }
 
   // Class_pimpl
@@ -131,7 +157,9 @@ namespace rtap_db
   {
     // NB экземпляр удаляется в RTDB_STRUCT_pimpl::Class
     m_impl = new Class;
+#if VERBOSE
     std::cout << "\t\tClass::m_impl=" << m_impl << std::endl;
+#endif
     m_impl->m_class_code = 0;
     current_class_instance = m_impl;
   }
@@ -141,7 +169,9 @@ namespace rtap_db
   {
     // TODO
     //
+#if VERBOSE
     std::cout << "\tClass_pimpl::Code = "<<static_cast<unsigned int>(Code)<<std::endl;
+#endif
     m_impl->m_class_code = static_cast<unsigned int>(Code);
   }
 
@@ -150,14 +180,18 @@ namespace rtap_db
   {
     // TODO
     //
+#if VERBOSE
     std::cout << "\tClass_pimpl::Name = "<<Name<<std::endl;
+#endif
     m_impl->m_class_name.assign(Name);
   }
 
   void Class_pimpl::
   Attr ()
   {
+#if VERBOSE
     std::cout << "\tClass_pimpl::Attr: count = "<< m_impl->m_attributes.size()<<std::endl;
+#endif
   }
 
   rtap_db::Class& Class_pimpl::
@@ -165,11 +199,13 @@ namespace rtap_db
   {
     // TODO
     //
+#if VERBOSE
     std::cout << "\tClass_pimpl::post_Class("
         << m_impl->code() << ","
         << m_impl->name() << ","
         << m_impl->m_attributes.size() <<")"
     << std::endl;
+#endif
 
     return *m_impl;
   }
@@ -177,7 +213,9 @@ namespace rtap_db
   Class_pimpl::~Class_pimpl()
   {
     // TODO Вызывается только один раз - проверить причины
+#if VERBOSE
     std::cout << "\tClass_pimpl::~Class_pimpl()" << std::endl;
+#endif
   }
 
 
@@ -186,7 +224,9 @@ namespace rtap_db
   void Code_pimpl::
   pre ()
   {
-//    std::cout << "\t\tCode_pimpl::pre" << std::endl;
+#if VERBOSE
+    std::cout << "\t\tCode_pimpl::pre" << std::endl;
+#endif
   }
 
   rtap_db::Code Code_pimpl::
@@ -196,7 +236,9 @@ namespace rtap_db
 
     // TODO
     //
-  //  std::cout << "\t\tCode_pimpl::post_Code:" << v << std::endl;
+#if VERBOSE
+    std::cout << "\t\tCode_pimpl::post_Code:" << v << std::endl;
+#endif
     m_impl = v;
     return m_impl;
   }
@@ -214,7 +256,9 @@ namespace rtap_db
   Kind (rtap_db::PointKind& Kind)
   {
     // TODO
+#if VERBOSE
     std::cout << "\t\tAttr_pimpl::Kind = " << Kind << std::endl;
+#endif
     m_impl.m_attrib_string_kind.assign(Kind);
   }
 
@@ -223,7 +267,9 @@ namespace rtap_db
   {
     // TODO
     //
+#if VERBOSE
     std::cout << "\t\tAttr_pimpl::Accessibility = " << Accessibility << std::endl;
+#endif
     m_impl.m_accessibility.assign(Accessibility);
   }
 
@@ -232,7 +278,9 @@ namespace rtap_db
   {
     // TODO
     //
+#if VERBOSE
     std::cout << "\t\tAttr_pimpl::DeType = " << DeType << std::endl;
+#endif
     m_impl.m_attrib_type.assign(DeType);
   }
 
@@ -241,7 +289,9 @@ namespace rtap_db
   {
     // TODO
     //
+#if VERBOSE
     std::cout << "\t\tAttr_pimpl::AttrName = " << AttrName << std::endl;
+#endif
     m_impl.m_name.assign(AttrName);
   }
 
@@ -250,18 +300,20 @@ namespace rtap_db
   {
     // TODO
     //
+#if VERBOSE
     std::cout << "\t\tAttr_pimpl::Value = " << Value << std::endl;
+#endif
     m_impl.m_value.assign(Value);
   }
 
   void Attr_pimpl::
   post_Attr ()
   {
-  /*
+#if VERBOSE
     std::cout << "\t\tAttr_pimpl::post_Attr("
         << m_impl.kind() << ", " << m_impl.type() << ", " << m_impl.accessibility()
         << ")" << std::endl;
-    */
+#endif
     // Атрибут помещает себя в список своего Класса
     current_class_instance->m_attributes.push_back(m_impl);
   }
@@ -272,7 +324,9 @@ namespace rtap_db
   void Accessibility_pimpl::
   pre ()
   {
-//    std::cout << "\t\tAccessibility_pimpl::pre" << std::endl;
+#if VERBOSE
+    std::cout << "\t\tAccessibility_pimpl::pre" << std::endl;
+#endif
   }
 
   rtap_db::Accessibility& Accessibility_pimpl::
@@ -282,7 +336,9 @@ namespace rtap_db
 
     // TODO
     //
-//    std::cout << "\t\t\tAccessibility_pimpl::post_Accessibility:" << v << std::endl;
+#if VERBOSE
+    std::cout << "\t\t\tAccessibility_pimpl::post_Accessibility:" << v << std::endl;
+#endif
     m_impl.assign(v);
     return m_impl;
   }
