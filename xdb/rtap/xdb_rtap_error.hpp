@@ -16,7 +16,7 @@ typedef enum
   rtE_STRING_IS_EMPTY,
   rtE_DB_NOT_FOUND,
   rtE_DB_NOT_OPENED,
-  rtE_XML_NOT_FOUND,
+  rtE_XML_NOT_OPENED,
   rtE_LAST
 } ErrorType_t;
 

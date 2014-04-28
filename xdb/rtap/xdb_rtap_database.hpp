@@ -62,7 +62,9 @@ class RtCoreDatabase : public Database
     // Останов рантайма
     bool Disconnect();
     // Загрузка данных из указанного файла
-    bool LoadSnapshotFromFile(const char*);
+    bool LoadSnapshot(const char* = NULL);
+    // Сохранение данных в указанный файл
+    bool StoreSnapshot(const char* = NULL);
 
   private:
     DISALLOW_COPY_AND_ASSIGN(RtCoreDatabase);
@@ -98,8 +100,6 @@ class RtCoreDatabase : public Database
      */
     MCO_RET RegisterEvents();
     bool    ConnectToInstance();
-    bool    LoadFromSnapshot();
-    bool    MakeSnapshot();
 };
 
 }

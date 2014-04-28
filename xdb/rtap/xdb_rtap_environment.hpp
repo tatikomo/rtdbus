@@ -64,7 +64,9 @@ class RtEnvironment
     // Получить состояние Среды
     EnvState_t getEnvState() const { return m_state; }
     // Загрузить содержимое БД данной среды из указанного XML файла
-    RtError& LoadSnapshotFromFile(const char*);
+    RtError& LoadSnapshot(const char*);
+    // Созранить БД в указанном файле в виде XML
+    RtError& MakeSnapshot(const char*);
 
   private:
     DISALLOW_COPY_AND_ASSIGN(RtEnvironment);

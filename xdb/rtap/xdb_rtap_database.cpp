@@ -116,7 +116,8 @@ RtCoreDatabase::~RtCoreDatabase()
 
     case Database::CONNECTED:
       // перед завершением работы сделать снапшот
-      MakeSnapshot();
+      StoreSnapshot(NULL);
+      // NB: break пропущен специально!
     case Database::ATTACHED:
       Disconnect();
       // NB: break пропущен специально!
@@ -334,18 +335,29 @@ bool RtCoreDatabase::ConnectToInstance()
   return status;
 }
 
-bool RtCoreDatabase::MakeSnapshot()
+bool RtCoreDatabase::StoreSnapshot(const char* given_file_name)
 {
   FILE* fbak;
   bool status = false;
   MCO_RET rc = MCO_S_OK;
-  char fname[20];
+  char fname[40];
 
 #if EXTREMEDB_VERSION >= 40
   do
   {
-    strcpy(fname, DatabaseName());
-    strcat(fname, ".snap");
+    if (given_file_name)
+    {
+      if (strlen(given_file_name) > sizeof(fname))
+      {
+        LOG(ERROR) << "Given file name for XML snapshot storing is exceed limits ("<<sizeof(fname)<<")";
+      }
+      snprintf(fname, "%s.snap", given_file_name, sizeof(fname));
+    }
+    else
+    {
+      snprintf(fname, "%s.snap", DatabaseName(), sizeof(fname));
+    }
+    fname[sizeof(fname)] = '\0';
 
     /* Backup database */
     if (NULL != (fbak = fopen(fname, "wb")))
@@ -365,7 +377,7 @@ bool RtCoreDatabase::MakeSnapshot()
     }
   } while(false);
 #else
-#warning "RtCoreDatabase::MakeSnapshot is disabled"
+#warning "RtCoreDatabase::StoreSnapshot is disabled"
 #endif
 
   return status;
@@ -412,12 +424,12 @@ bool RtCoreDatabase::Disconnect()
 }
 
 // NB: нужно выполнить до mco_db_connect
-bool RtCoreDatabase::LoadFromSnapshot()
+bool RtCoreDatabase::LoadSnapshot(const char *given_file_name)
 {
   bool status = false;
   MCO_RET rc = MCO_S_OK;
   FILE* fbak;
-  char fname[20];
+  char fname[40];
 
 #if EXTREMEDB_VERSION >= 40
   do
@@ -428,8 +440,20 @@ bool RtCoreDatabase::LoadFromSnapshot()
       break;
     }
 
-    strcpy(fname, DatabaseName());
-    strcat(fname, ".snap");
+    if (given_file_name)
+    {
+      if (strlen(given_file_name) > sizeof(fname))
+      {
+        LOG(ERROR) << "Given file name for XML snapshot storing is exceed limits ("<<sizeof(fname)<<")";
+      }
+      strncpy(fname, given_file_name, sizeof(fname));
+      fname[sizeof(fname)] = '\0';
+    }
+    else
+    {
+      strcpy(fname, DatabaseName());
+      strcat(fname, ".snap");
+    }
 
     if (NULL == (fbak = fopen(fname, "rb")))
     {
@@ -459,16 +483,6 @@ bool RtCoreDatabase::LoadFromSnapshot()
 #endif
 
   return status;
-}
-
-
-bool RtCoreDatabase::LoadSnapshotFromFile(const char* filename)
-{
-  MCO_RET rc = MCO_S_OK;
-
-  assert(filename);
-
-  return false;
 }
 
 
@@ -508,7 +522,7 @@ bool RtCoreDatabase::Create()
   if (true == m_db_access_flags.test(OF_POS_LOAD_SNAP))
   {
     // Внутри mco_inmem_load вызывается mco_db_open_dev
-    if (false == LoadFromSnapshot())
+    if (false == LoadSnapshot())
     {
       LOG(ERROR) << "Unable to restore content from snapshot";
       is_loaded_from_snapshot = false;

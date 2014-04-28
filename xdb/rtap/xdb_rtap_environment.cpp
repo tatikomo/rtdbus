@@ -4,8 +4,6 @@
 #include "glog/logging.h"
 
 #include "config.h"
-#include "dat/rtap_db.hpp"
-#include "dat/rtap_db-pimpl.hxx"
 #include "xdb_rtap_application.hpp"
 #include "xdb_rtap_environment.hpp"
 #include "xdb_rtap_connection.hpp"
@@ -107,63 +105,16 @@ RtError& RtEnvironment::sendMessage(mdp::Letter* letter)
   return m_last_error;
 }
 
-RtError& RtEnvironment::LoadSnapshotFromFile(const char *filename)
+RtError& RtEnvironment::MakeSnapshot(const char *filename)
 {
   m_last_error = rtE_NONE;
 
   assert(filename);
 
-  try
-  {
-    // Instantiate individual parsers.
-    //
-    ::rtap_db::RTDB_STRUCT_pimpl RTDB_STRUCT_p;
-    ::rtap_db::Class_pimpl Class_p;
-    ::rtap_db::Code_pimpl Code_p;
-    ::rtap_db::ClassType_pimpl ClassType_p;
-    ::rtap_db::Attr_pimpl Attr_p;
-    ::rtap_db::PointKind_pimpl PointKind_p;
-    ::rtap_db::Accessibility_pimpl Accessibility_p;
-    ::rtap_db::AttributeType_pimpl AttributeType_p;
-    ::rtap_db::AttrNameType_pimpl AttrNameType_p;
-    ::xml_schema::string_pimpl string_p;
-
-    // Connect the parsers together.
-    //
-    RTDB_STRUCT_p.parsers (Class_p);
-
-    Class_p.parsers (Code_p,
-                     ClassType_p,
-                     Attr_p);
-
-    Attr_p.parsers (AttrNameType_p,
-                    PointKind_p,
-                    Accessibility_p,
-                    AttributeType_p,
-                    string_p);
-
-    // Parse the XML document.
-    //
-    ::xml_schema::document doc_p (
-      RTDB_STRUCT_p,
-      "http://www.example.com/rtap_db",
-      "RTDB_STRUCT");
-
-    //RTDB_STRUCT_p.pre (&class_list);
-    RTDB_STRUCT_p.pre ("NO");
-    doc_p.parse (filename);
-    RTDB_STRUCT_p.post_RTDB_STRUCT ();
-  }
-  catch (const ::xml_schema::exception& e)
-  {
-    std::cerr << e << std::endl;
-    m_last_error = rtE_XML_NOT_FOUND;
-  }
-  catch (const std::ios_base::failure&)
-  {
-    std::cerr << filename << ": error: i/o failure" << std::endl;
-    m_last_error = rtE_XML_NOT_FOUND;
-  }
+  // Допустимым форматом хранения XML-снимков БДРВ является встроенный в eXtremeDB формат.
+  // Это снимает зависимость от библиотеки xerces в runtime луркера.
+  m_database_impl->StoreSnapshot(filename);
+//    m_last_error.set(rtE_XML_NOT_OPENED);
 
   return m_last_error;
 }

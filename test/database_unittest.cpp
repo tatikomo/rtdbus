@@ -472,7 +472,7 @@ TEST(TestLurkerDATABASE, CREATION)
   app->setOption("OF_RDWR", 1);
   EXPECT_EQ(app->getLastError().getCode(), xdb::rtE_NONE);
 
-//  app->setEnvName("RTAP");
+  //  app->setEnvName("RTAP");
 
   LOG(INFO) << "Initialize: " << app->initialize().getCode();
   LOG(INFO) << "Operation mode: " << app->getOperationMode();
@@ -483,14 +483,15 @@ TEST(TestLurkerDATABASE, CREATION)
 
   env1 = app->getEnvironment("SINF");
   EXPECT_TRUE(env1 != NULL);
-  // Это должен быть один и тот же объект SINF
-  // с одинаковым именем
+  // Это должен быть один и тот же объект SINF с одинаковым именем
   EXPECT_TRUE(0 == strcmp(env->getName(), env1->getName()));
-  // и аресом
+  // и адресом
   EXPECT_TRUE(env == env1);
 
   connection = env->createDbConnection();
   EXPECT_TRUE(connection != NULL);
+
+  env->MakeSnapshot("LURKER");
 }
 
 TEST(TestLurkerDATABASE, DESTROY)
@@ -741,7 +742,6 @@ TEST(TestTools, LOAD_INSTANCE)
   EXPECT_TRUE(status);
 }
 
-#if 0
 /* Заполнить контент RTDB на основе прочитанных из XML данных */
 TEST(TestRtapDATABASE, CREATE)
 {
@@ -756,8 +756,8 @@ TEST(TestRtapDATABASE, CREATE)
   app = new xdb::RtApplication("RTDB_TEST");
   ASSERT_TRUE(app != NULL);
 
-  app->setOption("OF_CREATE", 1);
-  app->setOption("OF_TRUNCATE", 1);
+  // Прочитать данные из ранее сохраненного XML
+  app->setOption("OF_LOAD_SNAP", 1);
   EXPECT_EQ(app->getLastError().getCode(), xdb::rtE_NONE);
 
   app->setEnvName("RTAP");
@@ -771,8 +771,6 @@ TEST(TestRtapDATABASE, CREATE)
 
   connection = env->createDbConnection();
   EXPECT_TRUE(connection != NULL);
-
-  env->LoadSnapshotFromFile("classes.xml");
 }
 
 TEST(TestRtapDATABASE, SHOW_CONTENT)
@@ -785,7 +783,6 @@ TEST(TestRtapDATABASE, TERMINATE)
   delete env;
   delete app;
 }
-#endif
 
 int main(int argc, char** argv)
 {

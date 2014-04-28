@@ -35,14 +35,14 @@ void RtError::init()
   if (!m_initialized)
   {
     m_initialized = true;
-    m_error_descriptions[rtE_NONE]             = "No error";
-    m_error_descriptions[rtE_UNKNOWN]          = "Unknown error";
-    m_error_descriptions[rtE_NOT_IMPLEMENTED]  = "Not yet implemented";
-    m_error_descriptions[rtE_STRING_TOO_LONG]  = "Given string is too long";
-    m_error_descriptions[rtE_STRING_IS_EMPTY]  = "Given string is empty";
-    m_error_descriptions[rtE_DB_NOT_FOUND]     = "Database is not found";
-    m_error_descriptions[rtE_DB_NOT_OPENED]    = "Database is not opened";
-    m_error_descriptions[rtE_XML_NOT_FOUND]    = "XML couldn't be opened";
+    m_error_descriptions[rtE_NONE]             = (char*)"No error";
+    m_error_descriptions[rtE_UNKNOWN]          = (char*)"Unknown error";
+    m_error_descriptions[rtE_NOT_IMPLEMENTED]  = (char*)"Not yet implemented";
+    m_error_descriptions[rtE_STRING_TOO_LONG]  = (char*)"Given string is too long";
+    m_error_descriptions[rtE_STRING_IS_EMPTY]  = (char*)"Given string is empty";
+    m_error_descriptions[rtE_DB_NOT_FOUND]     = (char*)"Database is not found";
+    m_error_descriptions[rtE_DB_NOT_OPENED]    = (char*)"Database is not opened";
+    m_error_descriptions[rtE_XML_NOT_OPENED]   = (char*)"XML couldn't be opened";
   }
 }
 
