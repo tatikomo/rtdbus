@@ -26,12 +26,18 @@ DatabaseBroker::~DatabaseBroker()
   delete m_impl;
 }
 
-bool DatabaseBroker::Connect()
+const xdb::core::Error& DatabaseBroker::Connect()
 {
   assert(m_impl);
-
-  if (!m_impl) return false;
-  return m_impl->Connect();
+  if (m_impl->Connect())
+  {
+    clearError();
+  }
+  else
+  {
+    setError(xdb::core::rtE_DB_NOT_OPENED);
+  }
+  return getLastError();
 }
 
 bool DatabaseBroker::SetWorkerState(xdb::Worker* worker, xdb::Worker::State new_state)

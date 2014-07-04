@@ -24,6 +24,9 @@ namespace xdb {
 class Service;
 class Worker;
 
+void errhandler(MCO_RET);
+void extended_errhandler(MCO_RET errcode, const char* file, int line);
+
 /* 
  * Класс-контейнер объектов Service в БД
  * TODO: Получать уведомления о создании/удалении экземпляра объекта Service в БД.

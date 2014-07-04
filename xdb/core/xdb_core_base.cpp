@@ -8,7 +8,7 @@
 #endif
 #include "xdb_core_base.hpp"
 
-using namespace xdb;
+using namespace xdb::core;
 
 Database::Database(const char* name) : m_state(Database::UNINITIALIZED)
 {
@@ -32,6 +32,12 @@ Database::DBState Database::State() const
     return m_state;
 }
 
+void Database::setError(xdb::core::ErrorType_t _new_error_code)
+{
+  m_last_error.set(_new_error_code);
+}
+
+
 /*
  * UNINITIALIZED = 1, // первоначальное состояние
  * INITIALIZED   = 2, // инициализирован runtime
@@ -40,9 +46,11 @@ Database::DBState Database::State() const
  * DISCONNECTED  = 5, // вызван mco_db_disconnect
  * CLOSED        = 6  // вызван mco_db_close
  */
-bool Database::TransitionToState(DBState new_state)
+const xdb::core::Error& Database::TransitionToState(DBState new_state)
 {
   bool transition_correctness = false;
+
+  clearError();
   /* 
    * TODO проверить допустимость перехода из 
    * старого в новое состояние
@@ -136,22 +144,42 @@ bool Database::TransitionToState(DBState new_state)
 
   if (transition_correctness)
     m_state = new_state;
+  else
+    setError(xdb::core::rtE_INCORRECT_DB_TRANSITION_STATE);
 
-  return transition_correctness;
+  return getLastError();
 }
 
-bool Database::Connect()
+const xdb::core::Error&  Database::Connect()
 {
     return TransitionToState(CONNECTED);
 }
 
-bool Database::Disconnect()
+const xdb::core::Error&  Database::Disconnect()
 {
     return TransitionToState(DISCONNECTED);
 }
 
-bool Database::Init()
+const xdb::core::Error&  Database::Init()
 {
     return TransitionToState(INITIALIZED);
+}
+
+const xdb::core::Error& Database::Create()
+{
+  setError(xdb::core::rtE_NOT_IMPLEMENTED);
+  return getLastError();
+}
+
+const xdb::core::Error& Database::LoadSnapshot(const char*)
+{
+  setError(xdb::core::rtE_NOT_IMPLEMENTED);
+  return getLastError();
+}
+
+const xdb::core::Error& Database::StoreSnapshot(const char*)
+{
+  setError(xdb::core::rtE_NOT_IMPLEMENTED);
+  return getLastError();
 }
 

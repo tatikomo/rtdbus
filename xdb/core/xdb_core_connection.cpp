@@ -1,18 +1,20 @@
+#include <assert.h>
+
 #include "config.h"
 
-#include "xdb_rtap_environment.hpp"
-#include "xdb_rtap_connection.hpp"
+#include "xdb_core_environment.hpp"
+#include "xdb_core_connection.hpp"
 
-using namespace xdb;
+using namespace xdb::core;
 
-RtDbConnection::RtDbConnection(RtEnvironment* _env) :
+Connection::Connection(Environment* _env) :
   m_last_error(rtE_NONE)
 {
   assert(_env);
   m_environment = _env;
 }
 
-RtDbConnection::~RtDbConnection()
+Connection::~Connection()
 {
 }
 

@@ -6,11 +6,11 @@
 #include "xdb_rtap_snap_main.hpp"
 #include "xdb_rtap_environment.hpp"
 
-using namespace xdb;
+using namespace xdb::rtap;
 
 extern char database_name[SERVICE_NAME_MAXLEN + 1];
 
-bool xdb::saveToXML(xdb::RtEnvironment* env, const char* fname)
+bool xdb::rtap::saveToXML(RtEnvironment* env, const char* fname)
 {
   bool status = false;
 

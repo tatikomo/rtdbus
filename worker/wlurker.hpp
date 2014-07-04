@@ -1,18 +1,19 @@
-#if !defined XDB_RTA_LURKER_H_
-#define XDB_RTA_LURKER_H_
 #pragma once
+#if !defined W_LURKER_H_
+#define W_LURKER_H_
 
 #include <string>
 
 #include "config.h"
 #include "mdp_worker_api.hpp"
 #include "mdp_zmsg.hpp"
-
+#include "mdp_letter.hpp"
 
 class Letter;
 class RtApplication;
-class RtDbConnection;
+class RtConnection;
 class RtEnvironment;
+class Letter;
 
 class Lurker : public mdp::mdwrk
 {
@@ -26,9 +27,9 @@ class Lurker : public mdp::mdwrk
 
   private:
     int m_flag;
-    xdb::RtApplication*  m_appli;
-    xdb::RtEnvironment*  m_environment;
-    xdb::RtDbConnection* m_db_connection;
+    xdb::rtap::RtApplication*  m_appli;
+    xdb::core::Environment*  m_environment;
+    xdb::core::Connection*   m_db_connection;
 };
 
 #endif

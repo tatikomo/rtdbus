@@ -1,6 +1,6 @@
+#pragma once
 #if !defined XDB_DATABASE_BROKER_HPP
 #define XDB_DATABASE_BROKER_HPP
-#pragma once
 #include <stdint.h>
 #include <string>
 
@@ -34,14 +34,14 @@ class ServiceList
     virtual bool refresh()   = 0;
 };
 
-class DatabaseBroker : public Database
+class DatabaseBroker : public xdb::core::Database
 {
 
   public:
     DatabaseBroker();
     ~DatabaseBroker();
 
-    bool Connect();
+    const xdb::core::Error& Connect();
 
     /* Зарегистрировать Сервис */
     Service *AddService(const char*);

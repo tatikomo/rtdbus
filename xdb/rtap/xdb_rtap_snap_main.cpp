@@ -1,4 +1,8 @@
+#include <stdio.h> // stderr
+#include <stdlib.h> // abort()
+
 #include "glog/logging.h"
+
 #include "config.h"
 
 #include "xdb_rtap_connection.hpp"
@@ -8,11 +12,11 @@
 
 #include "xdb_rtap_snap_main.hpp"
 
-using namespace xdb;
+using namespace xdb::rtap;
 
-xdb::RtApplication *app = NULL;
-xdb::RtEnvironment *env = NULL;
-xdb::RtDbConnection *connection = NULL;
+RtApplication *app = NULL;
+RtEnvironment *env = NULL;
+RtConnection *connection = NULL;
 char database_name[SERVICE_NAME_MAXLEN + 1];
 char file_path[400+1];
 const char* command_name_LOAD_FROM_XML = "load";
@@ -113,7 +117,7 @@ int main(int argc, char** argv)
      getcwd(file_path, sizeof(file_path));
     }
     // взять входной файл и выдать его в поток выхода
-    translateInstance(file_path);
+    xdb::rtap::translateInstance(file_path);
   }
   else
   {
@@ -138,7 +142,7 @@ int main(int argc, char** argv)
         break;
 
         case SAVE_TO_XML:
-          if (true == saveToXML(env, file_path))
+          if (true == xdb::rtap::saveToXML(env, file_path))
           {
             LOG(INFO) << "XML data was successfuly saved";
           }

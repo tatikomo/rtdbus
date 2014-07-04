@@ -1,38 +1,28 @@
+#pragma once
 #if !defined XDB_RTAP_DATABASE_IMPL_HPP
 #define XDB_RTAP_DATABASE_IMPL_HPP
-#pragma once
 
 #include <string>
 #include <bitset>
 #include "config.h"
 
-#ifdef __cplusplus
+// NB: Исключить необходимость подтягивания наверх файла mco.h
+/*#ifdef __cplusplus
 extern "C" {
 #include "mco.h"
 #if EXTREMEDB_VERSION >= 40 && USE_EXTREMEDB_HTTP_SERVER
 #include "mcohv.h"
 #endif
 }
-#endif
+#endif*/
 
-#include "xdb_core_base.hpp" // class Database
+#include "xdb_core_error.hpp"
+#include "xdb_core_base.hpp"
 
-namespace xdb
-{
+namespace xdb {
+namespace rtap {
 
-typedef std::bitset<8> BitSet8;
-
-// Позиции бит в флагах, передаваемых конструктору
-typedef enum
-{
-  OF_POS_CREATE   = 1, // создать БД в случае, если это не было сделано ранее
-  OF_POS_READONLY = 2, // открыть в режиме "только для чтения"
-  OF_POS_RDWR     = 3, // открыть в режиме "чтение|запись" (по умолчанию)
-  OF_POS_TRUNCATE = 4, // открыть пустую базу, удалив данные в существующем экземпляре
-  OF_POS_LOAD_SNAP= 5  // открыть базу, заполнив ее данными из последнего снапшота
-} FlagPos_t;
-
-class RtCoreDatabase : public Database
+class RtCoreDatabase : public xdb::core::Database
 {
   public:
     static const unsigned int DatabaseSize;
@@ -50,58 +40,57 @@ class RtCoreDatabase : public Database
 #endif 
 
 
-    RtCoreDatabase(const char*, BitSet8);
+    RtCoreDatabase(const char*, xdb::core::BitSet8);
     ~RtCoreDatabase();
 
     // Инициализация рантайма
-    bool Init();
+    const xdb::core::Error& Init();
     // создание нового экземпяра (с возможностью удаления старого) mco_db_open
-    bool Create();
+    const xdb::core::Error& Create();
     // открытие подключения с помощью mco_db_connect
-    bool Connect();
+    const xdb::core::Error& Connect();
     // Останов рантайма
-    bool Disconnect();
+    const xdb::core::Error& Disconnect();
     // Загрузка данных из указанного файла
-    bool LoadSnapshot(const char* = NULL);
+    const xdb::core::Error& LoadSnapshot(const char* = NULL);
     // Сохранение данных в указанный файл
-    bool StoreSnapshot(const char* = NULL);
+    const xdb::core::Error& StoreSnapshot(const char* = NULL);
 
   private:
     DISALLOW_COPY_AND_ASSIGN(RtCoreDatabase);
-    mco_db_h     m_db;
+    /*mco_db_h*/ void*     m_db;
     const char*  m_name;
-    BitSet8      m_db_access_flags;
+    xdb::core::BitSet8      m_db_access_flags;
 #if defined DEBUG
     char  m_snapshot_file_prefix[10];
     bool  m_initialized;
     bool  m_save_to_xml_feature;
     int   m_snapshot_counter;
-    MCO_RET SaveDbToFile(const char*);
+    int   SaveDbToFile(const char*);
 #endif
 #ifdef DISK_DATABASE
     char* m_dbsFileName;
     char* m_logFileName;
 #endif
 #if EXTREMEDB_VERSION >= 40
-    mco_db_params_t   m_db_params;
-    mco_device_t      m_dev;
-#  if USE_EXTREMEDB_HTTP_SERVER  
+    /*mco_db_params_t*/ void*   m_db_params;
+    /*mco_device_t*/ void*      m_dev;
     /*
      * Internal HttpServer http://localhost:8082/
      */
-    mco_metadict_header_t *m_metadict;
-    mcohv_p                m_hv;
+    /*mco_metadict_header_t*/ void *m_metadict;
+    /*mcohv_p*/ void*                m_hv;
     unsigned int           m_size;
-#  endif  
     bool                   m_metadict_initialized;
 #endif
     /*
      * Зарегистрировать все обработчики событий, заявленные в БД
      */
-    MCO_RET RegisterEvents();
-    bool    ConnectToInstance();
+    const xdb::core::Error& RegisterEvents();
+    const xdb::core::Error& ConnectToInstance();
 };
 
-}
+} // namespace rtap
+} // namespace xdb
 
 #endif

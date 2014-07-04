@@ -1,12 +1,12 @@
-#if !defined XDB_RTAP_POINT_FILTER_H_
-#define XDB_RTAP_POINT_FILTER_H_
 #pragma once
+#if !defined XDB_RTAP_POINT_FILTER_HPP
+#define XDB_RTAP_POINT_FILTER_HPP
 
 #include "config.h"
-#include "xdb_rtap_error.hpp"
+#include "xdb_core_error.hpp"
 
-namespace xdb
-{
+namespace xdb {
+namespace rtap {
 
 class RtPointFilter
 {
@@ -57,9 +57,11 @@ class RtPointFilter
   private:
     DISALLOW_COPY_AND_ASSIGN(RtPointFilter);
     static ScopeType   m_scope_type;
-    static RtError     m_last_error;
+    static xdb::core::Error     m_last_error;
 };
 
-}
+} // namespace rtap
+} // namespace xdb
+
 #endif
 

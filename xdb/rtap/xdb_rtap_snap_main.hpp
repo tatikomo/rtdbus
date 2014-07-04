@@ -1,11 +1,11 @@
-#if !defined XDB_RTAP_SNAP_MAIN_H_
-#define XDB_RTAP_SNAP_MAIN_H_
 #pragma once
+#if !defined XDB_RTAP_SNAP_MAIN_HPP
+#define XDB_RTAP_SNAP_MAIN_HPP
 
 #include "config.h"
 
-namespace xdb
-{
+namespace xdb {
+namespace rtap {
 
 typedef enum 
 {
@@ -15,11 +15,12 @@ typedef enum
 
 class RtEnvironment;
 
-bool loadFromXML(xdb::RtEnvironment*, const char*);
-bool saveToXML(xdb::RtEnvironment*, const char*);
+bool loadFromXML(RtEnvironment*, const char*);
+bool saveToXML(RtEnvironment*, const char*);
 bool translateInstance(const char*);
 
-}
+} // namespace rtap
+} // namespace xdb
 
 #endif
 

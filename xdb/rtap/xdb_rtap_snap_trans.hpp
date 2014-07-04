@@ -6,8 +6,8 @@
 #include "config.h"
 #include "xdb_rtap_const.hpp"
 
-namespace xdb
-{
+namespace xdb {
+namespace rtap {
 
 /*--------------------------*/
 /* buffer sizes             */
@@ -20,8 +20,8 @@ namespace xdb
 /*--------------------------*/
 /* return codes             */
 /*--------------------------*/
-#define OK                  1
-#define NOK                 0
+//#define OK                  1
+//#define NOK                 0
 #define IGNORED             2 
 
 /*--------------------------*/
@@ -159,7 +159,7 @@ bool deleteBranch(const char*);
 
 bool copyPoint(char*, char*);
 
-xdb::recordType getRecordType(std::string&);
+recordType getRecordType(std::string&);
 
 //void skipStr(char* laChaine);
 
@@ -175,7 +175,7 @@ std::string& dump_point(
     int class_idx,
     const std::string& pointName,
     // IN-OUT
-    AttributeMap_t& attributes_given,
+    xdb::core::AttributeMap_t& attributes_given,
     // OUT
     std::string& dump);
 
@@ -195,9 +195,11 @@ bool setInfoTable(char*, formatType, attrCategory*);
 
 bool initFieldTable(std::string&, char*[], int);
 
-bool GetDbTypeFromString(std::string&, xdb::DbType_t&);
+bool GetDbTypeFromString(std::string&, xdb::core::DbType_t&);
 
-const char* GetDbNameFromType(xdb::DbType_t& db_t);
+const char* GetDbNameFromType(xdb::core::DbType_t& db_t);
 
+} // namespace rtap
 } // namespace xdb
+
 #endif

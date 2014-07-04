@@ -13,22 +13,8 @@ extern "C" {
 
 #include "xdb_core_common.h"
 
-/* implement error handler */
-void errhandler(MCO_RET n)
-{
-    fprintf(stdout, "\neXtremeDB runtime fatal error: %d\n", n);
-    exit(-1);
-}
 
-/* implement error handler */
-void extended_errhandler(MCO_RET errcode, const char* file, int line)
-{
-  fprintf(stdout, "\neXtremeDB runtime fatal error: %d on line %d of file %s",
-          errcode, line, file);
-  exit(-1);
-}
-
-const char * mco_ret_string( MCO_RET rc, int * is_error ) {
+const char * mco_ret_string( int rc, int * is_error ) {
     
   if ( is_error ) {
     (*is_error) = rc >= MCO_E_CORE;
@@ -432,7 +418,7 @@ const char * mco_ret_string( MCO_RET rc, int * is_error ) {
   return "Unknown error";
 }
 
-void rc_check(const char * msg, MCO_RET rc)
+void rc_check(const char * msg, int rc)
 {
   if ( MCO_S_OK == rc )
     fprintf(stdout, "\n%s : Successful\n", msg);
@@ -529,6 +515,11 @@ void show_device_info(const char * lead_line, mco_device_t dev[], int nDev)
     }
     printf("\n" );
   }
+}
+#else
+void show_device_info(const char * lead_line)
+{
+  printf("\n%s is not yet implemented\n", lead_line);
 }
 #endif
 

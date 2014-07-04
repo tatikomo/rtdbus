@@ -8,11 +8,11 @@
 #include "xdb_rtap_environment.hpp"
 #include "xdb_rtap_snap_main.hpp"
 
-using namespace xdb;
+using namespace xdb::rtap;
 
 //extern char database_name[SERVICE_NAME_MAXLEN + 1];
 
-bool xdb::loadFromXML(xdb::RtEnvironment* env, const char* filename)
+bool xdb::rtap::loadFromXML(RtEnvironment* env, const char* filename)
 {
   bool status = false;
 

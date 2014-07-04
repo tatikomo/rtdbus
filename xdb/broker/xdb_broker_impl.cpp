@@ -71,6 +71,20 @@ const int DB_DISK_PAGE_SIZE = 0;
 #include "dat/broker_db.h"
 #include "dat/broker_db.hpp"
 
+void broker_impl_errhandler(MCO_RET n)
+{
+    fprintf(stdout, "\neXtremeDB runtime fatal error: %d\n", n);
+    exit(-1);
+}
+
+/* implement error handler */
+void extended_broker_impl_errhandler(MCO_RET errcode, const char* file, int line)
+{
+  fprintf(stdout, "\neXtremeDB runtime fatal error: %d on line %d of file %s",
+          errcode, line, file);
+  exit(-1);
+}
+
 
 DatabaseBrokerImpl::DatabaseBrokerImpl(DatabaseBroker *self) : 
     m_initialized(false),
@@ -96,7 +110,7 @@ DatabaseBrokerImpl::DatabaseBrokerImpl(DatabaseBroker *self) :
   strcpy(m_logFileName, name);
   strcat(m_logFileName, ".log");
 #endif
-  static_cast<Database*>(m_self)->TransitionToState(Database::UNINITIALIZED);
+  static_cast<xdb::core::Database*>(m_self)->TransitionToState(xdb::core::Database::UNINITIALIZED);
 }
 
 DatabaseBrokerImpl::~DatabaseBrokerImpl()
@@ -105,26 +119,26 @@ DatabaseBrokerImpl::~DatabaseBrokerImpl()
 #if (EXTREMEDB_VERSION >= 41) && USE_EXTREMEDB_HTTP_SERVER
   int ret;
 #endif
-  Database::DBState state = static_cast<Database*>(m_self)->State();
+  xdb::core::Database::DBState state = static_cast<xdb::core::Database*>(m_self)->State();
 
   LOG(INFO) << "Current state "  << (int)state;
   switch (state)
   {
-    case Database::CLOSED:
+    case xdb::core::Database::CLOSED:
       LOG(WARNING) << "State already CLOSED";
     break;
 
-    case Database::UNINITIALIZED:
+    case xdb::core::Database::UNINITIALIZED:
     break;
 
-    case Database::CONNECTED:
+    case xdb::core::Database::CONNECTED:
       Disconnect();
       // NB: break пропущен специально!
-    case Database::ATTACHED:
+    case xdb::core::Database::ATTACHED:
       // NB: break пропущен специально!
-    case Database::INITIALIZED:
+    case xdb::core::Database::INITIALIZED:
       // NB: break пропущен специально!
-    case Database::DISCONNECTED:
+    case xdb::core::Database::DISCONNECTED:
 #if (EXTREMEDB_VERSION >= 41) && USE_EXTREMEDB_HTTP_SERVER
       if (m_metadict_initialized == true)
       {
@@ -144,7 +158,7 @@ DatabaseBrokerImpl::~DatabaseBrokerImpl()
         LOG(ERROR) << "Unable to stop database runtime, code=" << rc;
       }
       //rc_check("Runtime stop", rc);
-      ((Database*)m_self)->TransitionToState(Database::CLOSED);
+      ((xdb::core::Database*)m_self)->TransitionToState(xdb::core::Database::CLOSED);
     break;
   }
 
@@ -185,15 +199,17 @@ bool DatabaseBrokerImpl::Init()
     }
 
     /* Set the error handler to be called from the eXtremeDB runtime if a fatal error occurs */
-    mco_error_set_handler(&errhandler);
-//    mco_error_set_handler_ex(&extended_errhandler);
+    mco_error_set_handler(&broker_impl_errhandler);
+//    mco_error_set_handler_ex(&extended_broker_impl_errhandler);
     //LOG(INFO) << "User-defined error handler set";
     
     rc = mco_runtime_start();
     //rc_check("Runtime starting", rc);
     if (!rc)
     {
-      status = ((Database*)m_self)->TransitionToState(Database::DISCONNECTED);
+      status = (static_cast<xdb::core::Database*>(m_self)->TransitionToState(
+                                                            xdb::core::Database::DISCONNECTED
+                                                            ).getCode() == xdb::core::rtE_NONE);
     }
 
 #if (EXTREMEDB_VERSION >= 41) && USE_EXTREMEDB_HTTP_SERVER
@@ -213,7 +229,7 @@ bool DatabaseBrokerImpl::Init()
     {
       m_metadict_initialized = true;
       rc = mco_metadict_register(m_metadict,
-            ((Database*)m_self)->DatabaseName(),
+            ((xdb::core::Database*)m_self)->DatabaseName(),
             broker_db_get_dictionary(), NULL);
       if (rc)
         LOG(INFO) << "mco_metadict_register=" << rc;
@@ -229,26 +245,26 @@ bool DatabaseBrokerImpl::Connect()
 {
   bool status = Init();
 
-  switch (((Database*)m_self)->State())
+  switch (((xdb::core::Database*)m_self)->State())
   {
-    case Database::UNINITIALIZED:
+    case xdb::core::Database::UNINITIALIZED:
       LOG(WARNING) << "Try connection to uninitialized database " 
-        << ((Database*)m_self)->DatabaseName();
+        << ((xdb::core::Database*)m_self)->DatabaseName();
     break;
 
-    case Database::CONNECTED:
+    case xdb::core::Database::CONNECTED:
       LOG(WARNING) << "Try to re-open database "
-        << ((Database*)m_self)->DatabaseName();
+        << ((xdb::core::Database*)m_self)->DatabaseName();
     break;
 
-    case Database::DISCONNECTED:
+    case xdb::core::Database::DISCONNECTED:
         status = AttachToInstance();
     break;
 
     default:
       LOG(WARNING) << "Try to open database '" 
-         << ((Database*)m_self)->DatabaseName()
-         << "' with unknown state " << (int)((Database*)m_self)->State();
+         << ((xdb::core::Database*)m_self)->DatabaseName()
+         << "' with unknown state " << (int)((xdb::core::Database*)m_self)->State();
     break;
   }
 
@@ -258,26 +274,26 @@ bool DatabaseBrokerImpl::Connect()
 bool DatabaseBrokerImpl::Disconnect()
 {
   MCO_RET rc = MCO_S_OK;
-  Database::DBState state = ((Database*)m_self)->State();
+  xdb::core::Database::DBState state = ((xdb::core::Database*)m_self)->State();
 
   switch (state)
   {
-    case Database::UNINITIALIZED:
+    case xdb::core::Database::UNINITIALIZED:
       LOG(INFO) << "Disconnect from uninitialized state";
     break;
 
-    case Database::DISCONNECTED:
+    case xdb::core::Database::DISCONNECTED:
       LOG(INFO) << "Try to disconnect already diconnected database";
     break;
 
-    case Database::CONNECTED:
+    case xdb::core::Database::CONNECTED:
       mco_async_event_release_all(m_db/*, MCO_EVENT_newService*/);
       rc = mco_db_disconnect(m_db);
       // NB: break пропущен специально
-    case Database::ATTACHED:
+    case xdb::core::Database::ATTACHED:
       assert(m_self);
       rc = mco_db_close(m_self->DatabaseName());
-      ((Database*)m_self)->TransitionToState(Database::DISCONNECTED);
+      ((xdb::core::Database*)m_self)->TransitionToState(xdb::core::Database::DISCONNECTED);
     break;
 
     default:
@@ -408,7 +424,7 @@ bool DatabaseBrokerImpl::AttachToInstance()
   m_dev.assignment = MCO_MEMORY_ASSIGN_DATABASE;
   m_dev.size       = DATABASE_SIZE;
   m_dev.type       = MCO_MEMORY_NAMED; /* DB in shared memory */
-  sprintf(m_dev.dev.named.name, "%s-db", ((Database*)m_self)->DatabaseName());
+  sprintf(m_dev.dev.named.name, "%s-db", ((xdb::core::Database*)m_self)->DatabaseName());
   m_dev.dev.named.flags = 0;
   m_dev.dev.named.hint  = 0;
 
@@ -439,29 +455,29 @@ bool DatabaseBrokerImpl::AttachToInstance()
    * уже созданный экземпляр БД может использоваться в качестве 
    * persistent-хранилища после аварийного завершения брокера.
    */
-  mco_db_kill(((Database*)m_self)->DatabaseName());
+  mco_db_kill(((xdb::core::Database*)m_self)->DatabaseName());
 
   /* подключиться к базе данных, предполагая что она создана */
-  LOG(INFO) << "Attaching to '" << ((Database*)m_self)->DatabaseName() << "' instance";
-  rc = mco_db_connect(((Database*)m_self)->DatabaseName(), &m_db);
+  LOG(INFO) << "Attaching to '" << ((xdb::core::Database*)m_self)->DatabaseName() << "' instance";
+  rc = mco_db_connect(((xdb::core::Database*)m_self)->DatabaseName(), &m_db);
 
   /* ошибка - экземпляр базы не найден, попробуем создать её */
   if (MCO_E_NOINSTANCE == rc)
   {
-        LOG(INFO) << ((Database*)m_self)->DatabaseName() << " instance not found, create";
+        LOG(INFO) << ((xdb::core::Database*)m_self)->DatabaseName() << " instance not found, create";
         /*
          * TODO: Использование mco_db_open() является запрещенным,
          * начиная с версии 4 и старше
          */
 
 #if EXTREMEDB_VERSION >= 40
-        rc = mco_db_open_dev(((Database*)m_self)->DatabaseName(),
+        rc = mco_db_open_dev(((xdb::core::Database*)m_self)->DatabaseName(),
                        broker_db_get_dictionary(),
                        &m_dev,
                        1,
                        &m_db_params);
 #else
-        rc = mco_db_open(((Database*)m_self)->DatabaseName(),
+        rc = mco_db_open(((xdb::core::Database*)m_self)->DatabaseName(),
                          broker_db_get_dictionary(),
                          (void*)MAP_ADDRESS,
                          DATABASE_SIZE + DB_DISK_CACHE,
@@ -470,14 +486,14 @@ bool DatabaseBrokerImpl::AttachToInstance()
         if (rc)
         {
           LOG(ERROR) << "Can't open DB dictionary '"
-                << ((Database*)m_self)->DatabaseName()
+                << ((xdb::core::Database*)m_self)->DatabaseName()
                 << "', rc=" << rc;
           return false;
         }
 
 #ifdef DISK_DATABASE
         LOG(INFO) << "Opening '" << m_dbsFileName << "' disk database";
-        rc = mco_disk_open(((Database*)m_self)->DatabaseName(),
+        rc = mco_disk_open(((xdb::core::Database*)m_self)->DatabaseName(),
                            m_dbsFileName,
                            m_logFileName, 
                            0, 
@@ -494,15 +510,15 @@ bool DatabaseBrokerImpl::AttachToInstance()
 #endif
 
         /* подключиться к базе данных, т.к. она только что создана */
-        LOG(INFO) << "Connecting to instance " << ((Database*)m_self)->DatabaseName(); 
-        rc = mco_db_connect(((Database*)m_self)->DatabaseName(), &m_db);
+        LOG(INFO) << "Connecting to instance " << ((xdb::core::Database*)m_self)->DatabaseName(); 
+        rc = mco_db_connect(((xdb::core::Database*)m_self)->DatabaseName(), &m_db);
   }
 
   /* ошибка создания экземпляра - выход из системы */
   if (rc)
   {
         LOG(ERROR) << "Unable attaching to instance '" 
-            << ((Database*)m_self)->DatabaseName() 
+            << ((xdb::core::Database*)m_self)->DatabaseName() 
             << "' with code " << rc;
         return false;
   }
@@ -518,7 +534,9 @@ bool DatabaseBrokerImpl::AttachToInstance()
     mcohv_start(&m_hv, m_metadict, 0, 0);
 #endif
 
-  return ((Database*)m_self)->TransitionToState(Database::CONNECTED);
+  return ((static_cast<xdb::core::Database*>(m_self)->TransitionToState(
+                                                    xdb::core::Database::CONNECTED
+                                                    )).getCode() == xdb::core::rtE_NONE);
 }
 
 Service *DatabaseBrokerImpl::AddService(const std::string& name)

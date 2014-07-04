@@ -4,11 +4,11 @@
 
 #include <string>
 #include "config.h"
+#include "xdb_core_error.hpp"
 #include "xdb_rtap_const.hpp"
-#include "xdb_rtap_error.hpp"
 
-namespace xdb
-{
+namespace xdb {
+namespace rtap {
 
 class RtData
 {
@@ -17,7 +17,7 @@ class RtData
      ~RtData();
 
      // Returns a string describing the given data element type
-     const char* deTypeToString(DbType_t);
+     const char* deTypeToString(xdb::core::DbType_t);
      //
      uint8_t  getInt8Value() const;
      //
@@ -31,7 +31,7 @@ class RtData
      // Предоставить доступ к внутреннему значению как к массиву байт
      char* getBytesValue() const;
      //
-     DbType_t getDeType() const;
+     xdb::core::DbType_t getDeType() const;
      //
      void setValue(uint8_t);
      void setValue(int8_t);
@@ -42,19 +42,21 @@ class RtData
      void setValue(float);
      void setValue(double);
      void setValue(char*);
-     void setValue(variable_t);
+     void setValue(xdb::core::variable_t);
 
-     const RtError& getLastError() const { return m_last_error; }
+     const xdb::core::Error& getLastError() const { return m_last_error; }
 
    private:
      DISALLOW_COPY_AND_ASSIGN(RtData);
-     RtError    m_last_error;
      void       init();
-     DbType_t   m_attr_type;
-     AttrVal_t  m_attr_value;
+     xdb::core::Error      m_last_error;
+     xdb::core::DbType_t   m_attr_type;
+     xdb::core::AttrVal_t  m_attr_value;
      bool       m_modified;
 };
 
-}
+} // namespace rtap
+} // namespace xdb
+
 #endif
 

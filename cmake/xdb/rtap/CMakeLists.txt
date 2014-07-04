@@ -98,6 +98,22 @@ set (XDB_RTAP_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
         ${TOOLS_DIR}/helper.hpp
         ${MDP_DIR}/mdp_letter.hpp
+        ${XDB_CORE_DIR}/xdb_core_base.cpp
+        ${XDB_CORE_DIR}/xdb_core_base.hpp
+        ${XDB_CORE_DIR}/xdb_core_application.cpp
+        ${XDB_CORE_DIR}/xdb_core_application.hpp
+        ${XDB_CORE_DIR}/xdb_core_base.cpp
+        ${XDB_CORE_DIR}/xdb_core_base.hpp
+        ${XDB_CORE_DIR}/xdb_core_common.c
+        ${XDB_CORE_DIR}/xdb_core_common.h
+        ${XDB_CORE_DIR}/xdb_core_connection.cpp
+        ${XDB_CORE_DIR}/xdb_core_connection.hpp
+        ${XDB_CORE_DIR}/xdb_core_environment.cpp
+        ${XDB_CORE_DIR}/xdb_core_environment.hpp
+        ${XDB_CORE_DIR}/xdb_core_error.cpp
+        ${XDB_CORE_DIR}/xdb_core_error.hpp
+        ${XDB_CORE_DIR}/xdb_core_attribute.cpp
+        ${XDB_CORE_DIR}/xdb_core_attribute.hpp
         ${XDB_RTAP_DIR}/dat/rtap_db-pskel.hxx
         ${XDB_RTAP_DIR}/dat/rtap_db-pskel.cxx
         ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.hxx
@@ -105,33 +121,23 @@ set (XDB_RTAP_SOURCES
         ${XDB_RTAP_DIR}/dat/rtap_db.h
         ${XDB_RTAP_DIR}/dat/rtap_db.hpp
         ${XDB_RTAP_DIR}/dat/rtap_db.c
-        ${XDB_CORE_DIR}/xdb_core_base.cpp
-        ${XDB_CORE_DIR}/xdb_core_base.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_const.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_const.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_common.h
-        ${XDB_RTAP_DIR}/xdb_rtap_application.cpp
-        ${XDB_RTAP_DIR}/xdb_rtap_application.hpp
-        ${XDB_CORE_DIR}/xdb_core_base.cpp
-        ${XDB_CORE_DIR}/xdb_core_base.hpp
-        ${XDB_CORE_DIR}/xdb_core_common.c
-        ${XDB_CORE_DIR}/xdb_core_common.h
         ${XDB_RTAP_DIR}/xdb_rtap_database.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_database.hpp
-        ${XDB_RTAP_DIR}/xdb_rtap_attribute.cpp
-        ${XDB_RTAP_DIR}/xdb_rtap_attribute.hpp
+        ${XDB_RTAP_DIR}/xdb_rtap_environment.cpp
+        ${XDB_RTAP_DIR}/xdb_rtap_environment.hpp
+        ${XDB_RTAP_DIR}/xdb_rtap_application.cpp
+        ${XDB_RTAP_DIR}/xdb_rtap_application.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_connection.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_connection.hpp
-        ${XDB_RTAP_DIR}/xdb_rtap_error.cpp
-        ${XDB_RTAP_DIR}/xdb_rtap_error.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_filter.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_filter.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_message.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_message.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_data.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_data.hpp
-        ${XDB_RTAP_DIR}/xdb_rtap_environment.cpp
-        ${XDB_RTAP_DIR}/xdb_rtap_environment.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_point.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_point.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_unity.cpp
@@ -143,19 +149,6 @@ set (XDB_RTAP_SOURCES
         ${XDB_RTAP_DIR}/xdb_rtap_discrete.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_discrete.hpp)
 
-set (XDB_LURKER_SOURCES
-        ${CMAKE_SOURCE_DIR}/config.h
-        ${MDP_DIR}/mdp_letter.hpp
-        ${MDP_DIR}/mdp_worker_api.hpp
-        ${MDP_DIR}/mdp_zmsg.hpp
-        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.hxx
-        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.cxx
-        ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.hxx
-        ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.cxx
-        ${XDB_RTAP_DIR}/dat/rtap_db.hxx
-        ${XDB_RTAP_DIR}/xdb_rtap_lurker.cpp
-        ${XDB_RTAP_DIR}/xdb_rtap_lurker.hpp)
-
 add_definitions(-fpermissive)
 
 add_library (${XDB_RTAP_LIBRARY_NAME} ${XDB_RTAP_SOURCES})
@@ -163,16 +156,6 @@ target_link_libraries(${XDB_RTAP_LIBRARY_NAME}
     ${MSG_LIBRARY_NAME}
     ${SYSTEM_EXTERNAL_LIBS})
 
-add_executable (${XDB_RTAP_LURKER_NAME} ${XDB_LURKER_SOURCES})
-target_link_libraries(${XDB_RTAP_LURKER_NAME}
-    ${XDB_RTAP_LIBRARY_NAME}
-    ${MDP_LIBRARY_NAME}
-    ${LIBGLOG_LIBRARIES}
-    ${LIBEXTREMEDB_LIBRARIES_ALL}
-    "-lmcoseri_debug"
-    "-lxerces-c"
-    ${LIBPROTOBUF_LIBRARIES}
-    ${SYSTEM_EXTERNAL_LIBS})
 
 add_executable (${XDB_RTAP_SNAP_NAME} ${XDB_RTAP_SNAP_SOURCES})
 target_link_libraries(${XDB_RTAP_SNAP_NAME}

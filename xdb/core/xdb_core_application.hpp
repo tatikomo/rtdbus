@@ -1,15 +1,16 @@
-#if !defined XDB_RTAP_APPLICATION_H_
-#define XDB_RTAP_APPLICATION_H_
 #pragma once
+#if !defined XDB_CORE_APPLICATION_HPP
+#define XDB_CORE_APPLICATION_HPP
 
 #include <string>
+#include <vector>
 #include <map>
 
 #include "config.h"
-#include "xdb_rtap_error.hpp"
+#include "xdb_core_error.hpp"
 
-namespace xdb
-{
+namespace xdb {
+namespace core {
 
 // Описание хранилища опций в виде карты.
 // Пара <символьный ключ> => <числовое значение>
@@ -17,9 +18,9 @@ typedef std::pair<const std::string, int> Pair;
 typedef std::map<const std::string, int> Options;
 typedef std::map<const std::string, int>::iterator OptionIterator;
 
-class RtEnvironment;
+class Environment;
 
-class RtApplication
+class Application
 {
   public:
     typedef enum
@@ -36,38 +37,42 @@ class RtApplication
       CONDITION_BAD     = 1
     } AppState_t;
 
-    RtApplication(const char*);
-    ~RtApplication();
+    Application(const char*);
+    virtual ~Application();
 
-    RtEnvironment* getEnvironment(const char*);
+    Environment* getEnvironment(const char*);
 
     const char* getAppName() const;
-    const RtError& setAppName(const char*);
+    const Error& setAppName(const char*);
 
     const char* getEnvName() const;
-    const RtError& setEnvName(const char*);
+    const Error& setEnvName(const char*);
 
-    const RtError& initialize();
+    virtual const Error& initialize();
 
     AppMode_t   getOperationMode() const;
     AppState_t  getOperationState() const;
-    bool getOption(const std::string&, int&);
-    void setOption(const char*, int);
+    virtual bool getOption(const std::string&, int&);
+    virtual void setOption(const char*, int);
 
-    const RtError& getLastError() const;
+    const Error& getLastError() const;
+    void  setLastError(const Error&);
+    void  clearError();
 
   private:
-    DISALLOW_COPY_AND_ASSIGN(RtApplication);
+    DISALLOW_COPY_AND_ASSIGN(Application);
     char m_appli_name[IDENTITY_MAXLEN + 1];
     char m_environment_name[IDENTITY_MAXLEN + 1];
     AppMode_t  m_mode;
     AppState_t m_state;
-    RtError    m_last_error;
-    std::vector<RtEnvironment*> m_env_list;
+    Error    m_last_error;
+  protected:
+    std::vector<Environment*> m_env_list;
     Options    m_map_options;
 };
 
-}
+} // namespace core
+} // namespace xdb
 
 #endif
 

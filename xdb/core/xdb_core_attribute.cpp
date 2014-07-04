@@ -1,24 +1,24 @@
 #include "config.h"
-#include "xdb_rtap_attribute.hpp"
-#include "xdb_rtap_error.hpp"
+#include "xdb_core_attribute.hpp"
+#include "xdb_core_error.hpp"
 
-using namespace xdb;
+using namespace xdb::core;
 
-RtAttribute::RtAttribute() :
+Attribute::Attribute() :
   m_last_error(rtE_NONE)
 {
 }
 
-RtAttribute::~RtAttribute()
+Attribute::~Attribute()
 {
 }
 
-const char* RtAttribute::getAlias() const
+const char* Attribute::getAlias() const
 {
   return &m_alias[0];
 }
 
-DbType_t RtAttribute::getAttributeType() const
+DbType_t Attribute::getAttributeType() const
 {
   return m_type;
 }

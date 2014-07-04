@@ -40,6 +40,8 @@ set (XDB_BROKER_SOURCES
         ${XDB_CORE_DIR}/xdb_core_common.h
         ${XDB_CORE_DIR}/xdb_core_base.cpp
         ${XDB_CORE_DIR}/xdb_core_base.hpp
+        ${XDB_CORE_DIR}/xdb_core_error.cpp
+        ${XDB_CORE_DIR}/xdb_core_error.hpp
         ${XDB_BROKER_DIR}/xdb_broker.cpp
         ${XDB_BROKER_DIR}/xdb_broker.hpp
         ${XDB_BROKER_DIR}/xdb_broker_impl.cpp

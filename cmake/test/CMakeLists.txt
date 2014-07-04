@@ -73,14 +73,14 @@ set (TEST_DATABASE_SOURCES
         ${XDB_BROKER_DIR}/dat/broker_db.hpp
         ${XDB_BROKER_DIR}/dat/broker_db.h
         ${XDB_BROKER_DIR}/dat/broker_db.c
+        ${XDB_CORE_DIR}/xdb_core_application.hpp
+        ${XDB_CORE_DIR}/xdb_core_environment.hpp
+        ${XDB_CORE_DIR}/xdb_core_connection.hpp
         ${XDB_RTAP_DIR}/dat/rtap_db-pskel.hxx
         ${XDB_RTAP_DIR}/dat/rtap_db-pskel.cxx
         ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.hxx
         ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.cxx
         ${XDB_RTAP_DIR}/dat/rtap_db.hxx
-        ${XDB_RTAP_DIR}/xdb_rtap_application.hpp
-        ${XDB_RTAP_DIR}/xdb_rtap_connection.hpp
-        ${XDB_RTAP_DIR}/xdb_rtap_environment.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_snap_trans.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_snap_trans.cpp
         ${MDP_DIR}/mdp_zmsg.hpp

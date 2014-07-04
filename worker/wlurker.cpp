@@ -5,28 +5,27 @@
 #include "xdb_rtap_application.hpp"
 #include "xdb_rtap_environment.hpp"
 #include "xdb_rtap_connection.hpp"
-#include "xdb_rtap_lurker.hpp"
+
+#include "wlurker.hpp"
 
 #include "msg_common.h"
 #include "mdp_worker_api.hpp"
 #include "mdp_letter.hpp"
 #include "mdp_zmsg.hpp"
 
-using namespace xdb;
-
 extern int s_interrupted;
 
 Lurker::Lurker(std::string broker, std::string service, int verbose)
-   : mdwrk(broker, service, verbose)
+   : mdp::mdwrk(broker, service, verbose)
 {
-  m_appli = new xdb::RtApplication("LURKER");
+  m_appli = new xdb::rtap::RtApplication("LURKER");
   m_appli->setOption("OF_CREATE",1);    // Создать если БД не было ранее
   m_appli->setOption("OF_RDWR",1);      // Открыть БД для чтения/записи
   m_appli->setEnvName("RTAP");
   m_appli->initialize();
 
   m_environment = m_appli->getEnvironment("RTAP");
-  m_db_connection = m_environment->createDbConnection();
+  m_db_connection = m_environment->createConnection();
 }
 
 Lurker::~Lurker()

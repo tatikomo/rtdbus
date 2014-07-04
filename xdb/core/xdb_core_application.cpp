@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include <assert.h>
 #include <string.h>
 #include <algorithm>
@@ -5,14 +7,13 @@
 #include "glog/logging.h"
 #include "config.h"
 
-#include "xdb_rtap_error.hpp"
-#include "xdb_rtap_application.hpp"
-#include "xdb_rtap_environment.hpp"
-//#include "xdb_rtap_database.hpp"
+#include "xdb_core_error.hpp"
+#include "xdb_core_application.hpp"
+#include "xdb_core_environment.hpp"
 
-using namespace xdb;
+using namespace xdb::core;
 
-RtApplication::RtApplication(const char* _name) :
+Application::Application(const char* _name) :
   m_mode(MODE_UNKNOWN),
   m_state(CONDITION_UNKNOWN),
   m_last_error(rtE_NONE)
@@ -22,19 +23,19 @@ RtApplication::RtApplication(const char* _name) :
   m_appli_name[IDENTITY_MAXLEN] = '\0';
 }
 
-RtApplication::~RtApplication()
+Application::~Application()
 {
   m_env_list.clear();
 }
 
-const char* RtApplication::getAppName() const
+const char* Application::getAppName() const
 {
   return m_appli_name;
 }
 
-const RtError& RtApplication::setAppName(const char* _name)
+const Error& Application::setAppName(const char* _name)
 {
-  m_last_error.set(rtE_NONE);
+  m_last_error.clear();
   assert(_name);
 
   if (_name)
@@ -57,22 +58,23 @@ const RtError& RtApplication::setAppName(const char* _name)
   return m_last_error;
 }
 
-const char* RtApplication::getEnvName() const
+const char* Application::getEnvName() const
 {
   return m_environment_name;
 }
 
-const RtError& RtApplication::setEnvName(const char* _env_name)
+const Error& Application::setEnvName(const char* _env_name)
 {
-  m_last_error.set(rtE_NONE);
+  m_last_error.clear();
   strncpy(m_environment_name, _env_name, IDENTITY_MAXLEN);
   return m_last_error;
 }
 
 // TODO: провести инициализацию рантайма с учетом данных начальных условий
-const RtError& RtApplication::initialize()
+const Error& Application::initialize()
 {
-  m_last_error.set(rtE_NONE);
+  LOG(INFO) << "Application::initialize()";
+  m_last_error.clear();
   m_env_list.clear();
 #if 0
   // Если инициализация не была выполнена ранее или была ошибка
@@ -84,9 +86,9 @@ const RtError& RtApplication::initialize()
 }
 
 // Получить ссылку на объект Окружение
-RtEnvironment* RtApplication::getEnvironment(const char* _env_name)
+Environment* Application::getEnvironment(const char* _env_name)
 {
-  RtEnvironment *env = NULL;
+  Environment *env = NULL;
 
   assert(_env_name);
   LOG(INFO) << "Search environment " << _env_name;
@@ -108,24 +110,24 @@ RtEnvironment* RtApplication::getEnvironment(const char* _env_name)
 
   if (!env)
   {
-    env = new RtEnvironment(this, _env_name);
+    env = new Environment(this, _env_name);
     LOG(INFO) << "We creates environment " << _env_name;
   }
   m_env_list.push_back(env);
   return env;
 }
 
-RtApplication::AppMode_t RtApplication::getOperationMode() const
+Application::AppMode_t Application::getOperationMode() const
 {
   return m_mode;
 }
 
-RtApplication::AppState_t RtApplication::getOperationState() const
+Application::AppState_t Application::getOperationState() const
 {
   return m_state;
 }
 
-bool RtApplication::getOption(const std::string& key, int& val)
+bool Application::getOption(const std::string& key, int& val)
 {
   bool status = false;
   OptionIterator p = m_map_options.find(key);
@@ -139,14 +141,24 @@ bool RtApplication::getOption(const std::string& key, int& val)
   return status;
 }
 
-void RtApplication::setOption(const char* key, int val)
+void Application::setOption(const char* key, int val)
 {
   m_map_options.insert(Pair(std::string(key), val));
   LOG(INFO)<<"Parameter '"<<key<<"': "<<val;
 }
 
-const RtError& RtApplication::getLastError() const
+const Error& Application::getLastError() const
 {
   return m_last_error;
+}
+
+void Application::setLastError(const Error& _new_error)
+{
+  m_last_error.set(_new_error);
+}
+
+void Application::clearError()
+{
+  m_last_error.clear();
 }
 

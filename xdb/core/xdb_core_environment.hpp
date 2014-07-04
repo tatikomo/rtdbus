@@ -1,27 +1,27 @@
-#if !defined XDB_RTAP_ENVIRONMENT_H_
-#define XDB_RTAP_ENVIRONMENT_H_
 #pragma once
+#if !defined XDB_CORE_ENVIRONMENT_HPP
+#define XDB_CORE_ENVIRONMENT_HPP
 
-#ifdef __cplusplus
+/*#ifdef __cplusplus
 extern "C" {
 #include "mco.h"
 #if (EXTREMEDB_VERSION >= 40) && USE_EXTREMEDB_HTTP_SERVER
 #include "mcohv.h"
 #endif
 }
-#endif
+#endif*/
 
 #include "config.h"
-#include "xdb_rtap_common.h"
-#include "xdb_rtap_error.hpp"
-#include "mdp_letter.hpp"
+#include "xdb_core_common.h"
+#include "xdb_core_error.hpp"
+//#include "mdp_letter.hpp"
 
-namespace xdb
-{
+namespace xdb {
+namespace core {
 
-class RtApplication;
-class RtDbConnection;
-class RtCoreDatabase;
+class Application;
+class Connection;
+class CoreDatabase;
 
 /*
  * Создание базы данных с помощью функции mco_db_open()
@@ -31,14 +31,14 @@ class RtCoreDatabase;
  *
  * Вопрос: различные типы баз данных имеют уникальные функции словарей.
  * Как класс определит, какую словарную функцию использовать? Может быть 
- * задавать соответствие в RtApplication в виде хеша?
+ * задавать соответствие в Application в виде хеша?
  * Пример:
  *   RTAP -> rtap_get_dictionary()
  *   ECH  -> ech_get_dictionary()
  * 23/10/2013: пока будем полагать, что всегда используется БД RTAP
  */
 
-class RtEnvironment
+class Environment
 {
   public:
     typedef enum
@@ -49,51 +49,46 @@ class RtEnvironment
       CONDITION_DB_OPEN = 3  // среда инициализирована, БД открыта
     } EnvState_t;
 
-    RtEnvironment(RtApplication*, const char*);
-    ~RtEnvironment();
+    Environment(Application*, const char*);
+    virtual ~Environment();
+
     // Получить код последней ошибки
-    const RtError& getLastError() const;
+    const Error& getLastError() const;
+    void setLastError(const Error&);
+    void  clearError();
+
     // Создать и вернуть новое подключение к указанной БД/среде
-    RtDbConnection* createDbConnection();
+    Connection* createConnection();
     // Создать новое сообщение указанного типа
-    mdp::Letter* createMessage(/* msgType */);
+    //mdp::Letter* createMessage(/* msgType */);
     // Вернуть имя подключенной БД/среды
     const char* getName() const;
     // Отправить сообщение адресату
-    RtError& sendMessage(mdp::Letter*);
+    //Error& sendMessage(mdp::Letter*);
     // Получить состояние Среды
     EnvState_t getEnvState() const { return m_state; }
     // Загрузить содержимое БД данной среды из указанного XML файла
-    RtError& LoadSnapshot(const char*);
+    Error& LoadSnapshot(const char*);
     // Созранить БД в указанном файле в виде XML
-    RtError& MakeSnapshot(const char*);
+    Error& MakeSnapshot(const char*);
+
+  protected:
+    void setError(Error&);
 
   private:
-    DISALLOW_COPY_AND_ASSIGN(RtEnvironment);
+    DISALLOW_COPY_AND_ASSIGN(Environment);
     char        m_name[IDENTITY_MAXLEN + 1];
     EnvState_t  m_state;
-    RtError     m_last_error;
-    RtCoreDatabase* m_database_impl;
-    RtApplication*  m_appli;
-#if EXTREMEDB_VERSION >= 40
-    mco_db_params_t   m_db_params;
-    mco_device_t      m_dev;
-#  if USE_EXTREMEDB_HTTP_SERVER  
-    /*
-     * Internal HttpServer http://localhost:8082/
-     */
-    mco_metadict_header_t *m_metadict;
-    mcohv_p                m_hv;
-    unsigned int           m_size;
-#  endif  
-    bool                   m_metadict_initialized;
-#endif
+    Error     m_last_error;
+    CoreDatabase* m_database_impl;
+    Application*  m_appli;
 
     // Открыть БД без создания подключений
-    RtError& openDB();
+    Error& openDB();
 };
 
-}
+} // namespace rtap
+} // namespace xdb
 
 #endif
 

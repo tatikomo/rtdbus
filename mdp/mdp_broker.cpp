@@ -52,7 +52,7 @@ Broker::Broker (bool verbose) :
 bool Broker::Init()
 {
   assert(m_database);
-  return m_database->Connect();
+  return ((m_database->Connect()).Ok());
 }
 
 //  ---------------------------------------------------------------------

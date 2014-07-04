@@ -1,7 +1,8 @@
-#if !defined GEV_XDB_DATABASE_COMMON_H
-#define GEV_XDB_DATABASE_COMMON_H
 #pragma once
+#if !defined XDB_CORE_COMMON_H
+#define XDB_CORE_COMMON_H
 
+/*
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -11,15 +12,10 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
+*/
 
-void errhandler(MCO_RET);
-void extended_errhandler(MCO_RET errcode, const char* file, int line);
-const char * mco_ret_string(MCO_RET, int*);
-void rc_check(const char*, MCO_RET);
-
+const char * mco_ret_string(int, int*);
+void rc_check(const char*, int);
 void show_runtime_info(const char * lead_line);
-#if (EXTREMEDB_VERSION >=41)
-void show_device_info(const char * lead_line, mco_device_t dev[], int nDev);
-#endif
 
 #endif

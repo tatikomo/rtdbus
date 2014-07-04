@@ -1,19 +1,20 @@
 #pragma once
-#if !defined XDB_RTAP_POINT_H_
-#define XDB_RTAP_POINT_H_
+#if !defined XDB_RTAP_POINT_HPP
+#define XDB_RTAP_POINT_HPP
 
 #include <string>
 #include <vector>
 
 #include "config.h"
+#include "xdb_core_error.hpp"
 #include "xdb_rtap_const.hpp"
-#include "xdb_rtap_error.hpp"
 #include "xdb_rtap_filter.hpp"
 
-namespace xdb
-{
+namespace xdb {
+namespace rtap {
+
 class RtAttribute;
-class RtDbConnection;
+class RtConnection;
 class RtPointFilter;
 class RtData;
 
@@ -28,11 +29,11 @@ class RtPoint
 {
   public:
     RtPoint();
-    void            addPoint(univname_t name);
-    const RtError&  setName(univname_t);
+    void            addPoint(xdb::core::univname_t name);
+    const xdb::core::Error&  setName(xdb::core::univname_t);
 
     // Получить тип хранилища данной точки
-    RtResidence     getResigence() const;
+    RtResidence     getResidence() const;
     // Получить алиас точки
     RtAttribute*    getAlias() const;
     // Получить количество атрибутов точки
@@ -46,30 +47,32 @@ class RtPoint
     // Вернуть все дочерние точки
     RtPoint*        getChildren();
     // Вернуть объект подключения к БД
-    RtDbConnection* getDbConnection();
+    RtConnection*   getDbConnection();
     // Получить родительскую точку
     RtPoint*        getParent();
     // Залочить данную точку на указанное количество милисекунд
-    const RtError&  lock(long);
-    const RtError&  unlock();
+    const xdb::core::Error&  lock(long);
+    const xdb::core::Error&  unlock();
     // Перенести блокировку точки указанному процессу
-    const RtError&  transferLock(int procid/*rtdbProcessId*/, long lockTime);
+    const xdb::core::Error&  transferLock(int procid/*rtdbProcessId*/, long lockTime);
 
     // Получить список имен точек, в соответствии с заданным критерием
-    const RtError& matchPoints(RtPointFilter::ScopeType, int level, RtPointFilter*);
-    const RtError& matchPoints(RtPointFilter*);
+    const xdb::core::Error& matchPoints(RtPointFilter::ScopeType, int level, RtPointFilter*);
+    const xdb::core::Error& matchPoints(RtPointFilter*);
 
     // Запись множества значений атрибутов данной точки
-    const RtError&  write(std::vector<std::string> attrNames, RtData* data);
+    const xdb::core::Error&  write(std::vector<std::string> attrNames, RtData* data);
     // Запись значения заданного атрибута данной точки
-    const RtError&  write(std::string& attrName, RtData* data);
+    const xdb::core::Error&  write(std::string& attrName, RtData* data);
 
   private:
     DISALLOW_COPY_AND_ASSIGN(RtPoint);
-    RtError      m_last_error;
+    xdb::core::Error      m_last_error;
     RtResidence  m_residence;
 };
 
-}
+} // namespace rtap
+} // namespace xdb
+
 #endif
 

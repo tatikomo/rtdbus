@@ -1,5 +1,6 @@
 set(WORKER_DIGGER wdigger)
 set(WORKER_ECHO   wecho)
+set(WORKER_LURKER wlurker)
 
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   set (SYSTEM_EXTERNAL_LIBS
@@ -19,15 +20,19 @@ include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 include_directories(${WORKER_DIR})
 include_directories(${MDP_DIR})
 include_directories(${MSG_DIR})
+include_directories(${XDB_RTAP_DIR})
+include_directories(${XDB_CORE_DIR})
 include_directories(${TOOLS_DIR})
 
 link_directories(${LIBGLOG_LIBRARIES_DIR})
 link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
+link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 # каталог генерации libmdp.so
 link_directories(${CMAKE_SOURCE_DIR}/../cmake/lib)
 
 set (WORKER_DIGGER_SOURCES
+        ${CMAKE_SOURCE_DIR}/config.h
         ${MDP_DIR}/mdp_zmsg.hpp
         ${MDP_DIR}/mdp_common.h
         ${MDP_DIR}/mdp_client_async_api.hpp
@@ -36,12 +41,28 @@ set (WORKER_DIGGER_SOURCES
         ${WORKER_DIR}/wdigger.cpp)
 
 set (WORKER_ECHO_SOURCES
+        ${CMAKE_SOURCE_DIR}/config.h
         ${MDP_DIR}/mdp_zmsg.hpp
         ${MDP_DIR}/mdp_common.h
         ${MDP_DIR}/mdp_client_async_api.hpp
         ${MDP_DIR}/mdp_worker_api.hpp
         ${WORKER_DIR}/wecho.hpp
         ${WORKER_DIR}/wecho.cpp)
+
+set (WORKER_LURKER_SOURCES
+        ${CMAKE_SOURCE_DIR}/config.h
+        ${MDP_DIR}/mdp_zmsg.hpp
+        ${MDP_DIR}/mdp_common.h
+        ${MDP_DIR}/mdp_letter.hpp
+        ${MDP_DIR}/mdp_client_async_api.hpp
+        ${MDP_DIR}/mdp_worker_api.hpp
+        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.hxx
+        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.cxx
+        ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.hxx
+        ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.cxx
+        ${XDB_RTAP_DIR}/dat/rtap_db.hxx
+        ${WORKER_DIR}/wlurker.cpp
+        ${WORKER_DIR}/wlurker.hpp)
 
 
 # Сборка DIGGER
@@ -61,6 +82,22 @@ add_executable (${WORKER_ECHO} ${WORKER_ECHO_SOURCES})
 target_link_libraries(${WORKER_ECHO}
     ${MDP_LIBRARY_NAME}
     ${TOOLS_LIBRARY_NAME}
+    ${SYSTEM_EXTERNAL_LIBS}
+    ${LIBZMQ_LIBRARIES})
+
+add_definitions(-fpermissive)
+# Сборка LURKER
+##########################################################
+add_executable (${WORKER_LURKER} ${WORKER_LURKER_SOURCES})
+target_link_libraries(${WORKER_LURKER}
+    ${XDB_RTAP_LIBRARY_NAME}
+    ${MDP_LIBRARY_NAME}
+    ${TOOLS_LIBRARY_NAME}
+    ${LIBGLOG_LIBRARIES}
+    ${LIBEXTREMEDB_LIBRARIES_ALL}
+    "-lmcoseri_debug"
+    "-lxerces-c"
+    ${LIBPROTOBUF_LIBRARIES}
     ${SYSTEM_EXTERNAL_LIBS}
     ${LIBZMQ_LIBRARIES})
 

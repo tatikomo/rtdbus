@@ -4,108 +4,109 @@
 
 #include "config.h"
 #include "xdb_rtap_const.hpp"
+#include "xdb_core_attribute.hpp"
 
-using namespace xdb;
+using namespace xdb::rtap;
 
 // Перекодировочная таблица замены типам RTAP на тип eXtremeDB
 // Индекс элемента - код типа данных RTAP
 // Значение элемента - соответствующий индексу тип данных в eXtremeDB
 // 
-const DeTypeToDbTypeLink DeTypeToDbType[] = 
+const DeTypeToDbTypeLink xdb::rtap::DeTypeToDbType[] = 
 {
-    { rtRESERVED0,  DB_TYPE_UNDEF },
-    { rtLOGICAL,    DB_TYPE_INT8 },
-    { rtINT8,       DB_TYPE_INT8 },
-    { rtUINT8,      DB_TYPE_UINT8 },
-    { rtINT16,      DB_TYPE_INT16 },
-    { rtUINT16,     DB_TYPE_UINT16 },
-    { rtINT32,      DB_TYPE_INT32 },
-    { rtUINT32,     DB_TYPE_UINT32 },
-    { rtFLOAT,      DB_TYPE_FLOAT },
-    { rtDOUBLE,     DB_TYPE_DOUBLE },
-    { rtPOLAR,      DB_TYPE_UNDEF },
-    { rtRECTANGULAR,DB_TYPE_UNDEF },
-    { rtRESERVED12, DB_TYPE_UNDEF },
-    { rtRESERVED13, DB_TYPE_UNDEF },
-    { rtRESERVED14, DB_TYPE_UNDEF },
-    { rtRESERVED15, DB_TYPE_UNDEF },
-    { rtBYTES4,     DB_TYPE_BYTES4 },
-    { rtBYTES8,     DB_TYPE_BYTES8 },
-    { rtBYTES12,    DB_TYPE_BYTES12 },
-    { rtBYTES16,    DB_TYPE_BYTES16 },
-    { rtBYTES20,    DB_TYPE_BYTES20 },
-    { rtBYTES32,    DB_TYPE_BYTES32 },
-    { rtBYTES48,    DB_TYPE_BYTES48 },
-    { rtBYTES64,    DB_TYPE_BYTES64 },
-    { rtBYTES80,    DB_TYPE_BYTES80 },
-    { rtBYTES128,   DB_TYPE_BYTES128 },
-    { rtBYTES256,   DB_TYPE_BYTES256 },
-    { rtRESERVED27, DB_TYPE_UNDEF },
-    { rtDB_XREF,    DB_TYPE_UINT64 },
-    { rtDATE,       DB_TYPE_UINT64 },
-    { rtTIME_OF_DAY,DB_TYPE_UINT64 },
-    { rtASB_TIME,   DB_TYPE_UINT64 },
-    { rtUNDEFINED,  DB_TYPE_UNDEF },
+    { rtRESERVED0,  xdb::core::DB_TYPE_UNDEF },
+    { rtLOGICAL,    xdb::core::DB_TYPE_INT8 },
+    { rtINT8,       xdb::core::DB_TYPE_INT8 },
+    { rtUINT8,      xdb::core::DB_TYPE_UINT8 },
+    { rtINT16,      xdb::core::DB_TYPE_INT16 },
+    { rtUINT16,     xdb::core::DB_TYPE_UINT16 },
+    { rtINT32,      xdb::core::DB_TYPE_INT32 },
+    { rtUINT32,     xdb::core::DB_TYPE_UINT32 },
+    { rtFLOAT,      xdb::core::DB_TYPE_FLOAT },
+    { rtDOUBLE,     xdb::core::DB_TYPE_DOUBLE },
+    { rtPOLAR,      xdb::core::DB_TYPE_UNDEF },
+    { rtRECTANGULAR,xdb::core::DB_TYPE_UNDEF },
+    { rtRESERVED12, xdb::core::DB_TYPE_UNDEF },
+    { rtRESERVED13, xdb::core::DB_TYPE_UNDEF },
+    { rtRESERVED14, xdb::core::DB_TYPE_UNDEF },
+    { rtRESERVED15, xdb::core::DB_TYPE_UNDEF },
+    { rtBYTES4,     xdb::core::DB_TYPE_BYTES4 },
+    { rtBYTES8,     xdb::core::DB_TYPE_BYTES8 },
+    { rtBYTES12,    xdb::core::DB_TYPE_BYTES12 },
+    { rtBYTES16,    xdb::core::DB_TYPE_BYTES16 },
+    { rtBYTES20,    xdb::core::DB_TYPE_BYTES20 },
+    { rtBYTES32,    xdb::core::DB_TYPE_BYTES32 },
+    { rtBYTES48,    xdb::core::DB_TYPE_BYTES48 },
+    { rtBYTES64,    xdb::core::DB_TYPE_BYTES64 },
+    { rtBYTES80,    xdb::core::DB_TYPE_BYTES80 },
+    { rtBYTES128,   xdb::core::DB_TYPE_BYTES128 },
+    { rtBYTES256,   xdb::core::DB_TYPE_BYTES256 },
+    { rtRESERVED27, xdb::core::DB_TYPE_UNDEF },
+    { rtDB_XREF,    xdb::core::DB_TYPE_UINT64 },
+    { rtDATE,       xdb::core::DB_TYPE_UINT64 },
+    { rtTIME_OF_DAY,xdb::core::DB_TYPE_UINT64 },
+    { rtASB_TIME,   xdb::core::DB_TYPE_UINT64 },
+    { rtUNDEFINED,  xdb::core::DB_TYPE_UNDEF },
 };
 
 // Соответствие между кодом типа БДРВ и его аналогом в RTAP
-const DbTypeToDeTypeLink DbTypeToDeType[] = 
+const xdb::rtap::DbTypeToDeTypeLink DbTypeToDeType[] = 
 {
-  { DB_TYPE_UNDEF,  rtUNDEFINED },
-  { DB_TYPE_INT8,   rtINT8 },
-  { DB_TYPE_UINT8,  rtUINT8 },
-  { DB_TYPE_INT16,  rtINT16 },
-  { DB_TYPE_UINT16, rtUINT16 },
-  { DB_TYPE_INT32,  rtINT32 },
-  { DB_TYPE_UINT32, rtUINT32 },
-  { DB_TYPE_INT64,  rtUNDEFINED }, // RTAP не поддерживает
-  { DB_TYPE_UINT64, rtUNDEFINED }, // RTAP не поддерживает
-  { DB_TYPE_FLOAT,  rtFLOAT },
-  { DB_TYPE_DOUBLE, rtDOUBLE },
-  { DB_TYPE_BYTES,  rtUNDEFINED }, // RTAP не поддерживает
-  { DB_TYPE_BYTES4, rtBYTES4 },
-  { DB_TYPE_BYTES8, rtBYTES8 },
-  { DB_TYPE_BYTES12, rtBYTES12 },
-  { DB_TYPE_BYTES16, rtBYTES16 },
-  { DB_TYPE_BYTES20, rtBYTES20 },
-  { DB_TYPE_BYTES32, rtBYTES32 },
-  { DB_TYPE_BYTES48, rtBYTES48 },
-  { DB_TYPE_BYTES64, rtBYTES64 },
-  { DB_TYPE_BYTES80 , rtBYTES80 },
-  { DB_TYPE_BYTES128, rtBYTES128 },
-  { DB_TYPE_BYTES256, rtBYTES256 }
+  { xdb::core::DB_TYPE_UNDEF,  rtUNDEFINED },
+  { xdb::core::DB_TYPE_INT8,   rtINT8 },
+  { xdb::core::DB_TYPE_UINT8,  rtUINT8 },
+  { xdb::core::DB_TYPE_INT16,  rtINT16 },
+  { xdb::core::DB_TYPE_UINT16, rtUINT16 },
+  { xdb::core::DB_TYPE_INT32,  rtINT32 },
+  { xdb::core::DB_TYPE_UINT32, rtUINT32 },
+  { xdb::core::DB_TYPE_INT64,  rtUNDEFINED }, // RTAP не поддерживает
+  { xdb::core::DB_TYPE_UINT64, rtUNDEFINED }, // RTAP не поддерживает
+  { xdb::core::DB_TYPE_FLOAT,  rtFLOAT },
+  { xdb::core::DB_TYPE_DOUBLE, rtDOUBLE },
+  { xdb::core::DB_TYPE_BYTES,  rtUNDEFINED }, // RTAP не поддерживает
+  { xdb::core::DB_TYPE_BYTES4, rtBYTES4 },
+  { xdb::core::DB_TYPE_BYTES8, rtBYTES8 },
+  { xdb::core::DB_TYPE_BYTES12, rtBYTES12 },
+  { xdb::core::DB_TYPE_BYTES16, rtBYTES16 },
+  { xdb::core::DB_TYPE_BYTES20, rtBYTES20 },
+  { xdb::core::DB_TYPE_BYTES32, rtBYTES32 },
+  { xdb::core::DB_TYPE_BYTES48, rtBYTES48 },
+  { xdb::core::DB_TYPE_BYTES64, rtBYTES64 },
+  { xdb::core::DB_TYPE_BYTES80 , rtBYTES80 },
+  { xdb::core::DB_TYPE_BYTES128, rtBYTES128 },
+  { xdb::core::DB_TYPE_BYTES256, rtBYTES256 }
 };
 
 // Описание типов данных БДРВ
-const DbTypeDescription_t xdb::DbTypeDescription[] = 
+const DbTypeDescription_t xdb::rtap::DbTypeDescription[] = 
 {
-  { DB_TYPE_UNDEF,  "UNDEF",    0 },
-  { DB_TYPE_INT8,   "INT8",     sizeof(int8_t) },
-  { DB_TYPE_UINT8,  "UINT8",    sizeof(uint8_t) },
-  { DB_TYPE_INT16,  "INT16",    sizeof(int16_t) },
-  { DB_TYPE_UINT16, "UINT16",   sizeof(uint16_t) },
-  { DB_TYPE_INT32,  "INT32",    sizeof(int32_t) },
-  { DB_TYPE_UINT32, "UINT32",   sizeof(uint32_t) },
-  { DB_TYPE_INT64,  "INT64",    sizeof(int32_t) },
-  { DB_TYPE_UINT64, "UINT64",   sizeof(uint32_t) },
-  { DB_TYPE_FLOAT,  "FLOAT",    sizeof(float) },
-  { DB_TYPE_DOUBLE, "DOUBLE",   sizeof(double) },
-  { DB_TYPE_BYTES,  "BYTES",    0 },    // может варьироваться
-  { DB_TYPE_BYTES4, "BYTES4",   sizeof(wchar_t)*4 },
-  { DB_TYPE_BYTES8, "BYTES8",   sizeof(wchar_t)*8 },
-  { DB_TYPE_BYTES12, "BYTES12", sizeof(wchar_t)*12 },
-  { DB_TYPE_BYTES16, "BYTES16", sizeof(wchar_t)*16 },
-  { DB_TYPE_BYTES20, "BYTES20", sizeof(wchar_t)*20 },
-  { DB_TYPE_BYTES32, "BYTES32", sizeof(wchar_t)*32 },
-  { DB_TYPE_BYTES48, "BYTES48", sizeof(wchar_t)*48 },
-  { DB_TYPE_BYTES64, "BYTES64", sizeof(wchar_t)*64 },
-  { DB_TYPE_BYTES80 , "BYTES80",    sizeof(wchar_t)*80 },
-  { DB_TYPE_BYTES128, "BYTES128",   sizeof(wchar_t)*128 },
-  { DB_TYPE_BYTES256, "BYTES256",   sizeof(wchar_t)*256 }
+  { xdb::core::DB_TYPE_UNDEF,  "UNDEF",    0 },
+  { xdb::core::DB_TYPE_INT8,   "INT8",     sizeof(int8_t) },
+  { xdb::core::DB_TYPE_UINT8,  "UINT8",    sizeof(uint8_t) },
+  { xdb::core::DB_TYPE_INT16,  "INT16",    sizeof(int16_t) },
+  { xdb::core::DB_TYPE_UINT16, "UINT16",   sizeof(uint16_t) },
+  { xdb::core::DB_TYPE_INT32,  "INT32",    sizeof(int32_t) },
+  { xdb::core::DB_TYPE_UINT32, "UINT32",   sizeof(uint32_t) },
+  { xdb::core::DB_TYPE_INT64,  "INT64",    sizeof(int32_t) },
+  { xdb::core::DB_TYPE_UINT64, "UINT64",   sizeof(uint32_t) },
+  { xdb::core::DB_TYPE_FLOAT,  "FLOAT",    sizeof(float) },
+  { xdb::core::DB_TYPE_DOUBLE, "DOUBLE",   sizeof(double) },
+  { xdb::core::DB_TYPE_BYTES,  "BYTES",    0 },    // может варьироваться
+  { xdb::core::DB_TYPE_BYTES4, "BYTES4",   sizeof(wchar_t)*4 },
+  { xdb::core::DB_TYPE_BYTES8, "BYTES8",   sizeof(wchar_t)*8 },
+  { xdb::core::DB_TYPE_BYTES12, "BYTES12", sizeof(wchar_t)*12 },
+  { xdb::core::DB_TYPE_BYTES16, "BYTES16", sizeof(wchar_t)*16 },
+  { xdb::core::DB_TYPE_BYTES20, "BYTES20", sizeof(wchar_t)*20 },
+  { xdb::core::DB_TYPE_BYTES32, "BYTES32", sizeof(wchar_t)*32 },
+  { xdb::core::DB_TYPE_BYTES48, "BYTES48", sizeof(wchar_t)*48 },
+  { xdb::core::DB_TYPE_BYTES64, "BYTES64", sizeof(wchar_t)*64 },
+  { xdb::core::DB_TYPE_BYTES80 , "BYTES80",    sizeof(wchar_t)*80 },
+  { xdb::core::DB_TYPE_BYTES128, "BYTES128",   sizeof(wchar_t)*128 },
+  { xdb::core::DB_TYPE_BYTES256, "BYTES256",   sizeof(wchar_t)*256 }
 };
 
 // Описание типов данных RTAP
-const DeTypeDescription_t xdb::rtDataElem[] =
+const DeTypeDescription_t xdb::rtap::rtDataElem[] =
 {
     { rtRESERVED0,   "RESERVED0",     0 },
     { rtLOGICAL,     "rtLOGICAL",  sizeof(uint8_t) },
@@ -147,7 +148,7 @@ const DeTypeDescription_t xdb::rtDataElem[] =
 // где 
 //  XX = номер класса
 //  YYY = название класса
-ClassDescription_t xdb::ClassDescriptionTable[] = {
+ClassDescription_t xdb::rtap::ClassDescriptionTable[] = {
     {"TS",      GOF_D_BDR_OBJCLASS_TS, 0},          /* Телесигнализация */
     {"TM",      1, 0},          /* Телеизмерение */
     {"TR",      2, 0},          /* Телерегулировка */

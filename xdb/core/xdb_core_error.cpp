@@ -1,36 +1,40 @@
 #include "config.h"
-#include "xdb_rtap_error.hpp"
-#include "dat/rtap_db-pimpl.hxx"
-#include "dat/rtap_db-pskel.hxx"
+#include "xdb_core_error.hpp"
 
-using namespace xdb;
+using namespace xdb::core;
 
-char* RtError::m_error_descriptions[RtError::MaxErrorCode + 1];
-bool RtError::m_initialized = false;
+char* Error::m_error_descriptions[Error::MaxErrorCode + 1];
+bool Error::m_initialized = false;
 
-RtError::RtError() :
+Error::Error() :
   m_error_type(rtE_NONE)
 {
   init();
 }
 
-RtError::RtError(ErrorType_t _t) :
+Error::Error(ErrorType_t _t) :
   m_error_type(_t)
 {
   init();
 }
 
-RtError::RtError(const RtError& _origin)
+/*Error::Error(int _t)
+{
+  init();
+  set(_t);
+}*/
+
+Error::Error(const Error& _origin)
 {
   m_error_type = _origin.getCode();
   init();
 }
 
-RtError::~RtError()
+Error::~Error()
 {
 }
 
-void RtError::init()
+void Error::init()
 {
   if (!m_initialized)
   {
@@ -42,34 +46,35 @@ void RtError::init()
     m_error_descriptions[rtE_STRING_IS_EMPTY]  = (char*)"Given string is empty";
     m_error_descriptions[rtE_DB_NOT_FOUND]     = (char*)"Database is not found";
     m_error_descriptions[rtE_DB_NOT_OPENED]    = (char*)"Database is not opened";
+    m_error_descriptions[rtE_DB_NOT_DISCONNECTED] = (char*)"Database is not disconnected";
     m_error_descriptions[rtE_XML_NOT_OPENED]   = (char*)"XML couldn't be opened";
+    m_error_descriptions[rtE_INCORRECT_DB_TRANSITION_STATE] = (char*)"New DB state is incorrect";
+    m_error_descriptions[rtE_SNAPSHOT_WRITE]   = (char*)"Snapshot writing failure";
+    m_error_descriptions[rtE_SNAPSHOT_READ]    = (char*)"Snapshot reading failure";
+    m_error_descriptions[rtE_RUNTIME_FATAL]    = (char*)"Fatal runtime failure";
+    m_error_descriptions[rtE_RUNTIME_WARNING]  = (char*)"Recoverable runtime failure";
   }
 }
 
-const char* RtError::what() const
+const char* Error::what() const
 {
   return m_error_descriptions[m_error_type];
 }
 
-bool RtError::set(ErrorType_t _t)
+void Error::set(ErrorType_t _t)
 {
-  bool status = false;
-
   if ((rtE_NONE <= _t) && (_t <= rtE_LAST))
   {
     m_error_type = _t;
-    status = true;
   }
   else
   {
     m_error_type = rtE_UNKNOWN;
   }
-
-  return status;
 }
 
 // Получить код ошибки
-ErrorType_t RtError::getCode() const
+int Error::getCode() const
 {
   return m_error_type;
 }

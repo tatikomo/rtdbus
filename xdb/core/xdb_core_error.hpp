@@ -1,11 +1,11 @@
-#if !defined XDB_RTAP_ERROR_H_
-#define XDB_RTAP_ERROR_H_
 #pragma once
+#if !defined XDB_CORE_ERROR_HPP
+#define XDB_CORE_ERROR_HPP
 
 #include "config.h"
 
-namespace xdb
-{
+namespace xdb {
+namespace core {
 
 typedef enum
 {
@@ -16,35 +16,53 @@ typedef enum
   rtE_STRING_IS_EMPTY,
   rtE_DB_NOT_FOUND,
   rtE_DB_NOT_OPENED,
+  rtE_DB_NOT_DISCONNECTED,
   rtE_XML_NOT_OPENED,
+  rtE_INCORRECT_DB_TRANSITION_STATE,
+  rtE_SNAPSHOT_WRITE,
+  rtE_SNAPSHOT_READ,
+  rtE_RUNTIME_FATAL,
+  rtE_RUNTIME_WARNING,
   rtE_LAST
 } ErrorType_t;
 
-class RtError
+class Error
 {
   public:
     static const int MaxErrorCode = rtE_LAST;
     // Пустая инициализация
-    RtError();
+    Error();
     // Инициализация по образцу
-    RtError(const RtError&);
+    Error(const Error&);
     // Инициализация по коду
-    RtError(ErrorType_t);
-    ~RtError();
+    Error(ErrorType_t);
+
+    ~Error();
     // Получить код ошибки
-    ErrorType_t getCode() const;
+    int getCode() const;
     // Установить код ошибки
-    bool set(ErrorType_t);
+    void set(ErrorType_t);
+    // Установить код ошибки
+    void set(const Error& _err) { m_error_type = _err.getCode(); };
+
+    // true, если не было ошибки
+    bool Ok() const { return m_error_type == rtE_NONE; };
+    // true, если была ошибка
+    bool NOk() const { return m_error_type != rtE_NONE; };
+
+    // Сбросить код ошибки
+    void clear() { m_error_type = rtE_NONE; };
     // Получить символьное описание ошибки
     const char* what() const;
 
   private:
     void init();
-    static bool m_initialized;
+    static bool  m_initialized;
     static char* m_error_descriptions[MaxErrorCode + 1];
-    ErrorType_t m_error_type;
+    int          m_error_type;
 };
 
-}
+} // namespace core
+} //namespace xdb
 
 #endif

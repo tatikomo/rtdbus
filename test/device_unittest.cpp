@@ -441,6 +441,7 @@ worker_task (void* /*args*/)
        if (request)
        {
          engine->handle_request (request, reply_to);
+         delete request;
        }
        delete reply_to;
 

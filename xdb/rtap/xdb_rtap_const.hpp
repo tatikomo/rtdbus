@@ -2,15 +2,15 @@
 #ifndef GEV_XDB_RTAP_CONST_H_
 #define GEV_XDB_RTAP_CONST_H_
 
-#include <map>
 #include <string>
-#include <stdint.h>
 
 #include "mco.h"
 #include "config.h"
 
-namespace xdb
-{
+#include "xdb_core_attribute.hpp"
+
+namespace xdb {
+namespace rtap {
 
 #define SHORTLABEL_LENGTH   16
 #define CODE_LENGTH         8
@@ -97,54 +97,7 @@ namespace xdb
 #define GOF_D_BDR_OBJCLASS_LASTUSED   87
 #define GOF_D_BDR_OBJCLASS_UNUSED    127
 
-#if 0
-typedef char   shortlabel_t[SHORTLABEL_LENGTH+1];
-typedef char   longlabel_t[LABEL_LENGTH+1];
-typedef char   univname_t[UNIVNAME_LENGTH+1];
-typedef char   code_t[CODE_LENGTH+1];
-#else
-typedef std::string   shortlabel_t;
-typedef std::string   longlabel_t;
-typedef std::string   univname_t;
-typedef std::string   code_t;
-#endif
-
 #define D_MISSING_OBJCODE   "MISSING"
-
-typedef enum
-{
-  DB_TYPE_UNDEF     = 0,
-  DB_TYPE_INT8      = 1,
-  DB_TYPE_UINT8     = 2,
-  DB_TYPE_INT16     = 3,
-  DB_TYPE_UINT16    = 4,
-  DB_TYPE_INT32     = 5,
-  DB_TYPE_UINT32    = 6,
-  DB_TYPE_INT64     = 7,
-  DB_TYPE_UINT64    = 8,
-  DB_TYPE_FLOAT     = 9,
-  DB_TYPE_DOUBLE    = 10,
-  DB_TYPE_BYTES     = 11, // переменная длина строки
-  DB_TYPE_BYTES4    = 12,
-  DB_TYPE_BYTES8    = 13,
-  DB_TYPE_BYTES12   = 14,
-  DB_TYPE_BYTES16   = 15,
-  DB_TYPE_BYTES20   = 16,
-  DB_TYPE_BYTES32   = 17,
-  DB_TYPE_BYTES48   = 18,
-  DB_TYPE_BYTES64   = 19,
-  DB_TYPE_BYTES80   = 20,
-  DB_TYPE_BYTES128  = 21,
-  DB_TYPE_BYTES256  = 22,
-  DB_TYPE_LAST      = 23 // fake type, used for limit array types
-} DbType_t;
-
-// NB: формат хранения строк UTF-8
-typedef struct
-{
-  uint16_t size; // 16384
-  char *data;
-} variable_t;
 
 #define ELEMENT_DESCRIPTION_MAXLEN  15
 typedef enum
@@ -190,7 +143,7 @@ typedef enum
 typedef struct
 {
   // порядковый номер
-  DbType_t   code;
+  xdb::core::DbType_t   code;
   const char name[ELEMENT_DESCRIPTION_MAXLEN+1];
   // размер типа данных
   size_t     size;
@@ -200,13 +153,13 @@ typedef struct
 typedef struct
 {
   rtDeType de_type; // код RTAP
-  DbType_t db_type; // код eXtremeDB
+  xdb::core::DbType_t db_type; // код eXtremeDB
 } DeTypeToDbTypeLink;
 
 // Элемент соответствия между кодом типа БДРВ и RTAP
 typedef struct
 {
-  DbType_t db_type; // код eXtremeDB
+  xdb::core::DbType_t db_type; // код eXtremeDB
   rtDeType de_type; // код RTAP
 } DbTypeToDeTypeLink;
 
@@ -222,41 +175,15 @@ typedef struct
 } DeTypeDescription_t;
 
 
-typedef union
-{
-  int8_t   val_int8;
-  uint8_t  val_uint8;
-  int16_t  val_int16;
-  uint16_t val_uint16;
-  int32_t  val_int32;
-  uint32_t val_uint32;
-  int64_t  val_int64;
-  uint64_t val_uint64;
-  variable_t val_bytes; // NB: максимальное значение строки =16384
-  float    val_float;
-  double   val_double;
-} AttrVal_t;
-
-/* перечень значимых атрибутов и их типов */
-typedef struct
-{
-  univname_t name;      /* имя атрибута */
-  DbType_t   db_type;   /* его тип - целое, дробь, строка */
-  AttrVal_t  value;     /* значение атрибута */
-} AttributeInfo_t;
-
-typedef std::map  <const std::string, xdb::AttributeInfo_t> AttributeMap_t;
-typedef std::map  <const std::string, xdb::AttributeInfo_t>::iterator AttributeMapIterator_t;
-typedef std::pair <const std::string, xdb::AttributeInfo_t> AttributeMapPair_t;
 
 /* общие сведения по точке базы данных */
 typedef struct
 {
   int16_t        objclass;
-  univname_t     alias;
-  AttributeMap_t attributes;
-  univname_t     parent_alias;
-  univname_t     code;
+  xdb::core::univname_t     alias;
+  xdb::core::AttributeMap_t attributes;
+  xdb::core::univname_t     parent_alias;
+  xdb::core::univname_t     code;
   autoid_t       id_SA;
   autoid_t       id_unity;
 } PointDescription_t;
@@ -268,18 +195,20 @@ typedef struct
   int8_t            code;                     // код класса
   // NB: Используется указатель AttributeMap_t* для облегчения 
   // статической инициализации массива
-  AttributeMap_t   *attributes_pool; // набор атрибутов с доступом по имени
+  xdb::core::AttributeMap_t   *attributes_pool; // набор атрибутов с доступом по имени
 } ClassDescription_t;
 
 extern ClassDescription_t ClassDescriptionTable[];
 extern const DeTypeDescription_t rtDataElem[];
 // Получить универсальное имя на основе его алиаса
-extern int GetPointNameByAlias(univname_t&, univname_t&);
+extern int GetPointNameByAlias(xdb::core::univname_t&, xdb::core::univname_t&);
 
 // Хранилище описаний типов данных БДРВ
 extern const DbTypeDescription_t DbTypeDescription[];
 extern const DeTypeToDbTypeLink DeTypeToDbType[];
-}
+
+} // namespace rtap
+} // namespace xdb
 
 #endif
 

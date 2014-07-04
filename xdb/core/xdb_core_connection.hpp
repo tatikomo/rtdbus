@@ -1,33 +1,34 @@
-#if !defined GEV_XDB_RTAP_CONNECTION_H_
-#define GEV_XDB_RTAP_CONNECTION_H_
 #pragma once
+#if !defined XDB_CORE_CONNECTION_HPP
+#define XDB_CORE_CONNECTION_HPP
 
 #include <string>
 #include "config.h"
-#include "xdb_rtap_attribute.hpp"
-#include "xdb_rtap_point.hpp"
-#include "xdb_rtap_error.hpp"
+#include "xdb_core_attribute.hpp"
+#include "xdb_core_error.hpp"
 
-namespace xdb
-{
+namespace xdb {
+namespace core {
 
-class RtEnvironment;
+class Environment;
+class Point;
 
-class RtDbConnection
+class Connection
 {
   public:
-    RtDbConnection(RtEnvironment*);
-    ~RtDbConnection();
+    Connection(Environment*);
+    ~Connection();
 
     // Копировать точку под новым именем
-    RtError copy(RtAttribute&, RtPoint&, std::string&);
+    Error copy(Attribute&, Point&, std::string&);
 
   private:
-    DISALLOW_COPY_AND_ASSIGN(RtDbConnection);
-    RtEnvironment* m_environment;
-    RtError        m_last_error;
+    DISALLOW_COPY_AND_ASSIGN(Connection);
+    Environment* m_environment;
+    Error        m_last_error;
 };
 
-}
+} // namespace core
+} // namespace xdb
 #endif
 
