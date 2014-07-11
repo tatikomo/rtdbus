@@ -11,14 +11,13 @@
 #include "xdb_core_application.hpp"
 #include "xdb_core_environment.hpp"
 
-using namespace xdb::core;
+using namespace xdb;
 
 Application::Application(const char* _name) :
-  m_mode(MODE_UNKNOWN),
-  m_state(CONDITION_UNKNOWN),
+  m_mode(APP_MODE_UNKNOWN),
+  m_state(APP_STATE_UNKNOWN),
   m_last_error(rtE_NONE)
 {
-  m_environment_name[0] = '\0';
   strncpy(m_appli_name, _name, IDENTITY_MAXLEN);
   m_appli_name[IDENTITY_MAXLEN] = '\0';
 }
@@ -58,18 +57,6 @@ const Error& Application::setAppName(const char* _name)
   return m_last_error;
 }
 
-const char* Application::getEnvName() const
-{
-  return m_environment_name;
-}
-
-const Error& Application::setEnvName(const char* _env_name)
-{
-  m_last_error.clear();
-  strncpy(m_environment_name, _env_name, IDENTITY_MAXLEN);
-  return m_last_error;
-}
-
 // TODO: провести инициализацию рантайма с учетом данных начальных условий
 const Error& Application::initialize()
 {
@@ -78,7 +65,7 @@ const Error& Application::initialize()
   m_env_list.clear();
 #if 0
   // Если инициализация не была выполнена ранее или была ошибка
-  if (CONDITION_BAD == getOperationState())
+  if (APP_STATE_BAD == getOperationState())
   {
   }
 #endif
@@ -90,7 +77,6 @@ Environment* Application::getEnvironment(const char* _env_name)
 {
   Environment *env = NULL;
 
-  assert(_env_name);
   LOG(INFO) << "Search environment " << _env_name;
 
   //  foreach();
@@ -111,18 +97,18 @@ Environment* Application::getEnvironment(const char* _env_name)
   if (!env)
   {
     env = new Environment(this, _env_name);
-    LOG(INFO) << "We creates environment " << _env_name;
+    LOG(INFO) << "We creates new environment " << _env_name;
   }
   m_env_list.push_back(env);
   return env;
 }
 
-Application::AppMode_t Application::getOperationMode() const
+AppMode_t Application::getOperationMode() const
 {
   return m_mode;
 }
 
-Application::AppState_t Application::getOperationState() const
+AppState_t Application::getOperationState() const
 {
   return m_state;
 }

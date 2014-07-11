@@ -2,7 +2,7 @@
 #include "xdb_core_attribute.hpp"
 #include "xdb_core_error.hpp"
 
-using namespace xdb::core;
+using namespace xdb;
 
 Attribute::Attribute() :
   m_last_error(rtE_NONE)

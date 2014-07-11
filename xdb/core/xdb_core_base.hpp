@@ -6,14 +6,10 @@
 #include "config.h"
 #endif
 
-#include <bitset>
-
 #include "xdb_core_error.hpp"
+#include "xdb_core_common.h"
 
 namespace xdb {
-namespace core {
-
-typedef std::bitset<8> BitSet8;
 
 // Позиции бит в флагах, передаваемых конструктору
 typedef enum
@@ -28,18 +24,8 @@ typedef enum
 class Database
 {
   public:
-    /* Внутренние состояния базы данных */
-    typedef enum {
-        UNINITIALIZED = 1, // первоначальное состояние
-        INITIALIZED   = 2, // инициализирован runtime
-        ATTACHED      = 3, // вызван mco_db_open
-        CONNECTED     = 4, // вызван mco_db_connect
-        DISCONNECTED  = 5, // вызван mco_db_disconnect
-        CLOSED        = 6  // вызван mco_db_close
-    } DBState;
-
     Database(const char*);
-    virtual ~Database();
+    ~Database();
 
     const char* DatabaseName() const;
     /* 
@@ -47,31 +33,29 @@ class Database
      * свой собственный словарь, и должна сама
      * реализовывать функцию открытия
      */
-    virtual const xdb::core::Error& Init();
-    virtual const xdb::core::Error& Create();
-    virtual const xdb::core::Error& Connect();
-    virtual const xdb::core::Error& Disconnect();
-    virtual const xdb::core::Error& LoadSnapshot(const char* = NULL);
-    virtual const xdb::core::Error& StoreSnapshot(const char* = NULL);
+    const Error& Init();
+    const Error& Create();
+    const Error& Connect();
+    const Error& Disconnect();
+    const Error& LoadSnapshot(const char* = 0);
+    const Error& StoreSnapshot(const char* = 0);
 
     DBState State() const;
 
     /* Сменить текущее состояние на новое */
-    const xdb::core::Error& TransitionToState(DBState);
-    const xdb::core::Error& getLastError() { return m_last_error; };
-    virtual bool ifErrorOccured() { return (m_last_error.getCode() != rtE_NONE); };
+    const Error& TransitionToState(DBState);
+    const Error& getLastError() { return m_last_error; };
+    bool  ifErrorOccured() { return (m_last_error.getCode() != rtE_NONE); };
+    void  setError(ErrorType_t);
+    void  clearError() { m_last_error.clear(); };
 
   private:
     char m_name[DBNAME_MAXLEN+1];
-    xdb::core::Error m_last_error;
-
-  protected:
-    void  setError(xdb::core::ErrorType_t);
-    void  clearError() { m_last_error.clear(); };
+    Error m_last_error;
     DBState  m_state;
 };
 
-} //namespace core
 } //namespace xdb
+
 #endif
 

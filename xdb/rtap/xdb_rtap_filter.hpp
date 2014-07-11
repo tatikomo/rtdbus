@@ -6,7 +6,6 @@
 #include "xdb_core_error.hpp"
 
 namespace xdb {
-namespace rtap {
 
 class RtPointFilter
 {
@@ -57,10 +56,9 @@ class RtPointFilter
   private:
     DISALLOW_COPY_AND_ASSIGN(RtPointFilter);
     static ScopeType   m_scope_type;
-    static xdb::core::Error     m_last_error;
+    static Error     m_last_error;
 };
 
-} // namespace rtap
 } // namespace xdb
 
 #endif

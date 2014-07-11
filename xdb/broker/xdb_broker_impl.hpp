@@ -1,6 +1,6 @@
+#pragma once
 #if !defined XDB_DATABASE_BROKER_IMPL_HPP
 #define XDB_DATABASE_BROKER_IMPL_HPP
-#pragma once
 
 #include <string>
 #include "config.h"
@@ -21,6 +21,7 @@ extern "C" {
 
 namespace xdb {
 
+class Database;
 class Service;
 class Worker;
 
@@ -60,7 +61,7 @@ class ServiceListImpl : public ServiceList
   private:
     DISALLOW_COPY_AND_ASSIGN(ServiceListImpl);
     int       m_current_index;
-    mco_db_h  m_db;
+    mco_db_h  m_db_handler;
     // Список прочитанных из БД Сервисов
     Service** m_array;
     // Количество Сервисов в массиве m_array
@@ -71,8 +72,9 @@ class ServiceListImpl : public ServiceList
 class DatabaseBrokerImpl
 {
   friend class ServiceListImpl;
+
   public:
-    DatabaseBrokerImpl(DatabaseBroker*);
+    DatabaseBrokerImpl(const char*);
     ~DatabaseBrokerImpl();
 
     /* Инициализация служебных структур БД */
@@ -80,6 +82,8 @@ class DatabaseBrokerImpl
     /* Создание экземпляра БД или подключение к уже существующему */
     bool Connect();
     bool Disconnect();
+    //
+    DBState State();
 
     Service *AddService(const char*);
     Service *AddService(const std::string&);
@@ -159,8 +163,8 @@ class DatabaseBrokerImpl
     MCO_RET SaveDbToFile(const char*);
 #endif
 
-    DatabaseBroker          *m_self;
-    mco_db_h                 m_db;
+    Database                *m_database;
+    mco_db_h                 m_db_handler;
     ServiceListImpl         *m_service_list;
 
 #if EXTREMEDB_VERSION >= 41

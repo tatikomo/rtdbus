@@ -1,7 +1,7 @@
 #include "config.h"
 #include "xdb_core_error.hpp"
 
-using namespace xdb::core;
+using namespace xdb;
 
 char* Error::m_error_descriptions[Error::MaxErrorCode + 1];
 bool Error::m_initialized = false;

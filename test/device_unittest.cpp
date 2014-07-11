@@ -4,6 +4,7 @@
 #include "google/protobuf/stubs/common.h"
 
 #include "helper.hpp"
+
 #include "mdp_zmsg.hpp"
 #include "mdp_common.h"
 #include "mdp_broker.hpp"
@@ -13,10 +14,11 @@
 #include "mdp_proxy.hpp"
 
 #include "xdb_broker.hpp"
-#include "xdb_broker_worker.hpp"
-#include "xdb_broker_letter.hpp"
-#include "xdb_broker_service.hpp"
+//#include "xdb_broker_worker.hpp"
+//#include "xdb_broker_letter.hpp"
+//#include "xdb_broker_service.hpp"
 
+using namespace xdb;
 #include "wdigger.hpp"
 #include "pulsar.hpp"
 
@@ -24,6 +26,7 @@
 #include "msg_common.h"
 #include "proto/common.pb.h"
 
+mdp::Digger *digger = NULL;
 mdp::Broker *broker = NULL;
 std::string service_name_1 = "NYSE";
 std::string service_name_2 = "service_test_2";
@@ -428,7 +431,7 @@ worker_task (void* /*args*/)
   LOG(INFO) << "Start worker thread";
   try
   {
-    Digger *engine = new Digger(attributes_connection_to_broker,
+    mdp::Digger *engine = new mdp::Digger(attributes_connection_to_broker,
                                 service_name_1.c_str(),
                                 verbose);
     while (!s_interrupted) 

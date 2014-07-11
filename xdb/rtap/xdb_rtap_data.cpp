@@ -2,10 +2,9 @@
 #include <string.h>
 
 #include "config.h"
-//#include "xdb_core_error.hpp"
 #include "xdb_rtap_data.hpp"
 
-using namespace xdb::rtap;
+using namespace xdb;
 
 RtData::RtData() : m_modified(false)
 {
@@ -107,7 +106,7 @@ void RtData::setValue(char* _val)
   m_modified = true;
 }
 
-void RtData::setValue(xdb::core::variable_t _val)
+void RtData::setValue(variable_t _val)
 {
   m_attr_value.val_bytes.data = _val.data;
   m_attr_value.val_bytes.size = _val.size;

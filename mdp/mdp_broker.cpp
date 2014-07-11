@@ -46,13 +46,12 @@ Broker::Broker (bool verbose) :
     // TODO: объединить значения интервалов Брокера и Обработчика
     m_heartbeat_at = s_clock () + Broker::HeartbeatInterval;
     m_database = new xdb::DatabaseBroker();
-    assert(m_database);
 }
 
 bool Broker::Init()
 {
   assert(m_database);
-  return ((m_database->Connect()).Ok());
+  return (m_database->Connect());
 }
 
 //  ---------------------------------------------------------------------

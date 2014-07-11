@@ -5,7 +5,6 @@
 #include "config.h"
 
 namespace xdb {
-namespace core {
 
 typedef enum
 {
@@ -62,7 +61,6 @@ class Error
     int          m_error_type;
 };
 
-} // namespace core
 } //namespace xdb
 
 #endif

@@ -8,13 +8,9 @@
 #include <stdint.h>
 
 #include "config.h"
-//#include "xdb_rtap_const.hpp"
-//#include "xdb_rtap_data.hpp"
-//#include "xdb_rtap_point.hpp"
 #include "xdb_core_error.hpp"
 
 namespace xdb {
-namespace core {
 
 #if 0
 typedef char   shortlabel_t[SHORTLABEL_LENGTH+1];
@@ -130,7 +126,6 @@ class Attribute
     DbType_t    m_type;
 };
 
-} //namespace core
 } //namespace xdb
 
 #endif

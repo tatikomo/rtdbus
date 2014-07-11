@@ -6,11 +6,12 @@
 #if defined HAVE_CONFIG_H
 #include "config.h"
 #endif
+#include "xdb_core_common.h"
 #include "xdb_core_base.hpp"
 
-using namespace xdb::core;
+using namespace xdb;
 
-Database::Database(const char* name) : m_state(Database::UNINITIALIZED)
+Database::Database(const char* name) : m_state(DB_STATE_UNINITIALIZED)
 {
     assert (name);
     strncpy(m_name, name, DBNAME_MAXLEN);
@@ -27,26 +28,26 @@ const char* Database::DatabaseName() const
     return m_name;
 }
 
-Database::DBState Database::State() const
+DBState Database::State() const
 {
     return m_state;
 }
 
-void Database::setError(xdb::core::ErrorType_t _new_error_code)
+void Database::setError(ErrorType_t _new_error_code)
 {
   m_last_error.set(_new_error_code);
 }
 
 
 /*
- * UNINITIALIZED = 1, // первоначальное состояние
- * INITIALIZED   = 2, // инициализирован runtime
- * ATTACHED      = 3, // вызван mco_db_open
- * CONNECTED     = 4, // вызван mco_db_connect
- * DISCONNECTED  = 5, // вызван mco_db_disconnect
- * CLOSED        = 6  // вызван mco_db_close
+ * DB_STATE_UNINITIALIZED = 1, // первоначальное состояние
+ * DB_STATE_INITIALIZED   = 2, // инициализирован runtime
+ * DB_STATE_ATTACHED      = 3, // вызван mco_db_open
+ * DB_STATE_CONNECTED     = 4, // вызван mco_db_connect
+ * DB_STATE_DISCONNECTED  = 5, // вызван mco_db_disconnect
+ * DB_STATE_CLOSED        = 6  // вызван mco_db_close
  */
-const xdb::core::Error& Database::TransitionToState(DBState new_state)
+const Error& Database::TransitionToState(DBState new_state)
 {
   bool transition_correctness = false;
 
@@ -58,13 +59,13 @@ const xdb::core::Error& Database::TransitionToState(DBState new_state)
   switch (m_state)
   {
     // Состояние "ОТКЛЮЧЕНО" может перейти в "ПОДКЛЮЧЕНО" или "ЗАКРЫТО"
-    case DISCONNECTED:
+    case DB_STATE_DISCONNECTED:
     {
       switch (new_state)
       {
-        case CONNECTED:
-        case CLOSED:
-        case INITIALIZED:
+        case DB_STATE_CONNECTED:
+        case DB_STATE_CLOSED:
+        case DB_STATE_INITIALIZED:
           transition_correctness = true;
         break;
         default:
@@ -74,11 +75,11 @@ const xdb::core::Error& Database::TransitionToState(DBState new_state)
     break;
 
     // Состояние "ПОДКЛЮЧЕНО" может перейти в состояние "ОТКЛЮЧЕНО"
-    case CONNECTED:
+    case DB_STATE_CONNECTED:
     {
       switch (new_state)
       {
-        case DISCONNECTED:
+        case DB_STATE_DISCONNECTED:
           transition_correctness = true;
         break;
         default:
@@ -88,12 +89,12 @@ const xdb::core::Error& Database::TransitionToState(DBState new_state)
     break;
 
     // Состояние "ПРИСОЕДИНЕНО" может перейти в состояние "ПОДКЛЮЧЕНО"\"ОТКЛЮЧЕНО"
-    case ATTACHED:
+    case DB_STATE_ATTACHED:
     {
       switch (new_state)
       {
-        case CONNECTED:
-        case DISCONNECTED:
+        case DB_STATE_CONNECTED:
+        case DB_STATE_DISCONNECTED:
           transition_correctness = true;
         break;
         default:
@@ -103,19 +104,19 @@ const xdb::core::Error& Database::TransitionToState(DBState new_state)
     break;
 
     // Состояние "ЗАКРЫТО" не может перейти ни в какое другое состояние
-    case CLOSED:
+    case DB_STATE_CLOSED:
     {
        transition_correctness = false;
     }
     break;
 
-    case INITIALIZED:
+    case DB_STATE_INITIALIZED:
     {
       switch (new_state)
       {
-        case ATTACHED:
-        case CONNECTED:
-        case DISCONNECTED:
+        case DB_STATE_ATTACHED:
+        case DB_STATE_CONNECTED:
+        case DB_STATE_DISCONNECTED:
           transition_correctness = true;
         break;
         default:
@@ -126,13 +127,13 @@ const xdb::core::Error& Database::TransitionToState(DBState new_state)
     break;
 
     // Неинициализированное состояние БД может перейти в "ОТКЛЮЧЕНО" или "ЗАКРЫТО"
-    case UNINITIALIZED:
+    case DB_STATE_UNINITIALIZED:
     {
       switch (new_state)
       {
-        case DISCONNECTED:
-        case INITIALIZED:
-        case CLOSED:
+        case DB_STATE_DISCONNECTED:
+        case DB_STATE_INITIALIZED:
+        case DB_STATE_CLOSED:
           transition_correctness = true;
         break;
         default:
@@ -145,41 +146,41 @@ const xdb::core::Error& Database::TransitionToState(DBState new_state)
   if (transition_correctness)
     m_state = new_state;
   else
-    setError(xdb::core::rtE_INCORRECT_DB_TRANSITION_STATE);
+    setError(rtE_INCORRECT_DB_TRANSITION_STATE);
 
   return getLastError();
 }
 
-const xdb::core::Error&  Database::Connect()
+const Error&  Database::Connect()
 {
-    return TransitionToState(CONNECTED);
+    return TransitionToState(DB_STATE_CONNECTED);
 }
 
-const xdb::core::Error&  Database::Disconnect()
+const Error&  Database::Disconnect()
 {
-    return TransitionToState(DISCONNECTED);
+    return TransitionToState(DB_STATE_DISCONNECTED);
 }
 
-const xdb::core::Error&  Database::Init()
+const Error&  Database::Init()
 {
-    return TransitionToState(INITIALIZED);
+    return TransitionToState(DB_STATE_INITIALIZED);
 }
 
-const xdb::core::Error& Database::Create()
+const Error& Database::Create()
 {
-  setError(xdb::core::rtE_NOT_IMPLEMENTED);
+  setError(rtE_NOT_IMPLEMENTED);
   return getLastError();
 }
 
-const xdb::core::Error& Database::LoadSnapshot(const char*)
+const Error& Database::LoadSnapshot(const char*)
 {
-  setError(xdb::core::rtE_NOT_IMPLEMENTED);
+  setError(rtE_NOT_IMPLEMENTED);
   return getLastError();
 }
 
-const xdb::core::Error& Database::StoreSnapshot(const char*)
+const Error& Database::StoreSnapshot(const char*)
 {
-  setError(xdb::core::rtE_NOT_IMPLEMENTED);
+  setError(rtE_NOT_IMPLEMENTED);
   return getLastError();
 }
 

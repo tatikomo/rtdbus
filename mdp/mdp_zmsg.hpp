@@ -6,10 +6,10 @@
     Follows the ZFL class conventions and is further developed as the ZFL
     zfl_msg class.  See http://zfl.zeromq.org for more details.
 
-    -------------------------------------------------------------------------
     =========================================================================
 */
 
+#pragma once
 #ifndef __ZMSG_HPP_INCLUDED__
 #define __ZMSG_HPP_INCLUDED__
 
@@ -106,6 +106,6 @@ class zmsg
    std::vector<std::string> m_part_data;
 };
 
-} //namespace mdp
+}; //namespace mdp
 
 #endif /* ZMSG_HPP_ */

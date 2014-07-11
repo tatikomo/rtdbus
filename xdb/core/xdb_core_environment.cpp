@@ -10,10 +10,10 @@
 #include "xdb_core_base.hpp"
 #include "xdb_core_error.hpp"
 
-using namespace xdb::core;
+using namespace xdb;
 
 Environment::Environment(Application* _app, const char* _name) :
-  m_state(CONDITION_UNKNOWN),
+  m_state(ENV_STATE_UNKNOWN),
   m_last_error(rtE_NONE),
   m_appli(_app)
 {
@@ -52,18 +52,18 @@ Environment::Environment(Application* _app, const char* _name) :
 #if 1
   /* NB: Конкретный экземпляр базы данных создается в дочернем классе */
   m_database_impl = NULL; /* new CoreDatabase(_name, open_flags);*/
-  m_state = CONDITION_BAD;
+  m_state = ENV_STATE_BAD;
 #else
   // Открыть базу данных с именем m_name
   if (true == m_database_impl->Init())
   {
     if (openDB().getCode() == rtE_NONE)
-      m_state = CONDITION_INIT;
+      m_state = ENV_STATE_INIT;
     LOG(INFO) << "Init is successful";
   }
   else
   {
-    m_state = CONDITION_BAD;
+    m_state = ENV_STATE_BAD;
     LOG(INFO) << "Init not successful";
   }
 #endif
@@ -123,7 +123,13 @@ Error& Environment::sendMessage(mdp::Letter* letter)
 }
 #endif
 
-Error& Environment::MakeSnapshot(const char *filename)
+const Error& Environment::LoadSnapshot(const char *filename)
+{
+  m_last_error = rtE_NOT_IMPLEMENTED;
+  return m_last_error;
+}
+
+const Error& Environment::MakeSnapshot(const char *filename)
 {
   m_last_error = rtE_NONE;
 

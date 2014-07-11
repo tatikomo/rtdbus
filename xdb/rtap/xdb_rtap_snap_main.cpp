@@ -10,19 +10,16 @@
 #include "xdb_rtap_application.hpp"
 #include "xdb_rtap_database.hpp"
 
-#include "xdb_rtap_snap_main.hpp"
+#include "xdb_rtap_snap.hpp"
 
-using namespace xdb::rtap;
+using namespace xdb;
 
-RtApplication *app = NULL;
-RtEnvironment *env = NULL;
-RtConnection *connection = NULL;
-char database_name[SERVICE_NAME_MAXLEN + 1];
-char file_path[400+1];
-const char* command_name_LOAD_FROM_XML = "load";
-const char* command_name_SAVE_TO_XML = "save";
-bool verbose = false;
-Commands_t command;
+static char database_name[SERVICE_NAME_MAXLEN + 1];
+static char file_path[400+1];
+static const char* command_name_LOAD_FROM_XML = "load";
+static const char* command_name_SAVE_TO_XML = "save";
+static bool verbose = false;
+static Commands_t command;
 
 int main(int argc, char** argv)
 {
@@ -32,6 +29,7 @@ int main(int argc, char** argv)
   bool is_translation_given = false;
   char command_name[SERVICE_NAME_MAXLEN + 1];
   int  opt;
+  RtConnection *connection = NULL;
 
   file_path[0] = '\0';
   command_name[0] = '\0';
@@ -117,7 +115,10 @@ int main(int argc, char** argv)
      getcwd(file_path, sizeof(file_path));
     }
     // взять входной файл и выдать его в поток выхода
-    xdb::rtap::translateInstance(file_path);
+    if (false == translateInstance(file_path))
+    {
+      LOG(ERROR) << "Can't translating " << file_path;
+    }
   }
   else
   {
@@ -130,7 +131,7 @@ int main(int argc, char** argv)
       // Все в порядке, начинаем работу
       RtApplication *app = new RtApplication("xdb_snap");
       app->setOption("OF_RDWR", 1);
-      env = app->getEnvironment(database_name);
+      RtEnvironment *env = app->getEnvironment(database_name);
       
       switch (command)
       {
@@ -142,7 +143,7 @@ int main(int argc, char** argv)
         break;
 
         case SAVE_TO_XML:
-          if (true == xdb::rtap::saveToXML(env, file_path))
+          if (true == saveToXML(env, file_path))
           {
             LOG(INFO) << "XML data was successfuly saved";
           }

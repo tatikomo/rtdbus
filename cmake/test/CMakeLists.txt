@@ -81,7 +81,7 @@ set (TEST_DATABASE_SOURCES
         ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.hxx
         ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.cxx
         ${XDB_RTAP_DIR}/dat/rtap_db.hxx
-        ${XDB_RTAP_DIR}/xdb_rtap_snap_trans.hpp
+        ${XDB_RTAP_DIR}/xdb_rtap_snap.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_snap_trans.cpp
         ${MDP_DIR}/mdp_zmsg.hpp
         ${TEST_RTDBUS_DIR}/database_unittest.cpp)
@@ -137,13 +137,16 @@ add_executable (${UNITTEST_DEVICE} ${TEST_DEVICE_SOURCES})
 add_definitions (-D_FUNCTIONAL_TEST)
 add_definitions(-fpermissive)
 target_link_libraries(${UNITTEST_DEVICE}
-    ${MDP_LIBRARY_NAME}
-    ${TOOLS_LIBRARY_NAME}
-    ${MSG_LIBRARY_NAME}
     ${XDB_BROKER_LIBRARY_NAME}
+    ${XDB_RTAP_LIBRARY_NAME}
+    ${MDP_LIBRARY_NAME}
+    ${MSG_LIBRARY_NAME}
+    ${TOOLS_LIBRARY_NAME}
     ${LIBZMQ_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${LIBGLOG_LIBRARIES}
+    "-lmcoseri_debug"
+    "-lxerces-c"
     ${SYSTEM_EXTERNAL_LIBS})
 
 add_executable (${UNITTEST_DATABASE} ${TEST_DATABASE_SOURCES})

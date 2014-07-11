@@ -1,6 +1,6 @@
+#pragma once
 #if !defined XDB_DATABASE_SERVICE_HPP
 #define XDB_DATABASE_SERVICE_HPP
-#pragma once
 
 #include <stdint.h>
 #include "config.h"

@@ -12,7 +12,6 @@ extern "C" {
 
 #include "mco.h"
 #include "xdb_rtap_common.h"
-#include "xdb_core_common.h"
 
 #if defined DEBUG
 # if (EXTREMEDB_VERSION <= 40)
@@ -28,13 +27,12 @@ mco_size_sig_t file_writer(void*, const void*, mco_size_t);
 }
 #endif
 
-#include "dat/rtap_db.hpp"
+#include "xdb_core_common.h"
 #include "xdb_core_base.hpp"
-//#include "xdb_rtap_application.hpp"
-//#include "xdb_rtap_connection.hpp"
 #include "xdb_rtap_database.hpp"
+#include "dat/rtap_db.hpp"
 
-using namespace xdb::rtap;
+using namespace xdb;
 
 const unsigned int RtCoreDatabase::DatabaseSize = 1024 * 1024 * 10; // 10Mb
 // Вся БД поместится в одной странице ОЗУ 
@@ -87,8 +85,7 @@ mco_size_sig_t file_reader( void *stream_handle /* FILE *  */,  /* OUT */void *t
 }
 
 
-RtCoreDatabase::RtCoreDatabase(const char* _name, xdb::core::BitSet8 _o_flags) :
-  Database(_name),
+RtCoreDatabase::RtCoreDatabase(const char* _name, BitSet8 _o_flags) :
   m_db_access_flags(_o_flags),
   m_initialized(false),
   m_save_to_xml_feature(false),
@@ -102,20 +99,21 @@ RtCoreDatabase::RtCoreDatabase(const char* _name, xdb::core::BitSet8 _o_flags) :
   m_metadict = NULL;
 #endif
 
-  TransitionToState(Database::UNINITIALIZED);
+  m_impl = new Database(_name);
+  m_impl->TransitionToState(DB_STATE_UNINITIALIZED);
 
-  LOG(INFO) << "Constructor database " << DatabaseName();
+  LOG(INFO) << "Constructor database " << m_impl->DatabaseName();
   // TODO: Проверить флаги открытия базы данных
   // TRUNCATE и LOAD_SNAP не могут быть установленными одновременно
-  if (m_db_access_flags.test(xdb::core::OF_POS_CREATE))
+  if (m_db_access_flags.test(OF_POS_CREATE))
     LOG(INFO) << "Creates database if it not exist";
-  if (m_db_access_flags.test(xdb::core::OF_POS_TRUNCATE))
+  if (m_db_access_flags.test(OF_POS_TRUNCATE))
     LOG(INFO) << "Truncate database";
-  if (m_db_access_flags.test(xdb::core::OF_POS_RDWR))
+  if (m_db_access_flags.test(OF_POS_RDWR))
     LOG(INFO) << "Mount database in read/write mode";
-  if (m_db_access_flags.test(xdb::core::OF_POS_READONLY))
+  if (m_db_access_flags.test(OF_POS_READONLY))
     LOG(INFO) << "Mount database in read-only mode";
-  if (m_db_access_flags.test(xdb::core::OF_POS_LOAD_SNAP))
+  if (m_db_access_flags.test(OF_POS_LOAD_SNAP))
     LOG(INFO) << "Load database' content from snapshot";
 }
 
@@ -125,28 +123,28 @@ RtCoreDatabase::~RtCoreDatabase()
 #if (EXTREMEDB_VERSION >= 40) && USE_EXTREMEDB_HTTP_SERVER
   int ret;
 #endif
-  Database::DBState state = State();
+  DBState state = m_impl->State();
 
   LOG(INFO) << "Current state " << (int)state;
   switch (state)
   {
-    case Database::CLOSED:
+    case DB_STATE_CLOSED:
       LOG(WARNING) << "State already CLOSED";
     break;
 
-    case Database::UNINITIALIZED:
+    case DB_STATE_UNINITIALIZED:
     break;
 
-    case Database::CONNECTED:
+    case DB_STATE_CONNECTED:
       // перед завершением работы сделать снапшот
       StoreSnapshot(NULL);
       // NB: break пропущен специально!
-    case Database::ATTACHED:
+    case DB_STATE_ATTACHED:
       Disconnect();
       // NB: break пропущен специально!
-    case Database::INITIALIZED:
+    case DB_STATE_INITIALIZED:
       // NB: break пропущен специально!
-    case Database::DISCONNECTED:
+    case DB_STATE_DISCONNECTED:
 #if (EXTREMEDB_VERSION >= 40) && USE_EXTREMEDB_HTTP_SERVER
       if (m_metadict_initialized == true)
       {
@@ -164,11 +162,11 @@ RtCoreDatabase::~RtCoreDatabase()
       {
         LOG(ERROR) << "Unable to stop database runtime, code=" << rc;
       }
-      TransitionToState(Database::CLOSED);
+      m_impl->TransitionToState(DB_STATE_CLOSED);
     break;
   }
 
-  mco_db_kill(DatabaseName());
+  mco_db_kill(m_impl->DatabaseName());
 
 #ifdef DISK_DATABASE
   delete []m_dbsFileName;
@@ -179,16 +177,16 @@ RtCoreDatabase::~RtCoreDatabase()
   delete static_cast<mco_device_t*>(m_dev);
   delete static_cast<mco_metadict_header_t*>(m_metadict);
 
-  LOG(INFO) << "Destructor database " << DatabaseName();
+  LOG(INFO) << "Destructor database " << m_impl->DatabaseName();
 }
 
 /* NB: Сначала Инициализация runtime (Init), потом Подключение (Connect) */
-const xdb::core::Error& RtCoreDatabase::Init()
+const Error& RtCoreDatabase::Init()
 {
     MCO_RET rc;
     mco_runtime_info_t info;
 
-    clearError();
+    m_impl->clearError();
     mco_get_runtime_info(&info);
 #if defined DEBUG
     if (!info.mco_save_load_supported)
@@ -205,8 +203,8 @@ const xdb::core::Error& RtCoreDatabase::Init()
     if (!info.mco_shm_supported)
     {
       LOG(WARNING) << "This program requires shared memory database runtime";
-      setError(xdb::core::rtE_RUNTIME_FATAL);
-      return getLastError();
+      m_impl->setError(rtE_RUNTIME_FATAL);
+      return m_impl->getLastError();
     }
 
     /* Set the error handler to be called from the eXtremeDB runtime if a fatal error occurs */
@@ -217,7 +215,7 @@ const xdb::core::Error& RtCoreDatabase::Init()
     rc = mco_runtime_start();
     if (rc)
     {
-      TransitionToState(Database::UNINITIALIZED);
+      m_impl->TransitionToState(DB_STATE_UNINITIALIZED);
     }
     else
     {
@@ -239,52 +237,52 @@ const xdb::core::Error& RtCoreDatabase::Init()
       {
         m_metadict_initialized = true;
         rc = mco_metadict_register(m_metadict,
-              DatabaseName(),
+              m_impl->DatabaseName(),
               rtap_db_get_dictionary(), NULL);
         if (rc) LOG(INFO) << "mco_metadict_register=" << rc;
       }
 #endif
 
-      TransitionToState(Database::INITIALIZED);
+      m_impl->TransitionToState(DB_STATE_INITIALIZED);
     }
 
-    return getLastError();
+    return m_impl->getLastError();
 }
 
-const xdb::core::Error& RtCoreDatabase::Connect()
+const Error& RtCoreDatabase::Connect()
 {
-  clearError();
+  m_impl->clearError();
 
-  if (INITIALIZED != State())
+  if (DB_STATE_INITIALIZED != m_impl->State())
     Init();
 
-  switch (State())
+  switch (m_impl->State())
   {
-    case Database::UNINITIALIZED:
-      LOG(WARNING)<<"Try to connect to uninitialized database "<<DatabaseName();
+    case DB_STATE_UNINITIALIZED:
+      LOG(WARNING)<<"Try to connect to uninitialized database "<<m_impl->DatabaseName();
     break;
 
-    case Database::ATTACHED:
-    case Database::CONNECTED:
-      LOG(WARNING)<<"Try to re-open database "<<DatabaseName();
+    case DB_STATE_ATTACHED:
+    case DB_STATE_CONNECTED:
+      LOG(WARNING)<<"Try to re-open database "<<m_impl->DatabaseName();
     break;
 
-    case Database::INITIALIZED:
+    case DB_STATE_INITIALIZED:
         ConnectToInstance();
         // переход в состояние ATTACHED
     break;
 
-    case Database::DISCONNECTED:
-      LOG(WARNING)<<"Try to connect to disconnected database "<<DatabaseName();
+    case DB_STATE_DISCONNECTED:
+      LOG(WARNING)<<"Try to connect to disconnected database "<<m_impl->DatabaseName();
     break;
 
     default:
-      LOG(WARNING) << "Try to open database '" << DatabaseName()
-         << "' with unknown state " << (int)State();
+      LOG(WARNING) << "Try to open database '" << m_impl->DatabaseName()
+         << "' with unknown state " << (int)m_impl->State();
     break;
   }
 
-  return getLastError();
+  return m_impl->getLastError();
 }
 
 // Подключиться к базе данных.
@@ -295,43 +293,41 @@ const xdb::core::Error& RtCoreDatabase::Connect()
 //  - создать новый экземпляр mco_db_open()
 // Если указан флаг O_CREATE
 //  - при ошибке подключения к БД попробовать создать новый экземпляр
-const xdb::core::Error& RtCoreDatabase::ConnectToInstance()
+const Error& RtCoreDatabase::ConnectToInstance()
 {
   MCO_RET rc = MCO_S_OK;
 
-  clearError();
+  m_impl->clearError();
 
   // Создание нового экземпляра БД (mco_db_open)
-  if ((Create()).Ok() == true)
+  if ((Create()).Ok())
   {
-    LOG(ERROR)<<"Unable attach to database "<<DatabaseName();
-    return getLastError();
+    LOG(ERROR)<<"Unable attach to database "<<m_impl->DatabaseName();
+    return m_impl->getLastError();
   }
 
-  LOG(INFO) << "Connecting to instance " << DatabaseName(); 
-  rc = mco_db_connect(DatabaseName(), static_cast<mco_db_h*>(m_db));
+  LOG(INFO) << "Connecting to instance " << m_impl->DatabaseName(); 
+  rc = mco_db_connect(m_impl->DatabaseName(), static_cast<mco_db_h*>(m_db));
   if (rc)
   {
     // экземпляр базы не найден, и допускается его создание
-    if ((MCO_E_NOINSTANCE == rc) && (true == m_db_access_flags.test(xdb::core::OF_POS_CREATE)))
+    if ((MCO_E_NOINSTANCE == rc) && (true == m_db_access_flags.test(OF_POS_CREATE)))
     {
       // Требуется создать экземпляр, если его еще нет
       Create();
     }
     else
     {
-      LOG(ERROR) << "Unable connect to " << DatabaseName() << ", rc="<<rc;
-
-      if ((TransitionToState(Database::DISCONNECTED)).Ok() == true)
-      {
-        LOG(WARNING) << "Unable transition from "<< State() << " to DISCONECTED";
-      }
+      LOG(ERROR) << "Unable connect to " << m_impl->DatabaseName() << ", rc="<<rc;
+      m_impl->TransitionToState(DB_STATE_DISCONNECTED);
     }
   }
   else
   {
+     m_impl->TransitionToState(DB_STATE_ATTACHED);
+
      // Если требуется удалить старый экземпляр БД
-     if (true == m_db_access_flags.test(xdb::core::OF_POS_TRUNCATE))
+     if (true == m_db_access_flags.test(OF_POS_TRUNCATE))
      {
        /*
         * NB: предварительное удаление экземпляра БД делает бесполезной 
@@ -343,16 +339,12 @@ const xdb::core::Error& RtCoreDatabase::ConnectToInstance()
        rc = mco_db_clean(static_cast<mco_db_h>(m_db));
        if (rc)
        {
-         LOG(ERROR) << "Unable truncate database "<<DatabaseName();
+         LOG(ERROR) << "Unable truncate database "<<m_impl->DatabaseName();
        }
-      // mco_db_kill(DatabaseName());
+      // mco_db_kill(m_impl->DatabaseName());
     }
  
-    if (TransitionToState(Database::CONNECTED).Ok())
-    {
-      LOG(WARNING) << "Unable transition from "<< State() << " to CONNECTED";
-    }
-    else
+    if (!rc)
     {
       RegisterEvents();
 #if (EXTREMEDB_VERSION >= 40) && USE_EXTREMEDB_HTTP_SERVER
@@ -361,16 +353,16 @@ const xdb::core::Error& RtCoreDatabase::ConnectToInstance()
 #endif
     }
   }
-  return getLastError();
+  return m_impl->getLastError();
 }
 
-const xdb::core::Error& RtCoreDatabase::StoreSnapshot(const char* given_file_name)
+const Error& RtCoreDatabase::StoreSnapshot(const char* given_file_name)
 {
   FILE* fbak;
   MCO_RET rc = MCO_S_OK;
   char fname[40];
 
-  clearError();
+  m_impl->clearError();
 #if EXTREMEDB_VERSION >= 40
   do
   {
@@ -384,7 +376,7 @@ const xdb::core::Error& RtCoreDatabase::StoreSnapshot(const char* given_file_nam
     }
     else
     {
-      snprintf(fname, sizeof(fname), "%s.snap", DatabaseName());
+      snprintf(fname, sizeof(fname), "%s.snap", m_impl->DatabaseName());
     }
     fname[sizeof(fname)] = '\0';
 
@@ -394,56 +386,56 @@ const xdb::core::Error& RtCoreDatabase::StoreSnapshot(const char* given_file_nam
       rc = mco_inmem_save((void *)fbak, file_writer, static_cast<mco_db_h>(m_db));
       if (rc)
       {
-        LOG(ERROR) << "Unable to save "<<DatabaseName()<<" snapshot into "<<fname;
+        LOG(ERROR) << "Unable to save "<<m_impl->DatabaseName()<<" snapshot into "<<fname;
       }
       fclose(fbak);
     }
     else
     {
       LOG(ERROR) << "Can't open output file for streaming";
-      setError(xdb::core::rtE_SNAPSHOT_WRITE);
+      m_impl->setError(rtE_SNAPSHOT_WRITE);
     }
   } while(false);
 #else
 #warning "RtCoreDatabase::StoreSnapshot is disabled"
 #endif
 
-  return getLastError();
+  return m_impl->getLastError();
 }
 
-const xdb::core::Error& RtCoreDatabase::Disconnect()
+const Error& RtCoreDatabase::Disconnect()
 {
   MCO_RET rc = MCO_S_OK;
-  Database::DBState state = State();
+  DBState state = m_impl->State();
 
-  clearError();
+  m_impl->clearError();
 
   switch (state)
   {
-    case Database::UNINITIALIZED:
+    case DB_STATE_UNINITIALIZED:
       LOG(INFO) << "Disconnect from uninitialized state";
     break;
 
-    case Database::DISCONNECTED:
+    case DB_STATE_DISCONNECTED:
       LOG(INFO) << "Try to disconnect already diconnected database";
     break;
 
-    case Database::CONNECTED: // база подключена и открыта
+    case DB_STATE_CONNECTED: // база подключена и открыта
       rc = mco_async_event_release_all(static_cast<mco_db_h>(m_db));
       if (rc != MCO_S_OK && rc != MCO_S_EVENT_RELEASED)
       {
-        LOG(ERROR)<<"Unable to release "<<DatabaseName()<<" events, rc="<<rc;
+        LOG(ERROR)<<"Unable to release "<<m_impl->DatabaseName()<<" events, rc="<<rc;
       }
 
       rc = mco_db_disconnect(static_cast<mco_db_h>(m_db));
-      if (rc) { LOG(ERROR)<<"Unable to disconnect from "<<DatabaseName()<<", rc="<<rc; }
+      if (rc) { LOG(ERROR)<<"Unable to disconnect from "<<m_impl->DatabaseName()<<", rc="<<rc; }
 
       // NB: break пропущен специально
-    case Database::ATTACHED:  // база подключена
-      rc = mco_db_close(DatabaseName());
-      if (rc) { LOG(ERROR)<<"Unable to close "<<DatabaseName()<<", rc="<<rc; }
+    case DB_STATE_ATTACHED:  // база подключена
+      rc = mco_db_close(m_impl->DatabaseName());
+      if (rc) { LOG(ERROR)<<"Unable to close "<<m_impl->DatabaseName()<<", rc="<<rc; }
 
-      TransitionToState(Database::DISCONNECTED);
+      m_impl->TransitionToState(DB_STATE_DISCONNECTED);
     break;
 
     default:
@@ -451,19 +443,19 @@ const xdb::core::Error& RtCoreDatabase::Disconnect()
   }
 
   if (rc)
-    setError(xdb::core::rtE_DB_NOT_DISCONNECTED);
+    m_impl->setError(rtE_DB_NOT_DISCONNECTED);
 
-  return getLastError();
+  return m_impl->getLastError();
 }
 
 // NB: нужно выполнить до mco_db_connect
-const xdb::core::Error& RtCoreDatabase::LoadSnapshot(const char *given_file_name)
+const Error& RtCoreDatabase::LoadSnapshot(const char *given_file_name)
 {
   MCO_RET rc = MCO_S_OK;
   FILE* fbak;
   char fname[40];
 
-  clearError();
+  m_impl->clearError();
 
 #if EXTREMEDB_VERSION >= 40
   do
@@ -473,8 +465,8 @@ const xdb::core::Error& RtCoreDatabase::LoadSnapshot(const char *given_file_name
 
     if (rc)
     {
-      LOG(ERROR) << "Unable to clean '"<<DatabaseName()<<"' database content";
-      setError(xdb::core::rtE_RUNTIME_FATAL);
+      LOG(ERROR) << "Unable to clean '"<<m_impl->DatabaseName()<<"' database content";
+      m_impl->setError(rtE_RUNTIME_FATAL);
       break;
     }
 
@@ -489,20 +481,20 @@ const xdb::core::Error& RtCoreDatabase::LoadSnapshot(const char *given_file_name
     }
     else
     {
-      strcpy(fname, DatabaseName());
+      strcpy(fname, m_impl->DatabaseName());
       strcat(fname, ".snap");
     }
 
     if (NULL == (fbak = fopen(fname, "rb")))
     {
       LOG(ERROR) << "Unable to open snapshot file "<<fname;
-      setError(xdb::core::rtE_SNAPSHOT_READ);
+      m_impl->setError(rtE_SNAPSHOT_READ);
       break;
     }
 
     rc = mco_inmem_load((void *)fbak,
                         file_reader,
-                        DatabaseName(),
+                        m_impl->DatabaseName(),
                         rtap_db_get_dictionary(),
                         static_cast<mco_device_t*>(m_dev),
                         1,
@@ -510,33 +502,33 @@ const xdb::core::Error& RtCoreDatabase::LoadSnapshot(const char *given_file_name
     if (rc)
     {
       LOG(ERROR) << "Unable to read data from snapshot file, rc="<<rc;
-      setError(xdb::core::rtE_SNAPSHOT_READ);
+      m_impl->setError(rtE_SNAPSHOT_READ);
     }
     fclose(fbak);
 
   } while (false);
 #endif
 
-  return getLastError();
+  return m_impl->getLastError();
 }
 
 
 // Создать базу данных с помощью mco_db_open
-const xdb::core::Error& RtCoreDatabase::Create()
+const Error& RtCoreDatabase::Create()
 {
   MCO_RET rc = MCO_S_OK;
   mco_device_t* p_m_dev = static_cast<mco_device_t*>(m_dev);
   mco_db_params_t* p_m_db_params = static_cast<mco_db_params_t*>(m_db_params);
   bool is_loaded_from_snapshot = false;
 
-  clearError();
+  m_impl->clearError();
 
 #if EXTREMEDB_VERSION >= 40
   /* setup memory device as a shared named memory region */
   p_m_dev->assignment = MCO_MEMORY_ASSIGN_DATABASE;
   p_m_dev->size       = DatabaseSize;
   p_m_dev->type       = MCO_MEMORY_NAMED; /* DB in shared memory */
-  sprintf(p_m_dev->dev.named.name, "%s-db", DatabaseName());
+  sprintf(p_m_dev->dev.named.name, "%s-db", m_impl->DatabaseName());
   p_m_dev->dev.named.flags = 0;
   p_m_dev->dev.named.hint  = 0;
 
@@ -558,7 +550,7 @@ const xdb::core::Error& RtCoreDatabase::Create()
     LOG(ERROR) << "Unable to open UDA, rc=" << rc;
 # endif
 
-  if (true == m_db_access_flags.test(xdb::core::OF_POS_LOAD_SNAP))
+  if (true == m_db_access_flags.test(OF_POS_LOAD_SNAP))
   {
     // Внутри mco_inmem_load вызывается mco_db_open_dev
     if ((LoadSnapshot()).Ok())
@@ -571,7 +563,7 @@ const xdb::core::Error& RtCoreDatabase::Create()
   // База данных не была ранее открыта
   if (false == is_loaded_from_snapshot)
   {
-    rc = mco_db_open_dev(DatabaseName(),
+    rc = mco_db_open_dev(m_impl->DatabaseName(),
                        rtap_db_get_dictionary(),
                        p_m_dev,
                        1,
@@ -580,7 +572,7 @@ const xdb::core::Error& RtCoreDatabase::Create()
 
 #else /* EXTREMEDB_VERSION >= 40 */
 
-   rc = mco_db_open(DatabaseName(),
+   rc = mco_db_open(m_impl->DatabaseName(),
                        rtap_db_get_dictionary(),
                        (void*)MapAddress,
                        DatabaseSize + DbDiskCache,
@@ -595,20 +587,20 @@ const xdb::core::Error& RtCoreDatabase::Create()
      // нужно было ее создавать - это не ошибка
      if (MCO_E_INSTANCE_DUPLICATE == rc)
      {
-       LOG(INFO) << "Database '"<<DatabaseName()<<"' already created";
+       LOG(INFO) << "Database '"<<m_impl->DatabaseName()<<"' already created";
      }
      else
      {
-       LOG(ERROR) << "Can't open DB dictionary '" << DatabaseName()
+       LOG(ERROR) << "Can't open DB dictionary '" << m_impl->DatabaseName()
                   << "', rc=" << rc;
-       setError(xdb::core::rtE_RUNTIME_FATAL);
-       return getLastError();
+       m_impl->setError(rtE_RUNTIME_FATAL);
+       return m_impl->getLastError();
      }
    }
 
 #ifdef DISK_DATABASE
    LOG(INFO) << "Opening '" << m_dbsFileName << "' disk database";
-   rc = mco_disk_open(DatabaseName(),
+   rc = mco_disk_open(m_impl->DatabaseName(),
                       m_dbsFileName,
                       m_logFileName, 
                       0, 
@@ -620,19 +612,19 @@ const xdb::core::Error& RtCoreDatabase::Create()
    if (rc != MCO_S_OK && rc != MCO_ERR_DISK_ALREADY_OPENED)
    {
      LOG(ERROR) << "Error creating disk database, rc=" << rc;
-     setError(xdb::core::rtE_RUNTIME_FATAL);
-     return getLastError();
+     m_impl->setError(rtE_RUNTIME_FATAL);
+     return m_impl->getLastError();
    }
 #endif
-  return TransitionToState(Database::ATTACHED);
+  return m_impl->TransitionToState(DB_STATE_ATTACHED);
 }
 
-const xdb::core::Error& RtCoreDatabase::RegisterEvents()
+const Error& RtCoreDatabase::RegisterEvents()
 {
   MCO_RET rc;
   mco_trans_h t;
 
-  clearError();
+  m_impl->clearError();
 
   do
   {
@@ -643,7 +635,7 @@ const xdb::core::Error& RtCoreDatabase::RegisterEvents()
     if (rc)
     {
       LOG(ERROR) << "Starting transaction, rc=" << rc;
-      setError(xdb::core::rtE_RUNTIME_FATAL);
+      m_impl->setError(rtE_RUNTIME_FATAL);
       break;
     }
 
@@ -668,7 +660,7 @@ const xdb::core::Error& RtCoreDatabase::RegisterEvents()
     if (rc)
     {
       LOG(ERROR) << "Commitment transaction, rc=" << rc;
-      setError(xdb::core::rtE_RUNTIME_WARNING);
+      m_impl->setError(rtE_RUNTIME_WARNING);
     }
 
   } while(false);
@@ -676,6 +668,6 @@ const xdb::core::Error& RtCoreDatabase::RegisterEvents()
   if (rc)
     mco_trans_rollback(t);
 
-  return getLastError();
+  return m_impl->getLastError();
 }
 

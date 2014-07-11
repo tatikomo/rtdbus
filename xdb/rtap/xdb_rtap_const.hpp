@@ -1,6 +1,6 @@
 #pragma once
-#ifndef GEV_XDB_RTAP_CONST_H_
-#define GEV_XDB_RTAP_CONST_H_
+#ifndef XDB_RTAP_CONST_HPP
+#define XDB_RTAP_CONST_HPP
 
 #include <string>
 
@@ -10,7 +10,6 @@
 #include "xdb_core_attribute.hpp"
 
 namespace xdb {
-namespace rtap {
 
 #define SHORTLABEL_LENGTH   16
 #define CODE_LENGTH         8
@@ -100,6 +99,7 @@ namespace rtap {
 #define D_MISSING_OBJCODE   "MISSING"
 
 #define ELEMENT_DESCRIPTION_MAXLEN  15
+
 typedef enum
 {
     rtRESERVED0  = 0,
@@ -143,7 +143,7 @@ typedef enum
 typedef struct
 {
   // порядковый номер
-  xdb::core::DbType_t   code;
+  DbType_t   code;
   const char name[ELEMENT_DESCRIPTION_MAXLEN+1];
   // размер типа данных
   size_t     size;
@@ -153,13 +153,13 @@ typedef struct
 typedef struct
 {
   rtDeType de_type; // код RTAP
-  xdb::core::DbType_t db_type; // код eXtremeDB
+  DbType_t db_type; // код eXtremeDB
 } DeTypeToDbTypeLink;
 
 // Элемент соответствия между кодом типа БДРВ и RTAP
 typedef struct
 {
-  xdb::core::DbType_t db_type; // код eXtremeDB
+  DbType_t db_type; // код eXtremeDB
   rtDeType de_type; // код RTAP
 } DbTypeToDeTypeLink;
 
@@ -180,10 +180,10 @@ typedef struct
 typedef struct
 {
   int16_t        objclass;
-  xdb::core::univname_t     alias;
-  xdb::core::AttributeMap_t attributes;
-  xdb::core::univname_t     parent_alias;
-  xdb::core::univname_t     code;
+  univname_t     alias;
+  AttributeMap_t attributes;
+  univname_t     parent_alias;
+  univname_t     code;
   autoid_t       id_SA;
   autoid_t       id_unity;
 } PointDescription_t;
@@ -195,19 +195,18 @@ typedef struct
   int8_t            code;                     // код класса
   // NB: Используется указатель AttributeMap_t* для облегчения 
   // статической инициализации массива
-  xdb::core::AttributeMap_t   *attributes_pool; // набор атрибутов с доступом по имени
+  AttributeMap_t   *attributes_pool; // набор атрибутов с доступом по имени
 } ClassDescription_t;
 
 extern ClassDescription_t ClassDescriptionTable[];
 extern const DeTypeDescription_t rtDataElem[];
 // Получить универсальное имя на основе его алиаса
-extern int GetPointNameByAlias(xdb::core::univname_t&, xdb::core::univname_t&);
+extern int GetPointNameByAlias(univname_t&, univname_t&);
 
 // Хранилище описаний типов данных БДРВ
 extern const DbTypeDescription_t DbTypeDescription[];
-extern const DeTypeToDbTypeLink DeTypeToDbType[];
+extern const DeTypeToDbTypeLink  DeTypeToDbType[];
 
-} // namespace rtap
 } // namespace xdb
 
 #endif

@@ -1,16 +1,20 @@
 #pragma once
 #if !defined XDB_DATABASE_BROKER_HPP
 #define XDB_DATABASE_BROKER_HPP
+
 #include <stdint.h>
 #include <string>
 
-#include "xdb_core_base.hpp"
+#include "config.h"
+
+#include "xdb_core_common.h"
 #include "xdb_broker_service.hpp"
 #include "xdb_broker_worker.hpp"
 #include "xdb_broker_letter.hpp"
 
 namespace xdb {
 
+class Database;
 class DatabaseBrokerImpl;
 class ServiceList;
 class Service;
@@ -34,14 +38,15 @@ class ServiceList
     virtual bool refresh()   = 0;
 };
 
-class DatabaseBroker : public xdb::core::Database
+class DatabaseBroker
 {
-
   public:
     DatabaseBroker();
     ~DatabaseBroker();
 
-    const xdb::core::Error& Connect();
+    bool Connect();
+    bool Disconnect();
+    DBState State();
 
     /* Зарегистрировать Сервис */
     Service *AddService(const char*);

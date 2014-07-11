@@ -1,8 +1,7 @@
-#if !defined MSG_MESSAGE_HPP
-#define MSG_MESSAGE_HPP
 #pragma once
+#ifndef MSG_MESSAGE_HPP
+#define MSG_MESSAGE_HPP
 
-//#include "google/protobuf/stubs/common.h"
 #include "msg_common.h"
 #include "proto/common.pb.h"
 
@@ -58,6 +57,7 @@ class Header
     RTDBM::Header   m_header_instance;
 };
 
-} //namespace msg
+}; //namespace msg
+
 #endif
 

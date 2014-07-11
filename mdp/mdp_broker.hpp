@@ -1,6 +1,6 @@
-#if !defined GEV_MDP_BROKER_HPP
-#define GEV_MDP_BROKER_HPP
 #pragma once
+#ifndef MDP_BROKER_HPP
+#define MDP_BROKER_HPP
 
 #include <map>
 #include <list>
@@ -155,6 +155,6 @@ class Broker {
 #endif
 };
 
-} //namespace mdp
+}; //namespace mdp
 
 #endif

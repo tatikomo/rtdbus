@@ -19,10 +19,9 @@
 #include "xdb_rtap_application.hpp"
 #include "xdb_rtap_environment.hpp"
 #include "xdb_rtap_connection.hpp"
-#include "xdb_rtap_snap_trans.hpp"
+#include "xdb_rtap_snap.hpp"
 
-using namespace xdb::core;
-using namespace xdb::rtap;
+using namespace xdb;
 
 const char *service_name_1 = "service_test_1";
 const char *service_name_2 = "service_test_2";
@@ -36,10 +35,10 @@ xdb::Service *service2 = NULL;
 xdb::Letter  *letter   = NULL;
 int64_t service1_id;
 int64_t service2_id;
-xdb::core::Database::DBState state;
-xdb::rtap::RtApplication* app = NULL;
-xdb::rtap::RtEnvironment* env = NULL;
-xdb::rtap::RtConnection* connection = NULL;
+DBState state;
+xdb::RtApplication* app = NULL;
+xdb::RtEnvironment* env = NULL;
+xdb::RtConnection* connection = NULL;
 
 /* 
  * Содержимое базы данных RTDB после чтения из файла classes.xml
@@ -96,13 +95,13 @@ TEST(TestBrokerDATABASE, OPEN)
     ASSERT_TRUE (database != NULL);
 
     state = database->State();
-    EXPECT_EQ(state, xdb::core::Database::UNINITIALIZED);
+    EXPECT_EQ(state, DB_STATE_UNINITIALIZED);
 
-    status = (database->Connect()).Ok();
-    ASSERT_TRUE(status == false);
+    status = (database->Connect());
+    ASSERT_TRUE(status == true);
 
     state = database->State();
-    ASSERT_TRUE(state == xdb::core::Database::CONNECTED);
+    ASSERT_TRUE(state == DB_STATE_CONNECTED);
 
 #if VERBOSE
     show_runtime_info("Database runtime information:\n=======================================");
@@ -449,7 +448,7 @@ TEST(TestBrokerDATABASE, DESTROY)
     database->Disconnect();
 
     state = database->State();
-    EXPECT_EQ(state, xdb::Database::DISCONNECTED);
+    EXPECT_EQ(state, DB_STATE_DISCONNECTED);
 #endif
 
     delete database;
@@ -471,7 +470,7 @@ TEST(TestLurkerDATABASE, CREATION)
 
   app->setOption("OF_CREATE", 1);
   app->setOption("OF_RDWR", 1);
-  EXPECT_EQ(app->getLastError().getCode(), xdb::core::rtE_NONE);
+  EXPECT_EQ(app->getLastError().getCode(), xdb::rtE_NONE);
 
   //  app->setEnvName("RTAP");
 
@@ -484,15 +483,24 @@ TEST(TestLurkerDATABASE, CREATION)
 
   env1 = app->getEnvironment("SINF");
   EXPECT_TRUE(env1 != NULL);
-  // Это должен быть один и тот же объект SINF с одинаковым именем
-  EXPECT_TRUE(0 == strcmp(env->getName(), env1->getName()));
-  // и адресом
-  EXPECT_TRUE(env == env1);
 
-  connection = env->createDbConnection();
-  EXPECT_TRUE(connection != NULL);
+  if (env && env1)
+  {
+    // Это должен быть один и тот же объект SINF с одинаковым именем
+    EXPECT_TRUE(0 == strcmp(env->getName(), env1->getName()));
+    // и адресом
+    EXPECT_TRUE(env == env1);
 
-  env->MakeSnapshot("LURKER");
+    connection = env->createConnection();
+    EXPECT_TRUE(connection != NULL);
+
+    env->MakeSnapshot("LURKER");
+  }
+  else
+  {
+    LOG(INFO) << "There is no existing environment 'SINF' for application "
+              << app->getAppName();
+  }
 }
 
 TEST(TestLurkerDATABASE, DESTROY)
@@ -637,16 +645,16 @@ TEST(TestTools, LOAD_CLASSES)
   char fpath[255];
   char msg_info[255];
   char msg_val[255];
-  xdb::core::AttributeMap_t *pool;
+  xdb::AttributeMap_t *pool;
 
   getcwd(fpath, 255);
-  loaded = xdb::rtap::processClassFile(fpath);
+  loaded = xdb::processClassFile(fpath);
   EXPECT_TRUE(loaded > 0); // загружен хотя бы один класс
 
   for (objclass_idx=0; objclass_idx <= GOF_D_BDR_OBJCLASS_LASTUSED; objclass_idx++)
   {
-    pool = xdb::rtap::ClassDescriptionTable[objclass_idx].attributes_pool;
-    if (!strncmp(xdb::rtap::ClassDescriptionTable[objclass_idx].name,
+    pool = xdb::ClassDescriptionTable[objclass_idx].attributes_pool;
+    if (!strncmp(xdb::ClassDescriptionTable[objclass_idx].name,
                 D_MISSING_OBJCODE,
                 UNIVNAME_LENGTH))
     {
@@ -657,72 +665,72 @@ TEST(TestTools, LOAD_CLASSES)
     {
 #if VERBOSE
         std::cout << "#" << objclass_idx << " : " 
-            << xdb::rtap::ClassDescriptionTable[objclass_idx].name 
+            << xdb::ClassDescriptionTable[objclass_idx].name 
             << "(" << pool->size() << ")" << std::endl;
 #endif
 
-        for (xdb::core::AttributeMapIterator_t it=pool->begin(); it!=pool->end(); ++it)
+        for (xdb::AttributeMapIterator_t it=pool->begin(); it!=pool->end(); ++it)
         {
             sprintf(msg_info, "\"%s\" : %02d", 
                 it->second.name.c_str(), it->second.db_type);
 
             switch(it->second.db_type)
             {
-              case xdb::core::DB_TYPE_INT8:
+              case xdb::DB_TYPE_INT8:
                   sprintf(msg_val, "%02X", it->second.value.val_int8);
                   break;
-              case xdb::core::DB_TYPE_UINT8:
+              case xdb::DB_TYPE_UINT8:
                   sprintf(msg_val, "%02X", it->second.value.val_uint8);
                   break;
 
-              case xdb::core::DB_TYPE_INT16:
+              case xdb::DB_TYPE_INT16:
                   sprintf(msg_val, "%04X", it->second.value.val_int16);
                   break;
-              case xdb::core::DB_TYPE_UINT16:
+              case xdb::DB_TYPE_UINT16:
                   sprintf(msg_val, "%04X", it->second.value.val_uint16);
                   break;
 
-              case xdb::core::DB_TYPE_INT32:
+              case xdb::DB_TYPE_INT32:
                   sprintf(msg_val, "%08X", it->second.value.val_int32);
                   break;
-              case xdb::core::DB_TYPE_UINT32:
+              case xdb::DB_TYPE_UINT32:
                   sprintf(msg_val, "%08X", it->second.value.val_uint32);
                   break;
 
-              case xdb::core::DB_TYPE_INT64:
+              case xdb::DB_TYPE_INT64:
                   sprintf(msg_val, "%lld", it->second.value.val_int64);
                   break;
-              case xdb::core::DB_TYPE_UINT64:
+              case xdb::DB_TYPE_UINT64:
                   sprintf(msg_val, "%llu", it->second.value.val_uint64);
                   break;
 
-              case xdb::core::DB_TYPE_FLOAT:
+              case xdb::DB_TYPE_FLOAT:
                   sprintf(msg_val, "%f", it->second.value.val_float);
                   break;
 
-              case xdb::core::DB_TYPE_DOUBLE:
+              case xdb::DB_TYPE_DOUBLE:
                   sprintf(msg_val, "%g", it->second.value.val_double);
                   break;
 
-              case xdb::core::DB_TYPE_BYTES:
-              case xdb::core::DB_TYPE_BYTES4:
-              case xdb::core::DB_TYPE_BYTES8:
-              case xdb::core::DB_TYPE_BYTES12:
-              case xdb::core::DB_TYPE_BYTES16:
-              case xdb::core::DB_TYPE_BYTES20:
-              case xdb::core::DB_TYPE_BYTES32:
-              case xdb::core::DB_TYPE_BYTES48:
-              case xdb::core::DB_TYPE_BYTES64:
-              case xdb::core::DB_TYPE_BYTES80:
-              case xdb::core::DB_TYPE_BYTES128:
-              case xdb::core::DB_TYPE_BYTES256:
+              case xdb::DB_TYPE_BYTES:
+              case xdb::DB_TYPE_BYTES4:
+              case xdb::DB_TYPE_BYTES8:
+              case xdb::DB_TYPE_BYTES12:
+              case xdb::DB_TYPE_BYTES16:
+              case xdb::DB_TYPE_BYTES20:
+              case xdb::DB_TYPE_BYTES32:
+              case xdb::DB_TYPE_BYTES48:
+              case xdb::DB_TYPE_BYTES64:
+              case xdb::DB_TYPE_BYTES80:
+              case xdb::DB_TYPE_BYTES128:
+              case xdb::DB_TYPE_BYTES256:
                   sprintf(msg_val, "[%02X] \"%s\"", 
                     it->second.value.val_bytes.size,
                     it->second.value.val_bytes.data);
                   break;
 
-              case xdb::core::DB_TYPE_UNDEF:
-                  sprintf(msg_val, ": undef %02d", xdb::core::DB_TYPE_UNDEF);
+              case xdb::DB_TYPE_UNDEF:
+                  sprintf(msg_val, ": undef %02d", xdb::DB_TYPE_UNDEF);
                   break;
 
               default:
@@ -743,7 +751,7 @@ TEST(TestTools, LOAD_INSTANCE)
   char fpath[255];
 
   getcwd(fpath, 255);
-  status = xdb::rtap::processInstanceFile(fpath);
+  status = xdb::processInstanceFile(fpath);
   EXPECT_TRUE(status);
 }
 
@@ -758,14 +766,14 @@ TEST(TestRtapDATABASE, CREATE)
 //                    (char*)"OF_TRUNCATE=1"
 //                    };
 
-  app = new xdb::rtap::RtApplication("RTDB_TEST");
+  app = new xdb::RtApplication("RTDB_TEST");
   ASSERT_TRUE(app != NULL);
 
   // Прочитать данные из ранее сохраненного XML
   app->setOption("OF_LOAD_SNAP", 1);
-  EXPECT_EQ(app->getLastError().getCode(), xdb::core::rtE_NONE);
+  EXPECT_EQ(app->getLastError().getCode(), xdb::rtE_NONE);
 
-  app->setEnvName("RTAP");
+//  app->setEnvName("RTAP");
 
   LOG(INFO) << "Initialize: " << app->initialize().getCode();
   LOG(INFO) << "Operation mode: " << app->getOperationMode();
@@ -774,7 +782,7 @@ TEST(TestRtapDATABASE, CREATE)
   env = app->getEnvironment("SINF");
   EXPECT_TRUE(env != NULL);
 
-  connection = env->createDbConnection();
+  connection = env->createConnection();
   EXPECT_TRUE(connection != NULL);
 }
 

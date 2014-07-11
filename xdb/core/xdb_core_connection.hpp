@@ -8,7 +8,6 @@
 #include "xdb_core_error.hpp"
 
 namespace xdb {
-namespace core {
 
 class Environment;
 class Point;
@@ -20,7 +19,7 @@ class Connection
     ~Connection();
 
     // Копировать точку под новым именем
-    Error copy(Attribute&, Point&, std::string&);
+    const Error& copy(Attribute&, Point&, std::string&);
 
   private:
     DISALLOW_COPY_AND_ASSIGN(Connection);
@@ -28,7 +27,7 @@ class Connection
     Error        m_last_error;
 };
 
-} // namespace core
 } // namespace xdb
+
 #endif
 

@@ -8,7 +8,7 @@
 #include "xdb_rtap_const.hpp"
 #include "xdb_rtap_analog.hpp"
 
-using namespace xdb::rtap;
+using namespace xdb;
 
 RtAnalog::RtAnalog(Analog_t* tm)
 {

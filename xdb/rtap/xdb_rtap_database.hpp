@@ -3,26 +3,16 @@
 #define XDB_RTAP_DATABASE_IMPL_HPP
 
 #include <string>
-#include <bitset>
+
 #include "config.h"
-
-// NB: Исключить необходимость подтягивания наверх файла mco.h
-/*#ifdef __cplusplus
-extern "C" {
-#include "mco.h"
-#if EXTREMEDB_VERSION >= 40 && USE_EXTREMEDB_HTTP_SERVER
-#include "mcohv.h"
-#endif
-}
-#endif*/
-
+#include "xdb_core_common.h"
 #include "xdb_core_error.hpp"
-#include "xdb_core_base.hpp"
 
 namespace xdb {
-namespace rtap {
 
-class RtCoreDatabase : public xdb::core::Database
+class Database;
+
+class RtCoreDatabase
 {
   public:
     static const unsigned int DatabaseSize;
@@ -40,27 +30,30 @@ class RtCoreDatabase : public xdb::core::Database
 #endif 
 
 
-    RtCoreDatabase(const char*, xdb::core::BitSet8);
+    RtCoreDatabase(const char*, BitSet8);
     ~RtCoreDatabase();
 
     // Инициализация рантайма
-    const xdb::core::Error& Init();
+    const Error& Init();
     // создание нового экземпяра (с возможностью удаления старого) mco_db_open
-    const xdb::core::Error& Create();
+    const Error& Create();
     // открытие подключения с помощью mco_db_connect
-    const xdb::core::Error& Connect();
+    const Error& Connect();
     // Останов рантайма
-    const xdb::core::Error& Disconnect();
+    const Error& Disconnect();
     // Загрузка данных из указанного файла
-    const xdb::core::Error& LoadSnapshot(const char* = NULL);
+    const Error& LoadSnapshot(const char* = NULL);
     // Сохранение данных в указанный файл
-    const xdb::core::Error& StoreSnapshot(const char* = NULL);
+    const Error& StoreSnapshot(const char* = NULL);
 
   private:
     DISALLOW_COPY_AND_ASSIGN(RtCoreDatabase);
+    Database *m_impl;
+
+    // TODO перенести все оставшиеся ниже поля в имплементацию
     /*mco_db_h*/ void*     m_db;
     const char*  m_name;
-    xdb::core::BitSet8      m_db_access_flags;
+    BitSet8      m_db_access_flags;
 #if defined DEBUG
     char  m_snapshot_file_prefix[10];
     bool  m_initialized;
@@ -86,11 +79,10 @@ class RtCoreDatabase : public xdb::core::Database
     /*
      * Зарегистрировать все обработчики событий, заявленные в БД
      */
-    const xdb::core::Error& RegisterEvents();
-    const xdb::core::Error& ConnectToInstance();
+    const Error& RegisterEvents();
+    const Error& ConnectToInstance();
 };
 
-} // namespace rtap
 } // namespace xdb
 
 #endif
