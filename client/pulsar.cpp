@@ -220,7 +220,7 @@ int main (int argc, char *argv [])
           // Идентификатор в пределах положенного
           if (id_list[recv_message_exchange_id] != SENT_OUT)
           {
-            LOG(ERROR) << "Get responce with unwilling exchange id: "<<recv_message_exchange_id;
+            LOG(ERROR) << "Got responce with unwilling exchange id: "<<recv_message_exchange_id;
           }
           else if (id_list[recv_message_exchange_id] == SENT_OUT)
           {
@@ -230,7 +230,7 @@ int main (int argc, char *argv [])
         }
         else
         {
-          LOG(ERROR) << "Get responce with unknown exchange id: "<<recv_message_exchange_id;
+          LOG(ERROR) << "Got responce with unknown exchange id: "<<recv_message_exchange_id;
         }
 
         if (!(num_received % 100))

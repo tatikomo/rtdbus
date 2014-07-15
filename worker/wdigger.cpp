@@ -63,6 +63,10 @@ int Digger::handle_request(mdp::zmsg* request, std::string*& reply_to)
        handle_write(letter, reply_to);
        break;
 
+      case ADG_D_MSG_ASKLIFE:
+       handle_asklife(letter, reply_to);
+       break;
+
       default:
        LOG(ERROR) << "Unsupported request type: " << msgType;
     }
@@ -85,6 +89,29 @@ int Digger::handle_read(mdp::Letter*, std::string*)
 int Digger::handle_write(mdp::Letter*, std::string*)
 {
   LOG(INFO) << "Processing write request";
+  return 0;
+}
+
+int Digger::handle_asklife(mdp::Letter* letter, std::string* reply_to)
+{
+  RTDBM::AskLife *pb_asklife = NULL;
+  mdp::zmsg      *response = new mdp::zmsg();
+
+  response->push_front(const_cast<std::string&>(letter->SerializedData()));
+  response->push_front(const_cast<std::string&>(letter->SerializedHeader()));
+  response->wrap(reply_to->c_str(), "");
+
+  pb_asklife = static_cast<RTDBM::AskLife*>(letter->data());
+  std::cout << "asklife uid:"<< pb_asklife->user_exchange_id() << std::endl;
+  LOG(INFO) << "Processing asklife from " << *reply_to
+            << " uid:" << pb_asklife->user_exchange_id()
+            << " sid:" << letter->header().get_exchange_id()
+            << " dest:" << letter->header().get_proc_dest()
+            << " origin:" << letter->header().get_proc_origin();
+
+  send_to_broker((char*) MDPW_REPORT, NULL, response);
+  delete response;
+
   return 0;
 }
 

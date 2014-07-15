@@ -170,6 +170,7 @@ DatabaseBrokerImpl::~DatabaseBrokerImpl()
   delete []m_logFileName;
 #endif
 
+  delete m_database;
   fflush(stdout);
 }
 

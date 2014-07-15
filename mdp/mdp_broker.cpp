@@ -141,9 +141,9 @@ Broker::purge_workers ()
           {
             LOG(INFO) << "Deleting expired worker: " << wrk->GetIDENTITY();
           }
-          worker_delete (wrk, 0); // Обработчик не подавал признаков жизни
+          release (wrk, 0); // Обработчик не подавал признаков жизни
         }
-        else delete wrk; // Обработчик жив, просто освободить память
+        delete wrk;
         wrk_count++;
     }
     service = sl->next();
@@ -325,9 +325,9 @@ Broker::worker_require (const std::string& identity)
 }
 
 //  ---------------------------------------------------------------------
-//  Deletes worker from all data structures, and destroys worker
+//  Deletes worker from all data structures, but do not destroy worker class
 bool
-Broker::worker_delete (xdb::Worker *&wrk, int disconnect)
+Broker::release (xdb::Worker *&wrk, int disconnect)
 {
   bool status;
 
@@ -347,8 +347,8 @@ Broker::worker_delete (xdb::Worker *&wrk, int disconnect)
         <<", but it is ("<<wrk->GetSTATE()<<")";
   }
 
-  // Экземпляр все равно должен быть удален из памяти
-  delete wrk;
+  // Экземпляр должен быть удален из памяти в вызывающем контексте
+  //delete wrk;
 
   return status;
 }
@@ -366,7 +366,8 @@ Broker::worker_process_READY(xdb::Worker*& worker,
   if (worker) /* Указанный обработчик уже известен */
   {
     /*  Not first command in session */
-    status = worker_delete (worker, 1);
+    // TODO обновить ему время регистрации
+    status = release (worker, 1);
   }
   else /* Указанный Обработчик не зарегистрирован */
   {
@@ -374,7 +375,7 @@ Broker::worker_process_READY(xdb::Worker*& worker,
     if (sender_identity.size() >= 4  //  Reserved service name
      && sender_identity.find("mmi.") != std::string::npos)
     {
-      status = worker_delete (worker, 1);
+      status = release (worker, 1);
     }
     else /* команда не служебная, зарегистрировать НОВЫЙ ОБРАБОТЧИК */
     {
@@ -453,7 +454,9 @@ Broker::worker_process_REPORT(xdb::Worker*& worker,
   }
   else 
   {
-     status = worker_delete (worker, 1);
+     LOG(ERROR) << "Got report from NULL worker";
+     status = false;
+     //status = release (worker, 1);
   }
 
   return status;
@@ -489,7 +492,7 @@ bool
 Broker::worker_process_DISCONNECT(xdb::Worker*& worker, const std::string& sender_identity, zmsg*)
 {
   if (m_verbose) LOG(INFO) << "Get DISCONNECT from worker " << sender_identity;
-  return worker_delete (worker, 0);
+  return release (worker, 0);
 }
 
 //  ---------------------------------------------------------------------
@@ -512,10 +515,10 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
   /*
    * TODO нужно заменить функцию worker_require()
    * Нельзя допускать неизвестных обработчиков, они все должны 
-   * принаждлежать своему Сервису. Значит, нужно узнать, к какому
+   * принадлежать своему Сервису. Значит, нужно узнать, к какому
    * Сервису принадлежит сообщение от данного Обработчика.
    */
-  if (command.compare (MDPW_READY) == 0) 
+  if (command.compare (MDPW_READY) == 0)
   {
     status = worker_process_READY(wrk, sender_identity, msg);
   }
@@ -527,19 +530,19 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
     }
     else 
     {
-      if (command.compare (MDPW_HEARTBEAT) == 0) 
+      if (command.compare (MDPW_HEARTBEAT) == 0)
       {
          status = worker_process_HEARTBEAT(wrk, sender_identity, msg);
       }
       else 
       {
-        if (command.compare (MDPW_DISCONNECT) == 0) 
+        if (command.compare (MDPW_DISCONNECT) == 0)
         {
           status = worker_process_DISCONNECT(wrk, sender_identity, msg);
         }
         else
         {
-          LOG(ERROR) << "Invalid input message " 
+          LOG(ERROR) << "Invalid input message "
                      << mdpw_commands [(int) *command.c_str()];
           msg->dump ();
         }

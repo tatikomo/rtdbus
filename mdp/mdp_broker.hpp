@@ -86,7 +86,8 @@ class Broker {
    //  ---------------------------------------------------------------------
    //  Deletes worker from all data structures, and destroys worker
    bool
-   worker_delete (xdb::Worker *&wrk, int disconnect);
+   //worker_delete (xdb::Worker *&wrk, int disconnect); - старое название
+   release (xdb::Worker *&wrk, int disconnect);
 
 
    //  ---------------------------------------------------------------------

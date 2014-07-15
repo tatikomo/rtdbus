@@ -23,6 +23,7 @@ class Digger : public mdp::mdwrk
     int handle_request(mdp::zmsg*, std::string *&);
     int handle_read(mdp::Letter*, std::string*);
     int handle_write(mdp::Letter*, std::string*);
+    int handle_asklife(mdp::Letter*, std::string*);
 
   private:
     int m_flag;
