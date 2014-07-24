@@ -3,7 +3,6 @@
 #define XDB_CORE_APPLICATION_HPP
 
 #include <string>
-#include <vector>
 #include <map>
 
 #include "config.h"
@@ -26,13 +25,8 @@ class Application
     Application(const char*);
     ~Application();
 
-    Environment* getEnvironment(const char*);
-
     const char* getAppName() const;
     const Error& setAppName(const char*);
-
-    const char* getEnvName() const;
-    const Error& setEnvName(const char*);
 
     const Error& initialize();
 
@@ -53,8 +47,7 @@ class Application
     Error    m_last_error;
 
   protected:
-    std::vector<Environment*> m_env_list;
-    Options    m_map_options;
+    Options  m_map_options;
 };
 
 } // namespace xdb

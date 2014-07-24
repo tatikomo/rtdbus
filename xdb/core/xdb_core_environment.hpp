@@ -10,7 +10,6 @@ namespace xdb {
 
 class Application;
 class Connection;
-class CoreDatabase;
 
 /*
  * Создание базы данных с помощью функции mco_db_open()
@@ -41,13 +40,16 @@ class Environment
     void  clearError();
 
     // Создать и вернуть новое подключение к указанной БД/среде
-    Connection* createConnection();
+    Connection* getConnection();
     // Вернуть имя подключенной БД/среды
     const char* getName() const;
+    // Вернуть имя Приложения
+    const char* getAppName() const;
     // Получить состояние Среды
     EnvState_t getEnvState() const { return m_state; }
+    void       setEnvState(EnvState_t);
     // Загрузить содержимое БД данной среды из указанного XML файла
-    const Error& LoadSnapshot(const char* = NULL);
+    const Error& LoadSnapshot(const char*, const char* = NULL);
     // Созранить БД в указанном файле в виде XML
     const Error& MakeSnapshot(const char* = NULL);
 
@@ -59,8 +61,8 @@ class Environment
     char        m_name[IDENTITY_MAXLEN + 1];
     EnvState_t  m_state;
     Error     m_last_error;
-    CoreDatabase* m_database_impl;
-    Application*  m_appli;
+    Application  *m_appli;
+    Connection   *m_conn;
 
     // Открыть БД без создания подключений
     Error& openDB();

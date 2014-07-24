@@ -6,17 +6,17 @@
 
 namespace xdb {
 
-class Environment;
+class RtEnvironment;
 class Connection;
 
 class RtConnection
 {
   public:
-    RtConnection(Environment*);
+    RtConnection(RtEnvironment*);
    ~RtConnection();
 
   private:
-    Environment *m_environment;
+    RtEnvironment *m_environment;
     Connection  *m_impl;
 };
 

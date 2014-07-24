@@ -454,7 +454,7 @@ TEST(TestBrokerDATABASE, DESTROY)
     delete database;
 }
 
-TEST(TestLurkerDATABASE, CREATION)
+TEST(TestDiggerDATABASE, CREATION)
 {
   //bool status = false;
   RtEnvironment *env1 = NULL;
@@ -465,49 +465,60 @@ TEST(TestLurkerDATABASE, CREATION)
 //                    (char*)"параметр_2"
 //                    };
 
-  app = new RtApplication("test");
+  LOG(INFO) << "BEGIN CREATION TestDiggerDATABASE";
+
+  app = new RtApplication("RTAP");
   ASSERT_TRUE(app != NULL);
 
   app->setOption("OF_CREATE", 1);
   app->setOption("OF_RDWR", 1);
   EXPECT_EQ(app->getLastError().getCode(), xdb::rtE_NONE);
 
-  //  app->setEnvName("RTAP");
-
+  // Завершить инициализацию
   LOG(INFO) << "Initialize: " << app->initialize().getCode();
   LOG(INFO) << "Operation mode: " << app->getOperationMode();
   LOG(INFO) << "Operation state: " << app->getOperationState();
 
-  env = app->getEnvironment("SINF");
+  // Загрузить данные сохраненной среды RTAP
+  // Экземпляр env принадлежит app и будет им удален
+  env = app->loadEnvironment("SINF");
   EXPECT_TRUE(env != NULL);
 
-  env1 = app->getEnvironment("SINF");
+  env->Start();
+  EXPECT_EQ(app->getLastError().getCode(), xdb::rtE_NONE /*rtE_NOT_IMPLEMENTED*/);
+
+  // Проверка корректности получения экземпляра Среды с одним 
+  // названием и невозможности появления её дубликата
+  env1 = app->loadEnvironment("SINF");
   EXPECT_TRUE(env1 != NULL);
 
   if (env && env1)
   {
-    // Это должен быть один и тот же объект SINF с одинаковым именем
+    // Это должен быть один и тот же экземпляр с одинаковым именем
     EXPECT_TRUE(0 == strcmp(env->getName(), env1->getName()));
     // и адресом
     EXPECT_TRUE(env == env1);
 
-    connection = env->createConnection();
+    connection = env->getConnection();
     EXPECT_TRUE(connection != NULL);
 
-    env->MakeSnapshot("LURKER");
+    env->MakeSnapshot("DIGGER");
   }
   else
   {
     LOG(INFO) << "There is no existing environment 'SINF' for application "
               << app->getAppName();
   }
+
+  LOG(INFO) << "END CREATION TestDiggerDATABASE";
 }
 
-TEST(TestLurkerDATABASE, DESTROY)
+TEST(TestDiggerDATABASE, DESTROY)
 {
+  LOG(INFO) << "BEGIN DESTROY TestDiggerDATABASE";
   delete connection;
-  delete env;
   delete app;
+  LOG(INFO) << "END DESTROY TestDiggerDATABASE";
 }
 
 using namespace xercesc;
@@ -779,11 +790,15 @@ TEST(TestRtapDATABASE, CREATE)
   LOG(INFO) << "Operation mode: " << app->getOperationMode();
   LOG(INFO) << "Operation state: " << app->getOperationState();
 
+#if 0
   env = app->getEnvironment("SINF");
   EXPECT_TRUE(env != NULL);
 
   connection = env->createConnection();
   EXPECT_TRUE(connection != NULL);
+#else
+#warning "Implement environment and connections creation for RtApplication"
+#endif
 }
 
 TEST(TestRtapDATABASE, SHOW_CONTENT)
@@ -793,7 +808,7 @@ TEST(TestRtapDATABASE, SHOW_CONTENT)
 
 TEST(TestRtapDATABASE, TERMINATE)
 {
-  delete env;
+//  delete env;
   delete app;
 }
 

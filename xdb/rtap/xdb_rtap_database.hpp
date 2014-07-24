@@ -45,6 +45,7 @@ class RtCoreDatabase
     const Error& LoadSnapshot(const char* = NULL);
     // Сохранение данных в указанный файл
     const Error& StoreSnapshot(const char* = NULL);
+    const char* getName() { return m_name; };
 
   private:
     DISALLOW_COPY_AND_ASSIGN(RtCoreDatabase);

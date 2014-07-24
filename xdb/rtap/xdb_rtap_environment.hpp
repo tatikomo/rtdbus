@@ -13,10 +13,14 @@ namespace xdb {
 class Environment;
 class Application;
 class RtConnection;
+class RtCoreDatabase;
 
 class RtEnvironment
 {
   public:
+    friend class RtApplication;
+    friend class RtConnection;
+
     RtEnvironment(Application*, const char*);
     ~RtEnvironment();
 
@@ -27,7 +31,7 @@ class RtEnvironment
     const Error& getLastError() const;
 
     // Создать и вернуть новое подключение к указанной БД/среде
-    RtConnection* createConnection();
+    RtConnection* getConnection();
 
     // Создать новое сообщение указанного типа
     mdp::Letter* createMessage(int);
@@ -38,14 +42,28 @@ class RtEnvironment
     // Получить состояние Среды
     EnvState_t getEnvState() const;
 
+    // Изменить состояние Среды
+    void setEnvState(EnvState_t);
+
     // Загрузить содержимое БД данной среды из указанного XML файла
-    const Error& LoadSnapshot(const char*);
+    const Error& LoadSnapshot(const char* = NULL);
 
     // Созранить БД в указанном файле в виде XML
     const Error& MakeSnapshot(const char*);
 
+    // Запустить исполнение
+    const Error& Start();
+
+    // Завершить исполнение
+    const Error& Shutdown(EnvShutdownOrder_t);
+
+  protected:
+    const Error& LoadDictionary();
+
   private:
-    Environment *m_impl;
+    Environment  *m_impl;
+    RtConnection *m_conn;
+    RtCoreDatabase *m_database;
 };
 
 } // namespace xdb

@@ -39,8 +39,16 @@ namespace xdb {
       ENV_STATE_UNKNOWN = 0, // первоначальное состояние
       ENV_STATE_BAD     = 1, // критическая ошибка
       ENV_STATE_INIT    = 2, // среда проинициализирована, БД еще не открыта
-      ENV_STATE_DB_OPEN = 3  // среда инициализирована, БД открыта
+      ENV_STATE_DB_OPEN = 3, // среда инициализирована, БД открыта
+      ENV_STATE_LOADING = 4,      // среда в процессе запуска
+      ENV_STATE_SHUTTINGDOWN = 5  // среда в процессе останова
     } EnvState_t;
+
+    typedef enum
+    {
+      ENV_SHUTDOWN_SOFT = 0,
+      ENV_SHUTDOWN_HARD = 1
+    } EnvShutdownOrder_t;
 
 }
 

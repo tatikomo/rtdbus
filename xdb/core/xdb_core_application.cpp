@@ -24,7 +24,6 @@ Application::Application(const char* _name) :
 
 Application::~Application()
 {
-  m_env_list.clear();
 }
 
 const char* Application::getAppName() const
@@ -62,45 +61,13 @@ const Error& Application::initialize()
 {
   LOG(INFO) << "Application::initialize()";
   m_last_error.clear();
-  m_env_list.clear();
-#if 0
+
   // Если инициализация не была выполнена ранее или была ошибка
   if (APP_STATE_BAD == getOperationState())
   {
+    LOG(ERROR) << "Unable to initialize Application";
   }
-#endif
   return m_last_error;
-}
-
-// Получить ссылку на объект Окружение
-Environment* Application::getEnvironment(const char* _env_name)
-{
-  Environment *env = NULL;
-
-  LOG(INFO) << "Search environment " << _env_name;
-
-  //  foreach();
-  //  TODO: найти подобный объект по имени в спуле m_env_list.
-  //  Если найти не удалось, создать новый и поместить в спул.
-  for (size_t env_nbr = 0; env_nbr < m_env_list.size(); env_nbr++)
-  {
-    env = m_env_list[env_nbr];
-    if (0 == strcmp(env->getName(), _env_name))
-    {
-      LOG(INFO) << "We found " << _env_name;
-      break;
-    }
-    // При выходе из цикла в случае неуспеха поиска env д.б. равен 0
-    env = NULL;
-  }
-
-  if (!env)
-  {
-    env = new Environment(this, _env_name);
-    LOG(INFO) << "We creates new environment " << _env_name;
-  }
-  m_env_list.push_back(env);
-  return env;
 }
 
 AppMode_t Application::getOperationMode() const

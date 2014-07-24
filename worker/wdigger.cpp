@@ -26,14 +26,13 @@ Digger::Digger(std::string broker, std::string service, int verbose)
 //  m_appli->setEnvName("RTAP");
   m_appli->initialize();
 
-  m_environment = m_appli->getEnvironment("RTAP");
-  m_db_connection = m_environment->createConnection();
+  m_environment = m_appli->loadEnvironment("RTAP");
+  m_db_connection = m_environment->getConnection();
 }
 
 Digger::~Digger()
 {
   delete m_db_connection;
-  delete m_environment;
   // NB Проверить - RtEnvironment удаляется в деструкторе RtApplication ?
   delete m_appli;
 }

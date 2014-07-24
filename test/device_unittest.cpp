@@ -304,6 +304,7 @@ TEST(TestProxy, RUNTIME_VERSION)
  * Проверить следующие методы класса Broker()
  */
 #if 0
+/*
    // Регистрировать новый экземпляр Обработчика для Сервиса
    //  ---------------------------------------------------------------------
 +  Worker * worker_register(const std::string&, const std::string&);
@@ -314,7 +315,7 @@ TEST(TestProxy, RUNTIME_VERSION)
 
    //  ---------------------------------------------------------------------
    //  Dispatch requests to waiting workers as possible
-+  void service_dispatch (Service *srv/*, zmsg *msg*/);
++  void service_dispatch (Service *srv);//, zmsg *msg
 
    //  ---------------------------------------------------------------------
    //  Handle internal service according to 8/MMI specification
@@ -322,7 +323,7 @@ TEST(TestProxy, RUNTIME_VERSION)
 
    //  ---------------------------------------------------------------------
    //  Creates worker if necessary
-+  Worker * worker_require (const std::string& sender/*, char* identity*/);
++  Worker * worker_require (const std::string& sender);//, char* identity
 
    //  ---------------------------------------------------------------------
    //  Deletes worker from all data structures, and destroys worker
@@ -348,6 +349,7 @@ TEST(TestProxy, RUNTIME_VERSION)
    //  ---------------------------------------------------------------------
    //  Process a request coming from a client
 +   void client_msg (const std::string& sender, zmsg *msg);
+*/
 #endif
 /*
  * Конец списка проверяемых методов класса Broker
@@ -780,6 +782,7 @@ TEST(TestProxy, SERVICE_DISPATCH)
 
   delete service1;
   delete msg;
+  delete worker;
   LOG(INFO) << "TestProxy SERVICE_DISPATCH stop";
 }
 

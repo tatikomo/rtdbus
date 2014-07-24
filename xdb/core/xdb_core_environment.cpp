@@ -49,31 +49,19 @@ Environment::Environment(Application* _app, const char* _name) :
   strncpy(m_name, _name, IDENTITY_MAXLEN);
   m_name[IDENTITY_MAXLEN] = '\0';
 
-#if 1
-  /* NB: Конкретный экземпляр базы данных создается в дочернем классе */
-  m_database_impl = NULL; /* new CoreDatabase(_name, open_flags);*/
   m_state = ENV_STATE_BAD;
-#else
-  // Открыть базу данных с именем m_name
-  if (true == m_database_impl->Init())
-  {
-    if (openDB().getCode() == rtE_NONE)
-      m_state = ENV_STATE_INIT;
-    LOG(INFO) << "Init is successful";
-  }
-  else
-  {
-    m_state = ENV_STATE_BAD;
-    LOG(INFO) << "Init not successful";
-  }
-#endif
 }
 
 Environment::~Environment()
 {
-#if 0
-  delete m_database_impl;
-#endif
+  LOG(INFO) << "Environment '" << m_name << "' destructor";
+}
+
+void Environment::setEnvState(EnvState_t _new_state)
+{
+  LOG(INFO) << "Change environment '" << m_name
+            << "' state from " << m_state << " to " << _new_state;
+  m_state = _new_state;
 }
 
 const Error& Environment::getLastError() const
@@ -97,13 +85,21 @@ const char* Environment::getName() const
   return m_name;
 }
 
-// TODO: Создать и вернуть новое подключение к указанной БД/среде
-Connection* Environment::createConnection()
+// Вернуть имя Приложения
+const char* Environment::getAppName() const
 {
-  Connection* conn = NULL;
-  LOG(INFO) << "Get connection to env " << m_name;
-  conn = new Connection(this);
-  return conn;
+  return m_appli->getAppName();
+}
+
+// TODO: Создать и вернуть новое подключение к указанной БД/среде
+Connection* Environment::getConnection()
+{
+  if (!m_conn)
+  {
+    LOG(INFO) << "Creates new connection to env " << m_name;
+    m_conn = new Connection(this);
+  }
+  return m_conn;
 }
 
 #if 0
@@ -123,8 +119,11 @@ Error& Environment::sendMessage(mdp::Letter* letter)
 }
 #endif
 
-const Error& Environment::LoadSnapshot(const char *filename)
+const Error& Environment::LoadSnapshot(const char *app_name, const char *filename)
 {
+  LOG(INFO) << "Load " << m_name 
+            << " current snapshot for '" << app_name 
+            << "' from '" << filename << "'";
   m_last_error = rtE_NOT_IMPLEMENTED;
   return m_last_error;
 }

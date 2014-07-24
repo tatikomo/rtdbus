@@ -54,6 +54,9 @@ ctags -R --c++-kinds=+p --fields=+iaS --extra=+q .
 Используется cppcheck для статической проверки исходных текстов:
 cppcheck . --force -Icmake -Imdp -I../libzmq/src -Imsg -Itools -Ixdb -I../eXtremeDB_5_fusion_eval/include -I../glog-0.3.3/src -I../gtest-1.7.0/include -Iclient -Iworker
 
+Подробная трассировка тестов включается с помощью:
+ctest -R НАЗВАНИЕ_ТЕСТА -VV
+
 Хронология проблем:
 --------------------------------------------------------------------------------
 04.03.2013 = Решено

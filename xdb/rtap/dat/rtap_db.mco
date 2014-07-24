@@ -16,8 +16,10 @@
 #define i_objclass  unsigned<1>
 #define s_code      char<8>
 #define s_label     char<80>
+#define s_formula   char<40>
 #define s_univname  char<32>
 #define s_valabel   char<12>
+#define s_unity     char<12>
 #define s_shortlabel    char<16>
 #define s_attnamei      char<16>
 #define s_statelabel    char<32>
@@ -32,6 +34,122 @@ class Link_OBJCLASS_CODE
   hash <objectCode> codeHash[100]; /* get objclass by code */
 };
 
+/*
+===========================================================
+select distinct PHYSICAL_UNIT from ANALOG_INFORMATION; - 36
+===========================================================
+%
+A
+MNm3
+MNm3/h
+MPa
+MW
+MW/Mm3
+MW/h
+MWh
+MWh/d
+Mm3
+Mm3/d
+Mm3/h
+Pa
+V
+Wu
+h
+kCal/m3
+kPa
+kW
+kg/m3
+kgfcm2
+km3
+km3/d
+km3/h
+m3
+m3/h
+m3/mn
+micro-m
+mm
+mm.col.mer
+mm/s
+oC
+rpm
+
+
+===========================================================
+select distinct code from PHYSICAL_UNIT; - 61
+===========================================================
+KU%
+KUA
+KUGc
+KUHz
+KUKAh
+KUKWh
+KUMBAP
+KUME
+KUME/m3
+KUMNm3
+KUMNm3/h
+KUMPa
+KUMW
+KUMW/Mm3
+KUMW/h
+KUMWh
+KUMWh/d
+KUMm3
+KUMm3/d
+KUMm3/h
+KUPa
+KUV
+KUWu
+KUatm
+KUh
+KUkBap
+KUkCal
+KUkCal/(kg*oC)
+KUkCal/kg*oC
+KUkCal/m3
+KUkPa
+KUkV
+KUkW
+KUkg/h
+KUkg/m3
+KUkg/mn
+KUkg_o-g
+KUkgcm2
+KUkgfcm2
+KUkgfm2
+KUkgm2
+KUkm
+KUkm3
+KUkm3/d
+KUkm3/h
+KUkm3/mn
+KUm
+KUm3
+KUm3/d
+KUm3/h
+KUm3/mn
+KUmicro-m
+KUmm
+KUmm.col.mer
+KUmm/s
+KUmmrs
+KUmol
+KUoC
+KUrpm
+KUtut
+KUtut/d
+
+*/
+
+/* Linkage table between unity category and Infotype' instances */
+class Link_UNITY_ID
+{
+  s_unity       unityLabel;
+  uint2         unityID;
+  hash <unityLabel> unityHash[100]; /* max 100 different unities */
+  unique tree <unityID> PK_by_id;   /* get unity instance by ID */
+};
+
 /* Common part of each db points */
 struct Header
 {
@@ -39,6 +157,7 @@ struct Header
   i_objclass    objectClass; /* class id */
   s_shortlabel  shortLabel;  /* short human-readable designation */
   s_label       longLabel;   /* full human-readable designation */
+  uint2         unityID;     /* link to unity category */
   time          modifTime;   /* last modification time */
   uint1         validity;    /* VALID|INVALID|MANUAL|... */
   autoid_t      linkSA;      /* reference to SA object */
@@ -55,7 +174,9 @@ struct DiscreteInfoType
 struct AnalogInfoType
 {
   uint1         state; /* TODO: check it is useless */
-  double        val;
+  s_formula     ce; /* calculation engine for realtime value correction */
+  double        val_origin;
+  double        val_calculated;
 };
 
 /* Analog Information Object */
