@@ -1,9 +1,11 @@
 #include <vector>
 #include <time.h>
 
+#if defined HAVE_CONFIG_H
 #include "config.h"
+#endif
 #include "xdb_rtap_const.hpp"
-#include "xdb_core_attribute.hpp"
+#include "xdb_impl_attribute.hpp"
 
 using namespace xdb;
 

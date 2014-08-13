@@ -1,9 +1,11 @@
 #pragma once
-#if !defined XDB_RTAP_POINT_FILTER_HPP
+#ifndef XDB_RTAP_POINT_FILTER_HPP
 #define XDB_RTAP_POINT_FILTER_HPP
 
+#if defined HAVE_CONFIG_H
 #include "config.h"
-#include "xdb_core_error.hpp"
+#endif
+#include "xdb_impl_error.hpp"
 
 namespace xdb {
 

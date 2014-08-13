@@ -1,14 +1,17 @@
 #pragma once
-#if !defined XDB_CORE_ATTRIBUTE_HPP
-#define XDB_CORE_ATTRIBUTE_HPP
+#ifndef XDB_IMPL_ATTRIBUTE_HPP
+#define XDB_IMPL_ATTRIBUTE_HPP
 
 #include <string>
 #include <map>
 
 #include <stdint.h>
 
+#if defined HAVE_CONFIG_H
 #include "config.h"
-#include "xdb_core_error.hpp"
+#endif
+
+#include "xdb_impl_error.hpp"
 
 namespace xdb {
 

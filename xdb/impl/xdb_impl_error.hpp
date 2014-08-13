@@ -1,8 +1,10 @@
 #pragma once
-#if !defined XDB_CORE_ERROR_HPP
-#define XDB_CORE_ERROR_HPP
+#ifndef XDB_IMPL_ERROR_HPP
+#define XDB_IMPL_ERROR_HPP
 
+#if defined HAVE_CONFIG_H
 #include "config.h"
+#endif
 
 namespace xdb {
 

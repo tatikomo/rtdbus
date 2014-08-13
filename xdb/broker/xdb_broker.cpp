@@ -1,9 +1,13 @@
+#if defined HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <assert.h>
 
-#include "xdb_core_error.hpp"
-#include "xdb_core_base.hpp"
+#include "xdb_impl_error.hpp"
+#include "xdb_impl_db_broker.hpp"
+#include "xdb_impl_common.hpp"
 #include "xdb_broker.hpp"
-#include "xdb_broker_impl.hpp"
 #include "xdb_broker_service.hpp"
 #include "xdb_broker_worker.hpp"
 #include "mdp_letter.hpp"
@@ -32,9 +36,9 @@ bool DatabaseBroker::Disconnect()
   return m_impl->Disconnect();
 }
 
-DBState DatabaseBroker::State()
+int DatabaseBroker::State()
 {
-  return m_impl->State();
+  return static_cast<xdb::DBState_t>(m_impl->State());
 }
 
 bool DatabaseBroker::SetWorkerState(Worker* worker, Worker::State new_state)

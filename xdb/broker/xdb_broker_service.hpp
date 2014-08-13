@@ -1,5 +1,5 @@
 #pragma once
-#if !defined XDB_DATABASE_SERVICE_HPP
+#ifndef XDB_DATABASE_SERVICE_HPP
 #define XDB_DATABASE_SERVICE_HPP
 
 #include <stdint.h>

@@ -5,11 +5,12 @@
 #include <algorithm>
 
 #include "glog/logging.h"
+#if defined HAVE_CONFIG_H
 #include "config.h"
-
-#include "xdb_core_error.hpp"
-#include "xdb_core_application.hpp"
-#include "xdb_core_environment.hpp"
+#endif
+#include "xdb_impl_error.hpp"
+#include "xdb_impl_application.hpp"
+#include "xdb_impl_environment.hpp"
 #include "xdb_rtap_environment.hpp"
 #include "xdb_rtap_application.hpp"
 
@@ -18,7 +19,7 @@ using namespace xdb;
 RtApplication::RtApplication(const char* _name)
 {
   m_initialized = false;
-  m_impl = new Application(_name);
+  m_impl = new ApplicationImpl(_name);
   m_env_list.clear();
 }
 
@@ -49,6 +50,16 @@ const Error& RtApplication::initialize()
     m_initialized = true;
   }
   return m_impl->getLastError();
+}
+
+ApplicationImpl* RtApplication::getImpl()
+{
+  return m_impl;
+}
+
+const Options& RtApplication::getOptions() const
+{
+  return m_impl->getOptions();
 }
 
 bool RtApplication::getOption(const std::string& key, int& val)
@@ -144,7 +155,7 @@ RtEnvironment* RtApplication::getEnvironment(const char* _env_name)
 
   if (!env)
   {
-    env = new RtEnvironment(m_impl, name);
+    env = new RtEnvironment(this, name);
     LOG(INFO) << "Creating new environment '" << name
               << "' for Application " << m_impl->getAppName();
   }

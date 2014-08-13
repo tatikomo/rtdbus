@@ -1,5 +1,7 @@
+#if defined HAVE_CONFIG_H
 #include "config.h"
-#include "xdb_core_error.hpp"
+#endif
+#include "xdb_impl_error.hpp"
 
 using namespace xdb;
 

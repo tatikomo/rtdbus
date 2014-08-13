@@ -3,8 +3,9 @@
 
 #include "glog/logging.h"
 
+#if defined HAVE_CONFIG_H
 #include "config.h"
-
+#endif
 #include "xdb_rtap_connection.hpp"
 #include "xdb_rtap_environment.hpp"
 #include "xdb_rtap_application.hpp"

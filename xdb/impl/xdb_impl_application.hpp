@@ -1,29 +1,27 @@
 #pragma once
-#if !defined XDB_CORE_APPLICATION_HPP
-#define XDB_CORE_APPLICATION_HPP
+#ifndef XDB_IMPL_APPLICATION_HPP
+#define XDB_IMPL_APPLICATION_HPP
 
 #include <string>
-#include <map>
 
+#if defined HAVE_CONFIG_H
 #include "config.h"
-#include "xdb_core_common.h"
-#include "xdb_core_error.hpp"
+#endif
+
+#include "helper.hpp"
+#include "xdb_impl_common.hpp"
+#include "xdb_impl_error.hpp"
 
 namespace xdb {
 
-// Описание хранилища опций в виде карты.
-// Пара <символьный ключ> => <числовое значение>
-typedef std::pair<const std::string, int> Pair;
-typedef std::map<const std::string, int> Options;
-typedef std::map<const std::string, int>::iterator OptionIterator;
 
 class Environment;
 
-class Application
+class ApplicationImpl
 {
   public:
-    Application(const char*);
-    ~Application();
+    ApplicationImpl(const char*);
+    ~ApplicationImpl();
 
     const char* getAppName() const;
     const Error& setAppName(const char*);
@@ -34,13 +32,14 @@ class Application
     AppState_t  getOperationState() const;
     bool getOption(const std::string&, int&);
     void setOption(const char*, int);
+    Options& getOptions();
 
     const Error& getLastError() const;
     void  setLastError(const Error&);
     void  clearError();
 
   private:
-    DISALLOW_COPY_AND_ASSIGN(Application);
+    DISALLOW_COPY_AND_ASSIGN(ApplicationImpl);
     char m_appli_name[IDENTITY_MAXLEN + 1];
     AppMode_t  m_mode;
     AppState_t m_state;

@@ -1,9 +1,10 @@
 #include <assert.h>
 #include <string>
 
+#if defined HAVE_CONFIG_H
 #include "config.h"
-
-#include "xdb_core_error.hpp"
+#endif
+#include "xdb_impl_error.hpp"
 #include "xdb_rtap_filter.hpp"
 
 using namespace xdb;

@@ -1,6 +1,5 @@
-set(MDP_DIR ${CMAKE_SOURCE_DIR}/../mdp)
 set(MDP_BROKER broker)
-set(MDP_LIBRARY_NAME mdp)
+#set(MDP_LIBRARY_NAME mdp)
 
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # SOLARIS
@@ -17,7 +16,7 @@ endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
 include_directories(${TOOLS_DIR})
 include_directories(${MDP_DIR})
-include_directories(${XDB_CORE_DIR})
+include_directories(${XDB_IMPL_DIR})
 include_directories(${XDB_BROKER_DIR})
 include_directories(${MSG_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})
@@ -25,6 +24,7 @@ include_directories(${LIBZMQ_INCLUDE_DIR})
 include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
 include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 
+link_directories(${XDB_IMPL_DIR})
 link_directories(${LIBGLOG_LIBRARIES_DIR})
 link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
@@ -46,15 +46,15 @@ add_custom_command(
 
 add_custom_command(
         OUTPUT 
-        ${XDB_BROKER_DIR}/dat/broker_db.h
-        ${XDB_BROKER_DIR}/dat/broker_db.c
-        ${XDB_BROKER_DIR}/dat/broker_db.hpp
+        ${XDB_IMPL_DIR}/dat/broker_db.h
+        ${XDB_IMPL_DIR}/dat/broker_db.c
+        ${XDB_IMPL_DIR}/dat/broker_db.hpp
         COMMAND
-        ${LIBEXTREMEDB_MCOCOMP} -hpp broker_db.mco -P${XDB_BROKER_DIR}/dat
+        ${LIBEXTREMEDB_MCOCOMP} -hpp broker_db.mco -P${XDB_IMPL_DIR}/dat
         DEPENDS
-        ${XDB_BROKER_DIR}/dat/broker_db.mco
+        ${XDB_IMPL_DIR}/dat/broker_db.mco
         WORKING_DIRECTORY
-        ${XDB_BROKER_DIR}/dat
+        ${XDB_IMPL_DIR}/dat
         )
 
 set (MDP_SOURCES
@@ -73,19 +73,31 @@ set (MDP_SOURCES
 
 set (BROKER_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
+        ${XDB_IMPL_DIR}/xdb_impl_common.h
+        ${XDB_IMPL_DIR}/xdb_impl_common.c
+        ${XDB_IMPL_DIR}/xdb_impl_common.hpp
+        ${XDB_IMPL_DIR}/dat/broker_db.h
+        ${XDB_IMPL_DIR}/dat/broker_db.c
+        ${XDB_IMPL_DIR}/dat/broker_db.hpp
         ${MDP_DIR}/mdp_proxy.hpp
         ${MDP_DIR}/mdp_proxy.cpp
         ${MDP_DIR}/mdp_zmsg.hpp
         ${MDP_DIR}/mdp_zmsg.cpp
         ${MDP_DIR}/mdp_common.h
         ${MSG_DIR}/msg_message.hpp
-        ${XDB_BROKER_DIR}/dat/broker_db.h
-        ${XDB_BROKER_DIR}/dat/broker_db.c
-        ${XDB_BROKER_DIR}/dat/broker_db.hpp
         ${MDP_DIR}/mdp_helpers.hpp
         ${MDP_DIR}/mdp_helpers.cpp
         ${MDP_DIR}/mdp_broker.hpp
         ${MDP_DIR}/mdp_broker.cpp)
+
+set_source_files_properties(${XDB_IMPL_DIR}/dat/broker_db.h
+                            ${XDB_IMPL_DIR}/dat/broker_db.c
+                            ${XDB_IMPL_DIR}/dat/broker_db.hpp
+                            PROPERTIES GENERATED 1)
+
+set_source_files_properties(${MSG_DIR}/proto/common.pb.cc
+                            ${MSG_DIR}/proto/common.pb.h
+                            PROPERTIES GENERATED 1)
 
 # Сборка библиотеки
 ##########################################################
@@ -106,6 +118,11 @@ target_link_libraries(${MDP_BROKER}
     ${MDP_LIBRARY_NAME}
     ${MSG_LIBRARY_NAME}
     ${XDB_BROKER_LIBRARY_NAME}
+    ${XDB_BROKER_IMPL_LIBRARY_NAME}
+    "-lmcoseri_debug"
+#    "-lxerces-c"
+#    ${XDB_RTAP_IMPL_LIBRARY_NAME}
+#    ${XDB_RTAP_LIBRARY_NAME}
     ${LIBGLOG_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${LIBPROTOBUF_LIBRARIES}

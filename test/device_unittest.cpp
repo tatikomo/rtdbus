@@ -14,7 +14,7 @@
 #include "mdp_proxy.hpp"
 
 #include "xdb_broker.hpp"
-//#include "xdb_broker_worker.hpp"
+#include "xdb_impl_db_broker.hpp"
 //#include "xdb_broker_letter.hpp"
 //#include "xdb_broker_service.hpp"
 

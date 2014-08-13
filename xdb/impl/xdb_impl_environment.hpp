@@ -1,15 +1,17 @@
 #pragma once
-#if !defined XDB_CORE_ENVIRONMENT_HPP
-#define XDB_CORE_ENVIRONMENT_HPP
+#ifndef XDB_IMPL_ENVIRONMENT_HPP
+#define XDB_IMPL_ENVIRONMENT_HPP
 
+#if defined HAVE_CONFIG_H
 #include "config.h"
-#include "xdb_core_common.h"
-#include "xdb_core_error.hpp"
+#endif
+#include "xdb_impl_common.hpp"
+#include "xdb_impl_error.hpp"
 
 namespace xdb {
 
-class Application;
-class Connection;
+class ApplicationImpl;
+class ConnectionImpl;
 
 /*
  * Создание базы данных с помощью функции mco_db_open()
@@ -28,11 +30,11 @@ class Connection;
  * 23/10/2013: пока будем полагать, что всегда используется БД RTAP
  */
 
-class Environment
+class EnvironmentImpl
 {
   public:
-    Environment(Application*, const char*);
-    ~Environment();
+    EnvironmentImpl(ApplicationImpl*, const char*);
+    ~EnvironmentImpl();
 
     // Получить код последней ошибки
     const Error& getLastError() const;
@@ -40,7 +42,7 @@ class Environment
     void  clearError();
 
     // Создать и вернуть новое подключение к указанной БД/среде
-    Connection* getConnection();
+    ConnectionImpl* getConnection();
     // Вернуть имя подключенной БД/среды
     const char* getName() const;
     // Вернуть имя Приложения
@@ -57,12 +59,12 @@ class Environment
     void setError(Error&);
 
   private:
-    DISALLOW_COPY_AND_ASSIGN(Environment);
+    DISALLOW_COPY_AND_ASSIGN(EnvironmentImpl);
     char        m_name[IDENTITY_MAXLEN + 1];
     EnvState_t  m_state;
     Error     m_last_error;
-    Application  *m_appli;
-    Connection   *m_conn;
+    ApplicationImpl  *m_appli;
+    ConnectionImpl   *m_conn;
 
     // Открыть БД без создания подключений
     Error& openDB();

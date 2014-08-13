@@ -1,12 +1,14 @@
 #pragma once
-#if !defined XDB_RTAP_POINT_HPP
+#ifndef XDB_RTAP_POINT_HPP
 #define XDB_RTAP_POINT_HPP
 
 #include <string>
 #include <vector>
 
+#if defined HAVE_CONFIG_H
 #include "config.h"
-#include "xdb_core_error.hpp"
+#endif
+#include "xdb_impl_error.hpp"
 #include "xdb_rtap_const.hpp"
 #include "xdb_rtap_filter.hpp"
 

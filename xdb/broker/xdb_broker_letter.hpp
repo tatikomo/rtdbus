@@ -1,6 +1,6 @@
-#if !defined XDB_DATABASE_LETTER_HPP
-#define XDB_DATABASE_LETTER_HPP
 #pragma once
+#ifndef XDB_DATABASE_LETTER_HPP
+#define XDB_DATABASE_LETTER_HPP
 
 #include <iostream>
 #include <stdint.h>
@@ -8,7 +8,7 @@
 
 #include "config.h"
 #include "helper.hpp"
-#include "msg_common.h"
+//#include "msg_common.h"
 
 namespace xdb {
 

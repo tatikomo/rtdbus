@@ -1,14 +1,17 @@
 #pragma once
-#if !defined XDB_RTAP_APPLICATION_HPP
+#ifndef XDB_RTAP_APPLICATION_HPP
 #define XDB_RTAP_APPLICATION_HPP
 
 #include <string>
 #include <vector>
 #include <map>
 
+#if defined HAVE_CONFIG_H
 #include "config.h"
-#include "xdb_core_common.h"
-#include "xdb_core_error.hpp"
+#endif
+#include "helper.hpp"
+#include "xdb_impl_common.hpp"
+#include "xdb_impl_error.hpp"
 
 namespace xdb {
 
@@ -19,16 +22,19 @@ typedef std::map<const std::string, int> Options;
 typedef std::map<const std::string, int>::iterator OptionIterator;
 
 class RtEnvironment;
-class Application;
+class ApplicationImpl;
 
 class RtApplication
 {
   public:
+    friend class RtEnvironment;
+
     RtApplication(const char*);
     ~RtApplication();
 
     const Error& initialize();
 
+    const Options& getOptions() const;
     bool  getOption(const std::string&, int&);
     void  setOption(const char*, int);
     const char* getAppName() const;
@@ -42,11 +48,15 @@ class RtApplication
     AppMode_t    getOperationMode() const;
     AppState_t   getOperationState() const;
 
+  protected:
+    ApplicationImpl *getImpl();
+
   private:
     DISALLOW_COPY_AND_ASSIGN(RtApplication);
-    Application *m_impl;
+    ApplicationImpl *m_impl;
     bool         m_initialized;
     std::vector<RtEnvironment*> m_env_list;
+    BitSet8      m_options;
 
     // Зарегистрировать в Приложении среду
     void         registerEnvironment(RtEnvironment*);

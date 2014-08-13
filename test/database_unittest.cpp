@@ -6,7 +6,7 @@
 #include "glog/logging.h"
 #include "gtest/gtest.h"
 
-#include "xdb_broker_impl.hpp"
+#include "xdb_impl_db_broker.hpp"
 #include "xdb_broker.hpp"
 #include "xdb_broker_service.hpp"
 #include "xdb_broker_worker.hpp"
@@ -35,7 +35,7 @@ xdb::Service *service2 = NULL;
 xdb::Letter  *letter   = NULL;
 int64_t service1_id;
 int64_t service2_id;
-DBState state;
+DBState_t state;
 xdb::RtApplication* app = NULL;
 xdb::RtEnvironment* env = NULL;
 xdb::RtConnection* connection = NULL;
@@ -95,7 +95,7 @@ TEST(TestBrokerDATABASE, OPEN)
     ASSERT_TRUE (database != NULL);
 
     state = database->State();
-    EXPECT_EQ(state, DB_STATE_UNINITIALIZED);
+    ASSERT_TRUE(state == DB_STATE_UNINITIALIZED);
 
     status = (database->Connect());
     ASSERT_TRUE(status == true);

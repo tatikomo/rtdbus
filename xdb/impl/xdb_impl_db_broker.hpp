@@ -1,10 +1,11 @@
 #pragma once
-#if !defined XDB_DATABASE_BROKER_IMPL_HPP
+#ifndef XDB_DATABASE_BROKER_IMPL_HPP
 #define XDB_DATABASE_BROKER_IMPL_HPP
 
 #include <string>
 #include "config.h"
 
+// TODO: Удалить реализацию MCO внутрь класса DatabaseImpl
 #ifdef __cplusplus
 extern "C" {
 #include "mco.h"
@@ -15,13 +16,14 @@ extern "C" {
 #endif
 
 #include "dat/broker_db.hpp"
-#include "xdb_broker.hpp"
-#include "xdb_broker_service.hpp"
 #include "xdb_broker_letter.hpp"
+#include "xdb_broker_worker.hpp"
+#include "xdb_impl_common.h"
+#include "xdb_impl_common.hpp"
 
 namespace xdb {
 
-class Database;
+class DatabaseImpl;
 class Service;
 class Worker;
 
@@ -30,14 +32,16 @@ void extended_errhandler(MCO_RET errcode, const char* file, int line);
 
 /* 
  * Класс-контейнер объектов Service в БД
- * TODO: Получать уведомления о создании/удалении экземпляра объекта Service в БД.
+ * Вставка/удаление экземпляров осуществляется триггерами (event) БД.
  * TODO: Переделать с использованием итераторов.
  */
-class ServiceListImpl : public ServiceList
+class ServiceList
 {
   public:
-    ServiceListImpl(mco_db_h);
-    ~ServiceListImpl();
+    friend class DatabaseBrokerImpl;
+
+    ServiceList(mco_db_h);
+    ~ServiceList();
 
     Service* first();
     Service* last();
@@ -59,7 +63,7 @@ class ServiceListImpl : public ServiceList
     bool refresh();
 
   private:
-    DISALLOW_COPY_AND_ASSIGN(ServiceListImpl);
+    DISALLOW_COPY_AND_ASSIGN(ServiceList);
     int       m_current_index;
     mco_db_h  m_db_handler;
     // Список прочитанных из БД Сервисов
@@ -71,22 +75,26 @@ class ServiceListImpl : public ServiceList
 /* Фактическая реализация функциональности Базы Данных для Брокера */
 class DatabaseBrokerImpl
 {
-  friend class ServiceListImpl;
+  friend class DatabaseImpl;
 
   public:
     DatabaseBrokerImpl(const char*);
     ~DatabaseBrokerImpl();
 
-    /* Инициализация служебных структур БД */
     bool Init();
-    /* Создание экземпляра БД или подключение к уже существующему */
+    // Создание экземпляра БД или подключение к уже существующему
     bool Connect();
     bool Disconnect();
     //
-    DBState State();
+    DBState_t State();
 
     Service *AddService(const char*);
     Service *AddService(const std::string&);
+
+    // получить доступ к текущему списку Сервисов
+    ServiceList* GetServiceList();
+    //
+
     bool RemoveService(const char*);
     /* Удалить Обработчик из всех связанных с ним таблиц БД */
     bool RemoveWorker(Worker*);
@@ -99,8 +107,6 @@ class DatabaseBrokerImpl
     bool SetWorkerState(Worker*, Worker::State);
     /* получить признак существования данного экземпляра Сервиса в БД */
     bool     IsServiceExist(const char*);
-    /* получить доступ к текущему списку Сервисов */ 
-    ServiceList* GetServiceList();
     /* Получить первое ожидающее обработки Сообщение */
     // TODO: deprecated
     bool GetWaitingLetter(/* IN */ Service* srv,
@@ -150,36 +156,15 @@ class DatabaseBrokerImpl
     void DisableServiceCommand (const std::string&, const std::string&);
     void DisableServiceCommand (const Service*, const std::string&);
 
-    /* Тестовый API сохранения базы */
+    /* Сохранение БД в виде XML */
     void MakeSnapshot(const char*);
 
   private:
     DISALLOW_COPY_AND_ASSIGN(DatabaseBrokerImpl);
-#if defined DEBUG
-    char  m_snapshot_file_prefix[10];
-    bool  m_initialized;
-    bool  m_save_to_xml_feature;
-    int   m_snapshot_counter;
-    MCO_RET SaveDbToFile(const char*);
-#endif
 
-    Database                *m_database;
-    mco_db_h                 m_db_handler;
-    ServiceListImpl         *m_service_list;
+    DatabaseImpl            *m_database;
+    ServiceList             *m_service_list;
 
-#if EXTREMEDB_VERSION >= 41
-    mco_db_params_t   m_db_params;
-    mco_device_t      m_dev;
-#  if USE_EXTREMEDB_HTTP_SERVER  
-    /*
-     * Internal HttpServer http://localhost:8082/
-     */
-    mco_metadict_header_t *m_metadict;
-    mcohv_p                m_hv;
-    unsigned int           m_size;
-#  endif  
-    bool                   m_metadict_initialized;
-#endif
     /*
      * Зарегистрировать все обработчики событий, заявленные в БД
      */
@@ -226,10 +211,6 @@ class DatabaseBrokerImpl
      */
     //MCO_RET LoadWorkerByIdent(mco_trans_h, autoid_t&, Worker*);
 
-#ifdef DISK_DATABASE
-    char* m_dbsFileName;
-    char* m_logFileName;
-#endif
 };
 
 } //namespace xdb

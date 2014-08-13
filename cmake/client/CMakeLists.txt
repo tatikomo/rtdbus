@@ -55,6 +55,10 @@ add_custom_command(
         ${MSG_DIR}/proto
         )
 
+set_source_files_properties(${MSG_DIR}/proto/common.pb.cc
+                            ${MSG_DIR}/proto/common.pb.h
+                            PROPERTIES GENERATED 1)
+
 # Сборка TRADER
 ##########################################################
 add_executable (${CLIENT_TRADER} ${CLIENT_TRADER_SOURCES})

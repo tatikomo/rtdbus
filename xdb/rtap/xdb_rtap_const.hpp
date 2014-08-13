@@ -4,10 +4,11 @@
 
 #include <string>
 
-#include "mco.h"
+//#include "mco.h"
+#if defined HAVE_CONFIG_H
 #include "config.h"
-
-#include "xdb_core_attribute.hpp"
+#endif
+#include "xdb_impl_attribute.hpp"
 
 namespace xdb {
 
@@ -184,8 +185,11 @@ typedef struct
   AttributeMap_t attributes;
   univname_t     parent_alias;
   univname_t     code;
-  autoid_t       id_SA;
-  autoid_t       id_unity;
+// NB: Данные типы определены в MCO
+//  autoid_t       id_SA;
+  uint64_t       id_SA;
+//  autoid_t       id_unity;
+  uint64_t       id_unity;
 } PointDescription_t;
 
 /* Хранилище набора атрибутов, их типов, кода и описания для каждого objclass */

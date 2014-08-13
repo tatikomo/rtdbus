@@ -22,7 +22,7 @@ include_directories(${WORKER_DIR})
 include_directories(${MDP_DIR})
 include_directories(${MSG_DIR})
 include_directories(${XDB_RTAP_DIR})
-include_directories(${XDB_CORE_DIR})
+include_directories(${XDB_IMPL_DIR})
 include_directories(${TOOLS_DIR})
 
 link_directories(${LIBGLOG_LIBRARIES_DIR})
@@ -57,14 +57,50 @@ set (WORKER_DIGGER_SOURCES
         ${MDP_DIR}/mdp_letter.hpp
         ${MDP_DIR}/mdp_client_async_api.hpp
         ${MDP_DIR}/mdp_worker_api.hpp
-        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.hxx
-        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.cxx
-        ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.hxx
-        ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.cxx
-        ${XDB_RTAP_DIR}/dat/rtap_db.hxx
+        ${XDB_IMPL_DIR}/dat/rtap_db-pskel.hxx
+        ${XDB_IMPL_DIR}/dat/rtap_db-pskel.cxx
+        ${XDB_IMPL_DIR}/dat/rtap_db-pimpl.hxx
+        ${XDB_IMPL_DIR}/dat/rtap_db-pimpl.cxx
+        ${XDB_IMPL_DIR}/dat/rtap_db.hpp
+        ${XDB_IMPL_DIR}/dat/rtap_db.h
+        ${XDB_IMPL_DIR}/dat/rtap_db.c
         ${WORKER_DIR}/wdigger.cpp
         ${WORKER_DIR}/wdigger.hpp)
 
+add_custom_command(
+        OUTPUT 
+        ${XDB_IMPL_DIR}/dat/rtap_db.h
+        ${XDB_IMPL_DIR}/dat/rtap_db.c
+        ${XDB_IMPL_DIR}/dat/rtap_db.hpp
+        COMMAND
+        ${LIBEXTREMEDB_MCOCOMP} -hpp rtap_db.mco -P${XDB_IMPL_DIR}/dat
+        DEPENDS
+        ${XDB_IMPL_DIR}/dat/rtap_db.mco
+        WORKING_DIRECTORY
+        ${XDB_IMPL_DIR}/dat
+        )
+
+add_custom_command(
+        OUTPUT
+        ${XDB_IMPL_DIR}/dat/rtap_db-pskel.hxx
+        ${XDB_IMPL_DIR}/dat/rtap_db-pskel.cxx
+        COMMAND
+        /usr/bin/xsd cxx-parser --type-map rtap_db.map --generate-validation rtap_db.xsd
+        DEPENDS
+        ${XDB_IMPL_DIR}/dat/rtap_db.xsd
+        ${XDB_IMPL_DIR}/dat/rtap_db.map
+        WORKING_DIRECTORY
+        ${XDB_IMPL_DIR}/dat
+        )
+
+set_source_files_properties(${XDB_IMPL_DIR}/dat/rtap_db.hpp
+                            ${XDB_IMPL_DIR}/dat/rtap_db.h
+                            ${XDB_IMPL_DIR}/dat/rtap_db.c
+                            PROPERTIES GENERATED 1)
+
+set_source_files_properties(${XDB_IMPL_DIR}/dat/rtap_db-pskel.hxx
+                            ${XDB_IMPL_DIR}/dat/rtap_db-pskel.cxx
+                            PROPERTIES GENERATED 1)
 
 # Сборка тестового торгового обработчика
 ##########################################################
@@ -91,13 +127,14 @@ add_definitions(-fpermissive)
 ##########################################################
 add_executable (${WORKER_DIGGER} ${WORKER_DIGGER_SOURCES})
 target_link_libraries(${WORKER_DIGGER}
+    ${XDB_RTAP_IMPL_LIBRARY_NAME}
     ${XDB_RTAP_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
     ${TOOLS_LIBRARY_NAME}
     ${LIBGLOG_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
-    "-lmcoseri_debug"
-    "-lxerces-c"
+#    "-lmcoseri_debug"
+#    "-lxerces-c"
     ${LIBPROTOBUF_LIBRARIES}
     ${SYSTEM_EXTERNAL_LIBS}
     ${LIBZMQ_LIBRARIES})

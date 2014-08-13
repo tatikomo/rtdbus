@@ -6,13 +6,7 @@ extern "C" {
 #endif
 
 #include "mco.h"
-
-#ifdef __cplusplus
-}
-#endif
-
-#include "xdb_core_common.h"
-
+#include "xdb_impl_common.h"
 
 const char * mco_ret_string( int rc, int * is_error ) {
     
@@ -520,6 +514,10 @@ void show_device_info(const char * lead_line, mco_device_t dev[], int nDev)
 void show_device_info(const char * lead_line)
 {
   printf("\n%s is not yet implemented\n", lead_line);
+}
+#endif
+
+#ifdef __cplusplus
 }
 #endif
 

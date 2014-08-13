@@ -1,42 +1,24 @@
 #pragma once
-#if !defined XDB_DATABASE_BROKER_HPP
+#ifndef XDB_DATABASE_BROKER_HPP
 #define XDB_DATABASE_BROKER_HPP
 
 #include <stdint.h>
 #include <string>
 
+#if defined HAVE_CONFIG_H
 #include "config.h"
-
-#include "xdb_core_common.h"
+#endif
 #include "xdb_broker_service.hpp"
 #include "xdb_broker_worker.hpp"
 #include "xdb_broker_letter.hpp"
 
 namespace xdb {
 
-class Database;
 class DatabaseBrokerImpl;
 class ServiceList;
 class Service;
 class Worker;
 class Letter;
-
-class ServiceList
-{
-  public:
-    // NB: экземпляр не должен создаваться вручную
-    ServiceList() {};
-    virtual ~ServiceList() {};
-
-    virtual Service* first() = 0;
-    virtual Service* last()  = 0;
-    virtual Service* next()  = 0;
-    virtual Service* prev()  = 0;
-    // Получить количество зарегистрированных объектов
-    virtual int size() const { return 0; }
-    // Перечитать список Сервисов из базы данных
-    virtual bool refresh()   = 0;
-};
 
 class DatabaseBroker
 {
@@ -46,7 +28,7 @@ class DatabaseBroker
 
     bool Connect();
     bool Disconnect();
-    DBState State();
+    int  State();
 
     /* Зарегистрировать Сервис */
     Service *AddService(const char*);

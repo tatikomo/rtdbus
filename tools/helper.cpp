@@ -7,7 +7,11 @@
 #include <sys/time.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <string.h>
+
+#include <string.h> // strncat
+
+#include <string>
+#include <map>
 
 #include "helper.hpp"
 
@@ -159,5 +163,42 @@ char* hex_dump(const char* data, unsigned int size)
    }
    buf[offset] = '\0';
    return buf;
+}
+
+bool getOption(Options& _options, const std::string& key, int& val)
+{
+  bool status = false;
+  OptionIterator p = _options.find(key);
+
+  if (p != _options.end())
+  {
+    val = p->second;
+    status = true;
+    //std::cout << "Found '"<<key<<"' option=" << p->second << std::endl;
+  }
+  return status;
+}
+
+bool setOption(Options& _options, const std::string& key, int val)
+{
+  bool status = false;
+  OptionIterator p = _options.find(key);
+
+  if (p != _options.end())
+  {
+    val = p->second;
+    status = true;
+//    std::cout << "Replace '" << key
+//              << "' old value " << p->second
+//              << " with " << val << std::endl;
+  }
+  else
+  {
+    _options.insert(Pair(key, val));
+//    std::cout << "Insert into '" << key
+//              << " new value " << val << std::endl;
+    status = true;
+  }
+  return status;
 }
 

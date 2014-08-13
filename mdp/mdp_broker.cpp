@@ -7,6 +7,7 @@
 #include "xdb_broker_service.hpp"
 #include "xdb_broker_worker.hpp"
 #include "xdb_broker_letter.hpp"
+#include "xdb_impl_db_broker.hpp"
 
 using namespace mdp;
 

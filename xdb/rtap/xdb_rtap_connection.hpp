@@ -2,12 +2,14 @@
 #if !defined XDB_RTAP_CONNECTION_HPP
 #define XDB_RTAP_CONNECTION_HPP
 
+#if defined HAVE_CONFIG_H
 #include "config.h"
+#endif
 
 namespace xdb {
 
 class RtEnvironment;
-class Connection;
+class ConnectionImpl;
 
 class RtConnection
 {
@@ -16,8 +18,8 @@ class RtConnection
    ~RtConnection();
 
   private:
-    RtEnvironment *m_environment;
-    Connection  *m_impl;
+    RtEnvironment  *m_environment;
+    ConnectionImpl *m_impl;
 };
 
 } // namespace xdb

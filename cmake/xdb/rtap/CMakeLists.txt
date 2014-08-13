@@ -19,8 +19,8 @@ set (XDB_RTAP_SNAP_NAME "xdb_snap")
 include_directories(${TOOLS_DIR})
 include_directories(${MDP_DIR})
 include_directories(${MSG_DIR})
-include_directories(${XDB_CORE_DIR})
-include_directories(${XDB_RTAP_DIR}/dat)
+include_directories(${XDB_IMPL_DIR})
+include_directories(${XDB_IMPL_DIR}/dat)
 include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})
 include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
@@ -43,15 +43,15 @@ add_custom_command(
 
 add_custom_command(
         OUTPUT 
-        ${XDB_RTAP_DIR}/dat/rtap_db.h
-        ${XDB_RTAP_DIR}/dat/rtap_db.c
-        ${XDB_RTAP_DIR}/dat/rtap_db.hpp
+        ${XDB_IMPL_DIR}/dat/rtap_db.h
+        ${XDB_IMPL_DIR}/dat/rtap_db.c
+        ${XDB_IMPL_DIR}/dat/rtap_db.hpp
         COMMAND
-        ${LIBEXTREMEDB_MCOCOMP} -hpp rtap_db.mco -P${XDB_RTAP_DIR}/dat
+        ${LIBEXTREMEDB_MCOCOMP} -hpp rtap_db.mco -P${XDB_IMPL_DIR}/dat
         DEPENDS
-        ${XDB_RTAP_DIR}/dat/rtap_db.mco
+        ${XDB_IMPL_DIR}/dat/rtap_db.mco
         WORKING_DIRECTORY
-        ${XDB_RTAP_DIR}/dat
+        ${XDB_IMPL_DIR}/dat
         )
 
 # Команда вида:
@@ -61,28 +61,28 @@ add_custom_command(
 # создать тестовый код, использующий сгенерированные классы: --generate-test-drive
 add_custom_command(
         OUTPUT
-        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.hxx
-        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.cxx
+        ${XDB_IMPL_DIR}/dat/rtap_db-pskel.hxx
+        ${XDB_IMPL_DIR}/dat/rtap_db-pskel.cxx
         COMMAND
         /usr/bin/xsd cxx-parser --type-map rtap_db.map --generate-validation rtap_db.xsd
         DEPENDS
-        ${XDB_RTAP_DIR}/dat/rtap_db.xsd
-        ${XDB_RTAP_DIR}/dat/rtap_db.map
+        ${XDB_IMPL_DIR}/dat/rtap_db.xsd
+        ${XDB_IMPL_DIR}/dat/rtap_db.map
         WORKING_DIRECTORY
-        ${XDB_RTAP_DIR}/dat
+        ${XDB_IMPL_DIR}/dat
         )
-
 
 set (XDB_RTAP_SNAP_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
-        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.hxx
-        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.cxx
-        ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.hxx
-        ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.cxx
-        ${XDB_RTAP_DIR}/dat/rtap_db.hxx
-        ${XDB_RTAP_DIR}/dat/rtap_db.h
-        ${XDB_RTAP_DIR}/dat/rtap_db.hpp
-        ${XDB_RTAP_DIR}/dat/rtap_db.c
+        ${TOOLS_DIR}/helper.hpp
+        ${TOOLS_DIR}/helper.cpp
+        ${XDB_IMPL_DIR}/dat/rtap_db-pskel.hxx
+        ${XDB_IMPL_DIR}/dat/rtap_db-pskel.cxx
+        ${XDB_IMPL_DIR}/dat/rtap_db-pimpl.hxx
+        ${XDB_IMPL_DIR}/dat/rtap_db-pimpl.cxx
+        ${XDB_IMPL_DIR}/dat/rtap_db.h
+        ${XDB_IMPL_DIR}/dat/rtap_db.hpp
+        ${XDB_IMPL_DIR}/dat/rtap_db.c
         ${XDB_RTAP_DIR}/xdb_rtap_common.h
         ${XDB_RTAP_DIR}/xdb_rtap_const.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_const.hpp
@@ -96,30 +96,8 @@ set (XDB_RTAP_SNAP_SOURCES
 set (XDB_RTAP_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
         ${TOOLS_DIR}/helper.hpp
+        ${TOOLS_DIR}/helper.cpp
         ${MDP_DIR}/mdp_letter.hpp
-        ${XDB_CORE_DIR}/xdb_core_base.cpp
-        ${XDB_CORE_DIR}/xdb_core_base.hpp
-        ${XDB_CORE_DIR}/xdb_core_application.cpp
-        ${XDB_CORE_DIR}/xdb_core_application.hpp
-        ${XDB_CORE_DIR}/xdb_core_base.cpp
-        ${XDB_CORE_DIR}/xdb_core_base.hpp
-        ${XDB_CORE_DIR}/xdb_core_common.c
-        ${XDB_CORE_DIR}/xdb_core_common.h
-        ${XDB_CORE_DIR}/xdb_core_connection.cpp
-        ${XDB_CORE_DIR}/xdb_core_connection.hpp
-        ${XDB_CORE_DIR}/xdb_core_environment.cpp
-        ${XDB_CORE_DIR}/xdb_core_environment.hpp
-        ${XDB_CORE_DIR}/xdb_core_error.cpp
-        ${XDB_CORE_DIR}/xdb_core_error.hpp
-        ${XDB_CORE_DIR}/xdb_core_attribute.cpp
-        ${XDB_CORE_DIR}/xdb_core_attribute.hpp
-        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.hxx
-        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.cxx
-        ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.hxx
-        ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.cxx
-        ${XDB_RTAP_DIR}/dat/rtap_db.h
-        ${XDB_RTAP_DIR}/dat/rtap_db.hpp
-        ${XDB_RTAP_DIR}/dat/rtap_db.c
         ${XDB_RTAP_DIR}/xdb_rtap_const.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_const.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_common.h
@@ -150,19 +128,27 @@ set (XDB_RTAP_SOURCES
 
 add_definitions(-fpermissive)
 
+set_source_files_properties(${XDB_IMPL_DIR}/dat/broker_db.h
+                            ${XDB_IMPL_DIR}/dat/broker_db.c
+                            ${XDB_IMPL_DIR}/dat/broker_db.hpp
+                            PROPERTIES GENERATED 1)
+
+set_source_files_properties(${MSG_DIR}/proto/common.pb.cc
+                            ${MSG_DIR}/proto/common.pb.h
+                            PROPERTIES GENERATED 1)
+
 add_library (${XDB_RTAP_LIBRARY_NAME} ${XDB_RTAP_SOURCES})
 target_link_libraries(${XDB_RTAP_LIBRARY_NAME}
     ${MSG_LIBRARY_NAME}
+    ${XDB_RTAP_IMPL_LIBRARY_NAME}
     ${SYSTEM_EXTERNAL_LIBS})
-
 
 add_executable (${XDB_RTAP_SNAP_NAME} ${XDB_RTAP_SNAP_SOURCES})
 target_link_libraries(${XDB_RTAP_SNAP_NAME}
     ${XDB_RTAP_LIBRARY_NAME}
+    ${XDB_RTAP_IMPL_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
     ${LIBGLOG_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
-    "-lmcoseri_debug"
-    "-lxerces-c"
     ${SYSTEM_EXTERNAL_LIBS})
 

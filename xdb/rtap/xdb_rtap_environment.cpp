@@ -1,8 +1,11 @@
 #include "glog/logging.h"
 
+#if defined HAVE_CONFIG_H
 #include "config.h"
-
-#include "xdb_core_environment.hpp"
+#endif
+#include "xdb_impl_environment.hpp"
+#include "xdb_impl_application.hpp"
+#include "xdb_rtap_application.hpp"
 #include "xdb_rtap_environment.hpp"
 #include "xdb_rtap_connection.hpp"
 #include "xdb_rtap_database.hpp"
@@ -10,9 +13,10 @@
 
 using namespace xdb;
 
-RtEnvironment::RtEnvironment(Application* _app, const char* _name)
+RtEnvironment::RtEnvironment(RtApplication* _app, const char* _name)
 {
-  m_impl = new Environment(_app, _name);
+  m_appli = _app;
+  m_impl = new EnvironmentImpl(_app->getImpl(), _name);
   m_database = NULL;
   m_conn = NULL;
 }
@@ -50,7 +54,7 @@ const Error& RtEnvironment::LoadSnapshot(const char *filename)
 {
   if (!m_database)
   {
-    m_database = new RtCoreDatabase();
+    m_database = new RtDatabase(m_impl->getName(), m_appli->getOptions());
     LOG(INFO) << "Lazy creating database " << m_database->getName();
     m_database->Connect();
     LOG(INFO) << "Lazy connection to database " << m_database->getName();

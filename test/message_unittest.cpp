@@ -17,7 +17,7 @@ RTDBM::Header      pb_header;
 RTDBM::ExecResult  pb_exec_result_request;
 xdb::Letter       *payload = NULL;
 mdp::zmsg         *message = NULL;
-char              *my_name = "message_test";
+char              *my_name = (char*)"message_test";
 
 TEST(TestProtobuf, PROTO_VERSION)
 {

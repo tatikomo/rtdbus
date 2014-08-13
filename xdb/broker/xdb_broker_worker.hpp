@@ -1,6 +1,6 @@
-#if !defined XDB_DATABASE_WORKER_HPP
-#define XDB_DATABASE_WORKER_HPP
 #pragma once
+#ifndef XDB_DATABASE_WORKER_HPP
+#define XDB_DATABASE_WORKER_HPP
 
 #include <stdint.h>
 #include <sys/time.h>

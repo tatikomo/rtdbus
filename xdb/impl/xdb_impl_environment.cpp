@@ -2,17 +2,18 @@
 #include <string.h>
 
 #include "glog/logging.h"
-
+#if defined HAVE_CONFIG_H
 #include "config.h"
-#include "xdb_core_application.hpp"
-#include "xdb_core_environment.hpp"
-#include "xdb_core_connection.hpp"
-#include "xdb_core_base.hpp"
-#include "xdb_core_error.hpp"
+#endif
+#include "xdb_impl_application.hpp"
+#include "xdb_impl_environment.hpp"
+#include "xdb_impl_connection.hpp"
+#include "xdb_impl_database.hpp"
+#include "xdb_impl_error.hpp"
 
 using namespace xdb;
 
-Environment::Environment(Application* _app, const char* _name) :
+EnvironmentImpl::EnvironmentImpl(ApplicationImpl* _app, const char* _name) :
   m_state(ENV_STATE_UNKNOWN),
   m_last_error(rtE_NONE),
   m_appli(_app)
@@ -52,66 +53,66 @@ Environment::Environment(Application* _app, const char* _name) :
   m_state = ENV_STATE_BAD;
 }
 
-Environment::~Environment()
+EnvironmentImpl::~EnvironmentImpl()
 {
-  LOG(INFO) << "Environment '" << m_name << "' destructor";
+  LOG(INFO) << "EnvironmentImpl '" << m_name << "' destructor";
 }
 
-void Environment::setEnvState(EnvState_t _new_state)
+void EnvironmentImpl::setEnvState(EnvState_t _new_state)
 {
   LOG(INFO) << "Change environment '" << m_name
             << "' state from " << m_state << " to " << _new_state;
   m_state = _new_state;
 }
 
-const Error& Environment::getLastError() const
+const Error& EnvironmentImpl::getLastError() const
 {
   return m_last_error;
 }
 
-void Environment::setLastError(const Error& _new_error)
+void EnvironmentImpl::setLastError(const Error& _new_error)
 {
   m_last_error.set(_new_error);
 }
 
-void Environment::clearError()
+void EnvironmentImpl::clearError()
 {
   m_last_error.clear();
 }
 
 // Вернуть имя подключенной БД/среды
-const char* Environment::getName() const
+const char* EnvironmentImpl::getName() const
 {
   return m_name;
 }
 
 // Вернуть имя Приложения
-const char* Environment::getAppName() const
+const char* EnvironmentImpl::getAppName() const
 {
   return m_appli->getAppName();
 }
 
 // TODO: Создать и вернуть новое подключение к указанной БД/среде
-Connection* Environment::getConnection()
+ConnectionImpl* EnvironmentImpl::getConnection()
 {
   if (!m_conn)
   {
     LOG(INFO) << "Creates new connection to env " << m_name;
-    m_conn = new Connection(this);
+    m_conn = new ConnectionImpl(this);
   }
   return m_conn;
 }
 
 #if 0
 // TODO: Создать новое сообщение указанного типа
-mdp::Letter* Environment::createMessage(/* msgType */)
+mdp::Letter* EnvironmentImpl::createMessage(/* msgType */)
 {
   m_last_error = rtE_NOT_IMPLEMENTED;
   return NULL;
 }
 
 // Отправить сообщение адресату
-Error& Environment::sendMessage(mdp::Letter* letter)
+Error& EnvironmentImpl::sendMessage(mdp::Letter* letter)
 {
   m_last_error = rtE_NONE;
   assert(letter);
@@ -119,7 +120,7 @@ Error& Environment::sendMessage(mdp::Letter* letter)
 }
 #endif
 
-const Error& Environment::LoadSnapshot(const char *app_name, const char *filename)
+const Error& EnvironmentImpl::LoadSnapshot(const char *app_name, const char *filename)
 {
   LOG(INFO) << "Load " << m_name 
             << " current snapshot for '" << app_name 
@@ -128,7 +129,7 @@ const Error& Environment::LoadSnapshot(const char *app_name, const char *filenam
   return m_last_error;
 }
 
-const Error& Environment::MakeSnapshot(const char *filename)
+const Error& EnvironmentImpl::MakeSnapshot(const char *filename)
 {
   m_last_error = rtE_NONE;
 
@@ -146,7 +147,7 @@ const Error& Environment::MakeSnapshot(const char *filename)
 // Открыть БД без создания подключений
 // Подключения создаются в классе DbConection
 // TODO: определить, какую словарную функцию использует данная среда
-Error& Environment::openDB()
+Error& EnvironmentImpl::openDB()
 {
   m_last_error = rtE_NONE;
 

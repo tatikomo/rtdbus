@@ -1,8 +1,9 @@
 #include <assert.h>
 
 #include "glog/logging.h"
+#if defined HAVE_CONFIG_H
 #include "config.h"
-
+#endif
 #include "xdb_rtap_snap.hpp"
 #include "xdb_rtap_environment.hpp"
 

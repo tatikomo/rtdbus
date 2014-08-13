@@ -1,10 +1,12 @@
 #pragma once
-#if !defined XDB_RTAP_SNAP_HPP
+#ifndef XDB_RTAP_SNAP_HPP
 #define XDB_RTAP_SNAP_HPP
 
 #include <string>
 
+#if defined HAVE_CONFIG_H
 #include "config.h"
+#endif
 #include "xdb_rtap_const.hpp"
 
 namespace xdb {

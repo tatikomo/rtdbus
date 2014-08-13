@@ -1,10 +1,12 @@
 #pragma once
-#if !defined XDB_RTAP_DATA_HPP
+#ifndef XDB_RTAP_DATA_HPP
 #define XDB_RTAP_DATA_HPP
 
 #include <string>
+#if defined HAVE_CONFIG_H
 #include "config.h"
-#include "xdb_core_error.hpp"
+#endif
+#include "xdb_impl_error.hpp"
 #include "xdb_rtap_const.hpp"
 
 namespace xdb {

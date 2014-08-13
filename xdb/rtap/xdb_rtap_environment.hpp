@@ -1,19 +1,19 @@
 #pragma once
-#if !defined XDB_RTAP_ENVIRONMENT_HPP
+#ifndef XDB_RTAP_ENVIRONMENT_HPP
 #define XDB_RTAP_ENVIRONMENT_HPP
 
 #include "config.h"
 
-#include "xdb_core_common.h"
-#include "xdb_core_error.hpp"
+#include "xdb_impl_common.hpp"
+#include "xdb_impl_error.hpp"
 #include "mdp_letter.hpp"
 
 namespace xdb {
 
-class Environment;
-class Application;
+class EnvironmentImpl;
 class RtConnection;
-class RtCoreDatabase;
+class RtDatabase;
+class RtApplication;
 
 class RtEnvironment
 {
@@ -21,7 +21,7 @@ class RtEnvironment
     friend class RtApplication;
     friend class RtConnection;
 
-    RtEnvironment(Application*, const char*);
+    RtEnvironment(RtApplication*, const char*);
     ~RtEnvironment();
 
     // Вернуть имя среды
@@ -61,9 +61,10 @@ class RtEnvironment
     const Error& LoadDictionary();
 
   private:
-    Environment  *m_impl;
-    RtConnection *m_conn;
-    RtCoreDatabase *m_database;
+    EnvironmentImpl *m_impl;
+    RtApplication   *m_appli;
+    RtConnection    *m_conn;
+    RtDatabase      *m_database;
 };
 
 } // namespace xdb

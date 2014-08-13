@@ -28,7 +28,7 @@ include_directories(${TOOLS_DIR})
 include_directories(${MDP_DIR})
 include_directories(${MSG_DIR})
 include_directories(${XDB_BROKER_DIR})
-include_directories(${XDB_CORE_DIR})
+include_directories(${XDB_IMPL_DIR})
 include_directories(${XDB_RTAP_DIR})
 include_directories(${WORKER_DIR})
 include_directories(${CLIENT_DIR})
@@ -45,11 +45,10 @@ link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 
-
 set (TEST_DEVICE_SOURCES
-        ${XDB_BROKER_DIR}/dat/broker_db.hpp
-        ${XDB_BROKER_DIR}/dat/broker_db.h
-        ${XDB_BROKER_DIR}/dat/broker_db.c
+        ${XDB_IMPL_DIR}/dat/broker_db.hpp
+        ${XDB_IMPL_DIR}/dat/broker_db.h
+        ${XDB_IMPL_DIR}/dat/broker_db.c
         ${XDB_BROKER_DIR}/xdb_broker_worker.hpp
         ${XDB_BROKER_DIR}/xdb_broker.hpp
         ${XDB_BROKER_DIR}/xdb_broker_service.hpp
@@ -70,17 +69,19 @@ set (TEST_DEVICE_SOURCES
         ${TEST_RTDBUS_DIR}/device_unittest.cpp)
 
 set (TEST_DATABASE_SOURCES
-        ${XDB_BROKER_DIR}/dat/broker_db.hpp
-        ${XDB_BROKER_DIR}/dat/broker_db.h
-        ${XDB_BROKER_DIR}/dat/broker_db.c
-        ${XDB_CORE_DIR}/xdb_core_application.hpp
-        ${XDB_CORE_DIR}/xdb_core_environment.hpp
-        ${XDB_CORE_DIR}/xdb_core_connection.hpp
-        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.hxx
-        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.cxx
-        ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.hxx
-        ${XDB_RTAP_DIR}/dat/rtap_db-pimpl.cxx
-        ${XDB_RTAP_DIR}/dat/rtap_db.hxx
+        ${XDB_IMPL_DIR}/dat/broker_db.hpp
+        ${XDB_IMPL_DIR}/dat/broker_db.h
+        ${XDB_IMPL_DIR}/dat/broker_db.c
+        ${XDB_IMPL_DIR}/xdb_impl_application.hpp
+        ${XDB_IMPL_DIR}/xdb_impl_environment.hpp
+        ${XDB_IMPL_DIR}/xdb_impl_connection.hpp
+        ${XDB_IMPL_DIR}/dat/rtap_db-pskel.hxx
+        ${XDB_IMPL_DIR}/dat/rtap_db-pskel.cxx
+        ${XDB_IMPL_DIR}/dat/rtap_db-pimpl.hxx
+        ${XDB_IMPL_DIR}/dat/rtap_db-pimpl.cxx
+        ${XDB_IMPL_DIR}/dat/rtap_db.hpp
+        ${XDB_IMPL_DIR}/dat/rtap_db.h
+        ${XDB_IMPL_DIR}/dat/rtap_db.c
         ${XDB_RTAP_DIR}/xdb_rtap_snap.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_snap_trans.cpp
         ${MDP_DIR}/mdp_zmsg.hpp
@@ -97,15 +98,15 @@ add_definitions (-Wno-missing-field-initializers)
 
 add_custom_command(
         OUTPUT
-        ${XDB_BROKER_DIR}/dat/broker_db.h
-        ${XDB_BROKER_DIR}/dat/broker_db.c
-        ${XDB_BROKER_DIR}/dat/broker_db.hpp
+        ${XDB_IMPL_DIR}/dat/broker_db.h
+        ${XDB_IMPL_DIR}/dat/broker_db.c
+        ${XDB_IMPL_DIR}/dat/broker_db.hpp
         COMMAND
-        ${LIBEXTREMEDB_MCOCOMP} -hpp broker_db.mco -P${XDB_BROKER_DIR}/dat
+        ${LIBEXTREMEDB_MCOCOMP} -hpp broker_db.mco -P${XDB_IMPL_DIR}/dat
         DEPENDS
-        ${XDB_BROKER_DIR}/dat/broker_db.mco
+        ${XDB_IMPL_DIR}/dat/broker_db.mco
         WORKING_DIRECTORY
-        ${XDB_BROKER_DIR}/dat
+        ${XDB_IMPL_DIR}/dat
         )
 
 add_custom_command(
@@ -122,22 +123,54 @@ add_custom_command(
 
 add_custom_command(
         OUTPUT
-        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.hxx
-        ${XDB_RTAP_DIR}/dat/rtap_db-pskel.cxx
+        ${XDB_IMPL_DIR}/dat/rtap_db-pskel.hxx
+        ${XDB_IMPL_DIR}/dat/rtap_db-pskel.cxx
         COMMAND
         /usr/bin/xsd cxx-parser --type-map rtap_db.map rtap_db.xsd
         DEPENDS
-        ${XDB_RTAP_DIR}/dat/rtap_db.xsd
-        ${XDB_RTAP_DIR}/dat/rtap_db.map
+        ${XDB_IMPL_DIR}/dat/rtap_db.xsd
+        ${XDB_IMPL_DIR}/dat/rtap_db.map
         WORKING_DIRECTORY
-        ${XDB_RTAP_DIR}/dat
+        ${XDB_IMPL_DIR}/dat
         )
+
+add_custom_command(
+        OUTPUT 
+        ${XDB_IMPL_DIR}/dat/rtap_db.h
+        ${XDB_IMPL_DIR}/dat/rtap_db.c
+        ${XDB_IMPL_DIR}/dat/rtap_db.hpp
+        COMMAND
+        ${LIBEXTREMEDB_MCOCOMP} -hpp rtap_db.mco -P${XDB_IMPL_DIR}/dat
+        DEPENDS
+        ${XDB_IMPL_DIR}/dat/rtap_db.mco
+        WORKING_DIRECTORY
+        ${XDB_IMPL_DIR}/dat
+        )
+
+set_source_files_properties(${XDB_IMPL_DIR}/dat/rtap_db.hpp
+                            ${XDB_IMPL_DIR}/dat/rtap_db.h
+                            ${XDB_IMPL_DIR}/dat/rtap_db.c
+                            PROPERTIES GENERATED 1)
+
+set_source_files_properties(${XDB_IMPL_DIR}/dat/broker_db.h
+                            ${XDB_IMPL_DIR}/dat/broker_db.c
+                            ${XDB_IMPL_DIR}/dat/broker_db.hpp
+                            PROPERTIES GENERATED 1)
+
+set_source_files_properties(${XDB_IMPL_DIR}/dat/rtap_db-pskel.hxx
+                            ${XDB_IMPL_DIR}/dat/rtap_db-pskel.cxx
+                            PROPERTIES GENERATED 1)
+
+set_source_files_properties(${MSG_DIR}/proto/common.pb.cc
+                            ${MSG_DIR}/proto/common.pb.h
+                            PROPERTIES GENERATED 1)
 
 add_executable (${UNITTEST_DEVICE} ${TEST_DEVICE_SOURCES})
 add_definitions (-D_FUNCTIONAL_TEST)
 add_definitions(-fpermissive)
 target_link_libraries(${UNITTEST_DEVICE}
     ${XDB_BROKER_LIBRARY_NAME}
+    ${XDB_RTAP_IMPL_LIBRARY_NAME}
     ${XDB_RTAP_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
     ${MSG_LIBRARY_NAME}
@@ -145,20 +178,17 @@ target_link_libraries(${UNITTEST_DEVICE}
     ${LIBZMQ_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${LIBGLOG_LIBRARIES}
-    "-lmcoseri_debug"
-    "-lxerces-c"
     ${SYSTEM_EXTERNAL_LIBS})
 
 add_executable (${UNITTEST_DATABASE} ${TEST_DATABASE_SOURCES})
 target_link_libraries(${UNITTEST_DATABASE}
     ${XDB_BROKER_LIBRARY_NAME}
+    ${XDB_RTAP_IMPL_LIBRARY_NAME}
     ${XDB_RTAP_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
     ${TOOLS_LIBRARY_NAME}
     ${LIBPROTOBUF_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
-    "-lmcoseri_debug"
-    "-lxerces-c"
     ${SYSTEM_EXTERNAL_LIBS})
 
 add_executable (${UNITTEST_MESSAGE} ${TEST_MSG_SOURCES})
@@ -167,8 +197,10 @@ target_link_libraries(${UNITTEST_MESSAGE}
     ${MDP_LIBRARY_NAME}
     ${LIBPROTOBUF_LIBRARIES}
     ${MSG_LIBRARY_NAME}
+    ${XDB_BROKER_IMPL_LIBRARY_NAME}
     ${XDB_BROKER_LIBRARY_NAME}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
+    "-lmcoseri_debug"
     ${SYSTEM_EXTERNAL_LIBS})
 
 add_test(NAME DATABASE_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_DATABASE})
