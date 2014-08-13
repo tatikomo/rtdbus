@@ -76,6 +76,7 @@ mco_size_sig_t file_reader( void *stream_handle /* FILE *  */,  /* OUT */void *t
 DatabaseImpl::DatabaseImpl(const char* _name, const Options& _options, mco_dictionary_h _dict) :
   m_snapshot_counter(0),
   m_state(DB_STATE_UNINITIALIZED),
+  m_last_error(rtE_NONE),
   m_dict(_dict),
   m_db_access_flags(_options),
   m_save_to_xml_feature(false)
@@ -137,6 +138,10 @@ DatabaseImpl::DatabaseImpl(const char* _name, const Options& _options, mco_dicti
                    << ") is ignored due to overflow limits [0..65535]";
     }
   }
+  else
+  {
+    m_MemoryPageSize = 256;
+  }
 
   if (getOption(m_db_access_flags,"OF_MAP_ADDRESS", val) && val)
   {
@@ -148,19 +153,19 @@ DatabaseImpl::DatabaseImpl(const char* _name, const Options& _options, mco_dicti
 #ifdef DISK_DATABASE
 # ifndef DB_LOG_TYPE
 #   define DB_LOG_TYPE REDO_LOG
-# endif 
+# endif
+#endif
   if (getOption(m_db_access_flags, "OF_DISK_CACHE_SIZE", val) && val)
   {
-    DbDiskCache = val;
-    DbDiskPageSize = 1024;
+    m_DbDiskCache = val;
+    m_DbDiskPageSize = 1024;
     LOG(INFO) << "Change default disk cache size to " << val;
   }
   else
   {
-    DbDiskCache = 0;
-    DbDiskPageSize = 0;
+    m_DbDiskCache = 0;
+    m_DbDiskPageSize = 0;
   }
-#endif
 }
 
 unsigned int DatabaseImpl::getSnapshotCounter()
@@ -329,7 +334,7 @@ const Error& DatabaseImpl::Connect()
 
     case DB_STATE_INITIALIZED:
         ConnectToInstance();
-        // переход в состояние ATTACHED
+        // переход в состояние CONNECTED
     break;
 
     case DB_STATE_DISCONNECTED:
@@ -361,11 +366,13 @@ const Error& DatabaseImpl::ConnectToInstance()
   clearError();
 
   // Создание нового экземпляра БД (mco_db_open)
-  if ((Create()).Ok())
+  if (!(Create()).Ok())
   {
     LOG(ERROR)<<"Unable attach to database "<<m_name;
     return getLastError();
   }
+
+  // База в состоянии ATTACHED
 
   LOG(INFO) << "Connecting to instance " << m_name; 
   rc = mco_db_connect(m_name, &m_db);
@@ -386,7 +393,7 @@ const Error& DatabaseImpl::ConnectToInstance()
   }
   else
   {
-     TransitionToState(DB_STATE_ATTACHED);
+     TransitionToState(DB_STATE_CONNECTED);
 
      // Если требуется удалить старый экземпляр БД
      if (true == getOption(m_db_access_flags, "OF_TRUNCATE", opt_val) && opt_val)
@@ -548,12 +555,12 @@ const Error& DatabaseImpl::StoreSnapshot(const char* given_file_name)
     {
       snprintf(fname, sizeof(fname), "%s.snap", m_name);
     }
-    fname[sizeof(fname)] = '\0';
+    fname[sizeof(fname)-1] = '\0';
 
     /* Backup database */
     if (NULL != (fbak = fopen(fname, "wb")))
     {
-      rc = mco_inmem_save((void *)fbak, file_writer, m_db);
+      rc = mco_inmem_save(static_cast<void*>(fbak), file_writer, m_db);
       if (rc)
       {
         LOG(ERROR) << "Unable to save "<<m_name<<" snapshot into "<<fname;
@@ -647,7 +654,7 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
         LOG(ERROR) << "Given file name for XML snapshot storing is exceed limits ("<<sizeof(fname)<<")";
       }
       strncpy(fname, given_file_name, sizeof(fname));
-      fname[sizeof(fname)] = '\0';
+      fname[sizeof(fname)-1] = '\0';
     }
     else
     {
@@ -662,7 +669,7 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
       break;
     }
 
-    rc = mco_inmem_load((void *)fbak,
+    rc = mco_inmem_load(static_cast<void*>(fbak),
                         file_reader,
                         m_name,
                         m_dict,
@@ -745,7 +752,7 @@ const Error& DatabaseImpl::Create()
    rc = mco_db_open(m_name,
                     m_dict,
                     (void*)m_MapAddress,
-                    m_DatabaseSize + DbDiskCache,
+                    m_DatabaseSize + m_DbDiskCache,
                     PAGESIZE);
 
 #endif /* EXTREMEDB_VERSION >= 40 */
@@ -774,12 +781,14 @@ const Error& DatabaseImpl::Create()
                       m_dbsFileName,
                       m_logFileName, 
                       0, 
-                      DbDiskCache, 
-                      DbDiskPageSize,
+                      m_DbDiskCache, 
+                      m_DbDiskPageSize,
                       MCO_INFINITE_DATABASE_SIZE,
                       DB_LOG_TYPE);
 
-   if (rc != MCO_S_OK && rc != MCO_ERR_DISK_ALREADY_OPENED)
+   if ((rc != MCO_S_OK)
+    && (rc != MCO_ERR_DISK_ALREADY_OPENED)
+    && (rc != MCO_E_INSTANCE_DUPLICATE))
    {
      LOG(ERROR) << "Error creating disk database, rc=" << rc;
      setError(rtE_RUNTIME_FATAL);
@@ -954,7 +963,7 @@ const Error& DatabaseImpl::TransitionToState(DBState_t new_state)
 }
 
 // Установить новое состояние ошибки
-void DatabaseImpl::setError(ErrorType_t _new_error_code)
+void DatabaseImpl::setError(ErrorCode_t _new_error_code)
 {
   m_last_error.set(_new_error_code);
 }

@@ -61,6 +61,7 @@ class RtEnvironment
     const Error& LoadDictionary();
 
   private:
+    DISALLOW_COPY_AND_ASSIGN(RtEnvironment);
     EnvironmentImpl *m_impl;
     RtApplication   *m_appli;
     RtConnection    *m_conn;

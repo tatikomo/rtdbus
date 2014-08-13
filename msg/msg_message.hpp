@@ -25,7 +25,7 @@ class Header
     RTDBM::Header& instance() { return m_header_instance; }
 
     // RO-доступ к служебным полям
-    int8_t         get_protocol_version() const;
+    uint32_t       get_protocol_version() const;
     rtdbExchangeId get_exchange_id() const;
     rtdbPid        get_source_pid() const;
     const std::string&   get_proc_dest() const;
@@ -57,7 +57,7 @@ class Header
     RTDBM::Header   m_header_instance;
 };
 
-}; //namespace msg
+} //namespace msg
 
 #endif
 

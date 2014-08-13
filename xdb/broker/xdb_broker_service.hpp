@@ -16,7 +16,7 @@ namespace xdb {
 class Service
 {
   public:
-    static const int NameMaxLen = SERVICE_NAME_MAXLEN;
+    static const short NameMaxLen = SERVICE_NAME_MAXLEN;
 
     enum State
     {

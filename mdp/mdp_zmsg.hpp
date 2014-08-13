@@ -106,6 +106,6 @@ class zmsg
    std::vector<std::string> m_part_data;
 };
 
-}; //namespace mdp
+} //namespace mdp
 
 #endif /* ZMSG_HPP_ */

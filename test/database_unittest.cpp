@@ -58,7 +58,7 @@ void show_runtime_info(const char * lead_line)
   mco_runtime_info_t info;
   
   /* get runtime info */
-  //mco_get_runtime_info(&info);
+  mco_get_runtime_info(&info);
 
   /* Core configuration parameters: */
   if ( *lead_line )
@@ -94,13 +94,13 @@ TEST(TestBrokerDATABASE, OPEN)
     database = new xdb::DatabaseBroker();
     ASSERT_TRUE (database != NULL);
 
-    state = database->State();
+    state = static_cast<DBState_t>(database->State());
     ASSERT_TRUE(state == DB_STATE_UNINITIALIZED);
 
     status = (database->Connect());
     ASSERT_TRUE(status == true);
 
-    state = database->State();
+    state = static_cast<DBState_t>(database->State());
     ASSERT_TRUE(state == DB_STATE_CONNECTED);
 
 #if VERBOSE
@@ -471,7 +471,10 @@ TEST(TestDiggerDATABASE, CREATION)
   ASSERT_TRUE(app != NULL);
 
   app->setOption("OF_CREATE", 1);
-  app->setOption("OF_RDWR", 1);
+  app->setOption("OF_RDWR",   1);
+  app->setOption("OF_DATABASE_SIZE", 1024 * 1024 * 10);
+  app->setOption("OF_MEMORYPAGE_SIZE", 1024); // 0..65535
+  app->setOption("OF_MAP_ADDRESS",   0x30000000);
   EXPECT_EQ(app->getLastError().getCode(), xdb::rtE_NONE);
 
   // Завершить инициализацию

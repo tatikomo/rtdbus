@@ -53,7 +53,7 @@ class DatabaseImpl
     // Вернуть признак отсутствия ошибки
     bool  ifErrorOccured() const;
     // Установить новое состояние ошибки
-    void  setError(ErrorType_t);
+    void  setError(ErrorCode_t);
     // Сбросить ошибку
     void  clearError();
     // Вернуть текущее состояние БД

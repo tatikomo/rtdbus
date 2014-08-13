@@ -50,7 +50,7 @@ class Worker
      */
     void SetSTATE(const State);
     void SetVALID();
-    timer_mark_t GetEXPIRATION() const;
+    const timer_mark_t& GetEXPIRATION() const;
     State   GetSTATE() const;
     int64_t GetSERVICE_ID() const { return m_service_id; }
     int64_t GetID() const        { return m_id; }

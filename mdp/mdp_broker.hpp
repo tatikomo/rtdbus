@@ -156,6 +156,6 @@ class Broker {
 #endif
 };
 
-}; //namespace mdp
+} //namespace mdp
 
 #endif

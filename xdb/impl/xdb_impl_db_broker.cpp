@@ -190,7 +190,7 @@ MCO_RET DatabaseBrokerImpl::new_Service(mco_trans_h /*t*/,
   MCO_RET rc;
   autoid_t aid;
   Service *service;
-  broker_db::XDBService service_instance;
+//  broker_db::XDBService service_instance;
   bool status = false;
 
   assert(self);
@@ -200,7 +200,7 @@ MCO_RET DatabaseBrokerImpl::new_Service(mco_trans_h /*t*/,
   {
     name[0] = '\0';
 
-    rc = XDBService_name_get(obj, name, (uint2)Service::NameMaxLen);
+    rc = XDBService_name_get(obj, name, Service::NameMaxLen);
     name[Service::NameMaxLen] = '\0';
     if (rc) { LOG(ERROR)<<"Unable to get service's name, rc="<<rc; break; }
 
@@ -242,7 +242,7 @@ MCO_RET DatabaseBrokerImpl::del_Service(mco_trans_h /*t*/,
   {
     name[0] = '\0';
 
-    rc = XDBService_name_get(obj, name, (uint2)Service::NameMaxLen);
+    rc = XDBService_name_get(obj, name, Service::NameMaxLen);
     name[Service::NameMaxLen] = '\0';
     if (rc) { LOG(ERROR)<<"Unable to get service's name, rc="<<rc; break; }
 
@@ -265,7 +265,7 @@ MCO_RET DatabaseBrokerImpl::RegisterEvents()
 
     rc = mco_register_newService_handler(t, 
             &DatabaseBrokerImpl::new_Service, 
-            (void*)this
+            static_cast<void*>(this)
 //#if (EXTREMEDB_VERSION >= 41) && USE_EXTREMEDB_HTTP_SERVER
 //            , MCO_AFTER_UPDATE
 //#endif
@@ -275,7 +275,7 @@ MCO_RET DatabaseBrokerImpl::RegisterEvents()
 
     rc = mco_register_delService_handler(t, 
             &DatabaseBrokerImpl::del_Service, 
-            (void*)this);
+            static_cast<void*>(this));
     if (rc) LOG(ERROR) << "Registering event on XDBService deletion, rc=" << rc;
 
     rc = mco_trans_commit(t);
@@ -295,7 +295,7 @@ Service *DatabaseBrokerImpl::AddService(const std::string& name)
 
 Service *DatabaseBrokerImpl::AddService(const char *name)
 {
-  broker_db::XDBService service_instance;
+  broker_db::XDBService service_instance = {};
   Service       *srv = NULL;
   MCO_RET        rc;
   mco_trans_h    t;
@@ -310,7 +310,7 @@ Service *DatabaseBrokerImpl::AddService(const char *name)
     rc = service_instance.create(t);
     if (rc) { LOG(ERROR) << "Creating instance, rc=" << rc; break; }
 
-    rc = service_instance.name_put(name, strlen(name));
+    rc = service_instance.name_put(name, static_cast<uint2>(strlen(name)));
     if (rc) { LOG(ERROR) << "Setting '" << name << "' name"; break; }
 
     rc = service_instance.state_put(REGISTERED);
@@ -320,7 +320,7 @@ Service *DatabaseBrokerImpl::AddService(const char *name)
     if (rc) { LOG(ERROR) << "Getting service "<<name<<" id, rc=" << rc; break; }
 
     srv = new Service(aid, name);
-    srv->SetSTATE((Service::State)REGISTERED);
+    srv->SetSTATE(Service::State::REGISTERED);
 
     rc = mco_trans_commit(t);
     if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; }
@@ -401,7 +401,7 @@ bool DatabaseBrokerImpl::RemoveWorker(Worker *wrk)
   MCO_RET       rc = MCO_S_OK;
   mco_trans_h   t;
   broker_db::XDBService service_instance;
-  broker_db::XDBWorker  worker_instance;
+  broker_db::XDBWorker  worker_instance = {};
 
   assert(wrk);
   const char* identity = wrk->GetIDENTITY();
@@ -456,7 +456,7 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
   broker_db::XDBService service_instance;
   broker_db::XDBWorker  worker_instance;
   timer_mark_t  now_time, next_heartbeat_time;
-  broker_db::timer_mark xdb_next_heartbeat_time;
+  broker_db::timer_mark xdb_next_heartbeat_time = {};
   autoid_t      srv_aid;
   autoid_t      wrk_aid;
 
@@ -693,7 +693,7 @@ Service *DatabaseBrokerImpl::LoadService(
 
   do
   {
-    rc = instance.name_get(name, (uint2)Service::NameMaxLen);
+    rc = instance.name_get(name, Service::NameMaxLen);
     name[Service::NameMaxLen] = '\0';
     if (rc) { LOG(ERROR)<<"Unable to get service's name, rc="<<rc; break; }
     rc = instance.state_get(state);
@@ -774,7 +774,7 @@ MCO_RET DatabaseBrokerImpl::LoadWorker(mco_trans_h /*t*/,
     rc = wrk_instance.autoid_get(wrk_aid);
     if (rc) { LOG(ERROR) << "Unable to get worker id"; break; }
 
-    rc = wrk_instance.identity_get(ident, (uint2)IDENTITY_MAXLEN);
+    rc = wrk_instance.identity_get(ident, static_cast<uint2>(IDENTITY_MAXLEN));
     if (rc) { LOG(ERROR) << "Unable to get identity for worker id "<<wrk_aid; break; }
 
     rc = wrk_instance.service_ref_get(srv_aid);
@@ -798,7 +798,7 @@ MCO_RET DatabaseBrokerImpl::LoadWorker(mco_trans_h /*t*/,
     rc = xdb_expire_time.nsec_get(timer_value); expire_time.tv_nsec = timer_value;
 
     worker = new Worker(srv_aid, ident, wrk_aid);
-    worker->SetSTATE((Worker::State)state);
+    worker->SetSTATE(static_cast<Worker::State>(state));
     worker->SetEXPIRATION(expire_time);
     /* Состояние объекта полностью соответствует хранимому в БД */
     worker->SetVALID();
@@ -1231,7 +1231,7 @@ MCO_RET DatabaseBrokerImpl::LoadLetter(mco_trans_h /*t*/,
       if (rc) { LOG(ERROR) << "Unable to get identity for worker id="<<worker_aid<<", rc="<<rc; break; }
     }
 #else
-    rc = letter_instance.origin_get(reply_buffer, (uint2)IDENTITY_MAXLEN);
+    rc = letter_instance.origin_get(reply_buffer, static_cast<uint2>(IDENTITY_MAXLEN));
     if (rc) { LOG(ERROR) << "Getting reply address for letter id "<<aid<<", rc=" << rc; break; }
 #endif
 
@@ -1252,7 +1252,7 @@ MCO_RET DatabaseBrokerImpl::LoadLetter(mco_trans_h /*t*/,
       letter->SetSERVICE_ID(service_aid);
       letter->SetWORKER_ID(worker_aid);
       letter->SetEXPIRATION(expire_time);
-      letter->SetSTATE((Letter::State)state);
+      letter->SetSTATE(static_cast<Letter::State>(state));
       // Все поля заполнены
       letter->SetVALID();
     }
@@ -1275,7 +1275,7 @@ Letter* DatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
   mco_trans_h  t;
   MCO_RET rc = MCO_S_OK;
   mco_cursor_t csr;
-  broker_db::XDBLetter letter_instance;
+  broker_db::XDBLetter letter_instance = {};
   Letter      *letter = NULL;
   char        *header_buffer = NULL;
   char        *body_buffer = NULL;
@@ -1433,7 +1433,7 @@ bool DatabaseBrokerImpl::AssignLetterToWorker(Worker* worker, Letter* letter)
     /* ===== Установлены ограничения времени обработки и для Сообщения, и для Обработчика == */
     
     // TODO проверить корректность преобразования
-    rc = letter_instance.state_put((LetterState)ASSIGNED);
+    rc = letter_instance.state_put(static_cast<LetterState>(ASSIGNED));
     if (rc) 
     {
       LOG(ERROR)<<"Unable changing state to "<<ASSIGNED<<" (ASSIGNED) from "
@@ -1445,7 +1445,7 @@ bool DatabaseBrokerImpl::AssignLetterToWorker(Worker* worker, Letter* letter)
     letter->SetWORKER_ID(worker->GetID());
 
     // TODO проверить корректность преобразования
-    rc = worker_instance.state_put((WorkerState)OCCUPIED);
+    rc = worker_instance.state_put(static_cast<WorkerState>(OCCUPIED));
     if (rc) 
     { 
       LOG(ERROR)<<"Worker '"<<worker->GetIDENTITY()<<"' changing state OCCUPIED ("
@@ -1988,7 +1988,7 @@ bool ServiceList::AddService(const Service* service)
     return false;
 
 //  LOG(INFO) << "EVENT AddService '"<<service->GetNAME()<<"' id="<<service->GetID();
-  m_array[m_size++] = service;
+  m_array[m_size++] = const_cast<Service*>(service);
 
   return true;
 }
@@ -2053,7 +2053,7 @@ bool ServiceList::refresh()
         LOG(ERROR) << "Unable to get item from Services list cursor, rc="<<rc; 
       }
 
-      rc = service_instance.name_get(name, (uint2)Service::NameMaxLen);
+      rc = service_instance.name_get(name, Service::NameMaxLen);
       if (rc) { LOG(ERROR) << "Getting service name, rc="<<rc; break; }
 
       rc = service_instance.autoid_get(aid);

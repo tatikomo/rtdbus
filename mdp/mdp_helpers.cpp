@@ -9,14 +9,22 @@ const char * EMPTY_FRAME = "";
 const char * MDPC_CLIENT = "MDPC0X";
 
 char *mdpc_commands [] = {
-    '\0', (char*)"REQUEST", (char*)"REPORT", (char*)"NAK",
+    '\0',
+    (const char*)"REQUEST",
+    (const char*)"REPORT",
+    (const char*)"NAK"
 };
 
 //  This is the version of MDP/Worker we implement
 const char * MDPW_WORKER = "MDPW0X";
 
 char *mdpw_commands [] = {
-    '\0', (char*)"READY", (char*)"REQUEST", (char*)"REPORT", (char*)"HEARTBEAT", (char*)"DISCONNECT"
+    '\0',
+    (const char*)"READY",
+    (const char*)"REQUEST",
+    (const char*)"REPORT",
+    (const char*)"HEARTBEAT",
+    (const char*)"DISCONNECT"
 }; // TODO: в версии 0.2 REPORT заменен на PARTIAL и FINAL
 
 /* ====================================================================== */

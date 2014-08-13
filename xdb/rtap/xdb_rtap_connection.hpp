@@ -18,6 +18,7 @@ class RtConnection
    ~RtConnection();
 
   private:
+    DISALLOW_COPY_AND_ASSIGN(RtConnection);
     RtEnvironment  *m_environment;
     ConnectionImpl *m_impl;
 };

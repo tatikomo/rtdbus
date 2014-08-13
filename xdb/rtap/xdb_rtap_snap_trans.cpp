@@ -627,7 +627,7 @@ bool xdb::processInstanceFile(const char* fpath)
   AttributeInfo_t attr_info; 
   // Сконвертированный из строки тип Атрибута
   DbType_t    db_type;
-  int         class_idx;
+  int         class_idx = GOF_D_BDR_OBJCLASS_UNUSED;
   // NB: значения могут быть строковыми, и содержать пробелы
   // В таком случае необходимо читать до конца кавычек.
   // Или до конца строки, поскольку поле "Значение" является
@@ -646,7 +646,7 @@ bool xdb::processInstanceFile(const char* fpath)
   int         colvect;
   int         ligne;
   int         input_file_line = 0; // номер текущей строки во входном файле
-  int         fieldCount;
+  int         fieldCount = 0;
   recordType  typeRecord;
 //  attrCategory      attrCateg;
   char*       tableStrDeType[rtMAX_FIELD_CNT];

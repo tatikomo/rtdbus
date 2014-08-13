@@ -66,7 +66,7 @@ class Letter
     ::google::protobuf::Message *m_body_instance;
 };
 
-}; // namespace mdp
+} // namespace mdp
 
 #endif
 

@@ -115,7 +115,7 @@ bool zmsg::recv(zmq::socket_t & socket) {
       if ((iteration == 1)
 /* [GEV:генерация GUID] */    && (message.size() == 5)
       && data[0] == 0) {
-         uuidstr = encode_uuid((unsigned char*) message.data());
+         uuidstr = encode_uuid(static_cast<unsigned char*>(message.data()));
          push_back(uuidstr);
          delete[] uuidstr;
       }
@@ -153,7 +153,9 @@ void zmsg::send(zmq::socket_t & socket)
         * Необходимо обратное преобразование в двоичное представление.
         * 11 байт - это первый символ '@' + 10 байт представления Адресата (identity)
         */
-       if (part_nbr == 0 && data.size() == IDENTITY_MAXLEN && data [0] == '@')
+       if ((part_nbr == 0)
+        && (data.size() == IDENTITY_MAXLEN)
+        && (data [0] == '@'))
        {
           uuidbin = decode_uuid(data);
           message.rebuild(5);
@@ -189,7 +191,7 @@ void zmsg::body_set(const char *body) {
    if (m_part_data.size() > 0) {
       m_part_data.erase(m_part_data.end()-1);
    }
-   push_back((char*)body);
+   push_back(const_cast<char*>(body));
 }
 
 void zmsg::body_fmt (const char *format, ...)
@@ -207,7 +209,7 @@ void zmsg::body_fmt (const char *format, ...)
 char * zmsg::body ()
 {
     if (m_part_data.size())
-        return ((char *) m_part_data [m_part_data.size() - 1].c_str());
+        return (const_cast<char*>(m_part_data [m_part_data.size() - 1].c_str()));
     else
         return 0;
 }
@@ -311,7 +313,7 @@ std::string zmsg::pop_front() {
 void zmsg::append (const char *part)
 {
     assert (part);
-    push_back((char*)part);
+    push_back(const_cast<char*>(part));
 }
 
 
@@ -321,7 +323,7 @@ void zmsg::append (const char *part)
  */
 char *zmsg::address() {
    if (m_part_data.size() > 0) {
-      return (char*)m_part_data[0].c_str();
+      return const_cast<char*>(m_part_data[0].c_str());
    } else {
       return 0;
    }
@@ -376,16 +378,18 @@ void zmsg::dump()
             || static_cast<unsigned char>(data[char_nbr]) > 127)
                is_text = 0;
 
-       offset = sprintf(buf, "[%03d] ", (int) data.size());
+       offset = sprintf(buf, "[%03d] ", data.size());
        for (char_nbr = 0; char_nbr < data.size(); char_nbr++)
        {
            if (is_text) 
            {
-               strcpy((char*)(&buf[0] + offset++), (const char*) &data [char_nbr]);
+               strcpy(static_cast<char*>(&buf[0] + offset++),
+                      static_cast<const char*>(&data [char_nbr]));
            }
            else 
            {
-               snprintf(&buf[offset], 3, "%02X", (unsigned char)data[char_nbr]);
+               snprintf(&buf[offset], 3, "%02X",
+                        static_cast<unsigned char>(data[char_nbr]));
                offset += 2;
            }
        }

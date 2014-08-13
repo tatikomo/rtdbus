@@ -64,6 +64,6 @@ class mdcli {
    int m_timeout;                //  Request timeout
 };
 
-}; //namespace mdp
+} //namespace mdp
 
 #endif

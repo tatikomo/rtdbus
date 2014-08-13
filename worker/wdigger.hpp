@@ -32,6 +32,6 @@ class Digger : public mdp::mdwrk
     xdb::RtConnection*   m_db_connection;
 };
 
-}; // namespace mdp
+} // namespace mdp
 
 #endif

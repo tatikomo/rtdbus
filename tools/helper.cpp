@@ -31,7 +31,7 @@ void LogError(int rc,
 
     pthread_mutex_lock(&mutex);
 #if OS_TYPE == LINUX
-    printf ("[%ld] ", (long int)syscall(SYS_gettid));
+    printf ("[%ld] ", static_cast<long int>(syscall(SYS_gettid)));
 #else
     printf ("[%lu] ", pthread_self());
 #endif
@@ -67,7 +67,7 @@ void LogWarn(
     vsprintf (user_msg, format, args);
     strncat(buffer, user_msg, sizeof(buffer)-1);
 #if OS_TYPE == LINUX
-    fprintf(stdout, "[%ld] %s\n", (long int)syscall(SYS_gettid), buffer);
+    fprintf(stdout, "[%ld] %s\n", static_cast<long int>(syscall(SYS_gettid)), buffer);
 #else
     fprintf(stdout, "[%lu] %s\n", pthread_self(), buffer);
 #endif
@@ -95,7 +95,7 @@ void LogInfo(
     vsprintf (user_msg, format, args);
     strncat(buffer, user_msg, sizeof(buffer)-1);
 #if OS_TYPE == LINUX
-    fprintf(stdout, "[%ld] %s\n", (long int)syscall(SYS_gettid), buffer);
+    fprintf(stdout, "[%ld] %s\n", static_cast<long int>(syscall(SYS_gettid)), buffer);
 #else
     fprintf(stdout, "[%lu] %s\n", pthread_self(), buffer);
 #endif
@@ -119,16 +119,16 @@ void hex_dump(const std::string& data)
        if (static_cast<unsigned char>(data[char_nbr]) < 32 || static_cast<unsigned char>(data[char_nbr]) > 127)
            is_text = 0;
 
-   offset = sprintf(buf, "[%03d] ", (int) data.size());
+   offset = sprintf(buf, "[%03d] ", static_cast<int>(data.size()));
    for (char_nbr = 0; char_nbr < data.size(); char_nbr++)
    {
        if (is_text) 
        {
-           strcpy((char*)(&buf[0] + offset++), (const char*) &data [char_nbr]);
+           strcpy(static_cast<char*>(&buf[0] + offset++), static_cast<const char*>(&data[char_nbr]));
        }
        else 
        {
-           snprintf(&buf[offset], 3, "%02X", (unsigned char)data[char_nbr]);
+           snprintf(&buf[offset], 3, "%02X", static_cast<unsigned char>(data[char_nbr]));
            offset += 2;
        }
    }
@@ -145,19 +145,27 @@ char* hex_dump(const char* data, unsigned int size)
    // Dump the message as text or binary
    is_text = 1;
    for (char_nbr = 0; char_nbr < size; char_nbr++)
-       if (static_cast<unsigned char>(data[char_nbr]) < 32 || static_cast<unsigned char>(data[char_nbr]) > 127)
+   {
+       if (static_cast<unsigned char>(data[char_nbr]) < 32 
+        || static_cast<unsigned char>(data[char_nbr]) > 127)
+        {
+           // Встречаются непечатные символы, выводим в двоичном виде
            is_text = 0;
+           break;
+        }
+   }
 
    offset = sprintf(buf, "[%03d] ", size);
    for (char_nbr = 0; char_nbr < size; char_nbr++)
    {
        if (is_text) 
        {
-           strcpy((char*)(&buf[0] + offset++), (const char*)&data[char_nbr]);
+           strcpy(static_cast<char*>(&buf[0] + offset++),
+                  static_cast<const char*>(&data[char_nbr]));
        }
        else 
        {
-           snprintf(&buf[offset], 3, "%02X", (unsigned char)data[char_nbr]);
+           snprintf(&buf[offset], 3, "%02X", static_cast<unsigned char>(data[char_nbr]));
            offset += 2;
        }
    }

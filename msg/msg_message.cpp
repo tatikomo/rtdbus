@@ -30,7 +30,7 @@ bool Header::ParseFrom(const std::string& frame)
   return m_header_instance.ParseFromString(frame);
 }
 
-int8_t Header::get_protocol_version() const
+uint32_t Header::get_protocol_version() const
 {
   return m_header_instance.protocol_version();
 }

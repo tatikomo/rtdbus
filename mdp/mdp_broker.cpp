@@ -232,7 +232,7 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
           letter->Dump();
         }
         // Передать ожидающую обслуживания команду выбранному Обработчику
-        worker_send (wrk, (char*)MDPW_REQUEST, EMPTY_FRAME, letter);
+        worker_send (wrk, MDPW_REQUEST, EMPTY_FRAME, letter);
         delete letter;
         // После отсылки Сообщения этот экземпляр Обработчика перешел 
         // в состояние OCCUPIED, нужно выбрать нового Обработчика.
@@ -299,8 +299,8 @@ Broker::service_internal (const std::string& service_name, zmsg *msg)
     //  protocol header and service name, then rewrap envelope.
     char* client = msg->unwrap();
     msg->wrap(MDPC_CLIENT, service_name.c_str());
-    msg->push_front((char*)MDPC_REPORT);
-    msg->push_front((char*)MDPC_CLIENT);
+    msg->push_front(const_cast<char*>(MDPC_REPORT));
+    msg->push_front(const_cast<char*>(MDPC_CLIENT));
     msg->wrap (client, EMPTY_FRAME);
     msg->send (*m_socket);
     delete[] client;
@@ -335,7 +335,7 @@ Broker::release (xdb::Worker *&wrk, int disconnect)
   assert (wrk);
   if (disconnect) 
   {
-    worker_send (wrk, (char*)MDPW_DISCONNECT, EMPTY_FRAME, (xdb::Letter*)NULL);
+    worker_send (wrk, MDPW_DISCONNECT, EMPTY_FRAME, (xdb::Letter*)NULL);
   }
 
   if (false == (status = m_database->RemoveWorker(wrk)))
@@ -443,9 +443,9 @@ Broker::worker_process_REPORT(xdb::Worker*& worker,
      //  Remove & save client return envelope and insert the
      //  protocol header and service name, then rewrap envelope.
      char* client = msg->unwrap ();
-     msg->push_front((char*)service->GetNAME());
-     msg->push_front((char*)MDPC_REPORT);
-     msg->push_front((char*)MDPC_CLIENT);
+     msg->push_front(const_cast<char*>(service->GetNAME()));
+     msg->push_front(const_cast<char*>(MDPC_REPORT));
+     msg->push_front(const_cast<char*>(MDPC_CLIENT));
      msg->wrap (client, EMPTY_FRAME);
      msg->send (*m_socket);
      delete[] client;
@@ -543,8 +543,7 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
         }
         else
         {
-          LOG(ERROR) << "Invalid input message "
-                     << mdpw_commands [(int) *command.c_str()];
+          LOG(ERROR) << "Invalid input message '" << command << "'";
           msg->dump ();
         }
       }
@@ -597,13 +596,13 @@ Broker::worker_send (xdb::Worker *worker,
       msg->push_front(const_cast<std::string&>(letter->GetHEADER()));
       msg->push_front(const_cast<char*>(letter->GetREPLY_TO()));
       msg->push_front(const_cast<char*>(command));
-      msg->push_front((char*)MDPW_WORKER); 
+      msg->push_front(const_cast<char*>(MDPW_WORKER));
       //  Stack routing envelope to start of message
       msg->wrap(worker->GetIDENTITY(), EMPTY_FRAME);
 
       if (m_verbose)
       {
-        LOG(INFO) << "Sending '" << mdpw_commands [(int) *command]
+        LOG(INFO) << "Sending '" << mdpw_commands [static_cast<int>(*command)]
                 << "' from '"<<letter->GetREPLY_TO()<<"' to worker '"
                 << worker->GetIDENTITY() << "'";
         msg->dump ();
@@ -638,12 +637,12 @@ Broker::worker_send (
   msg->push_front(body);
   msg->push_front(header);
   msg->push_front (const_cast<char*>(command));
-  msg->push_front ((char*)MDPW_WORKER); 
+  msg->push_front (const_cast<char*>(MDPW_WORKER));
   //  Stack routing envelope to start of message
   msg->wrap(worker->GetIDENTITY(), EMPTY_FRAME);
 
   if (m_verbose) {
-    LOG(INFO) << "Sending '" << mdpw_commands [(int) *command]
+    LOG(INFO) << "Sending '" << mdpw_commands [static_cast<int>(*command)]
               << "' to worker '" << worker->GetIDENTITY() << "'";
     msg->dump ();
   }
@@ -667,13 +666,13 @@ Broker::worker_send (xdb::Worker *worker,
         msg->push_front ((char*)option.c_str());
     }
     msg->push_front (const_cast<char*>(command));
-    msg->push_front ((char*)MDPW_WORKER);
+    msg->push_front (const_cast<char*>(MDPW_WORKER));
     //  Stack routing envelope to start of message
     msg->wrap(worker->GetIDENTITY(), EMPTY_FRAME);
 
     if (m_verbose) {
-        LOG(INFO) << "Sending '" << mdpw_commands [(int) *command]
-            << "' to worker '" << worker->GetIDENTITY() << "'";
+        LOG(INFO) << "Sending '" << mdpw_commands [static_cast<int>(*command)]
+                  << "' to worker '" << worker->GetIDENTITY() << "'";
         msg->dump ();
     }
     msg->send (*m_socket);

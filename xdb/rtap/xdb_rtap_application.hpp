@@ -56,7 +56,7 @@ class RtApplication
     ApplicationImpl *m_impl;
     bool         m_initialized;
     std::vector<RtEnvironment*> m_env_list;
-    BitSet8      m_options;
+//    BitSet8      m_options;
 
     // Зарегистрировать в Приложении среду
     void         registerEnvironment(RtEnvironment*);

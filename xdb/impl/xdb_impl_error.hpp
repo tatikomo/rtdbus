@@ -22,10 +22,11 @@ typedef enum
   rtE_INCORRECT_DB_TRANSITION_STATE,
   rtE_SNAPSHOT_WRITE,
   rtE_SNAPSHOT_READ,
+  rtE_SNAPSHOT_NOT_EXIST,
   rtE_RUNTIME_FATAL,
   rtE_RUNTIME_WARNING,
   rtE_LAST
-} ErrorType_t;
+} ErrorCode_t;
 
 class Error
 {
@@ -36,23 +37,23 @@ class Error
     // Инициализация по образцу
     Error(const Error&);
     // Инициализация по коду
-    Error(ErrorType_t);
+    Error(ErrorCode_t);
 
     ~Error();
     // Получить код ошибки
     int getCode() const;
+    ErrorCode_t code() const { return m_error_code; };
     // Установить код ошибки
-    void set(ErrorType_t);
+    void set(ErrorCode_t);
     // Установить код ошибки
-    void set(const Error& _err) { m_error_type = _err.getCode(); };
-
+    void set(const Error& _err) { m_error_code = _err.m_error_code; };
     // true, если не было ошибки
-    bool Ok() const { return m_error_type == rtE_NONE; };
+    bool Ok() const { return m_error_code == rtE_NONE; };
     // true, если была ошибка
-    bool NOk() const { return m_error_type != rtE_NONE; };
+    bool NOk() const { return m_error_code != rtE_NONE; };
 
     // Сбросить код ошибки
-    void clear() { m_error_type = rtE_NONE; };
+    void clear() { m_error_code = rtE_NONE; };
     // Получить символьное описание ошибки
     const char* what() const;
 
@@ -60,7 +61,7 @@ class Error
     void init();
     static bool  m_initialized;
     static char* m_error_descriptions[MaxErrorCode + 1];
-    int          m_error_type;
+    ErrorCode_t  m_error_code;
 };
 
 } //namespace xdb

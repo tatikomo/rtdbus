@@ -43,7 +43,7 @@ DBState_t RtDatabase::State() const
   return m_impl->State();
 }
 
-void RtDatabase::setError(ErrorType_t _new_error_code)
+void RtDatabase::setError(ErrorCode_t _new_error_code)
 {
   m_impl->setError(_new_error_code);
 }

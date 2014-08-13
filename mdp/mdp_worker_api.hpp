@@ -74,6 +74,6 @@ class mdwrk {
     bool             m_expect_reply;//  Zero only at start
 };
 
-}; //namespace mdp
+} //namespace mdp
 
 #endif

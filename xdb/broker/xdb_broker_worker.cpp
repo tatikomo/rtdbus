@@ -96,7 +96,7 @@ void Worker::SetEXPIRATION(const timer_mark_t& _expiration)
   m_modified = true;
 }
 
-timer_mark_t Worker::GetEXPIRATION() const
+const timer_mark_t& Worker::GetEXPIRATION() const
 {
   return m_expiration;
 }

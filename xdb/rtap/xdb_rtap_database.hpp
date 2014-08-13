@@ -15,7 +15,7 @@ class DatabaseImpl;
 class RtDatabase
 {
   public:
-    RtDatabase(const char*, const Options& /*BitSet8*/);
+    RtDatabase(const char*, const Options&);
     ~RtDatabase();
 
     const char* DatabaseName() const;
@@ -38,7 +38,7 @@ class RtDatabase
     // Сбросить ошибку
     void  clearError();
     // Установить новое состояние ошибки
-    void  setError(ErrorType_t);
+    void  setError(ErrorCode_t);
     // Вернуть текущее состояние БД
     DBState_t State() const;
 

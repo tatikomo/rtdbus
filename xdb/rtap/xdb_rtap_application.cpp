@@ -122,8 +122,16 @@ RtEnvironment* RtApplication::loadEnvironment(const char* _env_name)
   }
   else
   {
-    LOG(ERROR) << "Environment '" << env->getName()
-               << "' is fault loading for App '" << m_impl->getAppName() << "'";
+    if (rtE_SNAPSHOT_NOT_EXIST == status.code())
+    {
+      // TODO восстановить состояние по конфигурационным файлам
+      LOG(ERROR) << "Construct empty database contents for '"
+                 << m_impl->getAppName() << ":" << env->getName() << "'";
+      status.set(rtE_NOT_IMPLEMENTED);
+    }
+
+    LOG(ERROR) << "Fault loading environment '" << m_impl->getAppName()
+               << ":" << env->getName() << "' from its snapshot";
   }
 
   return env;
