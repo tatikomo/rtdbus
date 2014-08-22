@@ -92,6 +92,7 @@ const char* EnvironmentImpl::getAppName() const
   return m_appli->getAppName();
 }
 
+#if 0
 // TODO: Создать и вернуть новое подключение к указанной БД/среде
 ConnectionImpl* EnvironmentImpl::getConnection()
 {
@@ -103,7 +104,6 @@ ConnectionImpl* EnvironmentImpl::getConnection()
   return m_conn;
 }
 
-#if 0
 // TODO: Создать новое сообщение указанного типа
 mdp::Letter* EnvironmentImpl::createMessage(/* msgType */)
 {
@@ -134,33 +134,7 @@ const Error& EnvironmentImpl::MakeSnapshot(const char *filename)
   m_last_error = rtE_NONE;
 
   assert(filename);
-
-#if 0
-  // Допустимым форматом хранения XML-снимков БДРВ является встроенный в eXtremeDB формат.
-  // Это снимает зависимость от библиотеки xerces в runtime луркера.
-  m_database_impl->StoreSnapshot(filename);
-//    m_last_error.set(rtE_XML_NOT_OPENED);
-#endif
+  m_last_error.set(rtE_XML_NOT_OPENED);
   return m_last_error;
 }
 
-// Открыть БД без создания подключений
-// Подключения создаются в классе DbConection
-// TODO: определить, какую словарную функцию использует данная среда
-Error& EnvironmentImpl::openDB()
-{
-  m_last_error = rtE_NONE;
-
-  // Действительное открытие БД происходит в дочернем классе
-#if 1
-    m_last_error.set(rtE_DB_NOT_OPENED);
-#else
-  // Открыть БД с помощью mco_db_open(m_name)...
-  if (false == m_database_impl->Connect())
-  {
-    m_last_error.set(rtE_DB_NOT_OPENED);
-  }
-#endif
-
-  return m_last_error;
-}

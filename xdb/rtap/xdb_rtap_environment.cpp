@@ -17,19 +17,19 @@ RtEnvironment::RtEnvironment(RtApplication* _app, const char* _name)
 {
   m_appli = _app;
   m_impl = new EnvironmentImpl(_app->getImpl(), _name);
-  m_database = NULL;
   m_conn = NULL;
+  m_database = NULL;
 }
 
 RtEnvironment::~RtEnvironment()
 {
   delete m_conn;
+  delete m_impl;
   if (m_database)
   {
-    m_database->Disconnect();
+//    m_database->Disconnect();
     delete m_database;
   }
-  delete m_impl;
 }
 
 // Вернуть имя подключенной БД/среды

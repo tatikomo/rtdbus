@@ -97,6 +97,7 @@ AppState_t RtApplication::getOperationState() const
 // TODO: Найти файл с описателем данной среды (аналог RtapEnvTable) и НСИ
 RtEnvironment* RtApplication::loadEnvironment(const char* _env_name)
 {
+  Error status;
   RtEnvironment *env = isEnvironmentRegistered(_env_name);
   
   if (env)
@@ -110,7 +111,7 @@ RtEnvironment* RtApplication::loadEnvironment(const char* _env_name)
   env = getEnvironment(_env_name);
 
   // Загрузить ранее сохраненное содержимое
-  const Error &status = env->LoadSnapshot();
+  status = env->LoadSnapshot();
 
   if (status.Ok())
   {
@@ -132,6 +133,16 @@ RtEnvironment* RtApplication::loadEnvironment(const char* _env_name)
 
     LOG(ERROR) << "Fault loading environment '" << m_impl->getAppName()
                << ":" << env->getName() << "' from its snapshot";
+
+#if 0
+    // Удаляем экземпляр Среды, созданный с ошибкой
+    delete env;
+    env = NULL;
+#else
+    // Владение экземпляром перешло к RtApplication
+    registerEnvironment(env);
+#warning "Нельзя регистрировать ошибочные экземпляры Сред. Сейчас это сделано для тестов."
+#endif
   }
 
   return env;
@@ -164,8 +175,8 @@ RtEnvironment* RtApplication::getEnvironment(const char* _env_name)
   if (!env)
   {
     env = new RtEnvironment(this, name);
-    LOG(INFO) << "Creating new environment '" << name
-              << "' for Application " << m_impl->getAppName();
+    LOG(INFO) << "Creating new environment '" << m_impl->getAppName()
+              << ":" << name << "'";
   }
   return env;
 }

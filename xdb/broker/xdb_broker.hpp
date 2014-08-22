@@ -78,10 +78,10 @@ class DatabaseBroker
 
     /* Выбрать свободного Обработчика и удалить его из спула своего Сервиса */
     Worker  *PopWorker(const std::string&);
-    Worker  *PopWorker(Service*);
+    Worker  *PopWorker(const Service*);
 
     /* Очистить спул Обработчиков указанного Сервиса */
-    bool ClearWorkersForService(const char*);
+    bool ClearWorkersForService(const Service*);
 
     /* Очистить спул Обработчиков и всех Сервисов */
     bool ClearServices();

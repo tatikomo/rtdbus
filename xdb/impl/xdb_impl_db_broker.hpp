@@ -143,9 +143,10 @@ class DatabaseBrokerImpl
 
 //    Worker *GetWorker(const Service*);
 //    Worker *PopWorker(const char*);
-    Worker *PopWorker(const std::string&);
-    Worker *PopWorker(const Service*);
+    Worker *PopWorker(const std::string&, WorkerState = ARMED);
+    Worker *PopWorker(const Service*, WorkerState = ARMED);
 
+    bool ClearWorkersForService(const Service*);
     bool ClearWorkersForService(const char*);
     bool ClearWorkersForService(const std::string&);
 

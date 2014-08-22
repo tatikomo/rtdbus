@@ -36,35 +36,10 @@ mco_size_sig_t file_writer(void*, const void*, mco_size_t);
 #include "helper.hpp"
 #include "dat/broker_db.hpp"
 #include "xdb_impl_database.hpp"
-//#include "xdb_broker.hpp"
 #include "xdb_impl_db_broker.hpp"
 #include "xdb_broker_service.hpp"
-//#include "xdb_broker_worker.hpp"
-//#include "xdb_broker_letter.hpp"
 
 using namespace xdb;
-
-const unsigned int DATABASE_SIZE = 1024 * 1024 * 1;  // 1Mб
-const unsigned int MEMORY_PAGE_SIZE = DATABASE_SIZE; // Вся БД поместится в одной странице ОЗУ 
-const unsigned int MAP_ADDRESS = 0x20000000;
-
-#ifndef MCO_PLATFORM_X64
-    static const unsigned int PAGESIZE = 128;
-#else 
-    static const int unsigned PAGESIZE = 256;
-#endif 
-
-#ifdef DISK_DATABASE
-const int DB_DISK_CACHE = (1 * 1024 * 1024);
-const int DB_DISK_PAGE_SIZE = 1024;
-
-    #ifndef DB_LOG_TYPE
-        #define DB_LOG_TYPE REDO_LOG
-    #endif 
-#else 
-const int DB_DISK_CACHE = 0;
-const int DB_DISK_PAGE_SIZE = 0;
-#endif 
 
 /* 
  * Включение динамически генерируемых определений 
@@ -97,12 +72,15 @@ DatabaseBrokerImpl::DatabaseBrokerImpl(const char* _name) :
   Options opt;
   assert(_name);
 
-  // TODO Выставить опции по-умолчанию
+  // Опции по умолчанию
   setOption(opt, "OF_CREATE",    1);
   setOption(opt, "OF_LOAD_SNAP", 1);
   setOption(opt, "OF_DATABASE_SIZE",   1024 * 1024 * 10);
   setOption(opt, "OF_MEMORYPAGE_SIZE", 1024); // 0..65535
   setOption(opt, "OF_MAP_ADDRESS", 0x20000000);
+#if defined USE_EXTREMEDB_HTTP_SERVER
+  setOption(opt, "OF_HTTP_PORT", 8081);
+#endif
 
 #ifdef DISK_DATABASE
   /* NB: +5 - для ".dbs" и ".log" с завершающим '\0' */
@@ -116,6 +94,8 @@ DatabaseBrokerImpl::DatabaseBrokerImpl(const char* _name) :
   strcat(m_logFileName, ".log");
 
   setOption(opt, "OF_DISK_CACHE_SIZE", 1024 * 1024 * 10);
+#else
+  setOption(opt, "OF_DISK_CACHE_SIZE", 0);
 #endif
 
   m_database = new DatabaseImpl(_name, opt, broker_db_get_dictionary());
@@ -129,7 +109,7 @@ DatabaseBrokerImpl::~DatabaseBrokerImpl()
 
 bool DatabaseBrokerImpl::Init()
 {
-  Error err = m_database->Create();
+  Error err = m_database->Open();
   return err.Ok();
 }
 
@@ -141,8 +121,10 @@ bool DatabaseBrokerImpl::Connect()
 
 bool DatabaseBrokerImpl::Disconnect()
 {
-  MCO_RET rc = MCO_S_OK;
+  //MCO_RET rc = MCO_S_OK;
   DBState_t state = m_database->State();
+
+#if 0
 
   switch (state)
   {
@@ -169,6 +151,9 @@ bool DatabaseBrokerImpl::Disconnect()
   }
 
   return (!rc)? true : false;
+#else
+  return (m_database->Disconnect()).Ok();
+#endif
 }
 
 DBState_t DatabaseBrokerImpl::State()
@@ -768,6 +753,7 @@ MCO_RET DatabaseBrokerImpl::LoadWorker(mco_trans_h /*t*/,
   WorkerState   state;
   autoid_t      wrk_aid;
   autoid_t      srv_aid;
+  autoid_t      letter_aid;
 
   do
   {
@@ -779,6 +765,9 @@ MCO_RET DatabaseBrokerImpl::LoadWorker(mco_trans_h /*t*/,
 
     rc = wrk_instance.service_ref_get(srv_aid);
     if (rc) { LOG(ERROR) << "Unable to get service id for worker "<<ident; break; }
+
+    rc = wrk_instance.letter_ref_get(letter_aid);
+    if (rc) { LOG(ERROR) << "Unable to get letter id for worker "<<ident; break; }
 
     ident[IDENTITY_MAXLEN] = '\0';
     if (rc)
@@ -797,7 +786,7 @@ MCO_RET DatabaseBrokerImpl::LoadWorker(mco_trans_h /*t*/,
     rc = xdb_expire_time.sec_get(timer_value); expire_time.tv_sec = timer_value;
     rc = xdb_expire_time.nsec_get(timer_value); expire_time.tv_nsec = timer_value;
 
-    worker = new Worker(srv_aid, ident, wrk_aid);
+    worker = new Worker(srv_aid, ident, wrk_aid, letter_aid);
     worker->SetSTATE(static_cast<Worker::State>(state));
     worker->SetEXPIRATION(expire_time);
     /* Состояние объекта полностью соответствует хранимому в БД */
@@ -812,25 +801,25 @@ MCO_RET DatabaseBrokerImpl::LoadWorker(mco_trans_h /*t*/,
 }
 
 /* 
- * Вернуть ближайший свободный Обработчик в состоянии ARMED.
+ * Вернуть ближайший свободный Обработчик в состоянии ARMED (по умолчанию).
  * Побочные эффекты: создается экземпляр Worker, его удаляет вызвавшая сторона
  *
  * TODO: возвращать следует наиболее "старый" экземпляр, временная отметка 
  * которого раньше всех остальных экземпляров с этим же состоянием.
  */
-Worker *DatabaseBrokerImpl::PopWorker(const Service *srv)
+Worker *DatabaseBrokerImpl::PopWorker(const Service *srv, WorkerState state)
 {
   Worker       *worker = NULL;
   autoid_t      service_aid;
 
   assert(srv);
   service_aid = const_cast<Service*>(srv)->GetID();
-  worker = GetWorkerByState(service_aid, ARMED);
+  worker = GetWorkerByState(service_aid, state);
 
   return worker;
 }
 
-Worker *DatabaseBrokerImpl::PopWorker(const std::string& service_name)
+Worker *DatabaseBrokerImpl::PopWorker(const std::string& service_name, WorkerState state)
 {
   Service      *service = NULL;
   Worker       *worker = NULL;
@@ -839,7 +828,7 @@ Worker *DatabaseBrokerImpl::PopWorker(const std::string& service_name)
   {
     autoid_t  service_aid = service->GetID();
     delete service;
-    worker = GetWorkerByState(service_aid, ARMED);
+    worker = GetWorkerByState(service_aid, state);
   }
 
   return worker;
@@ -981,17 +970,33 @@ Worker* DatabaseBrokerImpl::GetWorkerByState(autoid_t& service_id,
   return worker;
 }
 
-
-bool DatabaseBrokerImpl::ClearWorkersForService(const char *name)
+/* Очистить спул Обработчиков указанной Службы
+ *
+ * Удалить все незавершенные Сообщения, привязанные к Обработчикам Сервиса.
+ * Удалить всех Обработчиков Сервиса.
+ */
+bool DatabaseBrokerImpl::ClearWorkersForService(const Service *service)
 {
-    /* TODO: Очистить спул Обработчиков указанной Службы */
+    Worker *wrk;
 
-    /*
-     * Удалить все незавершенные Сообщения, привязанные к Обработчикам Сервиса
-     * Удалить всех Обработчиков Сервиса
-     */
-    assert(name);
-    return false;
+    assert(service);
+
+    while ((wrk = PopWorker(service, OCCUPIED)))
+    {
+//        if (m_verbose) 
+        {
+          LOG(INFO) << "Purge worker " << wrk->GetIDENTITY()
+                    << " for service "<< const_cast<Service*>(service)->GetNAME();
+        }
+
+        ReleaseLetterFromWorker(wrk);
+
+        RemoveWorker(wrk);
+
+        delete wrk;
+    }
+
+    return true;
 }
 
 /* Очистить спул Обработчиков и всех Служб */
@@ -1008,7 +1013,7 @@ bool DatabaseBrokerImpl::ClearServices()
   srv = m_service_list->first();
   while (srv)
   {
-    if (true == (status = ClearWorkersForService(srv->GetNAME())))
+    if (true == (status = ClearWorkersForService(srv)))
     {
       status = RemoveService(srv->GetNAME());
     }
@@ -1515,7 +1520,7 @@ bool DatabaseBrokerImpl::ReleaseLetterFromWorker(Worker* worker)
     rc = broker_db::XDBLetter::SK_by_worker_id::find(t, worker->GetID(), letter_instance);
     if (rc)
     {
-      LOG(ERROR) << "Unable to find letter assigned to worker "<<worker->GetIDENTITY();
+      LOG(WARNING) << "Unable to find any letter assigned to worker "<<worker->GetIDENTITY();
       break;
     }
 
@@ -1657,6 +1662,7 @@ bool DatabaseBrokerImpl::SetWorkerState(Worker* worker, Worker::State new_state)
   mco_trans_h t;
   MCO_RET rc;
   broker_db::XDBWorker  worker_instance;
+  WorkerState state;
 
   assert(worker);
   if (!worker)
@@ -1681,7 +1687,43 @@ bool DatabaseBrokerImpl::SetWorkerState(Worker* worker, Worker::State new_state)
     if (rc) { LOG(ERROR)<<"Worker '"<<ident<<"' location, rc="<<rc; break; }
 
     // TODO: проверить совместимость WorkerState между Worker::State
-    rc = worker_instance.state_put((WorkerState)new_state);
+    switch(new_state)
+    {
+      case DISARMED:
+        state = DISARMED;
+      break;
+
+      case ARMED:
+        state = ARMED;
+        // Удалить ссылку на ранее используемый экземпляр Letter
+        rc = worker_instance.letter_ref_put(0);
+        LOG(INFO)<<"Worker '"<<ident<<"' release old letter " <<  worker->GetLETTER_ID();
+        if (rc) { LOG(ERROR)<<"Worker '"<<ident<<"' release old letter, rc="<<rc; break; }
+        worker->SetLETTER_ID(0);
+      break;
+
+      case INIT:
+        state = INIT;
+      break;
+
+      case SHUTDOWN:
+        state = SHUTDOWN;
+      break;
+
+      case OCCUPIED:
+        state = OCCUPIED;
+      break;
+
+      case EXPIRED:
+        state = EXPIRED;
+      break;
+
+      default:
+        state = DISARMED;
+        LOG(ERROR) << "Worker '" << ident << "' have unknown state " << new_state;
+    }
+
+    rc = worker_instance.state_put(state);
     if (rc) { LOG(ERROR)<<"Worker '"<<ident<<"' changing state to "<<new_state<<", rc="<<rc; break; }
     worker->SetSTATE(new_state);
 
@@ -1864,11 +1906,9 @@ ServiceList* DatabaseBrokerImpl::GetServiceList()
 {
   if (!m_service_list)
     m_service_list = new ServiceList(m_database->getDbHandler());
-  else
-  {
-    if (!m_service_list->refresh())
-      LOG(WARNING) << "Services list is not updated";
-  }
+
+  if (!m_service_list->refresh())
+    LOG(WARNING) << "Services list is not updated";
 
   return m_service_list;
 }

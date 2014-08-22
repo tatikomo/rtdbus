@@ -214,7 +214,7 @@ Worker *DatabaseBroker::PopWorker(const std::string& service_name)
   return m_impl->PopWorker(service_name);
 }
 
-Worker *DatabaseBroker::PopWorker(Service *service)
+Worker *DatabaseBroker::PopWorker(const Service *service)
 {
   assert(m_impl);
 
@@ -223,12 +223,12 @@ Worker *DatabaseBroker::PopWorker(Service *service)
 }
 
 /* Очистить спул Обработчиков указанного Сервиса */
-bool DatabaseBroker::ClearWorkersForService(const char *service_name)
+bool DatabaseBroker::ClearWorkersForService(const Service *service)
 {
   assert(m_impl);
 
   if (!m_impl) return false;
-  return m_impl->ClearWorkersForService(service_name);
+  return m_impl->ClearWorkersForService(service);
 }
 
 /* поместить сообщение во входящую очередь Службы */

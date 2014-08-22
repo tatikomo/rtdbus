@@ -14,22 +14,9 @@ class ApplicationImpl;
 class ConnectionImpl;
 
 /*
- * Создание базы данных с помощью функции mco_db_open()
- * Подключения к базе возможны только после этого.
- * Подключения осуществляются с помощью вызовов mco_db_connect()
- * для ранее созданной БД.
- *
- * Вопрос: различные типы баз данных имеют уникальные функции словарей.
- * Как класс определит, какую словарную функцию использовать?
- * Может быть задавать соответствие в Application в виде хеша?
- *
- * Пример:
- *   RTAP -> rtap_get_dictionary()
- *   ECH  -> ech_get_dictionary()
- *
- * 23/10/2013: пока будем полагать, что всегда используется БД RTAP
+ * 1. mco_db_open: Создание базы данных
+ * 2. mco_db_connect: Подключение к базе для ранее созданной БД
  */
-
 class EnvironmentImpl
 {
   public:
@@ -42,7 +29,7 @@ class EnvironmentImpl
     void  clearError();
 
     // Создать и вернуть новое подключение к указанной БД/среде
-    ConnectionImpl* getConnection();
+    //ConnectionImpl* getConnection();
     // Вернуть имя подключенной БД/среды
     const char* getName() const;
     // Вернуть имя Приложения
@@ -60,14 +47,11 @@ class EnvironmentImpl
 
   private:
     DISALLOW_COPY_AND_ASSIGN(EnvironmentImpl);
-    char        m_name[IDENTITY_MAXLEN + 1];
-    EnvState_t  m_state;
-    Error     m_last_error;
+    char              m_name[IDENTITY_MAXLEN + 1];
+    EnvState_t        m_state;
+    Error             m_last_error;
     ApplicationImpl  *m_appli;
     ConnectionImpl   *m_conn;
-
-    // Открыть БД без создания подключений
-    Error& openDB();
 };
 
 } // namespace xdb

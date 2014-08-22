@@ -29,7 +29,7 @@ RtDatabase::RtDatabase(const char* _name, const Options& _options)
 
 RtDatabase::~RtDatabase()
 {
-  m_impl->Disconnect();
+//  m_impl->Disconnect();
   delete m_impl;
 }
 

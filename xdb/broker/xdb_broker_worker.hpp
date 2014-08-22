@@ -28,11 +28,11 @@ class Worker
     // NB: создан на основе WorkerState из генерируемого dat/xdb_broker.h
     enum State {
         DISARMED    = 0,
-        ARMED       = 1,
-        INIT        = 2,
-        SHUTDOWN    = 3,
-        OCCUPIED    = 4,
-        EXPIRED     = 5
+        ARMED       = 1,    // Свободен, готов к использованию
+        INIT        = 2,    // 
+        SHUTDOWN    = 3,    // Завершает свою работу
+        OCCUPIED    = 4,    // Занят обслуживанием Запроса
+        EXPIRED     = 5     // Превысил таймаут обработки Запроса
     };
 
     Worker();
@@ -40,20 +40,24 @@ class Worker
      * NB: размер поля данных идентификатора 
      * задан в структуре point_oid файла broker.mco
      */
-    Worker(const int64_t, const char*, const int64_t=0);
+    Worker(const int64_t, const char*, const int64_t=0, const int64_t=0);
     ~Worker();
     void SetIDENTITY(const char*);
+    // Установить отсечку времени
     void SetEXPIRATION(const timer_mark_t&);
-    void SetID(const int64_t);
+    void SetID(int64_t);
+    void SetLETTER_ID(int64_t);
     /*
      * Текущее состояние Обработчика
      */
     void SetSTATE(const State);
     void SetVALID();
+    // Получить отметку времени
     const timer_mark_t& GetEXPIRATION() const;
     State   GetSTATE() const;
     int64_t GetSERVICE_ID() const { return m_service_id; }
-    int64_t GetID() const        { return m_id; }
+    int64_t GetLETTER_ID() const  { return m_letter_id; }
+    int64_t GetID() const         { return m_id; }
     const char   *GetIDENTITY() const;
     bool          Expired() const;
     /*
@@ -68,8 +72,9 @@ class Worker
     // Нельзя менять привязку уже существующему серверу
     void SetSERVICE_ID(int64_t);
 
-    int64_t  m_id;
-    int64_t  m_service_id;
+    int64_t  m_id;          // Собственный идентификатор
+    int64_t  m_service_id;  // Идентификатор своей Службы
+    int64_t  m_letter_id;   // Идентификатор исполняемого запроса
     char     m_identity[IDENTITY_MAXLEN + 1];
     State    m_state;
     timer_mark_t m_expiration;

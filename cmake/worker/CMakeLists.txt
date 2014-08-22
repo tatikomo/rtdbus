@@ -133,8 +133,6 @@ target_link_libraries(${WORKER_DIGGER}
     ${TOOLS_LIBRARY_NAME}
     ${LIBGLOG_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
-#    "-lmcoseri_debug"
-#    "-lxerces-c"
     ${LIBPROTOBUF_LIBRARIES}
     ${SYSTEM_EXTERNAL_LIBS}
     ${LIBZMQ_LIBRARIES})

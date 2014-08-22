@@ -485,7 +485,7 @@ TEST(TestDiggerDATABASE, CREATION)
   // Загрузить данные сохраненной среды RTAP
   // Экземпляр env принадлежит app и будет им удален
   env = app->loadEnvironment("SINF");
-  EXPECT_TRUE(env != NULL);
+  ASSERT_TRUE(env != NULL);
 
   env->Start();
   EXPECT_EQ(app->getLastError().getCode(), xdb::rtE_NONE /*rtE_NOT_IMPLEMENTED*/);
@@ -493,7 +493,7 @@ TEST(TestDiggerDATABASE, CREATION)
   // Проверка корректности получения экземпляра Среды с одним 
   // названием и невозможности появления её дубликата
   env1 = app->loadEnvironment("SINF");
-  EXPECT_TRUE(env1 != NULL);
+  ASSERT_TRUE(env1 != NULL);
 
   if (env && env1)
   {
@@ -519,7 +519,7 @@ TEST(TestDiggerDATABASE, CREATION)
 TEST(TestDiggerDATABASE, DESTROY)
 {
   LOG(INFO) << "BEGIN DESTROY TestDiggerDATABASE";
-  delete connection;
+//  delete connection;
   delete app;
   LOG(INFO) << "END DESTROY TestDiggerDATABASE";
 }

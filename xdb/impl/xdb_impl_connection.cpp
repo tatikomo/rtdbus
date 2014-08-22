@@ -17,7 +17,7 @@ ConnectionImpl::ConnectionImpl(EnvironmentImpl* _env) :
 
 ConnectionImpl::~ConnectionImpl()
 {
-  LOG(INFO) << "Destroy connection for env " << m_environment->getName();
+  LOG(INFO) << "Destroy Connection for env " << m_environment->getName();
 }
 
 // Копировать точку под новым именем

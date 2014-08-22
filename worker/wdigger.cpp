@@ -23,7 +23,11 @@ Digger::Digger(std::string broker, std::string service, int verbose)
   m_appli = new xdb::RtApplication("DIGGER");
   m_appli->setOption("OF_CREATE",1);    // Создать если БД не было ранее
   m_appli->setOption("OF_RDWR",1);      // Открыть БД для чтения/записи
-//  m_appli->setEnvName("RTAP");
+  m_appli->setOption("OF_DATABASE_SIZE",    1024 * 1024 * 1);
+  m_appli->setOption("OF_MEMORYPAGE_SIZE",  1024);
+  m_appli->setOption("OF_MAP_ADDRESS",      0x25000000);
+  m_appli->setOption("OF_HTTP_PORT",        8083);
+
   m_appli->initialize();
 
   m_environment = m_appli->loadEnvironment("RTAP");
@@ -32,8 +36,7 @@ Digger::Digger(std::string broker, std::string service, int verbose)
 
 Digger::~Digger()
 {
-  delete m_db_connection;
-  // NB Проверить - RtEnvironment удаляется в деструкторе RtApplication ?
+  // RtEnvironment удаляется в деструкторе RtApplication
   delete m_appli;
 }
 

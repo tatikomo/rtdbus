@@ -14,9 +14,6 @@
 
 namespace xdb {
 
-
-class Environment;
-
 class ApplicationImpl
 {
   public:
@@ -40,10 +37,10 @@ class ApplicationImpl
 
   private:
     DISALLOW_COPY_AND_ASSIGN(ApplicationImpl);
-    char m_appli_name[IDENTITY_MAXLEN + 1];
+    char       m_appli_name[IDENTITY_MAXLEN + 1];
     AppMode_t  m_mode;
     AppState_t m_state;
-    Error    m_last_error;
+    Error      m_last_error;
 
   protected:
     Options  m_map_options;

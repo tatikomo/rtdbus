@@ -59,6 +59,10 @@ bool Broker::Init()
 //  Destructor for broker object
 Broker::~Broker ()
 {
+    // TODO Очистить содержимое БД
+    // 1. Удалить все Сообщения
+    // 2. Удалить Обработчиков
+    // 3. Удалить Службы
     m_database->ClearServices();
     //m_workers.clear();
     //m_waiting.clear();

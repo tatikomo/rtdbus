@@ -1,8 +1,9 @@
 SET(TEST_RTDBUS_DIR ${CMAKE_SOURCE_DIR}/../test)
 
-SET(UNITTEST_DEVICE   device_unittest)
-SET(UNITTEST_DATABASE database_unittest)
-SET(UNITTEST_MESSAGE  message_unittest)
+SET(UNITTEST_DEV_INT  dev_int_test)
+SET(UNITTEST_DEV_RUN  dev_run_test)
+SET(UNITTEST_DATABASE db_test)
+SET(UNITTEST_MESSAGE  msg_test)
 
 SET (GTEST_VERSION "1.7.0")
 
@@ -45,7 +46,27 @@ link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 
-set (TEST_DEVICE_SOURCES
+set (TEST_DEV_INTERNAL_SOURCES
+        ${XDB_IMPL_DIR}/dat/broker_db.hpp
+        ${XDB_IMPL_DIR}/dat/broker_db.h
+        ${XDB_IMPL_DIR}/dat/broker_db.c
+        ${XDB_BROKER_DIR}/xdb_broker_worker.hpp
+        ${XDB_BROKER_DIR}/xdb_broker.hpp
+        ${XDB_BROKER_DIR}/xdb_broker_service.hpp
+        ${XDB_BROKER_DIR}/xdb_broker_letter.hpp
+        ${MDP_DIR}/mdp_broker.hpp
+        ${MDP_DIR}/mdp_broker.cpp
+        ${MDP_DIR}/mdp_worker_api.hpp
+        ${MDP_DIR}/mdp_client_async_api.hpp
+        ${MDP_DIR}/mdp_proxy.hpp
+        ${MDP_DIR}/mdp_common.h
+        ${MDP_DIR}/mdp_zmsg.hpp
+        ${MSG_DIR}/msg_common.h
+        ${MSG_DIR}/proto/common.pb.cc
+        ${MSG_DIR}/proto/common.pb.h
+        ${TEST_RTDBUS_DIR}/dev_int_unittest.cpp)
+
+set (TEST_DEV_RUNTIME_SOURCES
         ${XDB_IMPL_DIR}/dat/broker_db.hpp
         ${XDB_IMPL_DIR}/dat/broker_db.h
         ${XDB_IMPL_DIR}/dat/broker_db.c
@@ -66,7 +87,7 @@ set (TEST_DEVICE_SOURCES
         ${MSG_DIR}/msg_common.h
         ${MSG_DIR}/proto/common.pb.cc
         ${MSG_DIR}/proto/common.pb.h
-        ${TEST_RTDBUS_DIR}/device_unittest.cpp)
+        ${TEST_RTDBUS_DIR}/dev_runt_unittest.cpp)
 
 set (TEST_DATABASE_SOURCES
         ${XDB_IMPL_DIR}/dat/broker_db.hpp
@@ -165,17 +186,28 @@ set_source_files_properties(${MSG_DIR}/proto/common.pb.cc
                             ${MSG_DIR}/proto/common.pb.h
                             PROPERTIES GENERATED 1)
 
-add_executable (${UNITTEST_DEVICE} ${TEST_DEVICE_SOURCES})
+add_executable (${UNITTEST_DEV_INT} ${TEST_DEV_INTERNAL_SOURCES})
 add_definitions (-D_FUNCTIONAL_TEST)
 add_definitions(-fpermissive)
-target_link_libraries(${UNITTEST_DEVICE}
+target_link_libraries(${UNITTEST_DEV_INT}
     ${XDB_BROKER_LIBRARY_NAME}
-    ${XDB_RTAP_IMPL_LIBRARY_NAME}
+    ${XDB_BROKER_INTERFACE_LIBRARY_NAME}
+    ${MDP_LIBRARY_NAME}
+    ${TOOLS_LIBRARY_NAME}
+    ${LIBGLOG_LIBRARIES}
+    ${LIBEXTREMEDB_LIBRARIES_ALL}
+    ${LIBEXTREMEDB_EXTRA_LIBRARIES}
+    ${SYSTEM_EXTERNAL_LIBS})
+
+add_executable (${UNITTEST_DEV_RUN} ${TEST_DEV_RUNTIME_SOURCES})
+add_definitions (-D_FUNCTIONAL_TEST)
+add_definitions(-fpermissive)
+target_link_libraries(${UNITTEST_DEV_RUN}
+    ${XDB_BROKER_LIBRARY_NAME}
     ${XDB_RTAP_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
     ${MSG_LIBRARY_NAME}
     ${TOOLS_LIBRARY_NAME}
-    ${LIBZMQ_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${LIBGLOG_LIBRARIES}
     ${SYSTEM_EXTERNAL_LIBS})
@@ -183,7 +215,6 @@ target_link_libraries(${UNITTEST_DEVICE}
 add_executable (${UNITTEST_DATABASE} ${TEST_DATABASE_SOURCES})
 target_link_libraries(${UNITTEST_DATABASE}
     ${XDB_BROKER_LIBRARY_NAME}
-    ${XDB_RTAP_IMPL_LIBRARY_NAME}
     ${XDB_RTAP_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
     ${TOOLS_LIBRARY_NAME}
@@ -193,16 +224,16 @@ target_link_libraries(${UNITTEST_DATABASE}
 
 add_executable (${UNITTEST_MESSAGE} ${TEST_MSG_SOURCES})
 target_link_libraries(${UNITTEST_MESSAGE}
-    ${LIBZMQ_LIBRARIES}
     ${MDP_LIBRARY_NAME}
     ${LIBPROTOBUF_LIBRARIES}
     ${MSG_LIBRARY_NAME}
     ${XDB_BROKER_IMPL_LIBRARY_NAME}
     ${XDB_BROKER_LIBRARY_NAME}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
-    "-lmcoseri_debug"
+    ${LIBEXTREMEDB_EXTRA_LIBRARIES}
     ${SYSTEM_EXTERNAL_LIBS})
 
 add_test(NAME DATABASE_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_DATABASE})
-add_test(NAME DEVICES_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_DEVICE})
+add_test(NAME DEV_INT_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_DEV_INT})
+add_test(NAME DEV_RUN_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_DEV_RUN})
 add_test(NAME MESSAGE_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_MESSAGE})

@@ -33,7 +33,7 @@ class DatabaseImpl
     // Инициализация рантайма
     const Error& Init();
     // создание нового экземпяра (с возможностью удаления старого) mco_db_open
-    const Error& Create();
+    const Error& Open();
     // открытие подключения с помощью mco_db_connect
     const Error& Connect();
     // Останов рантайма
@@ -86,6 +86,7 @@ class DatabaseImpl
     mco_dictionary_h m_dict;
     Options      m_db_access_flags;
     bool         m_save_to_xml_feature;
+    BitSet8      m_flags;
 
 #ifdef DISK_DATABASE
     char* m_dbsFileName;
@@ -93,15 +94,19 @@ class DatabaseImpl
 #endif
 
 #if EXTREMEDB_VERSION >= 40
-    mco_db_params_t   *m_db_params;
-    mco_device_t      *m_dev;
+    mco_db_params_t    m_db_params;
+    mco_device_t       m_dev;
+#if defined USE_EXTREMEDB_HTTP_SERVER
     /*
      * Internal HttpServer http://localhost:8082/
      */
     mco_metadict_header_t *m_metadict;
+    mcohv_interface_def_t  m_intf;
     mcohv_p                m_hv;
     unsigned int           m_size;
     bool                   m_metadict_initialized;
+#endif
+
 #endif
     /*
      * Зарегистрировать все обработчики событий, заявленные в БД
