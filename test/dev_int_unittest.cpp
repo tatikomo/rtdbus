@@ -4,6 +4,7 @@
 #include "google/protobuf/stubs/common.h"
 
 #include "helper.hpp"
+
 #include "mdp_zmsg.hpp"
 #include "mdp_common.h"
 #include "mdp_broker.hpp"
@@ -13,11 +14,11 @@
 #include "mdp_proxy.hpp"
 
 #include "xdb_broker.hpp"
-#include "xdb_broker_worker.hpp"
-#include "xdb_broker_letter.hpp"
-#include "xdb_broker_service.hpp"
+#include "xdb_impl_db_broker.hpp"
+//#include "xdb_broker_letter.hpp"
+//#include "xdb_broker_service.hpp"
 
-#include "wdigger.hpp"
+using namespace xdb;
 #include "pulsar.hpp"
 
 // Определения пользовательских сообщений и их сериализованных структур
@@ -36,12 +37,20 @@ std::string client_identity_2 = "@C000000002";
 
 xdb::DatabaseBroker *database = NULL;
 
-const char *attributes_connection_to_broker = "tcp://localhost:5555";
+const char *attributes_connection_to_broker = (const char*)"tcp://localhost:5555";
+const char *BROKER_SNAP_FILE = (const char*)"broker_db.snap";
 xdb::Service *service1 = NULL;
 xdb::Service *service2 = NULL;
 xdb::Worker  *worker = NULL;
 int64_t service1_id;
 int64_t service2_id;
+
+typedef enum
+{
+  F_ALL,          // удалить всех Обработчиков
+  F_EXPIRED,      // Только тех, кто действительно проссрочен
+  F_OCCUPIED      // Только тех, кто обрабатывает Сообщения
+} PurgeFilter_t;
 
 /*
  * Прототипы функций
@@ -105,15 +114,16 @@ xdb::Letter* GetNewLetter(rtdbMsgType msg_type, rtdbExchangeId user_exchange)
 
 Pulsar::Pulsar(std::string broker, int verbose) : mdcli(broker, verbose)
 {
+  LOG(INFO) << "Create pulsar instance";
 }
 
-void purge_workers()
+void purge_workers(PurgeFilter_t filter)
 {
   xdb::ServiceList  *sl = broker->get_internal_db_api()->GetServiceList();
   xdb::Service      *service = sl->first();
   xdb::Worker       *wrk = NULL;
 
-  broker->database_snapshot("TEST_PURGE_WORKERS.START");
+  broker->database_snapshot("PURGE_WORKERS.START");
   while(NULL != service)
   {
     /* Пройти по списку Сервисов */
@@ -121,16 +131,23 @@ void purge_workers()
     if (wrk)
     {
         LOG(INFO) <<service->GetID()<<":"<<service->GetNAME()<<" => "<<wrk->GetIDENTITY();
-        if (wrk->Expired ()) 
+        // Удалить только просроченные записи
+        // Или все записи, если фильтр позволяет
+        if ((filter == F_ALL) || (wrk->Expired ()))
         {
           LOG(INFO) << "Deleting expired worker: " << wrk->GetIDENTITY();
-          broker->worker_delete (wrk, 0); // Обработчик не подавал признаков жизни
+          broker->release (wrk, 0); // Обработчик не подавал признаков жизни
         }
-        else delete wrk; // Обработчик жив, просто освободить память
+        else if (filter == F_OCCUPIED)
+        {
+          // TODO: Удалить тех Обработчиков, за которыми закреплены Сообщения
+        }
+
+        delete wrk; // Обработчик жив, просто освободить память
     }
     service = sl->next();
   }
-  broker->database_snapshot("TEST_PURGE_WORKERS.STOP");
+  broker->database_snapshot("PURGE_WORKERS.STOP");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -140,6 +157,7 @@ TEST(TestUUID, ENCODE)
   char * uncoded_ident = NULL;
   mdp::zmsg * msg = new mdp::zmsg();
 
+  LOG(INFO) << "TestUUID ENCODE start";
   binary_ident[0] = 0x00;
   binary_ident[1] = 0x6B;
   binary_ident[2] = 0x8B;
@@ -151,6 +169,7 @@ TEST(TestUUID, ENCODE)
 
   delete msg;
   delete[] uncoded_ident;
+  LOG(INFO) << "TestUUID ENCODE stop";
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -161,6 +180,7 @@ TEST(TestUUID, DECODE)
   unsigned char * uncoded_ident = NULL;
   mdp::zmsg * msg = new mdp::zmsg();
 
+  LOG(INFO) << "TestUUID DECODE start";
   binary_ident[0] = 0x00;
   binary_ident[1] = 0x6B;
   binary_ident[2] = 0x8B;
@@ -176,6 +196,7 @@ TEST(TestUUID, DECODE)
 
   delete msg;
   delete[] uncoded_ident;
+  LOG(INFO) << "TestUUID DECODE stop";
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -189,6 +210,7 @@ TEST(TestHelper, CLOCK)
   // Проверка "просроченности" данных об Обработчике
   xdb::Worker* worker = new xdb::Worker();
   ASSERT_TRUE(worker);
+  LOG(INFO) << "TestHelper CLOCK start";
 
   ret = GetTimerValue(now_time);
   EXPECT_TRUE(ret == 1);
@@ -218,6 +240,7 @@ TEST(TestHelper, CLOCK)
 
   EXPECT_TRUE(worker->Expired() == true);
   delete worker;
+  LOG(INFO) << "TestHelper CLOCK stop";
 }
 
 void Dump(mdp::Letter* letter)
@@ -294,6 +317,7 @@ TEST(TestProxy, RUNTIME_VERSION)
  * Проверить следующие методы класса Broker()
  */
 #if 0
+/*
    // Регистрировать новый экземпляр Обработчика для Сервиса
    //  ---------------------------------------------------------------------
 +  Worker * worker_register(const std::string&, const std::string&);
@@ -304,7 +328,7 @@ TEST(TestProxy, RUNTIME_VERSION)
 
    //  ---------------------------------------------------------------------
    //  Dispatch requests to waiting workers as possible
-+  void service_dispatch (Service *srv/*, zmsg *msg*/);
++  void service_dispatch (Service *srv);//, zmsg *msg
 
    //  ---------------------------------------------------------------------
    //  Handle internal service according to 8/MMI specification
@@ -312,11 +336,13 @@ TEST(TestProxy, RUNTIME_VERSION)
 
    //  ---------------------------------------------------------------------
    //  Creates worker if necessary
-+  Worker * worker_require (const std::string& sender/*, char* identity*/);
++  Worker * worker_require (const std::string& sender);//, char* identity
 
    //  ---------------------------------------------------------------------
    //  Deletes worker from all data structures, and destroys worker
-+  void worker_delete (Worker *&wrk, int disconnect);
++  !void worker_delete (Worker *&wrk, int disconnect);
+   заменено на 
++  void release (Worker *&wrk, int disconnect);
 
    //  ---------------------------------------------------------------------
    //  Processes one READY, REPORT, HEARTBEAT or  DISCONNECT message 
@@ -336,172 +362,12 @@ TEST(TestProxy, RUNTIME_VERSION)
    //  ---------------------------------------------------------------------
    //  Process a request coming from a client
 +   void client_msg (const std::string& sender, zmsg *msg);
+*/
 #endif
 /*
  * Конец списка проверяемых методов класса Broker
  */
 
-
-/*
- * Рабочий цикл клиентской программы PULSAR
- * Тестируется класс: mdcli
- * Используемая служба: NYSE (service_name_1)
- */
-static void *
-client_task (void* /*args*/)
-{
-  int        verbose   = 1;
-  mdp::zmsg *request   = NULL;
-  mdp::zmsg *report    = NULL;
-  Pulsar    *client    = new Pulsar (attributes_connection_to_broker, verbose);
-  int        count;
-  std::string       pb_serialized_request;
-  RTDBM::AskLife    pb_request_asklife;
-  RTDBM::ExecResult pb_responce_exec_result;
-  mdp::Letter      *mdp_letter;
-  const std::string dest = "NYSE";
-  static int        user_exchange_id = 0;
-
-  LOG(INFO) << "Start client thread";
-  try
-  {
-    mdp_letter = new mdp::Letter(ADG_D_MSG_ASKLIFE, dest);
-
-    //  Send 10 ADG_D_MSG_ASKLIFE orders
-    for (user_exchange_id = 0; user_exchange_id < 10; user_exchange_id++) {
-        request = new mdp::zmsg ();
-
-        // Единственное поле, которое может устанавливать клиент
-        // напрямую в ADG_D_MSG_ASKLIFE
-        static_cast<RTDBM::AskLife*>(mdp_letter->mutable_data())->set_user_exchange_id(user_exchange_id);
-        request->push_front(const_cast<std::string&>(mdp_letter->SerializedData()));
-        request->push_front(const_cast<std::string&>(mdp_letter->SerializedHeader()));
-        LOG(INFO) << "Send message id="<<user_exchange_id<<" from client";
-        client->send (service_name_1.c_str(), request);
-        delete request;
-    }
-    delete mdp_letter;
-
-    EXPECT_EQ(user_exchange_id, 10);
-    count = 0;
-
-    //  Wait for all trading reports
-    while (1) {
-        report = client->recv ();
-        if (report == NULL)
-            break;
-        count++;
-        LOG(INFO) << "Receive message id="<<count<<" from worker";
-        report->dump();
-        assert (report->parts () >= 2);
-        
-        mdp_letter = new mdp::Letter(report);
-        Dump(mdp_letter);
-
-        delete mdp_letter;
-        delete report;
-    }
-    // Приняли ровно столько, сколько ранее отправили
-    EXPECT_TRUE(count == user_exchange_id);
-  }
-  catch (zmq::error_t err)
-  {
-      std::cout << "E: " << err.what() << std::endl;
-  }
-  delete client;
-
-  // Завершить исполнение Брокера - все сообщения отправлены/получены
-  s_interrupted = 1;
-  LOG(INFO) << "Stop client thread";
-  pthread_exit(NULL);
-}
-
-/*
- * Рабочий цикл программы-Обработчика Digger для службы NYSE
- * Тестируется класс mdwrk
- */
-static void *
-worker_task (void* /*args*/)
-{
-  int verbose = 1;
-
-  LOG(INFO) << "Start worker thread";
-  try
-  {
-    Digger *engine = new Digger(attributes_connection_to_broker,
-                                service_name_1.c_str(),
-                                verbose);
-    while (!s_interrupted) 
-    {
-       std::string *reply_to = new std::string;
-       mdp::zmsg   *request  = NULL;
-
-       request = engine->recv (reply_to);
-       LOG(INFO) << "Receive message "<<request<<" from client";
-       if (request)
-       {
-         engine->handle_request (request, reply_to);
-       }
-       delete reply_to;
-
-       if (!request)
-         break;       // Worker has been interrupted
-    }
-    delete engine;
-  }
-  catch(zmq::error_t err)
-  {
-    std::cout << "E: " << err.what() << std::endl;
-  }
-
-  LOG(INFO) << "Stop worker thread";
-  pthread_exit(NULL);
-}
-
-/*
- * Используется для проведения функциональных тестов:
- * 1. Работа с Обработчиками
- * 2. Работа с Клиентами
- * NB: Не использует глобальных переменных
- */
-static void *
-broker_task (void* /*args*/)
-{
-  int verbose = 1;
-  std::string sender;
-  std::string empty;
-  std::string header;
-  mdp::Broker *broker = NULL;
-
-  LOG(INFO) << "Start broker thread";
-  try
-  {
-     s_version_assert (3, 2);
-     s_catch_signals ();
-     broker = new mdp::Broker(verbose);
-     /*
-      * NB: "tcp://lo:5555" использует локальный интерфейс, 
-      * что удобно для мониторинга wireshark-ом.
-      */
-     broker->bind ("tcp://*:5555");
-
-     broker->start_brokering();
-  }
-  catch (zmq::error_t err)
-  {
-     std::cout << "E: " << err.what() << std::endl;
-  }
-
-  if (s_interrupted)
-  {
-     LOG(WARNING)<<"Interrupt received, shutting down...";
-  }
-
-  LOG(INFO) << "Stop broker thread";
-  delete broker;
-
-  pthread_exit(NULL);
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 /*
@@ -514,6 +380,9 @@ TEST(TestProxy, BROKER_INTERNAL)
   xdb::Worker *wrk = NULL;
   bool status = false;
 
+  unlink(BROKER_SNAP_FILE);
+
+  LOG(INFO) << "TestProxy BROKER_INTERNAL start";
   broker = new mdp::Broker(true); // be verbose
   ASSERT_TRUE (broker != NULL);
   /*
@@ -552,11 +421,11 @@ TEST(TestProxy, BROKER_INTERNAL)
   broker->database_snapshot("TEST_BROKER_INTERNAL.PROCESS");
 
   /*
-   * Обработчик wrk будет удален внутри функции
-   * Он останется в БД, но его состояние сменится с ARMED(1) на DISARMED(0)
-   * Для проверки следует сравнить срезы БД до и после функции worker_delete
+   * Обработчик останется в БД, но его состояние сменится с ARMED(1) на DISARMED(0)
+   * Для проверки следует сравнить срезы БД до и после функции release()
    */
-  broker->worker_delete(wrk, 0);
+  broker->release(wrk, 0);
+  delete wrk;
   broker->database_snapshot("TEST_BROKER_INTERNAL.PROCESS");
 
   wrk = broker->worker_require(worker_identity_1);
@@ -568,6 +437,7 @@ TEST(TestProxy, BROKER_INTERNAL)
   broker->database_snapshot("TEST_BROKER_INTERNAL.STOP");
   PrintWorker(wrk);
   delete wrk;
+  LOG(INFO) << "TestProxy BROKER_INTERNAL stop";
 }
 
 
@@ -582,6 +452,7 @@ TEST(TestProxy, PUSH_REQUEST)
   xdb::Letter *letter;
   bool status;
 
+  LOG(INFO) << "TestProxy PUSH_REQUEST start";
   broker->database_snapshot("TEST_PUSH_REQUEST.START");
   for (int idx=1; idx<20; idx++)
   {
@@ -591,6 +462,7 @@ TEST(TestProxy, PUSH_REQUEST)
       delete letter;
   }
   broker->database_snapshot("TEST_PUSH_REQUEST.STOP");
+  LOG(INFO) << "TestProxy PUSH_REQUEST stop";
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -613,6 +485,7 @@ TEST(TestProxy, CLIENT_MESSAGE)
   std::string       pb_serialized_header;
   std::string       pb_serialized_request;
 
+  LOG(INFO) << "TestProxy CLIENT_MESSAGE start";
   broker->database_snapshot("TEST_CLIENT_MESSAGE.START");
   pb_header.set_protocol_version(1);
   pb_header.set_exchange_id(1);
@@ -639,6 +512,7 @@ TEST(TestProxy, CLIENT_MESSAGE)
   // msg удаляется внутри
   broker->client_msg(client_identity_1, msg);
   broker->database_snapshot("TEST_CLIENT_MESSAGE.STOP");
+  LOG(INFO) << "TestProxy CLIENT_MESSAGET stop";
 }
 
 #if 0
@@ -687,6 +561,7 @@ TEST(TestProxy, PURGE_WORKERS)
   xdb::Worker       *wrk = NULL;
   timer_mark_t mark = { 0, 0 };
 
+  LOG(INFO) << "TestProxy PURGE_WORKERS start";
   broker->database_snapshot("TEST_PURGE_WORKERS.START");
 
   // Добавить Сервису второго Обработчика
@@ -696,16 +571,16 @@ TEST(TestProxy, PURGE_WORKERS)
   // Обработчик успешно зарегистрирован.
   // Теперь в базе должно быть два Обработчика:
   // worker_identity_1(DISARMED) и worker_identity_2(ARMED)
-  purge_workers();
+  purge_workers(F_EXPIRED);
   // На выходе не должно быть удаленных Обработчиков
-
 
   // Установить срок годности Обработчика wrk "в прошлое"
   // и повторить проверку. На этот раз один обработчик д.б. удален
   wrk->SetEXPIRATION(mark);
   delete wrk;
-  purge_workers();
+  purge_workers(F_EXPIRED);
   broker->database_snapshot("TEST_PURGE_WORKERS.STOP");
+  LOG(INFO) << "TestProxy PURGE_WORKERS stop";
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -725,6 +600,7 @@ TEST(TestProxy, SERVICE_DISPATCH)
   std::string       pb_serialized_header;
   std::string       pb_serialized_request;
 
+  LOG(INFO) << "TestProxy SERVICE_DISPATCH start";
   // Зарегистрировать нового Обработчика worker_identity_1 для service_name_1
   worker = broker->worker_register(service_name_1, worker_identity_1);
   ASSERT_TRUE(worker != NULL);
@@ -758,47 +634,18 @@ TEST(TestProxy, SERVICE_DISPATCH)
 
   delete service1;
   delete msg;
+  delete worker;
+  LOG(INFO) << "TestProxy SERVICE_DISPATCH stop";
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
 TEST(TestProxy, BROKER_DELETE)
 {
+//  printf("Visit 'http://localhost:8082'\nPress any key to exit\n");
+//  int input = getchar();
   delete broker;
-}
 
-TEST(TestProxy, BROKER_RUNTIME)
-{
-    int code;
-    pthread_t broker;
-    pthread_t worker;
-    pthread_t client;
-
-    /* Создать экземпляр Брокера */
-    pthread_create (&broker, NULL, broker_task, NULL);
-    usleep(100000);
-
-    /* Создать одного Обработчика Службы NYSE */
-    pthread_create (&worker, NULL, worker_task, NULL);
-    usleep(100000);
-
-    /* Создать одного клиента Службы NYSE */
-    pthread_create (&client, NULL, client_task, NULL);
-
-    /* Дождаться завершения работы Клиента */
-    code = pthread_join (client, NULL);
-    EXPECT_TRUE(code == 0);
-    s_interrupted = 1;
-
-    /* Дождаться завершения работы Обработчика */
-    usleep(100000);
-    code = pthread_join(worker, NULL);
-    EXPECT_TRUE(code == 0);
-
-    /* Дождаться завершения работы Брокера */
-    usleep(100000);
-    code = pthread_join(broker, NULL);
-    EXPECT_TRUE(code == 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

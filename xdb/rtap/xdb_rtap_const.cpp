@@ -1,9 +1,11 @@
 #include <vector>
-
 #include <time.h>
 
+#if defined HAVE_CONFIG_H
 #include "config.h"
+#endif
 #include "xdb_rtap_const.hpp"
+#include "xdb_impl_attribute.hpp"
 
 using namespace xdb;
 
@@ -11,7 +13,7 @@ using namespace xdb;
 // Индекс элемента - код типа данных RTAP
 // Значение элемента - соответствующий индексу тип данных в eXtremeDB
 // 
-const DeTypeToDbTypeLink DeTypeToDbType[] = 
+const DeTypeToDbTypeLink xdb::DeTypeToDbType[] = 
 {
     { rtRESERVED0,  DB_TYPE_UNDEF },
     { rtLOGICAL,    DB_TYPE_INT8 },

@@ -52,7 +52,10 @@ There are some other flags defined in logging.cc. Please grep the source code fo
 ctags -R --c++-kinds=+p --fields=+iaS --extra=+q .
 
 Используется cppcheck для статической проверки исходных текстов:
-cppcheck . --force -Icmake -Imdp -I../libzmq/src -Imsg -Itools -Ixdb -I../eXtremeDB_5_fusion_eval/include -I../glog-0.3.3/src -I../gtest-1.7.0/include -Iclient -Iworker
+cppcheck . --force -Icmake -Imdp -I../libzmq/src -Imsg -Itools -Ixdb/impl -Ixdb/rtap -Ixdb/broker -I../eXtremeDB_5_fusion_eval/include -I../glog-0.3.3/src -I../gtest-1.7.0/include -Iclient -Iworker
+
+Подробная трассировка тестов включается с помощью:
+ctest -R НАЗВАНИЕ_ТЕСТА -VV
 
 Хронология проблем:
 --------------------------------------------------------------------------------
@@ -142,6 +145,12 @@ PushWorker() для существующего Обработчика обнов
 Если Обработчик устарел, и не имеет связанного сообщения, удалить его из БД.
 Если Сообщение устарело, передать его на исполнение другому обработчику или ответить Клиенту отказом.
 
+Требование:
+Убрать общие детали реализации MCO внутрь класса-имплементации DatabaseImpl для DatabaseBrokerImpl.
+Сейчас внутри DatabaseBrokerImpl часть функций дубируется в для DatabaseImpl, причем перевес в реализации
+на стороне DatabaseBrokerImpl. Из возможностей DatabaseImpl используется только получение имени БД и функции
+смены внутренних состояний.
+
 Удаленные сетевые и локальные репозитории
 На gev-book добавлен сетевой репозиторий gev@gev-itg:/var/git/rtdbus.git
 На gev-itg добавлен локальный промежуточный репозиторий integration
@@ -156,4 +165,187 @@ PushWorker() для существующего Обработчика обнов
     integration   /var/git/rtdbus.git (push)
     origin    git@bitbucket.org:gev76/rtdbus.git (fetch)
     origin    git@bitbucket.org:gev76/rtdbus.git (push)
+
+==========================================================
+(gdb) print *((mco_db_connection_t*)(con0))
+{
+  conn_id = 0,
+  tran_seq = 77,
+  status = 0,
+  curr_obj_class = 2,
+  curr_obj = 0, 
+  dm = 
+  {
+    hdr = 0x0,
+    pages = 0x0,
+    file = 0x0,
+    log = 0x0, 
+    logs = {0x0, 0x0},
+    dirty_pages = 0x0,
+    write_delayed_pages = 0x0,
+    root_page = 0x0,
+    btree_buf = 0x0,
+    log_write_buf = 0x0,
+    file_write_buf = 0x0,
+    dbh = 0x0,
+    con = 0x0,
+    hash_table = 0x0, 
+    page_data = 
+    {
+      0x0 <repeats 16 times>
+    },
+    updating = 0,
+    mutex = 0x0,
+    alloc_mutex = 0x0,
+    policy = MCO_COMMIT_SYNC_FLUSH,
+    n_committed_transactions = 0,
+    truncate_log = 0,
+    in_critical_section = 0,
+    cache_enabled = 0,
+    sems = 0x0,
+    rw_locks = 0x0,
+    alloc_callback = 
+    {
+      func = 0x0,
+      threshold_kind = MCO_ALLOC_PERCENT_USED,
+      threshold_value = 0,
+      prev_value = 0
+    },
+    n_modified_pages = 0,
+    n_precommitted_pages = 0,
+    rc4_state = 0x0,
+    page_cache = 
+    {
+      {timestamp = 0, access_count = 0, index = 0},
+      {timestamp = 0, access_count = 0, index = 0},
+      {timestamp = 0, access_count = 0, index = 0},
+      {timestamp = 0, access_count = 0, index = 0}
+    },
+    curr_timestamp = 0
+  }, 
+  trans = 
+  {
+    active_trans_list = { next = 0, prev = 0}, 
+    error_code = MCO_S_OK, 
+    trans_no = 54, 
+    snapshot_no = 53, 
+    n_performed_transactions = 76, 
+    latest_trans_no = 0, 
+    n_level = 0, 
+    flags = 0, 
+    prio = 0, 
+    isolation_level = MCO_REPEATABLE_READ, 
+    type = MCO_READ_WRITE, 
+    tm = 0xb5d257ec, 
+    next = 0, 
+    wait = 
+    {
+      flags = 0 '\000', 
+      db_index = 0 '\000', 
+      sync_index = 0
+    },
+    cleanup_period = 1, 
+    private_vlist = 
+    {
+      head = 0,
+      tail = 0,
+      free = 0,
+      first_pos = 0,
+      curr_pos = 0,
+      max_elems = 0,
+      max_index = 0,
+      size = 0
+    },
+    curr_vlist = 0xb5d2922c, 
+    param = 0x0, 
+    ha_iterator = 0x0, 
+    commit_iterator = 0x0, 
+    last_inspected_trans_no = 0
+  }, 
+  db = 0xb5d22144, 
+  sync_data = 0xb5d257ac, 
+  pmh = 0xb5d39780, 
+  free_pages = 0xb5daef80, 
+  n_free_pages = 220, 
+  default_isolation_level = MCO_DEFAULT_ISOLATION_LEVEL, 
+  index_table = 0xb5d2960c, 
+  pm_inmem = 0xb7f70fa0 <inmemory_pm>,
+  pset = 0xb5d2963c, 
+  udfs = 0x0, 
+  colls = 0x0, 
+  iter_index = 0x0, 
+  hnd_cache = 
+  {
+    {obj = 0, hnd = 0x0},
+    {obj = 0, hnd = 0x0},
+    {obj = 0, hnd = 0x0},
+    {obj = 524364, hnd = 0xbfffeda8},
+    {obj = 0, hnd = 0x0},
+    {obj = 0, hnd = 0x0},
+    {obj = 0, hnd = 0x0},
+    {obj = 0, hnd = 0x0}
+  },
+  hnd_cache_index = 796,
+  process_id = 1,
+  wc = 
+  {
+    root = 0x0,
+    head = 0x0,
+    tail = 0x0,
+    height = 0,
+    size = 0,
+    threshold = 0,
+    n_entries = 63,
+    n_children = 255,
+    curr = 0
+  },
+  ctx = 0x0,
+  leaf_page = 0x0,
+  leaf_page_access_count = 0 '\000',
+  leaf_page_access_kind = 1 '\001',
+  btree_access_kind = 2 '\002',
+  inside_delete_all = 0 '\000',
+  voluntary_index = 0,
+  check_constraints = 1,
+  alloc_callback = 
+  {
+    func = 0x0,
+    threshold_kind = MCO_ALLOC_PERCENT_USED,
+    threshold_value = 0,
+    prev_value = 0
+  }, 
+  iter_pages = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+  current_rcursor = 0,
+  last_autoid = 24,
+  emark = 21140
+}
+
+0000000 0000 0000 004d 0000 0000 0002 0000 0000
+0000010 0000 0000 0000 0000 0000 0000 0000 0000
+*
+0000110 0036 0000 0000 0000 0035 0000 0000 0000
+0000120 004c 0000 0000 0000 0000 0000 0000 0000
+0000130 0000 0000 0000 0000 0000 0000 0002 0000
+0000140 0002 0000 57ec b5d2 0000 0000 0000 0000
+0000150 0001 0000 0000 0000 0000 0000 0000 0000
+0000160 0000 0000 0000 0000 0000 0000 0000 0000
+0000170 0000 0000 922c b5d2 0000 0000 0000 0000
+0000180 0000 0000 0000 0000 0000 0000 2144 b5d2
+0000190 57ac b5d2 9780 b5d3 ef80 b5da 00dc 0000
+00001a0 0000 0000 960c b5d2 0fa0 b7f7 963c b5d2
+00001b0 0000 0000 0000 0000 0000 0000 0000 0000
+*
+00001d0 0000 0000 004c 0008 eda8 bfff 0000 0000
+00001e0 0000 0000 0000 0000 0000 0000 0000 0000
+00001f0 0000 0000 0000 0000 0000 0000 031c 0000
+0000200 0001 0000 0000 0000 0000 0000 0000 0000
+0000210 0000 0000 0000 0000 0000 0000 003f 0000
+0000220 00ff 0000 0000 0000 0000 0000 0000 0000
+0000230 0100 0002 0000 0000 0001 0000 0000 0000
+0000240 0000 0000 0000 0000 0000 0000 0000 0000
+*
+0000270 0000 0000 0000 0000 0018 0000 0000 0000
+0000280 5294 0000                              
+0000284
+
 

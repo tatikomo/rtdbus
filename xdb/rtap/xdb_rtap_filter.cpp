@@ -1,14 +1,15 @@
 #include <assert.h>
 #include <string>
 
+#if defined HAVE_CONFIG_H
 #include "config.h"
-
-#include "xdb_rtap_error.hpp"
+#endif
+#include "xdb_impl_error.hpp"
 #include "xdb_rtap_filter.hpp"
 
 using namespace xdb;
 
-RtError   RtPointFilter::m_last_error;
+Error RtPointFilter::m_last_error;
 RtPointFilter::ScopeType RtPointFilter::m_scope_type;
 
 RtPointFilter::RtPointFilter()

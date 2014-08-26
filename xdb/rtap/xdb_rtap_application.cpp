@@ -1,95 +1,192 @@
+#include <iostream>
+
 #include <assert.h>
 #include <string.h>
 #include <algorithm>
 
 #include "glog/logging.h"
+#if defined HAVE_CONFIG_H
 #include "config.h"
-
-#include "xdb_rtap_error.hpp"
-#include "xdb_rtap_application.hpp"
+#endif
+#include "xdb_impl_error.hpp"
+#include "xdb_impl_application.hpp"
+#include "xdb_impl_environment.hpp"
 #include "xdb_rtap_environment.hpp"
-//#include "xdb_rtap_database.hpp"
+#include "xdb_rtap_application.hpp"
 
 using namespace xdb;
 
-RtApplication::RtApplication(const char* _name) :
-  m_mode(MODE_UNKNOWN),
-  m_state(CONDITION_UNKNOWN),
-  m_last_error(rtE_NONE)
+RtApplication::RtApplication(const char* _name)
 {
-  m_environment_name[0] = '\0';
-  strncpy(m_appli_name, _name, IDENTITY_MAXLEN);
-  m_appli_name[IDENTITY_MAXLEN] = '\0';
+  m_initialized = false;
+  m_impl = new ApplicationImpl(_name);
+  m_env_list.clear();
 }
 
 RtApplication::~RtApplication()
 {
+  for (size_t env_nbr = 0; env_nbr < m_env_list.size(); env_nbr++)
+  {
+    LOG(INFO) << "Delete environment " << m_env_list[env_nbr]->getName();
+    delete m_env_list[env_nbr];
+  }
   m_env_list.clear();
+
+  delete m_impl;
+}
+
+// TODO: провести инициализацию рантайма с учетом данных начальных условий
+const Error& RtApplication::initialize()
+{
+  if (m_initialized)
+  {
+    LOG(WARNING) << "Try to multiple initialize RtApplication " << m_impl->getAppName();
+    m_impl->setLastError(rtE_RUNTIME_WARNING);
+  }
+  else
+  {
+    LOG(INFO) << "RtApplication::initialize()";
+    m_impl->initialize();
+    m_initialized = true;
+  }
+  return m_impl->getLastError();
+}
+
+ApplicationImpl* RtApplication::getImpl()
+{
+  return m_impl;
+}
+
+const Options& RtApplication::getOptions() const
+{
+  return m_impl->getOptions();
+}
+
+bool RtApplication::getOption(const std::string& key, int& val)
+{
+  return m_impl->getOption(key, val);
+}
+
+void RtApplication::setOption(const char* key, int val)
+{
+  m_impl->setOption(key, val);
 }
 
 const char* RtApplication::getAppName() const
 {
-  return m_appli_name;
+  return m_impl->getAppName();
 }
 
-const RtError& RtApplication::setAppName(const char* _name)
+const Error& RtApplication::getLastError() const
 {
-  m_last_error.set(rtE_NONE);
-  assert(_name);
+  return m_impl->getLastError();
+}
 
-  if (_name)
+AppMode_t RtApplication::getOperationMode() const
+{
+  return m_impl->getOperationMode();
+}
+
+AppState_t RtApplication::getOperationState() const
+{
+  return m_impl->getOperationState();
+}
+
+// Загрузить среду с заданным именем, или среду по умолчанию
+// Фактическое содание БД произойдет в RtEnvironment.Start()
+// TODO: Найти файл с описателем данной среды (аналог RtapEnvTable) и НСИ
+RtEnvironment* RtApplication::loadEnvironment(const char* _env_name)
+{
+  Error status;
+  RtEnvironment *env = isEnvironmentRegistered(_env_name);
+  
+  if (env)
   {
-    if (strlen(_name) > IDENTITY_MAXLEN)
-    {
-      m_last_error.set(rtE_STRING_TOO_LONG);
-    }
-    else
-    {
-      strncpy(m_appli_name, _name, IDENTITY_MAXLEN);
-      m_appli_name[IDENTITY_MAXLEN] = '\0';
-    }
+    LOG(INFO) << "Load existent environment '" << _env_name
+                 << "' for App '" << m_impl->getAppName() << "'";
+    return env;
+  }
+
+  // Создать экземпляр RtEnvironment
+  env = getEnvironment(_env_name);
+
+  // Загрузить ранее сохраненное содержимое
+  status = env->LoadSnapshot();
+
+  if (status.Ok())
+  {
+    // Владение экземпляром перешло к RtApplication
+    registerEnvironment(env);
+
+    LOG(INFO) << "Environment '" << env->getName()
+              << "' is loaded in App '" << m_impl->getAppName() << "'";
   }
   else
   {
-    m_last_error.set(rtE_STRING_IS_EMPTY);
-  }
+    if (rtE_SNAPSHOT_NOT_EXIST == status.code())
+    {
+      // TODO восстановить состояние по конфигурационным файлам
+      LOG(ERROR) << "Construct empty database contents for '"
+                 << m_impl->getAppName() << ":" << env->getName() << "'";
+      status.set(rtE_NOT_IMPLEMENTED);
+    }
 
-  return m_last_error;
-}
+    LOG(ERROR) << "Fault loading environment '" << m_impl->getAppName()
+               << ":" << env->getName() << "' from its snapshot";
 
-const char* RtApplication::getEnvName() const
-{
-  return m_environment_name;
-}
-
-const RtError& RtApplication::setEnvName(const char* _env_name)
-{
-  m_last_error.set(rtE_NONE);
-  strncpy(m_environment_name, _env_name, IDENTITY_MAXLEN);
-  return m_last_error;
-}
-
-// TODO: провести инициализацию рантайма с учетом данных начальных условий
-const RtError& RtApplication::initialize()
-{
-  m_last_error.set(rtE_NONE);
-  m_env_list.clear();
 #if 0
-  // Если инициализация не была выполнена ранее или была ошибка
-  if (CONDITION_BAD == getOperationState())
-  {
-  }
+    // Удаляем экземпляр Среды, созданный с ошибкой
+    delete env;
+    env = NULL;
+#else
+    // Владение экземпляром перешло к RtApplication
+    registerEnvironment(env);
+#warning "Нельзя регистрировать ошибочные экземпляры Сред. Сейчас это сделано для тестов."
 #endif
-  return m_last_error;
+  }
+
+  return env;
 }
 
-// Получить ссылку на объект Окружение
+
+// Зарегистрировать в Приложении новую Среду
+// TODO: Проверить на повторное наличие 
+void RtApplication::registerEnvironment(RtEnvironment* _new_env)
+{
+  if (!isEnvironmentRegistered(_new_env->getName()))
+  {
+    LOG(INFO) << "Register environment " << _new_env->getName();
+    m_env_list.push_back(_new_env);
+  }
+  else
+  {
+    LOG(WARNING) << "Try to register already registered environment " << _new_env->getName();
+  }
+}
+
+// Вернуть ссылку на объект-среду по её имени
+// NB: Если имя не задано, вернуть среду по-умолчанию
 RtEnvironment* RtApplication::getEnvironment(const char* _env_name)
 {
-  RtEnvironment *env = NULL;
+  const char *name = (_env_name)? _env_name : m_impl->getAppName();
 
-  assert(_env_name);
-  LOG(INFO) << "Search environment " << _env_name;
+  RtEnvironment *env = isEnvironmentRegistered(name);
+
+  if (!env)
+  {
+    env = new RtEnvironment(this, name);
+    LOG(INFO) << "Creating new environment '" << m_impl->getAppName()
+              << ":" << name << "'";
+  }
+  return env;
+}
+
+RtEnvironment*  RtApplication::isEnvironmentRegistered(const char* _env_name)
+{
+  RtEnvironment *env = NULL;
+  const char *name = (_env_name)? _env_name : m_impl->getAppName();
+
+  LOG(INFO) << "Search environment " << name;
 
   //  foreach();
   //  TODO: найти подобный объект по имени в спуле m_env_list.
@@ -97,56 +194,14 @@ RtEnvironment* RtApplication::getEnvironment(const char* _env_name)
   for (size_t env_nbr = 0; env_nbr < m_env_list.size(); env_nbr++)
   {
     env = m_env_list[env_nbr];
-    if (0 == strcmp(env->getName(), _env_name))
+    if (0 == strcmp(env->getName(), name))
     {
-      LOG(INFO) << "We found " << _env_name;
+      LOG(INFO) << "We found " << name;
       break;
     }
     // При выходе из цикла в случае неуспеха поиска env д.б. равен 0
     env = NULL;
   }
 
-  if (!env)
-  {
-    env = new RtEnvironment(this, _env_name);
-    LOG(INFO) << "We creates environment " << _env_name;
-  }
-  m_env_list.push_back(env);
   return env;
 }
-
-RtApplication::AppMode_t RtApplication::getOperationMode() const
-{
-  return m_mode;
-}
-
-RtApplication::AppState_t RtApplication::getOperationState() const
-{
-  return m_state;
-}
-
-bool RtApplication::getOption(const std::string& key, int& val)
-{
-  bool status = false;
-  OptionIterator p = m_map_options.find(key);
-
-  if (p != m_map_options.end())
-  {
-    val = p->second;
-    status = true;
-    std::cout << "Found '"<<key<<"' option=" << p->second << std::endl;
-  }
-  return status;
-}
-
-void RtApplication::setOption(const char* key, int val)
-{
-  m_map_options.insert(Pair(std::string(key), val));
-  LOG(INFO)<<"Parameter '"<<key<<"': "<<val;
-}
-
-const RtError& RtApplication::getLastError() const
-{
-  return m_last_error;
-}
-

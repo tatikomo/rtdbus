@@ -1,6 +1,6 @@
 #pragma once
-#if !defined XDB_RTAP_DAT_H_
-#define XDB_RTAP_DAT_H_
+#ifndef XDB_RTAP_DAT_HXX
+#define XDB_RTAP_DAT_HXX
 
 #include <string>
 #include <vector>

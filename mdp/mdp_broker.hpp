@@ -1,6 +1,6 @@
-#if !defined GEV_MDP_BROKER_HPP
-#define GEV_MDP_BROKER_HPP
 #pragma once
+#ifndef MDP_BROKER_HPP
+#define MDP_BROKER_HPP
 
 #include <map>
 #include <list>
@@ -86,7 +86,8 @@ class Broker {
    //  ---------------------------------------------------------------------
    //  Deletes worker from all data structures, and destroys worker
    bool
-   worker_delete (xdb::Worker *&wrk, int disconnect);
+   //worker_delete (xdb::Worker *&wrk, int disconnect); - старое название
+   release (xdb::Worker *&wrk, int disconnect);
 
 
    //  ---------------------------------------------------------------------

@@ -1,13 +1,17 @@
 #pragma once
-#if !defined XDB_RTAP_SNAP_TRANS_H_
-#define XDB_RTAP_SNAP_TRANS_H_
+#ifndef XDB_RTAP_SNAP_HPP
+#define XDB_RTAP_SNAP_HPP
 
 #include <string>
+
+#if defined HAVE_CONFIG_H
 #include "config.h"
+#endif
 #include "xdb_rtap_const.hpp"
 
-namespace xdb
-{
+namespace xdb {
+
+class RtEnvironment;
 
 /*--------------------------*/
 /* buffer sizes             */
@@ -20,8 +24,8 @@ namespace xdb
 /*--------------------------*/
 /* return codes             */
 /*--------------------------*/
-#define OK                  1
-#define NOK                 0
+//#define OK                  1
+//#define NOK                 0
 #define IGNORED             2 
 
 /*--------------------------*/
@@ -153,13 +157,26 @@ typedef enum
 
 #define TYPE_ENREG_SIZE 2
 
+typedef enum 
+{
+  LOAD_FROM_XML = 1,
+  SAVE_TO_XML   = 2
+} Commands_t;
+
+
+bool loadFromXML(RtEnvironment*, const char*);
+
+bool saveToXML(RtEnvironment*, const char*);
+
+bool translateInstance(const char*);
+
 bool initBranch(const char*);
 
 bool deleteBranch(const char*);
 
 bool copyPoint(char*, char*);
 
-xdb::recordType getRecordType(std::string&);
+recordType getRecordType(std::string&);
 
 //void skipStr(char* laChaine);
 
@@ -195,9 +212,10 @@ bool setInfoTable(char*, formatType, attrCategory*);
 
 bool initFieldTable(std::string&, char*[], int);
 
-bool GetDbTypeFromString(std::string&, xdb::DbType_t&);
+bool GetDbTypeFromString(std::string&, DbType_t&);
 
-const char* GetDbNameFromType(xdb::DbType_t& db_t);
+const char* GetDbNameFromType(DbType_t& db_t);
 
 } // namespace xdb
+
 #endif

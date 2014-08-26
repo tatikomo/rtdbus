@@ -1,6 +1,6 @@
-#if !defined XDB_DATABASE_SERVICE_HPP
-#define XDB_DATABASE_SERVICE_HPP
 #pragma once
+#ifndef XDB_DATABASE_SERVICE_HPP
+#define XDB_DATABASE_SERVICE_HPP
 
 #include <stdint.h>
 #include "config.h"
@@ -16,7 +16,7 @@ namespace xdb {
 class Service
 {
   public:
-    static const int NameMaxLen = SERVICE_NAME_MAXLEN;
+    static const short NameMaxLen = SERVICE_NAME_MAXLEN;
 
     enum State
     {

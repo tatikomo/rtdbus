@@ -1,10 +1,13 @@
-#if !defined XDB_DATABASE_BROKER_HPP
-#define XDB_DATABASE_BROKER_HPP
 #pragma once
+#ifndef XDB_DATABASE_BROKER_HPP
+#define XDB_DATABASE_BROKER_HPP
+
 #include <stdint.h>
 #include <string>
 
-#include "xdb_core_base.hpp"
+#if defined HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include "xdb_broker_service.hpp"
 #include "xdb_broker_worker.hpp"
 #include "xdb_broker_letter.hpp"
@@ -17,31 +20,15 @@ class Service;
 class Worker;
 class Letter;
 
-class ServiceList
+class DatabaseBroker
 {
-  public:
-    // NB: экземпляр не должен создаваться вручную
-    ServiceList() {};
-    virtual ~ServiceList() {};
-
-    virtual Service* first() = 0;
-    virtual Service* last()  = 0;
-    virtual Service* next()  = 0;
-    virtual Service* prev()  = 0;
-    // Получить количество зарегистрированных объектов
-    virtual int size() const { return 0; }
-    // Перечитать список Сервисов из базы данных
-    virtual bool refresh()   = 0;
-};
-
-class DatabaseBroker : public Database
-{
-
   public:
     DatabaseBroker();
     ~DatabaseBroker();
 
     bool Connect();
+    bool Disconnect();
+    int  State();
 
     /* Зарегистрировать Сервис */
     Service *AddService(const char*);
@@ -91,10 +78,10 @@ class DatabaseBroker : public Database
 
     /* Выбрать свободного Обработчика и удалить его из спула своего Сервиса */
     Worker  *PopWorker(const std::string&);
-    Worker  *PopWorker(Service*);
+    Worker  *PopWorker(const Service*);
 
     /* Очистить спул Обработчиков указанного Сервиса */
-    bool ClearWorkersForService(const char*);
+    bool ClearWorkersForService(const Service*);
 
     /* Очистить спул Обработчиков и всех Сервисов */
     bool ClearServices();

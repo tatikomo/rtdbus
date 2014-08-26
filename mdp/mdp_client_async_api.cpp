@@ -58,7 +58,7 @@ mdcli::~mdcli ()
 void mdcli::connect_to_broker ()
 {
    if (m_client) {
-        delete m_client;
+     delete m_client;
    }
 
    m_client = new zmq::socket_t (*m_context, ZMQ_DEALER);

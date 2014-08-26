@@ -6,7 +6,7 @@
 #include "glog/logging.h"
 #include "gtest/gtest.h"
 
-#include "xdb_broker_impl.hpp"
+#include "xdb_impl_db_broker.hpp"
 #include "xdb_broker.hpp"
 #include "xdb_broker_service.hpp"
 #include "xdb_broker_worker.hpp"
@@ -19,9 +19,9 @@
 #include "xdb_rtap_application.hpp"
 #include "xdb_rtap_environment.hpp"
 #include "xdb_rtap_connection.hpp"
-#include "xdb_rtap_snap_trans.hpp"
+#include "xdb_rtap_snap.hpp"
 
-static const char rcs_id[] = "$Id$";
+using namespace xdb;
 
 const char *service_name_1 = "service_test_1";
 const char *service_name_2 = "service_test_2";
@@ -35,10 +35,10 @@ xdb::Service *service2 = NULL;
 xdb::Letter  *letter   = NULL;
 int64_t service1_id;
 int64_t service2_id;
-xdb::Database::DBState state;
+DBState_t state;
 xdb::RtApplication* app = NULL;
 xdb::RtEnvironment* env = NULL;
-xdb::RtDbConnection* connection = NULL;
+xdb::RtConnection* connection = NULL;
 
 /* 
  * Содержимое базы данных RTDB после чтения из файла classes.xml
@@ -58,7 +58,7 @@ void show_runtime_info(const char * lead_line)
   mco_runtime_info_t info;
   
   /* get runtime info */
-  //mco_get_runtime_info(&info);
+  mco_get_runtime_info(&info);
 
   /* Core configuration parameters: */
   if ( *lead_line )
@@ -94,14 +94,14 @@ TEST(TestBrokerDATABASE, OPEN)
     database = new xdb::DatabaseBroker();
     ASSERT_TRUE (database != NULL);
 
-    state = database->State();
-    EXPECT_EQ(state, xdb::Database::UNINITIALIZED);
+    state = static_cast<DBState_t>(database->State());
+    ASSERT_TRUE(state == DB_STATE_UNINITIALIZED);
 
-    status = database->Connect();
+    status = (database->Connect());
     ASSERT_TRUE(status == true);
 
-    state = database->State();
-    ASSERT_TRUE(state == xdb::Database::CONNECTED);
+    state = static_cast<DBState_t>(database->State());
+    ASSERT_TRUE(state == DB_STATE_CONNECTED);
 
 #if VERBOSE
     show_runtime_info("Database runtime information:\n=======================================");
@@ -448,68 +448,94 @@ TEST(TestBrokerDATABASE, DESTROY)
     database->Disconnect();
 
     state = database->State();
-    EXPECT_EQ(state, xdb::Database::DISCONNECTED);
+    EXPECT_EQ(state, DB_STATE_DISCONNECTED);
 #endif
+
+//    printf("Press any key to continue...");
+//    int ch = getchar();
 
     delete database;
 }
 
-TEST(TestLurkerDATABASE, CREATION)
+TEST(TestDiggerDATABASE, CREATION)
 {
-  bool status = false;
-  xdb::RtEnvironment *env1 = NULL;
-  const int argc = 3;
-  char *argv[argc] = {
-                    "test",
-                    "параметр_1",
-                    "параметр_2"
-                    };
+  //bool status = false;
+  RtEnvironment *env1 = NULL;
+//  const int argc = 3;
+//  char *argv[argc] = {
+//                    (char*)"test",
+//                    (char*)"параметр_1",
+//                    (char*)"параметр_2"
+//                    };
 
-  app = new xdb::RtApplication("test");
+  LOG(INFO) << "BEGIN CREATION TestDiggerDATABASE";
+
+  app = new RtApplication("RTAP");
   ASSERT_TRUE(app != NULL);
 
   app->setOption("OF_CREATE", 1);
-  app->setOption("OF_RDWR", 1);
+  app->setOption("OF_RDWR",   1);
+  app->setOption("OF_DATABASE_SIZE", 1024 * 1024 * 10);
+  app->setOption("OF_MEMORYPAGE_SIZE", 1024); // 0..65535
+  app->setOption("OF_MAP_ADDRESS",   0x30000000);
   EXPECT_EQ(app->getLastError().getCode(), xdb::rtE_NONE);
 
-  //  app->setEnvName("RTAP");
-
+  // Завершить инициализацию
   LOG(INFO) << "Initialize: " << app->initialize().getCode();
   LOG(INFO) << "Operation mode: " << app->getOperationMode();
   LOG(INFO) << "Operation state: " << app->getOperationState();
 
-  env = app->getEnvironment("SINF");
-  EXPECT_TRUE(env != NULL);
+  // Загрузить данные сохраненной среды RTAP
+  // Экземпляр env принадлежит app и будет им удален
+  env = app->loadEnvironment("SINF");
+  ASSERT_TRUE(env != NULL);
 
-  env1 = app->getEnvironment("SINF");
-  EXPECT_TRUE(env1 != NULL);
-  // Это должен быть один и тот же объект SINF с одинаковым именем
-  EXPECT_TRUE(0 == strcmp(env->getName(), env1->getName()));
-  // и адресом
-  EXPECT_TRUE(env == env1);
+  env->Start();
+  EXPECT_EQ(app->getLastError().getCode(), xdb::rtE_NONE /*rtE_NOT_IMPLEMENTED*/);
 
-  connection = env->createDbConnection();
-  EXPECT_TRUE(connection != NULL);
+  // Проверка корректности получения экземпляра Среды с одним 
+  // названием и невозможности появления её дубликата
+  env1 = app->loadEnvironment("SINF");
+  ASSERT_TRUE(env1 != NULL);
 
-  env->MakeSnapshot("LURKER");
+  if (env && env1)
+  {
+    // Это должен быть один и тот же экземпляр с одинаковым именем
+    EXPECT_TRUE(0 == strcmp(env->getName(), env1->getName()));
+    // и адресом
+    EXPECT_TRUE(env == env1);
+
+    connection = env->getConnection();
+    EXPECT_TRUE(connection != NULL);
+
+    env->MakeSnapshot("DIGGER");
+  }
+  else
+  {
+    LOG(INFO) << "There is no existing environment 'SINF' for application "
+              << app->getAppName();
+  }
+
+  LOG(INFO) << "END CREATION TestDiggerDATABASE";
 }
 
-TEST(TestLurkerDATABASE, DESTROY)
+TEST(TestDiggerDATABASE, DESTROY)
 {
-  delete connection;
-  delete env;
+  LOG(INFO) << "BEGIN DESTROY TestDiggerDATABASE";
+//  delete connection;
   delete app;
+  LOG(INFO) << "END DESTROY TestDiggerDATABASE";
 }
 
 using namespace xercesc;
 TEST(TestTools, LOAD_XML)
 {
-  int   class_item;
-  int   attribute_item;
+  unsigned int class_item;
+//  unsigned int attribute_item;
   const int argc = 2;
   char *argv[argc] = {
-                    "TestTools",
-                    "classes.xml"
+                    (char*)"TestTools",
+                    (char*)"classes.xml"
                     };
 
   try
@@ -645,8 +671,12 @@ TEST(TestTools, LOAD_CLASSES)
   for (objclass_idx=0; objclass_idx <= GOF_D_BDR_OBJCLASS_LASTUSED; objclass_idx++)
   {
     pool = xdb::ClassDescriptionTable[objclass_idx].attributes_pool;
-    if (!strncmp(xdb::ClassDescriptionTable[objclass_idx].name, D_MISSING_OBJCODE, UNIVNAME_LENGTH))
+    if (!strncmp(xdb::ClassDescriptionTable[objclass_idx].name,
+                D_MISSING_OBJCODE,
+                UNIVNAME_LENGTH))
+    {
       continue;
+    }
 
     if (pool)
     {
@@ -667,7 +697,7 @@ TEST(TestTools, LOAD_CLASSES)
                   sprintf(msg_val, "%02X", it->second.value.val_int8);
                   break;
               case xdb::DB_TYPE_UINT8:
-                  sprintf(msg_val, "%+02X", it->second.value.val_uint8);
+                  sprintf(msg_val, "%02X", it->second.value.val_uint8);
                   break;
 
               case xdb::DB_TYPE_INT16:
@@ -685,10 +715,10 @@ TEST(TestTools, LOAD_CLASSES)
                   break;
 
               case xdb::DB_TYPE_INT64:
-                  sprintf(msg_val, "%ld", it->second.value.val_int64);
+                  sprintf(msg_val, "%lld", it->second.value.val_int64);
                   break;
               case xdb::DB_TYPE_UINT64:
-                  sprintf(msg_val, "%ld", it->second.value.val_uint64);
+                  sprintf(msg_val, "%llu", it->second.value.val_uint64);
                   break;
 
               case xdb::DB_TYPE_FLOAT:
@@ -745,13 +775,13 @@ TEST(TestTools, LOAD_INSTANCE)
 /* Заполнить контент RTDB на основе прочитанных из XML данных */
 TEST(TestRtapDATABASE, CREATE)
 {
-  bool status = false;
-  const int argc = 3;
-  char *argv[argc] = {
-                    "RTDB_TEST",
-                    "OF_CREATE=1",
-                    "OF_TRUNCATE=1"
-                    };
+//  bool status = false;
+//  const int argc = 3;
+//  char *argv[argc] = {
+//                    (char*)"RTDB_TEST",
+//                    (char*)"OF_CREATE=1",
+//                    (char*)"OF_TRUNCATE=1"
+//                    };
 
   app = new xdb::RtApplication("RTDB_TEST");
   ASSERT_TRUE(app != NULL);
@@ -760,17 +790,21 @@ TEST(TestRtapDATABASE, CREATE)
   app->setOption("OF_LOAD_SNAP", 1);
   EXPECT_EQ(app->getLastError().getCode(), xdb::rtE_NONE);
 
-  app->setEnvName("RTAP");
+//  app->setEnvName("RTAP");
 
   LOG(INFO) << "Initialize: " << app->initialize().getCode();
   LOG(INFO) << "Operation mode: " << app->getOperationMode();
   LOG(INFO) << "Operation state: " << app->getOperationState();
 
+#if 0
   env = app->getEnvironment("SINF");
   EXPECT_TRUE(env != NULL);
 
-  connection = env->createDbConnection();
+  connection = env->createConnection();
   EXPECT_TRUE(connection != NULL);
+#else
+#warning "Implement environment and connections creation for RtApplication"
+#endif
 }
 
 TEST(TestRtapDATABASE, SHOW_CONTENT)
@@ -780,7 +814,7 @@ TEST(TestRtapDATABASE, SHOW_CONTENT)
 
 TEST(TestRtapDATABASE, TERMINATE)
 {
-  delete env;
+//  delete env;
   delete app;
 }
 
@@ -789,6 +823,7 @@ int main(int argc, char** argv)
   ::google::InitGoogleLogging(argv[0]);
   ::testing::InitGoogleTest(&argc, argv);
   ::google::InstallFailureSignalHandler();
+  setenv("MCO_RUNTIME_STOP", "1", 0);
   int retval = RUN_ALL_TESTS();
   ::google::protobuf::ShutdownProtobufLibrary();
   ::google::ShutdownGoogleLogging();

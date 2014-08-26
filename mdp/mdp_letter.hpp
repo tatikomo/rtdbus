@@ -1,6 +1,6 @@
-#if !defined MDP_LETTER_HPP
-#define MDP_LETTER_HPP
 #pragma once
+#ifndef MDP_LETTER_HPP
+#define MDP_LETTER_HPP
 
 #include <string>
 
@@ -66,7 +66,7 @@ class Letter
     ::google::protobuf::Message *m_body_instance;
 };
 
-}
+} // namespace mdp
 
 #endif
 

@@ -1,14 +1,15 @@
-#if !defined XDB_RTAP_DATA_H_
-#define XDB_RTAP_DATA_H_
 #pragma once
+#ifndef XDB_RTAP_DATA_HPP
+#define XDB_RTAP_DATA_HPP
 
 #include <string>
+#if defined HAVE_CONFIG_H
 #include "config.h"
+#endif
+#include "xdb_impl_error.hpp"
 #include "xdb_rtap_const.hpp"
-#include "xdb_rtap_error.hpp"
 
-namespace xdb
-{
+namespace xdb {
 
 class RtData
 {
@@ -44,17 +45,18 @@ class RtData
      void setValue(char*);
      void setValue(variable_t);
 
-     const RtError& getLastError() const { return m_last_error; }
+     const Error& getLastError() const { return m_last_error; }
 
    private:
      DISALLOW_COPY_AND_ASSIGN(RtData);
-     RtError    m_last_error;
      void       init();
+     Error      m_last_error;
      DbType_t   m_attr_type;
      AttrVal_t  m_attr_value;
      bool       m_modified;
 };
 
-}
+} // namespace xdb
+
 #endif
 

@@ -1,6 +1,6 @@
-#if !defined GEV_MDP_SERVICE_HPP
-#define GEV_MDP_SERVICE_HPP
 #pragma once
+#ifndef MDP_SERVICE_HPP
+#define MDP_SERVICE_HPP
 
 #include <vector>
 #include <string>

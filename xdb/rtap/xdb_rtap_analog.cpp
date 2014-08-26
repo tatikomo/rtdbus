@@ -3,9 +3,9 @@
 
 #include "config.h"
 
+#include "xdb_impl_error.hpp"
 #include "xdb_rtap_common.h"
 #include "xdb_rtap_const.hpp"
-#include "xdb_rtap_error.hpp"
 #include "xdb_rtap_analog.hpp"
 
 using namespace xdb;

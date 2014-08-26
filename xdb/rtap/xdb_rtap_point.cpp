@@ -1,8 +1,9 @@
 #include <assert.h>
 
+#if defined HAVE_CONFIG_H
 #include "config.h"
-
-#include "xdb_rtap_error.hpp"
+#endif
+#include "xdb_impl_error.hpp"
 #include "xdb_rtap_point.hpp"
 
 using namespace xdb;
@@ -13,7 +14,7 @@ RtPoint::RtPoint() :
 }
 
 // Получить тип хранилища данной точки
-RtResidence RtPoint::getResigence() const
+RtResidence RtPoint::getResidence() const
 {
   return m_residence;
 }
@@ -60,7 +61,7 @@ RtPoint* RtPoint::getChildren()
 }
 
 // Вернуть объект подключения к БД
-RtDbConnection* RtPoint::getDbConnection()
+RtConnection* RtPoint::getDbConnection()
 {
   m_last_error.set(rtE_NOT_IMPLEMENTED);
   return NULL;
@@ -74,27 +75,27 @@ RtPoint* RtPoint::getParent()
 }
 
 // Залочить данную точку на указанное количество милисекунд
-const RtError& RtPoint::lock(long)
+const Error& RtPoint::lock(long)
 {
   m_last_error.set(rtE_NOT_IMPLEMENTED);
   return m_last_error;
 }
 
-const RtError& RtPoint::unlock()
+const Error& RtPoint::unlock()
 {
   m_last_error.set(rtE_NOT_IMPLEMENTED);
   return m_last_error;
 }
 
 // Перенести блокировку точки указанному процессу
-const RtError& RtPoint::transferLock(int /*rtdbProcessId*/, long)
+const Error& RtPoint::transferLock(int /*rtdbProcessId*/, long)
 {
   m_last_error.set(rtE_NOT_IMPLEMENTED);
   return m_last_error;
 }
 
 // Получить список имен точек, в соответствии с заданным критерием
-const RtError& RtPoint::matchPoints(RtPointFilter::ScopeType,
+const Error& RtPoint::matchPoints(RtPointFilter::ScopeType,
                                     int,
                                     RtPointFilter*)
 {
@@ -102,14 +103,14 @@ const RtError& RtPoint::matchPoints(RtPointFilter::ScopeType,
   return m_last_error;
 }
 
-const RtError& RtPoint::matchPoints(RtPointFilter*)
+const Error& RtPoint::matchPoints(RtPointFilter*)
 {
   m_last_error.set(rtE_NOT_IMPLEMENTED);
   return m_last_error;
 }
 
 // Запись множества значений атрибутов данной точки
-const RtError& RtPoint::write(std::vector<std::string> attrNames, RtData* data)
+const Error& RtPoint::write(std::vector<std::string> attrNames, RtData* data)
 {
   m_last_error.set(rtE_NOT_IMPLEMENTED);
   assert(data);
@@ -118,7 +119,7 @@ const RtError& RtPoint::write(std::vector<std::string> attrNames, RtData* data)
 }
 
 // Запись значения заданного атрибута данной точки
-const RtError& RtPoint::write(std::string& attrName, RtData* data)
+const Error& RtPoint::write(std::string& attrName, RtData* data)
 {
   m_last_error.set(rtE_NOT_IMPLEMENTED);
   assert(!attrName.empty());

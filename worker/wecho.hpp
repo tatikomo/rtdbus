@@ -1,6 +1,6 @@
+#pragma once
 #ifndef __MDP_WORKER_ECHO_HPP_INCLUDED__
 #define __MDP_WORKER_ECHO_HPP_INCLUDED__
-#pragma once
 
 #include <string>
 #include "mdp_zmsg.hpp"

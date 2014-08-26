@@ -1,8 +1,9 @@
 #include <assert.h>
 #include <string.h>
 
+#if defined HAVE_CONFIG_H
 #include "config.h"
-#include "xdb_rtap_error.hpp"
+#endif
 #include "xdb_rtap_data.hpp"
 
 using namespace xdb;

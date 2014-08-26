@@ -1,5 +1,5 @@
 set(MSG_DIR ${CMAKE_SOURCE_DIR}/../msg)
-set(MSG_LIBRARY_NAME zmsg)
+#set(MSG_LIBRARY_NAME zmsg)
 
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # SOLARIS
@@ -45,6 +45,10 @@ set (MSG_SOURCES
         ${MSG_DIR}/msg_common.h
         ${MSG_DIR}/msg_message.hpp
         ${MSG_DIR}/msg_message.cpp)
+
+set_source_files_properties(${MSG_DIR}/proto/common.pb.cc
+                            ${MSG_DIR}/proto/common.pb.h
+                            PROPERTIES GENERATED 1)
 
 # Сборка библиотеки
 ##########################################################

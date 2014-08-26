@@ -7,6 +7,7 @@
 #include "xdb_broker_service.hpp"
 #include "xdb_broker_worker.hpp"
 #include "xdb_broker_letter.hpp"
+#include "xdb_impl_db_broker.hpp"
 
 using namespace mdp;
 
@@ -46,19 +47,22 @@ Broker::Broker (bool verbose) :
     // TODO: объединить значения интервалов Брокера и Обработчика
     m_heartbeat_at = s_clock () + Broker::HeartbeatInterval;
     m_database = new xdb::DatabaseBroker();
-    assert(m_database);
 }
 
 bool Broker::Init()
 {
   assert(m_database);
-  return m_database->Connect();
+  return (m_database->Connect());
 }
 
 //  ---------------------------------------------------------------------
 //  Destructor for broker object
 Broker::~Broker ()
 {
+    // TODO Очистить содержимое БД
+    // 1. Удалить все Сообщения
+    // 2. Удалить Обработчиков
+    // 3. Удалить Службы
     m_database->ClearServices();
     //m_workers.clear();
     //m_waiting.clear();
@@ -142,9 +146,9 @@ Broker::purge_workers ()
           {
             LOG(INFO) << "Deleting expired worker: " << wrk->GetIDENTITY();
           }
-          worker_delete (wrk, 0); // Обработчик не подавал признаков жизни
+          release (wrk, 0); // Обработчик не подавал признаков жизни
         }
-        else delete wrk; // Обработчик жив, просто освободить память
+        delete wrk;
         wrk_count++;
     }
     service = sl->next();
@@ -232,7 +236,7 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
           letter->Dump();
         }
         // Передать ожидающую обслуживания команду выбранному Обработчику
-        worker_send (wrk, (char*)MDPW_REQUEST, EMPTY_FRAME, letter);
+        worker_send (wrk, MDPW_REQUEST, EMPTY_FRAME, letter);
         delete letter;
         // После отсылки Сообщения этот экземпляр Обработчика перешел 
         // в состояние OCCUPIED, нужно выбрать нового Обработчика.
@@ -299,8 +303,8 @@ Broker::service_internal (const std::string& service_name, zmsg *msg)
     //  protocol header and service name, then rewrap envelope.
     char* client = msg->unwrap();
     msg->wrap(MDPC_CLIENT, service_name.c_str());
-    msg->push_front((char*)MDPC_REPORT);
-    msg->push_front((char*)MDPC_CLIENT);
+    msg->push_front(const_cast<char*>(MDPC_REPORT));
+    msg->push_front(const_cast<char*>(MDPC_CLIENT));
     msg->wrap (client, EMPTY_FRAME);
     msg->send (*m_socket);
     delete[] client;
@@ -326,16 +330,16 @@ Broker::worker_require (const std::string& identity)
 }
 
 //  ---------------------------------------------------------------------
-//  Deletes worker from all data structures, and destroys worker
+//  Deletes worker from all data structures, but do not destroy worker class
 bool
-Broker::worker_delete (xdb::Worker *&wrk, int disconnect)
+Broker::release (xdb::Worker *&wrk, int disconnect)
 {
   bool status;
 
   assert (wrk);
   if (disconnect) 
   {
-    worker_send (wrk, (char*)MDPW_DISCONNECT, EMPTY_FRAME, (xdb::Letter*)NULL);
+    worker_send (wrk, MDPW_DISCONNECT, EMPTY_FRAME, (xdb::Letter*)NULL);
   }
 
   if (false == (status = m_database->RemoveWorker(wrk)))
@@ -348,8 +352,8 @@ Broker::worker_delete (xdb::Worker *&wrk, int disconnect)
         <<", but it is ("<<wrk->GetSTATE()<<")";
   }
 
-  // Экземпляр все равно должен быть удален из памяти
-  delete wrk;
+  // Экземпляр должен быть удален из памяти в вызывающем контексте
+  //delete wrk;
 
   return status;
 }
@@ -367,7 +371,8 @@ Broker::worker_process_READY(xdb::Worker*& worker,
   if (worker) /* Указанный обработчик уже известен */
   {
     /*  Not first command in session */
-    status = worker_delete (worker, 1);
+    // TODO обновить ему время регистрации
+    status = release (worker, 1);
   }
   else /* Указанный Обработчик не зарегистрирован */
   {
@@ -375,7 +380,7 @@ Broker::worker_process_READY(xdb::Worker*& worker,
     if (sender_identity.size() >= 4  //  Reserved service name
      && sender_identity.find("mmi.") != std::string::npos)
     {
-      status = worker_delete (worker, 1);
+      status = release (worker, 1);
     }
     else /* команда не служебная, зарегистрировать НОВЫЙ ОБРАБОТЧИК */
     {
@@ -442,9 +447,9 @@ Broker::worker_process_REPORT(xdb::Worker*& worker,
      //  Remove & save client return envelope and insert the
      //  protocol header and service name, then rewrap envelope.
      char* client = msg->unwrap ();
-     msg->push_front((char*)service->GetNAME());
-     msg->push_front((char*)MDPC_REPORT);
-     msg->push_front((char*)MDPC_CLIENT);
+     msg->push_front(const_cast<char*>(service->GetNAME()));
+     msg->push_front(const_cast<char*>(MDPC_REPORT));
+     msg->push_front(const_cast<char*>(MDPC_CLIENT));
      msg->wrap (client, EMPTY_FRAME);
      msg->send (*m_socket);
      delete[] client;
@@ -454,7 +459,9 @@ Broker::worker_process_REPORT(xdb::Worker*& worker,
   }
   else 
   {
-     status = worker_delete (worker, 1);
+     LOG(ERROR) << "Got report from NULL worker";
+     status = false;
+     //status = release (worker, 1);
   }
 
   return status;
@@ -490,7 +497,7 @@ bool
 Broker::worker_process_DISCONNECT(xdb::Worker*& worker, const std::string& sender_identity, zmsg*)
 {
   if (m_verbose) LOG(INFO) << "Get DISCONNECT from worker " << sender_identity;
-  return worker_delete (worker, 0);
+  return release (worker, 0);
 }
 
 //  ---------------------------------------------------------------------
@@ -513,10 +520,10 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
   /*
    * TODO нужно заменить функцию worker_require()
    * Нельзя допускать неизвестных обработчиков, они все должны 
-   * принаждлежать своему Сервису. Значит, нужно узнать, к какому
+   * принадлежать своему Сервису. Значит, нужно узнать, к какому
    * Сервису принадлежит сообщение от данного Обработчика.
    */
-  if (command.compare (MDPW_READY) == 0) 
+  if (command.compare (MDPW_READY) == 0)
   {
     status = worker_process_READY(wrk, sender_identity, msg);
   }
@@ -528,20 +535,19 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
     }
     else 
     {
-      if (command.compare (MDPW_HEARTBEAT) == 0) 
+      if (command.compare (MDPW_HEARTBEAT) == 0)
       {
          status = worker_process_HEARTBEAT(wrk, sender_identity, msg);
       }
       else 
       {
-        if (command.compare (MDPW_DISCONNECT) == 0) 
+        if (command.compare (MDPW_DISCONNECT) == 0)
         {
           status = worker_process_DISCONNECT(wrk, sender_identity, msg);
         }
         else
         {
-          LOG(ERROR) << "Invalid input message " 
-                     << mdpw_commands [(int) *command.c_str()];
+          LOG(ERROR) << "Invalid input message '" << command << "'";
           msg->dump ();
         }
       }
@@ -594,13 +600,13 @@ Broker::worker_send (xdb::Worker *worker,
       msg->push_front(const_cast<std::string&>(letter->GetHEADER()));
       msg->push_front(const_cast<char*>(letter->GetREPLY_TO()));
       msg->push_front(const_cast<char*>(command));
-      msg->push_front((char*)MDPW_WORKER); 
+      msg->push_front(const_cast<char*>(MDPW_WORKER));
       //  Stack routing envelope to start of message
       msg->wrap(worker->GetIDENTITY(), EMPTY_FRAME);
 
       if (m_verbose)
       {
-        LOG(INFO) << "Sending '" << mdpw_commands [(int) *command]
+        LOG(INFO) << "Sending '" << mdpw_commands [static_cast<int>(*command)]
                 << "' from '"<<letter->GetREPLY_TO()<<"' to worker '"
                 << worker->GetIDENTITY() << "'";
         msg->dump ();
@@ -635,12 +641,12 @@ Broker::worker_send (
   msg->push_front(body);
   msg->push_front(header);
   msg->push_front (const_cast<char*>(command));
-  msg->push_front ((char*)MDPW_WORKER); 
+  msg->push_front (const_cast<char*>(MDPW_WORKER));
   //  Stack routing envelope to start of message
   msg->wrap(worker->GetIDENTITY(), EMPTY_FRAME);
 
   if (m_verbose) {
-    LOG(INFO) << "Sending '" << mdpw_commands [(int) *command]
+    LOG(INFO) << "Sending '" << mdpw_commands [static_cast<int>(*command)]
               << "' to worker '" << worker->GetIDENTITY() << "'";
     msg->dump ();
   }
@@ -664,13 +670,13 @@ Broker::worker_send (xdb::Worker *worker,
         msg->push_front ((char*)option.c_str());
     }
     msg->push_front (const_cast<char*>(command));
-    msg->push_front ((char*)MDPW_WORKER);
+    msg->push_front (const_cast<char*>(MDPW_WORKER));
     //  Stack routing envelope to start of message
     msg->wrap(worker->GetIDENTITY(), EMPTY_FRAME);
 
     if (m_verbose) {
-        LOG(INFO) << "Sending '" << mdpw_commands [(int) *command]
-            << "' to worker '" << worker->GetIDENTITY() << "'";
+        LOG(INFO) << "Sending '" << mdpw_commands [static_cast<int>(*command)]
+                  << "' to worker '" << worker->GetIDENTITY() << "'";
         msg->dump ();
     }
     msg->send (*m_socket);

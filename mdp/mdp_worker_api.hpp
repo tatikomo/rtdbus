@@ -7,9 +7,9 @@
     =====================================================================
 */
 
-#ifndef __MDP_WORKER_API_HPP_INCLUDED__
-#define __MDP_WORKER_API_HPP_INCLUDED__
 #pragma once
+#ifndef MDP_WORKER_API_HPP_INCLUDED
+#define MDP_WORKER_API_HPP_INCLUDED
 
 #include "config.h"
 #include "mdp_zmsg.hpp"
@@ -75,4 +75,5 @@ class mdwrk {
 };
 
 } //namespace mdp
+
 #endif

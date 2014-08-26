@@ -1,141 +1,141 @@
-#include <string.h>
-#include <bitset>
-
 #include "glog/logging.h"
 
+#if defined HAVE_CONFIG_H
 #include "config.h"
+#endif
+#include "xdb_impl_environment.hpp"
+#include "xdb_impl_application.hpp"
 #include "xdb_rtap_application.hpp"
 #include "xdb_rtap_environment.hpp"
 #include "xdb_rtap_connection.hpp"
 #include "xdb_rtap_database.hpp"
-#include "xdb_rtap_error.hpp"
+#include "mdp_letter.hpp"
 
 using namespace xdb;
 
-RtEnvironment::RtEnvironment(RtApplication* _app, const char* _name) :
-  m_state(CONDITION_UNKNOWN),
-  m_last_error(rtE_NONE),
-  m_appli(_app)
+RtEnvironment::RtEnvironment(RtApplication* _app, const char* _name)
 {
-  BitSet8 open_flags;
-  int cheched_val;
-
-  if (m_appli->getOption("OF_CREATE", cheched_val) && cheched_val)
-  {
-    open_flags.set(OF_POS_CREATE);
-    cheched_val = 0;
-  }
-  if (m_appli->getOption("OF_TRUNCATE", cheched_val) && cheched_val)
-  {
-    open_flags.set(OF_POS_TRUNCATE);
-    cheched_val = 0;
-  }
-  if (m_appli->getOption("OF_LOAD_SNAP", cheched_val) && cheched_val)
-  {
-    open_flags.set(OF_POS_LOAD_SNAP);
-    cheched_val = 0;
-  }
-  if (m_appli->getOption("OF_RDWR", cheched_val) && cheched_val)
-  {
-    open_flags.set(OF_POS_RDWR);
-    cheched_val = 0;
-  }
-  if (m_appli->getOption("OF_READONLY", cheched_val) && cheched_val)
-  {
-    open_flags.set(OF_POS_READONLY);
-    cheched_val = 0;
-  }
-
-  strncpy(m_name, _name, IDENTITY_MAXLEN);
-  m_name[IDENTITY_MAXLEN] = '\0';
-
-  m_database_impl = new RtCoreDatabase(_name, open_flags);
-
-  // Открыть базу данных с именем m_name
-  if (true == m_database_impl->Init())
-  {
-    if (openDB().getCode() == rtE_NONE)
-      m_state = CONDITION_INIT;
-    LOG(INFO) << "Init is successful";
-  }
-  else
-  {
-    m_state = CONDITION_BAD;
-    LOG(INFO) << "Init not successful";
-  }
+  m_appli = _app;
+  m_impl = new EnvironmentImpl(_app->getImpl(), _name);
+  m_conn = NULL;
+  m_database = NULL;
 }
 
 RtEnvironment::~RtEnvironment()
 {
-  delete m_database_impl;
-}
-
-const RtError& RtEnvironment::getLastError() const
-{
-  return m_last_error;
+  delete m_conn;
+  delete m_impl;
+  if (m_database)
+  {
+//    m_database->Disconnect();
+    delete m_database;
+  }
 }
 
 // Вернуть имя подключенной БД/среды
 const char* RtEnvironment::getName() const
 {
-  return m_name;
+  return m_impl->getName();
 }
 
-// TODO: Создать и вернуть новое подключение к указанной БД/среде
-RtDbConnection* RtEnvironment::createDbConnection()
+// вернуть подключение к указанной БД/среде
+RtConnection* RtEnvironment::getConnection()
 {
-  RtDbConnection* conn = NULL;
-  LOG(INFO) << "Get connection to env " << m_name;
-  conn = new RtDbConnection(this);
-  return conn;
+  // TODO реализация
+  if (!m_conn)
+  {
+    m_conn = new RtConnection(this);
+  }
+  return m_conn;
 }
 
-// TODO: Создать новое сообщение указанного типа
-mdp::Letter* RtEnvironment::createMessage(/* msgType */)
+// Загрузить ранее сохраненный снимок для указанного Приложения
+const Error& RtEnvironment::LoadSnapshot(const char *filename)
 {
-  m_last_error = rtE_NOT_IMPLEMENTED;
+  if (!m_database)
+  {
+    m_database = new RtDatabase(m_impl->getName(), m_appli->getOptions());
+    LOG(INFO) << "Lazy creating database " << m_database->getName();
+    m_database->Connect();
+    LOG(INFO) << "Lazy connection to database " << m_database->getName();
+  }
+  return m_database->LoadSnapshot(/*m_impl->getAppName(),*/ filename);
+}
+
+const Error& RtEnvironment::MakeSnapshot(const char *filename)
+{
+  return m_impl->MakeSnapshot(filename);
+}
+
+mdp::Letter* RtEnvironment::createMessage(int)
+{
+  m_impl->setLastError(rtE_NOT_IMPLEMENTED);
   return NULL;
 }
 
-// Отправить сообщение адресату
-RtError& RtEnvironment::sendMessage(mdp::Letter* letter)
+const Error& RtEnvironment::sendMessage(mdp::Letter* _letter)
 {
-  m_last_error = rtE_NONE;
-  assert(letter);
-  return m_last_error;
+  assert(_letter);
+
+  m_impl->setLastError(rtE_NOT_IMPLEMENTED);
+  return m_impl->getLastError();
 }
 
-RtError& RtEnvironment::MakeSnapshot(const char *filename)
+// Изменить состояние Среды
+void RtEnvironment::setEnvState(EnvState_t _new_state)
 {
-  m_last_error = rtE_NONE;
-
-  assert(filename);
-
-  // Допустимым форматом хранения XML-снимков БДРВ является встроенный в eXtremeDB формат.
-  // Это снимает зависимость от библиотеки xerces в runtime луркера.
-  m_database_impl->StoreSnapshot(filename);
-//    m_last_error.set(rtE_XML_NOT_OPENED);
-
-  return m_last_error;
+  m_impl->setEnvState(_new_state);
 }
 
-// Открыть БД без создания подключений
-// Подключения создаются в классе RtDbConection
-// TODO: определить, какую словарную функцию использует данная среда
-RtError& RtEnvironment::openDB()
+EnvState_t RtEnvironment::getEnvState() const
 {
-  bool status;
+  return m_impl->getEnvState();
+}
 
-  m_last_error = rtE_NONE;
-  // Открыть БД с помощью mco_db_open(m_name)...
-  if (false == (status = m_database_impl->Connect()))
+const Error& RtEnvironment::getLastError() const
+{
+  return m_impl->getLastError();
+}
+
+// Запустить исполнение
+const Error& RtEnvironment::Start()
+{
+  // TODO Создать экземпляр базы данных на основе ранее загруженных словарей
+  m_impl->setLastError(rtE_NOT_IMPLEMENTED);
+
+  if (m_impl->getLastError().Ok())
   {
-    m_last_error.set(rtE_DB_NOT_OPENED);
+    m_impl->setEnvState(ENV_STATE_DB_OPEN);
   }
-  else
+  return m_impl->getLastError();
+}
+
+// Загрузить справочники
+const Error& RtEnvironment::LoadDictionary()
+{
+  m_impl->setLastError(rtE_NOT_IMPLEMENTED);
+
+  if (m_impl->getLastError().Ok())
   {
-    m_state = CONDITION_DB_OPEN;
+    m_impl->setEnvState(ENV_STATE_INIT);
+  }
+  return m_impl->getLastError();
+}
+
+// Завершить исполнение
+const Error& RtEnvironment::Shutdown(EnvShutdownOrder_t order)
+{
+  switch(order)
+  {
+    case ENV_SHUTDOWN_SOFT:
+      LOG(INFO) << "Soft shuttingdown";
+      break;
+
+    case ENV_SHUTDOWN_HARD:
+      LOG(INFO) << "Hard shuttingdown";
+      break;
   }
 
-  return m_last_error;
+  m_impl->setLastError(rtE_NOT_IMPLEMENTED);
+  return m_impl->getLastError();
 }

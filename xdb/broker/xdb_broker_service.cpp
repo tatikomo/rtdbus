@@ -14,10 +14,11 @@ Service::Service() :
 }
 
 Service::Service(const int64_t _id, const char *_name) :
-  m_name(NULL)
+  m_id(_id),
+  m_name(NULL),
+  m_state(DISABLED),
+  m_modified(true)
 {
-  SetID(_id);
-  SetSTATE(DISABLED);
   SetNAME(_name);
 }
 

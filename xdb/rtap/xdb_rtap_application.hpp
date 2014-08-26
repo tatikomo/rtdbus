@@ -1,15 +1,19 @@
-#if !defined XDB_RTAP_APPLICATION_H_
-#define XDB_RTAP_APPLICATION_H_
 #pragma once
+#ifndef XDB_RTAP_APPLICATION_HPP
+#define XDB_RTAP_APPLICATION_HPP
 
 #include <string>
+#include <vector>
 #include <map>
 
+#if defined HAVE_CONFIG_H
 #include "config.h"
-#include "xdb_rtap_error.hpp"
+#endif
+#include "helper.hpp"
+#include "xdb_impl_common.hpp"
+#include "xdb_impl_error.hpp"
 
-namespace xdb
-{
+namespace xdb {
 
 // Описание хранилища опций в виде карты.
 // Пара <символьный ключ> => <числовое значение>
@@ -18,56 +22,51 @@ typedef std::map<const std::string, int> Options;
 typedef std::map<const std::string, int>::iterator OptionIterator;
 
 class RtEnvironment;
+class ApplicationImpl;
 
 class RtApplication
 {
   public:
-    typedef enum
-    {
-      MODE_UNKNOWN    =-1,
-      MODE_LOCAL      = 0,
-      MODE_REMOTE     = 1
-    } AppMode_t;
-
-    typedef enum
-    {
-      CONDITION_UNKNOWN =-1,
-      CONDITION_GOOD    = 0,
-      CONDITION_BAD     = 1
-    } AppState_t;
+    friend class RtEnvironment;
 
     RtApplication(const char*);
     ~RtApplication();
 
-    RtEnvironment* getEnvironment(const char*);
+    const Error& initialize();
 
+    const Options& getOptions() const;
+    bool  getOption(const std::string&, int&);
+    void  setOption(const char*, int);
     const char* getAppName() const;
-    const RtError& setAppName(const char*);
 
-    const char* getEnvName() const;
-    const RtError& setEnvName(const char*);
+    // Найти объект-среду по её имени
+    RtEnvironment* isEnvironmentRegistered(const char* _env_name);
+    // Загрузить среду с заданным именем, или среду по умолчанию
+    RtEnvironment* loadEnvironment(const char* = NULL);
 
-    const RtError& initialize();
+    const Error& getLastError() const;
+    AppMode_t    getOperationMode() const;
+    AppState_t   getOperationState() const;
 
-    AppMode_t   getOperationMode() const;
-    AppState_t  getOperationState() const;
-    bool getOption(const std::string&, int&);
-    void setOption(const char*, int);
-
-    const RtError& getLastError() const;
+  protected:
+    ApplicationImpl *getImpl();
 
   private:
     DISALLOW_COPY_AND_ASSIGN(RtApplication);
-    char m_appli_name[IDENTITY_MAXLEN + 1];
-    char m_environment_name[IDENTITY_MAXLEN + 1];
-    AppMode_t  m_mode;
-    AppState_t m_state;
-    RtError    m_last_error;
+    ApplicationImpl *m_impl;
+    bool         m_initialized;
     std::vector<RtEnvironment*> m_env_list;
-    Options    m_map_options;
+//    BitSet8      m_options;
+
+    // Зарегистрировать в Приложении среду
+    void         registerEnvironment(RtEnvironment*);
+    // Вернуть экземпляр объекта, или создать новый для заданного имени
+    // Если имя не задано явно, исполдьзуется название Приложения
+    // Необходимо удалить возвращенный экземпляр
+    RtEnvironment* getEnvironment(const char* = NULL);
 };
 
-}
+} // namespace xdb
 
 #endif
 

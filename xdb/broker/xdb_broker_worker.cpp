@@ -11,6 +11,7 @@ using namespace xdb;
 Worker::Worker() :
   m_id(0),
   m_service_id(0),
+  m_letter_id(0),
   m_state(DISARMED),
   m_modified(false)
 {
@@ -23,9 +24,11 @@ Worker::Worker() :
 // NB: Если self_id равен нулю, значит объект пока не содержится в базе данных
 Worker::Worker(int64_t     _service_id,
                const char *_self_identity,
-               int64_t     _self_id) :
+               int64_t     _self_id,
+               int64_t     _letter_id) :
   m_id(_self_id),
   m_service_id(_service_id),
+  m_letter_id(_letter_id),
   m_state(INIT),
   m_modified(true)
 {
@@ -48,6 +51,12 @@ void Worker::SetID(int64_t _id)
 void Worker::SetSERVICE_ID(int64_t _service_id)
 {
   m_service_id = _service_id;
+  m_modified = true;
+}
+
+void Worker::SetLETTER_ID(int64_t _letter_id)
+{
+  m_letter_id = _letter_id;
   m_modified = true;
 }
 
@@ -96,7 +105,7 @@ void Worker::SetEXPIRATION(const timer_mark_t& _expiration)
   m_modified = true;
 }
 
-timer_mark_t Worker::GetEXPIRATION() const
+const timer_mark_t& Worker::GetEXPIRATION() const
 {
   return m_expiration;
 }

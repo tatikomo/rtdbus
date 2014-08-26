@@ -10,7 +10,7 @@
 		<rtdb:AttrName>OBJCLASS</rtdb:AttrName>
 		<rtdb:Kind>SCALAR</rtdb:Kind>
 		<rtdb:Accessibility>PUBLIC</rtdb:Accessibility>
-		<rtdb:DeType>rtLOGICAL</rtdb:DeType>
+		<rtdb:DbType>LOGICAL</rtdb:DbType>
 		<rtdb:Value>0</rtdb:Value>
 	  </rtdb:Attr>
 	</rtdb:Class>
@@ -22,14 +22,14 @@
 		<rtdb:AttrName>OBJCLASS</rtdb:AttrName>
 		<rtdb:Kind>SCALAR</rtdb:Kind>
 		<rtdb:Accessibility>PUBLIC</rtdb:Accessibility>
-		<rtdb:DeType>rtINT8</rtdb:DeType>
+		<rtdb:DbType>INT8</rtdb:DbType>
 		<rtdb:Value>1</rtdb:Value>
 	  </rtdb:Attr>
 	  <rtdb:Attr>
 		<rtdb:AttrName>LABEL</rtdb:AttrName>
 		<rtdb:Kind>SCALAR</rtdb:Kind>
 		<rtdb:Accessibility>PUBLIC</rtdb:Accessibility>
-		<rtdb:DeType>rtBYTES20</rtdb:DeType>
+		<rtdb:DbType>BYTES20</rtdb:DbType>
 		<rtdb:Value>"Описание атрибута-1"</rtdb:Value>
 	  </rtdb:Attr>
 	</rtdb:Class>
@@ -41,7 +41,7 @@
 		<rtdb:AttrName>OBJCLASS</rtdb:AttrName>
 		<rtdb:Kind>SCALAR</rtdb:Kind>
 		<rtdb:Accessibility>PRIVATE</rtdb:Accessibility>
-		<rtdb:DeType>rtUINT8</rtdb:DeType>
+		<rtdb:DbType>UINT8</rtdb:DbType>
 		<rtdb:Value>3</rtdb:Value>
 	  </rtdb:Attr>
 	</rtdb:Class>
