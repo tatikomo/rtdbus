@@ -37,41 +37,7 @@ mco_size_sig_t file_writer(void*, const void*, mco_size_t);
 
 using namespace xdb;
 
-#if 0
-void show_runtime_info(const char * lead_line)
-{
-  mco_runtime_info_t info;
-  
-  /* get runtime info */
-  mco_get_runtime_info(&info);
-
-  /* Core configuration parameters: */
-  if ( *lead_line )
-    fprintf( stdout, "%s", lead_line );
-
-  fprintf( stdout, "\n" );
-  fprintf( stdout, "\tEvaluation runtime ______ : %s\n", info.mco_evaluation_version   ? "yes":"no" );
-  fprintf( stdout, "\tCheck-level _____________ : %d\n", info.mco_checklevel );
-  fprintf( stdout, "\tMultithread support _____ : %s\n", info.mco_multithreaded        ? "yes":"no" );
-  fprintf( stdout, "\tFixedrec support ________ : %s\n", info.mco_fixedrec_supported   ? "yes":"no" );
-  fprintf( stdout, "\tShared memory support ___ : %s\n", info.mco_shm_supported        ? "yes":"no" );
-  fprintf( stdout, "\tXML support _____________ : %s\n", info.mco_xml_supported        ? "yes":"no" );
-  fprintf( stdout, "\tStatistics support ______ : %s\n", info.mco_stat_supported       ? "yes":"no" );
-  fprintf( stdout, "\tEvents support __________ : %s\n", info.mco_events_supported     ? "yes":"no" );
-  fprintf( stdout, "\tVersioning support ______ : %s\n", info.mco_versioning_supported ? "yes":"no" );
-  fprintf( stdout, "\tSave/Load support _______ : %s\n", info.mco_save_load_supported  ? "yes":"no" );
-  fprintf( stdout, "\tRecovery support ________ : %s\n", info.mco_recovery_supported   ? "yes":"no" );
-#if (EXTREMEDB_VERSION >=41)
-  fprintf( stdout, "\tRTree index support _____ : %s\n", info.mco_rtree_supported      ? "yes":"no" );
-#endif
-  fprintf( stdout, "\tUnicode support _________ : %s\n", info.mco_unicode_supported    ? "yes":"no" );
-  fprintf( stdout, "\tWChar support ___________ : %s\n", info.mco_wchar_supported      ? "yes":"no" );
-  fprintf( stdout, "\tC runtime _______________ : %s\n", info.mco_rtl_supported        ? "yes":"no" );
-  fprintf( stdout, "\tSQL support _____________ : %s\n", info.mco_sql_supported        ? "yes":"no" );
-  fprintf( stdout, "\tPersistent storage support: %s\n", info.mco_disk_supported       ? "yes":"no" );
-  fprintf( stdout, "\tDirect pointers mode ____ : %s\n", info.mco_direct_pointers      ? "yes":"no" );  
-}
-#endif
+int DatabaseImpl::m_count = 0;
 
 void impl_errhandler(MCO_RET n)
 {
@@ -250,12 +216,6 @@ unsigned int DatabaseImpl::getSnapshotCounter()
 DatabaseImpl::~DatabaseImpl()
 {
   MCO_RET rc;
-//  mco_disk_info_t info;
-//  mco_disk_info (m_db, &info);
-//  LOG(INFO) << "mco_disk_info '" << m_name
-//            << "', dfs=" << info.data_file_size
-//            << " lfs=" << info.log_file_size
-//            << " ufs=" << info.used_database_size;
 
   LOG(INFO) << m_name << ": Current state " << State();
   switch (State())
@@ -277,17 +237,40 @@ DatabaseImpl::~DatabaseImpl()
     case DB_STATE_INITIALIZED:
       // NB: break пропущен специально!
     case DB_STATE_DISCONNECTED:
-      rc = mco_runtime_stop();
-      LOG(INFO) << "mco_runtime_stop '" << m_name << "', rc=" << rc;
-      if (rc)
+#if 1
+      m_count--;
+      if (!m_count)  // Удаляется последний экземпляр базы данных
       {
-        LOG(ERROR) << "Unable to stop database '" << m_name << "' runtime, code=" << rc;
+        const char* enable_mco_stop = getenv("MCO_RUNTIME_STOP");
+        rc = MCO_S_OK;
+        if (enable_mco_stop && strtol(enable_mco_stop,NULL,10) == 1)
+        {
+          rc = mco_runtime_stop();
+          LOG(INFO) << "mco_runtime_stop '" << m_name << "', rc=" << rc;
+        }
+        if (rc)
+        {
+          LOG(ERROR) << "Unable to stop database '" << m_name << "' runtime, code=" << rc;
+        }
       }
-//      free(m_dev.dev.conv.ptr);
+      LOG(INFO) << "mco_runtime_stop '" << m_name << "' " << m_count;
+#else
+/*
+ * Тесты используют последовательное создание и удаление экземпляров БД.
+ * Повторный вызов mco_runtime_start|mco_runtime_stop ведет к сбоям в 
+ * работе XDB.
+ * Необходимо или ограничить вызов mco_runtime_stop, или разбить тесты 
+ * на независимые части.
+ */
+#warning "Временный запрет на вызов mco_runtime_stop"
+#endif
       TransitionToState(DB_STATE_CLOSED);
     break;
   }
 
+#if defined USE_EXTREMEDB_HTTP_SERVER
+  free(m_intf.interface_addr);
+#endif
 
 #ifdef DISK_DATABASE
   delete []m_dbsFileName;
@@ -316,8 +299,15 @@ const Error& DatabaseImpl::Init()
       return m_last_error;
     }
 
-    rc = mco_runtime_start();
-    LOG(INFO) << "mco_runtime_start '" << m_name << "', rc=" << rc;
+    // Запуск только для первого экземпляра БД
+    if (!m_count)
+    {
+      rc = mco_runtime_start();
+      LOG(INFO) << "mco_runtime_start '" << m_name << "', rc=" << rc;
+    }
+    m_count++;
+    LOG(INFO) << "mco_runtime_start '" << m_name << "' " << m_count;
+
     if (rc)
     {
       TransitionToState(DB_STATE_UNINITIALIZED);
@@ -355,27 +345,30 @@ const Error& DatabaseImpl::Init()
       LOG(INFO) << "User-defined error handler set";
     
 #if (EXTREMEDB_VERSION >= 40) && USE_EXTREMEDB_HTTP_SERVER
-      /* initialize MCOHV */
-      m_hv = 0;
-      int ret = mcohv_initialize();
-      LOG(INFO) << "mcohv_initialize '" << m_name << "', ret=" << ret;
+      if (1 == m_count) // Первый вызов инициализации
+      {
+          /* initialize MCOHV */
+          m_hv = 0;
+          int ret = mcohv_initialize();
+          LOG(INFO) << "mcohv_initialize '" << m_name << "', ret=" << ret;
 
-      mco_metadict_size(1, &m_size);
-      m_metadict = (mco_metadict_header_t *) malloc(m_size);
-      rc = mco_metadict_init (m_metadict, m_size, 0);
-      LOG(INFO) << "mco_metadict_init '" << m_name << ", rc=" << rc;
-      if (rc)
-      {
-        LOG(ERROR) << "Unable to initialize UDA metadictionary, rc=" << rc;
-        free(m_metadict);
-        m_metadict_initialized = false;
-      }
-      else
-      {
-        m_metadict_initialized = true;
-        rc = mco_metadict_register(m_metadict, m_name, m_dict, NULL);
-        LOG(INFO) << "mco_metadict_register '" << m_name << ", rc=" << rc;
-        if (rc) LOG(INFO) << "mco_metadict_register=" << rc;
+          mco_metadict_size(1, &m_size);
+          m_metadict = (mco_metadict_header_t *) malloc(m_size);
+          rc = mco_metadict_init (m_metadict, m_size, 0);
+          LOG(INFO) << "mco_metadict_init '" << m_name << ", rc=" << rc;
+          if (rc)
+          {
+            LOG(ERROR) << "Unable to initialize UDA metadictionary, rc=" << rc;
+            free(m_metadict);
+            m_metadict_initialized = false;
+          }
+          else
+          {
+            m_metadict_initialized = true;
+            rc = mco_metadict_register(m_metadict, m_name, m_dict, NULL);
+            LOG(INFO) << "mco_metadict_register '" << m_name << ", rc=" << rc;
+            if (rc) LOG(INFO) << "mco_metadict_register=" << rc;
+          }
       }
 #endif
 
@@ -711,7 +704,7 @@ const Error& DatabaseImpl::Disconnect()
 
 #if (EXTREMEDB_VERSION >= 40) && USE_EXTREMEDB_HTTP_SERVER
   int ret;
-  if (m_metadict_initialized == true)
+  if (!m_count && m_metadict_initialized == true)
   {
     ret = mcohv_stop(m_hv);
     LOG(INFO) << "mcohv_stop '" << m_name << "', ret=" << ret;

@@ -87,6 +87,7 @@ class DatabaseImpl
     Options      m_db_access_flags;
     bool         m_save_to_xml_feature;
     BitSet8      m_flags;
+    static       int m_count;
 
 #ifdef DISK_DATABASE
     char* m_dbsFileName;

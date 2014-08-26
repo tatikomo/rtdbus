@@ -451,6 +451,9 @@ TEST(TestBrokerDATABASE, DESTROY)
     EXPECT_EQ(state, DB_STATE_DISCONNECTED);
 #endif
 
+//    printf("Press any key to continue...");
+//    int ch = getchar();
+
     delete database;
 }
 
@@ -820,6 +823,7 @@ int main(int argc, char** argv)
   ::google::InitGoogleLogging(argv[0]);
   ::testing::InitGoogleTest(&argc, argv);
   ::google::InstallFailureSignalHandler();
+  setenv("MCO_RUNTIME_STOP", "1", 0);
   int retval = RUN_ALL_TESTS();
   ::google::protobuf::ShutdownProtobufLibrary();
   ::google::ShutdownGoogleLogging();

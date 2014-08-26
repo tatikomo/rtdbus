@@ -11,6 +11,10 @@ set (RTDBUS_VERSION_STRING "${RTDBUS_VERSION}")
 
 set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/modules")
 
+#set (USE_EXTREMEDB_HTTP_SERVER 1)
+OPTION (RTDBUS_USE_EXTREMEDB_HTTP_SERVER "enable internal http server"  OFF)
+OPTION (RTDBUS_USE_MSEC_IN_EXPIRATION    "enable nanoseconds comparing" OFF)
+ 
 STRING(TOUPPER ${CMAKE_SYSTEM_NAME} sysname)
 if("${sysname}" MATCHES "SUNOS")
     SET (COMPILER_PLATFORM "SunOS")
@@ -130,11 +134,7 @@ set (HEARTBEAT_PERIOD_MSEC  2500)
 
 set (WORKERS_SPOOL_SIZE        2)
 set (MESSAGE_EXPIRATION_PERIOD_MSEC  500)
-set (USE_EXTREMEDB_HTTP_SERVER 1)
 
-OPTION (RTDBUS_USE_EXTREMEDB_HTTP_SERVER "enable internal http server"  OFF)
-OPTION (RTDBUS_USE_MSEC_IN_EXPIRATION    "enable nanoseconds comparing" OFF)
- 
 if(RTDBUS_BUILD_TESTS)
     add_definitions(-DRTDBUS_BUILD_TESTS)
     add_definitions(-DDEBUG)
@@ -169,17 +169,6 @@ else (CMAKE_COMPILER_IS_GNUCC)
   add_definitions(-xarch=v9)
   add_definitions(+w2)
 endif (CMAKE_COMPILER_IS_GNUCC)
-
-if (USE_EXTREMEDB_HTTP_SERVER)
-  set(LIBEXTREMEDB_EXTRA_LIBRARIES
-      mcoseri_debug
-      mcouda_debug
-      mcohv_debug
-      mcoews_cgi_debug)
-else (USE_EXTREMEDB_HTTP_SERVER)
-  set(LIBEXTREMEDB_EXTRA_LIBRARIES
-      mcoseri_debug)
-endif (USE_EXTREMEDB_HTTP_SERVER)
 
 ########### create config.h ###############
 add_definitions(-DHAVE_CONFIG_H)

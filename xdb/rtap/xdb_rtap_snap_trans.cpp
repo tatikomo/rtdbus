@@ -308,7 +308,9 @@ int xdb::processClassFile(const char* fpath)
         getAttrValue(db_type, p_attr_info, s_default_value);
 
         // Поместить новый атрибут в список атрибутов класса
-        ClassDescriptionTable[objclass].attributes_pool->insert(AttributeMapPair_t(s_univname,  *p_attr_info));
+        ClassDescriptionTable[objclass].attributes_pool->insert(
+                    AttributeMapPair_t(s_univname,  *p_attr_info)
+                    );
         delete p_attr_info;
       }
 
@@ -837,7 +839,8 @@ bool xdb::processInstanceFile(const char* fpath)
                // Присвоить значение атрибуту в соответствии с полученным типом
                if (!getAttrValue(db_type, &attr_info, value))
                {
-                 LOG(ERROR) << "Unable process type info '" << type << "' for " << currentAttrName;
+                 LOG(ERROR) << "Unable process type info '" << type
+                            << "' for " << currentAttrName;
                }
 
                attributes.insert(AttributeMapPair_t(currentAttrName, attr_info));
@@ -851,7 +854,8 @@ bool xdb::processInstanceFile(const char* fpath)
 
            /* sets the data structure with the new value of the scalar */
            //status = initNewScalarValue(instanceAlias, value);
-//             LOG (INFO) << " Разбирается "<< instanceAlias << "." << currentAttrName << " : " << type << " : " << value;
+//         LOG (INFO) << " Разбирается "<< instanceAlias << "."
+//                    << currentAttrName << " : " << type << " : " << value;
            }
            else
            {

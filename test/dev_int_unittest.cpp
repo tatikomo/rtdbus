@@ -642,10 +642,8 @@ TEST(TestProxy, SERVICE_DISPATCH)
 ////////////////////////////////////////////////////////////////////////////////
 TEST(TestProxy, BROKER_DELETE)
 {
-  int input;
-
-  printf("Visit 'http://localhost:8082'\nPress any key to exit\n");
-  input = getchar();
+//  printf("Visit 'http://localhost:8082'\nPress any key to exit\n");
+//  int input = getchar();
   delete broker;
 
 }

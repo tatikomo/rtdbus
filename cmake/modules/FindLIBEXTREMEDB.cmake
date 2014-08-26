@@ -54,9 +54,12 @@
       set (LIBEXTREMEDB_LIBRARIES_ALL "mcomipc -lmcolib -lmcossun -lmcounrt -lmcovtmem -lmcouwrt -lmcotmursiw")
     elseif (${COMPILER_PLATFORM} MATCHES "Linux")
       # LINUX EXTREMEDB 5.0 EVALUATION
-      set (LIBEXTREMEDB_LIBRARIES "mcolib mcovtdsk mcofu98 mcoslnx mcomipc mcotmvcc mcolib mcouwrt")
-      set (LIBEXTREMEDB_LIBRARIES_ALL "-lmcolib_debug -lmcovtdsk_debug -lmcofu98_debug -lmcoslnx_debug -lmcomipc_debug -lmcotmvcc_debug -lmcolib_debug -lmcouwrt_debug")
+      set (LIBEXTREMEDB_LIBRARIES "mcolib mcovtmem mcofu98 mcoslnx mcomipc mcotmvcc mcolib mcouwrt")
+      set (LIBEXTREMEDB_LIBRARIES_ALL "-lmcolib_debug -lmcovtmem_debug -lmcofu98_debug -lmcoslnx_debug -lmcomipc_debug -lmcotmvcc_debug -lmcolib_debug -lmcouwrt_debug")
     endif()
+
+    # inmem_load && inmem_save
+    set(LIBEXTREMEDB_EXTRA_LIBRARIES mcoseri_debug)
 
     if (${USE_EXTREMEDB_HTTP_SERVER})
       message("Internal eXtremeDB http server ON")
