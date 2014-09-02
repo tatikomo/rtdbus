@@ -490,6 +490,9 @@ TEST(TestDiggerDATABASE, CREATION)
   env = app->loadEnvironment("SINF");
   ASSERT_TRUE(env != NULL);
 
+  env->MakeSnapshot(NULL);
+  EXPECT_EQ(app->getLastError().getCode(), xdb::rtE_NONE);
+
   env->Start();
   EXPECT_EQ(app->getLastError().getCode(), xdb::rtE_NONE /*rtE_NOT_IMPLEMENTED*/);
 
@@ -538,6 +541,7 @@ TEST(TestTools, LOAD_XML)
                     (char*)"classes.xml"
                     };
 
+  LOG(INFO) << "BEGIN LOAD_XML TestTools";
   try
   {
     XMLPlatformUtils::Initialize("UTF-8");
@@ -653,6 +657,7 @@ TEST(TestTools, LOAD_XML)
     std::cerr << argv[1] << ": error: i/o failure" << std::endl;
     return;
   }
+  LOG(INFO) << "END LOAD_XML TestTools";
 }
 
 TEST(TestTools, LOAD_CLASSES)
@@ -663,6 +668,8 @@ TEST(TestTools, LOAD_CLASSES)
   char msg_info[255];
   char msg_val[255];
   xdb::AttributeMap_t *pool;
+
+  LOG(INFO) << "BEGIN LOAD_CLASSES TestTools";
 
   getcwd(fpath, 255);
   loaded = xdb::processClassFile(fpath);
@@ -758,8 +765,8 @@ TEST(TestTools, LOAD_CLASSES)
 #endif
         }
     }
-
   }
+  LOG(INFO) << "END LOAD_CLASSES TestTools";
 }
 
 TEST(TestTools, LOAD_INSTANCE)
@@ -767,21 +774,18 @@ TEST(TestTools, LOAD_INSTANCE)
   bool status = false;
   char fpath[255];
 
+  LOG(INFO) << "BEGIN LOAD_INSTANCE TestTools";
   getcwd(fpath, 255);
   status = xdb::processInstanceFile(fpath);
   EXPECT_TRUE(status);
+  LOG(INFO) << "END LOAD_INSTANCE TestTools";
 }
 
+#if 0
 /* Заполнить контент RTDB на основе прочитанных из XML данных */
 TEST(TestRtapDATABASE, CREATE)
 {
-//  bool status = false;
-//  const int argc = 3;
-//  char *argv[argc] = {
-//                    (char*)"RTDB_TEST",
-//                    (char*)"OF_CREATE=1",
-//                    (char*)"OF_TRUNCATE=1"
-//                    };
+  LOG(INFO) << "BEGIN CREATE TestRtapDATABASE";
 
   app = new xdb::RtApplication("RTDB_TEST");
   ASSERT_TRUE(app != NULL);
@@ -796,15 +800,12 @@ TEST(TestRtapDATABASE, CREATE)
   LOG(INFO) << "Operation mode: " << app->getOperationMode();
   LOG(INFO) << "Operation state: " << app->getOperationState();
 
-#if 0
-  env = app->getEnvironment("SINF");
+  env = app->loadEnvironment("SINF");
   EXPECT_TRUE(env != NULL);
 
-  connection = env->createConnection();
-  EXPECT_TRUE(connection != NULL);
-#else
-#warning "Implement environment and connections creation for RtApplication"
-#endif
+//  connection = env->createConnection();
+//  EXPECT_TRUE(connection != NULL);
+  LOG(INFO) << "END CREATE TestRtapDATABASE";
 }
 
 TEST(TestRtapDATABASE, SHOW_CONTENT)
@@ -814,9 +815,12 @@ TEST(TestRtapDATABASE, SHOW_CONTENT)
 
 TEST(TestRtapDATABASE, TERMINATE)
 {
+  LOG(INFO) << "BEGIN TERMINATE TestRtapDATABASE";
 //  delete env;
   delete app;
+  LOG(INFO) << "END TERMINATE TestRtapDATABASE";
 }
+#endif
 
 int main(int argc, char** argv)
 {

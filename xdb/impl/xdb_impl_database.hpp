@@ -12,6 +12,8 @@ extern "C" {
 #include "mco.h"
 #include "mcouda.h"  // mco_metadict_header_t
 #include "mcohv.h"   // mcohv_p
+#define SETUP_POLICY
+#include "mcoxml.h"
 }
 #endif
 
@@ -25,7 +27,11 @@ class DatabaseImpl
 {
   public:
     // Обеспечить доступ к внутренностям БД для реализации специфики БД Брокера
+    // GEV : Убрал friend-ов, поскольку они были нужны только для доступа к getDbHandler()
+#if 0
     friend class DatabaseBrokerImpl;
+    friend class DatabaseRtapImpl;
+#endif
 
     DatabaseImpl(const char*, const Options&, mco_dictionary_h);
     ~DatabaseImpl();
@@ -44,6 +50,8 @@ class DatabaseImpl
     const Error& StoreSnapshot(const char* = NULL);
     // Сохранение данных в указанный файл в виде XML
     const Error& SaveAsXML(const char* = NULL, const char* = NULL);
+    // Восстановление содержимого БД из указанного XML файла
+    const Error& LoadFromXML(const char* = NULL);
     // Получить имя базы данных
     const char* getName() { return m_name; };
     // Сменить текущее состояние на новое
@@ -59,8 +67,9 @@ class DatabaseImpl
     // Вернуть текущее состояние БД
     DBState_t State() const;
 
-  protected:
     mco_db_h getDbHandler();
+
+  protected:
     unsigned int m_snapshot_counter;
     unsigned int m_DatabaseSize;
     unsigned short m_MemoryPageSize;
@@ -114,6 +123,8 @@ class DatabaseImpl
      */
     const Error& RegisterEvents();
     const Error& ConnectToInstance();
+    // Установка общих значимых полей для эксорта/импорта данных в XML
+    void setupPolicy(mco_xml_policy_t&);
 };
 
 } // namespace xdb

@@ -9,27 +9,20 @@
 #endif
 #include "xdb_impl_common.hpp"
 #include "xdb_impl_database.hpp"
+#include "xdb_impl_db_rtap.hpp"
 #include "xdb_rtap_database.hpp"
-
-#ifdef __cplusplus
-extern "C" {
-#include "mco.h"
-}
-#endif
-
-#include "dat/rtap_db.hpp"
 
 using namespace xdb;
 
 RtDatabase::RtDatabase(const char* _name, const Options& _options)
 {
   assert (_name);
-  m_impl = new DatabaseImpl(_name, _options, rtap_db_get_dictionary());
+  // GEV Опции создания БД для RTAP сейчас игнорируются
+  m_impl = new DatabaseRtapImpl(_name); //, _options, rtap_db_get_dictionary());
 }
 
 RtDatabase::~RtDatabase()
 {
-//  m_impl->Disconnect();
   delete m_impl;
 }
 
@@ -48,19 +41,31 @@ void RtDatabase::setError(ErrorCode_t _new_error_code)
   m_impl->setError(_new_error_code);
 }
 
-const Error&  RtDatabase::Connect()
+const Error& RtDatabase::Connect()
 {
-  return m_impl->Connect();
+  if (!m_impl->Connect())
+  {
+    LOG(ERROR) << "Connection бяка";
+  }
+  return m_impl->getLastError();
 }
 
-const Error&  RtDatabase::Disconnect()
+const Error& RtDatabase::Disconnect()
 {
-  return m_impl->Disconnect();
+  if (!m_impl->Disconnect())
+  {
+    LOG(ERROR) << "Disconnect бяка";
+  }
+  return m_impl->getLastError();
 }
 
 const Error&  RtDatabase::Init()
 {
-  return m_impl->Init();
+  if (!m_impl->Init())
+  {
+    LOG(ERROR) << "Init бяка";
+  }
+  return m_impl->getLastError();
 }
 
 const Error& RtDatabase::getLastError() const
@@ -71,18 +76,25 @@ const Error& RtDatabase::getLastError() const
 const Error& RtDatabase::Create()
 {
   setError(rtE_NOT_IMPLEMENTED);
-  return getLastError();
+  return m_impl->getLastError();
 }
 
-const Error& RtDatabase::LoadSnapshot(const char*)
+// NB: входящий указатель на имя файла может быть нулевым
+const Error& RtDatabase::LoadSnapshot(const char* _fname)
 {
-  setError(rtE_NOT_IMPLEMENTED);
-  return getLastError();
+  if (!m_impl->LoadSnapshot(_fname))
+  {
+    LOG(ERROR) << "LoadSnapshot бяка";
+  }
+  return m_impl->getLastError();
 }
 
-const Error& RtDatabase::StoreSnapshot(const char*)
+const Error& RtDatabase::MakeSnapshot(const char* _fname)
 {
-  setError(rtE_NOT_IMPLEMENTED);
-  return getLastError();
+  if (!m_impl->MakeSnapshot(_fname))
+  {
+    LOG(ERROR) << "MakeSnapshot бяка";
+  }
+  return m_impl->getLastError();
 }
 

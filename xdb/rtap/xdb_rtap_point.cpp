@@ -1,16 +1,37 @@
 #include <assert.h>
+#include <string>
+
+#include "glog/logging.h"
 
 #if defined HAVE_CONFIG_H
 #include "config.h"
 #endif
+#include "dat/rtap_db.hxx"
 #include "xdb_impl_error.hpp"
 #include "xdb_rtap_point.hpp"
 
 using namespace xdb;
 
-RtPoint::RtPoint() :
-  m_last_error(rtE_NONE)
+static const std::string EMPTY = "<NULL>";
+
+RtPoint::RtPoint(/*RtEnvironment* _env,*/ rtap_db::Class& _info) :
+  m_info(_info),
+//  m_environment(_env),
+  m_last_error(rtE_NONE),
+  m_residence(RAM_RESIDENT)
 {
+  m_univname_attr = m_info.attrib("UNIVNAME");
+
+  LOG(INFO) << "create RtPoint "
+            << ((m_univname_attr)? m_univname_attr->value() : EMPTY)
+            << " : " << m_info.name() << " : "
+            << m_info.code();
+}
+
+RtPoint::~RtPoint()
+{
+  LOG(INFO) << "delete RtPoint "
+            << ((m_univname_attr)? m_univname_attr->value() : EMPTY);
 }
 
 // Получить тип хранилища данной точки
@@ -19,39 +40,37 @@ RtResidence RtPoint::getResidence() const
   return m_residence;
 }
 
-// Получить алиас точки
-RtAttribute* RtPoint::getAlias() const
+const std::string& RtPoint::getName() const
 {
-  return NULL;
+  return (m_univname_attr)? m_univname_attr->value() : EMPTY;
 }
 
 // Получить количество атрибутов точки
-int RtPoint::getAttibuteCount()
+int RtPoint::getAttibuteCount() const
 {
-  m_last_error.set(rtE_NOT_IMPLEMENTED);
-  return 0;
+  return m_info.m_attributes.size();
 }
 
 // Получить количество атрибутов точки, подходящих под данный шаблон
-int RtPoint::getAttibuteCount(const char*)
+int RtPoint::getAttibuteCount(const char*) const
 {
-  m_last_error.set(rtE_NOT_IMPLEMENTED);
   return 0;
 }
 
 // Получить все атрибуты точки
-RtAttribute* RtPoint::getAttributes()
+rtap_db::AttibuteList& RtPoint::getAttributes()
 {
-  m_last_error.set(rtE_NOT_IMPLEMENTED);
-  return NULL;
+  return m_info.m_attributes;
 }
 
+#if 0
 // Получить все атрибуты точки, подходящие под данный шаблон
 RtAttribute* RtPoint::getAttributes(const char*)
 {
   m_last_error.set(rtE_NOT_IMPLEMENTED);
   return NULL;
 }
+#endif
 
 // Вернуть все дочерние точки
 RtPoint* RtPoint::getChildren()
@@ -109,6 +128,7 @@ const Error& RtPoint::matchPoints(RtPointFilter*)
   return m_last_error;
 }
 
+#if 0
 // Запись множества значений атрибутов данной точки
 const Error& RtPoint::write(std::vector<std::string> attrNames, RtData* data)
 {
@@ -126,4 +146,13 @@ const Error& RtPoint::write(std::string& attrName, RtData* data)
   assert(data);
   return m_last_error;
 }
+
+// Полная запись данных точки
+const Error& RtPoint::write()
+{
+  m_last_error.clear();
+
+  return m_last_error;
+}
+#endif
 

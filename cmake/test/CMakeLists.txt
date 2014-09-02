@@ -123,7 +123,7 @@ add_custom_command(
         ${XDB_IMPL_DIR}/dat/broker_db.c
         ${XDB_IMPL_DIR}/dat/broker_db.hpp
         COMMAND
-        ${LIBEXTREMEDB_MCOCOMP} -hpp broker_db.mco -P${XDB_IMPL_DIR}/dat
+        ${LIBEXTREMEDB_MCOCOMP} -hpp -x broker_db.mco -P${XDB_IMPL_DIR}/dat
         DEPENDS
         ${XDB_IMPL_DIR}/dat/broker_db.mco
         WORKING_DIRECTORY
@@ -161,7 +161,7 @@ add_custom_command(
         ${XDB_IMPL_DIR}/dat/rtap_db.c
         ${XDB_IMPL_DIR}/dat/rtap_db.hpp
         COMMAND
-        ${LIBEXTREMEDB_MCOCOMP} -hpp rtap_db.mco -P${XDB_IMPL_DIR}/dat
+        ${LIBEXTREMEDB_MCOCOMP} -hpp -x rtap_db.mco -P${XDB_IMPL_DIR}/dat
         DEPENDS
         ${XDB_IMPL_DIR}/dat/rtap_db.mco
         WORKING_DIRECTORY

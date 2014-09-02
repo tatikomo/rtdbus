@@ -134,7 +134,7 @@ const Error& EnvironmentImpl::MakeSnapshot(const char *filename)
   m_last_error = rtE_NONE;
 
   assert(filename);
-  m_last_error.set(rtE_XML_NOT_OPENED);
+  m_last_error.set(rtE_XML_OPEN);
   return m_last_error;
 }
 

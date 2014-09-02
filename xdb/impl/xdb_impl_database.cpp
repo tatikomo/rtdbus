@@ -510,7 +510,7 @@ const Error& DatabaseImpl::SaveAsXML(const char* given_file_name, const char *ms
   mco_xml_policy_t op, np;
   mco_trans_h t;
   static char calc_file_name[150];
-  char *fname;
+  char *fname = &calc_file_name[0];
   FILE* f;
 
   m_last_error.clear();
@@ -525,7 +525,7 @@ const Error& DatabaseImpl::SaveAsXML(const char* given_file_name, const char *ms
   if (!given_file_name)
   {
     snprintf(calc_file_name, sizeof(calc_file_name-1),
-          "%09d.%s.%s.snap",
+          "%09d.%s.%s.xml.snap",
           getSnapshotCounter(),
           m_name,
           (NULL == msg)? "xdb" : msg);
@@ -540,23 +540,10 @@ const Error& DatabaseImpl::SaveAsXML(const char* given_file_name, const char *ms
       calc_file_name[sizeof(calc_file_name) - 1] = '\0';
     }
   }
-  fname = calc_file_name;
+  //fname = calc_file_name;
     
   /* setup policy */
-  np.blob_coding = MCO_TEXT_BASE64;
-  np.encode_lf = MCO_YES;
-  np.encode_nat = MCO_NO; /*MCO_YES ЯаШТХФХв Ъ зШбЫЮТЮЩ ЪЮФШаЮТЪХ агббЪШе СгЪТ */
-  np.encode_spec = MCO_YES;
-  np.float_format = MCO_FLOAT_FIXED;
-  np.ignore_field = MCO_YES;
-  np.indent = MCO_YES; /*or MCO_NO*/
-  np.int_base = MCO_NUM_DEC;
-  np.quad_base = MCO_NUM_HEX; /* other are invalid */
-  np.text_coding = MCO_TEXT_ASCII;
-  np.truncate_sp = MCO_YES;
-  np.use_xml_attrs = MCO_NO; //YES;
-  np.ignore_autoid = MCO_NO;
-  np.ignore_autooid = MCO_NO;
+  setupPolicy(np);
 
   LOG(INFO) << "Export DB to " << fname;
   f = fopen(fname, "wb");
@@ -607,6 +594,25 @@ const Error& DatabaseImpl::SaveAsXML(const char* given_file_name, const char *ms
   return m_last_error;
 } /* ========================================================================= */
 
+// Установка общих значимых полей для эксорта/импорта данных в XML
+void DatabaseImpl::setupPolicy(mco_xml_policy_t& policy)
+{
+  policy.blob_coding = MCO_TEXT_BINHEX; //MCO_TEXT_BASE64;
+  policy.encode_lf   = MCO_YES;
+  policy.encode_nat  = MCO_YES; //MCO_NO; /* MCO_YES ПРИВЕДЕТ К ЧИСЛОВОЙ КОДИРОВКЕ РУССКИХ БУКВ */
+  policy.encode_spec = MCO_YES;
+  policy.float_format= MCO_FLOAT_FIXED;
+  policy.ignore_field= MCO_YES;
+  policy.indent      = MCO_YES;
+  policy.int_base    = MCO_NUM_DEC;
+  policy.quad_base   = MCO_NUM_HEX; /* other are invalid */
+  policy.text_coding = MCO_TEXT_ASCII;
+  policy.truncate_sp = MCO_YES;
+  policy.use_xml_attrs  = MCO_NO; //YES;
+  policy.ignore_autoid  = MCO_NO;
+  policy.ignore_autooid = MCO_NO;
+}
+
 const Error& DatabaseImpl::StoreSnapshot(const char* given_file_name)
 {
   FILE* fbak;
@@ -621,7 +627,7 @@ const Error& DatabaseImpl::StoreSnapshot(const char* given_file_name)
     {
       if (strlen(given_file_name) > sizeof(fname))
       {
-        LOG(ERROR) << "Given file name for XML snapshot storing is exceed limits ("<<sizeof(fname)<<")";
+        LOG(ERROR) << "Given snapshot filename is exceed limits ("<<sizeof(fname)<<")";
       }
       snprintf(fname, sizeof(fname), "%s.snap", given_file_name);
     }
@@ -634,7 +640,7 @@ const Error& DatabaseImpl::StoreSnapshot(const char* given_file_name)
     /* Backup database */
     if (NULL != (fbak = fopen(fname, "wb")))
     {
-      rc = mco_inmem_save(static_cast<void*>(fbak), file_writer, m_db);
+      rc = mco_db_save(static_cast<void*>(fbak), file_writer, m_db);
       if (rc)
       {
         LOG(ERROR) << "Unable to save "<<m_name<<" snapshot into "<<fname;
@@ -724,7 +730,7 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
 {
   MCO_RET rc = MCO_S_OK;
   FILE* fbak;
-  char fname[40];
+  char fname[150];
 
   clearError();
 
@@ -742,7 +748,7 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
     {
       if (strlen(given_file_name) > sizeof(fname))
       {
-        LOG(ERROR) << "Given file name for XML snapshot storing is exceed limits ("<<sizeof(fname)<<")";
+        LOG(ERROR) << "Given snapshot filename is exceed limits ("<<sizeof(fname)<<")";
       }
       strncpy(fname, given_file_name, sizeof(fname));
       fname[sizeof(fname)-1] = '\0';
@@ -760,7 +766,7 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
       break;
     }
 
-    rc = mco_inmem_load(static_cast<void*>(fbak),
+    rc = mco_db_load(static_cast<void*>(fbak),
                         file_reader,
                         m_name,
                         m_dict,
@@ -769,7 +775,7 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
                         &m_db_params);
     if (rc)
     {
-      LOG(ERROR) << "Unable to read data from snapshot file, rc="<<rc;
+      LOG(ERROR) << "Unable to read data from snap file '" <<fname<<"' , rc="<<rc;
       setError(rtE_SNAPSHOT_READ);
     }
     fclose(fbak);
@@ -783,15 +789,99 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
   } while (false);
 #endif
 
+  // Если не удалось восстановить данные из двоичного снимка
+  if (m_last_error.code() == rtE_SNAPSHOT_READ)
+  {
+    strcat(fname, ".xml");
+    LoadFromXML(fname);
+    if (getLastError().Ok())
+    {
+      LOG(ERROR) << "Unable to read data from XML initial snap";
+    }
+  }
+
   return getLastError();
 }
 
+// TODO: попробовать восстановить данные из XML
+const Error& DatabaseImpl::LoadFromXML(const char* given_file_name)
+{
+  MCO_RET           rc = MCO_S_OK;
+  mco_trans_h       t;
+  mco_xml_policy_t  policy;
+  static char       calc_file_name[150];
+  char             *fname = &calc_file_name[0];
+  FILE             *f = NULL;
+
+  m_last_error.clear();
+
+  if (false == m_save_to_xml_feature)
+  {
+    // Отсутствует поддержка сохранения в XML со стороны BD
+    m_last_error = rtE_NOT_IMPLEMENTED;
+    return m_last_error;
+  }
+
+  LOG(INFO) << "Try to restore '" << m_name << "' content from XML";
+
+  while(true)
+  {
+
+    if (NULL == (f = fopen(given_file_name, "rb")))
+    {
+      LOG(ERROR) << "Can't open XML snapshot '"
+                 << given_file_name
+                 << "' for reading (" << strerror(errno) << ")";
+      setError(rtE_XML_IMPORT);
+      break;
+    }
+
+    rc = mco_trans_start(m_db, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+    if (rc)
+    {
+      LOG(ERROR) << "Starting transaction, rc=" << rc;
+      setError(rtE_RUNTIME_FATAL);
+      break;
+    }
+
+    // Изменить стандартные правила экспорта/импорта на свои
+    mco_xml_get_policy(t, &policy);
+    setupPolicy(policy);
+    mco_xml_set_policy(t, &policy);
+
+    rc = mco_db_xml_import(t, f, file_reader);
+
+    if (MCO_S_OK == rc)
+    {
+      rc = mco_trans_commit(t);
+      LOG(INFO) << "XML-import '" << m_name << "' is done, rc=" << rc;
+    }
+    else
+    {
+      rc = mco_trans_rollback(t);
+      LOG(INFO) << "XML-import '" << m_name << "' failure, rc=" << rc;
+    }
+
+    break;
+  }
+
+  if (f)
+    fclose(f);
+
+  if (rc)
+  {
+    m_last_error.set(rtE_XML_IMPORT);
+  }
+
+  return getLastError();
+}
 
 // Создать базу данных с помощью mco_db_open
 const Error& DatabaseImpl::Open()
 {
   MCO_RET rc = MCO_S_OK;
-  int opt_val;
+  bool load_from_snapshot = false;
+  int  opt_val;
 
   clearError();
 
@@ -800,7 +890,6 @@ const Error& DatabaseImpl::Open()
   /* setup memory device as a shared named memory region */
   m_dev.assignment = MCO_MEMORY_ASSIGN_DATABASE;
   m_dev.size       = m_DatabaseSize;
-//  m_dev.dev.conv.ptr = (void*) malloc(m_DatabaseSize); 
   m_dev.type       = MCO_MEMORY_NAMED; /* DB in shared memory */
   sprintf(m_dev.dev.named.name, "%s-db", m_name);
   m_dev.dev.named.flags = 0;
@@ -829,22 +918,35 @@ const Error& DatabaseImpl::Open()
     return m_last_error;
   }
 #else /* EXTREMEDB_VERSION > 4 and not USE_EXTREMEDB_HTTP_SERVER */
+
+  if ((true == getOption(m_db_access_flags, "OF_LOAD_SNAP", opt_val)) && opt_val) 
+  {
+    // Внутри LoadSnapshot: mco_db_load() -> mco_db_open_dev()
+    if (!(LoadSnapshot()).Ok())
+    {
+      LOG(ERROR) << "Unable to restore content from snapshot";
+      load_from_snapshot = false;
+    }
+    else
+    {
+      load_from_snapshot = true;
+    }
+  }
+
+  // Если снимок загружен успешно, значит БД уже работает,
+  // пропустим повторное ее открытие
+  if (!load_from_snapshot)
+  {
     rc = mco_db_open_dev(m_name,
                          m_dict,
                          &m_dev,
                          1,
                          &m_db_params);
     LOG(INFO) << "mco_db_open_dev '" << m_name << "', rc=" << rc;
+  }
+
 #endif /* USE_EXTREMEDB_HTTP_SERVER */
 
-  if ((true == getOption(m_db_access_flags, "OF_LOAD_SNAP", opt_val)) && opt_val) 
-  {
-    // Внутри mco_inmem_load вызывается mco_db_open_dev
-    if ((LoadSnapshot()).Ok())
-    {
-      LOG(ERROR) << "Unable to restore content from snapshot";
-    }
-  }
 
 #else /* EXTREMEDB_VERSION >= 40 */
 

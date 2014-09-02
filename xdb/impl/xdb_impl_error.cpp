@@ -49,7 +49,7 @@ void Error::init()
     m_error_descriptions[rtE_DB_NOT_FOUND]     = (const char*)"Database is not found";
     m_error_descriptions[rtE_DB_NOT_OPENED]    = (const char*)"Database is not opened";
     m_error_descriptions[rtE_DB_NOT_DISCONNECTED] = (const char*)"Database is not disconnected";
-    m_error_descriptions[rtE_XML_NOT_OPENED]   = (const char*)"XML couldn't be opened";
+    m_error_descriptions[rtE_XML_OPEN]         = (const char*)"Error opening XML snap";
     m_error_descriptions[rtE_INCORRECT_DB_TRANSITION_STATE] = (const char*)"New DB state is incorrect";
     m_error_descriptions[rtE_SNAPSHOT_WRITE]   = (const char*)"Snapshot writing failure";
     m_error_descriptions[rtE_SNAPSHOT_READ]    = (const char*)"Snapshot reading failure";

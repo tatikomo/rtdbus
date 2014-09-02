@@ -132,6 +132,36 @@ namespace rtap_db
       m_attributes.clear();
     }
 
+    rtap_db::Attrib* attrib(const char* _attr_name)
+    {
+      std::string given_attr_name = _attr_name;
+
+      return attrib(given_attr_name);
+    }
+
+    rtap_db::Attrib* attrib(const std::string& _attr_name)
+    {
+      rtap_db::Attrib* located = NULL;
+
+      // По заданному имени атрибута вернуть его данные из списка m_attributes
+      // TODO ускорить поиск
+      if (m_attributes.size())
+      {
+        for (unsigned int attribute_item=0;
+             attribute_item < m_attributes.size();
+             attribute_item++)
+        {
+           if (0 == (_attr_name.compare(m_attributes[attribute_item].name())))
+           {
+             located = &m_attributes[attribute_item];
+             break;
+           }
+        }
+      }
+
+      return located;
+    }
+
     Code      m_class_code;
     ClassName m_class_name;
     AttibuteList m_attributes;

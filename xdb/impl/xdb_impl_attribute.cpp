@@ -1,3 +1,5 @@
+#include "glog/logging.h"
+
 #if defined HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -10,6 +12,8 @@ using namespace xdb;
 Attribute::Attribute() :
   m_last_error(rtE_NONE)
 {
+  m_alias.clear();
+//  m_alias.setsize();
 }
 
 Attribute::~Attribute()
@@ -18,7 +22,7 @@ Attribute::~Attribute()
 
 const char* Attribute::getAlias() const
 {
-  return &m_alias[0];
+  return m_alias.c_str();
 }
 
 DbType_t Attribute::getAttributeType() const

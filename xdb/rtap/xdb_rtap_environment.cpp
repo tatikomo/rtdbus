@@ -64,7 +64,7 @@ const Error& RtEnvironment::LoadSnapshot(const char *filename)
 
 const Error& RtEnvironment::MakeSnapshot(const char *filename)
 {
-  return m_impl->MakeSnapshot(filename);
+  return m_database->MakeSnapshot(filename);
 }
 
 mdp::Letter* RtEnvironment::createMessage(int)

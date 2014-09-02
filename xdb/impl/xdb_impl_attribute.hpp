@@ -90,7 +90,7 @@ typedef std::map  <const std::string, AttributeInfo_t> AttributeMap_t;
 typedef std::map  <const std::string, AttributeInfo_t>::iterator AttributeMapIterator_t;
 typedef std::pair <const std::string, AttributeInfo_t> AttributeMapPair_t;
 
-class DbConnection;
+class ConnectionImpl;
 class Data;
 class Point;
 
@@ -104,7 +104,7 @@ class Attribute
     // Вернуть тип атрибута
     DbType_t    getAttributeType() const;
     // Вернуть объект-подключение
-    DbConnection* getConnection();
+    ConnectionImpl* getConnection();
     // Вернуть определение СЕ
     std::string getDefinition() const;
     //
@@ -123,9 +123,9 @@ class Attribute
 
   private:
     DISALLOW_COPY_AND_ASSIGN(Attribute);
-    Error     m_last_error;
-    std::string m_univname;
-    std::string m_alias;
+    Error       m_last_error;
+    univname_t  m_univname;
+    univname_t  m_alias;
     DbType_t    m_type;
 };
 

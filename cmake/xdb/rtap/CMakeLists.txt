@@ -23,6 +23,7 @@ include_directories(${XDB_IMPL_DIR})
 include_directories(${XDB_IMPL_DIR}/dat)
 include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})
+# Заголовочные файлы нужны при включении xdb_impl_database
 include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
 
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
@@ -47,7 +48,7 @@ add_custom_command(
         ${XDB_IMPL_DIR}/dat/rtap_db.c
         ${XDB_IMPL_DIR}/dat/rtap_db.hpp
         COMMAND
-        ${LIBEXTREMEDB_MCOCOMP} -hpp rtap_db.mco -P${XDB_IMPL_DIR}/dat
+        ${LIBEXTREMEDB_MCOCOMP} -hpp -x rtap_db.mco -P${XDB_IMPL_DIR}/dat
         DEPENDS
         ${XDB_IMPL_DIR}/dat/rtap_db.mco
         WORKING_DIRECTORY

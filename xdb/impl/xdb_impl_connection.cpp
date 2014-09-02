@@ -26,3 +26,11 @@ const Error& ConnectionImpl::copy(Attribute&, Point&, std::string&)
   m_last_error.set(rtE_NOT_IMPLEMENTED);
   return m_last_error;
 }
+
+// Сохранить точку
+const Error& ConnectionImpl::write(Attribute&, Point&, std::string&)
+{
+  m_last_error.clear();
+//  m_environment->
+  return m_last_error;
+}

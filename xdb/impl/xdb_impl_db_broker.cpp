@@ -51,21 +51,6 @@ using namespace xdb;
 #include "dat/broker_db.h"
 #include "dat/broker_db.hpp"
 
-void broker_impl_errhandler(MCO_RET n)
-{
-    fprintf(stdout, "\neXtremeDB runtime fatal error: %d\n", n);
-    exit(-1);
-}
-
-/* implement error handler */
-void extended_broker_impl_errhandler(MCO_RET errcode, const char* file, int line)
-{
-  fprintf(stdout, "\neXtremeDB runtime fatal error: %d on line %d of file %s",
-          errcode, line, file);
-  exit(-1);
-}
-
-
 DatabaseBrokerImpl::DatabaseBrokerImpl(const char* _name) :
     m_service_list(NULL)
 {
@@ -121,39 +106,7 @@ bool DatabaseBrokerImpl::Connect()
 
 bool DatabaseBrokerImpl::Disconnect()
 {
-  //MCO_RET rc = MCO_S_OK;
-  DBState_t state = m_database->State();
-
-#if 0
-
-  switch (state)
-  {
-    case DB_STATE_UNINITIALIZED:
-      LOG(INFO) << "Disconnect from uninitialized state";
-    break;
-
-    case DB_STATE_DISCONNECTED:
-      LOG(INFO) << "Try to disconnect already diconnected database";
-    break;
-
-    case DB_STATE_CONNECTED:
-      mco_async_event_release_all(m_database->getDbHandler()/*, MCO_EVENT_newService*/);
-      rc = mco_db_disconnect(m_database->getDbHandler());
-      // NB: break пропущен специально
-    case DB_STATE_ATTACHED:
-      assert(m_database);
-      rc = mco_db_close(m_database->getName());
-      m_database->TransitionToState(DB_STATE_DISCONNECTED);
-    break;
-
-    default:
-      LOG(INFO) << "Disconnect from unknown state:" << state;
-  }
-
-  return (!rc)? true : false;
-#else
   return (m_database->Disconnect()).Ok();
-#endif
 }
 
 DBState_t DatabaseBrokerImpl::State()
@@ -175,7 +128,6 @@ MCO_RET DatabaseBrokerImpl::new_Service(mco_trans_h /*t*/,
   MCO_RET rc;
   autoid_t aid;
   Service *service;
-//  broker_db::XDBService service_instance;
   bool status = false;
 
   assert(self);
@@ -202,7 +154,7 @@ MCO_RET DatabaseBrokerImpl::new_Service(mco_trans_h /*t*/,
     }
   } while (false);
 
-//  LOG(INFO) << "NEW XDBService "<<obj<<" name '"<<name<<"' self=" << self;
+  LOG(INFO) << "NEW XDBService "<<obj<<" name '"<<name<<"' self=" << self;
 
   return MCO_S_OK;
 }
@@ -233,7 +185,7 @@ MCO_RET DatabaseBrokerImpl::del_Service(mco_trans_h /*t*/,
 
   } while (false);
 
-//  LOG(INFO) << "DEL XDBService "<<obj<<" name '"<<name<<"' self=" << self;
+  LOG(INFO) << "DEL XDBService "<<obj<<" name '"<<name<<"' self=" << self;
 
   return MCO_S_OK;
 }
@@ -251,9 +203,9 @@ MCO_RET DatabaseBrokerImpl::RegisterEvents()
     rc = mco_register_newService_handler(t, 
             &DatabaseBrokerImpl::new_Service, 
             static_cast<void*>(this)
-//#if (EXTREMEDB_VERSION >= 41) && USE_EXTREMEDB_HTTP_SERVER
-//            , MCO_AFTER_UPDATE
-//#endif
+#if (EXTREMEDB_VERSION >= 40) && USE_EXTREMEDB_HTTP_SERVER
+            , MCO_AFTER_UPDATE
+#endif
             );
 
     if (rc) LOG(ERROR) << "Registering event on XDBService creation, rc=" << rc;

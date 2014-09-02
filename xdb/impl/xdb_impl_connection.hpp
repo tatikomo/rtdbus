@@ -22,6 +22,10 @@ class ConnectionImpl
 
     // Копировать точку под новым именем
     const Error& copy(Attribute&, Point&, std::string&);
+    // Создать точку со всеми её атрибутами
+    const Error& create(Point&);
+    // Сохранить данные
+    const Error& write(Attribute&, Point&, std::string&);
 
   private:
     DISALLOW_COPY_AND_ASSIGN(ConnectionImpl);

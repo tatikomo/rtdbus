@@ -10,7 +10,7 @@
 
 namespace xdb {
 
-class DatabaseImpl;
+class DatabaseRtapImpl;
 
 class RtDatabase
 {
@@ -29,7 +29,7 @@ class RtDatabase
     const Error& Connect();
     const Error& Disconnect();
     const Error& LoadSnapshot(const char* = 0);
-    const Error& StoreSnapshot(const char* = 0);
+    const Error& MakeSnapshot(const char* = 0);
     const char* getName() const;
     // Вернуть последнюю ошибку
     const Error& getLastError() const;
@@ -43,7 +43,7 @@ class RtDatabase
     DBState_t State() const;
 
   private:
-    DatabaseImpl *m_impl;
+    DatabaseRtapImpl *m_impl;
 };
 
 } //namespace xdb
