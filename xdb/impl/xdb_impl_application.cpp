@@ -12,7 +12,6 @@
 
 #include "xdb_impl_error.hpp"
 #include "xdb_impl_application.hpp"
-#include "xdb_impl_environment.hpp"
 
 using namespace xdb;
 

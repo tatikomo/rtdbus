@@ -5,7 +5,6 @@
 #include "config.h"
 #endif
 #include "xdb_rtap_const.hpp"
-#include "xdb_impl_attribute.hpp"
 
 using namespace xdb;
 

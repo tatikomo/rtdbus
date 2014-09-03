@@ -11,7 +11,6 @@
 namespace xdb {
 
 class RtEnvironment;
-class ConnectionImpl;
 class RtPoint;
 
 class RtConnection
@@ -19,8 +18,6 @@ class RtConnection
   public:
     RtConnection(RtEnvironment*);
    ~RtConnection();
-    // Копировать точку под новым именем
-    //const Error& copy(Attribute&, Point&, std::string&);
     // Создать точку со всеми её атрибутами
     const Error& create(RtPoint*);
     // Изменить значения атрибутов указанной точки
@@ -35,7 +32,6 @@ class RtConnection
   private:
     DISALLOW_COPY_AND_ASSIGN(RtConnection);
     RtEnvironment  *m_environment;
-    ConnectionImpl *m_impl;
     Error           m_last_error;
 };
 

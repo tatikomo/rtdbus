@@ -95,7 +95,6 @@ set (TEST_DATABASE_SOURCES
         ${XDB_IMPL_DIR}/dat/broker_db.c
         ${XDB_IMPL_DIR}/xdb_impl_application.hpp
         ${XDB_IMPL_DIR}/xdb_impl_environment.hpp
-        ${XDB_IMPL_DIR}/xdb_impl_connection.hpp
         ${XDB_IMPL_DIR}/dat/rtap_db-pskel.hxx
         ${XDB_IMPL_DIR}/dat/rtap_db-pskel.cxx
         ${XDB_IMPL_DIR}/dat/rtap_db-pimpl.hxx
