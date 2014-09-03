@@ -2,10 +2,10 @@ namespace http://www.example.com/rtap_db rtap_db
 {
   include "rtap_db.hxx";
 
-  ClassType     "ClassType&" "ClassType&";
+  PointType     "PointType&" "PointType&";
   AttributeType "AttributeType&" "AttributeType&";
   PointKind     "PointKind&" "PointKind&";
-  Class         "Class&" "Class&";
+  Point         "Point&" "Point&";
   Code          Code Code;
   Name          "Name&" "Name&";
   Kind          Kind;

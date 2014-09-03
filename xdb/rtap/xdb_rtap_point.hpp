@@ -10,6 +10,7 @@
 #endif
 #include "dat/rtap_db.hxx"
 #include "xdb_impl_error.hpp"
+//#include "xdb_impl_info.hpp"
 #include "xdb_rtap_const.hpp"
 #include "xdb_rtap_filter.hpp"
 
@@ -30,7 +31,7 @@ typedef enum
 class RtPoint
 {
   public:
-    RtPoint(/*RtEnvironment*,*/ rtap_db::Class&);
+    RtPoint(/*RtEnvironment*,*/ rtap_db::Point&);
     ~RtPoint();
 
     // Получить тип хранилища данной точки
@@ -43,6 +44,9 @@ class RtPoint
     int           getAttibuteCount(const char*) const;
     // Получить все атрибуты точки
     rtap_db::AttibuteList& getAttributes();
+    // Вернуть значения всех атрибутов точки
+    rtap_db::Point& info() { return m_info; };
+
     // Получить все атрибуты точки, подходящие под данный шаблон
     //rtap_db::AttibuteList* getAttributes(const char*);
     // Вернуть все дочерние точки
@@ -74,13 +78,13 @@ class RtPoint
 
   private:
     DISALLOW_COPY_AND_ASSIGN(RtPoint);
-    rtap_db::Class   m_info;
+    rtap_db::Point   m_info;
     // Ссылка на атрибут Универсального Имени, т.к. он может часто требоваться
     // NB: Сам атрибут хранится в m_info
     rtap_db::Attrib *m_univname_attr;
 //    RtEnvironment *m_environment;
-    Error          m_last_error;
-    RtResidence    m_residence;
+    Error            m_last_error;
+    RtResidence      m_residence;
 };
 
 } // namespace xdb

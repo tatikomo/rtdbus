@@ -19,7 +19,7 @@ namespace rtap_db
 
   // Наименование типа Класса - TS, TM, TSA,...
   // 
-  typedef std::string ClassType;
+  typedef std::string PointType;
 
   // Наименование Класса
   // 
@@ -111,7 +111,7 @@ namespace rtap_db
   typedef std::vector<rtap_db::Attrib> AttibuteList;
 
   // Основной класс-хранилище экземпляров для каждого OBJCLASS (Rtap)
-  struct Class
+  struct Point
   {
     // 
     //
@@ -162,13 +162,13 @@ namespace rtap_db
       return located;
     }
 
-    Code      m_class_code;
-    ClassName m_class_name;
+    Code         m_class_code;
+    ClassName    m_class_name;
     AttibuteList m_attributes;
   };
 
   // Список Классов
-  typedef std::vector<rtap_db::Class> ClassesList;
+  typedef std::vector<rtap_db::Point> Points;
 
 } // namespace
 

@@ -10,6 +10,7 @@
 #include "xdb_broker.hpp"
 #include "xdb_broker_service.hpp"
 #include "xdb_broker_worker.hpp"
+#include "dat/rtap_db.hxx"
 #include "dat/broker_db.hpp"
 #include "dat/rtap_db-pimpl.hxx"
 #include "dat/rtap_db-pskel.hxx"
@@ -45,7 +46,7 @@ xdb::RtConnection* connection = NULL;
  * Инициализируется в функции TestTools.LOAD_XML
  * Используется в функции TestRtapDATABASE.CREATE
  */
-rtap_db::ClassesList class_list;
+rtap_db::Points point_list;
 
 void wait()
 {
@@ -559,9 +560,9 @@ TEST(TestTools, LOAD_XML)
     // Instantiate individual parsers.
     //
     ::rtap_db::RTDB_STRUCT_pimpl RTDB_STRUCT_p;
-    ::rtap_db::Class_pimpl Class_p;
+    ::rtap_db::Point_pimpl Point_p;
     ::rtap_db::Code_pimpl Code_p;
-    ::rtap_db::ClassType_pimpl ClassType_p;
+    ::rtap_db::PointType_pimpl PointType_p;
     ::rtap_db::Attr_pimpl Attr_p;
     ::rtap_db::PointKind_pimpl PointKind_p;
     ::rtap_db::Accessibility_pimpl Accessibility_p;
@@ -571,10 +572,10 @@ TEST(TestTools, LOAD_XML)
 
     // Connect the parsers together.
     //
-    RTDB_STRUCT_p.parsers (Class_p);
+    RTDB_STRUCT_p.parsers (Point_p);
 
-    Class_p.parsers (Code_p,
-                     ClassType_p,
+    Point_p.parsers (Code_p,
+                     PointType_p,
                      Attr_p);
 
     Attr_p.parsers (AttrNameType_p,
@@ -590,33 +591,33 @@ TEST(TestTools, LOAD_XML)
       "http://www.example.com/rtap_db",
       "RTDB_STRUCT");
 
-    RTDB_STRUCT_p.pre (&class_list);
+    RTDB_STRUCT_p.pre (&point_list);
     doc_p.parse (argv[1]);
     RTDB_STRUCT_p.post_RTDB_STRUCT ();
 
 #if VERBOSE
-    std::cout << "Parsing XML is over, processed " << class_list.size() << " element(s)" << std::endl;
+    std::cout << "Parsing XML is over, processed " << point_list.size() << " element(s)" << std::endl;
 #endif
     /* В cmake/classes.xml есть 3 точки */
-    EXPECT_EQ(class_list.size(), 3);
+    EXPECT_EQ(point_list.size(), 3);
 
-    for (class_item=0; class_item<class_list.size(); class_item++)
+    for (class_item=0; class_item<point_list.size(); class_item++)
     {
 #if VERBOSE
-      std::cout << "\tCODE:  " << class_list[class_item].code() << std::endl;
-      std::cout << "\tNAME:  '" << class_list[class_item].name() << "'" << std::endl;
-      std::cout << "\t#ATTR: " << class_list[class_item].m_attributes.size() << std::endl;
-      if (class_list[class_item].m_attributes.size())
+      std::cout << "\tCODE:  " << point_list[class_item].code() << std::endl;
+      std::cout << "\tNAME:  '" << point_list[class_item].name() << "'" << std::endl;
+      std::cout << "\t#ATTR: " << point_list[class_item].m_attributes.size() << std::endl;
+      if (point_list[class_item].m_attributes.size())
       {
         for (attribute_item=0;
-             attribute_item<class_list[class_item].m_attributes.size();
+             attribute_item<point_list[class_item].m_attributes.size();
              attribute_item++)
         {
-          std::cout << "\t\t" << class_list[class_item].m_attributes[attribute_item].name()
-                    << " : "  << class_list[class_item].m_attributes[attribute_item].value()
-                    << " : "  << class_list[class_item].m_attributes[attribute_item].kind()
-                    << " : "  << class_list[class_item].m_attributes[attribute_item].type()
-                    << " : "  << class_list[class_item].m_attributes[attribute_item].accessibility()
+          std::cout << "\t\t" << point_list[class_item].m_attributes[attribute_item].name()
+                    << " : "  << point_list[class_item].m_attributes[attribute_item].value()
+                    << " : "  << point_list[class_item].m_attributes[attribute_item].kind()
+                    << " : "  << point_list[class_item].m_attributes[attribute_item].type()
+                    << " : "  << point_list[class_item].m_attributes[attribute_item].accessibility()
                     << std::endl;
         }
       }
@@ -625,18 +626,18 @@ TEST(TestTools, LOAD_XML)
       switch(class_item)
       {
         case GOF_D_BDR_OBJCLASS_TS:
-            EXPECT_TRUE(class_list[class_item].name().compare("TS") == 0);
-            EXPECT_EQ(class_list[class_item].m_attributes.size(), 1);
+            EXPECT_TRUE(point_list[class_item].name().compare("TS") == 0);
+            EXPECT_EQ(point_list[class_item].m_attributes.size(), 1);
             break;
 
         case GOF_D_BDR_OBJCLASS_TM:
-            EXPECT_TRUE(class_list[class_item].name().compare("TM") == 0);
-            EXPECT_EQ(class_list[class_item].m_attributes.size(), 2);
+            EXPECT_TRUE(point_list[class_item].name().compare("TM") == 0);
+            EXPECT_EQ(point_list[class_item].m_attributes.size(), 2);
             break;
 
         case GOF_D_BDR_OBJCLASS_TSA:
-            EXPECT_TRUE(class_list[class_item].name().compare("TSA") == 0);
-            EXPECT_EQ(class_list[class_item].m_attributes.size(), 1);
+            EXPECT_TRUE(point_list[class_item].name().compare("TSA") == 0);
+            EXPECT_EQ(point_list[class_item].m_attributes.size(), 1);
             break;
       }
 

@@ -27,18 +27,18 @@ namespace rtap_db
     AttrNameType m_impl;
   };
 
-  class ClassType_pimpl: public virtual ClassType_pskel,
+  class PointType_pimpl: public virtual PointType_pskel,
     public ::xml_schema::string_pimpl
   {
     public:
     virtual void
     pre ();
 
-    virtual rtap_db::ClassType&
-    post_ClassType ();
+    virtual rtap_db::PointType&
+    post_PointType ();
 
     private:
-    ClassType m_impl;
+    PointType m_impl;
   };
 
   class AttributeType_pimpl: public virtual AttributeType_pskel,
@@ -73,19 +73,19 @@ namespace rtap_db
   {
     public:
     virtual void
-    pre (rtap_db::ClassesList*);
+    pre (rtap_db::Points*);
     // GEV
     virtual void
     pre (const char*);
 
     virtual void
-    Class (rtap_db::Class&);
+    Point (rtap_db::Point&);
 
     virtual void
     post_RTDB_STRUCT ();
   };
 
-  class Class_pimpl: public virtual Class_pskel
+  class Point_pimpl: public virtual Point_pskel
   {
     public:
     virtual void
@@ -95,18 +95,18 @@ namespace rtap_db
     Code (rtap_db::Code);
 
     virtual void
-    Name (rtap_db::ClassType&);
+    Name (rtap_db::PointType&);
 
     virtual void
     Attr ();
 
-    virtual rtap_db::Class&
-    post_Class ();
+    virtual rtap_db::Point&
+    post_Point ();
 
-    ~Class_pimpl();
+    ~Point_pimpl();
 
     private:
-    Class *m_impl;
+    Point *m_impl;
   };
 
   class Code_pimpl: public virtual Code_pskel,
@@ -149,7 +149,7 @@ namespace rtap_db
 
     private:
     Attrib m_impl;
-    Class *m_class;
+    Point *m_class;
   };
 
   class Accessibility_pimpl: public virtual Accessibility_pskel,

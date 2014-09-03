@@ -20,13 +20,13 @@ using namespace xdb;
 using namespace xercesc;
 
 // ------------------------------------------------------------
-void applyClassListToDB(RtEnvironment*, rtap_db::ClassesList&);
+void applyClassListToDB(RtEnvironment*, rtap_db::Points&);
 // ------------------------------------------------------------
 //
 bool xdb::loadFromXML(RtEnvironment* env, const char* filename)
 {
   bool status = false;
-  rtap_db::ClassesList class_list;
+  rtap_db::Points point_list;
 
   assert(env);
   assert(filename);
@@ -49,9 +49,9 @@ bool xdb::loadFromXML(RtEnvironment* env, const char* filename)
     // Instantiate individual parsers.
     //
     ::rtap_db::RTDB_STRUCT_pimpl RTDB_STRUCT_p;
-    ::rtap_db::Class_pimpl Class_p;
+    ::rtap_db::Point_pimpl Point_p;
     ::rtap_db::Code_pimpl Code_p;
-    ::rtap_db::ClassType_pimpl ClassType_p;
+    ::rtap_db::PointType_pimpl PointType_p;
     ::rtap_db::Attr_pimpl Attr_p;
     ::rtap_db::PointKind_pimpl PointKind_p;
     ::rtap_db::Accessibility_pimpl Accessibility_p;
@@ -61,10 +61,10 @@ bool xdb::loadFromXML(RtEnvironment* env, const char* filename)
 
     // Connect the parsers together.
     //
-    RTDB_STRUCT_p.parsers (Class_p);
+    RTDB_STRUCT_p.parsers (Point_p);
 
-    Class_p.parsers (Code_p,
-                     ClassType_p,
+    Point_p.parsers (Code_p,
+                     PointType_p,
                      Attr_p);
 
     Attr_p.parsers (AttrNameType_p,
@@ -80,13 +80,13 @@ bool xdb::loadFromXML(RtEnvironment* env, const char* filename)
       "http://www.example.com/rtap_db",
       "RTDB_STRUCT");
 
-    RTDB_STRUCT_p.pre (&class_list);
+    RTDB_STRUCT_p.pre (&point_list);
     doc_p.parse (filename);
     RTDB_STRUCT_p.post_RTDB_STRUCT ();
 
-    LOG(INFO) << "Parsing XML is over, processed " << class_list.size() << " element(s)";
+    LOG(INFO) << "Parsing XML is over, processed " << point_list.size() << " element(s)";
 
-    applyClassListToDB(env, class_list);
+    applyClassListToDB(env, point_list);
   }
   catch (const ::xml_schema::exception& e)
   {
@@ -102,7 +102,7 @@ bool xdb::loadFromXML(RtEnvironment* env, const char* filename)
   return status;
 }
 
-void applyClassListToDB(RtEnvironment* env, rtap_db::ClassesList &class_list)
+void applyClassListToDB(RtEnvironment* env, rtap_db::Points &point_list)
 {
   unsigned int class_item;
   unsigned int attribute_item;
@@ -110,31 +110,10 @@ void applyClassListToDB(RtEnvironment* env, rtap_db::ClassesList &class_list)
   RtPoint* new_point = NULL;
   rtap_db::Attrib   attrib;
 
-
-  for (class_item=0; class_item<class_list.size(); class_item++)
+  for (class_item=0; class_item<point_list.size(); class_item++)
   {
-    new_point = new RtPoint(/*env, */class_list[class_item]);
+    new_point = new RtPoint(point_list[class_item]);
     conn->create(new_point);
-
-#if 0
-      std::cout << "\tCODE:  " << class_list[class_item].code() << std::endl;
-      std::cout << "\tNAME:  '" << class_list[class_item].name() << "'" << std::endl;
-      std::cout << "\t#ATTR: " << class_list[class_item].m_attributes.size() << std::endl;
-      if (class_list[class_item].m_attributes.size())
-      {
-        for (attribute_item=0;
-             attribute_item<class_list[class_item].m_attributes.size();
-             attribute_item++)
-        {
-          std::cout << "\t\t" << class_list[class_item].m_attributes[attribute_item].name()
-                    << " : "  << class_list[class_item].m_attributes[attribute_item].value()
-                    << " : "  << class_list[class_item].m_attributes[attribute_item].kind()
-                    << " : "  << class_list[class_item].m_attributes[attribute_item].type()
-                    << " : "  << class_list[class_item].m_attributes[attribute_item].accessibility()
-                    << std::endl;
-        }
-      }
-#endif
-       delete new_point;
+    delete new_point;
    }
 }

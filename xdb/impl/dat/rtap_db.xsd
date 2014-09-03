@@ -64,7 +64,7 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
 </xs:simpleType>
 
 <!-- Перечисление допустимых типов класса -->
-<xs:simpleType name="ClassType">
+<xs:simpleType name="PointType">
   <xs:restriction base="xs:string">
     <xs:enumeration value="TS"/>
     <xs:enumeration value="TM"/>
@@ -183,8 +183,8 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
  <xs:complexType>
   <xs:sequence>
 
-    <!-- Class definition start -->
-    <xs:element name="Class" maxOccurs="unbounded">
+    <!-- Point definition start -->
+    <xs:element name="Point" maxOccurs="unbounded">
       <xs:complexType>
       <xs:sequence>
 
@@ -200,7 +200,7 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
         <!-- Code definition end -->
 
         <!-- Name definition start -->
-        <xs:element name="Name" type="ClassType"/>
+        <xs:element name="Name" type="PointType"/>
         <!-- Name definition end -->
 
         <!-- Attr definition start -->
@@ -244,7 +244,7 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
       </xs:sequence>
       </xs:complexType>
     </xs:element> 
-    <!-- Class definition end -->
+    <!-- Point definition end -->
 
   </xs:sequence>
  </xs:complexType>

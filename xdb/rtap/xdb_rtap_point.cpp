@@ -14,9 +14,8 @@ using namespace xdb;
 
 static const std::string EMPTY = "<NULL>";
 
-RtPoint::RtPoint(/*RtEnvironment* _env,*/ rtap_db::Class& _info) :
+RtPoint::RtPoint(rtap_db::Point& _info) :
   m_info(_info),
-//  m_environment(_env),
   m_last_error(rtE_NONE),
   m_residence(RAM_RESIDENT)
 {
@@ -62,15 +61,6 @@ rtap_db::AttibuteList& RtPoint::getAttributes()
 {
   return m_info.m_attributes;
 }
-
-#if 0
-// Получить все атрибуты точки, подходящие под данный шаблон
-RtAttribute* RtPoint::getAttributes(const char*)
-{
-  m_last_error.set(rtE_NOT_IMPLEMENTED);
-  return NULL;
-}
-#endif
 
 // Вернуть все дочерние точки
 RtPoint* RtPoint::getChildren()
@@ -127,32 +117,4 @@ const Error& RtPoint::matchPoints(RtPointFilter*)
   m_last_error.set(rtE_NOT_IMPLEMENTED);
   return m_last_error;
 }
-
-#if 0
-// Запись множества значений атрибутов данной точки
-const Error& RtPoint::write(std::vector<std::string> attrNames, RtData* data)
-{
-  m_last_error.set(rtE_NOT_IMPLEMENTED);
-  assert(data);
-  assert(!attrNames.empty());
-  return m_last_error;
-}
-
-// Запись значения заданного атрибута данной точки
-const Error& RtPoint::write(std::string& attrName, RtData* data)
-{
-  m_last_error.set(rtE_NOT_IMPLEMENTED);
-  assert(!attrName.empty());
-  assert(data);
-  return m_last_error;
-}
-
-// Полная запись данных точки
-const Error& RtPoint::write()
-{
-  m_last_error.clear();
-
-  return m_last_error;
-}
-#endif
 

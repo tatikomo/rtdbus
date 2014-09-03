@@ -13,8 +13,8 @@
 namespace rtap_db
 {
 
-  rtap_db::Class * current_class_instance = NULL;
-  rtap_db::ClassesList* m_classes;
+  rtap_db::Point  *current_class_instance = NULL;
+  rtap_db::Points *m_classes;
 
 
   // AttrNameType_pimpl
@@ -39,23 +39,23 @@ namespace rtap_db
     return m_impl;
   }
 
-  // ClassType_pimpl
+  // PointType_pimpl
   //
 
-  void ClassType_pimpl::
+  void PointType_pimpl::
   pre ()
   {
   }
 
-  rtap_db::ClassType& ClassType_pimpl::
-  post_ClassType ()
+  rtap_db::PointType& PointType_pimpl::
+  post_PointType ()
   {
     const ::std::string& v (post_string ());
 
     // TODO
     //
 #if VERBOSE
-    std::cout << "\t\tClassType_pimpl::post_ClassType:" << v << std::endl;
+    std::cout << "\t\tPointType_pimpl::post_PointType:" << v << std::endl;
 #endif
     m_impl.assign(v);
     return m_impl;
@@ -109,7 +109,7 @@ namespace rtap_db
   //
 
   void RTDB_STRUCT_pimpl::
-  pre (rtap_db::ClassesList* class_list)
+  pre (rtap_db::Points* class_list)
   {
 //    std::cout << "RTDB_STRUCT_pimpl::pre"<<std::endl;
     m_classes = class_list;
@@ -123,22 +123,22 @@ namespace rtap_db
   }
 
   void RTDB_STRUCT_pimpl::
-  Class (rtap_db::Class& Class)
+  Point (rtap_db::Point& Point)
   {
     // TODO
     //
 #if VERBOSE
-    std::cout << "RTDB_STRUCT_pimpl::Class("<<Class.code()<<", "<<Class.name()<<")"<<std::endl;
+    std::cout << "RTDB_STRUCT_pimpl::Point("<<Point.code()<<", "<<Point.name()<<")"<<std::endl;
 #endif
     if (m_classes)
     {
-      m_classes->push_back(Class);
+      m_classes->push_back(Point);
     }
     else
     {
-      std::cout << "GEV: dump class "<< Class.name() <<" as XML" << std::endl;
+      std::cout << "GEV: dump class "<< Point.name() <<" as XML" << std::endl;
     }
-    delete &Class;
+    delete &Point;
   }
 
   void RTDB_STRUCT_pimpl::
@@ -149,58 +149,58 @@ namespace rtap_db
 #endif
   }
 
-  // Class_pimpl
+  // Point_pimpl
   //
 
-  void Class_pimpl::
+  void Point_pimpl::
   pre ()
   {
-    // NB экземпляр удаляется в RTDB_STRUCT_pimpl::Class
-    m_impl = new Class;
+    // NB экземпляр удаляется в RTDB_STRUCT_pimpl::Point
+    m_impl = new Point;
 #if VERBOSE
-    std::cout << "\t\tClass::m_impl=" << m_impl << std::endl;
+    std::cout << "\t\tPoint::m_impl=" << m_impl << std::endl;
 #endif
     m_impl->m_class_code = 0;
     current_class_instance = m_impl;
   }
 
-  void Class_pimpl::
+  void Point_pimpl::
   Code (rtap_db::Code Code)
   {
     // TODO
     //
 #if VERBOSE
-    std::cout << "\tClass_pimpl::Code = "<<static_cast<unsigned int>(Code)<<std::endl;
+    std::cout << "\tPoint_pimpl::Code = "<<static_cast<unsigned int>(Code)<<std::endl;
 #endif
     m_impl->m_class_code = static_cast<unsigned int>(Code);
   }
 
-  void Class_pimpl::
-  Name (rtap_db::ClassType& Name)
+  void Point_pimpl::
+  Name (rtap_db::PointType& Name)
   {
     // TODO
     //
 #if VERBOSE
-    std::cout << "\tClass_pimpl::Name = "<<Name<<std::endl;
+    std::cout << "\tPoint_pimpl::Name = "<<Name<<std::endl;
 #endif
     m_impl->m_class_name.assign(Name);
   }
 
-  void Class_pimpl::
+  void Point_pimpl::
   Attr ()
   {
 #if VERBOSE
-    std::cout << "\tClass_pimpl::Attr: count = "<< m_impl->m_attributes.size()<<std::endl;
+    std::cout << "\tPoint_pimpl::Attr: count = "<< m_impl->m_attributes.size()<<std::endl;
 #endif
   }
 
-  rtap_db::Class& Class_pimpl::
-  post_Class ()
+  rtap_db::Point& Point_pimpl::
+  post_Point ()
   {
     // TODO
     //
 #if VERBOSE
-    std::cout << "\tClass_pimpl::post_Class("
+    std::cout << "\tPoint_pimpl::post_Point("
         << m_impl->code() << ","
         << m_impl->name() << ","
         << m_impl->m_attributes.size() <<")"
@@ -210,11 +210,11 @@ namespace rtap_db
     return *m_impl;
   }
 
-  Class_pimpl::~Class_pimpl()
+  Point_pimpl::~Point_pimpl()
   {
     // TODO Вызывается только один раз - проверить причины
 #if VERBOSE
-    std::cout << "\tClass_pimpl::~Class_pimpl()" << std::endl;
+    std::cout << "\tPoint_pimpl::~Point_pimpl()" << std::endl;
 #endif
   }
 
