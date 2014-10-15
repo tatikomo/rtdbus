@@ -210,9 +210,14 @@ typedef struct
   AttrVal_t  value;     /* значение атрибута */
 } AttributeInfo_t;
 
+#ifdef __SUNPRO_CC
+typedef std::map  <std::string, AttributeInfo_t> AttributeMap_t;
+typedef std::pair <std::string, AttributeInfo_t> AttributeMapPair_t;
+#else
 typedef std::map  <const std::string, AttributeInfo_t> AttributeMap_t;
-typedef std::map  <const std::string, AttributeInfo_t>::iterator AttributeMapIterator_t;
 typedef std::pair <const std::string, AttributeInfo_t> AttributeMapPair_t;
+#endif
+typedef AttributeMap_t::iterator AttributeMapIterator_t;
 
 // Таблица описателей типов данных БДРВ
 typedef struct

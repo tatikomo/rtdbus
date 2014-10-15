@@ -20,6 +20,7 @@ include_directories(${XDB_BROKER_DIR})
 include_directories(${MSG_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})
+include_directories(${LIBCPPZMQ_INCLUDE_DIR})
 include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
 include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 
@@ -29,7 +30,11 @@ link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 
-add_definitions (-Wno-missing-field-initializers)
+if (CMAKE_COMPILER_IS_GNUCC)
+#add_definitions (-Wno-missing-field-initializers)
+else (CMAKE_COMPILER_IS_GNUCC)
+add_definitions (-library=stlport4)
+endif (CMAKE_COMPILER_IS_GNUCC)
 
 add_custom_command(
         OUTPUT

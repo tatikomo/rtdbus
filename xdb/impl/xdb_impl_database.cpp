@@ -23,10 +23,14 @@ extern "C" {
 mco_size_t file_writer(void*, const void*, mco_size_t);
 # else
 mco_size_sig_t file_writer(void*, const void*, mco_size_t);
+mco_size_sig_t file_reader(void*, void*, mco_size_t);
 # endif
 #define SETUP_POLICY
 #include "mcoxml.h"
 #endif
+
+void impl_errhandler(MCO_RET);
+void extended_impl_errhandler(MCO_RET, const char*, int);
 
 #ifdef __cplusplus
 }
@@ -1161,7 +1165,7 @@ const Error& DatabaseImpl::TransitionToState(DBState_t new_state)
     m_state = new_state;
   }
   else
-    setError(rtE_INCORRECT_DB_TRANSITION_STATE);
+    setError(rtE_INCORRECT_DB_STATE);
 
   return getLastError();
 }

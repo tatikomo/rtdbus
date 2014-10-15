@@ -9,7 +9,7 @@
 #include "xdb_rtap_environment.hpp"
 #include "xdb_rtap_connection.hpp"
 #include "xdb_rtap_database.hpp"
-#include "mdp_letter.hpp"
+//#include "mdp_letter.hpp"
 
 using namespace xdb;
 
@@ -67,7 +67,7 @@ const Error& RtEnvironment::MakeSnapshot(const char *filename)
   return m_database->MakeSnapshot(filename);
 }
 
-mdp::Letter* RtEnvironment::createMessage(int)
+/*mdp::Letter* RtEnvironment::createMessage(int)
 {
   m_impl->setLastError(rtE_NOT_IMPLEMENTED);
   return NULL;
@@ -79,7 +79,7 @@ const Error& RtEnvironment::sendMessage(mdp::Letter* _letter)
 
   m_impl->setLastError(rtE_NOT_IMPLEMENTED);
   return m_impl->getLastError();
-}
+}*/
 
 // Изменить состояние Среды
 void RtEnvironment::setEnvState(EnvState_t _new_state)
@@ -138,4 +138,9 @@ const Error& RtEnvironment::Shutdown(EnvShutdownOrder_t order)
 
   m_impl->setLastError(rtE_NOT_IMPLEMENTED);
   return m_impl->getLastError();
+}
+
+RtDatabase* RtEnvironment::getDatabase()
+{
+  return m_database;
 }

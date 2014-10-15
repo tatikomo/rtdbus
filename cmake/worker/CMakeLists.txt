@@ -8,6 +8,8 @@ if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
         rt
         glog
         uuid)
+  # XSD Synthethis
+  include_directories("/usr/local/include")
 else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # LINUX
   set (SYSTEM_EXTERNAL_LIBS

@@ -7,6 +7,7 @@
 #include <string>
 #include <stdlib.h> // atoi()
 #include <string.h> // memcpy()
+#include <stdio.h>  // sprintf()
 #include "glog/logging.h"
 
 #if defined HAVE_CONFIG_H
@@ -25,9 +26,15 @@ char     currentAttrName [NAME_SIZE+1];
 char     currentStrDeType[DETYPE_SIZE+1];
 rtDeType currentDeType;
  	
-typedef std::map  <const std::string, DbType_t> DbTypesHash_t;
-typedef std::map  <const std::string, DbType_t>::iterator DbTypesHashIterator_t;
+#ifdef __SUNPRO_CC
+typedef std::pair <std::string, DbType_t> DbTypesHashPair_t;
+typedef std::map  <std::string, DbType_t> DbTypesHash_t;
+#else
 typedef std::pair <const std::string, DbType_t> DbTypesHashPair_t;
+typedef std::map  <const std::string, DbType_t> DbTypesHash_t;
+#endif
+typedef DbTypesHash_t::iterator DbTypesHashIterator_t;
+
 typedef std::map  <std::string, int> DbPointsTypeHash_t;
 typedef std::pair <std::string, int> DbPointsTypeHashPair_t;
 DbTypesHash_t       dbTypesHash;

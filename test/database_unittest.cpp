@@ -1,6 +1,9 @@
 #include <iostream>
 #include <string>
 
+#include <stdlib.h> // putenv
+#include <stdio.h>  // fprintf
+
 #include <xercesc/util/PlatformUtils.hpp>
 
 #include "glog/logging.h"
@@ -15,6 +18,7 @@
 #include "dat/rtap_db-pimpl.hxx"
 #include "dat/rtap_db-pskel.hxx"
 #include "proto/common.pb.h"
+#include "msg/msg_common.h"
 
 #include "xdb_rtap_const.hpp"
 #include "xdb_rtap_application.hpp"

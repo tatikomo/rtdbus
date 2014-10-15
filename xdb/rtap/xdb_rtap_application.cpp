@@ -8,6 +8,7 @@
 #if defined HAVE_CONFIG_H
 #include "config.h"
 #endif
+#include "helper.hpp"
 #include "xdb_impl_error.hpp"
 #include "xdb_impl_application.hpp"
 #include "xdb_impl_environment.hpp"
@@ -57,7 +58,12 @@ ApplicationImpl* RtApplication::getImpl()
   return m_impl;
 }
 
-const Options& RtApplication::getOptions() const
+#ifdef __SUNPRO_CC
+const ::Options
+#else
+const ::Options&
+#endif
+ RtApplication::getOptions() const
 {
   return m_impl->getOptions();
 }

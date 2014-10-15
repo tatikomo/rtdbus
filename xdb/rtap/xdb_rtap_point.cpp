@@ -21,16 +21,20 @@ RtPoint::RtPoint(rtap_db::Point& _info) :
 {
   m_univname_attr = m_info.attrib("UNIVNAME");
 
+#if 0
   LOG(INFO) << "create RtPoint "
             << ((m_univname_attr)? m_univname_attr->value() : EMPTY)
             << " : " << m_info.name() << " : "
             << m_info.code();
+#endif
 }
 
 RtPoint::~RtPoint()
 {
+#if 0
   LOG(INFO) << "delete RtPoint "
             << ((m_univname_attr)? m_univname_attr->value() : EMPTY);
+#endif
 }
 
 // Получить тип хранилища данной точки

@@ -16,6 +16,8 @@ if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
         glog
         gtest
         uuid)
+  # XSD Synthethis
+  include_directories(/usr/local/include)
 else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # LINUX
   set (SYSTEM_EXTERNAL_LIBS
@@ -24,7 +26,9 @@ else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
         gtest)
 endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
-include_directories(${CMAKE_SOURCE_DIR}/../../gtest-${GTEST_VERSION}/include)
+SET(GTEST_DIR ${CMAKE_SOURCE_DIR}/../../gtest-${GTEST_VERSION})
+
+include_directories(${GTEST_DIR}/include)
 include_directories(${TOOLS_DIR})
 include_directories(${MDP_DIR})
 include_directories(${MSG_DIR})
@@ -38,7 +42,7 @@ include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})
 
-link_directories(${CMAKE_SOURCE_DIR}/../../gtest-${GTEST_VERSION}/lib/.libs)
+link_directories(${GTEST_DIR}/lib/.libs)
 link_directories(${LIBGLOG_LIBRARIES_DIR})
 link_directories(${MDP_DIR})
 link_directories(${XDB_BROKER_DIR})
@@ -47,6 +51,7 @@ link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 
 set (TEST_DEV_INTERNAL_SOURCES
+        ${GTEST_DIR}/include/gtest/gtest.h
         ${XDB_IMPL_DIR}/dat/broker_db.hpp
         ${XDB_IMPL_DIR}/dat/broker_db.h
         ${XDB_IMPL_DIR}/dat/broker_db.c
@@ -67,6 +72,7 @@ set (TEST_DEV_INTERNAL_SOURCES
         ${TEST_RTDBUS_DIR}/dev_int_unittest.cpp)
 
 set (TEST_DEV_RUNTIME_SOURCES
+        ${GTEST_DIR}/include/gtest/gtest.h
         ${XDB_IMPL_DIR}/dat/broker_db.hpp
         ${XDB_IMPL_DIR}/dat/broker_db.h
         ${XDB_IMPL_DIR}/dat/broker_db.c
@@ -90,6 +96,7 @@ set (TEST_DEV_RUNTIME_SOURCES
         ${TEST_RTDBUS_DIR}/dev_runt_unittest.cpp)
 
 set (TEST_DATABASE_SOURCES
+        ${GTEST_DIR}/include/gtest/gtest.h
         ${XDB_IMPL_DIR}/dat/broker_db.hpp
         ${XDB_IMPL_DIR}/dat/broker_db.h
         ${XDB_IMPL_DIR}/dat/broker_db.c
@@ -108,13 +115,19 @@ set (TEST_DATABASE_SOURCES
         ${TEST_RTDBUS_DIR}/database_unittest.cpp)
 
 set (TEST_MSG_SOURCES
+        ${GTEST_DIR}/include/gtest/gtest.h
         ${MDP_DIR}/mdp_zmsg.hpp
         ${MDP_DIR}/mdp_helpers.cpp
         ${MSG_DIR}/proto/common.pb.cc
         ${MSG_DIR}/proto/common.pb.h
         ${TEST_RTDBUS_DIR}/message_unittest.cpp)
 
-add_definitions (-Wno-missing-field-initializers)
+if (CMAKE_COMPILER_IS_GNUCC)
+#add_definitions (-Wno-missing-field-initializers)
+#add_definitions(-fpermissive)
+else (CMAKE_COMPILER_IS_GNUCC)
+  add_definitions (-library=stlport4)
+endif (CMAKE_COMPILER_IS_GNUCC)
 
 add_custom_command(
         OUTPUT

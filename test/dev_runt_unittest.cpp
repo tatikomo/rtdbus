@@ -192,6 +192,7 @@ client_task (void* /*args*/)
   s_interrupted = 1;
   LOG(INFO) << "Stop client thread";
   pthread_exit(NULL);
+  return NULL; /* NOTREACHED */ 
 }
 
 /*
@@ -236,6 +237,7 @@ worker_task (void* /*args*/)
 
   LOG(INFO) << "Stop worker thread";
   pthread_exit(NULL);
+  return NULL; /* NOTREACHED */ 
 }
 
 /*
@@ -281,6 +283,7 @@ broker_task (void* /*args*/)
   delete broker;
 
   pthread_exit(NULL);
+  return NULL; /* NOTREACHED */ 
 }
 
 ////////////////////////////////////////////////////////////////////////////////

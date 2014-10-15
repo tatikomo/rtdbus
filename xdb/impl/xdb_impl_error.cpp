@@ -26,9 +26,9 @@ Error::Error(ErrorCode_t _t) :
   set(_t);
 }*/
 
-Error::Error(const Error& _origin) :
-  m_error_code(_origin.getCode())
+Error::Error(const Error& _origin)
 {
+  m_error_code = static_cast<ErrorCode_t>(_origin.getCode());
   init();
 }
 
@@ -50,7 +50,7 @@ void Error::init()
     m_error_descriptions[rtE_DB_NOT_OPENED]    = (const char*)"Database is not opened";
     m_error_descriptions[rtE_DB_NOT_DISCONNECTED] = (const char*)"Database is not disconnected";
     m_error_descriptions[rtE_XML_OPEN]         = (const char*)"Error opening XML snap";
-    m_error_descriptions[rtE_INCORRECT_DB_TRANSITION_STATE] = (const char*)"New DB state is incorrect";
+    m_error_descriptions[rtE_INCORRECT_DB_STATE] = (const char*)"New DB state is incorrect";
     m_error_descriptions[rtE_SNAPSHOT_WRITE]   = (const char*)"Snapshot writing failure";
     m_error_descriptions[rtE_SNAPSHOT_READ]    = (const char*)"Snapshot reading failure";
     m_error_descriptions[rtE_RUNTIME_FATAL]    = (const char*)"Fatal runtime failure";

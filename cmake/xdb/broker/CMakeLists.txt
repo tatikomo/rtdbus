@@ -21,6 +21,7 @@ include_directories(${XDB_BROKER_DIR})
 include_directories(${MSG_DIR})
 include_directories(${MDP_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})
+include_directories(${LIBCPPZMQ_INCLUDE_DIR})
 include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})
 include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
@@ -47,7 +48,13 @@ set (XDB_BROKER_SOURCES
         ${MSG_DIR}/proto/common.pb.h
         )
 
-add_definitions (-Wno-missing-field-initializers)
+if (CMAKE_COMPILER_IS_GNUCC)
+add_definitions(-fpermissive)
+#add_definitions (-Wno-missing-field-initializers)
+else (CMAKE_COMPILER_IS_GNUCC)
+add_definitions (-library=stlport4)
+endif (CMAKE_COMPILER_IS_GNUCC)
+add_definitions (-library=stlport4)
 
 add_custom_command(
         OUTPUT

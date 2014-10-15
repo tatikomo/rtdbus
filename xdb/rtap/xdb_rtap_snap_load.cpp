@@ -87,18 +87,22 @@ bool xdb::loadFromXML(RtEnvironment* env, const char* filename)
     LOG(INFO) << "Parsing XML is over, processed " << point_list.size() << " element(s)";
 
     applyClassListToDB(env, point_list);
+
+    saveToXML(env, filename);
   }
   catch (const ::xml_schema::exception& e)
   {
-    std::cerr << e << std::endl;
+    LOG(ERROR) << e;
     status = false;
   }
   catch (const std::ios_base::failure&)
   {
-    std::cerr << filename << ": error: i/o failure" << std::endl;
+    LOG(ERROR) << filename << ": error: i/o failure";
     status = false;
   }
 
+  puts("Press any key to exit....");
+  int c = getchar();
   return status;
 }
 
@@ -115,5 +119,5 @@ void applyClassListToDB(RtEnvironment* env, rtap_db::Points &point_list)
     new_point = new RtPoint(point_list[class_item]);
     conn->create(new_point);
     delete new_point;
-   }
+  }
 }

@@ -50,6 +50,13 @@ set_source_files_properties(${MSG_DIR}/proto/common.pb.cc
                             ${MSG_DIR}/proto/common.pb.h
                             PROPERTIES GENERATED 1)
 
+if (CMAKE_COMPILER_IS_GNUCC)
+add_definitions(-fpermissive)
+else (CMAKE_COMPILER_IS_GNUCC)
+add_definitions (-library=stlport4)
+endif (CMAKE_COMPILER_IS_GNUCC)
+add_definitions (-library=stlport4)
+
 # Сборка библиотеки
 ##########################################################
 add_library (${MSG_LIBRARY_NAME} ${MSG_SOURCES})

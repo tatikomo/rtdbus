@@ -19,6 +19,9 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     <xs:enumeration value="LABEL"/>
     <xs:enumeration value="SHORTLABEL"/>
     <xs:enumeration value="L_SA"/>
+    <xs:enumeration value="MIXVAL"/>
+    <xs:enumeration value="VALEX"/>
+    <xs:enumeration value="MAXVAL"/>
     <xs:enumeration value="VALID"/>
     <xs:enumeration value="VALIDACQ"/>
     <xs:enumeration value="DATEHOURM"/>
@@ -28,6 +31,7 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     <xs:enumeration value="ALINHIB"/>
     <xs:enumeration value="DISPP"/>
     <xs:enumeration value="FUNCTION"/>
+    <xs:enumeration value="CONVERTCOEFF"/>
     <xs:enumeration value="INHIB"/>
     <xs:enumeration value="MNVALPHY"/>
     <xs:enumeration value="MXPRESSURE"/>

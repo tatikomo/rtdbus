@@ -6,7 +6,7 @@
 
 #include "xdb_impl_common.hpp"
 #include "xdb_impl_error.hpp"
-#include "mdp_letter.hpp"
+//#include "mdp_letter.hpp"
 
 namespace xdb {
 
@@ -33,11 +33,13 @@ class RtEnvironment
     // Создать и вернуть новое подключение к указанной БД/среде
     RtConnection* getConnection();
 
+#if 0
     // Создать новое сообщение указанного типа
     mdp::Letter* createMessage(int);
 
     // Отправить сообщение адресату
     const Error& sendMessage(mdp::Letter*);
+#endif
 
     // Получить состояние Среды
     EnvState_t getEnvState() const;
@@ -66,6 +68,8 @@ class RtEnvironment
     RtApplication   *m_appli;
     RtConnection    *m_conn;
     RtDatabase      *m_database;
+
+    RtDatabase      *getDatabase();
 };
 
 } // namespace xdb

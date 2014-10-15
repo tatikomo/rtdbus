@@ -5,6 +5,10 @@
  * START DATE: 17/03/2009
  */
 
+// TODO Проверить достаточность выделяемого пространства 
+// для символьных значений, поскольку UTF8 занимает в два 
+// раза больше места, чем ISO8859-5.
+
 #define int1        signed<1>
 #define int2        signed<2>
 #define int4        signed<4>
@@ -15,31 +19,146 @@
 #define uint1       unsigned<1>
 #define i_objclass  unsigned<1>
 #define logical     unsigned<1>
+#define byte        unsigned<1>
 #define s_code      char<8>
 #define s_label     char<80>
 #define s_formula   char<40>
 #define s_univname  char<32>
 #define s_dispatch  char<20>
-#define s_valabel   char<12>
+#define s_valabel   char<40>
 #define s_unity     char<12>
 #define s_shortlabel    char<16>
 #define s_attname       char<16>
 #define s_statelabel    char<32>
 
+// All points
 #define MAX_POINTS_QUANTITY  10000
+// All alarms
 #define MAX_ALARMS_QUANTITY   1000
-/* max history table depth for all points */
+// Calculation Engines
+#define MAX_CE_QUANTITY         10
+// max history table depth for all points
 #define MAX_HISTORY_QUANTITY 10000
-/* max history table depth for single analog instance */
+// max history table depth for single analog instance
 #define MAX_HIST_A_QUANTITY_PER_POINT 100
-/* max history table depth for single discrete instance */
+// max history table depth for single discrete instance
 #define MAX_HIST_D_QUANTITY_PER_POINT 100
 
 declare database  rtap_db;
-/*struct Id {
-  uint8 id;
+//struct Id {
+//  uint8 id;
+//};
+//declare oid Id[MAX_POINTS_QUANTITY];
+
+/* ===================================================================== */
+enum PointStatus {
+  PLANNED   = 0,    // Нельзя использовать, не готова к работе
+  WORKED    = 1,    // Можно использовать, нормальное рабочее состояние
+  DISABLED  = 2     // Нельзя использовать, заблокирована
 };
-declare oid Id[10000];*/
+
+enum HistoryState {
+  SUSPEND   = 0,
+  ENABLE    = 1
+};
+
+enum AlarmState {
+  NO_ALARM  = 0,
+  ALARM_NOTACK  = 1,
+  ALARM_ACK = 2
+};
+
+enum AlarmDegree {
+  INFORM    = 0,
+  WARNING   = 1,
+  FATAL     = 2
+};
+
+// Разновидность Тревоги - оперативная, неоперативная, историзированная
+// Влияет на отображение Тревоги в ИЧМ, это три отдельных списка
+enum AlarmKind {
+  OPERATIVE     = 0,
+  NON_OPERATIVE = 1,
+  HISTORIZED    = 2
+};
+
+enum AlarmPhase {
+  ERROR	= 0,    /* error */
+  BEGIN   = 1,    /* alarm begginning */
+  END     = 2,    /* alarm end */
+  FUGITIVE= 3,    /* fugitive alarm */
+  INHIB   = 4     /* alarm inhibition */
+};
+
+enum AlarmType {
+  ERROR_AL    = 0,  /* system error */
+  ACQ         = 1,  /* acquired alarm */
+  SIG         = 2,  /* signalisation state change */
+  VH_LIM      = 3,  /* very high limit transgression */
+  H_LIM       = 4,  /* high limit transgression */
+  L_LIM       = 5,  /* low limit transgression */
+  VL_LIM      = 6,  /* very low limit transgression */
+  VALV_EXE    = 7,  /* no execution of valve TC */
+  VALV_RESP   = 8,  /* negative respons of valve TC */
+  LINK        = 14, /* link break */
+  POWER       = 15, /* power failure */
+  G_LIM       = 18, /* gradient limit transgression */
+  USER        = 25, /* user application */
+  APPLI_RUN   = 26, /* application running */
+  TC_DIR      = 27  /* TC DIR */
+};
+
+enum Validity {
+  INVALID   = 0,
+  VALID     = 1,
+  MANUAL    = 2,
+  DUBIOUS   = 3,
+  INHIBITED = 4,
+  FAULT     = 5
+};
+
+// Уровень полномочий управления
+enum Responsability {
+  LOCAL     = 0,
+  DISTANT   = 1
+};
+
+enum SystemState {
+  UNREACH   = 0,
+  OPER      = 1,
+  PRE_OPER  = 2
+};
+
+// Тип телекоманды
+enum Action {
+	TC_ON   = 1,
+	TC_OFF  = 2,   
+	TC_SC_START_MAIN_LINE   = 3,
+	TC_SC_STOP_MAIN_LINE    = 4,
+	TC_ATC_STOP_NORMAL      = 5,
+	TC_ATC_STOP_URG         = 3,    /* TC_OFF */
+	TC_ATC_START_LOOPING    = 6,
+	TC_ATC_START_MAIN_LINE  = 7,
+	TC_ATC_STOP_MAIN_LINE   = 8,
+	TC_ATC_SWITCH_COLD_REGUL1       = 9,
+	TC_ATC_SWITCH_COLD_REGUL2       = 10,
+	TC_GRC_STOP_NORMAL              = 3,    /* TC_OFF */
+	TC_GRC_STOP_URG_NO_EVAC_GAZ     = 11,
+	TC_GRC_STOP_URG_WITH_EVAC_GAZ   = 12,   /* АО со стравливанием газа */
+	TC_ATC_STOP_URG_NO_EVAC_GAZ     = 11,   /* TC_GRC_STOP_URG_NO_EVAC_GAZ */
+	TC_ATC_STOP_URG_WITH_EVAC_GAZ   = 12,   /* TC_GRC_STOP_URG_WITH_EVAC_GAZ */
+	TC_GRC_START_LOOPING    = 13,
+	TC_GRC_START_MAIN_LINE  = 14,
+	TC_AUX_FLOW_REGUL       = 15,
+	TC_AUX_PRESSURE_REGUL   = 16,
+	TC_AUX_START_PUMP       = 17,
+	TC_AUX_STOP_PUMP        = 18,
+	TC_AUX_START_COMPRESSOR = 19,
+	TC_AUX_STOP_COMPRESSOR  = 20,
+	TC_AUX_STOP_URG_AIRCOOLING  = 21,
+	TC_AUX_START_VENTILATOR     = 22,
+	TC_AUX_STOP_VENTILATOR      = 23
+};
 
 enum objclass_t {
     TS  = 0,
@@ -63,15 +182,15 @@ enum objclass_t {
     RGA  = 25,
     SSDG = 26,
     BRG  = 27,
-    SCP = 28,
+    SCP  = 28,
     STG  = 29,
     DIR  = 30,
     DIPL = 31,
-    METLINE  = 32,
-    ESDG = 33,
-    SVLINE   = 34,
-    SCPLINE  = 35,
-    TLLINE   = 36,
+    METLINE = 32,
+    ESDG    = 33,
+    SVLINE  = 34,
+    SCPLINE = 35,
+    TLLINE  = 36,
     INVT = 37,
     AUX1 = 38,
     AUX2 = 39,
@@ -80,6 +199,18 @@ enum objclass_t {
     //HIST = 53,
     FIXEDPOINT   = 79,
     HIST = 80
+};
+
+/* ===================================================================== */
+/* Набор таблиц НСИ */
+/* ===================================================================== */
+// Хранение соответствующего символьного значения 
+// для заданного числового кода указанной дискретной Точки
+class DICT_TSC_VAL_LABEL
+{
+  objclass_t classID; // значение атрибута OBJCLASS
+  uint1      valueID; // значение атрибута VAL
+  s_valabel  label;   // символьное обозначие кода valueID
 };
 
 /* ===================================================================== */
@@ -119,59 +250,131 @@ class Link_UNITY_ID
 };
 
 /* ===================================================================== */
-/* ALARM table for analog and discrete information instances */
-class XDBAlarm
+/* CE DEFINITION table */
+class XDB_CE
+{
+  autoid[MAX_CE_QUANTITY];
+  /* calculation engine designation for realtime value correction */
+  s_formula CALCULATING_ENGINE;
+};
+
+/* ===================================================================== */
+/* Operating ALARM table for all instances */
+// Оперативные тревожные сообщения
+class ALARM
 {
   autoid[MAX_ALARMS_QUANTITY];
-  /* reference to XDBPoint instance */
-  autoid_t      point_ref;
+  /* reference to XDBPoint instance where Alarm was detected */
+  // NB: для ускорения работы исп. univname вместо ссылки
+  //autoid_t     point_ref;
+  s_univname    reference;  // UNIVNAME сгенерировавшего Тревогу оборудования
+  timestamp     mark_insert;// Дата поступления Тревоги в БД
+  timestamp     mark_origin;// Дата изначальной генерации Тревоги
+  AlarmKind     kind;       // Оперативный, Неоперативный, Историзированный
+  AlarmDegree   degree = INFORM;     // Уровень серьезности тревоги
+  AlarmType     type;       // Тип тревоги
+  AlarmPhase    phase;      // текущая фаза тревоги
+  AlarmState    state = NO_ALARM;      // состояние
+  logical       acqnowledge;// Признак квитирования
+  // Имеет ли Тревога связанное с ней аналоговое значение value?
+  logical       analog_type;// 0|1 = нет|есть
+  double        value;      // Аналоговое значение
+  autoid_t      unity_ref;  // Размерность аналогового значения
+  s_label       text;
+  // ....
+  /* Index by point reference */
+  //unique tree <point_ref> PK_by_point_id;
+  tree <reference, kind>    SK_by_ref_kind;
+  tree <mark_origin.sec, kind>   SK_by_time_kind;
+};
 
+/* ===================================================================== */
+/* ALARM struct for analog and discrete information instances */
+/* Элементарная запись внутри Точки о свойствах тревожного сообщения */
+struct AlarmItem
+{
   timestamp    ALARMBEGIN;
   timestamp    ALARMBEGINACK;
   timestamp    ALARMENDACK;
-  timestamp    ALARMSYNTH;
-
-  /* Index by point reference */
-  unique tree <point_ref> PK_by_id;
+  AlarmState   ALARMSYNTH = NO_ALARM;
 };
 
 /* ===================================================================== */
 /* Elementary historical data for analog information */
+/* Элементарная запись в исторических данных для аналоговых Точек */
 struct A_HIST_ITEM
 {
   timestamp    mark;
-  double        value;
+  double       value;
 };
 
+/* ===================================================================== */
 /* Elementary historical data for discrete information */
+/* Элементарная запись в исторических данных для дискретных Точек */
 struct D_HIST_ITEM
 {
   timestamp    mark;
-  uint8         value;
+  uint8        value;
 };
 
-enum HistoryState {
-  ENABLE, SUSPEND
-};
-
+/* ===================================================================== */
 /* HISTORY table for calculating analog historical data */
+/* Хранилище исторических данных для Точек с аналоговым состоянием */
 class A_HIST
 {
   autoid[MAX_HISTORY_QUANTITY];
   HistoryState  STATE = SUSPEND; /* state may be active or suspended */
   vector <A_HIST_ITEM> items;  /* MAX_HIST_A_QUANTITY_PER_POINT */
-  autoid_t  point_ref;
+  autoid_t point_ref;
   unique tree <point_ref> SK_by_point; /* point to history relationship is '1-to-1' */
 };
 
+/* ===================================================================== */
 /* HISTORY table for calculating analog historical data */
+/* Хранилище исторических данных для Точек с дискретным состоянием */
 class D_HIST
 {
   autoid[MAX_HISTORY_QUANTITY];
   HistoryState  STATE = SUSPEND; /* */
   vector <D_HIST_ITEM> items;  /* MAX_HIST_D_QUANTITY_PER_POINT */
-  autoid_t  point_ref;
+  autoid_t point_ref;
   unique tree <point_ref> SK_by_point; /* point to history relationship is '1-to-1' */
+};
+
+/* ===================================================================== */
+/* LISTACD table for TS, TM, TSC, AL, ICS, ICM points */
+/* Перечень действий по изменению уставок */
+class LISTACD
+{
+  autoid[MAX_POINTS_QUANTITY]; /* Points referer */
+  /* reference to XDBPoint instance */
+  autoid_t  point_ref;
+
+  timestamp mark;
+  uint1     type_alarm;
+  double    value;
+  uint1     degree;
+  uint1     cat;
+  s_dispatch dispatcher;
+
+  /* Index by point reference */
+  unique tree <point_ref> PK_by_point_id;
+};
+
+
+/* ===================================================================== */
+/* LISTACT table for TS, TM, TSC, AL, ICS, ICM points */
+/* Перечень действий по телеуправлению */
+class LISTACT
+{
+  timestamp  mark;      // Время выдачи воздействия
+  Action     command;   // Команда
+  s_univname univname;  // Оборудование
+  s_dispatch dispatcher;// Диспетчер
+  double     value;     // Значение (для телерегулирования)
+  logical    stage_1;   // Принята или нет команда системой сбора
+  logical    stage_2;   // Принята или нет команда исполнительным устройством
+  logical    stage_3;   // Признак фактического выполнения команды
 };
 
 /* ===================================================================== */
@@ -181,7 +384,8 @@ struct DiscreteInfoType
   uint8         VAL;         /* from boolean to UINT64 (determined by simpleType) */
   uint8         VALACQ;      /* from source */
   uint8         VALMANUAL;   /* manual input */
-  s_valabel     VAL_LABEL;   /* .VAL designation */
+// TODO вынести все подобные атрибуты в отдельный словарь
+//  s_valabel     VAL_LABEL;   /* .VAL designation */
 };
 
 /* ===================================================================== */
@@ -199,40 +403,48 @@ class XDBPoint
 {
   /* Point autoincremental identifier */
   autoid[MAX_POINTS_QUANTITY];
+  //oid;
   
   /* Point common STATIC part */
   s_univname    UNIVNAME;
   objclass_t    OBJCLASS;    /* class id */
+  PointStatus   STATUS = WORKED;      /* TODO: Для чего используется этот атрибут? */
   /* short human-readable designation (TODO: store in external DB) */
   s_shortlabel  SHORTLABEL;
-  /* full human-readable designation (TODO: migrating to external DB) */
-  /* s_label       longLabel;*/
   uint2         UNITY_ID;    /* link to unity category */
   uint1         DE_TYPE;     /* type of data [ex. LOGICAL or BYTES256] */ 
-  s_formula     CALCULATING_ENGINE; /* calculation engine for realtime value correction */
-  autoid_t      linkSA;      /* reference to SA object */
+  autoid_t      CE_ref;      /* link to CE definition */
+  autoid_t      SA_ref;      /* reference to SA object */
   /* Reference to point-specific attributes */
   autoid_t      passport_ref;
-  /* Reference to ALARM table */
-  autoid_t      alarm_ref;
   /* Reference to HISTORY table for analog (A_HIST_*/
   autoid_t      hist_ref;
 
   /* Point common DYNAMIC part */
   /* Runtime values modification support */
-  uint1         VALIDCHANGE; /* CE trugger */
+  uint1         VALIDCHANGE; /* CE trigger */
   timestamp     DATEHOURM;   /* last modification time */
-  uint1         VALIDITY;    /* VALID|INVALID|MANUAL|... */
-  uint1         VALIDITY_ACQ;/* */
+  timestamp     DATERTU;     /* last acquired time */
+  Validity      VALIDITY     = INVALID;
+  Validity      VALIDITY_ACQ = INVALID;
 
   /* Optional analog of discrete part */
   optional  AnalogInfoType   ai;
   optional  DiscreteInfoType di;
+  /*  */
+  optional  AlarmItem alarm;
   
   /* Indexes */
   unique tree <passport_ref> SK_by_passport; /* point to passport relationship is '1-to-1' */
   /* locating point instance by univname */
-  hash <UNIVNAME> SK_by_univname[MAX_POINTS_QUANTITY];
+//  unique hash <UNIVNAME> SK_by_univname[MAX_POINTS_QUANTITY];
+//  Тип "Patricia Trie" появился только в версии старше 4
+  patricia <UNIVNAME> SK_by_univname; //[MAX_POINTS_QUANTITY];
+
+  /* Events */
+  event <new> new_point_evnt;
+  event <delete> delete_point_evnt;
+  event <VALIDCHANGE update> update_validchange_point_evnt;
 };
 
 /* ===================================================================== */
@@ -241,19 +453,22 @@ class XDBPoint
 class TS_passport /* TS 00 */
 {
   autoid[MAX_POINTS_QUANTITY]; /* TODO: redefine the limit */
-  logical       INHIBLOCAL;
+  logical    INHIBLOCAL = 0;
+  logical    ALDEST = 0;
+  autoid_t   LISTACD_ref;
 };
-
 
 /* ===================================================================== */
 /* Passports contains list of attributes specific to this kind of point  */
 /* ===================================================================== */
-class TM_passport   /* TM 01 */
+class TM_passport       /* 01 */
 {
-  autoid[MAX_POINTS_QUANTITY]; /* TODO: redefine the limit */
-  double MNVALPHY;
-  double MXVALPHY;
-  autoid_t      LINK_HIST;
+  autoid[MAX_POINTS_QUANTITY];  /* TODO: redefine the limit */
+  double     CONVERTCOEFF = 1.0;
+  double     MNVALPHY     = 0.0;
+  double     MXVALPHY     = 0.0;
+  autoid_t   LINK_HIST_ref;
+  autoid_t   LISTACD_ref;
   /* class 'XDBPoint' will reference this by autogenerated index */
 };
 
@@ -261,6 +476,181 @@ class TM_passport   /* TM 01 */
 /* ===================================================================== */
 /* Passports contains list of attributes specific to this kind of point  */
 /* ===================================================================== */
+class TR_passport       /* 02 */
+{
+  double     MINVAL;
+  double     MAXVAL;
+  double     VALEX;           // Значение предыдущей команды телерегулирования
+  logical    CONFREMOTECMD;
+  logical    FLGREMOTECMD;
+  logical    REMOTECONTROL;
+//  logical    NON_EXECUTED;    // Таймаут выполнения команды
+//  logical    RESP_NEGATIVE;   // Отрицательный ответ телерегулирования
+};
+
+class TSA_passport      /* 03 */
+{
+};
+
+class TSC_passport      /* 04 */
+{
+  logical    ALDEST = 0;
+  // Ссылка на запись в таблице Алармов (ALO)
+  autoid_t   ALARM_ref;
+  // Ссылка на перечень действий по изменению уставок
+  autoid_t   LISTACD_ref;
+  // Значения технологических уставок и пределов
+  double     THRESHOLD_VHL; // верхний предел   (very high level) 
+  double     THRESHOLD_HL;  // верхняя уставка  (high level)
+  double     THRESHOLD_LL;  // нижняя уставка   (low level)
+  double     THRESHOLD_VLL; // нижний предел    (very low level)
+  double     GRADIENT;      // предел градиента
+  // Категории для тревог
+  uint1      ALARMLEVEL_THRESHOLD_VHL;
+  uint1      ALARMLEVEL_THRESHOLD_HL;
+  uint1      ALARMLEVEL_THRESHOLD_LL;
+  uint1      ALARMLEVEL_THRESHOLD_VLL;
+  uint1      ALARMLEVEL_GRADIENT;
+  logical    INHIBLOCAL = 0;
+//  L_TYPINFO;
+//  L_EQT;
+};
+
+// Точки управления оборудованием (ZCVA|ZCVB, XC, ...)
+class TC_passport       /* 05 */
+{
+  // Имя диспетчера, отдавшего команду
+  s_dispatch DISP;
+  // Тип исполняемой команды
+  // NB: специфичен для каждого типа управляемого оборудования
+  Action     ACTIONTYPE;
+};
+
+// Точки для генерации тревожных сообщений (XA)
+class AL_passport       /* 06 */
+{
+  logical    ALDEST = 0;
+  logical    INHIBLOCAL = 0;
+  // TODO: рассмотреть необходимость использования атрибута ACQMOD
+  // Он используется в OTP AcqTI_DIR "Equipment Name Object"
+};
+
+class ICS_passport      /* 07 */
+{
+  autoid_t   LISTACD_ref;
+};
+
+class ICM_passport      /* 08 */
+{
+  autoid_t   LISTACD_ref;
+};
+
+class PIPE_passport     /* 11 */
+{
+};
+
+class PIPELINE_passport /* 15 */
+{
+};
+
+class TL_passport       /* 16 */
+{
+};
+
+class SC_passport       /* 20 */
+{
+};
+
+class ATC_passport      /* 21 */
+{
+};
+
+class GRC_passport      /* 22 */
+{
+};
+
+class SV_passport       /* 23 */
+{
+};
+
+class SDG_passport      /* 24 */
+{
+};
+
+class RGA_passport      /* 25 */
+{
+};
+
+class SSDG_passport     /* 26 */
+{
+};
+
+class BRG_passport      /* 27 */
+{
+};
+
+class SCP_passport      /* 28 */
+{
+};
+
+class STG_passport      /* 29 */
+{
+};
+
+class METLINE_passport  /* 32 */
+{
+};
+
+class ESDG_passport     /* 33 */
+{
+};
+
+class SVLINE_passport   /* 34 */
+{
+};
+
+class SCPLINE_passport  /* 35 */
+{
+};
+
+class TLLINE_passport   /* 36 */
+{
+};
+
+class DIR_passport      /* 30 */
+{
+};
+
+class DIPL_passport     /* 31 */
+{
+};
+
+class INVT_passport     /* 37 */
+{
+};
+
+class AUX1_passport     /* 38 */
+{
+};
+
+class AUX2_passport     /* 39 */
+{
+};
+
+class SA_passport       /* 50 */
+{
+  SystemState state = UNREACH;    // Оперативный, Инициализация, Отказ,...
+  timestamp   DATE_ALO; // Дата последнего получения Тревог от СС
+};
+
+class SITE_passport     /* 45 */
+{
+};
+
+class FIXEDPOINT_passport   /* 79 */
+{
+};
+
 // Запись о поданных командах
 struct VA_command
 {
@@ -294,7 +684,6 @@ class VA_passport   /* VA 19 */
 {
  autoid[MAX_POINTS_QUANTITY];   /* TODO: redefine the limit */
  logical    LOCALFLAG;
- logical    STATUS;
  logical    INHIB;
  logical    INHIBLOCAL;
  logical    ALINHIB;

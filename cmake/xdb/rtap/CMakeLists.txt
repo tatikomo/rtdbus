@@ -127,7 +127,12 @@ set (XDB_RTAP_SOURCES
         ${XDB_RTAP_DIR}/xdb_rtap_discrete.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_discrete.hpp)
 
+if (CMAKE_COMPILER_IS_GNUCC)
 add_definitions(-fpermissive)
+else (CMAKE_COMPILER_IS_GNUCC)
+add_definitions (-library=stlport4)
+endif (CMAKE_COMPILER_IS_GNUCC)
+add_definitions (-library=stlport4)
 
 set_source_files_properties(${XDB_IMPL_DIR}/dat/broker_db.h
                             ${XDB_IMPL_DIR}/dat/broker_db.c

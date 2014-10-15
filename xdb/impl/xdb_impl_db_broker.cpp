@@ -203,9 +203,9 @@ MCO_RET DatabaseBrokerImpl::RegisterEvents()
     rc = mco_register_newService_handler(t, 
             &DatabaseBrokerImpl::new_Service, 
             static_cast<void*>(this)
-#if (EXTREMEDB_VERSION >= 40) && USE_EXTREMEDB_HTTP_SERVER
-            , MCO_AFTER_UPDATE
-#endif
+//#if (EXTREMEDB_VERSION >= 40) && USE_EXTREMEDB_HTTP_SERVER
+//            , MCO_AFTER_UPDATE
+//#endif
             );
 
     if (rc) LOG(ERROR) << "Registering event on XDBService creation, rc=" << rc;
@@ -232,7 +232,7 @@ Service *DatabaseBrokerImpl::AddService(const std::string& name)
 
 Service *DatabaseBrokerImpl::AddService(const char *name)
 {
-  broker_db::XDBService service_instance = {};
+  broker_db::XDBService service_instance;
   Service       *srv = NULL;
   MCO_RET        rc;
   mco_trans_h    t;
@@ -257,7 +257,8 @@ Service *DatabaseBrokerImpl::AddService(const char *name)
     if (rc) { LOG(ERROR) << "Getting service "<<name<<" id, rc=" << rc; break; }
 
     srv = new Service(aid, name);
-    srv->SetSTATE(Service::State::REGISTERED);
+    //srv->SetSTATE(Service::State::REGISTERED);
+    srv->SetSTATE(Service::REGISTERED);
 
     rc = mco_trans_commit(t);
     if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; }
@@ -338,7 +339,7 @@ bool DatabaseBrokerImpl::RemoveWorker(Worker *wrk)
   MCO_RET       rc = MCO_S_OK;
   mco_trans_h   t;
   broker_db::XDBService service_instance;
-  broker_db::XDBWorker  worker_instance = {};
+  broker_db::XDBWorker  worker_instance;
 
   assert(wrk);
   const char* identity = wrk->GetIDENTITY();
@@ -393,7 +394,7 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
   broker_db::XDBService service_instance;
   broker_db::XDBWorker  worker_instance;
   timer_mark_t  now_time, next_heartbeat_time;
-  broker_db::timer_mark xdb_next_heartbeat_time = {};
+  broker_db::timer_mark xdb_next_heartbeat_time;
   autoid_t      srv_aid;
   autoid_t      wrk_aid;
 
@@ -1232,7 +1233,7 @@ Letter* DatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
   mco_trans_h  t;
   MCO_RET rc = MCO_S_OK;
   mco_cursor_t csr;
-  broker_db::XDBLetter letter_instance = {};
+  broker_db::XDBLetter letter_instance;
   Letter      *letter = NULL;
   char        *header_buffer = NULL;
   char        *body_buffer = NULL;
@@ -1743,6 +1744,7 @@ bool DatabaseBrokerImpl::PushRequestToService(Service *srv,
   assert(!header.empty());
   assert(!body.empty());
   assert (1 == 0);
+  return false;
 }
 
 /*
