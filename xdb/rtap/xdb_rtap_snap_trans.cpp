@@ -18,6 +18,8 @@
 
 using namespace xdb;
 
+static const std::string UNIVNAME_STRING = "UNIVNAME";
+
 /*------------------*/
 /* Global variables */
 /*------------------*/
@@ -530,9 +532,9 @@ std::string& xdb::dump_point(
     AttributeMap_t         *attributes_template;
     AttributeInfo_t        *element;
     AttributeMapIterator_t  it_given;
-    std::stringstream            class_item_presentation;
+    std::stringstream       class_item_presentation;
     AttributeMapIterator_t  it_attr_pool;
-    std::string                  univname;
+    std::string             univname;
 
     if (class_idx == GOF_D_BDR_OBJCLASS_UNUSED)
     {
@@ -544,12 +546,11 @@ std::string& xdb::dump_point(
     if (NULL != (attributes_template = ClassDescriptionTable[class_idx].attributes_pool))
     {
         class_item_presentation
-                  << "<rtdb:Class>" << std::endl
-                  << "  <rtdb:Code>"<< (int)class_idx <<"</rtdb:Code>" << std::endl
-                  << "  <rtdb:Name>"<< ClassDescriptionTable[class_idx].name <<"</rtdb:Name>" << std::endl;
+                  << "<rtdb:Point>" << std::endl
+                  << "  <rtdb:Code>"<< (int)class_idx <<"</rtdb:Code>" << std::endl;
 
         // Найти тег БДРВ (атрибут ".UNIVNAME")
-        it_given = attributes_given.find("UNIVNAME");
+        it_given = attributes_given.find(UNIVNAME_STRING);
         if (it_given != attributes_given.end())
         {
           univname.assign(it_given->second.value.val_bytes.data,
@@ -557,13 +558,22 @@ std::string& xdb::dump_point(
         }
         else
         {
-          LOG(ERROR) << "RTDB tag 'UNIVNAME' not found for point " << pointName;
+          LOG(WARNING) << "RTDB tag 'UNIVNAME' not found for point " << pointName;
+          univname.assign("/");
+          univname+=pointName;
         }
+
+        class_item_presentation << "  <rtdb:Tag>"<< univname <<"</rtdb:Tag>" << std::endl;
 
         for (AttributeMapIterator_t it=attributes_template->begin();
              it!=attributes_template->end();
              ++it)
         {
+          // Атрибут БДРВ UNIVNAME пропустить, он уже вохранен как атрибут XML Тег
+          if (!it->second.name.compare(UNIVNAME_STRING))
+            continue;
+
+          // Сохранить остальные атрибуты
           class_item_presentation
                 << "  <rtdb:Attr>" << std::endl
         		<< "    <rtdb:AttrName>" << it->second.name << "</rtdb:AttrName>" << std::endl
@@ -592,7 +602,7 @@ std::string& xdb::dump_point(
             << "  </rtdb:Attr>"<< std::endl;
         }
 
-        class_item_presentation << "</rtdb:Class>" << std::endl;
+        class_item_presentation << "</rtdb:Point>" << std::endl;
         dump.assign(class_item_presentation.str());
     }
     else

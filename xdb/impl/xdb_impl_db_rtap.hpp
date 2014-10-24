@@ -89,22 +89,39 @@ class DatabaseRtapImpl
     MCO_RET createPoint(mco_trans_h,
                         rtap_db::XDBPoint&,
                         rtap_db::Point&,
-                        std::string&,
+                        const std::string&,
                         autoid_t&,
                         autoid_t&);
     // Создать паспорт Точки в БД, вернуть идентификатор
     MCO_RET createPassport(mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
     // Создать TM паспорт Точки в БД, вернуть идентификатор
-    MCO_RET createPassportTS(mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportTM(mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportTR(mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportTSA(mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportTSC(mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportTC(mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportAL(mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportICS(mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportICM(mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportVA(mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportTS    (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportTM    (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportTR    (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportTSA   (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportTSC   (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportTC    (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportAL    (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportICS   (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportICM   (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportTL    (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportVA    (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportATC   (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportGRC   (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportSV    (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportSDG   (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportSSDG  (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportSCP   (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportDIR   (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportDIPL  (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportMETLINE(mco_trans_h,rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportESDG  (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportSCPLINE(mco_trans_h,rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportTLLINE(mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportAUX1  (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportAUX2  (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportSITE  (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassportSA    (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
 
     // Автоматически вызываемые события при работе с экземплярами Point
     static MCO_RET new_Point(mco_trans_h, rtap_db::XDBPoint*, MCO_EVENT_TYPE, void*);

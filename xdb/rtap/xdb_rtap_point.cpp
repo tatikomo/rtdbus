@@ -19,22 +19,10 @@ RtPoint::RtPoint(rtap_db::Point& _info) :
   m_last_error(rtE_NONE),
   m_residence(RAM_RESIDENT)
 {
-  m_univname_attr = m_info.attrib("UNIVNAME");
-
-#if 0
-  LOG(INFO) << "create RtPoint "
-            << ((m_univname_attr)? m_univname_attr->value() : EMPTY)
-            << " : " << m_info.name() << " : "
-            << m_info.code();
-#endif
 }
 
 RtPoint::~RtPoint()
 {
-#if 0
-  LOG(INFO) << "delete RtPoint "
-            << ((m_univname_attr)? m_univname_attr->value() : EMPTY);
-#endif
 }
 
 // Получить тип хранилища данной точки
@@ -43,9 +31,9 @@ RtResidence RtPoint::getResidence() const
   return m_residence;
 }
 
-const std::string& RtPoint::getName() const
+const std::string& RtPoint::getTag() const
 {
-  return (m_univname_attr)? m_univname_attr->value() : EMPTY;
+  return m_info.tag();
 }
 
 // Получить количество атрибутов точки

@@ -27,18 +27,18 @@ namespace rtap_db
     AttrNameType m_impl;
   };
 
-  class PointType_pimpl: public virtual PointType_pskel,
+  class Tag_pimpl: public virtual Tag_pskel,
     public ::xml_schema::string_pimpl
   {
     public:
     virtual void
     pre ();
 
-    virtual rtap_db::PointType&
-    post_PointType ();
+    virtual rtap_db::Tag&
+    post_Tag ();
 
     private:
-    PointType m_impl;
+    Tag m_impl;
   };
 
   class AttributeType_pimpl: public virtual AttributeType_pskel,
@@ -95,7 +95,7 @@ namespace rtap_db
     Code (rtap_db::Code);
 
     virtual void
-    Name (rtap_db::PointType&);
+    Tag (rtap_db::Tag&);
 
     virtual void
     Attr ();

@@ -17,13 +17,9 @@ namespace rtap_db
   //
   typedef unsigned int Code;
 
-  // Наименование типа Класса - TS, TM, TSA,...
+  // Тэг, ранее "универсальное имя точки"
   // 
-  typedef std::string PointType;
-
-  // Наименование Класса
-  // 
-  typedef std::string ClassName;
+  typedef std::string Tag;
 
   // Наименование атрибута
   // 
@@ -120,15 +116,15 @@ namespace rtap_db
       return m_class_code;
     }
 
-    const std::string& name () const
+    const std::string& tag () const
     {
-      return m_class_name;
+      return m_tag;
     }
 
     void clear()
     {
       m_class_code = 0;
-      m_class_name.clear();
+      m_tag.clear();
       m_attributes.clear();
     }
 
@@ -163,7 +159,7 @@ namespace rtap_db
     }
 
     Code         m_class_code;
-    ClassName    m_class_name;
+    Tag          m_tag;
     AttibuteList m_attributes;
   };
 

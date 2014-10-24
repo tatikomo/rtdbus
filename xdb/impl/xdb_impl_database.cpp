@@ -528,7 +528,7 @@ const Error& DatabaseImpl::SaveAsXML(const char* given_file_name, const char *ms
 
   if (!given_file_name)
   {
-    snprintf(calc_file_name, sizeof(calc_file_name-1),
+    snprintf(calc_file_name, sizeof(calc_file_name)-1,
           "%09d.%s.%s.xml.snap",
           getSnapshotCounter(),
           m_name,

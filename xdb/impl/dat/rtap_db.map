@@ -2,7 +2,7 @@ namespace http://www.example.com/rtap_db rtap_db
 {
   include "rtap_db.hxx";
 
-  PointType     "PointType&" "PointType&";
+  Tag           "Tag&" "Tag&";
   AttributeType "AttributeType&" "AttributeType&";
   PointKind     "PointKind&" "PointKind&";
   Point         "Point&" "Point&";

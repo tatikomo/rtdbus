@@ -44,6 +44,10 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     <xs:enumeration value="DELEGABLE"/>
     <xs:enumeration value="ETGCODE"/>
     <xs:enumeration value="SITEFLG"/>
+    <xs:enumeration value="FLGREMOTECMD"/>
+    <xs:enumeration value="FLGMAINTENANCE"/>
+    <xs:enumeration value="NAMEMAINTENANCE"/>
+    <xs:enumeration value="TSSYNTHETICAL"/>
     <xs:enumeration value="LOCALFLAG"/>
     <xs:enumeration value="ALARMBEGIN"/>
     <xs:enumeration value="ALARMBEGINACK"/>
@@ -68,6 +72,7 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
 </xs:simpleType>
 
 <!-- Перечисление допустимых типов класса -->
+<!-- NB: Поле назначено к удалению -->
 <xs:simpleType name="PointType">
   <xs:restriction base="xs:string">
     <xs:enumeration value="TS"/>
@@ -200,11 +205,23 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
               <xs:maxInclusive value="87"/>
             </xs:restriction>
           </xs:simpleType>
-        </xs:element> 
+        </xs:element>
         <!-- Code definition end -->
 
+        <!-- RTDB Universal name definition start -->
+        <xs:element name="Tag">
+          <xs:simpleType>
+            <xs:restriction base="xs:string">
+              <!-- UNIVNAME_LENGTH defined in xdb_rtap_const.hpp -->
+              <xs:maxLength value="32"/>
+            </xs:restriction>
+          </xs:simpleType>
+        </xs:element>
+        <!-- RTDB Universal name definition end -->
+
         <!-- Name definition start -->
-        <xs:element name="Name" type="PointType"/>
+        <!-- Это поле лишнее, т.к. имя типа точки может быть получено из числового кода -->
+        <!-- <xs:element name="Name" type="PointType"/> -->
         <!-- Name definition end -->
 
         <!-- Attr definition start -->

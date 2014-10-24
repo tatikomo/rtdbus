@@ -54,6 +54,9 @@ namespace xdb {
       OF_POS_LOAD_SNAP= 5  // открыть базу, заполнив ее данными из последнего снапшота
     } FlagPos_t;
 
+/*
+ * При изменении перечня синхронизировать его с rtad_db.xsd
+ */
 #define RTDB_ATT_CODE       "CODE"
 #define RTDB_ATT_UNIVNAME   "UNIVNAME"
 #define RTDB_ATT_OBJCLASS   "OBJCLASS"
@@ -95,7 +98,10 @@ namespace xdb {
 #define RTDB_ATT_L_SA           "L_SA"
 #define RTDB_ATT_CONFREMOTECMD  "CONFREMOTECMD"
 #define RTDB_ATT_FLGREMOTECMD   "FLGREMOTECMD"
+#define RTDB_ATT_FLGMAINTENANCE "FLGMAINTENANCE"
+#define RTDB_ATT_NAMEMAINTENANCE "NAMEMAINTENANCE"
 #define RTDB_ATT_REMOTECONTROL  "REMOTECONTROL"
+#define RTDB_ATT_TSSYNTHETICAL  "TSSYNTHETICAL"
 #define RTDB_ATT_NONEXE         "NONEXE  "
 #define RTDB_ATT_RESPNEG        "RESPNEG"
 #define RTDB_ATT_ACTIONTYP      "ACTIONTYP"

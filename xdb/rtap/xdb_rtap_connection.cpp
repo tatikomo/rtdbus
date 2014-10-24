@@ -26,7 +26,7 @@ const Error& RtConnection::create(RtPoint* _point)
 {
   assert(_point);
 
-  LOG(INFO) << "Create new point '" << _point->getName()
+  LOG(INFO) << "Create new point '" << _point->getTag()
             << "' for env '" << m_environment->getName() << "'";
   
   // Создание экземпляра

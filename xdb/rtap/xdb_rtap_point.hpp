@@ -39,7 +39,7 @@ class RtPoint
     // Получить количество атрибутов точки
     int           getAttibuteCount() const;
     // Получить Универсальное Имя точки
-    const std::string& getName() const;
+    const std::string& getTag() const;
     // Получить количество атрибутов точки, подходящих под данный шаблон
     int           getAttibuteCount(const char*) const;
     // Получить все атрибуты точки
@@ -79,9 +79,6 @@ class RtPoint
   private:
     DISALLOW_COPY_AND_ASSIGN(RtPoint);
     rtap_db::Point   m_info;
-    // Ссылка на атрибут Универсального Имени, т.к. он может часто требоваться
-    // NB: Сам атрибут хранится в m_info
-    rtap_db::Attrib *m_univname_attr;
 //    RtEnvironment *m_environment;
     Error            m_last_error;
     RtResidence      m_residence;

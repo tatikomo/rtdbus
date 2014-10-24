@@ -126,7 +126,7 @@ MCO_RET DatabaseRtapImpl::new_Point(mco_trans_h t,
   {
   } while (false);
 
-//  LOG(INFO) << "NEW Point "<<obj<<" name '"<<name<<"' self=" << self;
+//  LOG(INFO) << "NEW Point "<<obj<<" tag '"<<tag<<"' self=" << self;
 
   return MCO_S_OK;
 }
@@ -150,7 +150,7 @@ MCO_RET DatabaseRtapImpl::del_Point(mco_trans_h t,
   {
   } while (false);
 
-//  LOG(INFO) << "DEL Point "<<obj<<" name '"<<name<<"' self=" << self;
+//  LOG(INFO) << "DEL Point "<<obj<<" tag '"<<tag<<"' self=" << self;
 
   return MCO_S_OK;
 }
@@ -246,8 +246,6 @@ const Error& DatabaseRtapImpl::write(rtap_db::Point& info)
   autoid_t    point_aid;
   MCO_RET     rc = MCO_S_OK;
   mco_trans_h t;
-  rtap_db::Attrib *m_univname_attr = info.attrib("UNIVNAME");
-  std::string uni;
 
   do
   {
@@ -259,15 +257,13 @@ const Error& DatabaseRtapImpl::write(rtap_db::Point& info)
         break;
     }
 
-    if (!m_univname_attr)
+    if ((info.tag()).empty())
     {
-        // Не найден атрибут с универсальным именем - пропустить эту Точку
-        LOG(ERROR) << "Empty point's univname, skip";
+        // Пустое универсальное имя - пропустить эту Точку
+        LOG(ERROR) << "Empty point's tag, skipping";
         setError(rtE_STRING_IS_EMPTY);
         break;
     }
-
-    uni.assign(m_univname_attr->value());
 
     // TODO: Проверить, будем ли мы сохранять эту Точку в БД
     // Если нет -> не начинать транзакцию
@@ -278,27 +274,27 @@ const Error& DatabaseRtapImpl::write(rtap_db::Point& info)
     //      если точка игнорируется, функция вернет MCO_E_NOTSUPPORTED
     //
     rc = mco_trans_start(m_impl->getDbHandler(), MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
-    if (rc) { LOG(ERROR) << "Starting '" << uni << "' transaction, rc=" << rc; break; }
+    if (rc) { LOG(ERROR) << "Starting '" << info.tag() << "' transaction, rc=" << rc; break; }
 
     // Создать объект-представление Точки в БД
     rc = instance.create(t);
-    if (rc) { LOG(ERROR) << "Creating '" << uni << "' instance, rc=" << rc; break; }
+    if (rc) { LOG(ERROR) << "Creating '" << info.tag() << "' instance, rc=" << rc; break; }
 
     // Получить его уникальный числовой идентификатор
     rc = instance.autoid_get(point_aid);
-    if (rc) { LOG(ERROR) << "Getting point '" << uni << "' id, rc=" << rc; break; }
+    if (rc) { LOG(ERROR) << "Getting point '" << info.tag() << "' id, rc=" << rc; break; }
 
     // Вставка данных в таблицу соответствующего паспорта
     // Возвращается идентификатор паспорта
     rc = createPassport(t, instance, info, passport_aid, point_aid);
-    if (rc) { LOG(ERROR) << "Creating '" << uni << "' passport, rc=" << rc; break; }
+    if (rc) { LOG(ERROR) << "Creating '" << info.tag() << "' passport, rc=" << rc; break; }
 
     // Вставка данных в основную таблицу точек
-    rc = createPoint(t, instance, info, uni, passport_aid, point_aid);
-    if (rc) { LOG(ERROR) << "Creating '" << uni << "' point, rc=" << rc; break; }
+    rc = createPoint(t, instance, info, info.tag(), passport_aid, point_aid);
+    if (rc) { LOG(ERROR) << "Creating '" << info.tag() << "' point, rc=" << rc; break; }
 
     rc = mco_trans_commit(t);
-    if (rc) { LOG(ERROR) << "Commitment '" << uni << "' transaction, rc=" << rc; }
+    if (rc) { LOG(ERROR) << "Commitment '" << info.tag() << "' transaction, rc=" << rc; }
   }
   while(false);
 
@@ -328,7 +324,7 @@ MCO_RET DatabaseRtapImpl::createPassportTS(mco_trans_h t,
   objclass_t objclass = static_cast<objclass_t>(info.code());
   MCO_RET    rc = MCO_S_OK;
   rtap_db::TS_passport passport_instance;
-  uint1     inhiblocal, aldest;
+  uint1     byte1;
   rtap_db::Attrib* attr = NULL;
 
   do
@@ -338,20 +334,20 @@ MCO_RET DatabaseRtapImpl::createPassportTS(mco_trans_h t,
 
     // 1 INHIBLOCAL
     if (NULL != (attr = info.attrib(RTDB_ATT_INHIBLOCAL)))
-      inhiblocal = atoi(attr->value().c_str());
-    else inhiblocal = 0;
-    rc = passport_instance.INHIBLOCAL_put(inhiblocal);
-    if (rc) { LOG(ERROR) << "Set TS passport " << info.name() <<" INHIBLOCAL, rc=" << rc; break; }
+      byte1 = atoi(attr->value().c_str());
+    else byte1 = 0;
+    rc = passport_instance.INHIBLOCAL_put(byte1);
+    if (rc) { LOG(ERROR) << "Set TS passport " << info.tag() <<" INHIBLOCAL, rc=" << rc; break; }
 
     // 2 ALDEST
     if (NULL != (attr = info.attrib(RTDB_ATT_ALDEST)))
-      aldest = atoi(attr->value().c_str());
-    else aldest = 0;
-    rc = passport_instance.ALDEST_put(aldest);
-    if (rc) { LOG(ERROR) << "Set TS passport " << info.name() << " ALDEST, rc=" << rc; break; }
+      byte1 = atoi(attr->value().c_str());
+    else byte1 = 0;
+    rc = passport_instance.ALDEST_put(byte1);
+    if (rc) { LOG(ERROR) << "Set TS passport " << info.tag() << " ALDEST, rc=" << rc; break; }
 
     rc = passport_instance.autoid_get(passport_aid);
-    if (rc) { LOG(ERROR) << "Getting TS passport " << info.name() << " id, rc=" << rc; break; }
+    if (rc) { LOG(ERROR) << "Getting TS passport " << info.tag() << " id, rc=" << rc; break; }
   }
   while (false);
 
@@ -376,7 +372,7 @@ MCO_RET DatabaseRtapImpl::createPassportTM(mco_trans_h t,
   MCO_RET    rc = MCO_S_OK;
   rtap_db::TM_passport passport_instance;
   rtap_db::Attrib* attr = NULL;
-  double mnvalphy, mxvalphy, convertcoeff;
+  double analog_val;
 
   do
   {
@@ -385,29 +381,29 @@ MCO_RET DatabaseRtapImpl::createPassportTM(mco_trans_h t,
 
     // 1 MNVALPHY
     if (NULL != (attr = info.attrib(RTDB_ATT_MNVALPHY)))
-      mnvalphy = atof(attr->value().c_str());
-    else mnvalphy = 0.0;
-    rc = passport_instance.MNVALPHY_put(mnvalphy);
-    if (rc) { LOG(ERROR) << "Set TM passport " << info.name() <<" MNVALPHY, rc=" << rc; break; }
+      analog_val = atof(attr->value().c_str());
+    else analog_val = 0.0;
+    rc = passport_instance.MNVALPHY_put(analog_val);
+    if (rc) { LOG(ERROR) << "Set TM passport " << info.tag() <<" MNVALPHY, rc=" << rc; break; }
 
     // 2 MXVALPHY
     if (NULL != (attr = info.attrib(RTDB_ATT_MXVALPHY)))
-      mxvalphy = atof(attr->value().c_str());
-    else mxvalphy = 1.0;
-    rc = passport_instance.MXVALPHY_put(mxvalphy);
-    if (rc) { LOG(ERROR) << "Set TM passport " << info.name() <<" MXVALPHY, rc=" << rc; break; }
+      analog_val = atof(attr->value().c_str());
+    else analog_val = 1.0;
+    rc = passport_instance.MXVALPHY_put(analog_val);
+    if (rc) { LOG(ERROR) << "Set TM passport " << info.tag() <<" MXVALPHY, rc=" << rc; break; }
 
     // 3 CONVERTCOEFF
     if (NULL != (attr = info.attrib(RTDB_ATT_CONVERTCOEFF)))
-      convertcoeff = atof(attr->value().c_str());
-    else convertcoeff = 1.0;
-    rc = passport_instance.CONVERTCOEFF_put(convertcoeff);
-    if (rc) { LOG(ERROR) << "Set TM passport " << info.name() <<" CONVERTCOEFF, rc=" << rc; break; }
+      analog_val = atof(attr->value().c_str());
+    else analog_val = 1.0;
+    rc = passport_instance.CONVERTCOEFF_put(analog_val);
+    if (rc) { LOG(ERROR) << "Set TM passport " << info.tag() <<" CONVERTCOEFF, rc=" << rc; break; }
 
     //rc = passport_instance.LINK_HIST_put();
 
     rc = passport_instance.autoid_get(passport_aid);
-    if (rc) { LOG(ERROR) << "Getting TM passport " << info.name() <<" id, rc=" << rc; break; }
+    if (rc) { LOG(ERROR) << "Getting TM passport " << info.tag() <<" id, rc=" << rc; break; }
   }
   while (false);
 
@@ -431,8 +427,8 @@ MCO_RET DatabaseRtapImpl::createPassportTR(mco_trans_h t,
   rtap_db::TR_passport passport_instance;
   passport_aid = point_aid;
   rtap_db::Attrib* attr = NULL;
-  double minval, maxval, valex;
-  uint1 confremotecmd, flgremotecmd, remotecontrol;
+  double analog_val;
+  uint1 byte1;
 
   do
   {
@@ -441,48 +437,48 @@ MCO_RET DatabaseRtapImpl::createPassportTR(mco_trans_h t,
 
     // 1 MINVAL
     if (NULL != (attr = info.attrib(RTDB_ATT_MINVAL)))
-      minval = atof(attr->value().c_str());
-    else minval = 0.0;
-    rc = passport_instance.MINVAL_put(minval);
-    if (rc) { LOG(ERROR) << "Set TR passport " << info.name() <<" MAXVAL, rc=" << rc; break; }
+      analog_val = atof(attr->value().c_str());
+    else analog_val = 0.0;
+    rc = passport_instance.MINVAL_put(analog_val);
+    if (rc) { LOG(ERROR) << "Set TR passport " << info.tag() <<" MAXVAL, rc=" << rc; break; }
 
     // 2 MAXVAL
     if (NULL != (attr = info.attrib(RTDB_ATT_MAXVAL)))
-      maxval = atof(attr->value().c_str());
-    else maxval = 0.0;
-    rc = passport_instance.MAXVAL_put(maxval);
-    if (rc) { LOG(ERROR) << "Set TR passport " << info.name() <<" MINVAL, rc=" << rc; break; }
+      analog_val = atof(attr->value().c_str());
+    else analog_val = 0.0;
+    rc = passport_instance.MAXVAL_put(analog_val);
+    if (rc) { LOG(ERROR) << "Set TR passport " << info.tag() <<" MINVAL, rc=" << rc; break; }
 
     // 3 VALEX
     if (NULL != (attr = info.attrib(RTDB_ATT_VALEX)))
-      valex = atof(attr->value().c_str());
-    else valex = 0.0;
-    rc = passport_instance.VALEX_put(valex);
-    if (rc) { LOG(ERROR) << "Set TR passport " << info.name() <<" VALEX, rc=" << rc; break; }
+      analog_val = atof(attr->value().c_str());
+    else analog_val = 0.0;
+    rc = passport_instance.VALEX_put(analog_val);
+    if (rc) { LOG(ERROR) << "Set TR passport " << info.tag() <<" VALEX, rc=" << rc; break; }
 
     // 4 CONFREMOTECMD
     if (NULL != (attr = info.attrib(RTDB_ATT_CONFREMOTECMD)))
-      confremotecmd = atoi(attr->value().c_str());
-    else confremotecmd = 0;
-    rc = passport_instance.CONFREMOTECMD_put(confremotecmd);
-    if (rc) { LOG(ERROR) << "Set TR passport " << info.name() <<" CONFREMOTECMD, rc=" << rc; break; }
+      byte1 = atoi(attr->value().c_str());
+    else byte1 = 0;
+    rc = passport_instance.CONFREMOTECMD_put(byte1);
+    if (rc) { LOG(ERROR) << "Set TR passport " << info.tag() <<" CONFREMOTECMD, rc=" << rc; break; }
 
     // 5 FLGREMOTECMD
     if (NULL != (attr = info.attrib(RTDB_ATT_FLGREMOTECMD)))
-      flgremotecmd = atoi(attr->value().c_str());
-    else flgremotecmd = 0;
-    rc = passport_instance.FLGREMOTECMD_put(flgremotecmd);
-    if (rc) { LOG(ERROR) << "Set TR passport " << info.name() <<" FLGREMOTECMD, rc=" << rc; break; }
+      byte1 = atoi(attr->value().c_str());
+    else byte1 = 0;
+    rc = passport_instance.FLGREMOTECMD_put(byte1);
+    if (rc) { LOG(ERROR) << "Set TR passport " << info.tag() <<" FLGREMOTECMD, rc=" << rc; break; }
 
     // 6 REMOTECONTROL
     if (NULL != (attr = info.attrib(RTDB_ATT_REMOTECONTROL)))
-      remotecontrol = atoi(attr->value().c_str());
-    else remotecontrol = 0;
-    rc = passport_instance.REMOTECONTROL_put(remotecontrol);
-    if (rc) { LOG(ERROR) << "Set TR passport " << info.name() <<" REMOTECONTROL, rc=" << rc; break; }
+      byte1 = atoi(attr->value().c_str());
+    else byte1 = 0;
+    rc = passport_instance.REMOTECONTROL_put(byte1);
+    if (rc) { LOG(ERROR) << "Set TR passport " << info.tag() <<" REMOTECONTROL, rc=" << rc; break; }
 
 //    rc = passport_instance.autoid_get(passport_aid);
-//    if (rc) { LOG(ERROR) << "Getting TR passport " << info.name() <<" id, rc=" << rc; break; }
+//    if (rc) { LOG(ERROR) << "Getting TR passport " << info.tag() <<" id, rc=" << rc; break; }
   }
   while (false);
 
@@ -579,6 +575,20 @@ MCO_RET DatabaseRtapImpl::createPassportICS(mco_trans_h t,
   return rc;
 }
 
+MCO_RET DatabaseRtapImpl::createPassportTL(mco_trans_h t,
+    rtap_db::XDBPoint& instance,
+    rtap_db::Point& info,
+    autoid_t& passport_aid,
+    autoid_t& point_aid)
+{
+  objclass_t objclass = static_cast<objclass_t>(info.code());
+  MCO_RET    rc = MCO_S_OK;
+  rtap_db::TL_passport passport_instance;
+  passport_aid = point_aid; // GEV времено - для сохранения ссылочной целостности
+  LOG(INFO) << "createPassportICM";
+  return rc;
+}
+
 MCO_RET DatabaseRtapImpl::createPassportVA(mco_trans_h t,
     rtap_db::XDBPoint& instance,
     rtap_db::Point& info,
@@ -587,12 +597,340 @@ MCO_RET DatabaseRtapImpl::createPassportVA(mco_trans_h t,
 {
   objclass_t objclass = static_cast<objclass_t>(info.code());
   MCO_RET    rc = MCO_S_OK;
-  rtap_db::TS_passport passport_instance;
-  passport_aid = point_aid; // GEV времено - для сохранения ссылочной целостности
-  LOG(INFO) << "createPassportVA";
+  rtap_db::VA_passport passport_instance;
+  rtap_db::Attrib* attr = NULL;
+  uint1 byte1;
+  std::string literal_val;
+
+  do
+  {
+    rc = passport_instance.create(t);
+    if (rc) { LOG(ERROR) << "Creating VA passport"; break; }
+
+    // 1 LOCALFLAG
+    if (NULL != (attr = info.attrib(RTDB_ATT_LOCALFLAG)))
+      byte1 = atoi(attr->value().c_str());
+    else byte1 = 0;
+    rc = passport_instance.LOCALFLAG_put(byte1);
+    if (rc) { LOG(ERROR) << "Set VA passport " << info.tag() <<" LOCALFLAG, rc=" << rc; break; }
+
+    // 2 INHIB
+    if (NULL != (attr = info.attrib(RTDB_ATT_INHIB)))
+      byte1 = atoi(attr->value().c_str());
+    else byte1 = 0;
+    rc = passport_instance.INHIB_put(byte1);
+    if (rc) { LOG(ERROR) << "Set VA passport " << info.tag() <<" INHIB, rc=" << rc; break; }
+
+    // 3 INHIBLOCAL
+    if (NULL != (attr = info.attrib(RTDB_ATT_INHIBLOCAL)))
+      byte1 = atoi(attr->value().c_str());
+    else byte1 = 0;
+    rc = passport_instance.INHIBLOCAL_put(byte1);
+    if (rc) { LOG(ERROR) << "Set VA passport " << info.tag() <<" INHIBLOCAL, rc=" << rc; break; }
+
+    // 4 ALINHIB
+    if (NULL != (attr = info.attrib(RTDB_ATT_ALINHIB)))
+      byte1 = atoi(attr->value().c_str());
+    else byte1 = 0;
+    rc = passport_instance.ALINHIB_put(byte1);
+    if (rc) { LOG(ERROR) << "Set VA passport " << info.tag() <<" ALINHIB, rc=" << rc; break; }
+
+    // 5 CONFREMOTECMD
+    if (NULL != (attr = info.attrib(RTDB_ATT_CONFREMOTECMD)))
+      byte1 = atoi(attr->value().c_str());
+    else byte1 = 0;
+    rc = passport_instance.CONFREMOTECMD_put(byte1);
+    if (rc) { LOG(ERROR) << "Set VA passport " << info.tag() <<" CONFREMOTECMD, rc=" << rc; break; }
+
+    // 6 FLGREMOTECMD
+    if (NULL != (attr = info.attrib(RTDB_ATT_FLGREMOTECMD)))
+      byte1 = atoi(attr->value().c_str());
+    else byte1 = 0;
+    rc = passport_instance.FLGREMOTECMD_put(byte1);
+    if (rc) { LOG(ERROR) << "Set VA passport " << info.tag() <<" FLGREMOTECMD, rc=" << rc; break; }
+
+    // 7 REMOTECONTROL
+    if (NULL != (attr = info.attrib(RTDB_ATT_REMOTECONTROL)))
+      byte1 = atoi(attr->value().c_str());
+    else byte1 = 0;
+    rc = passport_instance.REMOTECONTROL_put(byte1);
+    if (rc) { LOG(ERROR) << "Set VA passport " << info.tag() <<" REMOTECONTROL, rc=" << rc; break; }
+
+    // 8 FLGMAINTENANCE
+    if (NULL != (attr = info.attrib(RTDB_ATT_FLGMAINTENANCE)))
+      byte1 = atoi(attr->value().c_str());
+    else byte1 = 0;
+    rc = passport_instance.FLGMAINTENANCE_put(byte1);
+    if (rc) { LOG(ERROR) << "Set VA passport " << info.tag() <<" FLGMAINTENANCE, rc=" << rc; break; }
+
+    // 9 TSSYNTHETICAL
+    if (NULL != (attr = info.attrib(RTDB_ATT_TSSYNTHETICAL)))
+      byte1 = atoi(attr->value().c_str());
+    else byte1 = 0;
+    rc = passport_instance.TSSYNTHETICAL_put(byte1);
+    if (rc) { LOG(ERROR) << "Set VA passport " << info.tag() <<" TSSYNTHETICAL, rc=" << rc; break; }
+
+    // 10 NAMEMAINTENANCE;
+    if (NULL != (attr = info.attrib(RTDB_ATT_NAMEMAINTENANCE)))
+      literal_val.assign(attr->value());
+    else literal_val.clear();
+    rc = passport_instance.NAMEMAINTENANCE_put(literal_val.c_str(), static_cast<uint2>(literal_val.size()));
+    if (rc) { LOG(ERROR) << "Set VA passport " << info.tag() <<" NAMEMAINTENANCE, rc=" << rc; break; }
+
+    rc = passport_instance.autoid_get(passport_aid);
+    if (rc) { LOG(ERROR) << "Getting VA passport " << info.tag() <<" id, rc=" << rc; break; }
+  }
+  while (false);
+
+  if (rc)
+  {
+    passport_aid = point_aid; // для сохранения ссылочной целостности
+    passport_instance.remove();
+  }
+
   return rc;
 }
 
+
+MCO_RET DatabaseRtapImpl::createPassportATC(
+    mco_trans_h         t,
+    rtap_db::XDBPoint&  instance,
+    rtap_db::Point&     info,
+    autoid_t&           passport_aid,
+    autoid_t&           point_aid)
+{
+  objclass_t objclass = static_cast<objclass_t>(info.code());
+  MCO_RET    rc = MCO_S_OK;
+  rtap_db::TS_passport passport_instance;
+  passport_aid = point_aid; // GEV времено - для сохранения ссылочной целостности
+  LOG(INFO) << "createPassportATC";
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::createPassportGRC(
+    mco_trans_h         t,
+    rtap_db::XDBPoint&  instance,
+    rtap_db::Point&     info,
+    autoid_t&           passport_aid,
+    autoid_t&           point_aid)
+{
+  objclass_t objclass = static_cast<objclass_t>(info.code());
+  MCO_RET    rc = MCO_S_OK;
+  rtap_db::TS_passport passport_instance;
+  passport_aid = point_aid; // GEV времено - для сохранения ссылочной целостности
+  LOG(INFO) << "createPassportGRC";
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::createPassportSV(
+    mco_trans_h         t,
+    rtap_db::XDBPoint&  instance,
+    rtap_db::Point&     info,
+    autoid_t&           passport_aid,
+    autoid_t&           point_aid)
+{
+  objclass_t objclass = static_cast<objclass_t>(info.code());
+  MCO_RET    rc = MCO_S_OK;
+  rtap_db::TS_passport passport_instance;
+  passport_aid = point_aid; // GEV времено - для сохранения ссылочной целостности
+  LOG(INFO) << "createPassportSV";
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::createPassportSDG(
+    mco_trans_h         t,
+    rtap_db::XDBPoint&  instance,
+    rtap_db::Point&     info,
+    autoid_t&           passport_aid,
+    autoid_t&           point_aid)
+{
+  objclass_t objclass = static_cast<objclass_t>(info.code());
+  MCO_RET    rc = MCO_S_OK;
+  rtap_db::TS_passport passport_instance;
+  passport_aid = point_aid; // GEV времено - для сохранения ссылочной целостности
+  LOG(INFO) << "createPassportSDG";
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::createPassportSSDG(
+    mco_trans_h         t,
+    rtap_db::XDBPoint&  instance,
+    rtap_db::Point&     info,
+    autoid_t&           passport_aid,
+    autoid_t&           point_aid)
+{
+  objclass_t objclass = static_cast<objclass_t>(info.code());
+  MCO_RET    rc = MCO_S_OK;
+  rtap_db::TS_passport passport_instance;
+  passport_aid = point_aid; // GEV времено - для сохранения ссылочной целостности
+  LOG(INFO) << "createPassportSSDG";
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::createPassportSCP(
+    mco_trans_h         t,
+    rtap_db::XDBPoint&  instance,
+    rtap_db::Point&     info,
+    autoid_t&           passport_aid,
+    autoid_t&           point_aid)
+{
+  objclass_t objclass = static_cast<objclass_t>(info.code());
+  MCO_RET    rc = MCO_S_OK;
+  rtap_db::TS_passport passport_instance;
+  passport_aid = point_aid; // GEV времено - для сохранения ссылочной целостности
+  LOG(INFO) << "createPassportSCP";
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::createPassportDIR(
+    mco_trans_h         t,
+    rtap_db::XDBPoint&  instance,
+    rtap_db::Point&     info,
+    autoid_t&           passport_aid,
+    autoid_t&           point_aid)
+{
+  objclass_t objclass = static_cast<objclass_t>(info.code());
+  MCO_RET    rc = MCO_S_OK;
+  rtap_db::TS_passport passport_instance;
+  passport_aid = point_aid; // GEV времено - для сохранения ссылочной целостности
+  LOG(INFO) << "createPassportDIR";
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::createPassportDIPL(
+    mco_trans_h         t,
+    rtap_db::XDBPoint&  instance,
+    rtap_db::Point&     info,
+    autoid_t&           passport_aid,
+    autoid_t&           point_aid)
+{
+  objclass_t objclass = static_cast<objclass_t>(info.code());
+  MCO_RET    rc = MCO_S_OK;
+  rtap_db::TS_passport passport_instance;
+  passport_aid = point_aid; // GEV времено - для сохранения ссылочной целостности
+  LOG(INFO) << "createPassportDIPL";
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::createPassportMETLINE(
+    mco_trans_h         t,
+    rtap_db::XDBPoint&  instance,
+    rtap_db::Point&     info,
+    autoid_t&           passport_aid,
+    autoid_t&           point_aid)
+{
+  objclass_t objclass = static_cast<objclass_t>(info.code());
+  MCO_RET    rc = MCO_S_OK;
+  rtap_db::TS_passport passport_instance;
+  passport_aid = point_aid; // GEV времено - для сохранения ссылочной целостности
+  LOG(INFO) << "createPassportMETLINE";
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::createPassportESDG(
+    mco_trans_h         t,
+    rtap_db::XDBPoint&  instance,
+    rtap_db::Point&     info,
+    autoid_t&           passport_aid,
+    autoid_t&           point_aid)
+{
+  objclass_t objclass = static_cast<objclass_t>(info.code());
+  MCO_RET    rc = MCO_S_OK;
+  rtap_db::TS_passport passport_instance;
+  passport_aid = point_aid; // GEV времено - для сохранения ссылочной целостности
+  LOG(INFO) << "createPassportESDG";
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::createPassportSCPLINE(
+    mco_trans_h         t,
+    rtap_db::XDBPoint&  instance,
+    rtap_db::Point&     info,
+    autoid_t&           passport_aid,
+    autoid_t&           point_aid)
+{
+  objclass_t objclass = static_cast<objclass_t>(info.code());
+  MCO_RET    rc = MCO_S_OK;
+  rtap_db::TS_passport passport_instance;
+  passport_aid = point_aid; // GEV времено - для сохранения ссылочной целостности
+  LOG(INFO) << "createPassportSCPLINE";
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::createPassportTLLINE(
+    mco_trans_h         t,
+    rtap_db::XDBPoint&  instance,
+    rtap_db::Point&     info,
+    autoid_t&           passport_aid,
+    autoid_t&           point_aid)
+{
+  objclass_t objclass = static_cast<objclass_t>(info.code());
+  MCO_RET    rc = MCO_S_OK;
+  rtap_db::TS_passport passport_instance;
+  passport_aid = point_aid; // GEV времено - для сохранения ссылочной целостности
+  LOG(INFO) << "createPassportTLLINE";
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::createPassportAUX1(
+    mco_trans_h         t,
+    rtap_db::XDBPoint&  instance,
+    rtap_db::Point&     info,
+    autoid_t&           passport_aid,
+    autoid_t&           point_aid)
+{
+  objclass_t objclass = static_cast<objclass_t>(info.code());
+  MCO_RET    rc = MCO_S_OK;
+  rtap_db::TS_passport passport_instance;
+  passport_aid = point_aid; // GEV времено - для сохранения ссылочной целостности
+  LOG(INFO) << "createPassportAUX1";
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::createPassportAUX2(
+    mco_trans_h         t,
+    rtap_db::XDBPoint&  instance,
+    rtap_db::Point&     info,
+    autoid_t&           passport_aid,
+    autoid_t&           point_aid)
+{
+  objclass_t objclass = static_cast<objclass_t>(info.code());
+  MCO_RET    rc = MCO_S_OK;
+  rtap_db::TS_passport passport_instance;
+  passport_aid = point_aid; // GEV времено - для сохранения ссылочной целостности
+  LOG(INFO) << "createPassportAUX2";
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::createPassportSITE(
+    mco_trans_h         t,
+    rtap_db::XDBPoint&  instance,
+    rtap_db::Point&     info,
+    autoid_t&           passport_aid,
+    autoid_t&           point_aid)
+{
+  objclass_t objclass = static_cast<objclass_t>(info.code());
+  MCO_RET    rc = MCO_S_OK;
+  rtap_db::TS_passport passport_instance;
+  passport_aid = point_aid; // GEV времено - для сохранения ссылочной целостности
+  LOG(INFO) << "createPassportSITE";
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::createPassportSA(
+    mco_trans_h         t,
+    rtap_db::XDBPoint&  instance,
+    rtap_db::Point&     info,
+    autoid_t&           passport_aid,
+    autoid_t&           point_aid)
+{
+  objclass_t objclass = static_cast<objclass_t>(info.code());
+  MCO_RET    rc = MCO_S_OK;
+  rtap_db::TS_passport passport_instance;
+  passport_aid = point_aid; // GEV времено - для сохранения ссылочной целостности
+  LOG(INFO) << "createPassportSA";
+  return rc;
+}
 
 //
 // Создать паспорт заданной Точки
@@ -662,36 +1000,88 @@ MCO_RET DatabaseRtapImpl::createPassport(mco_trans_h t,
     rc = createPassportICM(t, instance, info, passport_id, point_id);
     break;
 
+    case TL:  /* 16 */
+    rc = createPassportTL(t, instance, info, passport_id, point_id);
+    break;
+
     case VA:  /* 19 */
     rc = createPassportVA(t, instance, info, passport_id, point_id);
     break;
 
+    case ATC: /* 21 */
+    rc = createPassportATC(t, instance, info, passport_id, point_id);
+    break;
+
+    case GRC: /* 22 */
+    rc = createPassportGRC(t, instance, info, passport_id, point_id);
+    break;
+
+    case SV:  /* 23 */
+    rc = createPassportSV(t, instance, info, passport_id, point_id);
+    break;
+
+    case SDG: /* 24 */
+    rc = createPassportSDG(t, instance, info, passport_id, point_id);
+    break;
+
+    case SSDG:/* 26 */
+    rc = createPassportSSDG(t, instance, info, passport_id, point_id);
+    break;
+
+    case SCP: /* 28 */
+    rc = createPassportSCP(t, instance, info, passport_id, point_id);
+    break;
+
+    case DIR: /* 30 */
+    rc = createPassportDIR(t, instance, info, passport_id, point_id);
+    break;
+
+    case DIPL:/* 31 */
+    rc = createPassportDIPL(t, instance, info, passport_id, point_id);
+    break;
+
+    case METLINE: /* 32 */
+    rc = createPassportMETLINE(t, instance, info, passport_id, point_id);
+    break;
+
+    case ESDG:/* 33 */
+    rc = createPassportESDG(t, instance, info, passport_id, point_id);
+    break;
+
+    case SCPLINE: /* 35 */
+    rc = createPassportSCPLINE(t, instance, info, passport_id, point_id);
+    break;
+
+    case TLLINE:  /* 36 */
+    rc = createPassportTLLINE(t, instance, info, passport_id, point_id);
+    break;
+
+    case AUX1:/* 38 */
+    rc = createPassportAUX1(t, instance, info, passport_id, point_id);
+    break;
+
+    case AUX2:/* 39 */
+    rc = createPassportAUX2(t, instance, info, passport_id, point_id);
+    break;
+
+    case SITE:/* 45 */
+    rc = createPassportSITE(t, instance, info, passport_id, point_id);
+    break;
+
+    case SA:  /* 50 */
+    rc = createPassportSA(t, instance, info, passport_id, point_id);
+    break;
+
+
     // Точки, не имеющие паспорта
     case PIPE:/* 11 */
     case PIPELINE:/* 15 */
-    case TL:  /* 16 */
     case SC:  /* 20 */
-    case ATC: /* 21 */
-    case GRC: /* 22 */
-    case SV:  /* 23 */
-    case SDG: /* 24 */
     case RGA: /* 25 */
-    case SSDG:/* 26 */
     case BRG: /* 27 */
-    case SCP: /* 28 */
     case STG: /* 29 */
-    case METLINE: /* 32 */
-    case ESDG:/* 33 */
     case SVLINE:  /* 34 */
-    case SCPLINE: /* 35 */
-    case TLLINE:  /* 36 */
-    case DIR: /* 30 */
-    case DIPL:/* 31 */
     case INVT:/* 37 */
-    case AUX1:/* 38 */
-    case AUX2:/* 39 */
-    case SA:  /* 50 */
-    case SITE:/* 45 */
     case FIXEDPOINT:  /* 79 */
     case HIST: /* 80 */
 
@@ -710,7 +1100,7 @@ MCO_RET DatabaseRtapImpl::createPassport(mco_trans_h t,
     rc = passport_instance.checkpoint();
     if (rc)
     { 
-      LOG(ERROR) << "Checkpoint " << info.name() <<", rc=" << rc;
+      LOG(ERROR) << "Checkpoint " << info.tag() <<", rc=" << rc;
     }
     // TODO: что в этом случае делать с уже созданным паспортом?
   }
@@ -722,7 +1112,7 @@ MCO_RET DatabaseRtapImpl::createPassport(mco_trans_h t,
 MCO_RET DatabaseRtapImpl::createPoint(mco_trans_h t,
     rtap_db::XDBPoint& instance,
     rtap_db::Point& info,
-    std::string& univname,
+    const std::string& tag,
     autoid_t& passport_aid,
     autoid_t& point_aid)
 {
@@ -744,9 +1134,9 @@ MCO_RET DatabaseRtapImpl::createPoint(mco_trans_h t,
 
   do
   {
-    // 1. UNIVNAME
-    rc = instance.UNIVNAME_put(univname.c_str(), static_cast<uint2>(univname.size()));
-    if (rc) { LOG(ERROR) << "Setting name"; break; }
+    // 1. TAG
+    rc = instance.TAG_put(tag.c_str(), static_cast<uint2>(tag.size()));
+    if (rc) { LOG(ERROR) << "Setting tag"; break; }
 
     // 2. OBJCLASS
     rc = instance.OBJCLASS_put(objclass);
@@ -788,7 +1178,7 @@ MCO_RET DatabaseRtapImpl::createPoint(mco_trans_h t,
           break;
 
         default:
-          LOG(WARNING) << "Point " << univname
+          LOG(WARNING) << "Point " << tag
                        << " doesn't have STATUS attribute, use default 'WORKED'";
           status = WORKED;
       }

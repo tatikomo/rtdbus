@@ -49,22 +49,22 @@ bool xdb::loadFromXML(RtEnvironment* env, const char* filename)
     // Instantiate individual parsers.
     //
     ::rtap_db::RTDB_STRUCT_pimpl RTDB_STRUCT_p;
-    ::rtap_db::Point_pimpl Point_p;
-    ::rtap_db::Code_pimpl Code_p;
-    ::rtap_db::PointType_pimpl PointType_p;
-    ::rtap_db::Attr_pimpl Attr_p;
-    ::rtap_db::PointKind_pimpl PointKind_p;
-    ::rtap_db::Accessibility_pimpl Accessibility_p;
-    ::rtap_db::AttributeType_pimpl AttributeType_p;
-    ::rtap_db::AttrNameType_pimpl AttrNameType_p;
-    ::xml_schema::string_pimpl string_p;
+    ::rtap_db::Point_pimpl       Point_p;
+    ::rtap_db::Code_pimpl        Code_p;
+    ::rtap_db::Tag_pimpl         Tag_p;
+    ::rtap_db::Attr_pimpl        Attr_p;
+    ::rtap_db::PointKind_pimpl   PointKind_p;
+    ::rtap_db::Accessibility_pimpl  Accessibility_p;
+    ::rtap_db::AttributeType_pimpl  AttributeType_p;
+    ::rtap_db::AttrNameType_pimpl   AttrNameType_p;
+    ::xml_schema::string_pimpl      string_p;
 
     // Connect the parsers together.
     //
     RTDB_STRUCT_p.parsers (Point_p);
 
     Point_p.parsers (Code_p,
-                     PointType_p,
+                     Tag_p,
                      Attr_p);
 
     Attr_p.parsers (AttrNameType_p,
@@ -113,11 +113,43 @@ void applyClassListToDB(RtEnvironment* env, rtap_db::Points &point_list)
   RtConnection* conn = env->getConnection();
   RtPoint* new_point = NULL;
   rtap_db::Attrib   attrib;
+  int ClassCounter[GOF_D_BDR_OBJCLASS_LASTUSED+1];
+  int objclass;
+  int sum;
+
+  // Обнулим счетчики количеств созданных экземпляров по типам Точек
+  memset(static_cast<void*>(ClassCounter), '\0', sizeof(ClassCounter));
 
   for (class_item=0; class_item<point_list.size(); class_item++)
   {
     new_point = new RtPoint(point_list[class_item]);
     conn->create(new_point);
+
+    // Обновим счетчик класса
+    objclass = point_list[class_item].code();
+    if ((GOF_D_BDR_OBJCLASS_TS < objclass) && (objclass < GOF_D_BDR_OBJCLASS_LASTUSED))
+    {
+      ClassCounter[objclass]++;
+    }
+    else
+    {
+      LOG(ERROR) << "objclass "<< objclass << " exceeds limit";
+    }
+
     delete new_point;
   }
+
+  // Вывод статистики
+  for (sum=0, objclass=0; objclass<GOF_D_BDR_OBJCLASS_LASTUSED; objclass++)
+  {
+    if (ClassCounter[objclass])
+    {
+      sum += ClassCounter[objclass];
+
+      LOG(INFO) << "Class " << objclass << " '"
+                << ClassDescriptionTable[objclass].name
+                << "' : " << ClassCounter[objclass] << std::endl;
+    }
+  }
+  LOG(INFO) << "All : " << sum << " point(s)";
 }

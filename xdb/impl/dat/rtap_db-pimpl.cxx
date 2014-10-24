@@ -39,23 +39,23 @@ namespace rtap_db
     return m_impl;
   }
 
-  // PointType_pimpl
+  // Tag_pimpl
   //
 
-  void PointType_pimpl::
+  void Tag_pimpl::
   pre ()
   {
   }
 
-  rtap_db::PointType& PointType_pimpl::
-  post_PointType ()
+  rtap_db::Tag& Tag_pimpl::
+  post_Tag ()
   {
     const ::std::string& v (post_string ());
 
     // TODO
     //
 #if VERBOSE
-    std::cout << "\t\tPointType_pimpl::post_PointType:" << v << std::endl;
+    std::cout << "\t\tTag_pimpl::post_Tag:" << v << std::endl;
 #endif
     m_impl.assign(v);
     return m_impl;
@@ -128,7 +128,7 @@ namespace rtap_db
     // TODO
     //
 #if VERBOSE
-    std::cout << "RTDB_STRUCT_pimpl::Point("<<Point.code()<<", "<<Point.name()<<")"<<std::endl;
+    std::cout << "RTDB_STRUCT_pimpl::Point("<<Point.code()<<", "<<Point.tag()<<")"<<std::endl;
 #endif
     if (m_classes)
     {
@@ -136,7 +136,7 @@ namespace rtap_db
     }
     else
     {
-      std::cout << "GEV: dump class "<< Point.name() <<" as XML" << std::endl;
+      std::cout << "GEV: dump point "<< Point.tag() <<" as XML" << std::endl;
     }
     delete &Point;
   }
@@ -176,14 +176,14 @@ namespace rtap_db
   }
 
   void Point_pimpl::
-  Name (rtap_db::PointType& Name)
+  Tag (rtap_db::Tag& univname)
   {
     // TODO
     //
 #if VERBOSE
-    std::cout << "\tPoint_pimpl::Name = "<<Name<<std::endl;
+    std::cout << "\tPoint_pimpl::Tag = "<<univname<<std::endl;
 #endif
-    m_impl->m_class_name.assign(Name);
+    m_impl->m_tag.assign(univname);
   }
 
   void Point_pimpl::
@@ -202,7 +202,7 @@ namespace rtap_db
 #if VERBOSE
     std::cout << "\tPoint_pimpl::post_Point("
         << m_impl->code() << ","
-        << m_impl->name() << ","
+        << m_impl->tag() << ","
         << m_impl->m_attributes.size() <<")"
     << std::endl;
 #endif

@@ -23,7 +23,7 @@
 #define s_code      char<8>
 #define s_label     char<80>
 #define s_formula   char<40>
-#define s_univname  char<32>
+#define s_tag       char<32>
 #define s_dispatch  char<20>
 #define s_valabel   char<40>
 #define s_unity     char<12>
@@ -265,9 +265,9 @@ class ALARM
 {
   autoid[MAX_ALARMS_QUANTITY];
   /* reference to XDBPoint instance where Alarm was detected */
-  // NB: для ускорения работы исп. univname вместо ссылки
+  // NB: для ускорения работы исп. tag вместо ссылки
   //autoid_t     point_ref;
-  s_univname    reference;  // UNIVNAME сгенерировавшего Тревогу оборудования
+  s_tag         reference;  // TAG сгенерировавшего Тревогу оборудования
   timestamp     mark_insert;// Дата поступления Тревоги в БД
   timestamp     mark_origin;// Дата изначальной генерации Тревоги
   AlarmKind     kind;       // Оперативный, Неоперативный, Историзированный
@@ -369,7 +369,7 @@ class LISTACT
 {
   timestamp  mark;      // Время выдачи воздействия
   Action     command;   // Команда
-  s_univname univname;  // Оборудование
+  s_tag      tag;       // Оборудование
   s_dispatch dispatcher;// Диспетчер
   double     value;     // Значение (для телерегулирования)
   logical    stage_1;   // Принята или нет команда системой сбора
@@ -406,7 +406,7 @@ class XDBPoint
   //oid;
   
   /* Point common STATIC part */
-  s_univname    UNIVNAME;
+  s_tag         TAG;
   objclass_t    OBJCLASS;    /* class id */
   PointStatus   STATUS = WORKED;      /* TODO: Для чего используется этот атрибут? */
   /* short human-readable designation (TODO: store in external DB) */
@@ -436,10 +436,10 @@ class XDBPoint
   
   /* Indexes */
   unique tree <passport_ref> SK_by_passport; /* point to passport relationship is '1-to-1' */
-  /* locating point instance by univname */
-//  unique hash <UNIVNAME> SK_by_univname[MAX_POINTS_QUANTITY];
+  /* locating point instance by tag */
+//  unique hash <TAG> SK_by_tag[MAX_POINTS_QUANTITY];
 //  Тип "Patricia Trie" появился только в версии старше 4
-  patricia <UNIVNAME> SK_by_univname; //[MAX_POINTS_QUANTITY];
+  patricia <TAG> SK_by_tag; //[MAX_POINTS_QUANTITY];
 
   /* Events */
   event <new> new_point_evnt;
@@ -555,6 +555,8 @@ class PIPELINE_passport /* 15 */
 
 class TL_passport       /* 16 */
 {
+  Responsability LOCALFLAG = LOCAL;
+  logical        CONFREMOTECMD = 0;
 };
 
 class SC_passport       /* 20 */

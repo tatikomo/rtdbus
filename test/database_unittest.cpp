@@ -564,22 +564,22 @@ TEST(TestTools, LOAD_XML)
     // Instantiate individual parsers.
     //
     ::rtap_db::RTDB_STRUCT_pimpl RTDB_STRUCT_p;
-    ::rtap_db::Point_pimpl Point_p;
-    ::rtap_db::Code_pimpl Code_p;
-    ::rtap_db::PointType_pimpl PointType_p;
-    ::rtap_db::Attr_pimpl Attr_p;
-    ::rtap_db::PointKind_pimpl PointKind_p;
+    ::rtap_db::Point_pimpl       Point_p;
+    ::rtap_db::Code_pimpl        Code_p;
+    ::rtap_db::Tag_pimpl         Tag_p;
+    ::rtap_db::Attr_pimpl        Attr_p;
+    ::rtap_db::PointKind_pimpl   PointKind_p;
     ::rtap_db::Accessibility_pimpl Accessibility_p;
     ::rtap_db::AttributeType_pimpl AttributeType_p;
-    ::rtap_db::AttrNameType_pimpl AttrNameType_p;
-    ::xml_schema::string_pimpl string_p;
+    ::rtap_db::AttrNameType_pimpl  AttrNameType_p;
+    ::xml_schema::string_pimpl     string_p;
 
     // Connect the parsers together.
     //
     RTDB_STRUCT_p.parsers (Point_p);
 
     Point_p.parsers (Code_p,
-                     PointType_p,
+                     Tag_p,
                      Attr_p);
 
     Attr_p.parsers (AttrNameType_p,
@@ -609,7 +609,7 @@ TEST(TestTools, LOAD_XML)
     {
 #if VERBOSE
       std::cout << "\tCODE:  " << point_list[class_item].code() << std::endl;
-      std::cout << "\tNAME:  '" << point_list[class_item].name() << "'" << std::endl;
+      std::cout << "\tTAG:  '" << point_list[class_item].tag() << "'" << std::endl;
       std::cout << "\t#ATTR: " << point_list[class_item].m_attributes.size() << std::endl;
       if (point_list[class_item].m_attributes.size())
       {
@@ -630,17 +630,17 @@ TEST(TestTools, LOAD_XML)
       switch(class_item)
       {
         case GOF_D_BDR_OBJCLASS_TS:
-            EXPECT_TRUE(point_list[class_item].name().compare("TS") == 0);
+            EXPECT_TRUE(point_list[class_item].code() == class_item);
             EXPECT_EQ(point_list[class_item].m_attributes.size(), 1);
             break;
 
         case GOF_D_BDR_OBJCLASS_TM:
-            EXPECT_TRUE(point_list[class_item].name().compare("TM") == 0);
+            EXPECT_TRUE(point_list[class_item].code() == class_item);
             EXPECT_EQ(point_list[class_item].m_attributes.size(), 2);
             break;
 
         case GOF_D_BDR_OBJCLASS_TSA:
-            EXPECT_TRUE(point_list[class_item].name().compare("TSA") == 0);
+            EXPECT_TRUE(point_list[class_item].code() == class_item);
             EXPECT_EQ(point_list[class_item].m_attributes.size(), 1);
             break;
       }
