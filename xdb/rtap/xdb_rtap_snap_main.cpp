@@ -125,7 +125,7 @@ int main(int argc, char** argv)
   {
       if ((false == is_command_name_given) || (false == is_database_name_given))
       {
-        LOG(ERROR) << "Exiting";
+        LOG(ERROR) << "Command or database name not specified, exiting";
         return 1;
       }
 

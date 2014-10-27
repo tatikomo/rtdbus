@@ -79,7 +79,6 @@ class RtPoint
   private:
     DISALLOW_COPY_AND_ASSIGN(RtPoint);
     rtap_db::Point   m_info;
-//    RtEnvironment *m_environment;
     Error            m_last_error;
     RtResidence      m_residence;
 };

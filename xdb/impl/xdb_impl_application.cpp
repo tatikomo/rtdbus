@@ -88,9 +88,9 @@ bool ApplicationImpl::getOption(const std::string& key, int& val)
   return status;
 }
 
-Options& ApplicationImpl::getOptions()
+Options* ApplicationImpl::getOptions()
 {
-  return m_map_options;
+  return &m_map_options;
 }
 
 void ApplicationImpl::setOption(const char* key, int val)

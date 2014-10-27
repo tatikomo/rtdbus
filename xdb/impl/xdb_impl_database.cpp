@@ -813,8 +813,8 @@ const Error& DatabaseImpl::LoadFromXML(const char* given_file_name)
   MCO_RET           rc = MCO_S_OK;
   mco_trans_h       t;
   mco_xml_policy_t  policy;
-  static char       calc_file_name[150];
-  char             *fname = &calc_file_name[0];
+//  static char       calc_file_name[150];
+//  char             *fname = &calc_file_name[0];
   FILE             *f = NULL;
 
   m_last_error.clear();

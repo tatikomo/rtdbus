@@ -15,13 +15,8 @@
 
 using namespace xdb;
 
-RtDatabase::RtDatabase(const char* _name, const
-#ifdef __SUNPRO_CC
-           ::Options
-#else
-           ::Options&
-#endif
-                       _options)
+RtDatabase::RtDatabase(const char* _name, const ::Options* _options)
+ : m_options(_options)
 {
   assert (_name);
   // GEV Опции создания БД для RTAP сейчас игнорируются

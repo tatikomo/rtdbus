@@ -54,17 +54,16 @@ using namespace xdb;
 DatabaseBrokerImpl::DatabaseBrokerImpl(const char* _name) :
     m_service_list(NULL)
 {
-  Options opt;
   assert(_name);
 
   // Опции по умолчанию
-  setOption(opt, "OF_CREATE",    1);
-  setOption(opt, "OF_LOAD_SNAP", 1);
-  setOption(opt, "OF_DATABASE_SIZE",   1024 * 1024 * 10);
-  setOption(opt, "OF_MEMORYPAGE_SIZE", 1024); // 0..65535
-  setOption(opt, "OF_MAP_ADDRESS", 0x20000000);
+  setOption(m_opt, "OF_CREATE",    1);
+  setOption(m_opt, "OF_LOAD_SNAP", 1);
+  setOption(m_opt, "OF_DATABASE_SIZE",   1024 * 1024 * 10);
+  setOption(m_opt, "OF_MEMORYPAGE_SIZE", 1024); // 0..65535
+  setOption(m_opt, "OF_MAP_ADDRESS", 0x20000000);
 #if defined USE_EXTREMEDB_HTTP_SERVER
-  setOption(opt, "OF_HTTP_PORT", 8081);
+  setOption(m_opt, "OF_HTTP_PORT", 8081);
 #endif
 
 #ifdef DISK_DATABASE
@@ -78,12 +77,12 @@ DatabaseBrokerImpl::DatabaseBrokerImpl(const char* _name) :
   strcpy(m_logFileName, m_database->getName());
   strcat(m_logFileName, ".log");
 
-  setOption(opt, "OF_DISK_CACHE_SIZE", 1024 * 1024 * 10);
+  setOption(m_opt, "OF_DISK_CACHE_SIZE", 1024 * 1024 * 10);
 #else
-  setOption(opt, "OF_DISK_CACHE_SIZE", 0);
+  setOption(m_opt, "OF_DISK_CACHE_SIZE", 0);
 #endif
 
-  m_database = new DatabaseImpl(_name, opt, broker_db_get_dictionary());
+  m_database = new DatabaseImpl(_name, m_opt, broker_db_get_dictionary());
 }
 
 DatabaseBrokerImpl::~DatabaseBrokerImpl()

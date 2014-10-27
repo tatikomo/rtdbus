@@ -17,14 +17,7 @@ class DatabaseRtapImpl;
 class RtDatabase
 {
   public:
-    RtDatabase(const char*,
-     const
-#ifdef __SUNPRO_CC
-           ::Options
-#else
-           ::Options&
-#endif
-    );
+    RtDatabase(const char*, const ::Options*);
     ~RtDatabase();
 
     const char* DatabaseName() const;
@@ -69,6 +62,7 @@ class RtDatabase
 
   private:
     DatabaseRtapImpl *m_impl;
+    const Options    *m_options;
 };
 
 } //namespace xdb

@@ -576,10 +576,12 @@ std::string& xdb::dump_point(
           // Сохранить остальные атрибуты
           class_item_presentation
                 << "  <rtdb:Attr>" << std::endl
-        		<< "    <rtdb:AttrName>" << it->second.name << "</rtdb:AttrName>" << std::endl
+        		<< "    <rtdb:AttrName>" << it->second.name
+                    << "</rtdb:AttrName>" << std::endl
                 << "    <rtdb:Kind>SCALAR</rtdb:Kind>" << std::endl
         		<< "    <rtdb:Accessibility>PUBLIC</rtdb:Accessibility>" << std::endl
-        		<< "    <rtdb:DbType>" << GetDbNameFromType(it->second.db_type) << "</rtdb:DbType>" << std::endl;
+        		<< "    <rtdb:DbType>" << GetDbNameFromType(it->second.db_type)
+                    << "</rtdb:DbType>" << std::endl;
 
           // Если Атрибут из шаблона найден во входном перечне Атрибутов, то
           //    (1) Значения по умолчанию следует брать из входного перечня
@@ -598,7 +600,8 @@ std::string& xdb::dump_point(
           }
 
           class_item_presentation
-            << "    <rtdb:Value>"<< getValueAsString(element, true) <<"</rtdb:Value>"<< std::endl
+            << "    <rtdb:Value>"
+            << getValueAsString(element, true) <<"</rtdb:Value>"<< std::endl
             << "  </rtdb:Attr>"<< std::endl;
         }
 
@@ -611,7 +614,9 @@ std::string& xdb::dump_point(
     }
 
     // Удалить из attributes_given динамически выделенные данные (тип данных DB_TYPE_BYTES)
-    for (it_attr_pool = attributes_given.begin(); it_attr_pool != attributes_given.end(); ++it_attr_pool)
+    for (it_attr_pool  = attributes_given.begin();
+         it_attr_pool != attributes_given.end();
+         ++it_attr_pool)
     {
       switch(it_attr_pool->second.db_type)
       {

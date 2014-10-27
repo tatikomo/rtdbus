@@ -19,6 +19,12 @@ RtPoint::RtPoint(rtap_db::Point& _info) :
   m_last_error(rtE_NONE),
   m_residence(RAM_RESIDENT)
 {
+#if 0
+  LOG(INFO) << "create RtPoint "
+            << m_info.code()
+            << " : " << m_info.name() << " : "
+            << m_info.code();
+#endif
 }
 
 RtPoint::~RtPoint()

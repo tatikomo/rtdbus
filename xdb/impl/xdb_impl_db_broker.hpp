@@ -165,6 +165,7 @@ class DatabaseBrokerImpl
 
     DatabaseImpl            *m_database;
     ServiceList             *m_service_list;
+    Options                  m_opt;
 
     /*
      * Зарегистрировать все обработчики событий, заявленные в БД

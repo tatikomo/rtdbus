@@ -58,12 +58,7 @@ ApplicationImpl* RtApplication::getImpl()
   return m_impl;
 }
 
-#ifdef __SUNPRO_CC
-const ::Options
-#else
-const ::Options&
-#endif
- RtApplication::getOptions() const
+const ::Options* RtApplication::getOptions() const
 {
   return m_impl->getOptions();
 }
@@ -104,6 +99,7 @@ AppState_t RtApplication::getOperationState() const
 RtEnvironment* RtApplication::loadEnvironment(const char* _env_name)
 {
   Error status;
+  int   val;
   RtEnvironment *env = isEnvironmentRegistered(_env_name);
   
   if (env)
@@ -116,39 +112,43 @@ RtEnvironment* RtApplication::loadEnvironment(const char* _env_name)
   // Создать экземпляр RtEnvironment
   env = getEnvironment(_env_name);
 
-  // Загрузить ранее сохраненное содержимое
-  status = env->LoadSnapshot();
-
-  if (status.Ok())
+  // Загрузить ранее сохраненное содержимое только при включенной LOAD_SNAP
+  if (getOption("OF_LOAD_SNAP", val) && val)
   {
+    status = env->LoadSnapshot(_env_name);
+    if (!status.Ok())
+    {
+        if (rtE_SNAPSHOT_NOT_EXIST == status.code())
+        {
+          // TODO восстановить состояние по конфигурационным файлам
+          LOG(ERROR) << "Construct empty database contents for '"
+                     << m_impl->getAppName() << ":" << env->getName() << "'";
+          status.set(rtE_NOT_IMPLEMENTED);
+        }
+
+        LOG(ERROR) << "Fault loading environment '" << m_impl->getAppName()
+                   << ":" << env->getName() << "' from its snapshot";
+
+#if 0
+        // Удаляем экземпляр Среды, созданный с ошибкой
+        delete env;
+        env = NULL;
+#else
+        // Владение экземпляром перешло к RtApplication
+        registerEnvironment(env);
+#warning "Нельзя регистрировать ошибочные экземпляры Сред. Сейчас это сделано для тестов."
+#endif
+    }
+  }
+  else
+  {
+    LOG(INFO) << "Using clean content '"<< env->getName() <<"' database";
+
     // Владение экземпляром перешло к RtApplication
     registerEnvironment(env);
 
     LOG(INFO) << "Environment '" << env->getName()
               << "' is loaded in App '" << m_impl->getAppName() << "'";
-  }
-  else
-  {
-    if (rtE_SNAPSHOT_NOT_EXIST == status.code())
-    {
-      // TODO восстановить состояние по конфигурационным файлам
-      LOG(ERROR) << "Construct empty database contents for '"
-                 << m_impl->getAppName() << ":" << env->getName() << "'";
-      status.set(rtE_NOT_IMPLEMENTED);
-    }
-
-    LOG(ERROR) << "Fault loading environment '" << m_impl->getAppName()
-               << ":" << env->getName() << "' from its snapshot";
-
-#if 0
-    // Удаляем экземпляр Среды, созданный с ошибкой
-    delete env;
-    env = NULL;
-#else
-    // Владение экземпляром перешло к RtApplication
-    registerEnvironment(env);
-#warning "Нельзя регистрировать ошибочные экземпляры Сред. Сейчас это сделано для тестов."
-#endif
   }
 
   return env;

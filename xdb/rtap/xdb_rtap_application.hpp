@@ -39,12 +39,7 @@ class RtApplication
 
     const Error& initialize();
 
-#ifdef __SUNPRO_CC
-    const ::Options
-#else
-    const ::Options&
-#endif
-        getOptions() const;
+    const ::Options* getOptions() const;
 
     bool  getOption(const std::string&, int&);
     void  setOption(const char*, int);

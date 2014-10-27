@@ -123,8 +123,8 @@ namespace rtap_db
 
     void clear()
     {
-      m_class_code = 0;
       m_tag.clear();
+      m_class_code = -1;
       m_attributes.clear();
     }
 

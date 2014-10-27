@@ -89,7 +89,8 @@ bool xdb::loadFromXML(RtEnvironment* env, const char* filename)
 
     applyClassListToDB(env, point_list);
 
-    saveToXML(env, filename);
+//    NB: БД перед закрытием сохраняется в двоичном виде
+//    saveToXML(env, filename);
   }
   catch (const ::xml_schema::exception& e)
   {

@@ -18,7 +18,10 @@ RtEnvironment::RtEnvironment(RtApplication* _app, const char* _name)
   m_appli = _app;
   m_impl = new EnvironmentImpl(_app->getImpl(), _name);
   m_conn = NULL;
-  m_database = NULL;
+  m_database = new RtDatabase(_name, _app->getOptions());
+  LOG(INFO) << "Creating database " << m_database->getName();
+  m_database->Connect();
+  LOG(INFO) << "Connection to database " << m_database->getName();
 }
 
 RtEnvironment::~RtEnvironment()
@@ -27,8 +30,7 @@ RtEnvironment::~RtEnvironment()
   delete m_impl;
   if (m_database)
   {
-//    m_database->Disconnect();
-    delete m_database;
+    delete m_database; // Disconnect при удалении автоматически
   }
 }
 
@@ -52,13 +54,13 @@ RtConnection* RtEnvironment::getConnection()
 // Загрузить ранее сохраненный снимок для указанного Приложения
 const Error& RtEnvironment::LoadSnapshot(const char *filename)
 {
-  if (!m_database)
+/*  if (!m_database)
   {
     m_database = new RtDatabase(m_impl->getName(), m_appli->getOptions());
     LOG(INFO) << "Lazy creating database " << m_database->getName();
     m_database->Connect();
     LOG(INFO) << "Lazy connection to database " << m_database->getName();
-  }
+  }*/
   return m_database->LoadSnapshot(/*m_impl->getAppName(),*/ filename);
 }
 
