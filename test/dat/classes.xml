@@ -5,7 +5,7 @@
 
 	<rtdb:Point>
 	  <rtdb:Code>00</rtdb:Code>
-	  <rtdb:Name>TS</rtdb:Name>
+	  <rtdb:Tag>/KD4005/1/TT01</rtdb:Tag>
 	  <rtdb:Attr>
 		<rtdb:AttrName>OBJCLASS</rtdb:AttrName>
 		<rtdb:Kind>SCALAR</rtdb:Kind>
@@ -17,7 +17,7 @@
 
 	<rtdb:Point>
 	  <rtdb:Code>01</rtdb:Code>
-	  <rtdb:Name>TM</rtdb:Name>
+	  <rtdb:Tag>/KD4005/1/TT02</rtdb:Tag>
 	  <rtdb:Attr>
 		<rtdb:AttrName>OBJCLASS</rtdb:AttrName>
 		<rtdb:Kind>SCALAR</rtdb:Kind>
@@ -36,7 +36,7 @@
 
 	<rtdb:Point>
 	  <rtdb:Code>03</rtdb:Code>
-	  <rtdb:Name>TSA</rtdb:Name>
+	  <rtdb:Tag>/KD4005/3/PT01</rtdb:Tag>
 	  <rtdb:Attr>
 		<rtdb:AttrName>OBJCLASS</rtdb:AttrName>
 		<rtdb:Kind>SCALAR</rtdb:Kind>

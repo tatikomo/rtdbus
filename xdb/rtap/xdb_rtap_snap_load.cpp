@@ -42,7 +42,8 @@ bool xdb::loadFromXML(RtEnvironment* env, const char* filename)
     return status;
   }
 
-  // Допустимым форматом хранения XML-снимков БДРВ является встроенный в eXtremeDB формат.
+  // Допустимым форматом хранения XML-снимков БДРВ является встроенный
+  // в eXtremeDB формат (Native-XDB-XML, N-XML).
   // Это снимает зависимость от библиотеки xerces в runtime луркера.
   try
   {
@@ -151,5 +152,5 @@ void applyClassListToDB(RtEnvironment* env, rtap_db::Points &point_list)
                 << "' : " << ClassCounter[objclass] << std::endl;
     }
   }
-  LOG(INFO) << "All : " << sum << " point(s)";
+  LOG(INFO) << "Summary processed : " << sum << " point(s)";
 }
