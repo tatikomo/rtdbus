@@ -81,7 +81,7 @@ bool xdb::loadFromXML(RtEnvironment* env, const char* filename)
       "http://www.example.com/rtap_db",
       "RTDB_STRUCT");
 
-    RTDB_STRUCT_p.pre (&point_list);
+    RTDB_STRUCT_p.pre (point_list);
     doc_p.parse (filename);
     RTDB_STRUCT_p.post_RTDB_STRUCT ();
 
@@ -91,6 +91,8 @@ bool xdb::loadFromXML(RtEnvironment* env, const char* filename)
 
 //    NB: БД перед закрытием сохраняется в двоичном виде
 //    saveToXML(env, filename);
+
+    XMLPlatformUtils::Terminate();
   }
   catch (const ::xml_schema::exception& e)
   {
@@ -111,7 +113,6 @@ bool xdb::loadFromXML(RtEnvironment* env, const char* filename)
 void applyClassListToDB(RtEnvironment* env, rtap_db::Points &point_list)
 {
   unsigned int class_item;
-  unsigned int attribute_item;
   RtConnection* conn = env->getConnection();
   RtPoint* new_point = NULL;
   rtap_db::Attrib   attrib;

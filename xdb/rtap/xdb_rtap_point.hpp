@@ -66,7 +66,7 @@ class RtPoint
     const Error&  matchPoints(RtPointFilter*);
 
 #if 0
-    NB: Стоит перенести все подобные методы на уровень RtConnection или RtEnvironment
+    // NB: Стоит перенести все подобные методы на уровень RtConnection или RtEnvironment
 
     // Полная запись данных точки
     const Error&  write();
