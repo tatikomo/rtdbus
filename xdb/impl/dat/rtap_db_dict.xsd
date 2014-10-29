@@ -1,0 +1,1236 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+xmlns="http://www.example.com/rtap_db_dict" 
+targetNamespace="http://www.example.com/rtap_db_dict" 
+elementFormDefault="qualified" attributeFormDefault="unqualified">
+
+<!-- Определение типа данных "класс точки/объекта" -->
+<xs:simpleType name="ObjClassEntry">
+  <xs:restriction base="xs:integer">
+     <xs:minInclusive value="0"/>
+     <xs:maxInclusive value="80"/>
+  </xs:restriction>
+</xs:simpleType>
+
+<!-- Определение типа данных "Значение атрибута VAL" -->
+<xs:simpleType name="ValueEntry">
+  <xs:restriction base="xs:integer">
+     <xs:minInclusive value="0"/>
+     <xs:maxInclusive value="12"/>
+  </xs:restriction>
+</xs:simpleType>
+
+<!-- Определение типа данных "Допустимое значение VAL_LABEL" -->
+<xs:simpleType name="ValueLabelEntry">
+  <xs:restriction base="xs:string">
+    <!-- Общая часть -->
+    <xs:enumeration value="Работа"/>
+    <xs:enumeration value="Останов"/>
+    <xs:enumeration value="Авария"/>
+    <xs:enumeration value="Обслуживание"/>
+    <xs:enumeration value="Техобслуж."/>
+    <xs:enumeration value="Неинструмент"/>
+    <xs:enumeration value="Недостоверно"/>
+
+    <!-- Кран (VALVE) -->
+    <xs:enumeration value="Открыт"/>
+    <xs:enumeration value="Закрыт"/>
+    <xs:enumeration value="Открытие"/>
+    <xs:enumeration value="Закрытие"/>
+
+    <!-- Труба (PIPE) -->
+    <xs:enumeration value="Тупик"/>
+    <xs:enumeration value="Транспорт"/>
+    <xs:enumeration value="Под газом"/>
+    <xs:enumeration value="Без газа"/>
+
+    <!-- ПЗРГ (SCP) -->
+    <!-- ГРС (SDG) -->
+    <!-- КЦ на нитке (SCP_line) -->
+    <!-- КС (SC) -->
+    <!-- Вспом. объект I-уровня (AUX1) -->
+
+    <!-- Вспом. объект II-уровня (AUX2) -->
+    <xs:enumeration value="Вкл.автомат"/>
+    <xs:enumeration value="Вкл.ручной"/>
+    <xs:enumeration value="Выключен"/>
+    <xs:enumeration value="Выкл.автомат"/>
+    <xs:enumeration value="Выкл.ручной"/>
+
+    <!-- ЦЕХ (ATC) -->
+    <xs:enumeration value="Готов"/>
+    <xs:enumeration value="Магистраль"/>
+    <xs:enumeration value="Не готов"/>
+    <xs:enumeration value="ХР-1"/>
+    <xs:enumeration value="ХР-2"/>
+
+    <!-- ГПА, все типы (GRC) -->
+    <xs:enumeration value="Рециркуляция"/>
+    <xs:enumeration value="В резерве"/>
+    <xs:enumeration value="Пуск"/>
+    <xs:enumeration value="Ав.ост.б/с"/>
+    <xs:enumeration value="Ав.ост.с/с"/>
+    <xs:enumeration value="Кольцо"/>
+    <xs:enumeration value="Кап.ремонт"/>
+    <xs:enumeration value="Ср.ремонт"/>
+    <xs:enumeration value="Кап.ремонт"/>
+
+  </xs:restriction>
+</xs:simpleType>
+
+<!-- Определение типа данных "Идентификатор экземпляра UNITY (UNITY_ID)" -->
+<xs:simpleType name="UnityIdEntry">
+  <xs:restriction base="xs:integer">
+     <xs:minInclusive value="0"/>
+     <xs:maxInclusive value="100"/>
+  </xs:restriction>
+</xs:simpleType>
+
+<!-- Определение типа данных "Код идентификатора размерности" -->
+<!--
+ Максимум 30 различных кодов размерности: 
+ Давление, температура, габарит, частота...
+ -->
+<xs:simpleType name="UnityDimensionType">
+  <xs:restriction base="xs:integer">
+     <xs:minInclusive value="0"/>
+     <xs:maxInclusive value="30"/>
+  </xs:restriction>
+</xs:simpleType>
+
+<!-- Определение типа данных "Унифицированная строка размерности" -->
+<xs:simpleType name="UnityDimensionEntry">
+  <xs:restriction base="xs:string">
+    <xs:enumeration value="KU%"/>
+    <xs:enumeration value="KUA"/>
+    <xs:enumeration value="KUGc"/>
+    <xs:enumeration value="KUHz"/>
+    <xs:enumeration value="KUkHz"/>
+    <xs:enumeration value="KUMHz"/>
+    <xs:enumeration value="KUKAh"/>
+    <xs:enumeration value="KUKWh"/>
+    <xs:enumeration value="KUMBAP"/>
+    <xs:enumeration value="KUME"/>
+    <xs:enumeration value="KUME/m3"/>
+    <xs:enumeration value="KUMNm3"/>
+    <xs:enumeration value="KUMNm3/h"/>
+    <xs:enumeration value="KUMPa"/>
+    <xs:enumeration value="KUMW"/>
+    <xs:enumeration value="KUMW/Mm3"/>
+    <xs:enumeration value="KUMW/h"/>
+    <xs:enumeration value="KUMWh"/>
+    <xs:enumeration value="KUMWh/d"/>
+    <xs:enumeration value="KUMm3"/>
+    <xs:enumeration value="KUMm3/d"/>
+    <xs:enumeration value="KUMm3/h"/>
+    <xs:enumeration value="KUPa"/>
+    <xs:enumeration value="KUV"/>
+    <xs:enumeration value="KUWu"/>
+    <xs:enumeration value="KUatm"/>
+    <xs:enumeration value="KUh"/>
+    <xs:enumeration value="KUkBap"/>
+    <xs:enumeration value="KUkCal"/>
+    <xs:enumeration value="KUkCal/(kg*oC)"/>
+    <xs:enumeration value="KUkCal/kg*oC"/>
+    <xs:enumeration value="KUkCal/m3"/>
+    <xs:enumeration value="KUkPa"/>
+    <xs:enumeration value="KUkV"/>
+    <xs:enumeration value="KUkW"/>
+    <xs:enumeration value="KUkg/h"/>
+    <xs:enumeration value="KUkg/cm2"/>
+    <xs:enumeration value="KUkg/m2"/>
+    <xs:enumeration value="KUkg/m3"/>
+    <xs:enumeration value="KUkg/mn"/>
+    <xs:enumeration value="KUkg_o-g"/>
+    <xs:enumeration value="KUkgcm2"/>
+    <xs:enumeration value="KUkg/cm2"/>
+    <xs:enumeration value="KUkgf/cm2"/>
+    <xs:enumeration value="KUkgf/m2"/>
+    <xs:enumeration value="KUkgm2"/>
+    <xs:enumeration value="KUkm"/>
+    <xs:enumeration value="KUkm3"/>
+    <xs:enumeration value="KUkm3/d"/>
+    <xs:enumeration value="KUkm3/h"/>
+    <xs:enumeration value="KUkm3/mn"/>
+    <xs:enumeration value="KUm"/>
+    <xs:enumeration value="KUm3"/>
+    <xs:enumeration value="KUm3/d"/>
+    <xs:enumeration value="KUm3/h"/>
+    <xs:enumeration value="KUm3/mn"/>
+    <xs:enumeration value="KUmicro-m"/>
+    <xs:enumeration value="KUmm"/>
+    <xs:enumeration value="KUmm.col.mer"/>
+    <xs:enumeration value="KUmm/s"/>
+    <xs:enumeration value="KUmmrs"/>
+    <xs:enumeration value="KUmol"/>
+    <xs:enumeration value="KUoC"/>
+    <xs:enumeration value="KUrpm"/>
+    <xs:enumeration value="KUtut"/>
+    <xs:enumeration value="KUtut/d"/>
+  </xs:restriction>
+</xs:simpleType>
+
+<!-- Определение типа данных "Идентификатор размерности в БДРВ" -->
+<!-- максимум 100 различных типов размерности -->
+<xs:simpleType name="UnityIdType">
+  <xs:restriction base="xs:integer">
+     <xs:minInclusive value="0"/>
+     <xs:maxInclusive value="100"/>
+  </xs:restriction>
+</xs:simpleType>
+
+<!-- Определение типа данных "Допустимое значение UNITY" -->
+<xs:simpleType name="UnityLabelEntry">
+  <xs:restriction base="xs:string">
+    <xs:enumeration value="%"/>
+    <xs:enumeration value="kВ"/>
+    <xs:enumeration value="kВap"/>
+    <xs:enumeration value="kГц"/>
+    <xs:enumeration value="MГц"/>
+    <xs:enumeration value="MПа"/>
+    <xs:enumeration value="А"/>
+    <xs:enumeration value="ати"/>
+    <xs:enumeration value="б/р"/>
+    <xs:enumeration value="В"/>
+    <xs:enumeration value="Гц"/>
+    <xs:enumeration value="кВт"/>
+    <xs:enumeration value="кг/cм2"/>
+    <xs:enumeration value="кг/м2"/>
+    <xs:enumeration value="кг/м3"/>
+    <xs:enumeration value="кг/мин"/>
+    <xs:enumeration value="кг/см2"/>
+    <xs:enumeration value="кгс/см2"/>
+    <xs:enumeration value="кг/ч"/>
+    <xs:enumeration value="кКал"/>
+    <xs:enumeration value="кКал/(кг*С)"/>
+    <xs:enumeration value="кКал/м3"/>
+    <xs:enumeration value="км"/>
+    <xs:enumeration value="км3"/>
+    <xs:enumeration value="км3/сут"/>
+    <xs:enumeration value="км3/ч"/>
+    <xs:enumeration value="кПа"/>
+    <xs:enumeration value="м"/>
+    <xs:enumeration value="м3"/>
+    <xs:enumeration value="м3/ч"/>
+    <xs:enumeration value="МВт"/>
+    <xs:enumeration value="МВт/млн.м3"/>
+    <xs:enumeration value="МВтч/сут"/>
+    <xs:enumeration value="МДж/м3"/>
+    <xs:enumeration value="млн.м3/сут"/>
+    <xs:enumeration value="мм"/>
+    <xs:enumeration value="мм.рт.ст"/>
+    <xs:enumeration value="мм/с"/>
+    <xs:enumeration value="молярн.%"/>
+    <xs:enumeration value="об/мин"/>
+    <xs:enumeration value="С"/>
+    <xs:enumeration value="тыс.м"/>
+    <xs:enumeration value="тыс.м3"/>
+    <xs:enumeration value="тыс.м3/сут"/>
+    <xs:enumeration value="тыс.м3/ч"/>
+    <xs:enumeration value="ч"/>
+  </xs:restriction>
+</xs:simpleType>
+
+<!-- Определение типа данных "Определение размерности" -->
+<xs:simpleType name="UnityDesignationEntry">
+  <xs:restriction base="xs:string">
+    <xs:enumeration value="Атмосферное давление"/>
+    <xs:enumeration value="Виброскорость"/>
+    <xs:enumeration value="Время"/>
+    <xs:enumeration value="Давление"/>
+    <xs:enumeration value="Давление газа"/>
+    <xs:enumeration value="Дифференциальное давление газа"/>
+    <xs:enumeration value="Длина"/>
+    <xs:enumeration value="Единицы нет"/>
+    <xs:enumeration value="Напряжение"/>
+    <xs:enumeration value="Объем газа"/>
+    <xs:enumeration value="Плотность"/>
+    <xs:enumeration value="Процент"/>
+    <xs:enumeration value="Расход"/>
+    <xs:enumeration value="Реактивная мощность"/>
+    <xs:enumeration value="Сила тока"/>
+    <xs:enumeration value="Скорость вращения"/>
+    <xs:enumeration value="Содержание вещества"/>
+    <xs:enumeration value="Температура воды"/>
+    <xs:enumeration value="Температура воздуха"/>
+    <xs:enumeration value="Температура газа"/>
+    <xs:enumeration value="Температура Масла"/>
+    <xs:enumeration value="Температура Оборудования"/>
+    <xs:enumeration value="Температура почвы"/>
+    <xs:enumeration value="Теплоемкость"/>
+    <xs:enumeration value="Теплота сгорания"/>
+    <xs:enumeration value="Удельный Расход Электроэнергии"/>
+    <xs:enumeration value="Частота"/>
+    <xs:enumeration value="Электрическая мощность"/>
+    <xs:enumeration value="Энергия"/>
+  </xs:restriction>
+</xs:simpleType>
+
+
+<!-- Перечисление допустимых инфотипов -->
+<xs:simpleType name="InfoTypeEntry">
+  <xs:restriction base="xs:string">
+    <xs:enumeration value="AST01"/>
+    <xs:enumeration value="AST0N2"/>
+    <xs:enumeration value="AST0N2R"/>
+    <xs:enumeration value="AST101"/>
+    <xs:enumeration value="AST10N2"/>
+    <xs:enumeration value="AST1C02"/>
+    <xs:enumeration value="AST201"/>
+    <xs:enumeration value="AST20N2"/>
+    <xs:enumeration value="AST2C02"/>
+    <xs:enumeration value="AST301"/>
+    <xs:enumeration value="AST30N2"/>
+    <xs:enumeration value="AST3C02"/>
+    <xs:enumeration value="AST401"/>
+    <xs:enumeration value="AST40N2"/>
+    <xs:enumeration value="AST4C02"/>
+    <xs:enumeration value="AST501"/>
+    <xs:enumeration value="AST50N2"/>
+    <xs:enumeration value="AST5C02"/>
+    <xs:enumeration value="AST601"/>
+    <xs:enumeration value="AST60N2"/>
+    <xs:enumeration value="AST6C02"/>
+    <xs:enumeration value="AST701"/>
+    <xs:enumeration value="AST70N2"/>
+    <xs:enumeration value="AST7C02"/>
+    <xs:enumeration value="AST801"/>
+    <xs:enumeration value="AST80N2"/>
+    <xs:enumeration value="AST8C02"/>
+    <xs:enumeration value="AST901"/>
+    <xs:enumeration value="AST90N2"/>
+    <xs:enumeration value="AST9C02"/>
+    <xs:enumeration value="ASTC02"/>
+    <xs:enumeration value="ASTCO2"/>
+    <xs:enumeration value="ASTCO2R"/>
+    <xs:enumeration value="AY50"/>
+    <xs:enumeration value="BI3001"/>
+    <xs:enumeration value="BI3002"/>
+    <xs:enumeration value="BI3004"/>
+    <xs:enumeration value="BI3005"/>
+    <xs:enumeration value="BI3006"/>
+    <xs:enumeration value="BI3007"/>
+    <xs:enumeration value="BI3008"/>
+    <xs:enumeration value="BI3009"/>
+    <xs:enumeration value="BI3010"/>
+    <xs:enumeration value="BI3011"/>
+    <xs:enumeration value="BI3013"/>
+    <xs:enumeration value="BI3014"/>
+    <xs:enumeration value="BI3101"/>
+    <xs:enumeration value="BI3102"/>
+    <xs:enumeration value="BI4001"/>
+    <xs:enumeration value="BI4002"/>
+    <xs:enumeration value="BI4003"/>
+    <xs:enumeration value="BI4005"/>
+    <xs:enumeration value="DT50"/>
+    <xs:enumeration value="DT50R"/>
+    <xs:enumeration value="DT60"/>
+    <xs:enumeration value="EE01"/>
+    <xs:enumeration value="EE02"/>
+    <xs:enumeration value="EE03"/>
+    <xs:enumeration value="ET01"/>
+    <xs:enumeration value="ET02"/>
+    <xs:enumeration value="ET11"/>
+    <xs:enumeration value="FDO10"/>
+    <xs:enumeration value="FDT10"/>
+    <xs:enumeration value="FDT201"/>
+    <xs:enumeration value="FDT202"/>
+    <xs:enumeration value="FDT30"/>
+    <xs:enumeration value="FDT311"/>
+    <xs:enumeration value="FDT312"/>
+    <xs:enumeration value="FDT33"/>
+    <xs:enumeration value="FDT331"/>
+    <xs:enumeration value="FDT332"/>
+    <xs:enumeration value="FDY01"/>
+    <xs:enumeration value="FDY011"/>
+    <xs:enumeration value="FDY02"/>
+    <xs:enumeration value="FDY021"/>
+    <xs:enumeration value="FDY03"/>
+    <xs:enumeration value="FDY031"/>
+    <xs:enumeration value="FN01"/>
+    <xs:enumeration value="FN011"/>
+    <xs:enumeration value="FN012"/>
+    <xs:enumeration value="FN01U"/>
+    <xs:enumeration value="FN02"/>
+    <xs:enumeration value="FNO11"/>
+    <xs:enumeration value="FO10"/>
+    <xs:enumeration value="FO11"/>
+    <xs:enumeration value="FP01"/>
+    <xs:enumeration value="FP02"/>
+    <xs:enumeration value="FP021"/>
+    <xs:enumeration value="FP03"/>
+    <xs:enumeration value="FP10"/>
+    <xs:enumeration value="FP201"/>
+    <xs:enumeration value="FP202"/>
+    <xs:enumeration value="FP311"/>
+    <xs:enumeration value="FP312"/>
+    <xs:enumeration value="FP33"/>
+    <xs:enumeration value="FP331"/>
+    <xs:enumeration value="FP332"/>
+    <xs:enumeration value="FS01"/>
+    <xs:enumeration value="FS101"/>
+    <xs:enumeration value="FS201"/>
+    <xs:enumeration value="FS301"/>
+    <xs:enumeration value="FS401"/>
+    <xs:enumeration value="FS501"/>
+    <xs:enumeration value="FS601"/>
+    <xs:enumeration value="FS701"/>
+    <xs:enumeration value="FS801"/>
+    <xs:enumeration value="FS901"/>
+    <xs:enumeration value="FSP01"/>
+    <xs:enumeration value="FSP101"/>
+    <xs:enumeration value="FSP201"/>
+    <xs:enumeration value="FSP301"/>
+    <xs:enumeration value="FSP401"/>
+    <xs:enumeration value="FSP501"/>
+    <xs:enumeration value="FSP601"/>
+    <xs:enumeration value="FSP701"/>
+    <xs:enumeration value="FSP801"/>
+    <xs:enumeration value="FSP901"/>
+    <xs:enumeration value="FST01"/>
+    <xs:enumeration value="FST02"/>
+    <xs:enumeration value="FST03"/>
+    <xs:enumeration value="FT01"/>
+    <xs:enumeration value="FT011"/>
+    <xs:enumeration value="FT012"/>
+    <xs:enumeration value="FT01d"/>
+    <xs:enumeration value="FT01dd"/>
+    <xs:enumeration value="FT01h"/>
+    <xs:enumeration value="FT01hh"/>
+    <xs:enumeration value="FT10"/>
+    <xs:enumeration value="FT101"/>
+    <xs:enumeration value="FT11"/>
+    <xs:enumeration value="FT111"/>
+    <xs:enumeration value="FT112"/>
+    <xs:enumeration value="FT113"/>
+    <xs:enumeration value="FT11U"/>
+    <xs:enumeration value="FT20"/>
+    <xs:enumeration value="FT201"/>
+    <xs:enumeration value="FT202"/>
+    <xs:enumeration value="FT20U"/>
+    <xs:enumeration value="FT30"/>
+    <xs:enumeration value="FT301"/>
+    <xs:enumeration value="FT302"/>
+    <xs:enumeration value="FT303"/>
+    <xs:enumeration value="FT31"/>
+    <xs:enumeration value="FT311"/>
+    <xs:enumeration value="FT312"/>
+    <xs:enumeration value="FT313"/>
+    <xs:enumeration value="FT33"/>
+    <xs:enumeration value="FT331"/>
+    <xs:enumeration value="FT332"/>
+    <xs:enumeration value="FT333"/>
+    <xs:enumeration value="FT401"/>
+    <xs:enumeration value="FT501"/>
+    <xs:enumeration value="FT601"/>
+    <xs:enumeration value="FT701"/>
+    <xs:enumeration value="FT801"/>
+    <xs:enumeration value="FT901"/>
+    <xs:enumeration value="FY01"/>
+    <xs:enumeration value="FY02"/>
+    <xs:enumeration value="FY03"/>
+    <xs:enumeration value="FY10"/>
+    <xs:enumeration value="FY101"/>
+    <xs:enumeration value="FY102"/>
+    <xs:enumeration value="FY11"/>
+    <xs:enumeration value="FY111"/>
+    <xs:enumeration value="FY112"/>
+    <xs:enumeration value="FY11U"/>
+    <xs:enumeration value="FY12"/>
+    <xs:enumeration value="FY82"/>
+    <xs:enumeration value="FY821"/>
+    <xs:enumeration value="FZ10"/>
+    <xs:enumeration value="GT02"/>
+    <xs:enumeration value="IF01"/>
+    <xs:enumeration value="IF02"/>
+    <xs:enumeration value="JT03"/>
+    <xs:enumeration value="JT04"/>
+    <xs:enumeration value="JT041"/>
+    <xs:enumeration value="JT05"/>
+    <xs:enumeration value="LSH10"/>
+    <xs:enumeration value="LSH17"/>
+    <xs:enumeration value="LSHH17"/>
+    <xs:enumeration value="LSL01"/>
+    <xs:enumeration value="LSL011"/>
+    <xs:enumeration value="LSL17"/>
+    <xs:enumeration value="LSLL17"/>
+    <xs:enumeration value="LT01"/>
+    <xs:enumeration value="LT02"/>
+    <xs:enumeration value="MM01"/>
+    <xs:enumeration value="MM02"/>
+    <xs:enumeration value="MT01"/>
+    <xs:enumeration value="MT02"/>
+    <xs:enumeration value="MT03"/>
+    <xs:enumeration value="MT04"/>
+    <xs:enumeration value="MT05"/>
+    <xs:enumeration value="MT06"/>
+    <xs:enumeration value="MT07"/>
+    <xs:enumeration value="MT08"/>
+    <xs:enumeration value="MT09"/>
+    <xs:enumeration value="MT10"/>
+    <xs:enumeration value="MT11"/>
+    <xs:enumeration value="MT12"/>
+    <xs:enumeration value="MT13"/>
+    <xs:enumeration value="MT14"/>
+    <xs:enumeration value="MT15"/>
+    <xs:enumeration value="MT16"/>
+    <xs:enumeration value="MT17"/>
+    <xs:enumeration value="MT18"/>
+    <xs:enumeration value="MT19"/>
+    <xs:enumeration value="MT20"/>
+    <xs:enumeration value="MV01_GRC1"/>
+    <xs:enumeration value="MV01_GRC2"/>
+    <xs:enumeration value="MV01_GRC3"/>
+    <xs:enumeration value="MV01_GRC4"/>
+    <xs:enumeration value="MV01_GRC5"/>
+    <xs:enumeration value="MV01_GRC6"/>
+    <xs:enumeration value="NHS01"/>
+    <xs:enumeration value="NHS02"/>
+    <xs:enumeration value="NS010"/>
+    <xs:enumeration value="NS011"/>
+    <xs:enumeration value="NSH01"/>
+    <xs:enumeration value="NT01"/>
+    <xs:enumeration value="NT06"/>
+    <xs:enumeration value="NT061"/>
+    <xs:enumeration value="NT61"/>
+    <xs:enumeration value="NT62"/>
+    <xs:enumeration value="NT63"/>
+    <xs:enumeration value="NT64"/>
+    <xs:enumeration value="NT65"/>
+    <xs:enumeration value="NT651"/>
+    <xs:enumeration value="NT66"/>
+    <xs:enumeration value="NT661"/>
+    <xs:enumeration value="NT67"/>
+    <xs:enumeration value="NT68"/>
+    <xs:enumeration value="NT70"/>
+    <xs:enumeration value="NT71"/>
+    <xs:enumeration value="NT72"/>
+    <xs:enumeration value="OCR01"/>
+    <xs:enumeration value="OT01"/>
+    <xs:enumeration value="OT02"/>
+    <xs:enumeration value="OT031"/>
+    <xs:enumeration value="OT032"/>
+    <xs:enumeration value="OZ01"/>
+    <xs:enumeration value="PC03"/>
+    <xs:enumeration value="PC05"/>
+    <xs:enumeration value="PC05_r"/>
+    <xs:enumeration value="PCR05"/>
+    <xs:enumeration value="PDO02"/>
+    <xs:enumeration value="PDSH01"/>
+    <xs:enumeration value="PDSH10"/>
+    <xs:enumeration value="PDSH11"/>
+    <xs:enumeration value="PDSH40"/>
+    <xs:enumeration value="PDSH46"/>
+    <xs:enumeration value="PDSH461"/>
+    <xs:enumeration value="PDSH464"/>
+    <xs:enumeration value="PDSH53"/>
+    <xs:enumeration value="PDSH54"/>
+    <xs:enumeration value="PDSH541"/>
+    <xs:enumeration value="PDSL01"/>
+    <xs:enumeration value="PDSL15"/>
+    <xs:enumeration value="PDST01"/>
+    <xs:enumeration value="PDT01"/>
+    <xs:enumeration value="PDT05"/>
+    <xs:enumeration value="PDT101"/>
+    <xs:enumeration value="PDT13"/>
+    <xs:enumeration value="PDT15"/>
+    <xs:enumeration value="PDT201"/>
+    <xs:enumeration value="PDT301"/>
+    <xs:enumeration value="PDT401"/>
+    <xs:enumeration value="PDT501"/>
+    <xs:enumeration value="PDT52"/>
+    <xs:enumeration value="PDT601"/>
+    <xs:enumeration value="PDT701"/>
+    <xs:enumeration value="PDT801"/>
+    <xs:enumeration value="PDT901"/>
+    <xs:enumeration value="PDY30"/>
+    <xs:enumeration value="PDY31"/>
+    <xs:enumeration value="PLCL_ART"/>
+    <xs:enumeration value="PLCL_AVO"/>
+    <xs:enumeration value="PLCL_BEAO"/>
+    <xs:enumeration value="PLCL_BPTIG"/>
+    <xs:enumeration value="PLCL_FPLS"/>
+    <xs:enumeration value="PLCL_FPLSR"/>
+    <xs:enumeration value="PLCL_GRC_1"/>
+    <xs:enumeration value="PLCL_GRC_2"/>
+    <xs:enumeration value="PLCL_GRC_3"/>
+    <xs:enumeration value="PLCL_GRC_4"/>
+    <xs:enumeration value="PLCL_GRC_5"/>
+    <xs:enumeration value="PLCL_GRC_6"/>
+    <xs:enumeration value="PLCL_GSM"/>
+    <xs:enumeration value="PLCL_KOS"/>
+    <xs:enumeration value="PLCL_KSV"/>
+    <xs:enumeration value="PLCL_KTL"/>
+    <xs:enumeration value="PLCL_MET"/>
+    <xs:enumeration value="PLCL_OZK"/>
+    <xs:enumeration value="PLCL_PEB"/>
+    <xs:enumeration value="PLCL_PTASI"/>
+    <xs:enumeration value="PLCL_REG"/>
+    <xs:enumeration value="PLCL_SKZ1"/>
+    <xs:enumeration value="PLCL_SKZ2"/>
+    <xs:enumeration value="PLCL_UN"/>
+    <xs:enumeration value="PLCL_UOG"/>
+    <xs:enumeration value="PLCL_UP"/>
+    <xs:enumeration value="PLCL_UP_R"/>
+    <xs:enumeration value="PLCL_VOS"/>
+    <xs:enumeration value="PO01"/>
+    <xs:enumeration value="PO02"/>
+    <xs:enumeration value="PO05"/>
+    <xs:enumeration value="PSH02"/>
+    <xs:enumeration value="PSH021"/>
+    <xs:enumeration value="PSH06"/>
+    <xs:enumeration value="PSH061"/>
+    <xs:enumeration value="PSH062"/>
+    <xs:enumeration value="PSH30"/>
+    <xs:enumeration value="PSH55"/>
+    <xs:enumeration value="PSH61"/>
+    <xs:enumeration value="PSH63"/>
+    <xs:enumeration value="PSH64"/>
+    <xs:enumeration value="PSL02"/>
+    <xs:enumeration value="PSL021"/>
+    <xs:enumeration value="PSL022"/>
+    <xs:enumeration value="PSL06"/>
+    <xs:enumeration value="PSL061"/>
+    <xs:enumeration value="PSL062"/>
+    <xs:enumeration value="PSL09"/>
+    <xs:enumeration value="PSL10"/>
+    <xs:enumeration value="PSL11"/>
+    <xs:enumeration value="PSL13"/>
+    <xs:enumeration value="PSL14"/>
+    <xs:enumeration value="PSL30"/>
+    <xs:enumeration value="PSL31"/>
+    <xs:enumeration value="PSL35"/>
+    <xs:enumeration value="PSL36"/>
+    <xs:enumeration value="PSL37"/>
+    <xs:enumeration value="PSL38"/>
+    <xs:enumeration value="PSL39"/>
+    <xs:enumeration value="PSL40"/>
+    <xs:enumeration value="PSL41"/>
+    <xs:enumeration value="PSL50"/>
+    <xs:enumeration value="PSL60"/>
+    <xs:enumeration value="PSL62"/>
+    <xs:enumeration value="PSL64"/>
+    <xs:enumeration value="PSLL02"/>
+    <xs:enumeration value="PSLL09"/>
+    <xs:enumeration value="PSLL10"/>
+    <xs:enumeration value="PSLL50"/>
+    <xs:enumeration value="PST01"/>
+    <xs:enumeration value="PST16"/>
+    <xs:enumeration value="PT01"/>
+    <xs:enumeration value="PT02"/>
+    <xs:enumeration value="PT021"/>
+    <xs:enumeration value="PT022"/>
+    <xs:enumeration value="PT025"/>
+    <xs:enumeration value="PT026"/>
+    <xs:enumeration value="PT03"/>
+    <xs:enumeration value="PT031"/>
+    <xs:enumeration value="PT032"/>
+    <xs:enumeration value="PT033"/>
+    <xs:enumeration value="PT034"/>
+    <xs:enumeration value="PT035"/>
+    <xs:enumeration value="PT036"/>
+    <xs:enumeration value="PT037"/>
+    <xs:enumeration value="PT04"/>
+    <xs:enumeration value="PT04R"/>
+    <xs:enumeration value="PT05"/>
+    <xs:enumeration value="PT06"/>
+    <xs:enumeration value="PT061"/>
+    <xs:enumeration value="PT062"/>
+    <xs:enumeration value="PT07"/>
+    <xs:enumeration value="PT09"/>
+    <xs:enumeration value="PT091"/>
+    <xs:enumeration value="PT10"/>
+    <xs:enumeration value="PT101"/>
+    <xs:enumeration value="PT103"/>
+    <xs:enumeration value="PT11"/>
+    <xs:enumeration value="PT116"/>
+    <xs:enumeration value="PT13"/>
+    <xs:enumeration value="PT15"/>
+    <xs:enumeration value="PT201"/>
+    <xs:enumeration value="PT203"/>
+    <xs:enumeration value="PT216"/>
+    <xs:enumeration value="PT301"/>
+    <xs:enumeration value="PT303"/>
+    <xs:enumeration value="PT31"/>
+    <xs:enumeration value="PT311"/>
+    <xs:enumeration value="PT316"/>
+    <xs:enumeration value="PT401"/>
+    <xs:enumeration value="PT416"/>
+    <xs:enumeration value="PT501"/>
+    <xs:enumeration value="PT516"/>
+    <xs:enumeration value="PT52"/>
+    <xs:enumeration value="PT521"/>
+    <xs:enumeration value="PT522"/>
+    <xs:enumeration value="PT523"/>
+    <xs:enumeration value="PT524"/>
+    <xs:enumeration value="PT53"/>
+    <xs:enumeration value="PT54"/>
+    <xs:enumeration value="PT601"/>
+    <xs:enumeration value="PT616"/>
+    <xs:enumeration value="PT701"/>
+    <xs:enumeration value="PT716"/>
+    <xs:enumeration value="PT801"/>
+    <xs:enumeration value="PT816"/>
+    <xs:enumeration value="PT901"/>
+    <xs:enumeration value="PT916"/>
+    <xs:enumeration value="PY01"/>
+    <xs:enumeration value="PY02"/>
+    <xs:enumeration value="PZ02"/>
+    <xs:enumeration value="RbY80"/>
+    <xs:enumeration value="RbY80A"/>
+    <xs:enumeration value="RbY80B"/>
+    <xs:enumeration value="RbY80C"/>
+    <xs:enumeration value="RbY80D"/>
+    <xs:enumeration value="RbY80E"/>
+    <xs:enumeration value="RbY80F"/>
+    <xs:enumeration value="RbY81"/>
+    <xs:enumeration value="RbY81A"/>
+    <xs:enumeration value="RbY81B"/>
+    <xs:enumeration value="RbY81C"/>
+    <xs:enumeration value="RbY81D"/>
+    <xs:enumeration value="RbY81E"/>
+    <xs:enumeration value="RbY81F"/>
+    <xs:enumeration value="RC03"/>
+    <xs:enumeration value="RC031"/>
+    <xs:enumeration value="RC04"/>
+    <xs:enumeration value="RC04_r"/>
+    <xs:enumeration value="RCF03"/>
+    <xs:enumeration value="RCR03"/>
+    <xs:enumeration value="RDY031"/>
+    <xs:enumeration value="RDY032"/>
+    <xs:enumeration value="RDY051"/>
+    <xs:enumeration value="RDY052"/>
+    <xs:enumeration value="RDY081"/>
+    <xs:enumeration value="RDY082"/>
+    <xs:enumeration value="RDY15"/>
+    <xs:enumeration value="RDY56"/>
+    <xs:enumeration value="RDY57"/>
+    <xs:enumeration value="RDY80"/>
+    <xs:enumeration value="RDY80A"/>
+    <xs:enumeration value="RDY80B"/>
+    <xs:enumeration value="RDY80C"/>
+    <xs:enumeration value="RDY80D"/>
+    <xs:enumeration value="RDY80E"/>
+    <xs:enumeration value="RDY80F"/>
+    <xs:enumeration value="RDY81"/>
+    <xs:enumeration value="RDY81A"/>
+    <xs:enumeration value="RDY81B"/>
+    <xs:enumeration value="RDY81C"/>
+    <xs:enumeration value="RDY81D"/>
+    <xs:enumeration value="RDY81E"/>
+    <xs:enumeration value="RDY81F"/>
+    <xs:enumeration value="RNY09"/>
+    <xs:enumeration value="RO01"/>
+    <xs:enumeration value="RO02"/>
+    <xs:enumeration value="RO03"/>
+    <xs:enumeration value="RO04"/>
+    <xs:enumeration value="RO08"/>
+    <xs:enumeration value="RO65"/>
+    <xs:enumeration value="RP031"/>
+    <xs:enumeration value="RP032"/>
+    <xs:enumeration value="RP051"/>
+    <xs:enumeration value="RP052"/>
+    <xs:enumeration value="RP081"/>
+    <xs:enumeration value="RP082"/>
+    <xs:enumeration value="RP15"/>
+    <xs:enumeration value="RP56"/>
+    <xs:enumeration value="RP57"/>
+    <xs:enumeration value="RP80"/>
+    <xs:enumeration value="RP80A"/>
+    <xs:enumeration value="RP80B"/>
+    <xs:enumeration value="RP80C"/>
+    <xs:enumeration value="RP80D"/>
+    <xs:enumeration value="RP80E"/>
+    <xs:enumeration value="RP80F"/>
+    <xs:enumeration value="RP81"/>
+    <xs:enumeration value="RP81A"/>
+    <xs:enumeration value="RP81B"/>
+    <xs:enumeration value="RP81C"/>
+    <xs:enumeration value="RP81D"/>
+    <xs:enumeration value="RP81E"/>
+    <xs:enumeration value="RP81F"/>
+    <xs:enumeration value="RS052"/>
+    <xs:enumeration value="RT03"/>
+    <xs:enumeration value="RT04"/>
+    <xs:enumeration value="RT15"/>
+    <xs:enumeration value="RT16"/>
+    <xs:enumeration value="RT50"/>
+    <xs:enumeration value="RY01"/>
+    <xs:enumeration value="RY02"/>
+    <xs:enumeration value="RY03"/>
+    <xs:enumeration value="RY031"/>
+    <xs:enumeration value="RY032"/>
+    <xs:enumeration value="RY04"/>
+    <xs:enumeration value="RY05"/>
+    <xs:enumeration value="RY051"/>
+    <xs:enumeration value="RY052"/>
+    <xs:enumeration value="RY07"/>
+    <xs:enumeration value="RY08"/>
+    <xs:enumeration value="RY081"/>
+    <xs:enumeration value="RY082"/>
+    <xs:enumeration value="RY09"/>
+    <xs:enumeration value="RY15"/>
+    <xs:enumeration value="RY15A"/>
+    <xs:enumeration value="RY15B"/>
+    <xs:enumeration value="RY15C"/>
+    <xs:enumeration value="RY15D"/>
+    <xs:enumeration value="RY15E"/>
+    <xs:enumeration value="RY15F"/>
+    <xs:enumeration value="RY17"/>
+    <xs:enumeration value="RY18"/>
+    <xs:enumeration value="RY22"/>
+    <xs:enumeration value="RY23"/>
+    <xs:enumeration value="RY24"/>
+    <xs:enumeration value="RY50"/>
+    <xs:enumeration value="RY51"/>
+    <xs:enumeration value="RY52"/>
+    <xs:enumeration value="RY53"/>
+    <xs:enumeration value="RY54"/>
+    <xs:enumeration value="RY55"/>
+    <xs:enumeration value="RY56"/>
+    <xs:enumeration value="RY57"/>
+    <xs:enumeration value="RY58"/>
+    <xs:enumeration value="RY59"/>
+    <xs:enumeration value="RY60"/>
+    <xs:enumeration value="RY61"/>
+    <xs:enumeration value="RY62"/>
+    <xs:enumeration value="RY63"/>
+    <xs:enumeration value="RY63A"/>
+    <xs:enumeration value="RY63B"/>
+    <xs:enumeration value="RY63C"/>
+    <xs:enumeration value="RY63D"/>
+    <xs:enumeration value="RY63E"/>
+    <xs:enumeration value="RY63F"/>
+    <xs:enumeration value="RY64"/>
+    <xs:enumeration value="RY67"/>
+    <xs:enumeration value="RY69"/>
+    <xs:enumeration value="RY70"/>
+    <xs:enumeration value="RY71"/>
+    <xs:enumeration value="RY711"/>
+    <xs:enumeration value="RY711A"/>
+    <xs:enumeration value="RY711B"/>
+    <xs:enumeration value="RY711C"/>
+    <xs:enumeration value="RY711D"/>
+    <xs:enumeration value="RY711E"/>
+    <xs:enumeration value="RY711F"/>
+    <xs:enumeration value="RY71A"/>
+    <xs:enumeration value="RY71B"/>
+    <xs:enumeration value="RY71C"/>
+    <xs:enumeration value="RY71D"/>
+    <xs:enumeration value="RY71E"/>
+    <xs:enumeration value="RY71F"/>
+    <xs:enumeration value="RY80"/>
+    <xs:enumeration value="RY80A"/>
+    <xs:enumeration value="RY80B"/>
+    <xs:enumeration value="RY80C"/>
+    <xs:enumeration value="RY80D"/>
+    <xs:enumeration value="RY80E"/>
+    <xs:enumeration value="RY80F"/>
+    <xs:enumeration value="RY81"/>
+    <xs:enumeration value="RY81A"/>
+    <xs:enumeration value="RY81B"/>
+    <xs:enumeration value="RY81C"/>
+    <xs:enumeration value="RY81D"/>
+    <xs:enumeration value="RY81E"/>
+    <xs:enumeration value="RY81F"/>
+    <xs:enumeration value="RYX01"/>
+    <xs:enumeration value="RZ04"/>
+    <xs:enumeration value="SC01"/>
+    <xs:enumeration value="SO06"/>
+    <xs:enumeration value="ST06"/>
+    <xs:enumeration value="ST07"/>
+    <xs:enumeration value="ST08"/>
+    <xs:enumeration value="ST10"/>
+    <xs:enumeration value="SY06"/>
+    <xs:enumeration value="TI01"/>
+    <xs:enumeration value="TI02"/>
+    <xs:enumeration value="TK06"/>
+    <xs:enumeration value="TK07"/>
+    <xs:enumeration value="TK08"/>
+    <xs:enumeration value="TO01"/>
+    <xs:enumeration value="TO02"/>
+    <xs:enumeration value="TO06"/>
+    <xs:enumeration value="TSC"/>
+    <xs:enumeration value="TSH01"/>
+    <xs:enumeration value="TSH02"/>
+    <xs:enumeration value="TSH021"/>
+    <xs:enumeration value="TSH022"/>
+    <xs:enumeration value="TSH35"/>
+    <xs:enumeration value="TSH38"/>
+    <xs:enumeration value="TSH380"/>
+    <xs:enumeration value="TSH381"/>
+    <xs:enumeration value="TSH382"/>
+    <xs:enumeration value="TSHH38"/>
+    <xs:enumeration value="TSHR02"/>
+    <xs:enumeration value="TSL01"/>
+    <xs:enumeration value="TSL02"/>
+    <xs:enumeration value="TSL021"/>
+    <xs:enumeration value="TSL022"/>
+    <xs:enumeration value="TSL31"/>
+    <xs:enumeration value="TSL35"/>
+    <xs:enumeration value="TSL352"/>
+    <xs:enumeration value="TSL38"/>
+    <xs:enumeration value="TSL380"/>
+    <xs:enumeration value="TSL381"/>
+    <xs:enumeration value="TSL382"/>
+    <xs:enumeration value="TSL61"/>
+    <xs:enumeration value="TSLL382"/>
+    <xs:enumeration value="TSO"/>
+    <xs:enumeration value="TST01"/>
+    <xs:enumeration value="TT01"/>
+    <xs:enumeration value="TT011"/>
+    <xs:enumeration value="TT02"/>
+    <xs:enumeration value="TT0201"/>
+    <xs:enumeration value="TT021"/>
+    <xs:enumeration value="TT022"/>
+    <xs:enumeration value="TT023"/>
+    <xs:enumeration value="TT025"/>
+    <xs:enumeration value="TT031"/>
+    <xs:enumeration value="TT032"/>
+    <xs:enumeration value="TT033"/>
+    <xs:enumeration value="TT034"/>
+    <xs:enumeration value="TT035"/>
+    <xs:enumeration value="TT036"/>
+    <xs:enumeration value="TT037"/>
+    <xs:enumeration value="TT038"/>
+    <xs:enumeration value="TT039"/>
+    <xs:enumeration value="TT041"/>
+    <xs:enumeration value="TT042"/>
+    <xs:enumeration value="TT043"/>
+    <xs:enumeration value="TT044"/>
+    <xs:enumeration value="TT045"/>
+    <xs:enumeration value="TT046"/>
+    <xs:enumeration value="TT047"/>
+    <xs:enumeration value="TT05"/>
+    <xs:enumeration value="TT06"/>
+    <xs:enumeration value="TT061"/>
+    <xs:enumeration value="TT062"/>
+    <xs:enumeration value="TT063"/>
+    <xs:enumeration value="TT064"/>
+    <xs:enumeration value="TT065"/>
+    <xs:enumeration value="TT066"/>
+    <xs:enumeration value="TT06_r"/>
+    <xs:enumeration value="TT07"/>
+    <xs:enumeration value="TT08"/>
+    <xs:enumeration value="TT081"/>
+    <xs:enumeration value="TT09"/>
+    <xs:enumeration value="TT091"/>
+    <xs:enumeration value="TT10"/>
+    <xs:enumeration value="TT101"/>
+    <xs:enumeration value="TT103"/>
+    <xs:enumeration value="TT104"/>
+    <xs:enumeration value="TT11"/>
+    <xs:enumeration value="TT12"/>
+    <xs:enumeration value="TT121"/>
+    <xs:enumeration value="TT13"/>
+    <xs:enumeration value="TT15"/>
+    <xs:enumeration value="TT16"/>
+    <xs:enumeration value="TT19"/>
+    <xs:enumeration value="TT1901"/>
+    <xs:enumeration value="TT1902"/>
+    <xs:enumeration value="TT1903"/>
+    <xs:enumeration value="TT1904"/>
+    <xs:enumeration value="TT1905"/>
+    <xs:enumeration value="TT1906"/>
+    <xs:enumeration value="TT1907"/>
+    <xs:enumeration value="TT1908"/>
+    <xs:enumeration value="TT1909"/>
+    <xs:enumeration value="TT1910"/>
+    <xs:enumeration value="TT1911"/>
+    <xs:enumeration value="TT1912"/>
+    <xs:enumeration value="TT1913"/>
+    <xs:enumeration value="TT1914"/>
+    <xs:enumeration value="TT1915"/>
+    <xs:enumeration value="TT1916"/>
+    <xs:enumeration value="TT201"/>
+    <xs:enumeration value="TT203"/>
+    <xs:enumeration value="TT204"/>
+    <xs:enumeration value="TT301"/>
+    <xs:enumeration value="TT303"/>
+    <xs:enumeration value="TT31"/>
+    <xs:enumeration value="TT38"/>
+    <xs:enumeration value="TT39"/>
+    <xs:enumeration value="TT40"/>
+    <xs:enumeration value="TT401"/>
+    <xs:enumeration value="TT403"/>
+    <xs:enumeration value="TT41"/>
+    <xs:enumeration value="TT43"/>
+    <xs:enumeration value="TT44"/>
+    <xs:enumeration value="TT45"/>
+    <xs:enumeration value="TT46"/>
+    <xs:enumeration value="TT501"/>
+    <xs:enumeration value="TT52"/>
+    <xs:enumeration value="TT58"/>
+    <xs:enumeration value="TT601"/>
+    <xs:enumeration value="TT64"/>
+    <xs:enumeration value="TT65"/>
+    <xs:enumeration value="TT69"/>
+    <xs:enumeration value="TT70"/>
+    <xs:enumeration value="TT701"/>
+    <xs:enumeration value="TT801"/>
+    <xs:enumeration value="TT901"/>
+    <xs:enumeration value="TT93"/>
+    <xs:enumeration value="TT94"/>
+    <xs:enumeration value="TT96"/>
+    <xs:enumeration value="TY01"/>
+    <xs:enumeration value="TY02"/>
+    <xs:enumeration value="TY50"/>
+    <xs:enumeration value="TY51"/>
+    <xs:enumeration value="TY63"/>
+    <xs:enumeration value="VSH20"/>
+    <xs:enumeration value="VSL20"/>
+    <xs:enumeration value="VSL201"/>
+    <xs:enumeration value="VSL202"/>
+    <xs:enumeration value="VT01"/>
+    <xs:enumeration value="VT02"/>
+    <xs:enumeration value="VT03"/>
+    <xs:enumeration value="VT04"/>
+    <xs:enumeration value="VT041"/>
+    <xs:enumeration value="VT05"/>
+    <xs:enumeration value="VT051"/>
+    <xs:enumeration value="VT06"/>
+    <xs:enumeration value="VT061"/>
+    <xs:enumeration value="WSL01"/>
+    <xs:enumeration value="WT01"/>
+    <xs:enumeration value="XA01"/>
+    <xs:enumeration value="XA011"/>
+    <xs:enumeration value="XA012"/>
+    <xs:enumeration value="XA013"/>
+    <xs:enumeration value="XA02"/>
+    <xs:enumeration value="XA021"/>
+    <xs:enumeration value="XA022"/>
+    <xs:enumeration value="XA0221"/>
+    <xs:enumeration value="XA0222"/>
+    <xs:enumeration value="XA0223"/>
+    <xs:enumeration value="XA023"/>
+    <xs:enumeration value="XA025"/>
+    <xs:enumeration value="XA03"/>
+    <xs:enumeration value="XA031"/>
+    <xs:enumeration value="XA04"/>
+    <xs:enumeration value="XA041"/>
+    <xs:enumeration value="XA05"/>
+    <xs:enumeration value="XA06"/>
+    <xs:enumeration value="XA060"/>
+    <xs:enumeration value="XA061"/>
+    <xs:enumeration value="XA062"/>
+    <xs:enumeration value="XA063"/>
+    <xs:enumeration value="XA070"/>
+    <xs:enumeration value="XA08"/>
+    <xs:enumeration value="XA081"/>
+    <xs:enumeration value="XA08A"/>
+    <xs:enumeration value="XA09"/>
+    <xs:enumeration value="XA091"/>
+    <xs:enumeration value="XA092"/>
+    <xs:enumeration value="XA093"/>
+    <xs:enumeration value="XA09A"/>
+    <xs:enumeration value="XA10"/>
+    <xs:enumeration value="XA100"/>
+    <xs:enumeration value="XA101"/>
+    <xs:enumeration value="XA11"/>
+    <xs:enumeration value="XA111"/>
+    <xs:enumeration value="XA112"/>
+    <xs:enumeration value="XA12"/>
+    <xs:enumeration value="XA16"/>
+    <xs:enumeration value="XA17"/>
+    <xs:enumeration value="XA19"/>
+    <xs:enumeration value="XA20"/>
+    <xs:enumeration value="XA201"/>
+    <xs:enumeration value="XA202"/>
+    <xs:enumeration value="XA203"/>
+    <xs:enumeration value="XA204"/>
+    <xs:enumeration value="XA211"/>
+    <xs:enumeration value="XA212"/>
+    <xs:enumeration value="XA22"/>
+    <xs:enumeration value="XA221"/>
+    <xs:enumeration value="XA23"/>
+    <xs:enumeration value="XA25"/>
+    <xs:enumeration value="XA3"/>
+    <xs:enumeration value="XA30"/>
+    <xs:enumeration value="XA301"/>
+    <xs:enumeration value="XA302"/>
+    <xs:enumeration value="XA303"/>
+    <xs:enumeration value="XA304"/>
+    <xs:enumeration value="XA305"/>
+    <xs:enumeration value="XA306"/>
+    <xs:enumeration value="XA31"/>
+    <xs:enumeration value="XA35"/>
+    <xs:enumeration value="XA39"/>
+    <xs:enumeration value="XA40"/>
+    <xs:enumeration value="XA41"/>
+    <xs:enumeration value="XA42"/>
+    <xs:enumeration value="XA45"/>
+    <xs:enumeration value="XA46"/>
+    <xs:enumeration value="XA50"/>
+    <xs:enumeration value="XA51"/>
+    <xs:enumeration value="XA52"/>
+    <xs:enumeration value="XA70"/>
+    <xs:enumeration value="XA701"/>
+    <xs:enumeration value="XA702"/>
+    <xs:enumeration value="XA703"/>
+    <xs:enumeration value="XA704"/>
+    <xs:enumeration value="XA93"/>
+    <xs:enumeration value="XA99"/>
+    <xs:enumeration value="XAB01"/>
+    <xs:enumeration value="XAB02"/>
+    <xs:enumeration value="XAB03"/>
+    <xs:enumeration value="XAB04"/>
+    <xs:enumeration value="XAB05"/>
+    <xs:enumeration value="XAB06"/>
+    <xs:enumeration value="XAB07"/>
+    <xs:enumeration value="XAB08"/>
+    <xs:enumeration value="XAB09"/>
+    <xs:enumeration value="XAG01"/>
+    <xs:enumeration value="XAG02"/>
+    <xs:enumeration value="XAG03"/>
+    <xs:enumeration value="XAG04"/>
+    <xs:enumeration value="XAG05"/>
+    <xs:enumeration value="XAS01"/>
+    <xs:enumeration value="XAS02"/>
+    <xs:enumeration value="XAS03"/>
+    <xs:enumeration value="XAS04"/>
+    <xs:enumeration value="XAS05"/>
+    <xs:enumeration value="XAS06"/>
+    <xs:enumeration value="XAS07"/>
+    <xs:enumeration value="XS01"/>
+    <xs:enumeration value="XS011"/>
+    <xs:enumeration value="XS01R"/>
+    <xs:enumeration value="XS02"/>
+    <xs:enumeration value="XS020"/>
+    <xs:enumeration value="XS021"/>
+    <xs:enumeration value="XS03"/>
+    <xs:enumeration value="XS030"/>
+    <xs:enumeration value="XS031"/>
+    <xs:enumeration value="XS04"/>
+    <xs:enumeration value="XS041"/>
+    <xs:enumeration value="XS04R"/>
+    <xs:enumeration value="XS05"/>
+    <xs:enumeration value="XS06"/>
+    <xs:enumeration value="XS07"/>
+    <xs:enumeration value="XS09"/>
+    <xs:enumeration value="XS10"/>
+    <xs:enumeration value="XS101"/>
+    <xs:enumeration value="XS11"/>
+    <xs:enumeration value="XS111"/>
+    <xs:enumeration value="XS12"/>
+    <xs:enumeration value="XS13"/>
+    <xs:enumeration value="XS14"/>
+    <xs:enumeration value="XS15"/>
+    <xs:enumeration value="XS16"/>
+    <xs:enumeration value="XS17"/>
+    <xs:enumeration value="XS18"/>
+    <xs:enumeration value="XS19"/>
+    <xs:enumeration value="XS20"/>
+    <xs:enumeration value="XS211"/>
+    <xs:enumeration value="XS212"/>
+    <xs:enumeration value="XS30"/>
+    <xs:enumeration value="XS31"/>
+    <xs:enumeration value="XS32"/>
+    <xs:enumeration value="XS33"/>
+    <xs:enumeration value="XS34"/>
+    <xs:enumeration value="XS35"/>
+    <xs:enumeration value="XS60"/>
+    <xs:enumeration value="XS68"/>
+    <xs:enumeration value="XSR01"/>
+    <xs:enumeration value="XSR010"/>
+    <xs:enumeration value="XSR011"/>
+    <xs:enumeration value="XSR012"/>
+    <xs:enumeration value="XSR013"/>
+    <xs:enumeration value="XSR014"/>
+    <xs:enumeration value="XSR01A"/>
+    <xs:enumeration value="XSR04"/>
+    <xs:enumeration value="XSR05"/>
+    <xs:enumeration value="XSR06"/>
+    <xs:enumeration value="XSS10"/>
+    <xs:enumeration value="XSS11"/>
+    <xs:enumeration value="XSS13"/>
+    <xs:enumeration value="XSS14"/>
+    <xs:enumeration value="XSS15"/>
+    <xs:enumeration value="XSS16"/>
+    <xs:enumeration value="XSS17"/>
+    <xs:enumeration value="XSS18"/>
+    <xs:enumeration value="XSS19"/>
+    <xs:enumeration value="XSS20"/>
+    <xs:enumeration value="XSS21"/>
+    <xs:enumeration value="XSS22"/>
+    <xs:enumeration value="ZSH01"/>
+    <xs:enumeration value="ZSH02"/>
+    <xs:enumeration value="ZSH03"/>
+    <xs:enumeration value="ZSVA"/>
+    <xs:enumeration value="ZSVB"/>
+    <xs:enumeration value="ZSVC"/>
+    <xs:enumeration value="ZSVD"/>
+    <xs:enumeration value="ZSVE"/>
+    <xs:enumeration value="ZSX02"/>
+    <xs:enumeration value="ZSX021"/>
+    <xs:enumeration value="ZSX03"/>
+    <xs:enumeration value="ZSX04"/>
+    <xs:enumeration value="ZSX05"/>
+    <xs:enumeration value="ZSX06"/>
+    <xs:enumeration value="ZSX07"/>
+    <xs:enumeration value="ZSX08"/>
+    <xs:enumeration value="ZT01"/>
+    <xs:enumeration value="ZT02"/>
+  </xs:restriction>
+</xs:simpleType>
+
+
+
+<!-- RTDB_DICT definition start -->
+<!-- Набор НСИ -->
+<xs:element name="Dictionaries">
+  <xs:complexType mixed="true">
+  <xs:sequence>
+    <!-- Справочник соответствия "UNITY_ID-UNITY" -->
+    <xs:element name="UNITY_LABEL" maxOccurs="100">
+      <xs:annotation>
+        <xs:documentation>
+        The UNITY_LABEL element is a relationship table between
+        UNITY identification attributes and its designation.
+        </xs:documentation>
+      </xs:annotation>
+
+      <xs:complexType>
+        <xs:sequence>
+            <xs:element name="UnityDimensionId" type="UnityDimensionType"/>
+            <xs:element name="UnityDimension"   type="UnityDimensionEntry"/>
+            <xs:element name="UnityId"          type="UnityIdEntry"/>
+            <xs:element name="UnityLabel"       type="UnityLabelEntry"/>
+            <xs:element name="UnityDesignation" type="UnityDesignationEntry"/>
+        </xs:sequence>
+      </xs:complexType>
+    </xs:element>
+    <!-- UNITY_LABEL definition end -->
+
+    <!-- Справочник соответствия "OBJCLASS-VAL-VAL_LABEL" -->
+    <xs:element name="VAL_LABEL" maxOccurs="100">
+      <xs:complexType>
+        <xs:sequence>
+            <xs:element name="ObjClass"   type="ObjClassEntry"/>
+            <xs:element name="Val"        type="ValueEntry"/>
+            <xs:element name="ValueLabel" type="ValueLabelEntry"/>
+        </xs:sequence>
+      </xs:complexType>
+    </xs:element>
+    <!-- VAL_LABEL definition end -->
+
+    <!-- Справочник Инфотипов -->
+    <!-- Может отсутствовать (minOccurs=0) -->
+    <xs:element name="INFO_TYPES" minOccurs="0" maxOccurs="1000">
+      <xs:complexType>
+        <xs:sequence>
+            <xs:element name="ObjClass"   type="ObjClassEntry"/>
+            <xs:element name="IntoType"   type="InfoTypeEntry"/>
+            <xs:element name="InfoTypeDesignation" type="xs:string"/>
+        </xs:sequence>
+      </xs:complexType>
+    </xs:element>
+    <!-- INFO_TYPES definition end -->
+
+  </xs:sequence>
+  <xs:anyAttribute/>
+  </xs:complexType>
+</xs:element>
+<!-- Dictionaries definition end -->
+
+</xs:schema>
+

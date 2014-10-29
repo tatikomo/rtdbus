@@ -14,8 +14,6 @@ namespace rtap_db
 {
 
   rtap_db::Point  *current_class_instance = NULL;
-  rtap_db::Points *m_classes;
-
 
   // AttrNameType_pimpl
   //
@@ -109,17 +107,17 @@ namespace rtap_db
   //
 
   void RTDB_STRUCT_pimpl::
-  pre (rtap_db::Points* class_list)
+  pre (rtap_db::Points& class_list)
   {
 //    std::cout << "RTDB_STRUCT_pimpl::pre"<<std::endl;
-    m_classes = class_list;
+    m_classes = &class_list;
   }
 
   void RTDB_STRUCT_pimpl::
   pre (const char* fname)
   {
     m_classes = NULL;
-    std::cout << "GEV: construct xExtremeDB from XML file " << fname << std::endl;
+    std::cout << "NOTE: construct eXtremeDB from XML-file " << fname << std::endl;
   }
 
   void RTDB_STRUCT_pimpl::
@@ -136,17 +134,18 @@ namespace rtap_db
     }
     else
     {
-      std::cout << "GEV: dump point "<< Point.tag() <<" as XML" << std::endl;
+      std::cout << "Read: "<< Point.tag() << std::endl;
     }
     delete &Point;
   }
 
-  void RTDB_STRUCT_pimpl::
+  rtap_db::Points* RTDB_STRUCT_pimpl::
   post_RTDB_STRUCT ()
   {
 #if VERBOSE
     std::cout << "Job done!" << std::endl;
 #endif
+    return m_classes;
   }
 
   // Point_pimpl

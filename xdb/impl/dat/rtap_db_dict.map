@@ -10,20 +10,19 @@
 # or a reference) and const <cxx-ret-type>& otherwise.
 #
 #
-namespace http://www.example.com/rtap_db rtap_db
+namespace http://www.example.com/rtap_db_dict rtap_db_dict
 {
-  include "rtap_db.hxx";
+  include "rtap_db_dict.hxx";
 
-  Tag           "Tag&" "Tag&";
-  AttributeType "AttributeType&" "AttributeType&";
-  PointKind     "PointKind&" "PointKind&";
-  Point         "Point&" "Point&";
-  Code          Code Code;
-  Name          "Name&" "Name&";
-  Kind          Kind;
-  Accessibility "Accessibility&" "Accessibility&";
-  DeType        DeType;
-  AttrNameType  "AttrNameType&" "AttrNameType&";
-  RTDB_STRUCT   "Points*";
+  ObjClassEntry   "ObjClass_t";
+  ValueEntry      "id_t";
+  ValueLabelEntry "Label_t&";
+  UnityIdEntry    "id_t";
+  UnityIdType     "id_t";
+  UnityLabelEntry "Label_t&";
+  InfoTypeEntry   "Label_t&";
+  UnityDimensionType    "id_t";
+  UnityDimensionEntry   "Label_t&";
+  UnityDesignationEntry "Label_t&";
 }
 

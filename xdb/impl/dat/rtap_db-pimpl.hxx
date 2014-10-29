@@ -73,16 +73,20 @@ namespace rtap_db
   {
     public:
     virtual void
-    pre (rtap_db::Points*);
-    // GEV
+    pre (rtap_db::Points&);
+    // Используется в ходе тестирования, без создания списка классов
+    // Принимает указатель на имя входящего XML-файла
     virtual void
     pre (const char*);
 
     virtual void
     Point (rtap_db::Point&);
 
-    virtual void
+    virtual rtap_db::Points*
     post_RTDB_STRUCT ();
+
+    private:
+    rtap_db::Points* m_classes;
   };
 
   class Point_pimpl: public virtual Point_pskel

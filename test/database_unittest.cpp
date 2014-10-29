@@ -15,8 +15,12 @@
 #include "xdb_broker_worker.hpp"
 #include "dat/rtap_db.hxx"
 #include "dat/broker_db.hpp"
+// Включение поддержки XML формата хранения данных instance_total
 #include "dat/rtap_db-pimpl.hxx"
 #include "dat/rtap_db-pskel.hxx"
+// Включение поддержки XML формата хранения словарей БДРВ
+#include "dat/rtap_db_dict-pskel.hxx"
+#include "dat/rtap_db_dict-pimpl.hxx"
 #include "proto/common.pb.h"
 #include "msg/msg_common.h"
 
@@ -545,28 +549,90 @@ TEST(TestDiggerDATABASE, DESTROY)
 }
 
 using namespace xercesc;
-TEST(TestTools, LOAD_XML)
+TEST(TestTools, LOAD_DICT_XML)
+{
+  const int argc = 2;
+  char *argv[argc] = {
+                    (char*)"LOAD_DICT_XML",
+                    (char*)"rtap_dict.xml"
+                    };
+
+  LOG(INFO) << "BEGIN LOAD_DICT_XML TestTools";
+
+  try
+  {
+    ::rtap_db_dict::Dictionaries_pimpl Dictionaries_p;
+    ::rtap_db_dict::UNITY_LABEL_pimpl UNITY_LABEL_p;
+    ::rtap_db_dict::UnityDimensionType_pimpl UnityDimensionType_p;
+    ::rtap_db_dict::UnityDimensionEntry_pimpl UnityDimensionEntry_p;
+    ::rtap_db_dict::UnityIdEntry_pimpl UnityIdEntry_p;
+    ::rtap_db_dict::UnityLabelEntry_pimpl UnityLabelEntry_p;
+    ::rtap_db_dict::UnityDesignationEntry_pimpl UnityDesignationEntry_p;
+    ::rtap_db_dict::VAL_LABEL_pimpl VAL_LABEL_p;
+    ::rtap_db_dict::ObjClassEntry_pimpl ObjClassEntry_p;
+    ::rtap_db_dict::ValueEntry_pimpl ValueEntry_p;
+    ::rtap_db_dict::ValueLabelEntry_pimpl ValueLabelEntry_p;
+    ::rtap_db_dict::INFO_TYPES_pimpl INFO_TYPES_p;
+    ::rtap_db_dict::InfoTypeEntry_pimpl InfoTypeEntry_p;
+    ::xml_schema::string_pimpl string_p;
+
+    // Connect the parsers together.
+    //
+    Dictionaries_p.parsers (UNITY_LABEL_p,
+                            VAL_LABEL_p,
+                            INFO_TYPES_p);
+
+    UNITY_LABEL_p.parsers (UnityDimensionType_p,
+                           UnityDimensionEntry_p,
+                           UnityIdEntry_p,
+                           UnityLabelEntry_p,
+                           UnityDesignationEntry_p);
+
+    VAL_LABEL_p.parsers (ObjClassEntry_p,
+                         ValueEntry_p,
+                         ValueLabelEntry_p);
+
+    INFO_TYPES_p.parsers (ObjClassEntry_p,
+                          InfoTypeEntry_p,
+                          string_p);
+
+    // Parse the XML document.
+    //
+    ::xml_schema::document doc_p (
+      Dictionaries_p,
+      "http://www.example.com/rtap_db_dict",
+      "Dictionaries");
+
+    // TODO: передать внутрь пустые списки НСИ для их инициализации
+    Dictionaries_p.pre ();
+    doc_p.parse (argv[1]);
+    Dictionaries_p.post_Dictionaries ();
+  }
+  catch (const ::xml_schema::exception& e)
+  {
+    std::cerr << e << std::endl;
+    return;
+  }
+  catch (const std::ios_base::failure&)
+  {
+    std::cerr << argv[0] << " error: i/o failure" << std::endl;
+    return;
+  }
+
+  LOG(INFO) << "END LOAD_DICT_XML TestTools";
+}
+
+TEST(TestTools, LOAD_DATA_XML)
 {
   unsigned int class_item;
 //  unsigned int attribute_item;
   const int argc = 2;
   char *argv[argc] = {
-                    (char*)"TestTools",
+                    (char*)"LOAD_DATA_XML",
                     (char*)"classes.xml"
                     };
 
-  LOG(INFO) << "BEGIN LOAD_XML TestTools";
-  try
-  {
-    XMLPlatformUtils::Initialize("UTF-8");
-  }
-  catch (const XMLException& toCatch)
-  {
-    // Do your failure processing here
-    std::cerr << "Error during initialization! :\n"
-              << toCatch.getMessage() << std::endl;
-    return;
-  }
+  LOG(INFO) << "BEGIN LOAD_DATA_XML TestTools";
 
   try
   {
@@ -604,7 +670,7 @@ TEST(TestTools, LOAD_XML)
       "http://www.example.com/rtap_db",
       "RTDB_STRUCT");
 
-    RTDB_STRUCT_p.pre (&point_list);
+    RTDB_STRUCT_p.pre (point_list);
     doc_p.parse (argv[1]);
     RTDB_STRUCT_p.post_RTDB_STRUCT ();
 
@@ -658,8 +724,6 @@ TEST(TestTools, LOAD_XML)
       std::cout << std::endl;
 #endif
     }
-
-    XMLPlatformUtils::Terminate();
   }
   catch (const ::xml_schema::exception& e)
   {
@@ -668,10 +732,10 @@ TEST(TestTools, LOAD_XML)
   }
   catch (const std::ios_base::failure&)
   {
-    std::cerr << argv[1] << ": error: i/o failure" << std::endl;
+    std::cerr << argv[0] << " error: i/o failure" << std::endl;
     return;
   }
-  LOG(INFO) << "END LOAD_XML TestTools";
+  LOG(INFO) << "END LOAD_DATA_XML TestTools";
 }
 
 TEST(TestTools, LOAD_CLASSES)
@@ -841,8 +905,32 @@ int main(int argc, char** argv)
   ::google::InitGoogleLogging(argv[0]);
   ::testing::InitGoogleTest(&argc, argv);
   ::google::InstallFailureSignalHandler();
+
+  // Инициировать XML-движок единственный раз в рамках одного процесса
+  try
+  {
+    XMLPlatformUtils::Initialize("UTF-8");
+  }
+  catch (const XMLException& toCatch)
+  {
+    std::cerr << "Error during initialization! :\n"
+              << toCatch.getMessage() << std::endl;
+    return -1;
+  }
+
   setenv("MCO_RUNTIME_STOP", "1", 0);
   int retval = RUN_ALL_TESTS();
+
+  try
+  {
+    XMLPlatformUtils::Terminate();
+  }
+  catch (const XMLException& toCatch)
+  {
+    std::cerr << "Error during finalization! :\n"
+              << toCatch.getMessage() << std::endl;
+  }
+
   ::google::protobuf::ShutdownProtobufLibrary();
   ::google::ShutdownGoogleLogging();
   return retval;

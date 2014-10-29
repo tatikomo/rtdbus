@@ -95,6 +95,19 @@ add_custom_command(
         ${XDB_IMPL_DIR}/dat
         )
 
+add_custom_command(
+        OUTPUT
+        ${XDB_IMPL_DIR}/dat/rtap_db_dict-pskel.hxx
+        ${XDB_IMPL_DIR}/dat/rtap_db_dict-pskel.cxx
+        COMMAND
+        /usr/bin/xsd cxx-parser --type-map rtap_db_dict.map --generate-validation rtap_db_dict.xsd
+        DEPENDS
+        ${XDB_IMPL_DIR}/dat/rtap_db_dict.xsd
+        ${XDB_IMPL_DIR}/dat/rtap_db_dict.map
+        WORKING_DIRECTORY
+        ${XDB_IMPL_DIR}/dat
+        )
+
 set_source_files_properties(${XDB_IMPL_DIR}/dat/rtap_db.hpp
                             ${XDB_IMPL_DIR}/dat/rtap_db.h
                             ${XDB_IMPL_DIR}/dat/rtap_db.c
