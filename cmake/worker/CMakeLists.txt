@@ -137,7 +137,7 @@ target_link_libraries(${WORKER_ECHO}
     ${SYSTEM_EXTERNAL_LIBS}
     ${LIBZMQ_LIBRARIES})
 
-add_definitions(-fpermissive)
+#add_definitions(-fpermissive)
 # Сборка DIGGER - сервера БДРВ
 ##########################################################
 add_executable (${WORKER_DIGGER} ${WORKER_DIGGER_SOURCES})

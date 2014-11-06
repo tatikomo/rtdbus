@@ -49,7 +49,7 @@ set (XDB_BROKER_SOURCES
         )
 
 if (CMAKE_COMPILER_IS_GNUCC)
-add_definitions(-fpermissive)
+#add_definitions(-fpermissive)
 #add_definitions (-Wno-missing-field-initializers)
 else (CMAKE_COMPILER_IS_GNUCC)
 add_definitions (-library=stlport4)

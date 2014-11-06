@@ -51,7 +51,7 @@ set_source_files_properties(${MSG_DIR}/proto/common.pb.cc
                             PROPERTIES GENERATED 1)
 
 if (CMAKE_COMPILER_IS_GNUCC)
-add_definitions(-fpermissive)
+#add_definitions(-fpermissive)
 else (CMAKE_COMPILER_IS_GNUCC)
 add_definitions (-library=stlport4)
 endif (CMAKE_COMPILER_IS_GNUCC)

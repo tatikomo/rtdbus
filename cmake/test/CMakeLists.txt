@@ -213,7 +213,7 @@ set_source_files_properties(${MSG_DIR}/proto/common.pb.cc
 
 add_executable (${UNITTEST_DEV_INT} ${TEST_DEV_INTERNAL_SOURCES})
 add_definitions (-D_FUNCTIONAL_TEST)
-add_definitions(-fpermissive)
+#add_definitions(-fpermissive)
 target_link_libraries(${UNITTEST_DEV_INT}
     ${XDB_BROKER_LIBRARY_NAME}
     ${XDB_BROKER_INTERFACE_LIBRARY_NAME}
@@ -225,7 +225,7 @@ target_link_libraries(${UNITTEST_DEV_INT}
 
 add_executable (${UNITTEST_DEV_RUN} ${TEST_DEV_RUNTIME_SOURCES})
 add_definitions (-D_FUNCTIONAL_TEST)
-add_definitions(-fpermissive)
+#add_definitions(-fpermissive)
 target_link_libraries(${UNITTEST_DEV_RUN}
     ${XDB_BROKER_LIBRARY_NAME}
     ${XDB_RTAP_LIBRARY_NAME}
