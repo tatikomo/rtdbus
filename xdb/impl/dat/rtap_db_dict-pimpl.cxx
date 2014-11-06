@@ -15,12 +15,18 @@
 //
 namespace rtap_db_dict
 {
+
+  static UNITY_LABEL_pimpl* unity_label_item = NULL;
+  static VAL_LABEL_pimpl*   value_label_item = NULL;
+  static INFO_TYPES_pimpl*  infotype_item = NULL;
+
   // ObjClassEntry_pimpl
   //
 
   void ObjClassEntry_pimpl::
   pre ()
   {
+    m_value = UNUSED;
   }
 
   // [ TS(0)..HIST(80) ]
@@ -28,12 +34,11 @@ namespace rtap_db_dict
   post_ObjClassEntry ()
   {
     long long v (post_integer ());
-    rtap_db_dict::ObjClass_t objclass = UNUSED;
 
     if ((TS <= v) && (v <= HIST))
-      objclass = static_cast<rtap_db_dict::ObjClass_t>(v);
+      m_value = static_cast<rtap_db_dict::ObjClass_t>(v);
     
-    return objclass;
+    return m_value;
   }
 
   // ValueEntry_pimpl
@@ -42,6 +47,7 @@ namespace rtap_db_dict
   void ValueEntry_pimpl::
   pre ()
   {
+    m_value = 0;
   }
 
   rtap_db_dict::id_t ValueEntry_pimpl::
@@ -49,9 +55,10 @@ namespace rtap_db_dict
   {
     long long v (post_integer ());
 
-    // TODO
-    //
-    // return ... ;
+    if ((0 <= v) && (v <= VALUE_ENTRY_MAX))
+      m_value = static_cast<rtap_db_dict::id_t>(v);
+
+    return m_value;
   }
 
   // ValueLabelEntry_pimpl
@@ -67,9 +74,9 @@ namespace rtap_db_dict
   {
     const ::std::string& v (post_string ());
 
-    // TODO
-    //
-    // return ... ;
+    m_value.assign(v);
+
+    return m_value;
   }
 
   // UnityIdEntry_pimpl
@@ -78,6 +85,7 @@ namespace rtap_db_dict
   void UnityIdEntry_pimpl::
   pre ()
   {
+    m_value = 0;
   }
 
   rtap_db_dict::id_t UnityIdEntry_pimpl::
@@ -85,9 +93,10 @@ namespace rtap_db_dict
   {
     long long v (post_integer ());
 
-    // TODO
-    //
-    // return ... ;
+    if ((0 <= v) && (v <= UNITY_ENTRY_MAX))
+      m_value = static_cast<rtap_db_dict::id_t>(v);
+
+    return m_value;
   }
 
   // UnityDimensionType_pimpl
@@ -96,6 +105,7 @@ namespace rtap_db_dict
   void UnityDimensionType_pimpl::
   pre ()
   {
+    m_value = 0;
   }
 
   rtap_db_dict::id_t UnityDimensionType_pimpl::
@@ -103,9 +113,10 @@ namespace rtap_db_dict
   {
     long long v (post_integer ());
 
-    // TODO
-    //
-    // return ... ;
+    if ((0 <= v) && (v <= DIMENSION_ENTRY_MAX))
+      m_value = static_cast<rtap_db_dict::id_t>(v);
+
+    return m_value;
   }
 
   // UnityDimensionEntry_pimpl
@@ -121,9 +132,9 @@ namespace rtap_db_dict
   {
     const ::std::string& v (post_string ());
 
-    // TODO
-    //
-    // return ... ;
+    m_value.assign(v);
+
+    return m_value;
   }
 
   // UnityIdType_pimpl
@@ -132,6 +143,7 @@ namespace rtap_db_dict
   void UnityIdType_pimpl::
   pre ()
   {
+    m_value = 0;
   }
 
   rtap_db_dict::id_t UnityIdType_pimpl::
@@ -139,9 +151,10 @@ namespace rtap_db_dict
   {
     long long v (post_integer ());
 
-    // TODO
-    //
-    // return ... ;
+    if ((0 <= v) && (v <= UNITY_TYPE_MAX))
+      m_value = static_cast<rtap_db_dict::id_t>(v);
+
+    return m_value;
   }
 
   // UnityLabelEntry_pimpl
@@ -157,9 +170,9 @@ namespace rtap_db_dict
   {
     const ::std::string& v (post_string ());
 
-    // TODO
-    //
-    // return ... ;
+    m_value.assign(v);
+
+    return m_value;
   }
 
   // UnityDesignationEntry_pimpl
@@ -175,9 +188,9 @@ namespace rtap_db_dict
   {
     const ::std::string& v (post_string ());
 
-    // TODO
-    //
-    // return ... ;
+    m_value.assign(v);
+
+    return m_value;
   }
 
   // InfoTypeEntry_pimpl
@@ -193,9 +206,9 @@ namespace rtap_db_dict
   {
     const ::std::string& v (post_string ());
 
-    // TODO
-    //
-    // return ... ;
+    m_value.assign(v);
+
+    return m_value;
   }
 
   // Dictionaries_pimpl
@@ -204,27 +217,48 @@ namespace rtap_db_dict
   void Dictionaries_pimpl::
   pre ()
   {
+    std::cout << "pre_Dictionaries" << std::endl;
   }
 
   void Dictionaries_pimpl::
   UNITY_LABEL ()
   {
+#ifdef VERBOSE
+    std::cout << "Push new UNITY_LABEL" << std::endl;
+#endif
+    dict.unity_dict.push_back(unity_label_item->Data());
   }
 
   void Dictionaries_pimpl::
   VAL_LABEL ()
   {
+#ifdef VERBOSE
+    std::cout << "Push new VAL_LABEL" << std::endl;
+#endif
+    dict.values_dict.push_back(value_label_item->Data());
   }
 
   void Dictionaries_pimpl::
   INFO_TYPES ()
   {
+#ifdef VERBOSE
+    std::cout << "Push new INFO_TYPE" << std::endl;
+#endif
+    dict.infotypes_dict.push_back(infotype_item->Data());
   }
 
   void Dictionaries_pimpl::
   post_Dictionaries ()
   {
+#ifdef VERBOSE
+    std::cout << "post_Dictionaries("
+        << "unity: " << dict.unity_dict.size() << ", "
+        << "value: " << dict.values_dict.size() << ", "
+        << "infotypes: " << dict.infotypes_dict.size() << ")"
+        << std::endl;
+#endif
   }
+
 
   // UNITY_LABEL_pimpl
   //
@@ -232,46 +266,51 @@ namespace rtap_db_dict
   void UNITY_LABEL_pimpl::
   pre ()
   {
+    unity_label_item = this;
   }
 
   void UNITY_LABEL_pimpl::
   UnityDimensionId (const rtap_db_dict::id_t& UnityDimensionId)
   {
-    // TODO
-    //
+    m_data.dimension_id = UnityDimensionId;
   }
 
   void UNITY_LABEL_pimpl::
   UnityDimension (rtap_db_dict::Label_t& UnityDimension)
   {
-    // TODO
-    //
+    m_data.dimension_entry.assign(UnityDimension);
   }
 
   void UNITY_LABEL_pimpl::
   UnityId (const rtap_db_dict::id_t& UnityId)
   {
-    // TODO
-    //
+    m_data.unity_id = UnityId;
   }
 
   void UNITY_LABEL_pimpl::
   UnityLabel (rtap_db_dict::Label_t& UnityLabel)
   {
-    // TODO
-    //
+    m_data.unity_entry.assign(UnityLabel);
   }
 
   void UNITY_LABEL_pimpl::
   UnityDesignation (rtap_db_dict::Label_t& UnityDesignation)
   {
-    // TODO
-    //
+    m_data.designation_entry.assign(UnityDesignation);
   }
 
   void UNITY_LABEL_pimpl::
   post_UNITY_LABEL ()
   {
+#ifdef VERBOSE
+    std::cout << "post_UNITY_LABEL: "
+        << m_data.dimension_id << ":"
+        << m_data.dimension_entry << ":"
+        << m_data.unity_id << ":"
+        << m_data.unity_entry << ":"
+        << m_data.designation_entry
+        << std::endl;
+#endif
   }
 
   // VAL_LABEL_pimpl
@@ -280,32 +319,37 @@ namespace rtap_db_dict
   void VAL_LABEL_pimpl::
   pre ()
   {
+    value_label_item = this;
   }
 
   void VAL_LABEL_pimpl::
   ObjClass (const rtap_db_dict::ObjClass_t& ObjClass)
   {
-    // TODO
-    //
+    m_data.objclass = ObjClass;
   }
 
   void VAL_LABEL_pimpl::
   Val (const rtap_db_dict::id_t& Val)
   {
-    // TODO
-    //
+    m_data.value = Val;
   }
 
   void VAL_LABEL_pimpl::
   ValueLabel (rtap_db_dict::Label_t& ValueLabel)
   {
-    // TODO
-    //
+    m_data.label.assign(ValueLabel);
   }
 
   void VAL_LABEL_pimpl::
   post_VAL_LABEL ()
   {
+#ifdef VERBOSE
+    std::cout << "post_VAL_LABEL: "
+        << m_data.objclass << ":"
+        << m_data.value << ":"
+        << m_data.label
+        << std::endl;
+#endif
   }
 
   // INFO_TYPES_pimpl
@@ -314,31 +358,37 @@ namespace rtap_db_dict
   void INFO_TYPES_pimpl::
   pre ()
   {
+    infotype_item = this;
   }
 
   void INFO_TYPES_pimpl::
   ObjClass (const rtap_db_dict::ObjClass_t& ObjClass)
   {
-    // TODO
-    //
+    m_data.objclass = ObjClass;
   }
 
   void INFO_TYPES_pimpl::
   IntoType (rtap_db_dict::Label_t& IntoType)
   {
-    // TODO
-    //
+    m_data.label.assign(IntoType);
   }
 
   void INFO_TYPES_pimpl::
   InfoTypeDesignation (const ::std::string& InfoTypeDesignation)
   {
-    std::cout << "InfoTypeDesignation: " << InfoTypeDesignation << std::endl;
+    m_data.designation.assign(InfoTypeDesignation);
   }
 
   void INFO_TYPES_pimpl::
   post_INFO_TYPES ()
   {
+#ifdef VERBOSE
+    std::cout << "post_INFO_TYPES: "
+        << m_data.objclass << ":"
+        << m_data.label << ":"
+        << m_data.designation
+        << std::endl;
+#endif
   }
 }
 

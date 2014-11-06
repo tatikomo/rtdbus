@@ -9,6 +9,7 @@
 #define RTAP_DB_DICT_PIMPL_HXX
 
 #include "rtap_db_dict-pskel.hxx"
+#include "rtap_db_dict.hxx"
 
 namespace rtap_db_dict
 {
@@ -21,6 +22,9 @@ namespace rtap_db_dict
 
     virtual rtap_db_dict::ObjClass_t
     post_ObjClassEntry ();
+
+    private:
+      rtap_db_dict::ObjClass_t m_value;
   };
 
   class ValueEntry_pimpl: public virtual ValueEntry_pskel,
@@ -32,6 +36,9 @@ namespace rtap_db_dict
 
     virtual rtap_db_dict::id_t
     post_ValueEntry ();
+
+    private:
+      rtap_db_dict::id_t m_value;
   };
 
   class ValueLabelEntry_pimpl: public virtual ValueLabelEntry_pskel,
@@ -43,6 +50,9 @@ namespace rtap_db_dict
 
     virtual rtap_db_dict::Label_t&
     post_ValueLabelEntry ();
+
+    private:
+      rtap_db_dict::Label_t m_value;
   };
 
   class UnityIdEntry_pimpl: public virtual UnityIdEntry_pskel,
@@ -54,6 +64,9 @@ namespace rtap_db_dict
 
     virtual rtap_db_dict::id_t
     post_UnityIdEntry ();
+
+    private:
+      rtap_db_dict::id_t m_value;
   };
 
   class UnityDimensionType_pimpl: public virtual UnityDimensionType_pskel,
@@ -65,6 +78,9 @@ namespace rtap_db_dict
 
     virtual rtap_db_dict::id_t
     post_UnityDimensionType ();
+
+    private:
+      rtap_db_dict::id_t m_value;
   };
 
   class UnityDimensionEntry_pimpl: public virtual UnityDimensionEntry_pskel,
@@ -76,6 +92,9 @@ namespace rtap_db_dict
 
     virtual rtap_db_dict::Label_t&
     post_UnityDimensionEntry ();
+
+    private:
+      rtap_db_dict::Label_t m_value;
   };
 
   class UnityIdType_pimpl: public virtual UnityIdType_pskel,
@@ -87,6 +106,9 @@ namespace rtap_db_dict
 
     virtual rtap_db_dict::id_t
     post_UnityIdType ();
+
+    private:
+      rtap_db_dict::id_t m_value;
   };
 
   class UnityLabelEntry_pimpl: public virtual UnityLabelEntry_pskel,
@@ -98,6 +120,9 @@ namespace rtap_db_dict
 
     virtual rtap_db_dict::Label_t&
     post_UnityLabelEntry ();
+
+    private:
+      rtap_db_dict::Label_t m_value;
   };
 
   class UnityDesignationEntry_pimpl: public virtual UnityDesignationEntry_pskel,
@@ -109,6 +134,9 @@ namespace rtap_db_dict
 
     virtual rtap_db_dict::Label_t&
     post_UnityDesignationEntry ();
+
+    private:
+      rtap_db_dict::Label_t m_value;
   };
 
   class InfoTypeEntry_pimpl: public virtual InfoTypeEntry_pskel,
@@ -120,6 +148,9 @@ namespace rtap_db_dict
 
     virtual rtap_db_dict::Label_t&
     post_InfoTypeEntry ();
+
+    private:
+      rtap_db_dict::Label_t m_value;
   };
 
   class Dictionaries_pimpl: public virtual Dictionaries_pskel
@@ -139,6 +170,11 @@ namespace rtap_db_dict
 
     virtual void
     post_Dictionaries ();
+
+    Dictionaries_t& Data() { return dict; };
+
+    private:
+        Dictionaries_t dict;
   };
 
   class UNITY_LABEL_pimpl: public virtual UNITY_LABEL_pskel
@@ -164,6 +200,11 @@ namespace rtap_db_dict
 
     virtual void
     post_UNITY_LABEL ();
+
+    UnityLabel_t& Data() { return m_data; };
+
+    private:
+        UnityLabel_t            m_data;
   };
 
   class VAL_LABEL_pimpl: public virtual VAL_LABEL_pskel
@@ -183,6 +224,11 @@ namespace rtap_db_dict
 
     virtual void
     post_VAL_LABEL ();
+
+    ValLabel_t& Data() { return m_data; };
+
+    private:
+        ValLabel_t  m_data;
   };
 
   class INFO_TYPES_pimpl: public virtual INFO_TYPES_pskel
@@ -202,6 +248,11 @@ namespace rtap_db_dict
 
     virtual void
     post_INFO_TYPES ();
+
+    InfoTypes_t& Data() { return m_data; };
+
+    private:
+        InfoTypes_t m_data;
   };
 }
 

@@ -9,6 +9,19 @@
 
 namespace rtap_db_dict
 {
+
+// NB: Оригинальные ограничения заданы в rtap_db_dict.xsd
+// ValueEntry
+#define VALUE_ENTRY_MAX      12
+// UnityIdEntry
+#define UNITY_ENTRY_MAX     100
+// UnityIdType
+#define UNITY_TYPE_MAX      100
+// ObjClassEntry
+#define OBJCLASS_ENTRY_MAX   80
+// UnityDimensionType
+#define DIMENSION_ENTRY_MAX  30
+
    typedef enum {
       TS = 0
     , TM = 1
@@ -77,7 +90,7 @@ namespace rtap_db_dict
    // Хранилище прочитанных таблиц НСИ
    typedef struct {
      std::vector <UnityLabel_t> unity_dict;
-     std::vector <ValLabel_t>   val_dict;
+     std::vector <ValLabel_t>   values_dict;
      std::vector <InfoTypes_t>  infotypes_dict;
    } Dictionaries_t;
 
