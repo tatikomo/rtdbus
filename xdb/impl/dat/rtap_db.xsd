@@ -13,9 +13,6 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
 <!-- Перечисление допустимых атрибутов точек -->
 <xs:simpleType name="AttrNameType">
   <xs:restriction base="xs:string">
-    <xs:enumeration value="CODE"/>
-    <xs:enumeration value="UNIVNAME"/>
-    <xs:enumeration value="OBJCLASS"/>
     <xs:enumeration value="LABEL"/>
     <xs:enumeration value="SHORTLABEL"/>
     <xs:enumeration value="L_SA"/>
@@ -25,6 +22,7 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     <xs:enumeration value="VALID"/>
     <xs:enumeration value="VALIDACQ"/>
     <xs:enumeration value="DATEHOURM"/>
+    <xs:enumeration value="DATERTU"/>
     <xs:enumeration value="VAL"/>
     <xs:enumeration value="VALACQ"/>
     <xs:enumeration value="VALMANUAL"/>
@@ -55,7 +53,6 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     <xs:enumeration value="ALARMSYNTH"/>
     <xs:enumeration value="L_TYPINFO"/>
     <xs:enumeration value="L_EQT"/>
-    <xs:enumeration value="L_SA"/>
     <xs:enumeration value="REMOTECONTROL"/>
     <xs:enumeration value="NONEXE"/>
     <xs:enumeration value="RESPNEG"/>
@@ -197,8 +194,8 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
       <xs:complexType>
       <xs:sequence>
 
-        <!-- Code definition start -->
-        <xs:element name="Code">
+        <!-- Objclass definition start -->
+        <xs:element name="Objclass">
           <xs:simpleType>
             <xs:restriction base="xs:integer">
               <xs:minInclusive value="0"/>
@@ -206,7 +203,7 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
             </xs:restriction>
           </xs:simpleType>
         </xs:element>
-        <!-- Code definition end -->
+        <!-- Objclass definition end -->
 
         <!-- RTDB Universal name definition start -->
         <xs:element name="Tag">

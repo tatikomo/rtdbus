@@ -4,10 +4,10 @@
 	xsi:schemaLocation="http://www.example.com/rtap_db rtap_db.xsd">
 
 	<rtdb:Point>
-	  <rtdb:Code>00</rtdb:Code>
+	  <rtdb:Objclass>00</rtdb:Objclass>
 	  <rtdb:Tag>/KD4005/1/TT01</rtdb:Tag>
 	  <rtdb:Attr>
-		<rtdb:AttrName>OBJCLASS</rtdb:AttrName>
+		<rtdb:AttrName>STATUS</rtdb:AttrName>
 		<rtdb:Kind>SCALAR</rtdb:Kind>
 		<rtdb:Accessibility>PUBLIC</rtdb:Accessibility>
 		<rtdb:DbType>LOGICAL</rtdb:DbType>
@@ -16,10 +16,10 @@
 	</rtdb:Point>
 
 	<rtdb:Point>
-	  <rtdb:Code>01</rtdb:Code>
+	  <rtdb:Objclass>01</rtdb:Objclass>
 	  <rtdb:Tag>/KD4005/1/TT02</rtdb:Tag>
 	  <rtdb:Attr>
-		<rtdb:AttrName>OBJCLASS</rtdb:AttrName>
+		<rtdb:AttrName>STATUS</rtdb:AttrName>
 		<rtdb:Kind>SCALAR</rtdb:Kind>
 		<rtdb:Accessibility>PUBLIC</rtdb:Accessibility>
 		<rtdb:DbType>INT8</rtdb:DbType>
@@ -35,10 +35,10 @@
 	</rtdb:Point>
 
 	<rtdb:Point>
-	  <rtdb:Code>03</rtdb:Code>
+	  <rtdb:Objclass>03</rtdb:Objclass>
 	  <rtdb:Tag>/KD4005/3/PT01</rtdb:Tag>
 	  <rtdb:Attr>
-		<rtdb:AttrName>OBJCLASS</rtdb:AttrName>
+		<rtdb:AttrName>STATUS</rtdb:AttrName>
 		<rtdb:Kind>SCALAR</rtdb:Kind>
 		<rtdb:Accessibility>PRIVATE</rtdb:Accessibility>
 		<rtdb:DbType>UINT8</rtdb:DbType>

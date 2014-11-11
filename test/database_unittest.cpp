@@ -13,14 +13,16 @@
 #include "xdb_broker.hpp"
 #include "xdb_broker_service.hpp"
 #include "xdb_broker_worker.hpp"
-#include "dat/rtap_db.hxx"
 #include "dat/broker_db.hpp"
 // Включение поддержки XML формата хранения данных instance_total
+#include "dat/rtap_db.hxx"
 #include "dat/rtap_db-pimpl.hxx"
 #include "dat/rtap_db-pskel.hxx"
 // Включение поддержки XML формата хранения словарей БДРВ
+#include "dat/rtap_db_dict.hxx"
 #include "dat/rtap_db_dict-pskel.hxx"
 #include "dat/rtap_db_dict-pimpl.hxx"
+
 #include "proto/common.pb.h"
 #include "msg/msg_common.h"
 
@@ -55,6 +57,10 @@ xdb::RtConnection* connection = NULL;
  * Используется в функции TestRtapDATABASE.CREATE
  */
 rtap_db::Points point_list;
+/*
+ * Экземпляр НСИ БДРВ RTAP
+ */
+rtap_db_dict::Dictionaries_t dict;
 
 void wait()
 {
@@ -604,9 +610,15 @@ TEST(TestTools, LOAD_DICT_XML)
       "Dictionaries");
 
     // TODO: передать внутрь пустые списки НСИ для их инициализации
-    Dictionaries_p.pre ();
+    Dictionaries_p.pre (dict);
     doc_p.parse (argv[1]);
     Dictionaries_p.post_Dictionaries ();
+
+    EXPECT_EQ(dict.unity_dict.size(), 58);
+    EXPECT_EQ(dict.values_dict.size(), 26);
+    EXPECT_EQ(dict.infotypes_dict.size(), 0);
+
+    //applyDICT(dict);
   }
   catch (const ::xml_schema::exception& e)
   {
@@ -640,7 +652,7 @@ TEST(TestTools, LOAD_DATA_XML)
     //
     ::rtap_db::RTDB_STRUCT_pimpl RTDB_STRUCT_p;
     ::rtap_db::Point_pimpl       Point_p;
-    ::rtap_db::Code_pimpl        Code_p;
+    ::rtap_db::Objclass_pimpl    Objclass_p;
     ::rtap_db::Tag_pimpl         Tag_p;
     ::rtap_db::Attr_pimpl        Attr_p;
     ::rtap_db::PointKind_pimpl   PointKind_p;
@@ -653,7 +665,7 @@ TEST(TestTools, LOAD_DATA_XML)
     //
     RTDB_STRUCT_p.parsers (Point_p);
 
-    Point_p.parsers (Code_p,
+    Point_p.parsers (Objclass_p,
                      Tag_p,
                      Attr_p);
 
@@ -683,7 +695,7 @@ TEST(TestTools, LOAD_DATA_XML)
     for (class_item=0; class_item<point_list.size(); class_item++)
     {
 #if VERBOSE
-      std::cout << "\tCODE:  " << point_list[class_item].code() << std::endl;
+      std::cout << "\tOBJCLASS:  " << point_list[class_item].objclass() << std::endl;
       std::cout << "\tTAG:  '" << point_list[class_item].tag() << "'" << std::endl;
       std::cout << "\t#ATTR: " << point_list[class_item].m_attributes.size() << std::endl;
       if (point_list[class_item].m_attributes.size())
@@ -705,17 +717,17 @@ TEST(TestTools, LOAD_DATA_XML)
       switch(class_item)
       {
         case GOF_D_BDR_OBJCLASS_TS:
-            EXPECT_TRUE(point_list[class_item].code() == class_item);
+            EXPECT_TRUE(point_list[class_item].objclass() == class_item);
             EXPECT_EQ(point_list[class_item].m_attributes.size(), 1);
             break;
 
         case GOF_D_BDR_OBJCLASS_TM:
-            EXPECT_TRUE(point_list[class_item].code() == class_item);
+            EXPECT_TRUE(point_list[class_item].objclass() == class_item);
             EXPECT_EQ(point_list[class_item].m_attributes.size(), 2);
             break;
 
         case GOF_D_BDR_OBJCLASS_TSA:
-            EXPECT_TRUE(point_list[class_item].code() == class_item);
+            EXPECT_TRUE(point_list[class_item].objclass() == class_item);
             EXPECT_EQ(point_list[class_item].m_attributes.size(), 1);
             break;
       }

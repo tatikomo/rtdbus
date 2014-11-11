@@ -18,7 +18,7 @@ namespace http://www.example.com/rtap_db rtap_db
   AttributeType "AttributeType&" "AttributeType&";
   PointKind     "PointKind&" "PointKind&";
   Point         "Point&" "Point&";
-  Code          Code Code;
+  Objclass      Objclass Objclass;
   Name          "Name&" "Name&";
   Kind          Kind;
   Accessibility "Accessibility&" "Accessibility&";

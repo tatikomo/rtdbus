@@ -7,6 +7,10 @@
 
 #include "config.h"
 
+//#include "rtap_db_dict.hxx"
+// неиспользуемый макс. номер (см. ObjClass_t в rtap_db_dict.hxx)
+#define OBJCLASS_UNUSED 127
+
 namespace rtap_db
 {
   // Значение Атрибута
@@ -14,8 +18,8 @@ namespace rtap_db
   typedef std::string Value;
 
   // Код Класса
-  //
-  typedef unsigned int Code;
+  // TODO: аналог задан в rtap_db_dict.hxx, объединить
+  typedef unsigned int Objclass;
 
   // Тэг, ранее "универсальное имя точки"
   // 
@@ -111,9 +115,9 @@ namespace rtap_db
   {
     // 
     //
-    unsigned int code() const
+    Objclass objclass() const
     {
-      return m_class_code;
+      return m_objclass;
     }
 
     const std::string& tag () const
@@ -124,7 +128,7 @@ namespace rtap_db
     void clear()
     {
       m_tag.clear();
-      m_class_code = -1;
+      m_objclass = OBJCLASS_UNUSED;
       m_attributes.clear();
     }
 
@@ -158,7 +162,12 @@ namespace rtap_db
       return located;
     }
 
-    Code         m_class_code;
+    AttibuteList& attributes()
+    {
+      return m_attributes;
+    }
+
+    Objclass     m_objclass;
     Tag          m_tag;
     AttibuteList m_attributes;
   };

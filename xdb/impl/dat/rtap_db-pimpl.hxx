@@ -96,7 +96,7 @@ namespace rtap_db
     pre ();
 
     virtual void
-    Code (rtap_db::Code);
+    Objclass (rtap_db::Objclass);
 
     virtual void
     Tag (rtap_db::Tag&);
@@ -113,18 +113,18 @@ namespace rtap_db
     Point *m_impl;
   };
 
-  class Code_pimpl: public virtual Code_pskel,
+  class Objclass_pimpl: public virtual Objclass_pskel,
     public ::xml_schema::integer_pimpl
   {
     public:
     virtual void
     pre ();
 
-    virtual rtap_db::Code
-    post_Code ();
+    virtual rtap_db::Objclass
+    post_Objclass ();
 
     private:
-    Code m_impl;
+    Objclass m_impl;
   };
 
   class Attr_pimpl: public virtual Attr_pskel

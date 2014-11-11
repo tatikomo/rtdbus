@@ -26,7 +26,7 @@ main (int argc, char* argv[])
     //
     ::rtap_db::RTDB_STRUCT_pimpl RTDB_STRUCT_p;
     ::rtap_db::Point_pimpl Point_p;
-    ::rtap_db::Code_pimpl Code_p;
+    ::rtap_db::Objclass_pimpl Objclass_p;
     ::rtap_db::Tag_pimpl Tag_p;
     ::rtap_db::Attr_pimpl Attr_p;
     ::rtap_db::AttrNameType_pimpl AttrNameType_p;
@@ -39,7 +39,7 @@ main (int argc, char* argv[])
     //
     RTDB_STRUCT_p.parsers (Point_p);
 
-    Point_p.parsers (Code_p,
+    Point_p.parsers (Objclass_p,
                      Tag_p,
                      Attr_p);
 
