@@ -132,13 +132,7 @@ set (XDB_RTAP_SOURCES
         ${XDB_RTAP_DIR}/xdb_rtap_point.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_point.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_unity.cpp
-        ${XDB_RTAP_DIR}/xdb_rtap_unity.hpp
-        ${XDB_RTAP_DIR}/xdb_rtap_analog.cpp
-        ${XDB_RTAP_DIR}/xdb_rtap_analog.hpp
-        ${XDB_RTAP_DIR}/xdb_rtap_binary.cpp
-        ${XDB_RTAP_DIR}/xdb_rtap_binary.hpp
-        ${XDB_RTAP_DIR}/xdb_rtap_discrete.cpp
-        ${XDB_RTAP_DIR}/xdb_rtap_discrete.hpp)
+        ${XDB_RTAP_DIR}/xdb_rtap_unity.hpp)
 
 if (CMAKE_COMPILER_IS_GNUCC)
 #add_definitions(-fpermissive)

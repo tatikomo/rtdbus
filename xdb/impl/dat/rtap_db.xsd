@@ -16,7 +16,7 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     <xs:enumeration value="LABEL"/>
     <xs:enumeration value="SHORTLABEL"/>
     <xs:enumeration value="L_SA"/>
-    <xs:enumeration value="MIXVAL"/>
+    <xs:enumeration value="MINVAL"/>
     <xs:enumeration value="VALEX"/>
     <xs:enumeration value="MAXVAL"/>
     <xs:enumeration value="VALID"/>

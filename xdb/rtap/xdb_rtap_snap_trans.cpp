@@ -19,6 +19,7 @@
 using namespace xdb;
 
 static const std::string UNIVNAME_STRING = "UNIVNAME";
+static const std::string OBJCLASS_STRING = "OBJCLASS";
 
 /*------------------*/
 /* Global variables */
@@ -173,7 +174,8 @@ void LoadDbTypesDictionary()
    dbTypesHash.insert(DbTypesHashPair_t("rtTIME_OF_DAY",DB_TYPE_INT64));
    dbTypesHash.insert(DbTypesHashPair_t("rtABS_TIME",   DB_TYPE_INT64));
 
-   /* TODO release memory */
+   // TODO: release memory
+   // NB: не используется, удалить?
    dbPointsTypeHash.insert(DbPointsTypeHashPair_t("DISP_TABLE_H",
                            GOF_D_BDR_OBJCLASS_DISP_TABLE_H));
    dbPointsTypeHash.insert(DbPointsTypeHashPair_t("DISP_TABLE_J",
@@ -329,7 +331,7 @@ int xdb::processClassFile(const char* fpath)
     }
     else
     {
-//      LOG(ERROR) << "Ошибка "<<ifs.rdstate()<<" чтения входного файла "<<fname;
+      LOG(ERROR) << "Ошибка "<<ifs.rdstate()<<" чтения входного файла "<<fname;
     }
   }
 
@@ -547,7 +549,7 @@ std::string& xdb::dump_point(
     {
         class_item_presentation
                   << "<rtdb:Point>" << std::endl
-                  << "  <rtdb:Code>"<< (int)class_idx <<"</rtdb:Code>" << std::endl;
+                  << "  <rtdb:Objclass>"<< (int)class_idx <<"</rtdb:Objclass>" << std::endl;
 
         // Найти тег БДРВ (атрибут ".UNIVNAME")
         it_given = attributes_given.find(UNIVNAME_STRING);
@@ -569,8 +571,13 @@ std::string& xdb::dump_point(
              it!=attributes_template->end();
              ++it)
         {
-          // Атрибут БДРВ UNIVNAME пропустить, он уже вохранен как атрибут XML Тег
+          // TODO: удалить проверку UNIVNAME и OBJCLASS после редактирования словарей ??_*.dat
+          // Атрибут БДРВ UNIVNAME пропустить, он уже сохранен как атрибут XML Тег
           if (!it->second.name.compare(UNIVNAME_STRING))
+            continue;
+
+          // Атрибут БДРВ OBJCLASS пропустить, он уже сохранен как атрибут XML Тег
+          if (!it->second.name.compare(OBJCLASS_STRING))
             continue;
 
           // Сохранить остальные атрибуты

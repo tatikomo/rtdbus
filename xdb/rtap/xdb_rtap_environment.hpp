@@ -59,9 +59,6 @@ class RtEnvironment
     // Завершить исполнение
     const Error& Shutdown(EnvShutdownOrder_t);
 
-  protected:
-    const Error& LoadDictionary();
-
   private:
     DISALLOW_COPY_AND_ASSIGN(RtEnvironment);
     EnvironmentImpl *m_impl;

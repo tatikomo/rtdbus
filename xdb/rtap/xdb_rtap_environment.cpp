@@ -61,7 +61,13 @@ const Error& RtEnvironment::LoadSnapshot(const char *filename)
     m_database->Connect();
     LOG(INFO) << "Lazy connection to database " << m_database->getName();
   }*/
-  return m_database->LoadSnapshot(/*m_impl->getAppName(),*/ filename);
+
+  if (m_impl->getLastError().Ok())
+  {
+    m_database->LoadSnapshot(filename);
+  }
+
+  return m_impl->getLastError();
 }
 
 const Error& RtEnvironment::MakeSnapshot(const char *filename)
@@ -108,18 +114,6 @@ const Error& RtEnvironment::Start()
   if (m_impl->getLastError().Ok())
   {
     m_impl->setEnvState(ENV_STATE_DB_OPEN);
-  }
-  return m_impl->getLastError();
-}
-
-// Загрузить справочники
-const Error& RtEnvironment::LoadDictionary()
-{
-  m_impl->setLastError(rtE_NOT_IMPLEMENTED);
-
-  if (m_impl->getLastError().Ok())
-  {
-    m_impl->setEnvState(ENV_STATE_INIT);
   }
   return m_impl->getLastError();
 }
