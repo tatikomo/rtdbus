@@ -1,5 +1,5 @@
 C 14030TC                 Class05            RAM Natural     Enabled  
-S CODE               PUB        rtBYTES8       
+#S CODE               PUB        rtBYTES8       
 S UNIVNAME           PUB        rtBYTES32           
 S OBJCLASS           PUB        rtUINT8        5    
 S LABEL              PUB        rtBYTES80       

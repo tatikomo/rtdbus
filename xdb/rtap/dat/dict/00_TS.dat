@@ -1,12 +1,12 @@
 C 14040TS                 Class00            RAM User definedOptimized
-S CODE               PUB        rtBYTES8       
+#S CODE               PUB        rtBYTES8       
 S UNIVNAME           PUB        rtBYTES32           
 S OBJCLASS           PUB        rtUINT8        0    
 S LABEL              PUB        rtBYTES80       
 S SHORTLABEL         PUB        rtBYTES16           
 #S L_TYPINFO          PUB        rtBYTES32      
 #S L_EQT              PUB        rtBYTES32      
-#S STATUS             PUB        rtLOGICAL      0    
+S STATUS             PUB        rtLOGICAL      0    
 #S ALDEST             PUB        rtLOGICAL      0    
 S L_SA               PUB        rtBYTES32      
 #S INHIBLOCAL         PUB        rtLOGICAL      0    

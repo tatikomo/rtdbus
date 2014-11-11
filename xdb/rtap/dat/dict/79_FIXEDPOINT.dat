@@ -1,3 +1,4 @@
 C 13000FIXEDPOINT         FIXEDPOINT         RAM Natural     Enabled  
-S CODE               PUB        rtBYTES8       
+#S CODE               PUB        rtBYTES8       
+S STATUS             PUB        rtLOGICAL   0       
 S UNIVNAME           PUB        rtBYTES32      

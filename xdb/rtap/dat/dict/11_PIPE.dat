@@ -1,5 +1,5 @@
 C 10030PIPE               Class11            RAM Natural     Enabled  
-S CODE               PUB        rtBYTES8       
+#S CODE               PUB        rtBYTES8       
 S UNIVNAME           PUB        rtBYTES32           
 S OBJCLASS           PUB        rtUINT8        11   
 S LABEL              PUB        rtBYTES80       

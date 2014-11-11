@@ -1,5 +1,5 @@
 C 11160AUX1               Class38            RAM Natural     Optimized
-S CODE               PUB        rtBYTES8       
+#S CODE               PUB        rtBYTES8       
 S UNIVNAME           PUB        rtBYTES32           
 S OBJCLASS           PUB        rtUINT8        38   
 S LABEL              PUB        rtBYTES80       

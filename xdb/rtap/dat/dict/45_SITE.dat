@@ -1,5 +1,5 @@
 C 00001SITE               Class45            RAM Natural     Enabled  
-S CODE               PUB        rtBYTES8       SITE
+#S CODE               PUB        rtBYTES8       SITE
 S UNIVNAME           PUB        rtBYTES32      /SITE
 S OBJCLASS           PUB        rtUINT8        45   
 S SITEFLG            PUB        rtLOGICAL      0    
