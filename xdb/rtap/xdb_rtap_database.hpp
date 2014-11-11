@@ -48,6 +48,9 @@ class RtDatabase
     // Разименованный указатель на данные используется с целью
     // отвязки от включения специфичного для XDB 
     // ====================================================
+    const Error& Control(rtDbCq&);
+    const Error& Query(rtDbCq&);
+    const Error& Config(rtDbCq&);
     // Создание Точки
     const Error& create(rtap_db::Point&);
     // Удаление Точки

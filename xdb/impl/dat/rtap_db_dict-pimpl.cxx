@@ -215,9 +215,9 @@ namespace rtap_db_dict
   //
 
   void Dictionaries_pimpl::
-  pre ()
+  pre (Dictionaries_t& instance)
   {
-    std::cout << "pre_Dictionaries" << std::endl;
+    m_dict = &instance;
   }
 
   void Dictionaries_pimpl::
@@ -226,7 +226,7 @@ namespace rtap_db_dict
 #ifdef VERBOSE
     std::cout << "Push new UNITY_LABEL" << std::endl;
 #endif
-    dict.unity_dict.push_back(unity_label_item->Data());
+    m_dict->unity_dict.push_back(unity_label_item->Data());
   }
 
   void Dictionaries_pimpl::
@@ -235,7 +235,7 @@ namespace rtap_db_dict
 #ifdef VERBOSE
     std::cout << "Push new VAL_LABEL" << std::endl;
 #endif
-    dict.values_dict.push_back(value_label_item->Data());
+    m_dict->values_dict.push_back(value_label_item->Data());
   }
 
   void Dictionaries_pimpl::
@@ -244,7 +244,7 @@ namespace rtap_db_dict
 #ifdef VERBOSE
     std::cout << "Push new INFO_TYPE" << std::endl;
 #endif
-    dict.infotypes_dict.push_back(infotype_item->Data());
+    m_dict->infotypes_dict.push_back(infotype_item->Data());
   }
 
   void Dictionaries_pimpl::
@@ -252,9 +252,9 @@ namespace rtap_db_dict
   {
 #ifdef VERBOSE
     std::cout << "post_Dictionaries("
-        << "unity: " << dict.unity_dict.size() << ", "
-        << "value: " << dict.values_dict.size() << ", "
-        << "infotypes: " << dict.infotypes_dict.size() << ")"
+        << "unity: " << m_dict->unity_dict.size() << ", "
+        << "value: " << m_dict->values_dict.size() << ", "
+        << "infotypes: " << m_dict->infotypes_dict.size() << ")"
         << std::endl;
 #endif
   }

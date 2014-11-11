@@ -26,13 +26,6 @@ namespace xdb {
 class DatabaseImpl
 {
   public:
-    // Обеспечить доступ к внутренностям БД для реализации специфики БД Брокера
-    // GEV : Убрал friend-ов, поскольку они были нужны только для доступа к getDbHandler()
-#if 0
-    friend class DatabaseBrokerImpl;
-    friend class DatabaseRtapImpl;
-#endif
-
     DatabaseImpl(const char*, const Options&, mco_dictionary_h);
     ~DatabaseImpl();
 
@@ -66,6 +59,12 @@ class DatabaseImpl
     void  clearError();
     // Вернуть текущее состояние БД
     DBState_t State() const;
+    // Управление работой БДРВ
+    const Error& Control(rtDbCq&);
+    // Интерфейс управления БД - Контроль Точек
+    const Error& Query(rtDbCq&);
+    // Интерфейс управления БД - Контроль выполнения
+    const Error& Config(rtDbCq&);
 
     mco_db_h getDbHandler();
 

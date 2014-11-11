@@ -9,9 +9,10 @@
 
 #include <iostream>
 
-int
-main (int argc, char* argv[])
+int main (int argc, char* argv[])
 {
+  ::rtap_db_dict::Dictionaries_t dictionary;
+
   if (argc != 2)
   {
     std::cerr << "usage: " << argv[0] << " file.xml" << std::endl;
@@ -64,7 +65,7 @@ main (int argc, char* argv[])
       "http://www.example.com/rtap_db_dict",
       "Dictionaries");
 
-    Dictionaries_p.pre ();
+    Dictionaries_p.pre (dictionary);
     doc_p.parse (argv[1]);
     Dictionaries_p.post_Dictionaries ();
   }

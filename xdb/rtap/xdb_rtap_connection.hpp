@@ -1,5 +1,5 @@
 #pragma once
-#if !defined XDB_RTAP_CONNECTION_HPP
+#ifndef XDB_RTAP_CONNECTION_HPP
 #define XDB_RTAP_CONNECTION_HPP
 
 #if defined HAVE_CONFIG_H
@@ -7,6 +7,7 @@
 #endif
 
 #include "xdb_impl_error.hpp"
+#include "xdb_impl_common.hpp" // rtDbCq
 
 namespace xdb {
 
@@ -26,6 +27,10 @@ class RtConnection
     RtPoint* locate(const char*);
     // Вернуть ссылку на экземпляр текущей среды
     RtEnvironment* environment();
+    // Интерфейс управления БД
+    const Error& ControlDatabase(rtDbCq&);
+    const Error& QueryDatabase(rtDbCq&);
+    const Error& ConfigDatabase(rtDbCq&);
     // Последняя зафиксированная ошибка
     const Error& getLastError() const { return m_last_error; }
 

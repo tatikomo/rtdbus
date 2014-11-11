@@ -221,7 +221,7 @@ struct timestamp {
 
 /* ===================================================================== */
 /* Linkage table between 'OBJCLASS' and symbolic class name */
-class Link_OBJCLASS_CODE
+class DICT_OBJCLASS_CODE
 {
   s_code        objectCode;        /* class name (ex. "TM", "TS", "ATC", "SA",... */
   objclass_t    OBJCLASS;          /* class ident */
@@ -230,18 +230,18 @@ class Link_OBJCLASS_CODE
 };
 
 /* ===================================================================== */
-/* Linkage table between elementary data type and CODE' */
-class Link_SIMPLE_TYPE
+/* Linkage table between elementary data type and OBJCLASS */
+class DICT_SIMPLE_TYPE
 {
   s_shortlabel  dataType;          /* (ex. "LOGICAL", "BYTES256", "TIME_OF_DAY",... */
-  uint1         dataID;            /* data ident */
+  uint1         dataID;            /* data id */
   hash <dataType> typeHash[100];   /* search entry by its type */
   unique tree <dataID> PK_by_id;   /* search entry by numeric datatype */
 };
 
 /* ===================================================================== */
 /* Linkage table between unity category and Infotype' instances */
-class Link_UNITY_ID
+class DICT_UNITY_ID
 {
   s_unity       UNITY;
   uint2         unityID;
@@ -408,7 +408,9 @@ class XDBPoint
   /* Point common STATIC part */
   s_tag         TAG;
   objclass_t    OBJCLASS;    /* class id */
-  PointStatus   STATUS = WORKED;      /* TODO: Для чего используется этот атрибут? */
+  /* Использовать атрибут PointStatus для временного 
+   * включения/выключения Точки из обработки */
+  PointStatus   STATUS = WORKED;
   /* short human-readable designation (TODO: store in external DB) */
   s_shortlabel  SHORTLABEL;
   uint2         UNITY_ID;    /* link to unity category */

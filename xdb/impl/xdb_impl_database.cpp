@@ -133,6 +133,11 @@ DatabaseImpl::DatabaseImpl(const char* _name, const Options& _options, mco_dicti
     LOG(INFO) << m_name << ": Load database content from snapshot";
     m_flags.set(OF_POS_LOAD_SNAP);
   }
+  if (getOption(m_db_access_flags,"OF_SAVE_SNAP", val) && val)
+  {
+    LOG(INFO) << m_name << ": Store database content before exit";
+    m_flags.set(OF_POS_SAVE_SNAP);
+  }
 
   // Проверить флаги открытия базы данных. Не могут быть установленными
   // одновременно:
@@ -544,14 +549,18 @@ const Error& DatabaseImpl::SaveAsXML(const char* given_file_name, const char *ms
       calc_file_name[sizeof(calc_file_name) - 1] = '\0';
     }
   }
-  //fname = calc_file_name;
     
   /* setup policy */
   setupPolicy(np);
 
   LOG(INFO) << "Export DB to " << fname;
   f = fopen(fname, "wb");
-
+  if (!f)
+  {
+    LOG(ERROR) << "Unable to open XML-snapshot file " << fname;
+    m_last_error = rtE_XML_EXPORT;
+    return m_last_error;
+  }
   /* export content of the database to a file */
 #ifdef SETUP_POLICY
   rc = mco_trans_start(m_db, MCO_READ_WRITE, MCO_TRANS_HIGH, &t);
@@ -656,9 +665,25 @@ const Error& DatabaseImpl::StoreSnapshot(const char* given_file_name)
       LOG(ERROR) << "Can't open output file for streaming";
       setError(rtE_SNAPSHOT_WRITE);
     }
+
+
+    // Попытаться сохранить содержимое в XML-формате eXtremeDB
+    if (m_flags[OF_POS_SAVE_SNAP]) // Допустим снимок
+    {
+      strcat(fname, ".xml");
+
+      // Название снимка д.б. в формате "...."
+      const Error &status = SaveAsXML(fname, "final");
+
+      if (!status.Ok())
+      {
+        LOG(ERROR) << "Can't save content in RTDB's XML format";
+      }
+    }
+    
   } while(false);
 #else
-#warning "DatabaseImpl::StoreSnapshot is disabled"
+#warning "DatabaseImpl::StoreSnapshot is disabled for this version"
 #endif
 
   return getLastError();
@@ -797,6 +822,7 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
   if (m_last_error.code() == rtE_SNAPSHOT_READ)
   {
     strcat(fname, ".xml");
+    // Загрузить данные из XML формата eXtremeDB
     LoadFromXML(fname);
     if (getLastError().Ok())
     {
@@ -807,7 +833,9 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
   return getLastError();
 }
 
-// TODO: попробовать восстановить данные из XML
+// Попробовать восстановить данные из XML
+// 1. прочитать XML-файл НСИ
+// 1. загрузки данные из XML-файла с данными
 const Error& DatabaseImpl::LoadFromXML(const char* given_file_name)
 {
   MCO_RET           rc = MCO_S_OK;
@@ -1199,3 +1227,25 @@ void DatabaseImpl::clearError()
   m_last_error.set(rtE_NONE);
 }
 
+// Реализация в классе DatabaseRtapImpl
+//
+// Интерфейс управления БД - Контроль выполнения
+const Error& DatabaseImpl::Control(rtDbCq& info)
+{
+  m_last_error = rtE_NOT_IMPLEMENTED;
+  return m_last_error;
+}
+
+// Интерфейс управления БД - Контроль Точек
+const Error& DatabaseImpl::Query(rtDbCq& info)
+{
+  m_last_error = rtE_NOT_IMPLEMENTED;
+  return m_last_error;
+}
+
+// Интерфейс управления БД - Контроль выполнения
+const Error& DatabaseImpl::Config(rtDbCq& info)
+{
+  m_last_error = rtE_NOT_IMPLEMENTED;
+  return m_last_error;
+}

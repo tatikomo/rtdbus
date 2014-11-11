@@ -47,3 +47,24 @@ const Error& RtConnection::write(RtPoint* _point)
   return getLastError();
 }
 
+// Интерфейс управления БД - Контроль выполнения
+const Error& RtConnection::ControlDatabase(rtDbCq& info)
+{
+  m_last_error = m_environment->getDatabase()->Control(info);
+  return getLastError();
+}
+
+// Интерфейс управления БД - Контроль Точек
+const Error& RtConnection::QueryDatabase(rtDbCq& info)
+{
+  m_last_error = m_environment->getDatabase()->Query(info);
+  return getLastError();
+}
+
+// Интерфейс управления БД - Контроль выполнения
+const Error& RtConnection::ConfigDatabase(rtDbCq& info)
+{
+  m_last_error = m_environment->getDatabase()->Config(info);
+  return getLastError();
+}
+

@@ -137,3 +137,21 @@ const Error& RtDatabase::unlock(rtap_db::Point&)
   return m_impl->getLastError();
 }
 
+// Интерфейс управления БД - Контроль выполнения
+const Error& RtDatabase::Control(rtDbCq& info)
+{
+  return m_impl->Control(info);
+}
+
+// Интерфейс управления БД - Контроль Точек
+const Error& RtDatabase::Query(rtDbCq& info)
+{
+  return m_impl->Query(info);
+}
+
+// Интерфейс управления БД - Контроль выполнения
+const Error& RtDatabase::Config(rtDbCq& info)
+{
+  return m_impl->Config(info);
+}
+

@@ -157,7 +157,7 @@ namespace rtap_db_dict
   {
     public:
     virtual void
-    pre ();
+    pre (Dictionaries_t& instance);
 
     virtual void
     UNITY_LABEL ();
@@ -171,10 +171,8 @@ namespace rtap_db_dict
     virtual void
     post_Dictionaries ();
 
-    Dictionaries_t& Data() { return dict; };
-
     private:
-        Dictionaries_t dict;
+        Dictionaries_t* m_dict;
   };
 
   class UNITY_LABEL_pimpl: public virtual UNITY_LABEL_pskel
