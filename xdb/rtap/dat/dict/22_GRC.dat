@@ -4,17 +4,17 @@ S UNIVNAME           PUB        rtBYTES32
 S OBJCLASS           PUB        rtUINT8        22   
 S LABEL              PUB        rtBYTES80       
 S SHORTLABEL         PUB        rtBYTES16           
-#S LOCALFLAG          PUB        rtLOGICAL      0    
+S LOCALFLAG          PUB        rtLOGICAL      0    
 S STATUS             PUB        rtLOGICAL      0    
-#S L_EQTTYP           PUB        rtBYTES32      
-#S INHIB              PUB        rtLOGICAL      0    
-#S INHIBLOCAL         PUB        rtLOGICAL      0    
-#S ALINHIB            PUB        rtLOGICAL      0    
-#S CONFREMOTECMD      PUB        rtLOGICAL      0    
-#S FLGREMOTECMD       PUB        rtLOGICAL      0    
-#S REMOTECONTROL      PUB        rtLOGICAL      0    
-#S TSSYNTHETICAL      PUB        rtUINT8        0    
-#S DATEAINS           PUB        rtBYTES12          
+S L_EQTTYP           PUB        rtBYTES32      
+S INHIB              PUB        rtLOGICAL      0    
+S INHIBLOCAL         PUB        rtLOGICAL      0    
+S ALINHIB            PUB        rtLOGICAL      0    
+S CONFREMOTECMD      PUB        rtLOGICAL      0    
+S FLGREMOTECMD       PUB        rtLOGICAL      0    
+S REMOTECONTROL      PUB        rtLOGICAL      0    
+S TSSYNTHETICAL      PUB        rtUINT8        0    
+S DATEAINS           PUB        rtBYTES12          
 #S COMPRESSOR_CONVG   PUB        rtLOGICAL
 #S BURN_GAS_DIAPHRAGM PUB        rtLOGICAL
 #S LISTIMAG_REALCNT   PUB        rtUINT16       0    

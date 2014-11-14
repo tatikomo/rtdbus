@@ -155,7 +155,7 @@ bool xdb::loadFromXML(RtEnvironment* env, const char* filename)
 // чтобы иметь возможнсть начать транзакцию
 void generateXSD(RtEnvironment* env)
 {
-  MCO_RET rc;
+  MCO_RET rc = MCO_S_OK;
 
   mco_trans_h t;
   FILE *f;

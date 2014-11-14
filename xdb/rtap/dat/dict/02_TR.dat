@@ -15,8 +15,8 @@ S VAL                PUB        rtDOUBLE       0
 S CONFREMOTECMD      PUB        rtLOGICAL      0    
 S FLGREMOTECMD       PUB        rtLOGICAL      0    
 S REMOTECONTROL      PUB        rtLOGICAL      0    
-S NONEXE             PUB        rtLOGICAL      0    
-S RESPNEG            PUB        rtLOGICAL      0    
+#S NONEXE             PUB        rtLOGICAL      0    
+#S RESPNEG            PUB        rtLOGICAL      0    
 V ALARMV_NONEXE      PUB        rtUINT8        1    
 V ALARMV_RESPNEG     PUB        rtUINT8        1    
 S VALEX              PUB        rtDOUBLE       0    

@@ -162,6 +162,11 @@ namespace rtap_db
       return located;
     }
 
+    rtap_db::Attrib& attrib(unsigned int idx)
+    {
+      return m_attributes[idx];
+    }
+
     AttibuteList& attributes()
     {
       return m_attributes;

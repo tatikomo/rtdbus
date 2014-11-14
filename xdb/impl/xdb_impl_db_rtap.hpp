@@ -20,16 +20,115 @@ extern "C" {
 #include "xdb_impl_common.h"
 #include "xdb_impl_common.hpp"
 
-#include "dat/rtap_db.h" // для функций-создателей атрибутов нужен доступ к MCO_Hf
-
 namespace xdb {
+
+class DatabaseRtapImpl;
+
+      typedef union {
+        void                    *root_pointer;
+        rtap_db::TS_passport    *ts;
+        rtap_db::TM_passport    *tm;
+        rtap_db::TR_passport    *tr;
+        rtap_db::TSA_passport   *tsa;
+        rtap_db::TSC_passport   *tsc;
+        rtap_db::TC_passport    *tc;
+        rtap_db::AL_passport    *al;
+        rtap_db::ICS_passport   *ics;
+        rtap_db::ICM_passport   *icm;
+        rtap_db::PIPE_passport  *pipe;
+        rtap_db::PIPELINE_passport  *pipeline;
+        rtap_db::TL_passport    *tl;
+        rtap_db::SC_passport    *sc;
+        rtap_db::ATC_passport   *atc;
+        rtap_db::GRC_passport   *grc;
+        rtap_db::SV_passport    *sv;
+        rtap_db::SDG_passport   *sdg;
+        rtap_db::RGA_passport   *rga;
+        rtap_db::SSDG_passport  *ssdg;
+        rtap_db::BRG_passport   *brg;
+        rtap_db::SCP_passport   *scp;
+        rtap_db::STG_passport   *stg;
+        rtap_db::METLINE_passport   *metline;
+        rtap_db::ESDG_passport      *esdg;
+        rtap_db::SVLINE_passport    *svline;
+        rtap_db::SCPLINE_passport   *scpline;
+        rtap_db::TLLINE_passport    *tlline;
+        rtap_db::DIR_passport       *dir;
+        rtap_db::DIPL_passport      *dipl;
+        rtap_db::INVT_passport      *invt;
+        rtap_db::AUX1_passport      *aux1;
+        rtap_db::AUX2_passport      *aux2;
+        rtap_db::SA_passport        *sa;
+        rtap_db::SITE_passport      *site;
+        rtap_db::VA_passport        *valve;
+        rtap_db::FIXEDPOINT_passport    *fixed;
+    } any_passport_t;
+
+// Представление набора данных и объектов XDB
+// Используется для унификации функций-создателей атрибутов
+class PointInDatabase
+{
+  public:
+
+    friend class DatabaseRtapImpl; // для доступа к m_passport_instance
+
+    PointInDatabase(rtap_db::Point*);
+    ~PointInDatabase();
+    objclass_t objclass() { return m_objclass; };
+    MCO_RET create(mco_trans_h);
+    // Установить Дискретную часть
+    MCO_RET assign(rtap_db::DiscreteInfoType& di) { return m_point.di_write(di); }; 
+    // Установить Аналоговую часть
+    MCO_RET assign(rtap_db::AnalogInfoType& ai) { return m_point.ai_write(ai); };
+    // Установить Тревожную часть
+    MCO_RET assign(rtap_db::AlarmItem& ala) { return m_point.alarm_write(ala); };
+    rtap_db::XDBPoint&  xdbpoint() { return m_point; };
+    const std::string&  tag() { return m_info->tag(); };
+    rtap_db::Attrib&    attribute(unsigned int index) { return m_info->attrib(index); };
+    rtap_db::AttibuteList& attributes() { return m_info->attributes(); };
+    autoid_t id()          { return m_point_aid; };
+    autoid_t passport_id() { return m_passport_aid; };
+    MCO_RET  update_references();
+    mco_trans_h current_transaction() { return m_transaction_handler; };
+    any_passport_t& passport() { return m_passport; };
+    rtap_db::AnalogInfoType& AIT()   { return m_ai; };
+    rtap_db::DiscreteInfoType& DIT() { return m_di; };
+    rtap_db::AlarmItem& alarm()      { return m_alarm; };
+
+  private:
+
+    // Ссылки на другие таблицы БДРВ
+    autoid_t            m_point_aid;
+    autoid_t            m_passport_aid;
+    autoid_t            m_CE_aid;
+    autoid_t            m_SA_aid;
+    autoid_t            m_hist_aid;
+    // Код возврата функций XDB
+    MCO_RET             m_rc;
+    //
+    rtap_db::XDBPoint   m_point;
+    //
+    rtap_db::Point     *m_info;
+    //
+    mco_trans_h         m_transaction_handler;
+    // Закешированное значение класса объекта, оригинал хранится в m_info->objclass()
+    objclass_t          m_objclass;
+    // Аналоговая часть Точки
+    rtap_db::AnalogInfoType    m_ai;
+    // Дискретная часть Точки
+    rtap_db::DiscreteInfoType  m_di;
+    // Тревожная часть :)
+    rtap_db::AlarmItem         m_alarm;
+    // различные виды паспортов, специализация по objclass
+    any_passport_t m_passport;
+};
 
 class DatabaseImpl;
 class DatabaseRtapImpl;
 
 // Тип функции, создающей известный атрибут
 // NB: полный их перечень приведен в словаре 'rtap_db.xsd'
-typedef MCO_RET (DatabaseRtapImpl::*AttributeCreationFunc_t)(rtap_db::XDBPoint&, rtap_db::Attrib&);
+typedef MCO_RET (DatabaseRtapImpl::*AttributeCreationFunc_t)(PointInDatabase*, rtap_db::Attrib&);
 
 // Таблица соответствия всех известных атрибутов и создающих их функций
 #ifdef __SUNPRO_CC
@@ -111,44 +210,10 @@ class DatabaseRtapImpl
     MCO_RET RegisterEvents();
 
     // Создать общую часть Точки в БД, вернуть идентификатор
-    MCO_RET createPoint(mco_trans_h,
-                        rtap_db::XDBPoint&,
-                        rtap_db::Point&,
-                        const std::string&,
-                        autoid_t&,
-                        autoid_t&);
+    MCO_RET createPoint(PointInDatabase*);
 
     // Создать паспорт Точки в БД, вернуть идентификатор
-    MCO_RET createPassport(mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-
-    // Создать TM паспорт Точки в БД, вернуть идентификатор
-    MCO_RET createPassportTS    (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportTM    (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportTR    (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportTSA   (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportTSC   (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportTC    (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportAL    (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportICS   (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportICM   (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportTL    (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportVA    (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportATC   (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportGRC   (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportSV    (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportSDG   (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportSSDG  (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportSCP   (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportDIR   (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportDIPL  (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportMETLINE(mco_trans_h,rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportESDG  (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportSCPLINE(mco_trans_h,rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportTLLINE(mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportAUX1  (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportAUX2  (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportSITE  (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
-    MCO_RET createPassportSA    (mco_trans_h, rtap_db::XDBPoint&, rtap_db::Point&, autoid_t&, autoid_t&);
+    MCO_RET createPassport(PointInDatabase*);
 
     // Автоматически вызываемые события при работе с экземплярами Point
     static MCO_RET new_Point(mco_trans_h, XDBPoint*, MCO_EVENT_TYPE, void*);
@@ -161,60 +226,80 @@ class DatabaseRtapImpl
     AttrCreationFuncMap_t   m_attr_creation_func_map;
     bool AttrFuncMapInit();
     // Взято перечень атрибутов из rtap_db.xsd
-    MCO_RET createSHORTLABEL(rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createL_SA      (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createVALID     (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createVALIDACQ  (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createDATEHOURM (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createDATERTU   (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createSTATUS    (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createVALIDCHANGE(rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createUNITY      (rtap_db::XDBPoint&, rtap_db::Attrib&);
-
+    MCO_RET createTAG        (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createOBJCLASS   (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createSHORTLABEL (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createL_SA       (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createVALID      (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createVALIDACQ   (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createDATEHOURM  (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createDATERTU    (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createSTATUS     (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createVALIDCHANGE(PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createUNITY      (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createLABEL      (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createMINVAL     (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createMAXVAL     (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createVAL        (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createVALACQ     (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createVALMANUAL  (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createGRADLEVEL  (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createLOCALFLAG  (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createVALEX      (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createALINHIB    (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createDISPP      (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createCURRENT_SHIFT_TIME (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createPREV_SHIFT_TIME    (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createDATEAINS   (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createPREV_DISPATCHER    (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createFUNCTION   (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createCONVERTCOEFF  (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createINHIB      (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createMNVALPHY   (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createMXPRESSURE (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createMXVALPHY   (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createMXFLOW     (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createNMFLOW     (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createPLANFLOW   (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createPLANPRESSURE  (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createSUPPLIER   (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createSUPPLIERMODE  (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createSUPPLIERSTATE (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createSYNTHSTATE    (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createDELEGABLE  (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createFLGREMOTECMD   (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createFLGMAINTENANCE (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createNAMEMAINTENANCE(PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createTSSYNTHETICAL  (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createALARMBEGIN     (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createALARMBEGINACK  (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createALARMENDACK    (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createALARMSYNTH     (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createL_TYPINFO  (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createL_EQT      (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createL_EQTTYP   (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createL_CONSUMER (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createL_CORRIDOR (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createL_PIPE     (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createL_PIPELINE (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createREMOTECONTROL (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createACTIONTYP  (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createVAL_LABEL  (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createLINK_HIST  (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createL_DIPL     (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createALDEST     (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createINHIBLOCAL (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createTYPE       (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createCONFREMOTECMD (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createL_NETTYPE  (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createL_NET      (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createL_EQTORBORUPS (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createL_EQTORBORDWN (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createNMPRESSURE (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createKMREFUPS   (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createKMREFDWN   (PointInDatabase*, rtap_db::Attrib&);
+    MCO_RET createL_TL       (PointInDatabase*, rtap_db::Attrib&);
 #if 0
-    MCO_RET createMINVAL    (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createVALEX     (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createMAXVAL    (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createVAL       (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createVALACQ    (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createVALMANUAL (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createALINHIB   (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createDISPP     (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createFUNCTION  (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createCONVERTCOEFF  (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createLABEL     (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createINHIB     (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createMNVALPHY  (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createMXPRESSURE(rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createMXVALPHY  (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createNMFLOW    (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createSUPPLIERMODE  (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createSUPPLIERSTATE (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createSYNTHSTATE    (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createDELEGABLE (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createETGCODE   (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createSITEFL    (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createFLGREMOTECMD   (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createFLGMAINTENANCE (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createNAMEMAINTENANCE(rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createTSSYNTHETICAL  (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createLOCALFLAG      (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createALARMBEGIN     (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createALARMBEGINACK  (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createALARMENDACK    (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createALARMSYNTH     (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createL_TYPINFO  (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createL_EQT      (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createREMOTECONTROL (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createNONEXE     (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createRESPNEG    (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createACTIONTYP  (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createVAL_LABEL  (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createLINK_HIST  (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createACQMOD     (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createL_DIPL     (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createALDEST     (rtap_db::XDBPoint&, rtap_db::Attrib&);
-    MCO_RET createINHIBLOCAL (rtap_db::XDBPoint&, rtap_db::Attrib&);
 #endif
 };
 

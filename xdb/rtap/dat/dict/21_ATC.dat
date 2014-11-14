@@ -4,22 +4,22 @@ S UNIVNAME           PUB        rtBYTES32
 S OBJCLASS           PUB        rtUINT8        21   
 S LABEL              PUB        rtBYTES80       
 S SHORTLABEL         PUB        rtBYTES16           
-#S LOCALFLAG          PUB        rtLOGICAL      0    
+S LOCALFLAG          PUB        rtLOGICAL      0    
 S STATUS             PUB        rtLOGICAL      0    
-#S L_EQTTYP           PUB        rtBYTES32      /TYP_ATC
-#S INHIB              PUB        rtLOGICAL      0    
-#S INHIBLOCAL         PUB        rtLOGICAL      0    
-#S ALINHIB            PUB        rtLOGICAL      0    
+S L_EQTTYP           PUB        rtBYTES32      /TYP_ATC
+S INHIB              PUB        rtLOGICAL      0    
+S INHIBLOCAL         PUB        rtLOGICAL      0    
+S ALINHIB            PUB        rtLOGICAL      0    
 #S MXGROUPS           PUB        rtUINT16       0    
 #S MXSTAGE            PUB        rtUINT16       0    
 #S MXGRCBYSTAGE       PUB        rtUINT16       0    
 #S MXGRC              PUB        rtUINT16       0    
 #S MXGRC1             PUB        rtUINT16       0    
 #S MXGRC2             PUB        rtUINT16       0    
-#S CONFREMOTECMD      PUB        rtLOGICAL      0    
-#S FLGREMOTECMD       PUB        rtLOGICAL      0
-#S REMOTECONTROL      PUB        rtLOGICAL      0
-#S TSSYNTHETICAL      PUB        rtUINT8        0    
+S CONFREMOTECMD      PUB        rtLOGICAL      0    
+S FLGREMOTECMD       PUB        rtLOGICAL      0
+S REMOTECONTROL      PUB        rtLOGICAL      0
+S TSSYNTHETICAL      PUB        rtUINT8        0    
 #S LISTIMAG_REALCNT   PUB        rtUINT16       0    
 #S LISTIMAG_LASTINDEX PUB        rtUINT16       0    
 #S LISTIMAG_FIRSTFREE PUB        rtUINT16       0    

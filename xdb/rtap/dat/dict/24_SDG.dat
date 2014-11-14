@@ -4,16 +4,16 @@ S UNIVNAME           PUB        rtBYTES32
 S OBJCLASS           PUB        rtUINT8        24   
 S LABEL              PUB        rtBYTES80       
 S SHORTLABEL         PUB        rtBYTES16           
-#S LOCALFLAG          PUB        rtLOGICAL      0    
+S LOCALFLAG          PUB        rtLOGICAL      0    
 S STATUS             PUB        rtLOGICAL      0    
-#S L_EQTTYP           PUB        rtBYTES32      /TYP_SDG
-#S INHIB              PUB        rtLOGICAL      0    
-#S INHIBLOCAL         PUB        rtLOGICAL      0    
-#S ALINHIB            PUB        rtLOGICAL      0    
+S L_EQTTYP           PUB        rtBYTES32      /TYP_SDG
+S INHIB              PUB        rtLOGICAL      0    
+S INHIBLOCAL         PUB        rtLOGICAL      0    
+S ALINHIB            PUB        rtLOGICAL      0    
 #S LABELCMPT          PUB        rtBYTES80      
-#S MXFLOW             PUB        rtDOUBLE       0    
-#S CONFREMOTECMD      PUB        rtLOGICAL      0    
-#S TSSYNTHETICAL      PUB        rtUINT8        0    
+S MXFLOW             PUB        rtDOUBLE       0    
+S CONFREMOTECMD      PUB        rtLOGICAL      0    
+S TSSYNTHETICAL      PUB        rtUINT8        0    
 #S LISTIMAG_REALCNT   PUB        rtUINT16       0    
 #S LISTIMAG_LASTINDEX PUB        rtUINT16       0    
 #S LISTIMAG_FIRSTFREE PUB        rtUINT16       0    

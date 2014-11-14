@@ -4,7 +4,7 @@ S UNIVNAME           PUB        rtBYTES32
 S OBJCLASS           PUB        rtUINT8        30   
 S LABEL              PUB        rtBYTES80       
 S SHORTLABEL         PUB        rtBYTES16           
-#S LOCALFLAG          PUB        rtLOGICAL      0    
+S LOCALFLAG          PUB        rtLOGICAL      0    
 S STATUS             PUB        rtLOGICAL      0    
 #S LISTIMAG_REALCNT   PUB        rtUINT16       0    
 #S LISTIMAG_LASTINDEX PUB        rtUINT16       0    

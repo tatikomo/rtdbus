@@ -25,9 +25,11 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     <xs:enumeration value="DATERTU"/>
     <xs:enumeration value="VAL"/>
     <xs:enumeration value="VALACQ"/>
+    <xs:enumeration value="GRADLEVEL"/>
     <xs:enumeration value="VALMANUAL"/>
     <xs:enumeration value="ALINHIB"/>
     <xs:enumeration value="DISPP"/>
+    <xs:enumeration value="PREV_DISPATCHER"/>
     <xs:enumeration value="FUNCTION"/>
     <xs:enumeration value="CONVERTCOEFF"/>
     <xs:enumeration value="INHIB"/>
@@ -35,35 +37,55 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     <xs:enumeration value="MXPRESSURE"/>
     <xs:enumeration value="MXVALPHY"/>
     <xs:enumeration value="NMFLOW"/>
+    <xs:enumeration value="PLANFLOW"/>
+    <xs:enumeration value="PLANPRESSURE"/>
     <xs:enumeration value="STATUS"/>
+    <xs:enumeration value="SUPPLIER"/>
     <xs:enumeration value="SUPPLIERMODE"/>
     <xs:enumeration value="SUPPLIERSTATE"/>
     <xs:enumeration value="SYNTHSTATE"/>
     <xs:enumeration value="DELEGABLE"/>
-    <xs:enumeration value="ETGCODE"/>
-    <xs:enumeration value="SITEFLG"/>
+    <xs:enumeration value="PREV_SHIFT_TIME"/>
+    <xs:enumeration value="CURRENT_SHIFT_TIME"/>
+    <!-- 
+         NB: атрибутов CONFREMOTECMD в словарях значительно больше,
+         чем FLGREMOTECMD. А по идее, они должны идти парами.
+         -->
+    <xs:enumeration value="CONFREMOTECMD"/>
     <xs:enumeration value="FLGREMOTECMD"/>
     <xs:enumeration value="FLGMAINTENANCE"/>
     <xs:enumeration value="NAMEMAINTENANCE"/>
     <xs:enumeration value="TSSYNTHETICAL"/>
     <xs:enumeration value="LOCALFLAG"/>
+    <xs:enumeration value="DATEAINS"/>
+    <xs:enumeration value="MXFLOW"/>
     <xs:enumeration value="ALARMBEGIN"/>
     <xs:enumeration value="ALARMBEGINACK"/>
     <xs:enumeration value="ALARMENDACK"/>
     <xs:enumeration value="ALARMSYNTH"/>
+    <xs:enumeration value="L_PIPE"/>
+    <xs:enumeration value="L_PIPELINE"/>
     <xs:enumeration value="L_TYPINFO"/>
     <xs:enumeration value="L_EQT"/>
+    <xs:enumeration value="L_EQTTYP"/>
+    <xs:enumeration value="L_DIPL"/>
+    <xs:enumeration value="L_NETTYPE"/>
+    <xs:enumeration value="L_NET"/>
+    <xs:enumeration value="L_EQTORBORUPS"/>
+    <xs:enumeration value="L_EQTORBORDWN"/>
+    <xs:enumeration value="L_TL"/>
+    <xs:enumeration value="L_CONSUMER"/>
+    <xs:enumeration value="L_CORRIDOR"/>
     <xs:enumeration value="REMOTECONTROL"/>
-    <xs:enumeration value="NONEXE"/>
-    <xs:enumeration value="RESPNEG"/>
     <xs:enumeration value="ACTIONTYP"/>
     <xs:enumeration value="VALIDCHANGE"/>
     <xs:enumeration value="VAL_LABEL"/>
     <xs:enumeration value="LINK_HIST"/>
-    <xs:enumeration value="ACQMOD"/>
-    <xs:enumeration value="L_DIPL"/>
     <xs:enumeration value="ALDEST"/>
     <xs:enumeration value="INHIBLOCAL"/>
+    <xs:enumeration value="NMPRESSURE"/>
+    <xs:enumeration value="KMREFUPS"/>
+    <xs:enumeration value="KMREFDWN"/>
     <xs:enumeration value="UNITY"/>
   </xs:restriction>
 </xs:simpleType>
@@ -114,6 +136,7 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     <xs:enumeration value="GENAL"/>
     <xs:enumeration value="USERAL"/>
     <xs:enumeration value="HISTSET"/>
+    <xs:enumeration value="TYPE"/>
     <xs:enumeration value="DRIVE_TYPE"/>
     <xs:enumeration value="COMPRESSOR_TYPE"/>
     <xs:enumeration value="GRC_TYPE"/>

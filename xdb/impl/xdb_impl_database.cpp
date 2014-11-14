@@ -628,7 +628,7 @@ void DatabaseImpl::setupPolicy(mco_xml_policy_t& policy)
 
 const Error& DatabaseImpl::StoreSnapshot(const char* given_file_name)
 {
-  FILE* fbak;
+  FILE* fbak = NULL;
   MCO_RET rc = MCO_S_OK;
   char fname[40];
 
@@ -665,7 +665,6 @@ const Error& DatabaseImpl::StoreSnapshot(const char* given_file_name)
       LOG(ERROR) << "Can't open output file for streaming";
       setError(rtE_SNAPSHOT_WRITE);
     }
-
 
     // Попытаться сохранить содержимое в XML-формате eXtremeDB
     if (m_flags[OF_POS_SAVE_SNAP]) // Допустим снимок
