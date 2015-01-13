@@ -40,6 +40,7 @@ include_directories(${CLIENT_DIR})
 include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
 include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})
+include_directories(${LIBCPPZMQ_INCLUDE_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})
 
 link_directories(${GTEST_DIR}/lib/.libs)

@@ -21,8 +21,8 @@ include_directories(${LIBGLOG_INCLUDE_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})
 include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 
-link_directories(${LIBGLOG_LIBRARIES_DIR})
-link_directories(${LIBZMQ_LIBRARIES_DIR})
+#link_directories(${LIBGLOG_LIBRARIES_DIR})
+#link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 
 add_custom_command(

@@ -5,9 +5,9 @@
 #  LIBEXTREMEDB_INCLUDE_DIR - the EXTREMEDB include directories
 #  LIBEXTREMEDB_LIBRARIES - The libraries needed to use EXTREMEDB
 
-#  set (EXTREMEDB_VERSION 35)
+  set (EXTREMEDB_VERSION 35)
 #  set (EXTREMEDB_VERSION 41)
-  set (EXTREMEDB_VERSION 50)
+#  set (EXTREMEDB_VERSION 50)
 
   if ("${EXTREMEDB_VERSION}"  EQUAL "35")
     set (LIBEXTREMEDB_INCLUDE_DIR "${RTDBUS_SOURCE_DIR}/../../eXtremeDB_3.5/sources/include")

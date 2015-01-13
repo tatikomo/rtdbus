@@ -7,7 +7,7 @@ if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
         rt)
 else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # LINUX
-  link_directories(/lib/i386-linux-gnu/)
+#  link_directories(/lib/i386-linux-gnu/)
   set (SYSTEM_EXTERNAL_LIBS
         nsl
         pthread

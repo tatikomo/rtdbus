@@ -6,7 +6,7 @@
 #include <list>
 #include <string>
 
-#include <zmq.hpp>
+#include "zmq.hpp"
 
 #include "config.h"
 #include "mdp_zmsg.hpp"
