@@ -51,13 +51,13 @@ namespace rtap_db_dict
     m_value = 0;
   }
 
-  rtap_db_dict::idx_t ValueEntry_pimpl::
+  rtap_db_dict::id_t ValueEntry_pimpl::
   post_ValueEntry ()
   {
     long long v (post_integer ());
 
     if ((0 <= v) && (v <= VALUE_ENTRY_MAX))
-      m_value = static_cast<rtap_db_dict::idx_t>(v);
+      m_value = static_cast<rtap_db_dict::id_t>(v);
 
     return m_value;
   }
@@ -89,13 +89,13 @@ namespace rtap_db_dict
     m_value = 0;
   }
 
-  rtap_db_dict::idx_t UnityIdEntry_pimpl::
+  rtap_db_dict::id_t UnityIdEntry_pimpl::
   post_UnityIdEntry ()
   {
     long long v (post_integer ());
 
     if ((0 <= v) && (v <= UNITY_ENTRY_MAX))
-      m_value = static_cast<rtap_db_dict::idx_t>(v);
+      m_value = static_cast<rtap_db_dict::id_t>(v);
 
     return m_value;
   }
@@ -109,13 +109,13 @@ namespace rtap_db_dict
     m_value = 0;
   }
 
-  rtap_db_dict::idx_t UnityDimensionType_pimpl::
+  rtap_db_dict::id_t UnityDimensionType_pimpl::
   post_UnityDimensionType ()
   {
     long long v (post_integer ());
 
     if ((0 <= v) && (v <= DIMENSION_ENTRY_MAX))
-      m_value = static_cast<rtap_db_dict::idx_t>(v);
+      m_value = static_cast<rtap_db_dict::id_t>(v);
 
     return m_value;
   }
@@ -129,7 +129,7 @@ namespace rtap_db_dict
     m_value = 0;
   }
 
-  rtap_db_dict::idx_t Identifier_pimpl::
+  rtap_db_dict::id_t Identifier_pimpl::
   post_Identifier ()
   {
     long long v (post_long ());
@@ -165,13 +165,13 @@ namespace rtap_db_dict
     m_value = 0;
   }
 
-  rtap_db_dict::idx_t UnityIdType_pimpl::
+  rtap_db_dict::id_t UnityIdType_pimpl::
   post_UnityIdType ()
   {
     long long v (post_integer ());
 
     if ((0 <= v) && (v <= UNITY_TYPE_MAX))
-      m_value = static_cast<rtap_db_dict::idx_t>(v);
+      m_value = static_cast<rtap_db_dict::id_t>(v);
 
     return m_value;
   }
@@ -312,7 +312,7 @@ namespace rtap_db_dict
   }
 
   void UNITY_LABEL_pimpl::
-  UnityDimensionId (const rtap_db_dict::idx_t& UnityDimensionId)
+  UnityDimensionId (const rtap_db_dict::id_t& UnityDimensionId)
   {
     m_data.dimension_id = UnityDimensionId;
   }
@@ -324,7 +324,7 @@ namespace rtap_db_dict
   }
 
   void UNITY_LABEL_pimpl::
-  UnityId (const rtap_db_dict::idx_t& UnityId)
+  UnityId (const rtap_db_dict::id_t& UnityId)
   {
     m_data.unity_id = UnityId;
   }
@@ -371,7 +371,7 @@ namespace rtap_db_dict
   }
 
   void VAL_LABEL_pimpl::
-  Val (const rtap_db_dict::idx_t& Val)
+  Val (const rtap_db_dict::id_t& Val)
   {
     m_data.value = Val;
   }
@@ -404,7 +404,7 @@ namespace rtap_db_dict
   }
 
   void CE_ITEM_pimpl::
-  Id (const rtap_db_dict::idx_t& Id)
+  Id (const rtap_db_dict::id_t& Id)
   {
     m_data.id = Id;
   }

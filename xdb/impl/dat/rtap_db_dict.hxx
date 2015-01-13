@@ -63,21 +63,22 @@ namespace rtap_db_dict
     , UNUSED = 127
    } ObjClass_t;
 
-   typedef unsigned int id_t;
+   typedef unsigned long long id_t; // Идентификатор БДРВ
+   typedef unsigned int idx_t;      // Индекс массива
 
    typedef std::string Label_t;
 
    typedef struct {
-     id_t       dimension_id;
+     idx_t      dimension_id;
      Label_t    dimension_entry;
-     id_t       unity_id;
+     idx_t      unity_id;
      Label_t    unity_entry;
      Label_t    designation_entry;
    } UnityLabel_t;
 
    typedef struct {
      ObjClass_t objclass;
-     id_t       value;
+     idx_t      value;
      Label_t    label;
    } ValLabel_t;
 
@@ -87,11 +88,23 @@ namespace rtap_db_dict
      Label_t    designation;
    } InfoTypes_t;
 
+   typedef struct {
+     idx_t      id;
+     Label_t    definition;
+   } CE_t;
+
+
+   typedef std::vector <UnityLabel_t> unity_labels_t;
+   typedef std::vector <ValLabel_t>   values_labels_t;
+   typedef std::vector <InfoTypes_t>  infotypes_labels_t;
+   typedef std::vector <CE_t>         macros_def_t;
+
    // Хранилище прочитанных таблиц НСИ
    typedef struct {
-     std::vector <UnityLabel_t> unity_dict;
-     std::vector <ValLabel_t>   values_dict;
-     std::vector <InfoTypes_t>  infotypes_dict;
+     unity_labels_t     unity_dict;
+     values_labels_t    values_dict;
+     infotypes_labels_t infotypes_dict;
+     macros_def_t       macros_dict;
    } Dictionaries_t;
 
 } // namespace

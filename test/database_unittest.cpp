@@ -578,6 +578,9 @@ TEST(TestTools, LOAD_DICT_XML)
     ::rtap_db_dict::ObjClassEntry_pimpl ObjClassEntry_p;
     ::rtap_db_dict::ValueEntry_pimpl ValueEntry_p;
     ::rtap_db_dict::ValueLabelEntry_pimpl ValueLabelEntry_p;
+    ::rtap_db_dict::CE_ITEM_pimpl CE_ITEM_p;
+    ::rtap_db_dict::Identifier_pimpl Identifier_p;
+    ::rtap_db_dict::ActionScript_pimpl ActionScript_p;
     ::rtap_db_dict::INFO_TYPES_pimpl INFO_TYPES_p;
     ::rtap_db_dict::InfoTypeEntry_pimpl InfoTypeEntry_p;
     ::xml_schema::string_pimpl string_p;
@@ -586,6 +589,7 @@ TEST(TestTools, LOAD_DICT_XML)
     //
     Dictionaries_p.parsers (UNITY_LABEL_p,
                             VAL_LABEL_p,
+                            CE_ITEM_p,
                             INFO_TYPES_p);
 
     UNITY_LABEL_p.parsers (UnityDimensionType_p,
@@ -598,6 +602,9 @@ TEST(TestTools, LOAD_DICT_XML)
                          ValueEntry_p,
                          ValueLabelEntry_p);
 
+    CE_ITEM_p.parsers (Identifier_p,
+                  ActionScript_p);
+                  
     INFO_TYPES_p.parsers (ObjClassEntry_p,
                           InfoTypeEntry_p,
                           string_p);
@@ -614,8 +621,9 @@ TEST(TestTools, LOAD_DICT_XML)
     doc_p.parse (argv[1]);
     Dictionaries_p.post_Dictionaries ();
 
-    EXPECT_EQ(dict.unity_dict.size(), 58);
+    EXPECT_EQ(dict.unity_dict.size(), 51);
     EXPECT_EQ(dict.values_dict.size(), 26);
+    EXPECT_EQ(dict.macros_dict.size(), 0);
     EXPECT_EQ(dict.infotypes_dict.size(), 0);
 
     //applyDICT(dict);

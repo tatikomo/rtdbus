@@ -15,14 +15,16 @@ namespace http://www.example.com/rtap_db_dict rtap_db_dict
   include "rtap_db_dict.hxx";
 
   ObjClassEntry   "ObjClass_t";
-  ValueEntry      "id_t";
+  ValueEntry      "idx_t";
   ValueLabelEntry "Label_t&";
-  UnityIdEntry    "id_t";
-  UnityIdType     "id_t";
+  UnityIdEntry    "idx_t";
+  UnityIdType     "idx_t";
   UnityLabelEntry "Label_t&";
   InfoTypeEntry   "Label_t&";
-  UnityDimensionType    "id_t";
+  UnityDimensionType    "idx_t";
   UnityDimensionEntry   "Label_t&";
   UnityDesignationEntry "Label_t&";
+  Identifier            "idx_t";
+  ActionScript          "Label_t&";
 }
 

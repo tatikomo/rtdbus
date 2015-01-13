@@ -28,7 +28,7 @@ using namespace xercesc;
 
 /* helper function to print an XML schema */
 # if (EXTREMEDB_VERSION <= 40)
-mco_size_t file_writer(void* stream_handle, const void* from, mco_size_t nbytes const void*, mco_size_t)
+mco_size_t file_writer(void* stream_handle, const void* from, mco_size_t nbytes)
 # else
 mco_size_sig_t file_writer(void* stream_handle, const void* from, mco_size_t nbytes)
 # endif
@@ -139,8 +139,10 @@ bool xdb::loadFromXML(RtEnvironment* env, const char* filename)
 
   applyClassListToDB(env, dictionary, point_list);
 
-  generateXSD(env);
+  // TODO: реализация generateXSD()
+  // generateXSD(env);
 
+  env->MakeSnapshot("gev");
 #ifdef USE_EXTREMEDB_HTTP_SERVER
   // При использовании встроенного в БДРВ HTTP-сервера можно
   // посмотреть статистику свежесозданного экземпляра до его закрытия
@@ -207,6 +209,9 @@ bool loadXmlDictionaries(RtEnvironment* env,
     ::rtap_db_dict::ObjClassEntry_pimpl ObjClassEntry_p;
     ::rtap_db_dict::ValueEntry_pimpl ValueEntry_p;
     ::rtap_db_dict::ValueLabelEntry_pimpl ValueLabelEntry_p;
+    ::rtap_db_dict::CE_ITEM_pimpl CE_ITEM_p;
+    ::rtap_db_dict::Identifier_pimpl Identifier_p;
+    ::rtap_db_dict::ActionScript_pimpl ActionScript_p;
     ::rtap_db_dict::INFO_TYPES_pimpl INFO_TYPES_p;
     ::rtap_db_dict::InfoTypeEntry_pimpl InfoTypeEntry_p;
     ::xml_schema::string_pimpl string_p;
@@ -215,6 +220,7 @@ bool loadXmlDictionaries(RtEnvironment* env,
     //
     Dictionaries_p.parsers (UNITY_LABEL_p,
                             VAL_LABEL_p,
+                            CE_ITEM_p,
                             INFO_TYPES_p);
 
     UNITY_LABEL_p.parsers (UnityDimensionType_p,
@@ -226,6 +232,9 @@ bool loadXmlDictionaries(RtEnvironment* env,
     VAL_LABEL_p.parsers (ObjClassEntry_p,
                          ValueEntry_p,
                          ValueLabelEntry_p);
+
+    CE_ITEM_p.parsers (Identifier_p,
+                  ActionScript_p);
 
     INFO_TYPES_p.parsers (ObjClassEntry_p,
                           InfoTypeEntry_p,
@@ -333,10 +342,41 @@ bool loadXmlContent(RtEnvironment* env, const char* filename, rtap_db::Points& p
 // Загрузить в БДРВ свежепрочитанные из XML таблицы НСИ
 void applyDictionariesToDB(RtEnvironment* env, rtap_db_dict::Dictionaries_t& dict)
 {
+  rtDbCq command;
+  RtConnection* conn = env->getConnection();
+
   LOG(INFO) << "applyDictionariesToDB";
   // Загрузить в БДРВ таблицы:
   // DICT_TSC_VAL_LABEL (элемент XML: VAL_LABEL)
-  // DICT_UNITY_ID      (элемент XML: UNITY_LABEL)
+  command.addrCnt = dict.values_dict.size();
+  command.tags = new std::vector<std::string>();
+  command.tags->push_back("DICT_TSC_VAL_LABEL");
+  command.action.config = rtCONFIG_ADD_TABLE;
+  command.buffer = static_cast<void*>(&dict.values_dict);
+  conn->ConfigDatabase(command);
+  LOG(INFO) << "Creating VAL_LABEL DICT: " << conn->getLastError().what();
+  delete command.tags;
+
+  // DICT_UNITY_ID (элемент XML: UNITY_LABEL)
+  command.addrCnt = dict.unity_dict.size();
+  command.tags = new std::vector<std::string>();
+  command.tags->push_back("DICT_UNITY_ID");
+  command.action.config = rtCONFIG_ADD_TABLE;
+  command.buffer = static_cast<void*>(&dict.unity_dict);
+  conn->ConfigDatabase(command);
+  LOG(INFO) << "Creating UNITY DICT: " << conn->getLastError().what();
+  delete command.tags;
+
+  // XDB_CE (элемент XML: UNITY_LABEL)
+  command.addrCnt = dict.macros_dict.size();
+  command.tags = new std::vector<std::string>();
+  command.tags->push_back("XDB_CE");
+  command.action.config = rtCONFIG_ADD_TABLE;
+  command.buffer = static_cast<void*>(&dict.macros_dict);
+  conn->ConfigDatabase(command);
+  LOG(INFO) << "Creating CE DICT: " << conn->getLastError().what();
+  delete command.tags;
+
   //
   // TODO: Эти данные хранить в реляционной СУБД:
   // DICT_OBJCLASS_CODE (элемент XML: )

@@ -34,6 +34,9 @@ int main (int argc, char* argv[])
     ::rtap_db_dict::ObjClassEntry_pimpl ObjClassEntry_p;
     ::rtap_db_dict::ValueEntry_pimpl ValueEntry_p;
     ::rtap_db_dict::ValueLabelEntry_pimpl ValueLabelEntry_p;
+    ::rtap_db_dict::CE_ITEM_pimpl CE_ITEM_p;
+    ::rtap_db_dict::Identifier_pimpl Identifier_p;
+    ::rtap_db_dict::ActionScript_pimpl ActionScript_p;
     ::rtap_db_dict::INFO_TYPES_pimpl INFO_TYPES_p;
     ::rtap_db_dict::InfoTypeEntry_pimpl InfoTypeEntry_p;
     ::xml_schema::string_pimpl string_p;
@@ -42,6 +45,7 @@ int main (int argc, char* argv[])
     //
     Dictionaries_p.parsers (UNITY_LABEL_p,
                             VAL_LABEL_p,
+                            CE_ITEM_p,
                             INFO_TYPES_p);
 
     UNITY_LABEL_p.parsers (UnityDimensionType_p,
@@ -53,6 +57,9 @@ int main (int argc, char* argv[])
     VAL_LABEL_p.parsers (ObjClassEntry_p,
                          ValueEntry_p,
                          ValueLabelEntry_p);
+
+    CE_ITEM_p.parsers (Identifier_p,
+                       ActionScript_p);
 
     INFO_TYPES_p.parsers (ObjClassEntry_p,
                           InfoTypeEntry_p,

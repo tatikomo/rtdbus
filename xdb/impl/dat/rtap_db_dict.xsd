@@ -98,6 +98,13 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
   </xs:restriction>
 </xs:simpleType>
 
+<!-- Идентификатор Точки в БДРВ -->
+<xs:simpleType name="Identifier">
+  <xs:restriction base="xs:long">
+  </xs:restriction>
+</xs:simpleType>
+
+
 <!-- Определение типа данных "Унифицированная строка размерности" -->
 <xs:simpleType name="UnityDimensionEntry">
   <xs:restriction base="xs:string">
@@ -115,7 +122,10 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     <xs:enumeration value="KUMNm3"/>
     <xs:enumeration value="KUMNm3/h"/>
     <xs:enumeration value="KUMPa"/>
+    <xs:enumeration value="KUW"/>
     <xs:enumeration value="KUMW"/>
+    <xs:enumeration value="KUW*s"/>
+    <xs:enumeration value="KUMW*s"/>
     <xs:enumeration value="KUMW/Mm3"/>
     <xs:enumeration value="KUMW/h"/>
     <xs:enumeration value="KUMWh"/>
@@ -127,6 +137,11 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     <xs:enumeration value="KUV"/>
     <xs:enumeration value="KUWu"/>
     <xs:enumeration value="KUatm"/>
+    <xs:enumeration value="KUati"/>
+    <xs:enumeration value="KUata"/>
+    <xs:enumeration value="KUH/m2"/>
+    <xs:enumeration value="KUkH/m2"/>
+    <xs:enumeration value="KUMH/m2"/>
     <xs:enumeration value="KUh"/>
     <xs:enumeration value="KUkBap"/>
     <xs:enumeration value="KUkCal"/>
@@ -187,9 +202,12 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     <xs:enumeration value="kВap"/>
     <xs:enumeration value="kГц"/>
     <xs:enumeration value="MГц"/>
-    <xs:enumeration value="MПа"/>
+    <xs:enumeration value="Па"/>
+    <xs:enumeration value="МПа"/>
     <xs:enumeration value="А"/>
+    <xs:enumeration value="атм"/>
     <xs:enumeration value="ати"/>
+    <xs:enumeration value="ата"/>
     <xs:enumeration value="б/р"/>
     <xs:enumeration value="В"/>
     <xs:enumeration value="Гц"/>
@@ -212,9 +230,12 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     <xs:enumeration value="м"/>
     <xs:enumeration value="м3"/>
     <xs:enumeration value="м3/ч"/>
+    <xs:enumeration value="Вт"/>
     <xs:enumeration value="МВт"/>
     <xs:enumeration value="МВт/млн.м3"/>
     <xs:enumeration value="МВтч/сут"/>
+    <xs:enumeration value="Дж"/>
+    <xs:enumeration value="МДж"/>
     <xs:enumeration value="МДж/м3"/>
     <xs:enumeration value="млн.м3/сут"/>
     <xs:enumeration value="мм"/>
@@ -238,12 +259,15 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     <xs:enumeration value="Виброскорость"/>
     <xs:enumeration value="Время"/>
     <xs:enumeration value="Давление"/>
+    <xs:enumeration value="Давление атмосферное"/>
+    <xs:enumeration value="Давление избыточное"/>
+    <xs:enumeration value="Давление абсолютное"/>
     <xs:enumeration value="Давление газа"/>
-    <xs:enumeration value="Дифференциальное давление газа"/>
+    <xs:enumeration value="Дифференциальное давление"/>
     <xs:enumeration value="Длина"/>
     <xs:enumeration value="Единицы нет"/>
     <xs:enumeration value="Напряжение"/>
-    <xs:enumeration value="Объем газа"/>
+    <xs:enumeration value="Объем"/>
     <xs:enumeration value="Плотность"/>
     <xs:enumeration value="Процент"/>
     <xs:enumeration value="Расход"/>
@@ -251,16 +275,17 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     <xs:enumeration value="Сила тока"/>
     <xs:enumeration value="Скорость вращения"/>
     <xs:enumeration value="Содержание вещества"/>
+    <xs:enumeration value="Температура"/>
     <xs:enumeration value="Температура воды"/>
     <xs:enumeration value="Температура воздуха"/>
     <xs:enumeration value="Температура газа"/>
-    <xs:enumeration value="Температура Масла"/>
-    <xs:enumeration value="Температура Оборудования"/>
+    <xs:enumeration value="Температура масла"/>
     <xs:enumeration value="Температура почвы"/>
     <xs:enumeration value="Теплоемкость"/>
     <xs:enumeration value="Теплота сгорания"/>
     <xs:enumeration value="Удельный Расход Электроэнергии"/>
     <xs:enumeration value="Частота"/>
+    <xs:enumeration value="Мощность"/>
     <xs:enumeration value="Электрическая мощность"/>
     <xs:enumeration value="Энергия"/>
   </xs:restriction>
@@ -1174,6 +1199,12 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
 </xs:simpleType>
 
 
+<!-- Определение типа данных "Макрос" (CE) -->
+<xs:simpleType name="ActionScript">
+  <xs:restriction base="xs:string">
+  </xs:restriction>
+</xs:simpleType>
+
 
 <!-- RTDB_DICT definition start -->
 <!-- Набор НСИ -->
@@ -1213,9 +1244,20 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     </xs:element>
     <!-- VAL_LABEL definition end -->
 
+    <!-- Начало Справочника Макросов -->
+    <xs:element name="CE_ITEM" minOccurs="0" maxOccurs="unbounded">
+      <xs:complexType>
+        <xs:sequence>
+            <xs:element name="Id"   type="Identifier"/>
+            <xs:element name="CE"   type="ActionScript"/>
+        </xs:sequence>
+      </xs:complexType>
+    </xs:element>
+    <!-- Конец определения Справочника Макросов -->
+
     <!-- Справочник Инфотипов -->
     <!-- Может отсутствовать (minOccurs=0) -->
-    <xs:element name="INFO_TYPES" minOccurs="0" maxOccurs="1000">
+    <xs:element name="INFO_TYPES" minOccurs="0" maxOccurs="unbounded">
       <xs:complexType>
         <xs:sequence>
             <xs:element name="ObjClass"   type="ObjClassEntry"/>

@@ -34,11 +34,11 @@ namespace rtap_db_dict
     virtual void
     pre ();
 
-    virtual rtap_db_dict::idx_t
+    virtual rtap_db_dict::id_t
     post_ValueEntry ();
 
     private:
-      rtap_db_dict::idx_t m_value;
+      rtap_db_dict::id_t m_value;
   };
 
   class ValueLabelEntry_pimpl: public virtual ValueLabelEntry_pskel,
@@ -62,11 +62,11 @@ namespace rtap_db_dict
     virtual void
     pre ();
 
-    virtual rtap_db_dict::idx_t
+    virtual rtap_db_dict::id_t
     post_UnityIdEntry ();
 
     private:
-      rtap_db_dict::idx_t m_value;
+      rtap_db_dict::id_t m_value;
   };
 
   class UnityDimensionType_pimpl: public virtual UnityDimensionType_pskel,
@@ -76,11 +76,11 @@ namespace rtap_db_dict
     virtual void
     pre ();
 
-    virtual rtap_db_dict::idx_t
+    virtual rtap_db_dict::id_t
     post_UnityDimensionType ();
 
     private:
-      rtap_db_dict::idx_t m_value;
+      rtap_db_dict::id_t m_value;
   };
 
   class Identifier_pimpl: public virtual Identifier_pskel,
@@ -90,11 +90,11 @@ namespace rtap_db_dict
     virtual void
     pre ();
 
-    virtual rtap_db_dict::idx_t
+    virtual rtap_db_dict::id_t
     post_Identifier ();
 
     private:
-      rtap_db_dict::idx_t m_value;
+      rtap_db_dict::id_t m_value;
   };
 
   class UnityDimensionEntry_pimpl: public virtual UnityDimensionEntry_pskel,
@@ -118,11 +118,11 @@ namespace rtap_db_dict
     virtual void
     pre ();
 
-    virtual rtap_db_dict::idx_t
+    virtual rtap_db_dict::id_t
     post_UnityIdType ();
 
     private:
-      rtap_db_dict::idx_t m_value;
+      rtap_db_dict::id_t m_value;
   };
 
   class UnityLabelEntry_pimpl: public virtual UnityLabelEntry_pskel,
@@ -213,13 +213,13 @@ namespace rtap_db_dict
     pre ();
 
     virtual void
-    UnityDimensionId (const rtap_db_dict::idx_t&);
+    UnityDimensionId (const rtap_db_dict::id_t&);
 
     virtual void
     UnityDimension (rtap_db_dict::Label_t&);
 
     virtual void
-    UnityId (const rtap_db_dict::idx_t&);
+    UnityId (const rtap_db_dict::id_t&);
 
     virtual void
     UnityLabel (rtap_db_dict::Label_t&);
@@ -246,7 +246,7 @@ namespace rtap_db_dict
     ObjClass (const rtap_db_dict::ObjClass_t&);
 
     virtual void
-    Val (const rtap_db_dict::idx_t&);
+    Val (const rtap_db_dict::id_t&);
 
     virtual void
     ValueLabel (rtap_db_dict::Label_t&);
@@ -267,7 +267,7 @@ namespace rtap_db_dict
     pre ();
 
     virtual void
-    Id (const rtap_db_dict::idx_t&);
+    Id (const rtap_db_dict::id_t&);
 
     virtual void
     CE (rtap_db_dict::Label_t&);
