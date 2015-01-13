@@ -41,7 +41,7 @@ void Error::init()
   if (!m_initialized)
   {
     m_initialized = true;
-    m_error_descriptions[rtE_NONE]             = (const char*)"No error";
+    m_error_descriptions[rtE_NONE]             = (const char*)"OK";
     m_error_descriptions[rtE_UNKNOWN]          = (const char*)"Unknown error";
     m_error_descriptions[rtE_NOT_IMPLEMENTED]  = (const char*)"Not yet implemented";
     m_error_descriptions[rtE_STRING_TOO_LONG]  = (const char*)"Given string is too long";

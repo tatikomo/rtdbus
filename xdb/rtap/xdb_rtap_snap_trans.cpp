@@ -223,6 +223,7 @@ int xdb::processClassFile(const char* fpath)
   std::string line;
   std::string::size_type first;
   std::string::size_type second;
+  std::istringstream iss;
 
   assert(fpath);
   LoadDbTypesDictionary();
@@ -270,7 +271,8 @@ int xdb::processClassFile(const char* fpath)
         {
           // S OBJCLASS           PUB        rtUINT8        0
           // создать массив лексем
-          std::istringstream iss(line);
+          iss.clear();
+          iss.str(line);
           if (iss >> s_skip >> s_univname >> s_access >> s_type)
           {
              // Если в iss еще остались данные, и тип атрибута символьный,
@@ -672,6 +674,7 @@ bool xdb::processInstanceFile(const char* fpath)
   std::string instance_file_name(fpath); // полное имя файла instances
   std::string xml_file_name(fpath);      // полное имя выходного XML-файла
   std::string point_view;
+  std::istringstream iss;
   int         indiceTab = 0;
   int         colonne;
   int         colvect;
@@ -737,7 +740,8 @@ bool xdb::processInstanceFile(const char* fpath)
       typeRecord = xdb::getRecordType(buffer);
       // TODO: проверить, что происходит с памятью при разборе большого файла
       // поскольку istringstream не удаляется
-      std::istringstream iss(buffer);
+      iss.clear();
+      iss.str(buffer);
       value.clear();
 
       switch(typeRecord)
@@ -943,6 +947,7 @@ bool xdb::processInstanceFile(const char* fpath)
          /*------------*/
          case DF_TYPE :
            // ligne = buffer[со 2 по 7 позицию]
+           // TODO: создание istringstream довольно затратно, переделать на повторное использование
            std::istringstream(buffer.substr(2, 7)) >> ligne;
 //           LOG(INFO) << "ligne="<<ligne;
          break;

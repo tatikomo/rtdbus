@@ -190,8 +190,8 @@ typedef struct
     ActionType      act_type;  // тип действия
     uint16_t        addrCnt;   /* count of addresses */
     //rtDbAddress     *addr;     /* addresses of Points */
-    std::vector<std::string>    tags; // Теги Точек
-    void            *buffer;   /* buffer for data */
+    std::vector<std::string> *tags; // Теги Точек
+    void           *buffer;   /* buffer for data */
     uint32_t        size;      /* size of buffer */
     uint32_t        actual;    /* actual size of data */
     rtDbCqAction    action;    /* action to perform */

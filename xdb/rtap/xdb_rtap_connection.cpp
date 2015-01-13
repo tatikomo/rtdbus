@@ -26,8 +26,7 @@ const Error& RtConnection::create(RtPoint* _point)
 {
   assert(_point);
 
-  LOG(INFO) << "Create new point '" << _point->getTag()
-            << "' for env '" << m_environment->getName() << "'";
+  // LOG(INFO) << "Create new point '" << _point->getTag() << "'";
   
   // Создание экземпляра
   write(_point);
@@ -50,6 +49,7 @@ const Error& RtConnection::write(RtPoint* _point)
 // Интерфейс управления БД - Контроль выполнения
 const Error& RtConnection::ControlDatabase(rtDbCq& info)
 {
+  info.act_type = CONTROL;
   m_last_error = m_environment->getDatabase()->Control(info);
   return getLastError();
 }
@@ -57,6 +57,7 @@ const Error& RtConnection::ControlDatabase(rtDbCq& info)
 // Интерфейс управления БД - Контроль Точек
 const Error& RtConnection::QueryDatabase(rtDbCq& info)
 {
+  info.act_type = QUERY;
   m_last_error = m_environment->getDatabase()->Query(info);
   return getLastError();
 }
@@ -64,6 +65,7 @@ const Error& RtConnection::QueryDatabase(rtDbCq& info)
 // Интерфейс управления БД - Контроль выполнения
 const Error& RtConnection::ConfigDatabase(rtDbCq& info)
 {
+  info.act_type = CONFIG;
   m_last_error = m_environment->getDatabase()->Config(info);
   return getLastError();
 }

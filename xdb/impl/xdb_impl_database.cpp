@@ -15,19 +15,18 @@ extern "C" {
 #endif
 
 #include "mco.h"
-#include "mcouda.h"  // mco_metadict_header_t
-#include "mcohv.h"   // mcohv_p
 
-#if defined DEBUG
 # if (EXTREMEDB_VERSION <= 40)
 mco_size_t file_writer(void*, const void*, mco_size_t);
 # else
+#include "mcouda.h"  // mco_metadict_header_t
+#include "mcohv.h"   // mcohv_p
 mco_size_sig_t file_writer(void*, const void*, mco_size_t);
 mco_size_sig_t file_reader(void*, void*, mco_size_t);
 # endif
+
 #define SETUP_POLICY
 #include "mcoxml.h"
-#endif
 
 void impl_errhandler(MCO_RET);
 void extended_impl_errhandler(MCO_RET, const char*, int);
@@ -59,7 +58,13 @@ void extended_impl_errhandler(MCO_RET errcode, const char* file, int line)
 
 
 /* Stream writer with prototype mco_stream_write */
-mco_size_sig_t file_writer( void *stream_handle /* FILE *  */, const void *from, mco_size_t nbytes )
+
+#if (EXTREMEDB_VERSION <= 40)
+mco_size_t 
+#else
+mco_size_sig_t 
+#endif
+file_writer( void *stream_handle /* FILE *  */, const void *from, mco_size_t nbytes )
 {
   FILE *f = (FILE *)stream_handle;
   mco_size_sig_t nbs;
@@ -69,7 +74,12 @@ mco_size_sig_t file_writer( void *stream_handle /* FILE *  */, const void *from,
 }
 
 /* Stream reader with prototype mco_stream_read */
-mco_size_sig_t file_reader( void *stream_handle /* FILE *  */,  /* OUT */void *to, mco_size_t max_nbytes )
+#if (EXTREMEDB_VERSION <= 40)
+mco_size_t 
+#else
+mco_size_sig_t 
+#endif
+file_reader( void *stream_handle /* FILE *  */,  /* OUT */void *to, mco_size_t max_nbytes )
 {
   FILE *f = (FILE *)stream_handle;
   mco_size_sig_t nbs;
@@ -189,7 +199,7 @@ DatabaseImpl::DatabaseImpl(const char* _name, const Options& _options, mco_dicti
   }
   else m_MapAddress = 0x20000000;
 
-#if defined USE_EXTREMEDB_HTTP_SERVER
+#if (EXTREMEDB_VERSION >= 40) && USE_EXTREMEDB_HTTP_SERVER
   m_intf.interface_addr = strdup("0.0.0.0"); // Принимать подключения с любого адреса
   if (getOption(m_db_access_flags,"OF_HTTP_PORT", val) && val)
   {
@@ -236,11 +246,11 @@ DatabaseImpl::~DatabaseImpl()
       // Ничего делать не надо
     break;
 
-    case DB_STATE_CONNECTED:
+    case DB_STATE_ATTACHED:
       // перед завершением работы сделать снапшот
       StoreSnapshot(NULL);
       // NB: break пропущен специально!
-    case DB_STATE_ATTACHED:
+    case DB_STATE_CONNECTED:
       Disconnect();
       // NB: break пропущен специально!
     case DB_STATE_INITIALIZED:
@@ -277,7 +287,7 @@ DatabaseImpl::~DatabaseImpl()
     break;
   }
 
-#if defined USE_EXTREMEDB_HTTP_SERVER
+#if (EXTREMEDB_VERSION >= 40) && USE_EXTREMEDB_HTTP_SERVER
   free(m_intf.interface_addr);
 #endif
 
@@ -513,6 +523,12 @@ const Error& DatabaseImpl::ConnectToInstance()
   return getLastError();
 }
 
+/*
+ * Сохранение содержимого БД в виде файла XML формата McObject.
+ *
+ * NB: Внутри функции может упасть xdb runtime в том случае, если 
+ * сохраняемая БД имеет хотя бы один безиндексный класс.
+ */
 const Error& DatabaseImpl::SaveAsXML(const char* given_file_name, const char *msg)
 {
   MCO_RET rc = MCO_S_OK;
@@ -761,6 +777,7 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
   char fname[150];
 
   clearError();
+  fname[0] = '\0';
 
 #if EXTREMEDB_VERSION >= 40
   do
@@ -985,7 +1002,7 @@ const Error& DatabaseImpl::Open()
                     m_dict,
                     (void*)m_MapAddress,
                     m_DatabaseSize + m_DbDiskCache,
-                    PAGESIZE);
+                    m_MemoryPageSize /*PAGESIZE*/);
     LOG(INFO) << "mco_db_open '" << m_name << "', rc=" << rc;
 
 #endif /* EXTREMEDB_VERSION >= 40 */

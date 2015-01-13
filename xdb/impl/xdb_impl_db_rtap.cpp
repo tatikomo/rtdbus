@@ -246,8 +246,7 @@ DatabaseRtapImpl::DatabaseRtapImpl(const char* _name)
   // Опции по умолчанию
   setOption(opt, "OF_CREATE",    1);
   setOption(opt, "OF_LOAD_SNAP", 1);
-  // TODO: исправить поведение опции OF_SAVE_SNAP - происходит падение с ошибкой MCO_ERR_INDEX
-//  setOption(opt, "OF_SAVE_SNAP", 1);
+  setOption(opt, "OF_SAVE_SNAP", 1);
   setOption(opt, "OF_DATABASE_SIZE",   1024 * 1024 * 10);
   setOption(opt, "OF_MEMORYPAGE_SIZE", 1024); // 0..65535
   setOption(opt, "OF_MAP_ADDRESS", 0x25000000);
@@ -309,6 +308,13 @@ DBState_t DatabaseRtapImpl::State()
 bool DatabaseRtapImpl::AttrFuncMapInit()
 {
 // LABEL пока пропустим, возможно вынесем ее хранение во внешнюю БД (поле 'persistent' eXtremeDB?)
+/*
+ * Два атрибута, TAG и OBJCLASS, обрабатываются специальным образом,
+ * поэтому исключены из общей обработки.
+ *
+  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("TAG",        &xdb::DatabaseRtapImpl::createTAG));
+  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("OBJCLASS",   &xdb::DatabaseRtapImpl::createOBJCLASS));
+  */
   m_attr_creation_func_map.insert(AttrCreationFuncPair_t("LABEL",      &xdb::DatabaseRtapImpl::createLABEL));
   m_attr_creation_func_map.insert(AttrCreationFuncPair_t("SHORTLABEL", &xdb::DatabaseRtapImpl::createSHORTLABEL));
   m_attr_creation_func_map.insert(AttrCreationFuncPair_t("L_SA",       &xdb::DatabaseRtapImpl::createL_SA));
@@ -381,12 +387,14 @@ bool DatabaseRtapImpl::AttrFuncMapInit()
   m_attr_creation_func_map.insert(AttrCreationFuncPair_t("KMREFDWN",   &xdb::DatabaseRtapImpl::createKMREFDWN));
   m_attr_creation_func_map.insert(AttrCreationFuncPair_t("PLANFLOW",   &xdb::DatabaseRtapImpl::createPLANFLOW));
 
+#if 0
   for (AttrCreationFuncMapIterator_t it = m_attr_creation_func_map.begin();
        it != m_attr_creation_func_map.end();
        it++)
   {
     LOG(INFO) << "GEV: attr='" << it->first << "' func=" << it->second;
   }
+#endif
   return true;
 }
 
@@ -618,8 +626,219 @@ const Error& DatabaseRtapImpl::Query(rtDbCq& info)
 // Группа функций управления
 const Error& DatabaseRtapImpl::Config(rtDbCq& info)
 {
-  setError(rtE_NOT_IMPLEMENTED);
+  MCO_RET rc;
+
+  m_impl->clearError();
+
+  switch(info.action.config)
+  {
+    case rtCONFIG_ADD_TABLE:
+        rc = createTable(info);
+        if (rc) { LOG(ERROR) << "Table creation facility"; }
+        break;
+
+    default:
+        setError(rtE_NOT_IMPLEMENTED);
+  }
+
   return getLastError();
+}
+
+MCO_RET DatabaseRtapImpl::createTable(rtDbCq& info)
+{
+  MCO_RET rc = MCO_E_UNSUPPORTED;
+  // В перечне тегов только одна запись о названии Таблицы
+  assert(info.tags->size() == 1);
+
+  // TODO: при увеличении количества таблиц проводить поиск с помощью хеша
+  if (0 == (info.tags->at(0).compare("DICT_TSC_VAL_LABEL")))
+  {
+    rc = createTableDICT_TSC_VAL_LABEL(static_cast<rtap_db_dict::values_labels_t*>(info.buffer));
+  }
+  else if (0 == (info.tags->at(0).compare("DICT_UNITY_ID")))
+  {
+    rc = createTableDICT_UNITY_ID(static_cast<rtap_db_dict::unity_labels_t*>(info.buffer));
+  }
+  else if (0 == (info.tags->at(0).compare("XDB_CE")))
+  {
+    rc = createTableXDB_CE(static_cast<rtap_db_dict::macros_def_t*>(info.buffer));
+  }
+  else
+  {
+    LOG(ERROR) << "Creating unknown table '" << info.tags->at(0) << "'";
+  }
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::createTableDICT_TSC_VAL_LABEL(rtap_db_dict::values_labels_t* dict)
+{
+  MCO_RET rc = MCO_E_UNSUPPORTED;
+  DICT_TSC_VAL_LABEL instance;
+  mco_trans_h t;
+  
+  assert(dict);
+
+  do
+  {
+    rc = mco_trans_start(m_impl->getDbHandler(), MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+    if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
+
+    // Очистить прежнее содержимое, если есть
+    rc = DICT_TSC_VAL_LABEL_delete_all(t);
+    if (rc) { LOG(ERROR) << "Cleaning VAL_LABEL table, rc=" << rc; break; }
+    
+    for (unsigned int idx=0; idx < dict->size(); idx++)
+    {
+      LOG(INFO) << "[" << idx+1 << "/" << dict->size() << "] Insert VAL_LABEL: objclass="
+                << dict->at(idx).objclass << " "
+                << dict->at(idx).value << " '"
+                << dict->at(idx).label << "'";
+
+      rc = DICT_TSC_VAL_LABEL_new(t, &instance);
+      if (rc) { LOG(ERROR) << "Creating VAL_LABEL item, rc=" << rc; break; }
+
+      rc = DICT_TSC_VAL_LABEL_classID_put(&instance, static_cast<objclass_t>(dict->at(idx).objclass));
+      if (rc) { LOG(ERROR) << "Creating 'objclass', rc=" << rc; break; }
+
+      rc = DICT_TSC_VAL_LABEL_valueID_put(&instance, static_cast<uint1>(dict->at(idx).value));
+      if (rc) { LOG(ERROR) << "Creating 'value', rc=" << rc; break; }
+
+      rc = DICT_TSC_VAL_LABEL_label_put(&instance, dict->at(idx).label.c_str(),
+                                        static_cast<uint2>(dict->at(idx).label.size()));
+      if (rc) { LOG(ERROR) << "Creating 'label' item, rc=" << rc; break; }
+
+      rc = DICT_TSC_VAL_LABEL_checkpoint(&instance);
+      if (rc) { LOG(ERROR) << "Checkpointing DICT_TSC_VAL_LABEL, rc=" << rc; break; }
+    }
+
+    rc = mco_trans_commit(t);
+    if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; break; }
+
+  } while (false);
+
+  if (rc)
+  {
+    mco_trans_rollback(t);
+    setError(rtE_RUNTIME_ERROR);
+  }
+
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::createTableDICT_UNITY_ID(rtap_db_dict::unity_labels_t* dict)
+{
+  MCO_RET rc = MCO_E_UNSUPPORTED;
+  DICT_UNITY_ID instance;
+  mco_trans_h t;
+  
+  assert(dict);
+
+  do
+  {
+    rc = mco_trans_start(m_impl->getDbHandler(), MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+    if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
+
+    // Очистить прежнее содержимое, если есть
+    rc = DICT_UNITY_ID_delete_all(t);
+    if (rc) { LOG(ERROR) << "Cleaning UNITY table, rc=" << rc; break; }
+  
+    for (unsigned int idx=0; idx < dict->size(); idx++)
+    {
+      LOG(INFO) << "[" << idx+1 << "/" << dict->size() << "] Insert UNITY: id="
+                << dict->at(idx).unity_id << " ("
+                << dict->at(idx).dimension_id << ") '"
+                << dict->at(idx).unity_entry << "' '"
+                << dict->at(idx).dimension_entry << "' '"
+                << dict->at(idx).designation_entry<< "'";
+
+      rc = DICT_UNITY_ID_new(t, &instance);
+      if (rc) { LOG(ERROR) << "Creating UNITY item, rc=" << rc; break; }
+
+      rc = DICT_UNITY_ID_DimensionID_put(&instance, static_cast<uint2>(dict->at(idx).dimension_id));
+      if (rc) { LOG(ERROR) << "Creating 'DimensionID', rc=" << rc; break; }
+
+      rc = DICT_UNITY_ID_unityID_put(&instance, static_cast<uint2>(dict->at(idx).unity_id));
+      if (rc) { LOG(ERROR) << "Creating 'DimensionID', rc=" << rc; break; }
+
+      rc = DICT_UNITY_ID_dimension_entry_put(&instance, dict->at(idx).dimension_entry.c_str(),
+                                              static_cast<uint2>(dict->at(idx).dimension_entry.size()));
+      if (rc) { LOG(ERROR) << "Creating 'DimensionEntry', rc=" << rc; break; }
+
+      rc = DICT_UNITY_ID_UNITY_put(&instance, dict->at(idx).unity_entry.c_str(),
+                                              static_cast<uint2>(dict->at(idx).unity_entry.size()));
+      if (rc) { LOG(ERROR) << "Creating 'unity_entry item', rc=" << rc; break; }
+
+      rc = DICT_UNITY_ID_designation_entry_put(&instance, dict->at(idx).unity_entry.c_str(),
+                                              static_cast<uint2>(dict->at(idx).designation_entry.size()));
+      if (rc) { LOG(ERROR) << "Creating 'designation_entry', rc=" << rc; break; }
+
+      rc = DICT_UNITY_ID_checkpoint(&instance);
+      if (rc) { LOG(ERROR) << "Checkpointing DICT_UNITY_ID, rc=" << rc; break; }
+    }
+
+    rc = mco_trans_commit(t);
+    if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; break; }
+
+  } while(false);
+
+  if (rc)
+  {
+    mco_trans_rollback(t);
+    setError(rtE_RUNTIME_ERROR);
+  }
+
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::createTableXDB_CE(rtap_db_dict::macros_def_t* dict)
+{
+  MCO_RET rc = MCO_E_UNSUPPORTED;
+  XDB_CE instance;
+  mco_trans_h t;
+  
+  assert(dict);
+
+  do
+  {
+    rc = mco_trans_start(m_impl->getDbHandler(), MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+    if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
+
+    // Очистить прежнее содержимое, если есть
+    rc = XDB_CE_delete_all(t);
+    if (rc) { LOG(ERROR) << "Cleaning VAL_LABEL table, rc=" << rc; break; }
+    
+    for (unsigned int idx=0; idx < dict->size(); idx++)
+    {
+      LOG(INFO) << "[" << idx+1 << "/" << dict->size() << "] Insert XDB_CE: id="
+                << dict->at(idx).id << " '"
+                << dict->at(idx).definition << "'";
+
+      rc = XDB_CE_new(t, &instance);
+      if (rc) { LOG(ERROR) << "Creating CE item, rc=" << rc; break; }
+
+      rc = XDB_CE_macrosId_put(&instance, static_cast<uint2>(dict->at(idx).id));
+      if (rc) { LOG(ERROR) << "Creating 'macrosId', rc=" << rc; break; }
+
+      rc = XDB_CE_CE_put(&instance, dict->at(idx).definition.c_str(),
+                        static_cast<uint2>(dict->at(idx).definition.size()));
+      if (rc) { LOG(ERROR) << "Creating 'definition' item, rc=" << rc; break; }
+
+      rc = XDB_CE_checkpoint(&instance);
+      if (rc) { LOG(ERROR) << "Checkpointing CE, rc=" << rc; break; }
+    }
+
+    rc = mco_trans_commit(t);
+    if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; break; }
+
+  } while (false);
+
+  if (rc)
+  {
+    mco_trans_rollback(t);
+    setError(rtE_RUNTIME_ERROR);
+  }
+
+  return rc;
 }
 
 //
@@ -640,183 +859,221 @@ const Error& DatabaseRtapImpl::Config(rtDbCq& info)
 //
 MCO_RET DatabaseRtapImpl::createPassport(PointInDatabase* point)
 {
-  MCO_RET    rc = MCO_E_UNSUPPORTED;
+  MCO_RET   rc = MCO_E_UNSUPPORTED;
+  autoid_t  passport_id = point->id();
+
+#warning "Продолжить здесь"
 
   switch(point->objclass())
   {
     case TS:  /* 00 */
     point->passport().ts = new rtap_db::TS_passport();
     rc = point->passport().ts->create(point->current_transaction());
+    rc = point->passport().ts->autoid_get(passport_id);
     break;
 
     case TM:  /* 01 */
     point->passport().tm = new rtap_db::TM_passport();
     rc = point->passport().tm->create(point->current_transaction());
+    rc = point->passport().tm->autoid_get(passport_id);
     break;
 
     case TR:  /* 02 */
     point->passport().tr = new rtap_db::TR_passport();
     rc = point->passport().tr->create(point->current_transaction());
+    rc = point->passport().tr->autoid_get(passport_id);
     break;
 
     case TSA: /* 03 */
     point->passport().tsa = new rtap_db::TSA_passport();
     rc = point->passport().tsa->create(point->current_transaction());
+    rc = point->passport().tsa->autoid_get(passport_id);
     break;
 
     case TSC: /* 04 */
     point->passport().tsc = new rtap_db::TSC_passport();
     rc = point->passport().tsc->create(point->current_transaction());
+    rc = point->passport().tsc->autoid_get(passport_id);
     break;
 
     case TC:  /* 05 */
     point->passport().tc = new rtap_db::TC_passport();
     rc = point->passport().tc->create(point->current_transaction());
+    rc = point->passport().tc->autoid_get(passport_id);
     break;
 
     case AL:  /* 06 */
     point->passport().al = new rtap_db::AL_passport();
     rc = point->passport().al->create(point->current_transaction());
+    rc = point->passport().al->autoid_get(passport_id);
     break;
 
     case ICS: /* 07 */
     point->passport().ics = new rtap_db::ICS_passport();
     rc = point->passport().ics->create(point->current_transaction());
+    rc = point->passport().ics->autoid_get(passport_id);
     break;
 
     case ICM: /* 08 */
     point->passport().icm = new rtap_db::ICM_passport();
     rc = point->passport().icm->create(point->current_transaction());
+    rc = point->passport().icm->autoid_get(passport_id);
     break;
 
     case TL:  /* 16 */
     point->passport().tl = new rtap_db::TL_passport();
     rc = point->passport().tl->create(point->current_transaction());
+    rc = point->passport().tl->autoid_get(passport_id);
     break;
 
     case VA:  /* 19 */
     point->passport().valve = new rtap_db::VA_passport();
     rc = point->passport().valve->create(point->current_transaction());
+    rc = point->passport().valve->autoid_get(passport_id);
     break;
 
     case SC:  /* 20 */
     point->passport().sc = new rtap_db::SC_passport();
     rc = point->passport().sc->create(point->current_transaction());
+    rc = point->passport().sc->autoid_get(passport_id);
     break;
 
     case ATC: /* 21 */
     point->passport().atc = new rtap_db::ATC_passport();
     rc = point->passport().atc->create(point->current_transaction());
+    rc = point->passport().atc->autoid_get(passport_id);
     break;
 
     case GRC: /* 22 */
     point->passport().grc = new rtap_db::GRC_passport();
     rc = point->passport().grc->create(point->current_transaction());
+    rc = point->passport().grc->autoid_get(passport_id);
     break;
 
     case SV:  /* 23 */
     point->passport().sv = new rtap_db::SV_passport();
     rc = point->passport().sv->create(point->current_transaction());
+    rc = point->passport().sv->autoid_get(passport_id);
     break;
 
     case SDG: /* 24 */
     point->passport().sdg = new rtap_db::SDG_passport();
     rc = point->passport().sdg->create(point->current_transaction());
+    rc = point->passport().sdg->autoid_get(passport_id);
     break;
 
     case SSDG:/* 26 */
     point->passport().ssdg = new rtap_db::SSDG_passport();
     rc = point->passport().ssdg->create(point->current_transaction());
+    rc = point->passport().ssdg->autoid_get(passport_id);
     break;
 
     case SCP: /* 28 */
     point->passport().scp = new rtap_db::SCP_passport();
     rc = point->passport().scp->create(point->current_transaction());
+    rc = point->passport().scp->autoid_get(passport_id);
     break;
 
     case DIR: /* 30 */
     point->passport().dir = new rtap_db::DIR_passport();
     rc = point->passport().dir->create(point->current_transaction());
+    rc = point->passport().dir->autoid_get(passport_id);
     break;
 
     case DIPL:/* 31 */
     point->passport().dipl = new rtap_db::DIPL_passport();
     rc = point->passport().dipl->create(point->current_transaction());
+    rc = point->passport().dipl->autoid_get(passport_id);
     break;
 
     case METLINE: /* 32 */
     point->passport().metline = new rtap_db::METLINE_passport();
     rc = point->passport().metline->create(point->current_transaction());
+    rc = point->passport().metline->autoid_get(passport_id);
     break;
 
     case ESDG:/* 33 */
     point->passport().esdg = new rtap_db::ESDG_passport();
     rc = point->passport().esdg->create(point->current_transaction());
+    rc = point->passport().esdg->autoid_get(passport_id);
     break;
 
     case SCPLINE: /* 35 */
     point->passport().scpline = new rtap_db::SCPLINE_passport();
     rc = point->passport().scpline->create(point->current_transaction());
+    rc = point->passport().scpline->autoid_get(passport_id);
     break;
 
     case TLLINE:  /* 36 */
     point->passport().tlline = new rtap_db::TLLINE_passport();
     rc = point->passport().tlline->create(point->current_transaction());
+    rc = point->passport().tlline->autoid_get(passport_id);
     break;
 
     case AUX1:/* 38 */
     point->passport().aux1 = new rtap_db::AUX1_passport();
     rc = point->passport().aux1->create(point->current_transaction());
+    rc = point->passport().aux1->autoid_get(passport_id);
     break;
 
     case AUX2:/* 39 */
     point->passport().aux2 = new rtap_db::AUX2_passport();
     rc = point->passport().aux2->create(point->current_transaction());
+    rc = point->passport().aux2->autoid_get(passport_id);
     break;
 
     case SITE:/* 45 */
     point->passport().site = new rtap_db::SITE_passport();
     rc = point->passport().site->create(point->current_transaction());
+    rc = point->passport().site->autoid_get(passport_id);
     break;
 
     case SA:  /* 50 */
     point->passport().sa = new rtap_db::SA_passport();
     rc = point->passport().sa->create(point->current_transaction());
+    rc = point->passport().sa->autoid_get(passport_id);
     break;
 
     case PIPE:/* 11 */
     point->passport().pipe = new rtap_db::PIPE_passport();
     rc = point->passport().pipe->create(point->current_transaction());
+    rc = point->passport().pipe->autoid_get(passport_id);
     break;
 
     case PIPELINE:/* 15 */
     point->passport().pipeline = new rtap_db::PIPELINE_passport();
     rc = point->passport().pipeline->create(point->current_transaction());
+    rc = point->passport().pipeline->autoid_get(passport_id);
     break;
 
     case RGA: /* 25 */
     point->passport().rga = new rtap_db::RGA_passport();
     rc = point->passport().rga->create(point->current_transaction());
+    rc = point->passport().rga->autoid_get(passport_id);
     break;
 
     case BRG: /* 27 */
     point->passport().brg = new rtap_db::BRG_passport();
     rc = point->passport().brg->create(point->current_transaction());
+    rc = point->passport().brg->autoid_get(passport_id);
     break;
 
     case STG: /* 29 */
     point->passport().stg = new rtap_db::STG_passport();
     rc = point->passport().stg->create(point->current_transaction());
+    rc = point->passport().stg->autoid_get(passport_id);
     break;
 
     case SVLINE:  /* 34 */
     point->passport().svline = new rtap_db::SVLINE_passport();
     rc = point->passport().svline->create(point->current_transaction());
+    rc = point->passport().svline->autoid_get(passport_id);
     break;
 
     case INVT:/* 37 */
     point->passport().invt = new rtap_db::INVT_passport();
     rc = point->passport().invt->create(point->current_transaction());
+    rc = point->passport().invt->autoid_get(passport_id);
     break;
 
     // Точки, не имеющие паспорта
@@ -828,6 +1085,8 @@ MCO_RET DatabaseRtapImpl::createPassport(PointInDatabase* point)
     default:
     LOG(ERROR) << "Unknown object class (" << point->objclass() << ") for point";
   }
+
+  point->setPassportId(passport_id);
 
 #if 0
   // Если экземпляр Паспорта был создан, проверить ссылочную целостность
@@ -871,6 +1130,11 @@ MCO_RET DatabaseRtapImpl::createPoint(PointInDatabase* instance)
     //
     // Если статус ошибочный, откатить транзакцию для всей точки
 
+    rc = createTAG(instance, /* NOT USED */instance->attributes()[0]);
+    if (rc) { LOG(ERROR) << "Creating attribute TAG '" << instance->tag() << "'"; break; }
+
+    rc = createOBJCLASS(instance, /* NOT USED */instance->attributes()[0]);
+    if (rc) { LOG(ERROR) << "Creating attribute OBJCLASS:" << (int)instance->objclass(); break; }
 
     // остальные поля необязательные, создавать их по необходимости 
     // ============================================================
@@ -944,6 +1208,7 @@ MCO_RET DatabaseRtapImpl::createTAG(PointInDatabase* instance, rtap_db::Attrib&)
 {
   MCO_RET rc = instance->xdbpoint().TAG_put(instance->tag().c_str(),
                                             static_cast<uint2>(instance->tag().size()));
+//  LOG(INFO) << "creating attr TAG=" << instance->tag()<<", rc="<<rc;
   return rc;
 }
 
@@ -984,11 +1249,27 @@ MCO_RET DatabaseRtapImpl::createSHORTLABEL(PointInDatabase* instance, rtap_db::A
 // По заданной строке UNITY найти ее идентификатор, и подставить в поле UNITY_ID
 MCO_RET DatabaseRtapImpl::createUNITY(PointInDatabase* instance, rtap_db::Attrib& attr)
 {
-//  uint2 unity_id;
+  uint2 unity_id;
+  DICT_UNITY_ID instance_unity;
   MCO_RET rc = MCO_S_OK;
 
-//  rc = instance->xdbpoint().UNITY_ID_get(unity_id);
-//  rc = instance->xdbpoint().UNITY_ID_put(unity_id);
+  do
+  {
+    // Найти instance_unity
+    rc = DICT_UNITY_ID_unityHash_find(instance->current_transaction(),
+        attr.value().c_str(),
+        static_cast<uint2>(attr.value().size()),
+        &instance_unity);
+    if (rc) { LOG(ERROR) << "Locating unity '" << attr.value() << "'"; break; }
+
+    rc = DICT_UNITY_ID_unityID_get(&instance_unity, &unity_id);
+    if (rc) { LOG(ERROR) << "Can't get '" << attr.value() << "' unity id"; break; }
+
+    // LOG(INFO) << "rc=" << rc << " " << attr.value() << "->" << unity_id;
+    rc = instance->xdbpoint().UNITY_ID_put(unity_id);
+    if (rc) { LOG(ERROR) << "Can't put unity id=" << unity_id << " for " << instance->tag(); break; }
+
+  } while (false);
 
   return rc;
 }

@@ -10,8 +10,10 @@
 #ifdef __cplusplus
 extern "C" {
 #include "mco.h"
+# if (EXTREMEDB_VERSION >= 40)
 #include "mcouda.h"  // mco_metadict_header_t
 #include "mcohv.h"   // mcohv_p
+# endif
 #define SETUP_POLICY
 #include "mcoxml.h"
 }

@@ -4,6 +4,7 @@
 
 #include <string>
 #include <map>
+#include <vector>
 #include "config.h"
 
 #ifdef __cplusplus
@@ -16,7 +17,8 @@ extern "C" {
 #endif
 
 #include "dat/rtap_db.hpp"
-#include "dat/rtap_db.hxx" // Структуры-хранилища данных Point
+#include "dat/rtap_db.hxx"      // Структуры-хранилища данных Point
+#include "dat/rtap_db_dict.hxx" // Структуры-хранилища данных НСИ
 #include "xdb_impl_common.h"
 #include "xdb_impl_common.hpp"
 
@@ -88,6 +90,7 @@ class PointInDatabase
     rtap_db::AttibuteList& attributes() { return m_info->attributes(); };
     autoid_t id()          { return m_point_aid; };
     autoid_t passport_id() { return m_passport_aid; };
+    void setPassportId(autoid_t& id) { m_passport_aid = id; };
     MCO_RET  update_references();
     mco_trans_h current_transaction() { return m_transaction_handler; };
     any_passport_t& passport() { return m_passport; };
@@ -225,6 +228,12 @@ class DatabaseRtapImpl
     // Связь между названием атрибута и функцией его создания
     AttrCreationFuncMap_t   m_attr_creation_func_map;
     bool AttrFuncMapInit();
+    // Функции создания таблиц
+    MCO_RET createTable(rtDbCq& info);
+    MCO_RET createTableDICT_TSC_VAL_LABEL(rtap_db_dict::values_labels_t*);
+    MCO_RET createTableDICT_UNITY_ID(rtap_db_dict::unity_labels_t*);
+    MCO_RET createTableXDB_CE(rtap_db_dict::macros_def_t*);
+
     // Взято перечень атрибутов из rtap_db.xsd
     MCO_RET createTAG        (PointInDatabase*, rtap_db::Attrib&);
     MCO_RET createOBJCLASS   (PointInDatabase*, rtap_db::Attrib&);

@@ -16,21 +16,37 @@
 	<rtdb_dict:UnityDimension>KUoC</rtdb_dict:UnityDimension>
 	<rtdb_dict:UnityId>1</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>С</rtdb_dict:UnityLabel>
-	<rtdb_dict:UnityDesignation>Температура воздуха</rtdb_dict:UnityDesignation>
+	<rtdb_dict:UnityDesignation>Температура</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
 
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>2</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUatm</rtdb_dict:UnityDimension>
 	<rtdb_dict:UnityId>2</rtdb_dict:UnityId>
+	<rtdb_dict:UnityLabel>атм</rtdb_dict:UnityLabel>
+	<rtdb_dict:UnityDesignation>Давление атмосферное</rtdb_dict:UnityDesignation>
+</rtdb_dict:UNITY_LABEL>
+
+<rtdb_dict:UNITY_LABEL>
+	<rtdb_dict:UnityDimensionId>2</rtdb_dict:UnityDimensionId>
+	<rtdb_dict:UnityDimension>KUata</rtdb_dict:UnityDimension>
+	<rtdb_dict:UnityId>3</rtdb_dict:UnityId>
+	<rtdb_dict:UnityLabel>ата</rtdb_dict:UnityLabel>
+	<rtdb_dict:UnityDesignation>Давление абсолютное</rtdb_dict:UnityDesignation>
+</rtdb_dict:UNITY_LABEL>
+
+<rtdb_dict:UNITY_LABEL>
+	<rtdb_dict:UnityDimensionId>2</rtdb_dict:UnityDimensionId>
+	<rtdb_dict:UnityDimension>KUati</rtdb_dict:UnityDimension>
+	<rtdb_dict:UnityId>4</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>ати</rtdb_dict:UnityLabel>
-	<rtdb_dict:UnityDesignation>Давление</rtdb_dict:UnityDesignation>
+	<rtdb_dict:UnityDesignation>Давление избыточное</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
 
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>2</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUkgf/cm2</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>3</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>5</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>кгс/см2</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Давление</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -38,15 +54,47 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>2</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUkg/cm2</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>4</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>6</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>кг/cм2</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Давление</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
 
 <rtdb_dict:UNITY_LABEL>
+	<rtdb_dict:UnityDimensionId>2</rtdb_dict:UnityDimensionId>
+	<rtdb_dict:UnityDimension>KUH/m2</rtdb_dict:UnityDimension>
+	<rtdb_dict:UnityId>7</rtdb_dict:UnityId>
+	<rtdb_dict:UnityLabel>Па</rtdb_dict:UnityLabel>
+	<rtdb_dict:UnityDesignation>Давление</rtdb_dict:UnityDesignation>
+</rtdb_dict:UNITY_LABEL>
+
+<rtdb_dict:UNITY_LABEL>
+	<rtdb_dict:UnityDimensionId>2</rtdb_dict:UnityDimensionId>
+	<rtdb_dict:UnityDimension>KUkH/m2</rtdb_dict:UnityDimension>
+	<rtdb_dict:UnityId>8</rtdb_dict:UnityId>
+	<rtdb_dict:UnityLabel>кПа</rtdb_dict:UnityLabel>
+	<rtdb_dict:UnityDesignation>Давление</rtdb_dict:UnityDesignation>
+</rtdb_dict:UNITY_LABEL>
+
+<rtdb_dict:UNITY_LABEL>
+	<rtdb_dict:UnityDimensionId>2</rtdb_dict:UnityDimensionId>
+	<rtdb_dict:UnityDimension>KUMH/m2</rtdb_dict:UnityDimension>
+	<rtdb_dict:UnityId>9</rtdb_dict:UnityId>
+	<rtdb_dict:UnityLabel>МПа</rtdb_dict:UnityLabel>
+	<rtdb_dict:UnityDesignation>Давление</rtdb_dict:UnityDesignation>
+</rtdb_dict:UNITY_LABEL>
+
+<rtdb_dict:UNITY_LABEL>
+	<rtdb_dict:UnityDimensionId>2</rtdb_dict:UnityDimensionId>
+	<rtdb_dict:UnityDimension>KUkg/m2</rtdb_dict:UnityDimension>
+	<rtdb_dict:UnityId>10</rtdb_dict:UnityId>
+	<rtdb_dict:UnityLabel>кг/м2</rtdb_dict:UnityLabel>
+	<rtdb_dict:UnityDesignation>Дифференциальное давление</rtdb_dict:UnityDesignation>
+</rtdb_dict:UNITY_LABEL>
+
+<rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>3</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUMm3/d</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>5</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>11</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>млн.м3/сут</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Расход</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -54,7 +102,7 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>3</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUkg/h</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>6</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>12</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>кг/ч</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Расход</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -62,7 +110,7 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>3</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUkg/mn</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>7</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>13</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>кг/мин</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Расход</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -70,7 +118,7 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>3</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUkm3/d</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>8</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>14</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>тыс.м3/сут</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Расход</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -78,7 +126,7 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>3</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUkm3/d</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>9</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>15</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>км3/сут</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Расход</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -86,7 +134,7 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>3</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUkm3/h</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>10</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>16</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>тыс.м3/ч</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Расход</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -94,7 +142,7 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>3</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUkm3/h</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>11</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>17</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>км3/ч</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Расход</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -102,7 +150,7 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>3</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUm3/h</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>12</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>18</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>м3/ч</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Расход</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -110,111 +158,39 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>3</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUkm3</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>13</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>19</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>тыс.м3</rtdb_dict:UnityLabel>
-	<rtdb_dict:UnityDesignation>Расход</rtdb_dict:UnityDesignation>
+	<rtdb_dict:UnityDesignation>Объем</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
 
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>3</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUkm3</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>14</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>20</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>км3</rtdb_dict:UnityLabel>
-	<rtdb_dict:UnityDesignation>Расход</rtdb_dict:UnityDesignation>
+	<rtdb_dict:UnityDesignation>Объем</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
 
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>3</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUm3</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>15</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>21</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>м3</rtdb_dict:UnityLabel>
-	<rtdb_dict:UnityDesignation>Расход</rtdb_dict:UnityDesignation>
-</rtdb_dict:UNITY_LABEL>
-
-<rtdb_dict:UNITY_LABEL>
-	<rtdb_dict:UnityDimensionId>4</rtdb_dict:UnityDimensionId>
-	<rtdb_dict:UnityDimension>KUkgf/cm2</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>16</rtdb_dict:UnityId>
-	<rtdb_dict:UnityLabel>кгс/см2</rtdb_dict:UnityLabel>
-	<rtdb_dict:UnityDesignation>Дифференциальное давление газа</rtdb_dict:UnityDesignation>
-</rtdb_dict:UNITY_LABEL>
-
-<rtdb_dict:UNITY_LABEL>
-	<rtdb_dict:UnityDimensionId>4</rtdb_dict:UnityDimensionId>
-	<rtdb_dict:UnityDimension>KUkg/cm2</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>17</rtdb_dict:UnityId>
-	<rtdb_dict:UnityLabel>кг/см2</rtdb_dict:UnityLabel>
-	<rtdb_dict:UnityDesignation>Дифференциальное давление газа</rtdb_dict:UnityDesignation>
-</rtdb_dict:UNITY_LABEL>
-
-<rtdb_dict:UNITY_LABEL>
-	<rtdb_dict:UnityDimensionId>4</rtdb_dict:UnityDimensionId>
-	<rtdb_dict:UnityDimension>KUkg/m2</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>18</rtdb_dict:UnityId>
-	<rtdb_dict:UnityLabel>кг/м2</rtdb_dict:UnityLabel>
-	<rtdb_dict:UnityDesignation>Дифференциальное давление газа</rtdb_dict:UnityDesignation>
-</rtdb_dict:UNITY_LABEL>
-
-<rtdb_dict:UNITY_LABEL>
-	<rtdb_dict:UnityDimensionId>4</rtdb_dict:UnityDimensionId>
-	<rtdb_dict:UnityDimension>KUkPa</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>19</rtdb_dict:UnityId>
-	<rtdb_dict:UnityLabel>кПа</rtdb_dict:UnityLabel>
-	<rtdb_dict:UnityDesignation>Давление газа</rtdb_dict:UnityDesignation>
-</rtdb_dict:UNITY_LABEL>
-
-<rtdb_dict:UNITY_LABEL>
-	<rtdb_dict:UnityDimensionId>4</rtdb_dict:UnityDimensionId>
-	<rtdb_dict:UnityDimension>KUMPa</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>20</rtdb_dict:UnityId>
-	<rtdb_dict:UnityLabel>MПа</rtdb_dict:UnityLabel>
-	<rtdb_dict:UnityDesignation>Давление газа</rtdb_dict:UnityDesignation>
+	<rtdb_dict:UnityDesignation>Объем</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
 
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>5</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUrpm</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>21</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>22</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>об/мин</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Скорость вращения</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
 
 <rtdb_dict:UNITY_LABEL>
-	<rtdb_dict:UnityDimensionId>6</rtdb_dict:UnityDimensionId>
-	<rtdb_dict:UnityDimension>KUkm3/h</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>22</rtdb_dict:UnityId>
-	<rtdb_dict:UnityLabel>тыс.м3/ч</rtdb_dict:UnityLabel>
-	<rtdb_dict:UnityDesignation>Объем газа</rtdb_dict:UnityDesignation>
-</rtdb_dict:UNITY_LABEL>
-
-<rtdb_dict:UNITY_LABEL>
-	<rtdb_dict:UnityDimensionId>6</rtdb_dict:UnityDimensionId>
-	<rtdb_dict:UnityDimension>KUkm3/h</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>23</rtdb_dict:UnityId>
-	<rtdb_dict:UnityLabel>км3/ч</rtdb_dict:UnityLabel>
-	<rtdb_dict:UnityDesignation>Объем газа</rtdb_dict:UnityDesignation>
-</rtdb_dict:UNITY_LABEL>
-
-<rtdb_dict:UNITY_LABEL>
-	<rtdb_dict:UnityDimensionId>7</rtdb_dict:UnityDimensionId>
-	<rtdb_dict:UnityDimension>KUoC</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>24</rtdb_dict:UnityId>
-	<rtdb_dict:UnityLabel>С</rtdb_dict:UnityLabel>
-	<rtdb_dict:UnityDesignation>Температура газа</rtdb_dict:UnityDesignation>
-</rtdb_dict:UNITY_LABEL>
-
-<rtdb_dict:UNITY_LABEL>
-	<rtdb_dict:UnityDimensionId>8</rtdb_dict:UnityDimensionId>
-	<rtdb_dict:UnityDimension>KUkg/cm2</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>25</rtdb_dict:UnityId>
-	<rtdb_dict:UnityLabel>кг/см2</rtdb_dict:UnityLabel>
-	<rtdb_dict:UnityDesignation>Атмосферное давление</rtdb_dict:UnityDesignation>
-</rtdb_dict:UNITY_LABEL>
-
-<rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>8</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUmm.col.mer</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>26</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>23</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>мм.рт.ст</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Атмосферное давление</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -222,7 +198,7 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>9</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUkV</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>27</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>24</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>kВ</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Напряжение</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -230,7 +206,7 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>9</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUV</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>28</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>25</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>В</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Напряжение</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -238,39 +214,48 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>10</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUmm/s</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>29</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>26</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>мм/с</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Виброскорость</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
 
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>11</rtdb_dict:UnityDimensionId>
+	<rtdb_dict:UnityDimension>KUW</rtdb_dict:UnityDimension>
+	<rtdb_dict:UnityId>27</rtdb_dict:UnityId>
+	<rtdb_dict:UnityLabel>Вт</rtdb_dict:UnityLabel>
+	<rtdb_dict:UnityDesignation>Мощность</rtdb_dict:UnityDesignation>
+</rtdb_dict:UNITY_LABEL>
+
+<rtdb_dict:UNITY_LABEL>
+	<rtdb_dict:UnityDimensionId>11</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUMW</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>30</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>28</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>МВт</rtdb_dict:UnityLabel>
-	<rtdb_dict:UnityDesignation>Энергия</rtdb_dict:UnityDesignation>
+	<rtdb_dict:UnityDesignation>Мощность</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
 
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>12</rtdb_dict:UnityDimensionId>
-	<rtdb_dict:UnityDimension>KUoC</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>31</rtdb_dict:UnityId>
-	<rtdb_dict:UnityLabel>С</rtdb_dict:UnityLabel>
-	<rtdb_dict:UnityDesignation>Температура воды</rtdb_dict:UnityDesignation>
+	<rtdb_dict:UnityDimension>KUW*s</rtdb_dict:UnityDimension>
+	<rtdb_dict:UnityId>29</rtdb_dict:UnityId>
+	<rtdb_dict:UnityLabel>Дж</rtdb_dict:UnityLabel>
+	<rtdb_dict:UnityDesignation>Энергия</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
 
+
 <rtdb_dict:UNITY_LABEL>
-	<rtdb_dict:UnityDimensionId>13</rtdb_dict:UnityDimensionId>
-	<rtdb_dict:UnityDimension>KUoC</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>32</rtdb_dict:UnityId>
-	<rtdb_dict:UnityLabel>С</rtdb_dict:UnityLabel>
-	<rtdb_dict:UnityDesignation>Температура почвы</rtdb_dict:UnityDesignation>
+	<rtdb_dict:UnityDimensionId>12</rtdb_dict:UnityDimensionId>
+	<rtdb_dict:UnityDimension>KUMW*s</rtdb_dict:UnityDimension>
+	<rtdb_dict:UnityId>30</rtdb_dict:UnityId>
+	<rtdb_dict:UnityLabel>МДж</rtdb_dict:UnityLabel>
+	<rtdb_dict:UnityDesignation>Энергия</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
 
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>14</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUMWh/d</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>33</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>31</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>МВтч/сут</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Электрическая мощность</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -278,23 +263,15 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>14</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUkW</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>34</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>32</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>кВт</rtdb_dict:UnityLabel>
-	<rtdb_dict:UnityDesignation>Электрическая мощность</rtdb_dict:UnityDesignation>
-</rtdb_dict:UNITY_LABEL>
-
-<rtdb_dict:UNITY_LABEL>
-	<rtdb_dict:UnityDimensionId>14</rtdb_dict:UnityDimensionId>
-	<rtdb_dict:UnityDimension>KUMW</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>35</rtdb_dict:UnityId>
-	<rtdb_dict:UnityLabel>МВт</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Электрическая мощность</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
 
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>15</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUA</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>36</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>33</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>А</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Сила тока</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -302,7 +279,7 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>16</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUHz</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>37</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>34</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>Гц</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Частота</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -310,7 +287,7 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>16</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUkHz</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>38</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>35</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>kГц</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Частота</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -318,7 +295,7 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>16</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUMHz</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>39</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>36</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>MГц</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Частота</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -326,7 +303,7 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>17</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUmm</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>40</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>37</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>мм</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Длина</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -334,7 +311,7 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>17</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUm</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>41</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>38</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>м</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Длина</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -342,7 +319,7 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>17</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUkm</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>42</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>39</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>тыс.м</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Длина</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -350,7 +327,7 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>17</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUkm</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>43</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>40</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>км</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Длина</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -358,7 +335,7 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>18</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUkg/m3</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>44</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>41</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>кг/м3</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Плотность</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -366,7 +343,7 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>19</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUh</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>45</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>42</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>ч</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Время</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -374,7 +351,7 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>20</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUkCal/m3</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>46</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>43</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>кКал/м3</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Теплота сгорания</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -382,7 +359,7 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>20</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUME/m3</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>47</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>44</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>МДж/м3</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Теплота сгорания</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -390,7 +367,7 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>20</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUkCal</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>48</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>45</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>кКал</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Теплота сгорания</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -398,31 +375,15 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>21</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUkCal/(kg*oC)</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>49</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>46</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>кКал/(кг*С)</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Теплоемкость</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
 
 <rtdb_dict:UNITY_LABEL>
-	<rtdb_dict:UnityDimensionId>22</rtdb_dict:UnityDimensionId>
-	<rtdb_dict:UnityDimension>KUoC</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>50</rtdb_dict:UnityId>
-	<rtdb_dict:UnityLabel>С</rtdb_dict:UnityLabel>
-	<rtdb_dict:UnityDesignation>Температура Оборудования</rtdb_dict:UnityDesignation>
-</rtdb_dict:UNITY_LABEL>
-
-<rtdb_dict:UNITY_LABEL>
-	<rtdb_dict:UnityDimensionId>23</rtdb_dict:UnityDimensionId>
-	<rtdb_dict:UnityDimension>KUoC</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>51</rtdb_dict:UnityId>
-	<rtdb_dict:UnityLabel>С</rtdb_dict:UnityLabel>
-	<rtdb_dict:UnityDesignation>Температура Масла</rtdb_dict:UnityDesignation>
-</rtdb_dict:UNITY_LABEL>
-
-<rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>24</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUMW/Mm3</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>52</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>47</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>МВт/млн.м3</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Удельный Расход Электроэнергии</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -430,7 +391,7 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>25</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUmol</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>53</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>48</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>молярн.%</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Содержание вещества</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -438,31 +399,15 @@
 <rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>27</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KUkBap</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>54</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>49</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>kВap</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Реактивная мощность</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
 
 <rtdb_dict:UNITY_LABEL>
-	<rtdb_dict:UnityDimensionId>28</rtdb_dict:UnityDimensionId>
-	<rtdb_dict:UnityDimension>KUoC</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>55</rtdb_dict:UnityId>
-	<rtdb_dict:UnityLabel>С</rtdb_dict:UnityLabel>
-	<rtdb_dict:UnityDesignation>Температура Оборудования</rtdb_dict:UnityDesignation>
-</rtdb_dict:UNITY_LABEL>
-
-<rtdb_dict:UNITY_LABEL>
-	<rtdb_dict:UnityDimensionId>29</rtdb_dict:UnityDimensionId>
-	<rtdb_dict:UnityDimension>KUoC</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>56</rtdb_dict:UnityId>
-	<rtdb_dict:UnityLabel>С</rtdb_dict:UnityLabel>
-	<rtdb_dict:UnityDesignation>Температура Масла</rtdb_dict:UnityDesignation>
-</rtdb_dict:UNITY_LABEL>
-
-<rtdb_dict:UNITY_LABEL>
 	<rtdb_dict:UnityDimensionId>30</rtdb_dict:UnityDimensionId>
 	<rtdb_dict:UnityDimension>KU%</rtdb_dict:UnityDimension>
-	<rtdb_dict:UnityId>57</rtdb_dict:UnityId>
+	<rtdb_dict:UnityId>50</rtdb_dict:UnityId>
 	<rtdb_dict:UnityLabel>%</rtdb_dict:UnityLabel>
 	<rtdb_dict:UnityDesignation>Процент</rtdb_dict:UnityDesignation>
 </rtdb_dict:UNITY_LABEL>
@@ -567,7 +512,7 @@
 </rtdb_dict:VAL_LABEL>
 <rtdb_dict:VAL_LABEL>
 	<rtdb_dict:ObjClass>22</rtdb_dict:ObjClass>
-	<rtdb_dict:Val>6</rtdb_dict:Val>
+	<rtdb_dict:Val>10</rtdb_dict:Val>
     <rtdb_dict:ValueLabel>Недостоверно</rtdb_dict:ValueLabel>
 </rtdb_dict:VAL_LABEL>
 
@@ -603,7 +548,7 @@
 </rtdb_dict:VAL_LABEL>
 <rtdb_dict:VAL_LABEL>
 	<rtdb_dict:ObjClass>35</rtdb_dict:ObjClass>
-	<rtdb_dict:Val>1</rtdb_dict:Val>
+	<rtdb_dict:Val>2</rtdb_dict:Val>
 	<rtdb_dict:ValueLabel>Останов</rtdb_dict:ValueLabel>
 </rtdb_dict:VAL_LABEL>
 
@@ -615,7 +560,7 @@
 </rtdb_dict:VAL_LABEL>
 <rtdb_dict:VAL_LABEL>
 	<rtdb_dict:ObjClass>38</rtdb_dict:ObjClass>
-	<rtdb_dict:Val>1</rtdb_dict:Val>
+	<rtdb_dict:Val>2</rtdb_dict:Val>
 	<rtdb_dict:ValueLabel>Останов</rtdb_dict:ValueLabel>
 </rtdb_dict:VAL_LABEL>
 
@@ -657,6 +602,11 @@
     <xs:enumeration value="Выкл.ручной"/>
 -->
 
+<!-- Вычислительные машинки -->
+<rtdb_dict:CE_ITEM>
+	<rtdb_dict:Id>1</rtdb_dict:Id>
+	<rtdb_dict:CE>EXAMPLE_FORMULA(1,2,3)</rtdb_dict:CE>
+</rtdb_dict:CE_ITEM>
 
 
 
