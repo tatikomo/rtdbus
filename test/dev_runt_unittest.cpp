@@ -31,6 +31,9 @@ const char *attributes_connection_to_broker = (const char*) "tcp://localhost:555
 const char *BROKER_SNAP_FILE = (const char*) "broker_db.snap";
 const char *RTAP_SNAP_FILE = (const char*) "SINF.snap";
 
+bool  broker_ready_sign = false;
+bool  worker_ready_sign = false;
+
 /*
  * Прототипы функций
  */
@@ -206,11 +209,18 @@ worker_task (void* /*args*/)
   int verbose = 1;
 
   LOG(INFO) << "Start worker thread";
+  worker_ready_sign = false;
+  sleep(1); // delme
+
   try
   {
     mdp::Digger *engine = new mdp::Digger(attributes_connection_to_broker,
                                 service_name.c_str(),
                                 verbose);
+
+    // Обозначить завершение своей инициализации
+    worker_ready_sign = true;
+
     while (!s_interrupted) 
     {
        std::string *reply_to = new std::string;
@@ -256,6 +266,9 @@ broker_task (void* /*args*/)
   mdp::Broker *broker = NULL;
 
   LOG(INFO) << "Start broker thread";
+  broker_ready_sign = false;
+  sleep(1);
+
   try
   {
      s_version_assert (3, 2);
@@ -266,6 +279,9 @@ broker_task (void* /*args*/)
       * что удобно для мониторинга wireshark-ом.
       */
      broker->bind ("tcp://*:5555");
+
+     // Обозначить завершение своей инициализации
+     broker_ready_sign = true;
 
      broker->start_brokering();
   }
@@ -293,18 +309,51 @@ TEST(TestProxy, BROKER_RUNTIME)
   pthread_t broker;
   pthread_t worker;
   pthread_t client;
+  time_t    broker_ready_time;
+  time_t    worker_ready_time;
+  time_t    time_now;
 
   unlink(BROKER_SNAP_FILE);
   unlink(RTAP_SNAP_FILE);
 
   LOG(INFO) << "TestProxy BROKER_RUNTIME start";
+
   /* Создать экземпляр Брокера */
   pthread_create (&broker, NULL, broker_task, NULL);
-  usleep(100000);
+
+  // Прождать три секунды до инициализации Брокера
+  time_now = time(0);
+  broker_ready_sign = false;
+  broker_ready_time = time_now + 300; // Таймаут инициализации 3 секунды
+
+  fputs("\nStarting broker: ", stdout);
+  while ((time_now < broker_ready_time) && (!broker_ready_sign))
+  {
+   usleep(100000);
+   putchar('.');
+   time_now = time(0);
+  }
+  puts("");
+
+  if (!broker_ready_sign)
+  {
+    LOG(ERROR) << "Broker doesn't get ready for a 3 seconds, exiting";
+    exit(1);
+  }
 
   /* Создать одного Обработчика Службы NYSE */
   pthread_create (&worker, NULL, worker_task, NULL);
-  usleep(100000);
+  time_now = time(0);
+  worker_ready_sign = false;
+  worker_ready_time = time_now + 300; // Таймаут инициализации 3 секунды
+  fputs("\nStarting worker: ", stdout);
+  while ((time_now < worker_ready_time) && (!worker_ready_sign))
+  {
+   usleep(100000);
+   putchar('.');
+   time_now = time(0);
+  }
+  puts("");
 
   /* Создать одного клиента Службы NYSE */
   pthread_create (&client, NULL, client_task, NULL);
