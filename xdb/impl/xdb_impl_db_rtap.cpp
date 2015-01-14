@@ -45,11 +45,78 @@ using namespace xdb;
  */
 #include "dat/rtap_db.hpp"
 
+/* helper function to print an XML schema */
+# if (EXTREMEDB_VERSION <= 40)
+mco_size_t file_writer(void* stream_handle, const void* from, mco_size_t nbytes)
+# else
+mco_size_sig_t file_writer(void* stream_handle, const void* from, mco_size_t nbytes)
+# endif
+{
+  return (mco_size_t) fwrite(from, 1, nbytes, (FILE*) stream_handle);
+}
+
 typedef union
 {
   uint8 common;
   uint4 part[2];
 } datetime_t;
+
+typedef MCO_RET (*schema_f) (mco_trans_h, void*, mco_stream_write);
+// ===============================================================================
+// Взято из 'xdb/impl/dat/rtap_db.h'
+// Результат выполнения "grep _xml_schema rtap_db.h|wc -l" равен 47 (10.11.2014)
+const int ALL_TYPES_COUNT = 47;
+schema_f ALL_TYPES_LIST[] = {
+  XDBPoint_xml_schema,
+  DICT_TSC_VAL_LABEL_xml_schema,
+  DICT_OBJCLASS_CODE_xml_schema,
+  DICT_SIMPLE_TYPE_xml_schema,
+  DICT_UNITY_ID_xml_schema,
+  XDB_CE_xml_schema,
+  ALARM_xml_schema,
+  A_HIST_xml_schema,
+  D_HIST_xml_schema,
+  LISTACD_xml_schema,
+  LISTACT_xml_schema,
+  XDBPoint_xml_schema,
+  TS_passport_xml_schema,
+  TM_passport_xml_schema,
+  TR_passport_xml_schema,
+  TSA_passport_xml_schema,
+  TSC_passport_xml_schema,
+  TC_passport_xml_schema,
+  AL_passport_xml_schema,
+  ICS_passport_xml_schema,
+  ICM_passport_xml_schema,
+  PIPE_passport_xml_schema,
+  PIPELINE_passport_xml_schema,
+  TL_passport_xml_schema,
+  SC_passport_xml_schema,
+  ATC_passport_xml_schema,
+  GRC_passport_xml_schema,
+  SV_passport_xml_schema,
+  SDG_passport_xml_schema,
+  RGA_passport_xml_schema,
+  SSDG_passport_xml_schema,
+  BRG_passport_xml_schema,
+  SCP_passport_xml_schema,
+  STG_passport_xml_schema,
+  METLINE_passport_xml_schema,
+  ESDG_passport_xml_schema,
+  SVLINE_passport_xml_schema,
+  SCPLINE_passport_xml_schema,
+  TLLINE_passport_xml_schema,
+  DIR_passport_xml_schema,
+  DIPL_passport_xml_schema,
+  INVT_passport_xml_schema,
+  AUX1_passport_xml_schema,
+  AUX2_passport_xml_schema,
+  SA_passport_xml_schema,
+  SITE_passport_xml_schema,
+  FIXEDPOINT_passport_xml_schema,
+  VA_passport_xml_schema,
+  NULL
+};
 
 PointInDatabase::PointInDatabase(rtap_db::Point* info)
     : m_rc(MCO_S_OK), m_info(info)
@@ -487,9 +554,51 @@ MCO_RET DatabaseRtapImpl::RegisterEvents()
   return rc;
 }
 
+// ------------------------------------------------------------
+// Сохранить XML Scheme БДРВ
+// ------------------------------------------------------------
+void DatabaseRtapImpl::GenerateXSD()
+{
+  MCO_RET rc = MCO_S_OK;
+
+  mco_trans_h t;
+  FILE *f;
+  static char fname[150];
+
+  strcpy(fname, m_impl->getName());
+  strcat(fname, ".xsd");
+
+  f = fopen(fname, "w");
+  if (f)
+  {
+    /* print out XML Schema for different classes */
+    rc = mco_trans_start(m_impl->getDbHandler(), MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
+    if ( MCO_S_OK == rc )
+    {
+      size_t i = 0;
+      do
+      {
+        (*ALL_TYPES_LIST[i++])(t, f, file_writer);
+      } 
+      while (ALL_TYPES_LIST[i]);
+
+      LOG(INFO) << "XSD Schema store successfully";
+    }
+    mco_trans_rollback(t);
+    fclose(f);
+  }
+  else
+  {
+    LOG(INFO) << "Unable to save XSD Schema info " << fname;
+  }
+}
+
 /* Тестовый API сохранения базы */
 bool DatabaseRtapImpl::MakeSnapshot(const char* msg)
 {
+  // Сохранить структуру БД
+  GenerateXSD();
+  // Сохранить содержимое БД
   return (m_impl->SaveAsXML(NULL, msg)).Ok();
 }
 
@@ -768,7 +877,7 @@ MCO_RET DatabaseRtapImpl::createTableDICT_UNITY_ID(rtap_db_dict::unity_labels_t*
                                               static_cast<uint2>(dict->at(idx).unity_entry.size()));
       if (rc) { LOG(ERROR) << "Creating 'unity_entry item', rc=" << rc; break; }
 
-      rc = DICT_UNITY_ID_designation_entry_put(&instance, dict->at(idx).unity_entry.c_str(),
+      rc = DICT_UNITY_ID_designation_entry_put(&instance, dict->at(idx).designation_entry.c_str(),
                                               static_cast<uint2>(dict->at(idx).designation_entry.size()));
       if (rc) { LOG(ERROR) << "Creating 'designation_entry', rc=" << rc; break; }
 
@@ -1208,7 +1317,6 @@ MCO_RET DatabaseRtapImpl::createTAG(PointInDatabase* instance, rtap_db::Attrib&)
 {
   MCO_RET rc = instance->xdbpoint().TAG_put(instance->tag().c_str(),
                                             static_cast<uint2>(instance->tag().size()));
-//  LOG(INFO) << "creating attr TAG=" << instance->tag()<<", rc="<<rc;
   return rc;
 }
 
@@ -1242,7 +1350,7 @@ MCO_RET DatabaseRtapImpl::createSTATUS(PointInDatabase* instance, rtap_db::Attri
 MCO_RET DatabaseRtapImpl::createSHORTLABEL(PointInDatabase* instance, rtap_db::Attrib& attr)
 {
   MCO_RET rc = instance->xdbpoint().SHORTLABEL_put(attr.value().c_str(),
-                                                   static_cast<uint2>(attr.value().size()));
+                                                   static_cast<uint2>(attr.value().size())); 
   return rc;
 }
 

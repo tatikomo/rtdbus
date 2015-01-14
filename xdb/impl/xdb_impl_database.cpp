@@ -307,7 +307,7 @@ mco_db_h DatabaseImpl::getDbHandler()
 /* NB: Сначала Инициализация runtime (Init), потом Подключение (Connect) */
 const Error& DatabaseImpl::Init()
 {
-    MCO_RET rc;
+    MCO_RET rc = MCO_S_OK;
     mco_runtime_info_t info;
 
     clearError();
@@ -327,6 +327,17 @@ const Error& DatabaseImpl::Init()
     m_count++;
     LOG(INFO) << "mco_runtime_start '" << m_name << "' " << m_count;
 
+    mco_get_runtime_info(&info);
+    if (!info.mco_save_load_supported)
+    {
+      LOG(WARNING) << "XML import/export doesn't supported by runtime";
+      m_save_to_xml_feature = false;
+    }
+    else
+    {
+      m_save_to_xml_feature = true;
+    }
+
     if (rc)
     {
       TransitionToState(DB_STATE_UNINITIALIZED);
@@ -340,17 +351,6 @@ const Error& DatabaseImpl::Init()
     }
     else
     {
-      mco_get_runtime_info(&info);
-      if (!info.mco_save_load_supported)
-      {
-          LOG(WARNING) << "XML import/export doesn't supported by runtime";
-          m_save_to_xml_feature = false;
-      }
-      else
-      {
-          m_save_to_xml_feature = true;
-      }
-
       if (!info.mco_shm_supported)
       {
           LOG(WARNING) << "This program requires shared memory database runtime";
@@ -626,9 +626,11 @@ const Error& DatabaseImpl::SaveAsXML(const char* given_file_name, const char *ms
 // Установка общих значимых полей для эксорта/импорта данных в XML
 void DatabaseImpl::setupPolicy(mco_xml_policy_t& policy)
 {
-  policy.blob_coding = MCO_TEXT_BINHEX; //MCO_TEXT_BASE64;
+  policy.blob_coding = MCO_TEXT_BASE64; //MCO_TEXT_BINHEX
+  // encode line feeds
   policy.encode_lf   = MCO_YES;
-  policy.encode_nat  = MCO_YES; //MCO_NO; /* MCO_YES ПРИВЕДЕТ К ЧИСЛОВОЙ КОДИРОВКЕ РУССКИХ БУКВ */
+  // encode national chars, MCO_YES ПРИВЕДЕТ К ЧИСЛОВОЙ КОДИРОВКЕ РУССКИХ БУКВ
+  policy.encode_nat  = MCO_NO;
   policy.encode_spec = MCO_YES;
   policy.float_format= MCO_FLOAT_FIXED;
   policy.ignore_field= MCO_YES;
@@ -779,6 +781,21 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
   clearError();
   fname[0] = '\0';
 
+  if (given_file_name)
+  {
+    if (strlen(given_file_name) > sizeof(fname))
+    {
+      LOG(ERROR) << "Given snapshot filename is exceed limits ("<<sizeof(fname)<<")";
+    }
+    strncpy(fname, given_file_name, sizeof(fname));
+    fname[sizeof(fname)-1] = '\0';
+  }
+  else
+  {
+    strcpy(fname, m_name);
+    strcat(fname, ".snap");
+  }
+
 #if EXTREMEDB_VERSION >= 40
   do
   {
@@ -787,21 +804,6 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
       LOG(ERROR) << "Unable to clean '"<<m_name<<"' database content";
       setError(rtE_RUNTIME_FATAL);
       break;
-    }
-
-    if (given_file_name)
-    {
-      if (strlen(given_file_name) > sizeof(fname))
-      {
-        LOG(ERROR) << "Given snapshot filename is exceed limits ("<<sizeof(fname)<<")";
-      }
-      strncpy(fname, given_file_name, sizeof(fname));
-      fname[sizeof(fname)-1] = '\0';
-    }
-    else
-    {
-      strcpy(fname, m_name);
-      strcat(fname, ".snap");
     }
 
     if (NULL == (fbak = fopen(fname, "rb")))
@@ -832,6 +834,9 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
 #endif
 
   } while (false);
+#else
+  // Не можем читать двоичный дамп, попробуем XML
+  setError(rtE_SNAPSHOT_READ);
 #endif
 
   // Если не удалось восстановить данные из двоичного снимка
@@ -840,7 +845,7 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
     strcat(fname, ".xml");
     // Загрузить данные из XML формата eXtremeDB
     LoadFromXML(fname);
-    if (getLastError().Ok())
+    if (!getLastError().Ok())
     {
       LOG(ERROR) << "Unable to read data from XML initial snap";
     }

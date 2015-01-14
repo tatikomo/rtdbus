@@ -223,7 +223,11 @@ class DatabaseRtapImpl
     static MCO_RET del_Point(mco_trans_h, XDBPoint*, MCO_EVENT_TYPE, void*);
 
     // Подключиться к БД, а при ее отсутствии - создать
-    bool  AttachToInstance();
+    bool AttachToInstance();
+
+    // ------------------------------------------------------------
+    // Сохранить XML Scheme БДРВ
+    void GenerateXSD();
 
     // Связь между названием атрибута и функцией его создания
     AttrCreationFuncMap_t   m_attr_creation_func_map;

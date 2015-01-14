@@ -26,71 +26,6 @@
 using namespace xdb;
 using namespace xercesc;
 
-/* helper function to print an XML schema */
-# if (EXTREMEDB_VERSION <= 40)
-mco_size_t file_writer(void* stream_handle, const void* from, mco_size_t nbytes)
-# else
-mco_size_sig_t file_writer(void* stream_handle, const void* from, mco_size_t nbytes)
-# endif
-{
-  return (mco_size_t) fwrite(from, 1, nbytes, (FILE*) stream_handle);
-}
-
-typedef MCO_RET (*schema_f) (mco_trans_h, void*, mco_stream_write);
-// ===============================================================================
-// Взято из 'xdb/impl/dat/rtap_db.hpp'
-// Результат выполнения "grep _xml_schema rtap_db.hpp|wc -l" равен 47 (10.11.2014)
-schema_f ALL_TYPES_LIST[] = {
-  XDBPoint_xml_schema,
-  DICT_TSC_VAL_LABEL_xml_schema,
-  DICT_OBJCLASS_CODE_xml_schema,
-  DICT_SIMPLE_TYPE_xml_schema,
-  DICT_UNITY_ID_xml_schema,
-  XDB_CE_xml_schema,
-  ALARM_xml_schema,
-  A_HIST_xml_schema,
-  D_HIST_xml_schema,
-  LISTACD_xml_schema,
-  LISTACT_xml_schema,
-  XDBPoint_xml_schema,
-  TS_passport_xml_schema,
-  TM_passport_xml_schema,
-  TR_passport_xml_schema,
-  TSA_passport_xml_schema,
-  TSC_passport_xml_schema,
-  TC_passport_xml_schema,
-  AL_passport_xml_schema,
-  ICS_passport_xml_schema,
-  ICM_passport_xml_schema,
-  PIPE_passport_xml_schema,
-  PIPELINE_passport_xml_schema,
-  TL_passport_xml_schema,
-  SC_passport_xml_schema,
-  ATC_passport_xml_schema,
-  GRC_passport_xml_schema,
-  SV_passport_xml_schema,
-  SDG_passport_xml_schema,
-  RGA_passport_xml_schema,
-  SSDG_passport_xml_schema,
-  BRG_passport_xml_schema,
-  SCP_passport_xml_schema,
-  STG_passport_xml_schema,
-  METLINE_passport_xml_schema,
-  ESDG_passport_xml_schema,
-  SVLINE_passport_xml_schema,
-  SCPLINE_passport_xml_schema,
-  TLLINE_passport_xml_schema,
-  DIR_passport_xml_schema,
-  DIPL_passport_xml_schema,
-  INVT_passport_xml_schema,
-  AUX1_passport_xml_schema,
-  AUX2_passport_xml_schema,
-  SA_passport_xml_schema,
-  SITE_passport_xml_schema,
-  FIXEDPOINT_passport_xml_schema,
-  VA_passport_xml_schema
-};
-
 // ------------------------------------------------------------
 // Загрузить в БДРВ свежепрочитанные из XML таблицы НСИ
 void applyDictionariesToDB(RtEnvironment*,
@@ -100,9 +35,6 @@ void applyDictionariesToDB(RtEnvironment*,
 void applyClassListToDB(RtEnvironment*,
                         rtap_db_dict::Dictionaries_t&,
                         rtap_db::Points&);
-// ------------------------------------------------------------
-// Получить XML Scheme БДРВ
-void generateXSD(RtEnvironment*);
 // ------------------------------------------------------------
 // Загрузить НСИ БДРВ
 bool loadXmlDictionaries(RtEnvironment* env,
@@ -139,10 +71,8 @@ bool xdb::loadFromXML(RtEnvironment* env, const char* filename)
 
   applyClassListToDB(env, dictionary, point_list);
 
-  // TODO: реализация generateXSD()
-  // generateXSD(env);
+  env->MakeSnapshot(NULL);
 
-  env->MakeSnapshot("gev");
 #ifdef USE_EXTREMEDB_HTTP_SERVER
   // При использовании встроенного в БДРВ HTTP-сервера можно
   // посмотреть статистику свежесозданного экземпляра до его закрытия
@@ -151,41 +81,6 @@ bool xdb::loadFromXML(RtEnvironment* env, const char* filename)
 #endif
 
   return status;
-}
-
-// TODO: Перенести этот код поближе к ядру базы данных,
-// чтобы иметь возможнсть начать транзакцию
-void generateXSD(RtEnvironment* env)
-{
-  MCO_RET rc = MCO_S_OK;
-
-  mco_trans_h t;
-  FILE *f;
-  static char fname[150];
-
-  strcpy(fname, env->getName());
-  strcat(fname, ".xsd");
-
-  f = fopen(fname, "w");
-  if (f)
-  {
-    /* print out XML Schema for different classes */
-    //rc = mco_trans_start(env->getDatabase()->getDbHandler(), MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
-    if ( MCO_S_OK == rc )
-    {
-      for (size_t i=0; i<sizeof(ALL_TYPES_LIST); i++)
-      {
-        //(*ALL_TYPES_LIST[i])(t, f, file_writer);
-      }
-      //mco_trans_commit(t);
-      LOG(INFO) << "XSD Schema store successfully";
-    }
-    fclose(f);
-  }
-  else
-  {
-    LOG(INFO) << "Unable to save XSD Schema info " << fname;
-  }
 }
 
 bool loadXmlDictionaries(RtEnvironment* env,

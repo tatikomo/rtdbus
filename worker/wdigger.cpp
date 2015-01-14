@@ -21,7 +21,8 @@ Digger::Digger(std::string broker, std::string service, int verbose)
    : mdp::mdwrk(broker, service, verbose)
 {
   m_appli = new xdb::RtApplication("DIGGER");
-  m_appli->setOption("OF_CREATE",1);    // Создать если БД не было ранее
+//  m_appli->setOption("OF_CREATE",1);    // Создать если БД не было ранее
+  m_appli->setOption("OF_LOAD_SNAP",1);
   m_appli->setOption("OF_RDWR",1);      // Открыть БД для чтения/записи
   m_appli->setOption("OF_DATABASE_SIZE",    1024 * 1024 * 1);
   m_appli->setOption("OF_MEMORYPAGE_SIZE",  1024);
