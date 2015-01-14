@@ -511,7 +511,7 @@ TEST(TestDiggerDATABASE, CREATION)
   EXPECT_EQ(env->getLastError().getCode(), xdb::rtE_NONE /*rtE_NOT_IMPLEMENTED*/);
 #endif
 
-#if 0
+#if 1
   // TODO: на 16 октября 2014 вызов этого метода приводит 
   // к падению внутри mco_db_xml_export()
   env->MakeSnapshot(NULL);
@@ -535,7 +535,7 @@ TEST(TestDiggerDATABASE, CREATION)
     connection = env->getConnection();
     EXPECT_TRUE(connection != NULL);
 
-//    env->MakeSnapshot("DIGGER");
+    env->MakeSnapshot("DIGGER");
   }
   else
   {

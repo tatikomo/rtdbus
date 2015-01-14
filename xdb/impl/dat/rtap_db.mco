@@ -21,14 +21,15 @@
 #define logical     unsigned<1>
 #define byte        unsigned<1>
 #define s_code      char<8>
-#define s_label     char<80>
 #define s_formula   char<40>
 #define s_tag       char<32>
-#define s_dispatch  char<24>
-#define s_valabel   char<40>
-#define s_shortlabel    char<16>
-#define s_attname       char<16>
-#define s_statelabel    char<32>
+#define s_attname   char<16>
+// Для полей, содержащих UTF8, размер увеличен вдвое.
+#define s_label         char<80>
+#define s_dispatch      char<24>
+#define s_valabel       char<40>
+#define s_shortlabel    char<32>
+#define s_statelabel    char<64>
 
 // All points
 #define MAX_POINTS_QUANTITY  10000

@@ -874,9 +874,8 @@ Worker* DatabaseBrokerImpl::GetWorkerByState(autoid_t& service_id,
       break;
     if (rc) { LOG(ERROR)<< "Unable to get cursor, rc="<<rc; break; }
 
-    for (rc = broker_db::XDBWorker::SK_by_serv_id::search(t, &csr, MCO_EQ, service_id);
-         (rc == MCO_S_OK) || (false == awaiting_worker_found);
-         rc = mco_cursor_next(t, &csr)) 
+    rc = broker_db::XDBWorker::SK_by_serv_id::search(t, &csr, MCO_EQ, service_id);
+    while((rc == MCO_S_OK) && (false == awaiting_worker_found))
     {
        rc = broker_db::XDBWorker::SK_by_serv_id::compare(t,
                 &csr,
@@ -895,10 +894,12 @@ Worker* DatabaseBrokerImpl::GetWorkerByState(autoid_t& service_id,
          {
            awaiting_worker_found = true;
            break; // нашли что искали, выйдем из цикла
-         } 
+         }
        }
        if (rc)
          break;
+
+       rc = mco_cursor_next(t, &csr);
     }
     rc = MCO_S_CURSOR_END == rc ? MCO_S_OK : rc;
 

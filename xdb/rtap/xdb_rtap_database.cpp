@@ -47,7 +47,7 @@ const Error& RtDatabase::Connect()
 {
   if (!m_impl->Connect())
   {
-    LOG(ERROR) << "Connection бяка";
+    LOG(ERROR) << "Connection failed";
   }
   return m_impl->getLastError();
 }
