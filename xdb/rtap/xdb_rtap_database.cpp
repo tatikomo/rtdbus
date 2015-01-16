@@ -56,18 +56,14 @@ const Error& RtDatabase::Disconnect()
 {
   if (!m_impl->Disconnect())
   {
-    LOG(ERROR) << "Disconnect бяка";
+    LOG(ERROR) << "Disconnect failed";
   }
   return m_impl->getLastError();
 }
 
-const Error&  RtDatabase::Init()
+const Error& RtDatabase::Init()
 {
-  if (!m_impl->Init())
-  {
-    LOG(ERROR) << "Init бяка";
-  }
-  return m_impl->getLastError();
+  return getLastError();
 }
 
 const Error& RtDatabase::getLastError() const
@@ -86,7 +82,7 @@ const Error& RtDatabase::LoadSnapshot(const char* _fname)
 {
   if (!m_impl->LoadSnapshot(_fname))
   {
-    LOG(ERROR) << "LoadSnapshot бяка";
+    LOG(ERROR) << "LoadSnapshot failed";
   }
   return m_impl->getLastError();
 }
@@ -95,7 +91,7 @@ const Error& RtDatabase::MakeSnapshot(const char* _fname)
 {
   if (!m_impl->MakeSnapshot(_fname))
   {
-    LOG(ERROR) << "MakeSnapshot бяка";
+    LOG(ERROR) << "MakeSnapshot failed";
   }
   return m_impl->getLastError();
 }

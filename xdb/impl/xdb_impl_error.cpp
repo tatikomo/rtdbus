@@ -53,8 +53,18 @@ void Error::init()
     m_error_descriptions[rtE_INCORRECT_DB_STATE] = (const char*)"New DB state is incorrect";
     m_error_descriptions[rtE_SNAPSHOT_WRITE]   = (const char*)"Snapshot writing failure";
     m_error_descriptions[rtE_SNAPSHOT_READ]    = (const char*)"Snapshot reading failure";
+    m_error_descriptions[rtE_SNAPSHOT_NOT_EXIST] = (const char*)"Snapshot not exist";
     m_error_descriptions[rtE_RUNTIME_FATAL]    = (const char*)"Fatal runtime failure";
+    m_error_descriptions[rtE_RUNTIME_ERROR]    = (const char*)"Runtime error";
     m_error_descriptions[rtE_RUNTIME_WARNING]  = (const char*)"Recoverable runtime failure";
+    m_error_descriptions[rtE_TABLE_CREATE]     = (const char*)"Creating table"; 
+    m_error_descriptions[rtE_TABLE_READ]       = (const char*)"Reading from table";
+    m_error_descriptions[rtE_TABLE_WRITE]      = (const char*)"Writing into table";
+    m_error_descriptions[rtE_TABLE_DELETE]     = (const char*)"Deleting table";
+    m_error_descriptions[rtE_POINT_CREATE]     = (const char*)"Creating point";
+    m_error_descriptions[rtE_POINT_READ]       = (const char*)"Reading point";
+    m_error_descriptions[rtE_POINT_WRITE]      = (const char*)"Writing point";
+    m_error_descriptions[rtE_POINT_DELETE]     = (const char*)"Deleting point";
   }
 }
 

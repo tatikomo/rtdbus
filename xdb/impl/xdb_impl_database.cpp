@@ -92,7 +92,9 @@ file_reader( void *stream_handle /* FILE *  */,  /* OUT */void *to, mco_size_t m
 DatabaseImpl::DatabaseImpl(const char* _name, const Options& _options, mco_dictionary_h _dict) :
   m_snapshot_counter(0),
   m_state(DB_STATE_UNINITIALIZED),
+  m_snapshot_loaded(false),
   m_last_error(rtE_NONE),
+  m_db(NULL),
   m_dict(_dict),
   m_db_access_flags(_options),
   m_save_to_xml_feature(false)
@@ -246,11 +248,11 @@ DatabaseImpl::~DatabaseImpl()
       // Ничего делать не надо
     break;
 
-    case DB_STATE_ATTACHED:
+    case DB_STATE_CONNECTED:
       // перед завершением работы сделать снапшот
       StoreSnapshot(NULL);
       // NB: break пропущен специально!
-    case DB_STATE_CONNECTED:
+    case DB_STATE_ATTACHED:
       Disconnect();
       // NB: break пропущен специально!
     case DB_STATE_INITIALIZED:
@@ -390,7 +392,7 @@ const Error& DatabaseImpl::Init()
           }
       }
 #endif
-
+      // Рантайм запущен, база не подключена
       TransitionToState(DB_STATE_INITIALIZED);
     }
 
@@ -401,7 +403,7 @@ const Error& DatabaseImpl::Connect()
 {
   clearError();
 
-  if (DB_STATE_INITIALIZED != State())
+  if (State() != DB_STATE_INITIALIZED)
     Init();
 
   switch (State())
@@ -410,14 +412,17 @@ const Error& DatabaseImpl::Connect()
       LOG(WARNING)<<"Try to connect to uninitialized database "<<m_name;
     break;
 
-    case DB_STATE_ATTACHED:
     case DB_STATE_CONNECTED:
       LOG(WARNING)<<"Try to re-open database "<<m_name;
     break;
 
     case DB_STATE_INITIALIZED:
-        ConnectToInstance();
-        // переход в состояние CONNECTED
+      // Open() вызывается далее, в ConnectToInstance()
+    case DB_STATE_ATTACHED:
+      // Текущее состояние : выполнен mco_db_open()
+      // Требуется подключение к БД с помощью mco_db_connect()
+      ConnectToInstance();
+      // переход в состояние CONNECTED
     break;
 
     case DB_STATE_DISCONNECTED:
@@ -434,7 +439,7 @@ const Error& DatabaseImpl::Connect()
 }
 
 // Подключиться к базе данных.
-// NB: Нельзя открывать БД, это выполняется классом RtConnection
+// NB: Не открывать БД, это выполняется классом RtConnection
 //
 // Если указан флаг O_TRUNCATE:
 //  - попробовать удалить предыдующий экземпляр mco_db_kill()
@@ -445,6 +450,7 @@ const Error& DatabaseImpl::ConnectToInstance()
 {
   MCO_RET rc = MCO_S_OK;
   int opt_val;
+  char fname[150];
 
   clearError();
 
@@ -460,6 +466,27 @@ const Error& DatabaseImpl::ConnectToInstance()
   LOG(INFO) << "mco_db_connect '" << m_name
             << "', state=" << m_state
             << ", rc=" << rc;
+
+  if ((m_flags[OF_POS_LOAD_SNAP]) && (!m_snapshot_loaded))
+  {
+      // Двоичный снимок не загружен, можем ли попробовать восстановиться с XML-снимка?
+      if (m_last_error.code() == rtE_SNAPSHOT_READ)
+      {
+        snprintf(fname, sizeof(fname)-1, "%s.xml", m_name);
+
+        // Загрузить данные из XML формата eXtremeDB
+        LoadFromXML(fname);
+
+        if (!getLastError().Ok())
+        {
+          LOG(ERROR) << "Unable to read data from XML initial snap";
+        }
+        else
+        {
+          m_snapshot_loaded = true;
+        }
+      }
+  }
 
   // При открытии БД была ошибка. Возможно, еще не существует экземпляра.
   if (rc)
@@ -550,7 +577,7 @@ const Error& DatabaseImpl::SaveAsXML(const char* given_file_name, const char *ms
   if (!given_file_name)
   {
     snprintf(calc_file_name, sizeof(calc_file_name)-1,
-          "%09d.%s.%s.xml.snap",
+          "%09d.%s.%s.snap.xml",
           getSnapshotCounter(),
           m_name,
           (NULL == msg)? "xdb" : msg);
@@ -660,11 +687,11 @@ const Error& DatabaseImpl::StoreSnapshot(const char* given_file_name)
       {
         LOG(ERROR) << "Given snapshot filename is exceed limits ("<<sizeof(fname)<<")";
       }
-      snprintf(fname, sizeof(fname), "%s.snap", given_file_name);
+      snprintf(fname, sizeof(fname)-1, "%s.snap.bin", given_file_name);
     }
     else
     {
-      snprintf(fname, sizeof(fname), "%s.snap", m_name);
+      snprintf(fname, sizeof(fname)-1, "%s.snap.bin", m_name);
     }
     fname[sizeof(fname)-1] = '\0';
 
@@ -683,25 +710,27 @@ const Error& DatabaseImpl::StoreSnapshot(const char* given_file_name)
       LOG(ERROR) << "Can't open output file for streaming";
       setError(rtE_SNAPSHOT_WRITE);
     }
+  } while(false);
+    
+#else
+#warning "Binary snapshot is disabled for this version"
+   LOG(WARNING) << "Binary snapshot is disabled for this version";
+#endif
 
     // Попытаться сохранить содержимое в XML-формате eXtremeDB
     if (m_flags[OF_POS_SAVE_SNAP]) // Допустим снимок
     {
-      strcat(fname, ".xml");
+      snprintf(fname, sizeof(fname)-1, "%s.snap.xml", m_name);
 
       // Название снимка д.б. в формате "...."
-      const Error &status = SaveAsXML(fname, "final");
+      const Error &status = SaveAsXML(fname, NULL);
 
       if (!status.Ok())
       {
         LOG(ERROR) << "Can't save content in RTDB's XML format";
       }
     }
-    
-  } while(false);
-#else
-#warning "DatabaseImpl::StoreSnapshot is disabled for this version"
-#endif
+
 
   return getLastError();
 }
@@ -771,7 +800,10 @@ const Error& DatabaseImpl::Disconnect()
   return getLastError();
 }
 
-// NB: нужно выполнить до mco_db_connect
+// NB: нужно выполнить до mco_db_connect (m_db д.б. NULL)
+// БД должна быть в состоянии ATTACHED, иначе при попытке 
+// восстановления содержимого получим ошибку MCO_E_INSTANCE_DUPLICATE
+//
 const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
 {
   MCO_RET rc = MCO_S_OK;
@@ -780,6 +812,9 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
 
   clearError();
   fname[0] = '\0';
+  LOG(INFO) << "Load snapshot of '" << getName() << "' from state " << State();
+  assert(!m_db);
+  // assert(State() == DB_STATE_ATTACHED);
 
   if (given_file_name)
   {
@@ -793,7 +828,7 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
   else
   {
     strcpy(fname, m_name);
-    strcat(fname, ".snap");
+    strcat(fname, ".snap.bin");
   }
 
 #if EXTREMEDB_VERSION >= 40
@@ -836,20 +871,9 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
   } while (false);
 #else
   // Не можем читать двоичный дамп, попробуем XML
+  // Но для этого необходимо открыть БД с помощью mco_db_open_dev
   setError(rtE_SNAPSHOT_READ);
 #endif
-
-  // Если не удалось восстановить данные из двоичного снимка
-  if (m_last_error.code() == rtE_SNAPSHOT_READ)
-  {
-    strcat(fname, ".xml");
-    // Загрузить данные из XML формата eXtremeDB
-    LoadFromXML(fname);
-    if (!getLastError().Ok())
-    {
-      LOG(ERROR) << "Unable to read data from XML initial snap";
-    }
-  }
 
   return getLastError();
 }
@@ -867,6 +891,7 @@ const Error& DatabaseImpl::LoadFromXML(const char* given_file_name)
   FILE             *f = NULL;
 
   m_last_error.clear();
+  assert(m_db);
 
   if (false == m_save_to_xml_feature)
   {
@@ -933,8 +958,8 @@ const Error& DatabaseImpl::LoadFromXML(const char* given_file_name)
 const Error& DatabaseImpl::Open()
 {
   MCO_RET rc = MCO_S_OK;
-  bool load_from_snapshot = false;
   int  opt_val;
+  char fname[150];
 
   clearError();
 
@@ -972,23 +997,26 @@ const Error& DatabaseImpl::Open()
   }
 #else /* EXTREMEDB_VERSION > 4 and not USE_EXTREMEDB_HTTP_SERVER */
 
-  if ((true == getOption(m_db_access_flags, "OF_LOAD_SNAP", opt_val)) && opt_val) 
+  // Требуется прочитать ранее сохраненный двоичный снимок?
+  if (m_flags[OF_POS_LOAD_SNAP])
   {
     // Внутри LoadSnapshot: mco_db_load() -> mco_db_open_dev()
     if (!(LoadSnapshot()).Ok())
     {
-      LOG(ERROR) << "Unable to restore content from snapshot";
-      load_from_snapshot = false;
+      LOG(ERROR) << "Unable to restore content from binary snapshot";
+      m_snapshot_loaded = false;
     }
     else
     {
-      load_from_snapshot = true;
+      m_snapshot_loaded = true;
+      // Состояние CONNECTED - инициализировано подключение (m_db все еще NULL)
+      TransitionToState(DB_STATE_ATTACHED);
     }
   }
 
   // Если снимок загружен успешно, значит БД уже работает,
   // пропустим повторное ее открытие
-  if (!load_from_snapshot)
+  if (!m_snapshot_loaded)
   {
     rc = mco_db_open_dev(m_name,
                          m_dict,
@@ -996,6 +1024,8 @@ const Error& DatabaseImpl::Open()
                          1,
                          &m_db_params);
     LOG(INFO) << "mco_db_open_dev '" << m_name << "', rc=" << rc;
+    // Состояние ATTACHED - подключение m_db не инициализировано
+    TransitionToState(DB_STATE_ATTACHED);
   }
 
 #endif /* USE_EXTREMEDB_HTTP_SERVER */
@@ -1046,11 +1076,12 @@ const Error& DatabaseImpl::Open()
     && (rc != MCO_E_INSTANCE_DUPLICATE))
    {
      LOG(ERROR) << "Error creating disk database, rc=" << rc;
+     TransitionToState(DB_STATE_INITIALIZED);
      setError(rtE_RUNTIME_FATAL);
      return getLastError();
    }
 #endif
-  return TransitionToState(DB_STATE_ATTACHED);
+  return getLastError();
 }
 
 const Error& DatabaseImpl::RegisterEvents()
@@ -1108,10 +1139,10 @@ const Error& DatabaseImpl::RegisterEvents()
 /*
  * DB_STATE_UNINITIALIZED = 1, // первоначальное состояние
  * DB_STATE_INITIALIZED   = 2, // инициализирован runtime
- * DB_STATE_ATTACHED      = 3, // вызван mco_db_open
- * DB_STATE_CONNECTED     = 4, // вызван mco_db_connect
- * DB_STATE_DISCONNECTED  = 5, // вызван mco_db_disconnect
- * DB_STATE_CLOSED        = 6  // вызван mco_db_close
+ * DB_STATE_ATTACHED      = 3, // вызван mco_db_open    - база подключена
+ * DB_STATE_CONNECTED     = 4, // вызван mco_db_connect - база подключена и открыта
+ * DB_STATE_DISCONNECTED  = 5, // вызван mco_db_disconnect  - база подключена и закрыта
+ * DB_STATE_CLOSED        = 6  // вызван mco_db_close       - база отключена
  */
 const Error& DatabaseImpl::TransitionToState(DBState_t new_state)
 {

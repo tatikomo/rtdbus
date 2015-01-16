@@ -65,24 +65,11 @@ DatabaseBrokerImpl::DatabaseBrokerImpl(const char* _name) :
 #if defined USE_EXTREMEDB_HTTP_SERVER
   setOption(m_opt, "OF_HTTP_PORT", 8081);
 #endif
-
-#ifdef DISK_DATABASE
-  /* NB: +5 - для ".dbs" и ".log" с завершающим '\0' */
-  m_dbsFileName = new char[strlen(m_database->getName()) + 5];
-  m_logFileName = new char[strlen(m_database->getName()) + 5];
-
-  strcpy(m_dbsFileName, m_database->getName());
-  strcat(m_dbsFileName, ".dbs");
-
-  strcpy(m_logFileName, m_database->getName());
-  strcat(m_logFileName, ".log");
-
-  setOption(m_opt, "OF_DISK_CACHE_SIZE", 1024 * 1024 * 10);
-#else
   setOption(m_opt, "OF_DISK_CACHE_SIZE", 0);
-#endif
 
-  m_database = new DatabaseImpl(_name, m_opt, broker_db_get_dictionary());
+  mco_dictionary_h broker_dict = broker_db_get_dictionary();
+
+  m_database = new DatabaseImpl(_name, m_opt, broker_dict);
 }
 
 DatabaseBrokerImpl::~DatabaseBrokerImpl()

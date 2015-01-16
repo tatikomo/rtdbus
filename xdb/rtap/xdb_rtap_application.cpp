@@ -115,30 +115,42 @@ RtEnvironment* RtApplication::loadEnvironment(const char* _env_name)
   // Загрузить ранее сохраненное содержимое только при включенной LOAD_SNAP
   if (getOption("OF_LOAD_SNAP", val) && val)
   {
-    status = env->LoadSnapshot(_env_name);
-    if (!status.Ok())
+    status = env->LoadSnapshot(); // Имя по-умолчанию: НАЗВАНИЕ_СРЕДЫ.snap.xml
+
+    switch(status.code())
     {
-        if (rtE_SNAPSHOT_NOT_EXIST == status.code())
-        {
+      case rtE_NONE:
+        LOG(INFO) << "'" << _env_name << "' DB content is loaded succesfully";
+      break;
+      
+      case rtE_SNAPSHOT_NOT_EXIST:
           // TODO восстановить состояние по конфигурационным файлам
           LOG(ERROR) << "Construct empty database contents for '"
                      << m_impl->getAppName() << ":" << env->getName() << "'";
           status.set(rtE_NOT_IMPLEMENTED);
-        }
+      break;
 
-        LOG(ERROR) << "Fault loading environment '" << m_impl->getAppName()
-                   << ":" << env->getName() << "' from its snapshot";
+      case rtE_SNAPSHOT_READ:
+          // TODO восстановить состояние по конфигурационным файлам
+          LOG(ERROR) << "Recovery database contents for '"
+                     << m_impl->getAppName() << ":" << env->getName() << "'";
+          status.set(rtE_NOT_IMPLEMENTED);
+      break;
+
+      default:
+        LOG(ERROR) << m_impl->getAppName() << " fault loads '" << env->getName()
+                   << "' DB content from its snapshot";
+    }
 
 #if 0
         // Удаляем экземпляр Среды, созданный с ошибкой
         delete env;
         env = NULL;
 #else
-        // Владение экземпляром перешло к RtApplication
-        registerEnvironment(env);
 #warning "Нельзя регистрировать ошибочные экземпляры Сред. Сейчас это сделано для тестов."
 #endif
-    }
+    // Владение экземпляром перешло к RtApplication
+    registerEnvironment(env);
   }
   else
   {
@@ -155,8 +167,7 @@ RtEnvironment* RtApplication::loadEnvironment(const char* _env_name)
 }
 
 
-// Зарегистрировать в Приложении новую Среду
-// TODO: Проверить на повторное наличие 
+// Зарегистрировать в Приложении новую Среду, кроме дубликатов 
 void RtApplication::registerEnvironment(RtEnvironment* _new_env)
 {
   if (!isEnvironmentRegistered(_new_env->getName()))

@@ -320,24 +320,11 @@ DatabaseRtapImpl::DatabaseRtapImpl(const char* _name)
 #if defined USE_EXTREMEDB_HTTP_SERVER
   setOption(opt, "OF_HTTP_PORT", 8082);
 #endif
-
-#ifdef DISK_DATABASE
-  /* NB: +5 - для ".dbs" и ".log" с завершающим '\0' */
-  m_dbsFileName = new char[strlen(m_impl->getName()) + 5];
-  m_logFileName = new char[strlen(m_impl->getName()) + 5];
-
-  strcpy(m_dbsFileName, m_impl->getName());
-  strcat(m_dbsFileName, ".dbs");
-
-  strcpy(m_logFileName, m_impl->getName());
-  strcat(m_logFileName, ".log");
-
-  setOption(opt, "OF_DISK_CACHE_SIZE", 1024 * 1024 * 10);
-#else
   setOption(opt, "OF_DISK_CACHE_SIZE", 0);
-#endif
 
-  m_impl = new DatabaseImpl(_name, opt, rtap_db_get_dictionary());
+  mco_dictionary_h rtap_dict = rtap_db_get_dictionary();
+
+  m_impl = new DatabaseImpl(_name, opt, rtap_dict);
 
   // Инициализация карты функций создания атрибутов
   AttrFuncMapInit();
@@ -346,12 +333,6 @@ DatabaseRtapImpl::DatabaseRtapImpl(const char* _name)
 DatabaseRtapImpl::~DatabaseRtapImpl()
 {
   delete m_impl;
-}
-
-bool DatabaseRtapImpl::Init()
-{
-  Error err = m_impl->Open();
-  return err.Ok();
 }
 
 bool DatabaseRtapImpl::Connect()

@@ -147,7 +147,7 @@ typedef AttrCreationFuncMap_t::iterator AttrCreationFuncMapIterator_t;
 void errhandler(MCO_RET);
 void extended_errhandler(MCO_RET errcode, const char* file, int line);
 // Функция инициализации карты соответствий между именами атрибутов и функций, их создающих
-bool AttrFuncMapInit();
+//bool AttrFuncMapInit();
 
 /* Фактическая реализация функциональности Базы Данных для Брокера */
 class DatabaseRtapImpl
@@ -160,7 +160,6 @@ class DatabaseRtapImpl
 
     // Работа с состоянием БД -  инициализация, подключение, ...
     // ====================================================
-    bool Init();
     // Создание экземпляра БД или подключение к уже существующему
     bool Connect();
     bool Disconnect();

@@ -13,25 +13,26 @@
 
 using namespace xdb;
 
-RtEnvironment::RtEnvironment(RtApplication* _app, const char* _name)
+RtEnvironment::RtEnvironment(RtApplication* _app, const char* _name) :
+  m_impl(NULL),
+  m_appli(_app),
+  m_conn(NULL),
+  m_database(NULL)
 {
-  m_appli = _app;
   m_impl = new EnvironmentImpl(_app->getImpl(), _name);
-  m_conn = NULL;
   m_database = new RtDatabase(_name, _app->getOptions());
+  // NB: Подключение к БД происходит при создании экземпляра RtConnection
   LOG(INFO) << "Creating database " << m_database->getName();
-  m_database->Connect();
-  LOG(INFO) << "Connection to database " << m_database->getName();
 }
 
 RtEnvironment::~RtEnvironment()
 {
   delete m_conn;
   delete m_impl;
-  if (m_database)
-  {
+//  if (m_database)
+//  {
     delete m_database; // Disconnect при удалении автоматически
-  }
+//  }
 }
 
 // Вернуть имя подключенной БД/среды
@@ -43,11 +44,34 @@ const char* RtEnvironment::getName() const
 // вернуть подключение к указанной БД/среде
 RtConnection* RtEnvironment::getConnection()
 {
-  // TODO реализация
-  if (!m_conn)
+  switch(m_database->State())
   {
-    m_conn = new RtConnection(this);
+    case DB_STATE_UNINITIALIZED:
+        m_database->Init();
+        // NB: break пропущен специально
+    case DB_STATE_INITIALIZED:
+    case DB_STATE_ATTACHED:
+        // Если мы еще не подключились к БД, самое время сделать это сейчас
+        // Connect внутри, если состояние БД = UNINITIALIZED, выполнит инициализацию
+        m_database->Connect();
+        LOG(INFO) << "Connection to database " << m_database->getName();
+        // NB: break пропущен специально
+
+    case DB_STATE_CONNECTED:
+        if (!m_conn)
+        {
+          m_conn = new RtConnection(this);
+        }
+    break;
+
+//    case DB_STATE_UNINITIALIZED:
+    case DB_STATE_DISCONNECTED:
+        LOG(ERROR) << "Unable to get connection to disconnected or uninitialized database";
+
+    default:
+        LOG(WARNING) << "GEV: add state " << m_database->State() << " to processing";
   }
+
   return m_conn;
 }
 

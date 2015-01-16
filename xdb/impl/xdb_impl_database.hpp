@@ -104,6 +104,9 @@ class DatabaseImpl
     char* m_logFileName;
 #endif
 
+    // Успешность загрузки снимка БД (приоритет: двоичный, xml)
+    bool m_snapshot_loaded;
+
 #if EXTREMEDB_VERSION >= 40
     mco_db_params_t    m_db_params;
     mco_device_t       m_dev;
