@@ -9,12 +9,13 @@ using namespace mdp;
 //  Signal handling
 //
 //  Call s_catch_signals() in your application at startup, and then exit
-//  your main loop if s_interrupted is ever 1. Works especially well with
+//  your main loop if interrupt_worker is ever 1. Works especially well with
 //  zmq_poll.
-extern int s_interrupted;
+int interrupt_worker = 0;
+
 static void s_signal_handler (int signal_value)
 {
-    s_interrupted = 1;
+    interrupt_worker = 1;
     LOG(INFO) << "Got signal "<<signal_value;
 }
 
@@ -137,7 +138,7 @@ mdwrk::recv (std::string *&reply)
   try
   {
     m_expect_reply = true;
-    while (!s_interrupted) {
+    while (!interrupt_worker) {
         zmq::pollitem_t items [] = {
             { *m_worker,  0, ZMQ_POLLIN, 0 } };
         zmq::poll (items, 1, m_heartbeat);
@@ -211,7 +212,7 @@ mdwrk::recv (std::string *&reply)
     LOG(ERROR) << err.what();
   }
 
-  if (s_interrupted)
+  if (interrupt_worker)
       LOG(WARNING) << "Interrupt received, killing worker...";
   return NULL;
 }

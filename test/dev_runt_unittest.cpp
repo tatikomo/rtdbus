@@ -31,6 +31,13 @@ const char *attributes_connection_to_broker = (const char*) "tcp://localhost:555
 const char *BROKER_SNAP_FILE = (const char*) "broker_db.snap";
 const char *RTAP_SNAP_FILE = (const char*) "SINF.snap";
 
+//  Раздельные признаки останова Брокера, Клиента, Обработчика
+//  для возможности их совместного тестирования в одной программе,
+//  но в разных нитях.
+extern int interrupt_broker;
+extern int interrupt_worker;
+extern int interrupt_client;
+
 bool  broker_ready_sign = false;
 bool  worker_ready_sign = false;
 
@@ -192,7 +199,7 @@ client_task (void* /*args*/)
   delete client;
 
   // Завершить исполнение Брокера - все сообщения отправлены/получены
-  s_interrupted = 1;
+  interrupt_broker = 1;
   LOG(INFO) << "Stop client thread";
   pthread_exit(NULL);
   return NULL; /* NOTREACHED */ 
@@ -221,7 +228,7 @@ worker_task (void* /*args*/)
     // Обозначить завершение своей инициализации
     worker_ready_sign = true;
 
-    while (!s_interrupted) 
+    while (!interrupt_worker) 
     {
        std::string *reply_to = new std::string;
        mdp::zmsg   *request  = NULL;
@@ -290,7 +297,7 @@ broker_task (void* /*args*/)
      std::cout << "E: " << err.what() << std::endl;
   }
 
-  if (s_interrupted)
+  if (interrupt_broker)
   {
      LOG(WARNING)<<"Interrupt received, shutting down...";
   }
@@ -361,13 +368,16 @@ TEST(TestProxy, BROKER_RUNTIME)
   /* Дождаться завершения работы Клиента */
   code = pthread_join (client, NULL);
   EXPECT_TRUE(code == 0);
-  s_interrupted = 1;
 
+  // Остановить Обработчика
+  interrupt_worker = 1;
   /* Дождаться завершения работы Обработчика */
-  usleep(100000);
+  usleep(1000000);
   code = pthread_join(worker, NULL);
   EXPECT_TRUE(code == 0);
 
+  // Остановить Брокера
+  interrupt_broker = 1;
   /* Дождаться завершения работы Брокера */
   usleep(100000);
   code = pthread_join(broker, NULL);

@@ -8,7 +8,7 @@
 #include "proto/common.pb.h"
 #include "wtester.hpp"
 
-extern int s_interrupted;
+extern int interrupt_worker;
 
 int Tester::handle_request(mdp::zmsg* request, std::string*& reply_to)
 {
@@ -154,7 +154,7 @@ int main(int argc, char **argv)
   try
   {
     Tester *engine = new Tester("tcp://localhost:5555", service_name, verbose);
-    while (!s_interrupted)
+    while (!interrupt_worker)
     {
        std::string *reply_to = new std::string;
        mdp::zmsg   *request  = NULL;
@@ -168,7 +168,7 @@ int main(int argc, char **argv)
        }
        else
        {
-         s_interrupted = true; // Worker has been interrupted
+         interrupt_worker = true; // Worker has been interrupted
        }
        delete reply_to;
     }

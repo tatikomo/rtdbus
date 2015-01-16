@@ -15,12 +15,13 @@ using namespace mdp;
 //  Signal handling
 //
 //  Call s_catch_signals() in your application at startup, and then exit
-//  your main loop if s_interrupted is ever 1. Works especially well with
+//  your main loop if interrupt_broker is ever 1. Works especially well with
 //  zmq_poll.
-int s_interrupted = 0;
+int interrupt_broker = 0;
+
 void s_signal_handler (int /*signal_value*/)
 {
-    s_interrupted = 1;
+    interrupt_broker = 1;
 }
 
 void s_catch_signals ()
@@ -568,7 +569,11 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
 
 //  ---------------------------------------------------------------------
 //  Send message to worker
-//  If pointer to message is provided, sends that message
+//  If pointer to message is provided, sends that message.
+//  Input parameters
+//  command: MDPW_DISCONNECT,...
+//  option: 
+//  letter: (may by NULL on release worker when command=MDPW_DISCONNECT)
 void
 Broker::worker_send (xdb::Worker *worker,
     const char *command, const std::string& option, xdb::Letter *letter)
@@ -583,8 +588,11 @@ Broker::worker_send (xdb::Worker *worker,
   // 2. установить статус ASSIGNED данному Сообщению
   if (false == m_database->AssignLetterToWorker(worker, letter))
   {
-    LOG(ERROR) << "Unable to assign message id="<<letter->GetID()
-               <<" to worker '"<<worker->GetIDENTITY()<<"'";
+    if (letter)
+    {
+      LOG(ERROR) << "Unable to assign message id="<< letter->GetID()
+                 <<" to worker '"<<worker->GetIDENTITY()<<"'";
+    }
   }
   else
   {
@@ -695,8 +703,18 @@ Broker::worker_waiting (xdb::Worker *worker)
     //  Queue to broker and service waiting lists
     m_database->PushWorker(worker);
     service = m_database->GetServiceById(worker->GetSERVICE_ID());
-    service_dispatch (service);
-    delete service;
+    if (service)
+    {
+      service_dispatch (service);
+      delete service;
+    }
+    else
+    {
+      // Такое возможно после восстановления снимка БД:
+      // Обработчик есть, а его Сервис отсутствует
+      LOG(WARNING) << "Missed Service with id=" << worker->GetSERVICE_ID()
+                   << " for Worker id=" << worker->GetIDENTITY();
+    }
 }
 
 
@@ -767,9 +785,9 @@ void
 Broker::start_brokering()
 {
    // Если инициализация не прошла, завершить работу
-   s_interrupted = (Init() == true)? 0 : 1;
+   interrupt_broker = (Init() == true)? 0 : 1;
 
-   while (!s_interrupted)
+   while (!interrupt_broker)
    {
        zmq::pollitem_t items [] = {
            { *m_socket,  0, ZMQ_POLLIN, 0 } };

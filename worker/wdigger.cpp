@@ -13,9 +13,9 @@
 #include "mdp_letter.hpp"
 #include "mdp_zmsg.hpp"
 
-extern int s_interrupted;
-
 using namespace mdp;
+
+extern int interrupt_worker;
 
 Digger::Digger(std::string broker, std::string service, int verbose)
    : mdp::mdwrk(broker, service, verbose)
@@ -31,7 +31,7 @@ Digger::Digger(std::string broker, std::string service, int verbose)
 
   m_appli->initialize();
 
-  m_environment = m_appli->loadEnvironment("RTAP");
+  m_environment = m_appli->loadEnvironment("SINF");
   m_db_connection = m_environment->getConnection();
 }
 
@@ -172,7 +172,7 @@ int main(int argc, char **argv)
 
     LOG(INFO) << "Hello Digger!";
 
-    while (!s_interrupted) 
+    while (!interrupt_worker) 
     {
        std::string *reply_to = new std::string;
        mdp::zmsg   *request  = NULL;
@@ -186,7 +186,7 @@ int main(int argc, char **argv)
        }
        else
        {
-         s_interrupted = true; // Worker has been interrupted
+         interrupt_worker = true; // Worker has been interrupted
        }
        delete reply_to;
     }

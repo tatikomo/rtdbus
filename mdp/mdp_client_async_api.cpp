@@ -10,12 +10,12 @@ using namespace mdp;
 //  Signal handling
 //
 //  Call s_catch_signals() in your application at startup, and then exit
-//  your main loop if s_interrupted is ever 1. Works especially well with
+//  your main loop if interrupt_client is ever 1. Works especially well with
 //  zmq_poll.
-int s_interrupted = 0;
+int interrupt_client = 0;
 void s_signal_handler (int signal_value)
 {
-    s_interrupted = 1;
+    interrupt_client = 1;
     LOG(INFO) << "Got signal "<<signal_value;
 }
 
@@ -152,7 +152,7 @@ mdcli::recv ()
      LOG(ERROR) << err.what();
    }
 
-   if (s_interrupted)
+   if (interrupt_client)
      LOG(WARNING) << "Interrupt received, killing client...";
    else if (m_verbose)
      LOG(WARNING) << "Permanent error, abandoning request";

@@ -1,8 +1,8 @@
+#pragma once
 #if !defined GEV_PROXY_HPP
 #define GEV_PROXY_HPP
-#pragma once
 
-extern int s_interrupted;
+extern int interrupt_broker;
 //extern void s_signal_handler (int);
 extern void s_catch_signals ();
 
