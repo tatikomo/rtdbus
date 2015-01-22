@@ -51,58 +51,32 @@ using namespace xdb;
 #include "dat/broker_db.h"
 #include "dat/broker_db.hpp"
 
-void broker_impl_errhandler(MCO_RET n)
-{
-    fprintf(stdout, "\neXtremeDB runtime fatal error: %d\n", n);
-    exit(-1);
-}
-
-/* implement error handler */
-void extended_broker_impl_errhandler(MCO_RET errcode, const char* file, int line)
-{
-  fprintf(stdout, "\neXtremeDB runtime fatal error: %d on line %d of file %s",
-          errcode, line, file);
-  exit(-1);
-}
-
-
 DatabaseBrokerImpl::DatabaseBrokerImpl(const char* _name) :
     m_service_list(NULL)
 {
-  Options opt;
   assert(_name);
 
   // Опции по умолчанию
-  setOption(opt, "OF_CREATE",    1);
-  setOption(opt, "OF_LOAD_SNAP", 1);
-  setOption(opt, "OF_DATABASE_SIZE",   1024 * 1024 * 10);
-  setOption(opt, "OF_MEMORYPAGE_SIZE", 1024); // 0..65535
-  setOption(opt, "OF_MAP_ADDRESS", 0x20000000);
+  setOption(m_opt, "OF_CREATE",    1);
+  setOption(m_opt, "OF_LOAD_SNAP", 1);
+  setOption(m_opt, "OF_DATABASE_SIZE",   1024 * 1024 * 10);
+  setOption(m_opt, "OF_MEMORYPAGE_SIZE", 1024); // 0..65535
+  setOption(m_opt, "OF_MAP_ADDRESS", 0x20000000);
 #if defined USE_EXTREMEDB_HTTP_SERVER
-  setOption(opt, "OF_HTTP_PORT", 8081);
+  setOption(m_opt, "OF_HTTP_PORT", 8081);
 #endif
+  setOption(m_opt, "OF_DISK_CACHE_SIZE", 0);
 
-#ifdef DISK_DATABASE
-  /* NB: +5 - для ".dbs" и ".log" с завершающим '\0' */
-  m_dbsFileName = new char[strlen(m_database->getName()) + 5];
-  m_logFileName = new char[strlen(m_database->getName()) + 5];
+  mco_dictionary_h broker_dict = broker_db_get_dictionary();
 
-  strcpy(m_dbsFileName, m_database->getName());
-  strcat(m_dbsFileName, ".dbs");
-
-  strcpy(m_logFileName, m_database->getName());
-  strcat(m_logFileName, ".log");
-
-  setOption(opt, "OF_DISK_CACHE_SIZE", 1024 * 1024 * 10);
-#else
-  setOption(opt, "OF_DISK_CACHE_SIZE", 0);
-#endif
-
-  m_database = new DatabaseImpl(_name, opt, broker_db_get_dictionary());
+  m_database = new DatabaseImpl(_name, m_opt, broker_dict);
 }
 
 DatabaseBrokerImpl::~DatabaseBrokerImpl()
 {
+  // В случае нормального останова почистить содержимое БД
+  Cleanup();
+
   delete m_service_list;
   delete m_database;
 }
@@ -119,41 +93,138 @@ bool DatabaseBrokerImpl::Connect()
   return err.Ok();
 }
 
-bool DatabaseBrokerImpl::Disconnect()
+bool DatabaseBrokerImpl::Cleanup()
 {
-  //MCO_RET rc = MCO_S_OK;
-  DBState_t state = m_database->State();
+  char ident[IDENTITY_MAXLEN + 1];
+  char name[SERVICE_NAME_MAXLEN + 1];
+  bool status;
+  MCO_RET rc;
+  mco_trans_h t;
+  mco_cursor_t csr;
+  XDBWorker instance_worker;
+  XDBService instance_service;
+  XDBLetter instance_letter;
+  autoid_t aid;
+  int lost_of_workers, lost_of_services, lost_of_letters;
 
-#if 0
+  // Очистить содержимое БД
+  // 1. Удалить все Сообщения
+  // 2. Удалить Обработчиков
+  // 3. Удалить Службы
 
-  switch (state)
+  LOG(INFO) << "Cleanup broker database started";
+  status = ClearServices();
+  if (!status)
   {
-    case DB_STATE_UNINITIALIZED:
-      LOG(INFO) << "Disconnect from uninitialized state";
-    break;
-
-    case DB_STATE_DISCONNECTED:
-      LOG(INFO) << "Try to disconnect already diconnected database";
-    break;
-
-    case DB_STATE_CONNECTED:
-      mco_async_event_release_all(m_database->getDbHandler()/*, MCO_EVENT_newService*/);
-      rc = mco_db_disconnect(m_database->getDbHandler());
-      // NB: break пропущен специально
-    case DB_STATE_ATTACHED:
-      assert(m_database);
-      rc = mco_db_close(m_database->getName());
-      m_database->TransitionToState(DB_STATE_DISCONNECTED);
-    break;
-
-    default:
-      LOG(INFO) << "Disconnect from unknown state:" << state;
+    LOG(ERROR) << "Cleanup existing database resources";
   }
 
-  return (!rc)? true : false;
-#else
+  // Найти оставшиеся ничейные Сообщения и Обработчики
+  // TODO: это нештатная ситуация, нарушение структуры БД
+  // Показать ничейные объекты
+  do
+  {
+    rc = mco_trans_start(m_database->getDbHandler(), MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
+    if (rc) LOG(ERROR) << "Starting transaction, rc=" << rc;
+
+    // Сообщения
+    // -------------------------------------------------------
+    rc = XDBLetter_list_cursor(t, &csr);
+    if (rc && (rc != MCO_S_CURSOR_EMPTY)) LOG(ERROR) << "Get Letters cursor, rc=" << rc;
+
+    for (lost_of_letters = 0, rc = mco_cursor_first(t, &csr);
+         MCO_S_OK == rc;
+         rc = mco_cursor_next(t, &csr), lost_of_letters++)
+    {
+        rc = XDBLetter_from_cursor(t, &csr, &instance_letter);
+        if (rc) LOG(ERROR) << "Get Letter's instance, rc=" << rc;
+
+        rc = XDBLetter_autoid_get(&instance_letter, &aid);
+        if (rc) LOG(ERROR) << "Get Letter's id, rc=" << rc;
+
+        rc = XDBLetter_origin_get(&instance_letter, ident, static_cast<uint2>(IDENTITY_MAXLEN));
+        if (rc) { LOG(ERROR) << "Unable to get origin for letter id="<<aid; break; }
+
+        LOG(WARNING) << "Found lost letter "<< ident <<", id="<<aid;
+    }
+
+    // Обработчики
+    // -------------------------------------------------------
+    rc = XDBWorker_list_cursor(t, &csr);
+    if (rc && (rc != MCO_S_CURSOR_EMPTY)) LOG(ERROR) << "Get Worker's cursor, rc=" << rc;
+
+    for (lost_of_workers = 0, rc = mco_cursor_first(t, &csr);
+         MCO_S_OK == rc;
+         rc = mco_cursor_next(t, &csr), lost_of_workers++)
+    {
+        rc = XDBWorker_from_cursor(t, &csr, &instance_worker);
+        if (rc) LOG(ERROR) << "Get Worker's instance, rc=" << rc;
+
+        rc = XDBWorker_autoid_get(&instance_worker, &aid);
+        if (rc) LOG(ERROR) << "Get Worker's id, rc=" << rc;
+
+        rc = XDBWorker_identity_get(&instance_worker, ident, static_cast<uint2>(IDENTITY_MAXLEN));
+        if (rc) { LOG(ERROR) << "Unable to get identity for worker id="<<aid; break; }
+
+        LOG(WARNING) << "Found lost worker "<< ident <<", id="<<aid;
+    }
+
+    // Сервисы
+    // -------------------------------------------------------
+    rc = XDBService_list_cursor(t, &csr);
+    if (rc && (rc != MCO_S_CURSOR_EMPTY)) LOG(ERROR) << "Get Service's cursor, rc=" << rc;
+
+    for (lost_of_services = 0, rc = mco_cursor_first(t, &csr);
+         MCO_S_OK == rc;
+         rc = mco_cursor_next(t, &csr), lost_of_services++)
+    {
+        rc = XDBService_from_cursor(t, &csr, &instance_service);
+        if (rc) LOG(ERROR) << "Get Service's instance, rc=" << rc;
+
+        rc = XDBService_autoid_get(&instance_service, &aid);
+        if (rc) LOG(ERROR) << "Get Service's id, rc=" << rc;
+
+        rc = XDBService_name_get(&instance_service, name, static_cast<uint2>(SERVICE_NAME_MAXLEN));
+        if (rc) { LOG(ERROR) << "Unable to get identity for service id="<<aid; break; }
+
+        LOG(WARNING) << "Found lost service "<< name <<", id="<<aid;
+    }
+
+  } while (false);
+  rc = mco_trans_rollback(t);
+
+  // Удалить ничейные объекты
+  do
+  {
+    rc = mco_trans_start(m_database->getDbHandler(), MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+    if (rc) LOG(ERROR) << "Starting transaction, rc=" << rc;
+
+    rc = XDBLetter_delete_all(t);
+    if (rc) LOG(ERROR) << "Removing lost Letters, rc=" << rc;
+
+    rc = XDBWorker_delete_all(t);
+    if (rc) LOG(ERROR) << "Removing lost Workers, rc=" << rc;
+
+    rc = XDBService_delete_all(t);
+    if (rc) LOG(ERROR) << "Removing lost Services, rc=" << rc;
+
+    rc = mco_trans_commit(t);
+
+  } while (false);
+
+  if (rc)
+  {
+    LOG(ERROR) << "Cleanup lost workers, letters, services";
+    mco_trans_rollback(t);
+  }
+
+  LOG(INFO) << "Cleanup broker database finished";
+  return status;
+}
+
+bool DatabaseBrokerImpl::Disconnect()
+{
   return (m_database->Disconnect()).Ok();
-#endif
 }
 
 DBState_t DatabaseBrokerImpl::State()
@@ -175,7 +246,6 @@ MCO_RET DatabaseBrokerImpl::new_Service(mco_trans_h /*t*/,
   MCO_RET rc;
   autoid_t aid;
   Service *service;
-//  broker_db::XDBService service_instance;
   bool status = false;
 
   assert(self);
@@ -202,7 +272,7 @@ MCO_RET DatabaseBrokerImpl::new_Service(mco_trans_h /*t*/,
     }
   } while (false);
 
-//  LOG(INFO) << "NEW XDBService "<<obj<<" name '"<<name<<"' self=" << self;
+  LOG(INFO) << "NEW XDBService "<<obj<<" name '"<<name<<"' self=" << self;
 
   return MCO_S_OK;
 }
@@ -233,7 +303,7 @@ MCO_RET DatabaseBrokerImpl::del_Service(mco_trans_h /*t*/,
 
   } while (false);
 
-//  LOG(INFO) << "DEL XDBService "<<obj<<" name '"<<name<<"' self=" << self;
+  LOG(INFO) << "DEL XDBService "<<obj<<" name '"<<name<<"' self=" << self;
 
   return MCO_S_OK;
 }
@@ -251,7 +321,7 @@ MCO_RET DatabaseBrokerImpl::RegisterEvents()
     rc = mco_register_newService_handler(t, 
             &DatabaseBrokerImpl::new_Service, 
             static_cast<void*>(this)
-//#if (EXTREMEDB_VERSION >= 41) && USE_EXTREMEDB_HTTP_SERVER
+//#if (EXTREMEDB_VERSION >= 40) && USE_EXTREMEDB_HTTP_SERVER
 //            , MCO_AFTER_UPDATE
 //#endif
             );
@@ -280,7 +350,7 @@ Service *DatabaseBrokerImpl::AddService(const std::string& name)
 
 Service *DatabaseBrokerImpl::AddService(const char *name)
 {
-  broker_db::XDBService service_instance = {};
+  broker_db::XDBService service_instance;
   Service       *srv = NULL;
   MCO_RET        rc;
   mco_trans_h    t;
@@ -305,7 +375,8 @@ Service *DatabaseBrokerImpl::AddService(const char *name)
     if (rc) { LOG(ERROR) << "Getting service "<<name<<" id, rc=" << rc; break; }
 
     srv = new Service(aid, name);
-    srv->SetSTATE(Service::State::REGISTERED);
+    //srv->SetSTATE(Service::State::REGISTERED);
+    srv->SetSTATE(Service::REGISTERED);
 
     rc = mco_trans_commit(t);
     if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; }
@@ -386,7 +457,7 @@ bool DatabaseBrokerImpl::RemoveWorker(Worker *wrk)
   MCO_RET       rc = MCO_S_OK;
   mco_trans_h   t;
   broker_db::XDBService service_instance;
-  broker_db::XDBWorker  worker_instance = {};
+  broker_db::XDBWorker  worker_instance;
 
   assert(wrk);
   const char* identity = wrk->GetIDENTITY();
@@ -441,7 +512,7 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
   broker_db::XDBService service_instance;
   broker_db::XDBWorker  worker_instance;
   timer_mark_t  now_time, next_heartbeat_time;
-  broker_db::timer_mark xdb_next_heartbeat_time = {};
+  broker_db::timer_mark xdb_next_heartbeat_time;
   autoid_t      srv_aid;
   autoid_t      wrk_aid;
 
@@ -922,9 +993,8 @@ Worker* DatabaseBrokerImpl::GetWorkerByState(autoid_t& service_id,
       break;
     if (rc) { LOG(ERROR)<< "Unable to get cursor, rc="<<rc; break; }
 
-    for (rc = broker_db::XDBWorker::SK_by_serv_id::search(t, &csr, MCO_EQ, service_id);
-         (rc == MCO_S_OK) || (false == awaiting_worker_found);
-         rc = mco_cursor_next(t, &csr)) 
+    rc = broker_db::XDBWorker::SK_by_serv_id::search(t, &csr, MCO_EQ, service_id);
+    while((rc == MCO_S_OK) && (false == awaiting_worker_found))
     {
        rc = broker_db::XDBWorker::SK_by_serv_id::compare(t,
                 &csr,
@@ -943,10 +1013,12 @@ Worker* DatabaseBrokerImpl::GetWorkerByState(autoid_t& service_id,
          {
            awaiting_worker_found = true;
            break; // нашли что искали, выйдем из цикла
-         } 
+         }
        }
        if (rc)
          break;
+
+       rc = mco_cursor_next(t, &csr);
     }
     rc = MCO_S_CURSOR_END == rc ? MCO_S_OK : rc;
 
@@ -999,7 +1071,7 @@ bool DatabaseBrokerImpl::ClearWorkersForService(const Service *service)
     return true;
 }
 
-/* Очистить спул Обработчиков и всех Служб */
+/* Очистить спул Обработчиков для всех Служб */
 bool DatabaseBrokerImpl::ClearServices()
 {
   Service  *srv;
@@ -1013,6 +1085,7 @@ bool DatabaseBrokerImpl::ClearServices()
   srv = m_service_list->first();
   while (srv)
   {
+    // При этом удаляются Сообщения, присвоенные удаляемым Обработчикам
     if (true == (status = ClearWorkersForService(srv)))
     {
       status = RemoveService(srv->GetNAME());
@@ -1280,7 +1353,7 @@ Letter* DatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
   mco_trans_h  t;
   MCO_RET rc = MCO_S_OK;
   mco_cursor_t csr;
-  broker_db::XDBLetter letter_instance = {};
+  broker_db::XDBLetter letter_instance;
   Letter      *letter = NULL;
   char        *header_buffer = NULL;
   char        *body_buffer = NULL;
@@ -1791,6 +1864,7 @@ bool DatabaseBrokerImpl::PushRequestToService(Service *srv,
   assert(!header.empty());
   assert(!body.empty());
   assert (1 == 0);
+  return false;
 }
 
 /*

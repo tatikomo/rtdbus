@@ -180,7 +180,7 @@ int main (int argc, char *argv [])
         LOG(ERROR) << err.what();;
     }
 
-    if (s_interrupted)
+    if (interrupt_broker)
     {
         LOG(INFO) << "interrupt received, shutting down...";
     }

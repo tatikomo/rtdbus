@@ -16,6 +16,8 @@ if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
         glog
         gtest
         uuid)
+  # XSD Synthethis
+  include_directories(/usr/local/include)
 else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # LINUX
   set (SYSTEM_EXTERNAL_LIBS
@@ -24,7 +26,9 @@ else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
         gtest)
 endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
-include_directories(${CMAKE_SOURCE_DIR}/../../gtest-${GTEST_VERSION}/include)
+SET(GTEST_DIR ${CMAKE_SOURCE_DIR}/../../gtest-${GTEST_VERSION})
+
+include_directories(${GTEST_DIR}/include)
 include_directories(${TOOLS_DIR})
 include_directories(${MDP_DIR})
 include_directories(${MSG_DIR})
@@ -36,9 +40,10 @@ include_directories(${CLIENT_DIR})
 include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
 include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})
+include_directories(${LIBCPPZMQ_INCLUDE_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})
 
-link_directories(${CMAKE_SOURCE_DIR}/../../gtest-${GTEST_VERSION}/lib/.libs)
+link_directories(${GTEST_DIR}/lib/.libs)
 link_directories(${LIBGLOG_LIBRARIES_DIR})
 link_directories(${MDP_DIR})
 link_directories(${XDB_BROKER_DIR})
@@ -47,6 +52,7 @@ link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 
 set (TEST_DEV_INTERNAL_SOURCES
+        ${GTEST_DIR}/include/gtest/gtest.h
         ${XDB_IMPL_DIR}/dat/broker_db.hpp
         ${XDB_IMPL_DIR}/dat/broker_db.h
         ${XDB_IMPL_DIR}/dat/broker_db.c
@@ -67,6 +73,7 @@ set (TEST_DEV_INTERNAL_SOURCES
         ${TEST_RTDBUS_DIR}/dev_int_unittest.cpp)
 
 set (TEST_DEV_RUNTIME_SOURCES
+        ${GTEST_DIR}/include/gtest/gtest.h
         ${XDB_IMPL_DIR}/dat/broker_db.hpp
         ${XDB_IMPL_DIR}/dat/broker_db.h
         ${XDB_IMPL_DIR}/dat/broker_db.c
@@ -90,12 +97,12 @@ set (TEST_DEV_RUNTIME_SOURCES
         ${TEST_RTDBUS_DIR}/dev_runt_unittest.cpp)
 
 set (TEST_DATABASE_SOURCES
+        ${GTEST_DIR}/include/gtest/gtest.h
         ${XDB_IMPL_DIR}/dat/broker_db.hpp
         ${XDB_IMPL_DIR}/dat/broker_db.h
         ${XDB_IMPL_DIR}/dat/broker_db.c
         ${XDB_IMPL_DIR}/xdb_impl_application.hpp
         ${XDB_IMPL_DIR}/xdb_impl_environment.hpp
-        ${XDB_IMPL_DIR}/xdb_impl_connection.hpp
         ${XDB_IMPL_DIR}/dat/rtap_db-pskel.hxx
         ${XDB_IMPL_DIR}/dat/rtap_db-pskel.cxx
         ${XDB_IMPL_DIR}/dat/rtap_db-pimpl.hxx
@@ -109,13 +116,19 @@ set (TEST_DATABASE_SOURCES
         ${TEST_RTDBUS_DIR}/database_unittest.cpp)
 
 set (TEST_MSG_SOURCES
+        ${GTEST_DIR}/include/gtest/gtest.h
         ${MDP_DIR}/mdp_zmsg.hpp
         ${MDP_DIR}/mdp_helpers.cpp
         ${MSG_DIR}/proto/common.pb.cc
         ${MSG_DIR}/proto/common.pb.h
         ${TEST_RTDBUS_DIR}/message_unittest.cpp)
 
-add_definitions (-Wno-missing-field-initializers)
+if (CMAKE_COMPILER_IS_GNUCC)
+#add_definitions (-Wno-missing-field-initializers)
+#add_definitions(-fpermissive)
+else (CMAKE_COMPILER_IS_GNUCC)
+  add_definitions (-library=stlport4)
+endif (CMAKE_COMPILER_IS_GNUCC)
 
 add_custom_command(
         OUTPUT
@@ -123,7 +136,7 @@ add_custom_command(
         ${XDB_IMPL_DIR}/dat/broker_db.c
         ${XDB_IMPL_DIR}/dat/broker_db.hpp
         COMMAND
-        ${LIBEXTREMEDB_MCOCOMP} -hpp broker_db.mco -P${XDB_IMPL_DIR}/dat
+        ${LIBEXTREMEDB_MCOCOMP} -hpp -x broker_db.mco -P${XDB_IMPL_DIR}/dat
         DEPENDS
         ${XDB_IMPL_DIR}/dat/broker_db.mco
         WORKING_DIRECTORY
@@ -156,12 +169,25 @@ add_custom_command(
         )
 
 add_custom_command(
+        OUTPUT
+        ${XDB_IMPL_DIR}/dat/rtap_db_dict-pskel.hxx
+        ${XDB_IMPL_DIR}/dat/rtap_db_dict-pskel.cxx
+        COMMAND
+        /usr/bin/xsd cxx-parser --type-map rtap_db_dict.map --generate-validation rtap_db_dict.xsd
+        DEPENDS
+        ${XDB_IMPL_DIR}/dat/rtap_db_dict.xsd
+        ${XDB_IMPL_DIR}/dat/rtap_db_dict.map
+        WORKING_DIRECTORY
+        ${XDB_IMPL_DIR}/dat
+        )
+
+add_custom_command(
         OUTPUT 
         ${XDB_IMPL_DIR}/dat/rtap_db.h
         ${XDB_IMPL_DIR}/dat/rtap_db.c
         ${XDB_IMPL_DIR}/dat/rtap_db.hpp
         COMMAND
-        ${LIBEXTREMEDB_MCOCOMP} -hpp rtap_db.mco -P${XDB_IMPL_DIR}/dat
+        ${LIBEXTREMEDB_MCOCOMP} -hpp -x rtap_db.mco -P${XDB_IMPL_DIR}/dat
         DEPENDS
         ${XDB_IMPL_DIR}/dat/rtap_db.mco
         WORKING_DIRECTORY
@@ -188,7 +214,7 @@ set_source_files_properties(${MSG_DIR}/proto/common.pb.cc
 
 add_executable (${UNITTEST_DEV_INT} ${TEST_DEV_INTERNAL_SOURCES})
 add_definitions (-D_FUNCTIONAL_TEST)
-add_definitions(-fpermissive)
+#add_definitions(-fpermissive)
 target_link_libraries(${UNITTEST_DEV_INT}
     ${XDB_BROKER_LIBRARY_NAME}
     ${XDB_BROKER_INTERFACE_LIBRARY_NAME}
@@ -200,7 +226,7 @@ target_link_libraries(${UNITTEST_DEV_INT}
 
 add_executable (${UNITTEST_DEV_RUN} ${TEST_DEV_RUNTIME_SOURCES})
 add_definitions (-D_FUNCTIONAL_TEST)
-add_definitions(-fpermissive)
+#add_definitions(-fpermissive)
 target_link_libraries(${UNITTEST_DEV_RUN}
     ${XDB_BROKER_LIBRARY_NAME}
     ${XDB_RTAP_LIBRARY_NAME}

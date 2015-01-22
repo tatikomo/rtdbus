@@ -31,6 +31,7 @@
 #define TEST_LISTEN       "@TEST_LISTEN@"
 #define TEST_CONNECTION   "@TEST_CONNECTION@"
 
+#cmakedefine COMPILER_PLATFORM      @COMPILER_PLATFORM@
 #cmakedefine MAX_SERVICES_ENTRY     @MAX_SERVICES_ENTRY@
 #cmakedefine MAX_WORKERS_ENTRY      @MAX_WORKERS_ENTRY@
 #cmakedefine SERVICE_NAME_MAXLEN    @SERVICE_NAME_MAXLEN@
@@ -229,6 +230,9 @@
 # else
 #  define RTDBUS_WIN32
 # endif
+#elif defined(sun)
+// Реалтаймовский таймер в Solaris
+# define CLOCK_TYPE CLOCK_REALTIME 
 #else
 # define RTDBUS_UNIX
 // Тип таймера, не подверженного NTP - специфично для Linux
@@ -270,4 +274,5 @@
 #define _dbus_verbose_C_S _dbus_verbose
 #endif 
 
-#endif  // _RTDBUS_CONFIG_H
+#endif  /* _RTDBUS_CONFIG_H */
+

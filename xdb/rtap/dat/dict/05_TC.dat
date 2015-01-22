@@ -1,5 +1,5 @@
 C 14030TC                 Class05            RAM Natural     Enabled  
-S CODE               PUB        rtBYTES8       
+#S CODE               PUB        rtBYTES8       
 S UNIVNAME           PUB        rtBYTES32           
 S OBJCLASS           PUB        rtUINT8        5    
 S LABEL              PUB        rtBYTES80       
@@ -9,9 +9,9 @@ S L_EQT              PUB        rtBYTES32
 S L_SA               PUB        rtBYTES32
 S STATUS             PUB        rtLOGICAL      0    
 S REMOTECONTROL      PUB        rtLOGICAL      0
-S NONEXE             PUB        rtLOGICAL      0    
-S RESPNEG            PUB        rtLOGICAL      0    
-#V ALARMV_NONEXE      PUB        rtUINT8        1    
-#V ALARMV_RESPNEG     PUB        rtUINT8        1    
+#S NONEXE             PUB        rtLOGICAL      0    
+#S RESPNEG            PUB        rtLOGICAL      0    
+V ALARMV_NONEXE      PUB        rtUINT8        1    
+V ALARMV_RESPNEG     PUB        rtUINT8        1    
 #S DISPATCH           PUB        rtBYTES20      
 S ACTIONTYP          PUB        rtUINT16       0    

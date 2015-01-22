@@ -8,14 +8,13 @@
 #include <iostream>
 
 #include "rtap_db.hxx"
+#include "rtap_db_dict.hxx"
 #include "rtap_db-pimpl.hxx"
 
 namespace rtap_db
 {
 
-  rtap_db::Class * current_class_instance = NULL;
-  rtap_db::ClassesList* m_classes;
-
+  rtap_db::Point  *current_class_instance = NULL;
 
   // AttrNameType_pimpl
   //
@@ -30,34 +29,32 @@ namespace rtap_db
   {
     const ::std::string& v (post_string ());
 
-    // TODO
-    //
-#if VERBOSE
-    std::cout << "\t\t\tAttrNameType_pimpl::post_AttrNameType:" << v << std::endl;
-#endif
     m_impl.assign(v);
+#if VERBOSE
+    std::cout << "\t\t\tAttrNameType_pimpl::post_AttrNameType:"
+              << m_impl << std::endl;
+#endif
     return m_impl;
   }
 
-  // ClassType_pimpl
+  // Tag_pimpl
   //
 
-  void ClassType_pimpl::
+  void Tag_pimpl::
   pre ()
   {
   }
 
-  rtap_db::ClassType& ClassType_pimpl::
-  post_ClassType ()
+  rtap_db::Tag& Tag_pimpl::
+  post_Tag ()
   {
     const ::std::string& v (post_string ());
 
-    // TODO
-    //
-#if VERBOSE
-    std::cout << "\t\tClassType_pimpl::post_ClassType:" << v << std::endl;
-#endif
     m_impl.assign(v);
+#if VERBOSE
+    std::cout << "\t\tTag_pimpl::post_Tag:"
+              << m_impl << std::endl;
+#endif
     return m_impl;
   }
 
@@ -74,12 +71,11 @@ namespace rtap_db
   {
     const ::std::string& v (post_string ());
 
-    // TODO
-    //
-#if VERBOSE
-    std::cout << "\t\t\tAttributeType_pimpl::post_AttributeType:" << v << std::endl;
-#endif
     m_impl.assign(v);
+#if VERBOSE
+    std::cout << "\t\t\tAttributeType_pimpl::post_AttributeType:"
+              << m_impl << std::endl;
+#endif
     return m_impl;
   }
 
@@ -96,12 +92,11 @@ namespace rtap_db
   {
     const ::std::string& v (post_string ());
 
-    // TODO
-    //
-#if VERBOSE
-    std::cout << "\t\tPointKind_pimpl::post_PointKind:" << v << std::endl;
-#endif
     m_impl.assign(v);
+#if VERBOSE
+    std::cout << "\t\tPointKind_pimpl::post_PointKind:"
+              << m_impl << std::endl;
+#endif
     return m_impl;
   }
 
@@ -109,100 +104,92 @@ namespace rtap_db
   //
 
   void RTDB_STRUCT_pimpl::
-  pre (rtap_db::ClassesList* class_list)
+  pre (rtap_db::Points& class_list)
   {
-//    std::cout << "RTDB_STRUCT_pimpl::pre"<<std::endl;
-    m_classes = class_list;
+    m_classes = &class_list;
   }
 
   void RTDB_STRUCT_pimpl::
   pre (const char* fname)
   {
     m_classes = NULL;
-    std::cout << "GEV: construct xExtremeDB from XML file " << fname << std::endl;
+    std::cout << "NOTE: construct eXtremeDB from XML-file " << fname << std::endl;
   }
 
   void RTDB_STRUCT_pimpl::
-  Class (rtap_db::Class& Class)
+  Point (rtap_db::Point& Point)
   {
-    // TODO
-    //
 #if VERBOSE
-    std::cout << "RTDB_STRUCT_pimpl::Class("<<Class.code()<<", "<<Class.name()<<")"<<std::endl;
+    std::cout << "RTDB_STRUCT_pimpl::Point("<<Point.code()<<", "<<Point.tag()<<")"<<std::endl;
 #endif
     if (m_classes)
     {
-      m_classes->push_back(Class);
+      m_classes->push_back(Point);
     }
     else
     {
-      std::cout << "GEV: dump class "<< Class.name() <<" as XML" << std::endl;
+      std::cout << "Read: "<< Point.tag() << std::endl;
     }
-    delete &Class;
+    delete &Point;
   }
 
-  void RTDB_STRUCT_pimpl::
+  rtap_db::Points* RTDB_STRUCT_pimpl::
   post_RTDB_STRUCT ()
   {
 #if VERBOSE
     std::cout << "Job done!" << std::endl;
 #endif
+    return m_classes;
   }
 
-  // Class_pimpl
+  // Point_pimpl
   //
 
-  void Class_pimpl::
+  void Point_pimpl::
   pre ()
   {
-    // NB экземпляр удаляется в RTDB_STRUCT_pimpl::Class
-    m_impl = new Class;
+    // NB экземпляр удаляется в RTDB_STRUCT_pimpl::Point
+    m_impl = new Point;
+    m_impl->m_objclass = ::rtap_db_dict::UNUSED;
 #if VERBOSE
-    std::cout << "\t\tClass::m_impl=" << m_impl << std::endl;
+    std::cout << "\t\tPoint::m_impl=" << m_impl << std::endl;
 #endif
-    m_impl->m_class_code = 0;
     current_class_instance = m_impl;
   }
 
-  void Class_pimpl::
-  Code (rtap_db::Code Code)
+  void Point_pimpl::
+  Objclass (rtap_db::Objclass objclass)
   {
-    // TODO
-    //
+    m_impl->m_objclass = static_cast<unsigned int>(objclass);
 #if VERBOSE
-    std::cout << "\tClass_pimpl::Code = "<<static_cast<unsigned int>(Code)<<std::endl;
+    std::cout << "\tPoint_pimpl::Objclass = " << m_impl->m_objclass << std::endl;
 #endif
-    m_impl->m_class_code = static_cast<unsigned int>(Code);
   }
 
-  void Class_pimpl::
-  Name (rtap_db::ClassType& Name)
+  void Point_pimpl::
+  Tag (rtap_db::Tag& univname)
   {
-    // TODO
-    //
 #if VERBOSE
-    std::cout << "\tClass_pimpl::Name = "<<Name<<std::endl;
+    std::cout << "\tPoint_pimpl::Tag = "<<univname<<std::endl;
 #endif
-    m_impl->m_class_name.assign(Name);
+    m_impl->m_tag.assign(univname);
   }
 
-  void Class_pimpl::
+  void Point_pimpl::
   Attr ()
   {
 #if VERBOSE
-    std::cout << "\tClass_pimpl::Attr: count = "<< m_impl->m_attributes.size()<<std::endl;
+    std::cout << "\tPoint_pimpl::Attr: count = "<< m_impl->m_attributes.size()<<std::endl;
 #endif
   }
 
-  rtap_db::Class& Class_pimpl::
-  post_Class ()
+  rtap_db::Point& Point_pimpl::
+  post_Point ()
   {
-    // TODO
-    //
 #if VERBOSE
-    std::cout << "\tClass_pimpl::post_Class("
-        << m_impl->code() << ","
-        << m_impl->name() << ","
+    std::cout << "\tPoint_pimpl::post_Point("
+        << m_impl->objclass() << ","
+        << m_impl->tag() << ","
         << m_impl->m_attributes.size() <<")"
     << std::endl;
 #endif
@@ -210,36 +197,36 @@ namespace rtap_db
     return *m_impl;
   }
 
-  Class_pimpl::~Class_pimpl()
+  Point_pimpl::~Point_pimpl()
   {
     // TODO Вызывается только один раз - проверить причины
 #if VERBOSE
-    std::cout << "\tClass_pimpl::~Class_pimpl()" << std::endl;
+    std::cout << "\tPoint_pimpl::~Point_pimpl()" << std::endl;
 #endif
   }
 
 
-  // Code_pimpl
+  // Objclass_pimpl
   //
-  void Code_pimpl::
+  void Objclass_pimpl::
   pre ()
   {
+    m_impl = ::rtap_db_dict::UNUSED;
 #if VERBOSE
-    std::cout << "\t\tCode_pimpl::pre" << std::endl;
+    std::cout << "\t\tObjclass_pimpl::pre" << std::endl;
 #endif
   }
 
-  rtap_db::Code Code_pimpl::
-  post_Code ()
+  rtap_db::Objclass Objclass_pimpl::
+  post_Objclass ()
   {
     long long v (post_integer ());
 
-    // TODO
-    //
+    if ((0 <= v) && (v <= ::rtap_db_dict::UNUSED))
+      m_impl = static_cast<unsigned int>(v);
 #if VERBOSE
-    std::cout << "\t\tCode_pimpl::post_Code:" << v << std::endl;
+    std::cout << "\t\tObjclass_pimpl::post_Objclass:" << m_impl << std::endl;
 #endif
-    m_impl = v;
     return m_impl;
   }
 
@@ -255,7 +242,6 @@ namespace rtap_db
   void Attr_pimpl::
   Kind (rtap_db::PointKind& Kind)
   {
-    // TODO
 #if VERBOSE
     std::cout << "\t\tAttr_pimpl::Kind = " << Kind << std::endl;
 #endif
@@ -265,8 +251,6 @@ namespace rtap_db
   void Attr_pimpl::
   Accessibility (rtap_db::Accessibility& Accessibility)
   {
-    // TODO
-    //
 #if VERBOSE
     std::cout << "\t\tAttr_pimpl::Accessibility = " << Accessibility << std::endl;
 #endif
@@ -276,8 +260,6 @@ namespace rtap_db
   void Attr_pimpl::
   DeType (rtap_db::AttributeType& DeType)
   {
-    // TODO
-    //
 #if VERBOSE
     std::cout << "\t\tAttr_pimpl::DeType = " << DeType << std::endl;
 #endif
@@ -287,8 +269,6 @@ namespace rtap_db
   void Attr_pimpl::
   AttrName (rtap_db::AttrNameType& AttrName)
   {
-    // TODO
-    //
 #if VERBOSE
     std::cout << "\t\tAttr_pimpl::AttrName = " << AttrName << std::endl;
 #endif
@@ -298,8 +278,6 @@ namespace rtap_db
   void Attr_pimpl::
   Value (const ::std::string& Value)
   {
-    // TODO
-    //
 #if VERBOSE
     std::cout << "\t\tAttr_pimpl::Value = " << Value << std::endl;
 #endif
@@ -334,12 +312,10 @@ namespace rtap_db
   {
     const ::std::string& v (post_string ());
 
-    // TODO
-    //
-#if VERBOSE
-    std::cout << "\t\t\tAccessibility_pimpl::post_Accessibility:" << v << std::endl;
-#endif
     m_impl.assign(v);
+#if VERBOSE
+    std::cout << "\t\t\tAccessibility_pimpl::post_Accessibility:" << m_impl << std::endl;
+#endif
     return m_impl;
   }
 }

@@ -26,9 +26,9 @@ Error::Error(ErrorCode_t _t) :
   set(_t);
 }*/
 
-Error::Error(const Error& _origin) :
-  m_error_code(_origin.getCode())
+Error::Error(const Error& _origin)
 {
+  m_error_code = static_cast<ErrorCode_t>(_origin.getCode());
   init();
 }
 
@@ -41,7 +41,7 @@ void Error::init()
   if (!m_initialized)
   {
     m_initialized = true;
-    m_error_descriptions[rtE_NONE]             = (const char*)"No error";
+    m_error_descriptions[rtE_NONE]             = (const char*)"OK";
     m_error_descriptions[rtE_UNKNOWN]          = (const char*)"Unknown error";
     m_error_descriptions[rtE_NOT_IMPLEMENTED]  = (const char*)"Not yet implemented";
     m_error_descriptions[rtE_STRING_TOO_LONG]  = (const char*)"Given string is too long";
@@ -49,12 +49,22 @@ void Error::init()
     m_error_descriptions[rtE_DB_NOT_FOUND]     = (const char*)"Database is not found";
     m_error_descriptions[rtE_DB_NOT_OPENED]    = (const char*)"Database is not opened";
     m_error_descriptions[rtE_DB_NOT_DISCONNECTED] = (const char*)"Database is not disconnected";
-    m_error_descriptions[rtE_XML_NOT_OPENED]   = (const char*)"XML couldn't be opened";
-    m_error_descriptions[rtE_INCORRECT_DB_TRANSITION_STATE] = (const char*)"New DB state is incorrect";
+    m_error_descriptions[rtE_XML_OPEN]         = (const char*)"Error opening XML snap";
+    m_error_descriptions[rtE_INCORRECT_DB_STATE] = (const char*)"New DB state is incorrect";
     m_error_descriptions[rtE_SNAPSHOT_WRITE]   = (const char*)"Snapshot writing failure";
     m_error_descriptions[rtE_SNAPSHOT_READ]    = (const char*)"Snapshot reading failure";
+    m_error_descriptions[rtE_SNAPSHOT_NOT_EXIST] = (const char*)"Snapshot not exist";
     m_error_descriptions[rtE_RUNTIME_FATAL]    = (const char*)"Fatal runtime failure";
+    m_error_descriptions[rtE_RUNTIME_ERROR]    = (const char*)"Runtime error";
     m_error_descriptions[rtE_RUNTIME_WARNING]  = (const char*)"Recoverable runtime failure";
+    m_error_descriptions[rtE_TABLE_CREATE]     = (const char*)"Creating table"; 
+    m_error_descriptions[rtE_TABLE_READ]       = (const char*)"Reading from table";
+    m_error_descriptions[rtE_TABLE_WRITE]      = (const char*)"Writing into table";
+    m_error_descriptions[rtE_TABLE_DELETE]     = (const char*)"Deleting table";
+    m_error_descriptions[rtE_POINT_CREATE]     = (const char*)"Creating point";
+    m_error_descriptions[rtE_POINT_READ]       = (const char*)"Reading point";
+    m_error_descriptions[rtE_POINT_WRITE]      = (const char*)"Writing point";
+    m_error_descriptions[rtE_POINT_DELETE]     = (const char*)"Deleting point";
   }
 }
 

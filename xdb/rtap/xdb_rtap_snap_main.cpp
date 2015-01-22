@@ -1,5 +1,6 @@
 #include <stdio.h> // stderr
 #include <stdlib.h> // abort()
+#include <xercesc/util/PlatformUtils.hpp>
 
 #include "glog/logging.h"
 
@@ -14,6 +15,7 @@
 #include "xdb_rtap_snap.hpp"
 
 using namespace xdb;
+using namespace xercesc;
 
 static char database_name[SERVICE_NAME_MAXLEN + 1];
 static char file_path[400+1];
@@ -31,6 +33,7 @@ int main(int argc, char** argv)
   char command_name[SERVICE_NAME_MAXLEN + 1];
   int  opt;
   RtConnection *connection = NULL;
+  RtApplication *app = NULL;
 
   file_path[0] = '\0';
   command_name[0] = '\0';
@@ -125,17 +128,25 @@ int main(int argc, char** argv)
   {
       if ((false == is_command_name_given) || (false == is_database_name_given))
       {
-        LOG(ERROR) << "Exiting";
+        LOG(ERROR) << "Command or database name not specified, exiting";
         return 1;
       }
 
-      // Все в порядке, начинаем работу
-      RtApplication *app = new RtApplication("xdb_snap");
-      app->setOption("OF_RDWR", 1);
-      RtEnvironment *env = app->loadEnvironment(database_name);
-      
-      switch (command)
+      try
       {
+        XMLPlatformUtils::Initialize("UTF-8");
+
+        // Все в порядке, начинаем работу
+        // TODO: Указанные здесь опции не влияют на результат, все равно 
+        // используются внутренние значения по умолчанию.
+        app = new RtApplication("xdb_snap");
+        app->setOption("OF_TRUNCATE", 1);
+        app->setOption("OF_RDWR", 1);
+        app->setOption("OF_SAVE_SNAP", 1);
+        RtEnvironment *env = app->loadEnvironment(database_name);
+      
+        switch (command)
+        {
         case LOAD_FROM_XML:
           if (true == loadFromXML(env, file_path))
           {
@@ -149,8 +160,15 @@ int main(int argc, char** argv)
             LOG(INFO) << "XML data was successfuly saved";
           }
         break;
-      }
+        }
 
+        XMLPlatformUtils::Terminate();
+
+      }
+      catch (const XMLException& toCatch)
+      {
+        LOG(ERROR) << "XML engine error :" << toCatch.getMessage();
+      }
 
       delete connection;
       delete app;

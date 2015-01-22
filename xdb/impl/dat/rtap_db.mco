@@ -5,6 +5,10 @@
  * START DATE: 17/03/2009
  */
 
+// TODO Проверить достаточность выделяемого пространства 
+// для символьных значений, поскольку UTF8 занимает в два 
+// раза больше места, чем ISO8859-5.
+
 #define int1        signed<1>
 #define int2        signed<2>
 #define int4        signed<4>
@@ -15,31 +19,174 @@
 #define uint1       unsigned<1>
 #define i_objclass  unsigned<1>
 #define logical     unsigned<1>
+#define byte        unsigned<1>
 #define s_code      char<8>
-#define s_label     char<80>
 #define s_formula   char<40>
-#define s_univname  char<32>
-#define s_dispatch  char<20>
-#define s_valabel   char<12>
-#define s_unity     char<12>
-#define s_shortlabel    char<16>
-#define s_attname       char<16>
-#define s_statelabel    char<32>
+#define s_tag       char<32>
+#define s_attname   char<16>
+// Для полей, содержащих UTF8, размер увеличен вдвое.
+#define s_label         char<80>
+#define s_dispatch      char<24>
+#define s_valabel       char<40>
+#define s_shortlabel    char<32>
+#define s_statelabel    char<64>
 
+// All points
 #define MAX_POINTS_QUANTITY  10000
+// All alarms
 #define MAX_ALARMS_QUANTITY   1000
-/* max history table depth for all points */
+// All actions
+#define MAX_LISTACT_QUANTITY  1000
+// Calculation Engines
+#define MAX_CE_QUANTITY         10
+// max history table depth for all points
 #define MAX_HISTORY_QUANTITY 10000
-/* max history table depth for single analog instance */
+// max history table depth for single analog instance
 #define MAX_HIST_A_QUANTITY_PER_POINT 100
-/* max history table depth for single discrete instance */
+// max history table depth for single discrete instance
 #define MAX_HIST_D_QUANTITY_PER_POINT 100
 
 declare database  rtap_db;
-/*struct Id {
-  uint8 id;
+//struct Id {
+//  uint8 id;
+//};
+//declare oid Id[MAX_POINTS_QUANTITY];
+
+/* ===================================================================== */
+enum PointStatus {
+  PLANNED   = 0,    // Нельзя использовать, не готова к работе
+  WORKED    = 1,    // Можно использовать, нормальное рабочее состояние
+  DISABLED  = 2     // Нельзя использовать, заблокирована
 };
-declare oid Id[10000];*/
+
+enum Boolean {
+  FALSE     = 0,
+  TRUE      = 1
+};
+
+enum Logical {
+  OFF      = 0,
+  ON       = 1
+};
+
+enum HistoryState {
+  SUSPEND   = 0,
+  ENABLE    = 1
+};
+
+enum AlarmState {
+  NO_ALARM  = 0,
+  ALARM_NOTACK  = 1,
+  ALARM_ACK = 2
+};
+
+enum AlarmDegree {
+  INFORM    = 0,
+  WARNING   = 1,
+  FATAL     = 2
+};
+
+enum Delegable {
+  YES       = 0,
+  NO        = 1
+};
+
+// Разновидность Тревоги - оперативная, неоперативная, историзированная
+// Влияет на отображение Тревоги в ИЧМ, это три отдельных списка
+enum AlarmKind {
+  OPERATIVE     = 0,
+  NON_OPERATIVE = 1,
+  HISTORIZED    = 2
+};
+
+enum AlarmPhase {
+  ERROR	= 0,    /* error */
+  BEGIN   = 1,    /* alarm begginning */
+  END     = 2,    /* alarm end */
+  FUGITIVE= 3,    /* fugitive alarm */
+  INHIB   = 4     /* alarm inhibition */
+};
+
+enum AlarmType {
+  ERROR_AL    = 0,  /* system error */
+  ACQ         = 1,  /* acquired alarm */
+  SIG         = 2,  /* signalisation state change */
+  VH_LIM      = 3,  /* very high limit transgression */
+  H_LIM       = 4,  /* high limit transgression */
+  L_LIM       = 5,  /* low limit transgression */
+  VL_LIM      = 6,  /* very low limit transgression */
+  VALV_EXE    = 7,  /* no execution of valve TC */
+  VALV_RESP   = 8,  /* negative respons of valve TC */
+  LINK        = 14, /* link break */
+  POWER       = 15, /* power failure */
+  G_LIM       = 18, /* gradient limit transgression */
+  USER        = 25, /* user application */
+  APPLI_RUN   = 26, /* application running */
+  TC_DIR      = 27  /* TC DIR */
+};
+
+enum Validity {
+  INVALID   = 0,
+  VALID     = 1,
+  MANUAL    = 2,
+  DUBIOUS   = 3,
+  INHIBITED = 4,
+  FAULT     = 5
+};
+
+// Уровень полномочий управления
+enum Responsability {
+  LOCAL     = 0,
+  DISTANT   = 1
+};
+
+enum SystemState {
+  UNREACH   = 0,
+  OPER      = 1,
+  PRE_OPER  = 2
+};
+
+// Тип телекоманды
+// TODO: Убрать дублирование кодов разных команд
+enum Action {
+    TC_NONE = 0,
+	TC_ON   = 1,
+	TC_OFF  = 2,   
+	TC_SC_START_MAIN_LINE   = 3,
+	TC_SC_STOP_MAIN_LINE    = 4,
+	TC_ATC_STOP_NORMAL      = 5,
+	TC_ATC_STOP_URG         = 3,    /* TC_OFF */
+	TC_ATC_START_LOOPING    = 6,
+	TC_ATC_START_MAIN_LINE  = 7,
+	TC_ATC_STOP_MAIN_LINE   = 8,
+	TC_ATC_SWITCH_COLD_REGUL1       = 9,
+	TC_ATC_SWITCH_COLD_REGUL2       = 10,
+	TC_GRC_STOP_NORMAL              = 3,    /* TC_OFF */
+	TC_GRC_STOP_URG_NO_EVAC_GAZ     = 11,
+	TC_GRC_STOP_URG_WITH_EVAC_GAZ   = 12,   /* АО со стравливанием газа */
+	TC_ATC_STOP_URG_NO_EVAC_GAZ     = 11,   /* TC_GRC_STOP_URG_NO_EVAC_GAZ */
+	TC_ATC_STOP_URG_WITH_EVAC_GAZ   = 12,   /* TC_GRC_STOP_URG_WITH_EVAC_GAZ */
+	TC_GRC_START_LOOPING    = 13,
+	TC_GRC_START_MAIN_LINE  = 14,
+	TC_AUX_FLOW_REGUL       = 15,
+	TC_AUX_PRESSURE_REGUL   = 16,
+	TC_AUX_START_PUMP       = 17,
+	TC_AUX_STOP_PUMP        = 18,
+	TC_AUX_START_COMPRESSOR = 19,
+	TC_AUX_STOP_COMPRESSOR  = 20,
+	TC_AUX_STOP_URG_AIRCOOLING  = 21,
+	TC_AUX_START_VENTILATOR     = 22,
+	TC_AUX_STOP_VENTILATOR      = 23
+};
+
+enum ActionResult {
+  RESPONSE_NONE     = 0, // Первоначальное значение
+  RESPONSE_ACCEPTED = 1, // СС приняла команду к исполнению
+  RESPONSE_REJECTED = 2, // СС отклонила команду
+  RESPONSE_EXECUTED = 3, // Успешно выполнена
+  RESPONSE_NEGATIVE = 4, // СС сообщила об ошибке
+  RESPONSE_TIMEOUT  = 5  // Превышено допустимое время исполнения команды, нет ответа
+};
 
 enum objclass_t {
     TS  = 0,
@@ -63,15 +210,15 @@ enum objclass_t {
     RGA  = 25,
     SSDG = 26,
     BRG  = 27,
-    SCP = 28,
+    SCP  = 28,
     STG  = 29,
     DIR  = 30,
     DIPL = 31,
-    METLINE  = 32,
-    ESDG = 33,
-    SVLINE   = 34,
-    SCPLINE  = 35,
-    TLLINE   = 36,
+    METLINE = 32,
+    ESDG    = 33,
+    SVLINE  = 34,
+    SCPLINE = 35,
+    TLLINE  = 36,
     INVT = 37,
     AUX1 = 38,
     AUX2 = 39,
@@ -83,6 +230,19 @@ enum objclass_t {
 };
 
 /* ===================================================================== */
+/* Набор таблиц НСИ */
+/* ===================================================================== */
+// Хранение соответствующего символьного значения 
+// для заданного числового кода указанной дискретной Точки
+class DICT_TSC_VAL_LABEL
+{
+  objclass_t classID; // значение атрибута OBJCLASS
+  uint1      valueID; // значение атрибута VAL
+  s_valabel  label;   // символьное обозначие кода valueID
+  unique tree <classID, valueID> PK_by_id;
+};
+
+/* ===================================================================== */
 struct timestamp {
   uint4 sec;
   uint4 nsec;
@@ -90,7 +250,7 @@ struct timestamp {
 
 /* ===================================================================== */
 /* Linkage table between 'OBJCLASS' and symbolic class name */
-class Link_OBJCLASS_CODE
+class DICT_OBJCLASS_CODE
 {
   s_code        objectCode;        /* class name (ex. "TM", "TS", "ATC", "SA",... */
   objclass_t    OBJCLASS;          /* class ident */
@@ -99,79 +259,161 @@ class Link_OBJCLASS_CODE
 };
 
 /* ===================================================================== */
-/* Linkage table between elementary data type and CODE' */
-class Link_SIMPLE_TYPE
+/* Linkage table between elementary data type and OBJCLASS */
+class DICT_SIMPLE_TYPE
 {
   s_shortlabel  dataType;          /* (ex. "LOGICAL", "BYTES256", "TIME_OF_DAY",... */
-  uint1         dataID;            /* data ident */
+  uint1         dataID;            /* data id */
   hash <dataType> typeHash[100];   /* search entry by its type */
   unique tree <dataID> PK_by_id;   /* search entry by numeric datatype */
 };
 
 /* ===================================================================== */
 /* Linkage table between unity category and Infotype' instances */
-class Link_UNITY_ID
+class DICT_UNITY_ID
 {
-  s_unity       UNITY;
-  uint2         unityID;
+  uint2         DimensionID;    // Идентификатор типа размерности (Т, давление, Поток, Скорость...)
+  uint2         unityID;        // Идентификатор размерности
+  s_attname     dimension_entry;// Символьный код размерности на англ. языке 
+  s_label       UNITY;          // Символьное обозначение размерности (С, км3/сут,...)
+  s_label       designation_entry;// Символьное описание размерности (Температура, Расход,...)
   hash <UNITY>  unityHash[100];    /* max 100 different unities */
   unique tree <unityID> PK_by_id;  /* get unity instance by ID */
 };
 
 /* ===================================================================== */
-/* ALARM table for analog and discrete information instances */
-class Alarm
+/* CE DEFINITION table */
+class XDB_CE
+{
+  uint2         macrosId;       // Идентификатор макроса
+  // calculation engine designation for realtime value correction
+  s_formula     CE;             // CALCULATING_ENGINE;
+  unique tree <macrosId> PK_by_id; // get macros instance by ID
+};
+
+/* ===================================================================== */
+/* Operating ALARM table for all instances */
+// Оперативные тревожные сообщения
+class ALARM
 {
   autoid[MAX_ALARMS_QUANTITY];
-  /* reference to Point instance */
-  autoid_t      point_ref;
-
-  timestamp    ALARMBEGIN;
-  timestamp    ALARMBEGINACK;
-  timestamp    ALARMENDACK;
-  timestamp    ALARMSYNTH;
-
+  /* reference to XDBPoint instance where Alarm was detected */
+  // NB: для ускорения работы исп. tag вместо ссылки
+  //autoid_t     point_ref;
+  s_tag         reference;  // TAG сгенерировавшего Тревогу оборудования
+  timestamp     mark_insert;// Дата поступления Тревоги в БД
+  timestamp     mark_origin;// Дата изначальной генерации Тревоги
+  AlarmKind     kind;       // Оперативный, Неоперативный, Историзированный
+  AlarmDegree   degree = INFORM;    // Уровень серьезности тревоги
+  AlarmType     type;       // Тип тревоги
+  AlarmPhase    phase;      // текущая фаза тревоги
+  AlarmState    state = NO_ALARM;   // состояние
+  Logical       acqnowledge = OFF;  // Признак квитирования
+  // Имеет ли Тревога связанное с ней аналоговое значение value?
+  Logical       analog_type = OFF;  // 0|1 = нет|есть
+  double        value;      // Аналоговое значение
+  autoid_t      unity_ref;  // Размерность аналогового значения
+  s_label       text;
+  // ....
   /* Index by point reference */
-  unique tree <point_ref> PK_by_id;
+  //unique tree <point_ref> PK_by_point_id;
+  tree <reference, kind>    SK_by_ref_kind;
+  tree <mark_origin.sec, kind>   SK_by_time_kind;
+};
+
+/* ===================================================================== */
+/* ALARM struct for analog and discrete information instances */
+/* Элементарная запись внутри Точки о свойствах тревожного сообщения */
+struct AlarmItem
+{
+  // Битовые маски Тревог
+  // TODO: Заменить на enum-ы
+  // NB: Используемые ГОФО биты приведены в An.A.pdf стр.37
+  uint4    ALARMBEGIN;
+  uint4    ALARMBEGINACK;
+  uint4    ALARMENDACK;
+  AlarmState   ALARMSYNTH = NO_ALARM;
 };
 
 /* ===================================================================== */
 /* Elementary historical data for analog information */
+/* Элементарная запись в исторических данных для аналоговых Точек */
 struct A_HIST_ITEM
 {
   timestamp    mark;
-  double        value;
+  double       value;
 };
 
+/* ===================================================================== */
 /* Elementary historical data for discrete information */
+/* Элементарная запись в исторических данных для дискретных Точек */
 struct D_HIST_ITEM
 {
   timestamp    mark;
-  uint8         value;
+  uint8        value;
 };
 
-enum HistoryState {
-  ENABLE, SUSPEND
-};
-
+/* ===================================================================== */
 /* HISTORY table for calculating analog historical data */
+/* Хранилище исторических данных для Точек с аналоговым состоянием */
 class A_HIST
 {
   autoid[MAX_HISTORY_QUANTITY];
   HistoryState  STATE = SUSPEND; /* state may be active or suspended */
   vector <A_HIST_ITEM> items;  /* MAX_HIST_A_QUANTITY_PER_POINT */
-  autoid_t  point_ref;
+  autoid_t point_ref;
   unique tree <point_ref> SK_by_point; /* point to history relationship is '1-to-1' */
 };
 
+/* ===================================================================== */
 /* HISTORY table for calculating analog historical data */
+/* Хранилище исторических данных для Точек с дискретным состоянием */
 class D_HIST
 {
   autoid[MAX_HISTORY_QUANTITY];
   HistoryState  STATE = SUSPEND; /* */
   vector <D_HIST_ITEM> items;  /* MAX_HIST_D_QUANTITY_PER_POINT */
-  autoid_t  point_ref;
+  autoid_t point_ref;
   unique tree <point_ref> SK_by_point; /* point to history relationship is '1-to-1' */
+};
+
+/* ===================================================================== */
+/* LISTACD table for TS, TM, TSC, AL, ICS, ICM points */
+/* Перечень действий по изменению уставок */
+class LISTACD
+{
+  autoid[MAX_POINTS_QUANTITY]; /* Points referer */
+  /* reference to XDBPoint instance */
+  autoid_t  point_ref;
+
+  timestamp mark;
+  uint1     type_alarm;
+  double    value;
+  uint1     degree;
+  uint1     cat;
+  s_dispatch dispatcher;
+
+  /* Index by point reference */
+  unique tree <point_ref> PK_by_point_id;
+};
+
+
+/* ===================================================================== */
+/* LISTACT table for TS, TM, TSC, AL, ICS, ICM points */
+/* Перечень действий по телеуправлению */
+class LISTACT
+{
+  autoid[MAX_LISTACT_QUANTITY];
+  timestamp  mark;      // Время выдачи воздействия
+  Action     command;   // Команда
+  s_tag      tag;       // Оборудование
+  s_dispatch dispatcher;// Диспетчер
+  double     value;     // Значение (для телерегулирования)
+  Logical    stage_1;   // Принята или нет команда системой сбора
+  Logical    stage_2;   // Принята или нет команда исполнительным устройством
+  Logical    stage_3;   // Признак фактического выполнения команды
+  hash <tag> SK_by_tag[100]; // TODO: определить размер Списка Текущих Действий
+  list;
 };
 
 /* ===================================================================== */
@@ -181,7 +423,8 @@ struct DiscreteInfoType
   uint8         VAL;         /* from boolean to UINT64 (determined by simpleType) */
   uint8         VALACQ;      /* from source */
   uint8         VALMANUAL;   /* manual input */
-  s_valabel     VAL_LABEL;   /* .VAL designation */
+// TODO вынести все подобные атрибуты в отдельный словарь
+//  s_valabel     VAL_LABEL;   /* .VAL designation */
 };
 
 /* ===================================================================== */
@@ -195,44 +438,57 @@ struct AnalogInfoType
 
 /* ===================================================================== */
 /* POINT */
-class Point
+class XDBPoint
 {
   /* Point autoincremental identifier */
   autoid[MAX_POINTS_QUANTITY];
+  //oid;
   
   /* Point common STATIC part */
-  s_univname    UNIVNAME;
+  s_tag         TAG;
   objclass_t    OBJCLASS;    /* class id */
+  /* Использовать атрибут PointStatus для временного 
+   * включения/выключения Точки из обработки */
+  PointStatus   STATUS = DISABLED;
   /* short human-readable designation (TODO: store in external DB) */
   s_shortlabel  SHORTLABEL;
-  /* full human-readable designation (TODO: migrating to external DB) */
-  /* s_label       longLabel;*/
   uint2         UNITY_ID;    /* link to unity category */
   uint1         DE_TYPE;     /* type of data [ex. LOGICAL or BYTES256] */ 
-  s_formula     CALCULATING_ENGINE; /* calculation engine for realtime value correction */
-  autoid_t      linkSA;      /* reference to SA object */
+  autoid_t      CE_ref;      /* link to CE definition */
+  autoid_t      SA_ref;      /* reference to SA object */
   /* Reference to point-specific attributes */
   autoid_t      passport_ref;
-  /* Reference to ALARM table */
-  autoid_t      alarm_ref;
-  /* Reference to HISTORY table for analog (A_HIST_*/
+  /* Reference to HISTORY table */
   autoid_t      hist_ref;
 
   /* Point common DYNAMIC part */
   /* Runtime values modification support */
-  uint1         VALIDCHANGE; /* CE trugger */
+  uint1         VALIDCHANGE; /* CE trigger */
   timestamp     DATEHOURM;   /* last modification time */
-  uint1         VALIDITY;    /* VALID|INVALID|MANUAL|... */
-  uint1         VALIDITY_ACQ;/* */
+  timestamp     DATERTU;     /* last acquired time */
+  Validity      VALIDITY     = INVALID;
+  Validity      VALIDITY_ACQ = INVALID;
 
   /* Optional analog of discrete part */
   optional  AnalogInfoType   ai;
   optional  DiscreteInfoType di;
+  /* 
+  * TODO: У части классов есть свой атрибут TSSYNTHETICAL, он частично
+  * дублирует AlarmItem (2 экземпляра AlarmState). Как их объединить?
+  */
+  optional  AlarmItem alarm;
   
   /* Indexes */
   unique tree <passport_ref> SK_by_passport; /* point to passport relationship is '1-to-1' */
-  /* locating point instance by univname */
-  hash <UNIVNAME> SK_by_univname[MAX_POINTS_QUANTITY];
+  /* locating point instance by tag */
+  unique tree <TAG> SK_by_tag; //[MAX_POINTS_QUANTITY];
+//  Тип "Patricia Trie" появился только в версии старше 4
+//  patricia <TAG> SK_by_tag; //[MAX_POINTS_QUANTITY];
+
+  /* Events */
+  event <new> new_point_evnt;
+  event <delete> delete_point_evnt;
+  event <VALIDCHANGE update> update_validchange_point_evnt;
 };
 
 /* ===================================================================== */
@@ -240,27 +496,489 @@ class Point
 /* ===================================================================== */
 class TS_passport /* TS 00 */
 {
-  autoid[MAX_POINTS_QUANTITY]; /* TODO: redefine the limit */
-  logical       INHIBLOCAL;
+  autoid[MAX_POINTS_QUANTITY];
+  Boolean    INHIBLOCAL = FALSE;
+  Boolean    ALDEST = FALSE;
+  s_tag      L_EQT;  // Ссылка на родительский объект
+  s_tag      L_DIPL; // Ссылка на свое ЛПУ
+  s_tag      L_TYPINFO; // Linked information type
+  autoid_t   LISTACD_ref;
 };
-
 
 /* ===================================================================== */
 /* Passports contains list of attributes specific to this kind of point  */
 /* ===================================================================== */
-class TM_passport   /* TM 01 */
+class TM_passport       /* 01 */
 {
-  autoid[MAX_POINTS_QUANTITY]; /* TODO: redefine the limit */
-  double MNVALPHY;
-  double MXVALPHY;
-  autoid_t      LINK_HIST;
-  /* class 'Point' will reference this by autogenerated index */
+  /* class 'XDBPoint' will reference this by autogenerated index */
+  autoid[MAX_POINTS_QUANTITY];
+  double     CONVERTCOEFF = 1.0;
+  double     MNVALPHY     = 0.0;
+  double     MXVALPHY     = 0.0;
+  double     GRADLEVEL; // Значение градиента
+  Boolean    ALDEST = FALSE;
+  Boolean    INHIBLOCAL = FALSE;
+  s_tag      L_EQT;  // Ссылка на родительский объект
+  s_tag      L_DIPL; // Ссылка на свое ЛПУ
+  s_tag      L_TYPINFO; // Linked information type
+  autoid_t   LINK_HIST_ref;
+  autoid_t   LISTACD_ref;
 };
 
 
 /* ===================================================================== */
 /* Passports contains list of attributes specific to this kind of point  */
 /* ===================================================================== */
+class TR_passport       /* 02 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  double     MINVAL;
+  double     MAXVAL;
+  double     VALEX;           // Значение предыдущей команды телерегулирования
+  Boolean    CONFREMOTECMD = FALSE;
+  Boolean    FLGREMOTECMD  = FALSE;
+  ActionResult   result = RESPONSE_NONE;
+  Responsability REMOTECONTROL = LOCAL; // Признак удаленного управления с верхнего уровня
+  s_tag      L_EQT;  // Ссылка на родительский объект
+  s_tag      L_TYPINFO; // Linked information type
+};
+
+class TSA_passport      /* 03 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  s_tag      L_EQT;  // Ссылка на родительский объект
+  s_tag      L_DIPL;        // Ссылка на свое ЛПУ
+  s_tag      L_TYPINFO; // Linked information type
+};
+
+class TSC_passport      /* 04 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Boolean    ALDEST = FALSE;
+  // Ссылка на запись в таблице Алармов (ALO)
+  autoid_t   ALARM_ref;
+  // Ссылка на перечень действий по изменению уставок
+  autoid_t   LISTACD_ref;
+  // Значения технологических уставок и пределов
+  double     THRESHOLD_VHL; // верхний предел   (very high level) 
+  double     THRESHOLD_HL;  // верхняя уставка  (high level)
+  double     THRESHOLD_LL;  // нижняя уставка   (low level)
+  double     THRESHOLD_VLL; // нижний предел    (very low level)
+  double     GRADIENT;      // предел градиента
+  // Категории для тревог
+  uint1      ALARMLEVEL_THRESHOLD_VHL;
+  uint1      ALARMLEVEL_THRESHOLD_HL;
+  uint1      ALARMLEVEL_THRESHOLD_LL;
+  uint1      ALARMLEVEL_THRESHOLD_VLL;
+  uint1      ALARMLEVEL_GRADIENT;
+  Boolean    INHIBLOCAL = FALSE;
+  s_tag      L_TYPINFO; // Linked information type
+  s_tag      L_EQT;     // Linked equipment
+  s_tag      L_DIPL;    // Ссылка на свое ЛПУ
+};
+
+// Точки управления оборудованием (ZCVA|ZCVB, XC, ...)
+class TC_passport       /* 05 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  // Имя диспетчера, отдавшего команду
+  s_dispatch DISP;
+  // Тип исполняемой команды
+  // NB: специфичен для каждого типа управляемого оборудования
+  Action     ACTIONTYP; // Тип команды
+  ActionResult   result = RESPONSE_NONE;// Состояние исполнения команды
+  Responsability REMOTECONTROL = LOCAL; // Признак удаленного управления с верхнего уровня
+  s_tag      L_EQT;     // Ссылка на родительский объект
+  s_tag      L_TYPINFO; // Linked information type
+};
+
+// Точки для генерации тревожных сообщений (XA)
+class AL_passport       /* 06 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Boolean    ALDEST = FALSE;
+  Boolean    INHIBLOCAL = FALSE;
+  s_tag      L_EQT;  // Ссылка на родительский объект
+  s_tag      L_DIPL;    // Ссылка на свое ЛПУ
+  s_tag      L_TYPINFO; // Linked information type
+};
+
+class ICS_passport      /* 07 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  autoid_t   LISTACD_ref;
+  s_tag      L_EQT;  // Ссылка на родительский объект
+  s_tag      L_DIPL;    // Ссылка на свое ЛПУ
+  s_tag      L_TYPINFO; // Linked information type
+};
+
+class ICM_passport      /* 08 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  autoid_t   LISTACD_ref;
+  Boolean    ALDEST = FALSE;
+  double     GRADLEVEL; // Значение градиента
+  s_tag      L_EQT;  // Ссылка на родительский объект
+  s_tag      L_DIPL;    // Ссылка на свое ЛПУ
+  s_tag      L_TYPINFO; // Linked information type
+};
+
+class PIPE_passport     /* 11 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability LOCALFLAG = LOCAL;
+  Boolean    INHIBLOCAL = FALSE;
+  Boolean    ALINHIB = FALSE;
+  Boolean    INHIB = FALSE;
+  // Теги связанного с трубой оборудования
+  // TODO: Атрибуты "L_*" заменить на ссылки
+  s_tag      L_NETTYPE;     // Тип связанного сетевого оборудования
+  s_tag      L_NET;         // Связанное оборудование
+  s_tag      L_TL;          // Связанное участок газопровода
+  s_tag      L_EQTORBORUPS; // Ближ. оборудование слева, до входа в трубу (по ходу газа)
+  s_tag      L_EQTORBORDWN; // Ближ. оборудование справа, после выхода (по ходу газа)
+  double     NMPRESSURE;    // Номинальное давление (TODO - в каких единицах?)
+  double     KMREFUPS;      // Километровая отметка оборудования слева
+  double     KMREFDWN;      // Километровая отметка оборудования справа
+  list;
+};
+
+class PIPELINE_passport /* 15 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability LOCALFLAG = LOCAL;
+  Boolean    ALINHIB = FALSE;
+  Boolean    INHIBLOCAL = FALSE;
+  Boolean    INHIB = FALSE;
+  double     MXPRESSURE;    // Макс. допустимое давление
+  // TODO: в каких единицах указаны расходы? (м2/день)?
+  //double     MXFLOW;        // Макс. допустимый расход
+  double     NMFLOW;        // Номинальный расход
+  s_tag      L_CORRIDOR;    // Ссылка на принадлежность к Корридору
+  s_shortlabel FUNCTION;    // Функция трубопровода
+  list;
+};
+
+class TL_passport       /* 16 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability LOCALFLAG = LOCAL;
+  Boolean    ALINHIB = FALSE;
+  Boolean    CONFREMOTECMD = FALSE;
+  Boolean    FLGREMOTECMD  = FALSE;
+  Boolean    INHIBLOCAL = FALSE;
+  Boolean    INHIB = FALSE;
+  s_tag      L_EQTTYP;  // Ссылка на прототип объекта
+};
+
+class SC_passport       /* 20 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability LOCALFLAG = LOCAL;
+  Boolean    ALINHIB = FALSE;
+  Boolean    INHIBLOCAL = FALSE;
+  Boolean    INHIB = FALSE;
+  Boolean    CONFREMOTECMD = FALSE;
+  Boolean    FLGREMOTECMD  = FALSE;
+  Responsability REMOTECONTROL = LOCAL; // Признак удаленного управления с верхнего уровня
+  s_tag      L_PIPE;    // Ссылка на участок трубы
+  s_tag      L_EQTTYP;  // Ссылка на тип родительского объекта
+  list;
+};
+
+class ATC_passport      /* 21 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability LOCALFLAG = LOCAL;
+  AlarmState TSSYNTHETICAL;
+  Boolean    ALINHIB = FALSE;
+  Boolean    INHIBLOCAL = FALSE;
+  Boolean    INHIB = FALSE;
+  Boolean    CONFREMOTECMD = FALSE;
+  Boolean    FLGREMOTECMD  = FALSE;
+  Responsability REMOTECONTROL = LOCAL; // Признак удаленного управления с верхнего уровня
+  s_tag      L_EQTTYP;  // Ссылка на тип родительского объекта
+  list;
+};
+
+class GRC_passport      /* 22 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability LOCALFLAG = LOCAL;
+  AlarmState TSSYNTHETICAL;
+  Boolean    ALINHIB = FALSE;
+  Boolean    INHIBLOCAL = FALSE;
+  Boolean    INHIB = FALSE;
+  Boolean    CONFREMOTECMD = FALSE;
+  Boolean    FLGREMOTECMD  = FALSE;
+  Responsability REMOTECONTROL = LOCAL; // Признак удаленного управления с верхнего уровня
+  timestamp  DATEAINS;  // Дата установки оборудования
+  s_tag      L_EQTTYP;  // Ссылка на тип родительского объекта
+  list;
+};
+
+class SV_passport       /* 23 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability LOCALFLAG = LOCAL;
+  Boolean    ALINHIB = FALSE;
+  Boolean    INHIBLOCAL = FALSE;
+  Boolean    INHIB = FALSE;
+  Boolean    CONFREMOTECMD = FALSE;
+  Boolean    FLGREMOTECMD  = FALSE;
+  Responsability REMOTECONTROL = LOCAL; // Признак удаленного управления с верхнего уровня
+  s_tag      L_EQTTYP;  // Ссылка на тип родительского объекта
+  list;
+};
+
+class SDG_passport      /* 24 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability LOCALFLAG = LOCAL;
+  AlarmState TSSYNTHETICAL;
+  Boolean    ALINHIB = FALSE;
+  Boolean    INHIBLOCAL = FALSE;
+  Boolean    INHIB = FALSE;
+  Boolean    CONFREMOTECMD = FALSE;
+  Boolean    FLGREMOTECMD  = FALSE;
+  Responsability REMOTECONTROL = LOCAL; // Признак удаленного управления с верхнего уровня
+  // TODO: единица размерности?
+  double     MXFLOW;    // Допустимый максимальный расход
+  s_tag      L_EQTTYP;  // Ссылка на тип родительского объекта
+  list;
+};
+
+class RGA_passport      /* 25 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability LOCALFLAG = LOCAL;
+  AlarmState TSSYNTHETICAL;
+  Boolean    ALINHIB = FALSE;
+  Boolean    INHIBLOCAL = FALSE;
+  Boolean    INHIB = FALSE;
+  Boolean    CONFREMOTECMD = FALSE;
+  Boolean    FLGREMOTECMD  = FALSE;
+  Responsability REMOTECONTROL = LOCAL; // Признак удаленного управления с верхнего уровня
+  s_tag      L_EQTTYP;  // Ссылка на тип родительского объекта
+  s_tag      L_EQT;  // Ссылка на родительский объект
+};
+
+class SSDG_passport     /* 26 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability LOCALFLAG = LOCAL;
+  Boolean    ALINHIB = FALSE;
+  Boolean    INHIBLOCAL = FALSE;
+  Boolean    INHIB = FALSE;
+  Boolean    CONFREMOTECMD = FALSE;
+  Boolean    FLGREMOTECMD  = FALSE;
+  Responsability REMOTECONTROL = LOCAL; // Признак удаленного управления с верхнего уровня
+  // TODO: единица размерности?
+  double     MXPRESSURE;    // Макс. давление
+  double     PLANPRESSURE;  // Плановое давление
+  double     PLANFLOW;      // Плановый расход
+  s_tag      L_DIPL;        // Ссылка на свое ЛПУ
+  s_tag      L_CONSUMER;    // Ссылка на потребителя
+  s_tag      L_EQTTYP;  // Ссылка на тип родительского объекта
+};
+
+class BRG_passport      /* 27 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability LOCALFLAG = LOCAL;
+  Boolean    ALINHIB = FALSE;
+  Boolean    INHIBLOCAL = FALSE;
+  Boolean    INHIB = FALSE;
+  Boolean    CONFREMOTECMD = FALSE;
+  Boolean    FLGREMOTECMD  = FALSE;
+  Responsability REMOTECONTROL = LOCAL; // Признак удаленного управления с верхнего уровня
+  s_tag      L_EQTTYP;  // Ссылка на тип родительского объекта
+};
+
+class SCP_passport      /* 28 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability LOCALFLAG = LOCAL;
+  AlarmState TSSYNTHETICAL;
+  Boolean    ALINHIB = FALSE;
+  Boolean    INHIBLOCAL = FALSE;
+  Boolean    INHIB = FALSE;
+  Boolean    CONFREMOTECMD = FALSE;
+  Boolean    FLGREMOTECMD  = FALSE;
+  Responsability REMOTECONTROL = LOCAL; // Признак удаленного управления с верхнего уровня
+  s_tag      L_EQTTYP;  // Ссылка на тип родительского объекта
+  list;
+};
+
+class STG_passport      /* 29 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability LOCALFLAG = LOCAL;
+  Boolean    ALINHIB = FALSE;
+  Boolean    INHIBLOCAL = FALSE;
+  Boolean    INHIB = FALSE;
+  Boolean    CONFREMOTECMD = FALSE;
+  Boolean    FLGREMOTECMD  = FALSE;
+  Responsability REMOTECONTROL = LOCAL; // Признак удаленного управления с верхнего уровня
+  s_tag      L_EQTTYP;  // Ссылка на тип родительского объекта
+};
+
+class METLINE_passport  /* 32 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability LOCALFLAG = LOCAL;
+  Boolean    ALINHIB = FALSE;
+  Boolean    INHIBLOCAL = FALSE;
+  Boolean    INHIB = FALSE;
+  s_tag      L_EQTTYP;  // Ссылка на тип родительского объекта
+  s_tag      L_EQT;  // Ссылка на родительский объект
+};
+
+class ESDG_passport     /* 33 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability LOCALFLAG = LOCAL;
+  Boolean    ALINHIB = FALSE;
+  Boolean    INHIBLOCAL = FALSE;
+  Boolean    INHIB = FALSE;
+  Boolean    CONFREMOTECMD = FALSE;
+  Boolean    FLGREMOTECMD  = FALSE;
+  Responsability REMOTECONTROL = LOCAL; // Признак удаленного управления с верхнего уровня
+  double     MXPRESSURE;    // Макс. допустимое давление
+  s_tag      L_EQTTYP;  // Ссылка на тип родительского объекта
+};
+
+class SVLINE_passport   /* 34 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability LOCALFLAG = LOCAL;
+  Boolean    ALINHIB = FALSE;
+  Boolean    INHIBLOCAL = FALSE;
+  Boolean    INHIB = FALSE;
+  s_tag      L_EQTTYP;  // Ссылка на тип родительского объекта
+  s_tag      L_EQT;  // Ссылка на родительский объект
+};
+
+class SCPLINE_passport  /* 35 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability LOCALFLAG = LOCAL;
+  Boolean    ALINHIB = FALSE;
+  Boolean    INHIBLOCAL = FALSE;
+  Boolean    INHIB = FALSE;
+  s_tag      L_EQTTYP;  // Ссылка на тип родительского объекта
+  s_tag      L_EQT;  // Ссылка на родительский объект
+};
+
+class TLLINE_passport   /* 36 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability LOCALFLAG = LOCAL;
+  Boolean    ALINHIB = FALSE;
+  Boolean    INHIBLOCAL = FALSE;
+  Boolean    INHIB = FALSE;
+  s_tag      L_EQTTYP;  // Ссылка на тип родительского объекта
+  s_tag      L_EQT;  // Ссылка на родительский объект
+  s_tag      L_PIPELINE;// Ссылка на родительский трубопровод
+};
+
+class DIR_passport      /* 30 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability LOCALFLAG = LOCAL;  // TODO: зачем? могут быть соседние ГТП?
+  list;
+};
+
+class DIPL_passport     /* 31 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability LOCALFLAG = LOCAL;
+  Boolean    ALINHIB = FALSE;
+  Boolean    INHIBLOCAL = FALSE;
+  Boolean    INHIB = FALSE;
+  Boolean    CONFREMOTECMD = FALSE;
+  Boolean    FLGREMOTECMD  = FALSE;
+  s_dispatch DISPP;
+  s_tag      L_EQTTYP;  // Ссылка на тип родительского объекта
+  list;
+};
+
+class INVT_passport     /* 37 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability LOCALFLAG = LOCAL;
+  AlarmState TSSYNTHETICAL;
+  Boolean    ALINHIB = FALSE;
+  Boolean    INHIBLOCAL = FALSE;
+  Boolean    INHIB = FALSE;
+  s_tag      L_EQTTYP;  // Ссылка на тип родительского объекта
+  s_tag      L_EQT;  // Ссылка на родительский объект
+};
+
+class AUX1_passport     /* 38 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability LOCALFLAG = LOCAL;
+  AlarmState TSSYNTHETICAL;
+  Boolean    ALINHIB = FALSE;
+  Boolean    INHIBLOCAL = FALSE;
+  Boolean    INHIB = FALSE;
+  Boolean    CONFREMOTECMD = FALSE;
+  Boolean    FLGREMOTECMD  = FALSE;
+  Responsability REMOTECONTROL = LOCAL; // Признак удаленного управления с верхнего уровня
+  timestamp  DATEAINS;  // Дата установки оборудования
+  s_shortlabel  SUPPLIER;   // Наименование Потребителя
+  s_tag      L_EQTTYP;  // Ссылка на тип родительского объекта
+};
+
+class AUX2_passport     /* 39 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability LOCALFLAG = LOCAL;
+  AlarmState TSSYNTHETICAL;
+  Boolean    ALINHIB = FALSE;
+  Boolean    INHIBLOCAL = FALSE;
+  Boolean    INHIB = FALSE;
+  Boolean    CONFREMOTECMD = FALSE;
+  Boolean    FLGREMOTECMD  = FALSE;
+  Responsability REMOTECONTROL = LOCAL; // Признак удаленного управления с верхнего уровня
+  timestamp  DATEAINS;  // Дата установки оборудования
+  s_shortlabel  SUPPLIER;   // Наименование Потребителя
+  s_tag      L_EQTTYP;  // Ссылка на тип родительского объекта
+};
+
+class SA_passport       /* 50 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability LOCALFLAG = LOCAL;
+  SystemState SYNTHSTATE = UNREACH;    // Оперативный, Инициализация, Отказ,...
+  timestamp   DATE_ALO; // Дата последнего получения Тревог от СС
+  Boolean     ALDEST = FALSE;
+  Boolean     ALINHIB = FALSE;
+  Boolean     INHIB = FALSE;
+  uint1       TYPE;             // Тип СС (Зонд, FANUC, ELE,...)
+  Boolean     DELEGABLE = FALSE;// По умолчанию CC не делегирована на управление
+  s_shortlabel SUPPLIERMODE;    // Режим работы СС
+  s_shortlabel SUPPLIERSTATE;   // Состояние СС
+  list;
+};
+
+class SITE_passport     /* 45 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  s_dispatch DISPP;
+  s_dispatch PREV_DISPATCHER;
+  timestamp  PREV_SHIFT_TIME;
+  timestamp  CURRENT_SHIFT_TIME;
+};
+
+class FIXEDPOINT_passport   /* 79 */
+{
+  autoid[MAX_POINTS_QUANTITY];
+  uint1       TYPE;
+  list;
+};
+
 // Запись о поданных командах
 struct VA_command
 {
@@ -292,19 +1010,23 @@ struct VA_operating
 
 class VA_passport   /* VA 19 */
 {
- autoid[MAX_POINTS_QUANTITY];   /* TODO: redefine the limit */
- logical    LOCALFLAG;
- logical    STATUS;
- logical    INHIB;
- logical    INHIBLOCAL;
- logical    ALINHIB;
- logical    CONFREMOTECMD;
- logical    FLGREMOTECMD;
- logical    REMOTECONTROL;
- logical    FLGMAINTENANCE;
- s_dispatch NAMEMAINTENANCE;
- uint1      TSSYNTHETICAL;
- vector     <VA_command>     commands;
- vector     <VA_maintenance> maintenance;
- vector     <VA_operating>   operating;
+  autoid[MAX_POINTS_QUANTITY];
+  Responsability    LOCALFLAG = LOCAL;
+  AlarmState TSSYNTHETICAL;
+  timestamp  DATEAINS;  // Дата установки крана
+  Boolean    INHIB   = FALSE;
+  Boolean    INHIBLOCAL = FALSE;
+  Boolean    ALINHIB     = FALSE;
+  Boolean    CONFREMOTECMD = FALSE;  // Признак наличия возможности исполнения команды с верхн. уровня
+  // TODO: Зачем одновременно FLGREMOTECMD и REMOTECONTROL? Оставить один атрибут
+  Boolean    FLGREMOTECMD  = FALSE;
+  Responsability REMOTECONTROL = LOCAL; // Признак удаленного управления с верхнего уровня
+  Boolean    FLGMAINTENANCE = FALSE;
+  s_dispatch NAMEMAINTENANCE;
+  s_shortlabel FUNCTION;     // Функция крана
+  s_tag      L_EQTTYP;       // Ссылка на тип родительского объекта
+  s_tag      L_PIPELINE;     // Ссылка на родительский трубопровод
+  vector     <VA_command>     commands;
+  vector     <VA_maintenance> maintenance;
+  vector     <VA_operating>   operating;
 };

@@ -13,58 +13,86 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
 <!-- Перечисление допустимых атрибутов точек -->
 <xs:simpleType name="AttrNameType">
   <xs:restriction base="xs:string">
-    <xs:enumeration value="CODE"/>
-    <xs:enumeration value="UNIVNAME"/>
-    <xs:enumeration value="OBJCLASS"/>
     <xs:enumeration value="LABEL"/>
     <xs:enumeration value="SHORTLABEL"/>
     <xs:enumeration value="L_SA"/>
+    <xs:enumeration value="MINVAL"/>
+    <xs:enumeration value="VALEX"/>
+    <xs:enumeration value="MAXVAL"/>
     <xs:enumeration value="VALID"/>
     <xs:enumeration value="VALIDACQ"/>
     <xs:enumeration value="DATEHOURM"/>
+    <xs:enumeration value="DATERTU"/>
     <xs:enumeration value="VAL"/>
     <xs:enumeration value="VALACQ"/>
+    <xs:enumeration value="GRADLEVEL"/>
     <xs:enumeration value="VALMANUAL"/>
     <xs:enumeration value="ALINHIB"/>
     <xs:enumeration value="DISPP"/>
+    <xs:enumeration value="PREV_DISPATCHER"/>
     <xs:enumeration value="FUNCTION"/>
+    <xs:enumeration value="CONVERTCOEFF"/>
     <xs:enumeration value="INHIB"/>
     <xs:enumeration value="MNVALPHY"/>
     <xs:enumeration value="MXPRESSURE"/>
     <xs:enumeration value="MXVALPHY"/>
     <xs:enumeration value="NMFLOW"/>
+    <xs:enumeration value="PLANFLOW"/>
+    <xs:enumeration value="PLANPRESSURE"/>
     <xs:enumeration value="STATUS"/>
+    <xs:enumeration value="SUPPLIER"/>
     <xs:enumeration value="SUPPLIERMODE"/>
     <xs:enumeration value="SUPPLIERSTATE"/>
     <xs:enumeration value="SYNTHSTATE"/>
     <xs:enumeration value="DELEGABLE"/>
-    <xs:enumeration value="ETGCODE"/>
-    <xs:enumeration value="SITEFLG"/>
+    <xs:enumeration value="PREV_SHIFT_TIME"/>
+    <xs:enumeration value="CURRENT_SHIFT_TIME"/>
+    <!-- 
+         NB: атрибутов CONFREMOTECMD в словарях значительно больше,
+         чем FLGREMOTECMD. А по идее, они должны идти парами.
+         -->
+    <xs:enumeration value="CONFREMOTECMD"/>
+    <xs:enumeration value="FLGREMOTECMD"/>
+    <xs:enumeration value="FLGMAINTENANCE"/>
+    <xs:enumeration value="NAMEMAINTENANCE"/>
+    <xs:enumeration value="TSSYNTHETICAL"/>
     <xs:enumeration value="LOCALFLAG"/>
+    <xs:enumeration value="DATEAINS"/>
+    <xs:enumeration value="MXFLOW"/>
     <xs:enumeration value="ALARMBEGIN"/>
     <xs:enumeration value="ALARMBEGINACK"/>
     <xs:enumeration value="ALARMENDACK"/>
     <xs:enumeration value="ALARMSYNTH"/>
+    <xs:enumeration value="L_PIPE"/>
+    <xs:enumeration value="L_PIPELINE"/>
     <xs:enumeration value="L_TYPINFO"/>
     <xs:enumeration value="L_EQT"/>
-    <xs:enumeration value="L_SA"/>
+    <xs:enumeration value="L_EQTTYP"/>
+    <xs:enumeration value="L_DIPL"/>
+    <xs:enumeration value="L_NETTYPE"/>
+    <xs:enumeration value="L_NET"/>
+    <xs:enumeration value="L_EQTORBORUPS"/>
+    <xs:enumeration value="L_EQTORBORDWN"/>
+    <xs:enumeration value="L_TL"/>
+    <xs:enumeration value="L_CONSUMER"/>
+    <xs:enumeration value="L_CORRIDOR"/>
     <xs:enumeration value="REMOTECONTROL"/>
-    <xs:enumeration value="NONEXE"/>
-    <xs:enumeration value="RESPNEG"/>
     <xs:enumeration value="ACTIONTYP"/>
     <xs:enumeration value="VALIDCHANGE"/>
     <xs:enumeration value="VAL_LABEL"/>
     <xs:enumeration value="LINK_HIST"/>
-    <xs:enumeration value="ACQMOD"/>
-    <xs:enumeration value="L_DIPL"/>
     <xs:enumeration value="ALDEST"/>
     <xs:enumeration value="INHIBLOCAL"/>
+    <xs:enumeration value="NMPRESSURE"/>
+    <xs:enumeration value="KMREFUPS"/>
+    <xs:enumeration value="KMREFDWN"/>
     <xs:enumeration value="UNITY"/>
   </xs:restriction>
 </xs:simpleType>
 
 <!-- Перечисление допустимых типов класса -->
-<xs:simpleType name="ClassType">
+<!-- NB: Поле назначено к удалению -->
+<xs:simpleType name="PointType">
   <xs:restriction base="xs:string">
     <xs:enumeration value="TS"/>
     <xs:enumeration value="TM"/>
@@ -108,6 +136,7 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     <xs:enumeration value="GENAL"/>
     <xs:enumeration value="USERAL"/>
     <xs:enumeration value="HISTSET"/>
+    <xs:enumeration value="TYPE"/>
     <xs:enumeration value="DRIVE_TYPE"/>
     <xs:enumeration value="COMPRESSOR_TYPE"/>
     <xs:enumeration value="GRC_TYPE"/>
@@ -183,24 +212,36 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
  <xs:complexType>
   <xs:sequence>
 
-    <!-- Class definition start -->
-    <xs:element name="Class" maxOccurs="unbounded">
+    <!-- Point definition start -->
+    <xs:element name="Point" maxOccurs="unbounded">
       <xs:complexType>
       <xs:sequence>
 
-        <!-- Code definition start -->
-        <xs:element name="Code">
+        <!-- Objclass definition start -->
+        <xs:element name="Objclass">
           <xs:simpleType>
             <xs:restriction base="xs:integer">
               <xs:minInclusive value="0"/>
               <xs:maxInclusive value="87"/>
             </xs:restriction>
           </xs:simpleType>
-        </xs:element> 
-        <!-- Code definition end -->
+        </xs:element>
+        <!-- Objclass definition end -->
+
+        <!-- RTDB Universal name definition start -->
+        <xs:element name="Tag">
+          <xs:simpleType>
+            <xs:restriction base="xs:string">
+              <!-- UNIVNAME_LENGTH defined in xdb_rtap_const.hpp -->
+              <xs:maxLength value="32"/>
+            </xs:restriction>
+          </xs:simpleType>
+        </xs:element>
+        <!-- RTDB Universal name definition end -->
 
         <!-- Name definition start -->
-        <xs:element name="Name" type="ClassType"/>
+        <!-- Это поле лишнее, т.к. имя типа точки может быть получено из числового кода -->
+        <!-- <xs:element name="Name" type="PointType"/> -->
         <!-- Name definition end -->
 
         <!-- Attr definition start -->
@@ -244,7 +285,7 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
       </xs:sequence>
       </xs:complexType>
     </xs:element> 
-    <!-- Class definition end -->
+    <!-- Point definition end -->
 
   </xs:sequence>
  </xs:complexType>

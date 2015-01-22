@@ -9,27 +9,30 @@
 #include "xdb_rtap_environment.hpp"
 #include "xdb_rtap_connection.hpp"
 #include "xdb_rtap_database.hpp"
-#include "mdp_letter.hpp"
+//#include "mdp_letter.hpp"
 
 using namespace xdb;
 
-RtEnvironment::RtEnvironment(RtApplication* _app, const char* _name)
+RtEnvironment::RtEnvironment(RtApplication* _app, const char* _name) :
+  m_impl(NULL),
+  m_appli(_app),
+  m_conn(NULL),
+  m_database(NULL)
 {
-  m_appli = _app;
   m_impl = new EnvironmentImpl(_app->getImpl(), _name);
-  m_conn = NULL;
-  m_database = NULL;
+  m_database = new RtDatabase(_name, _app->getOptions());
+  // NB: Подключение к БД происходит при создании экземпляра RtConnection
+  LOG(INFO) << "Creating database " << m_database->getName();
 }
 
 RtEnvironment::~RtEnvironment()
 {
   delete m_conn;
   delete m_impl;
-  if (m_database)
-  {
-//    m_database->Disconnect();
-    delete m_database;
-  }
+//  if (m_database)
+//  {
+    delete m_database; // Disconnect при удалении автоматически
+//  }
 }
 
 // Вернуть имя подключенной БД/среды
@@ -41,33 +44,62 @@ const char* RtEnvironment::getName() const
 // вернуть подключение к указанной БД/среде
 RtConnection* RtEnvironment::getConnection()
 {
-  // TODO реализация
-  if (!m_conn)
+  switch(m_database->State())
   {
-    m_conn = new RtConnection(this);
+    case DB_STATE_UNINITIALIZED:
+        m_database->Init();
+        // NB: break пропущен специально
+    case DB_STATE_INITIALIZED:
+    case DB_STATE_ATTACHED:
+        // Если мы еще не подключились к БД, самое время сделать это сейчас
+        // Connect внутри, если состояние БД = UNINITIALIZED, выполнит инициализацию
+        m_database->Connect();
+        LOG(INFO) << "Connection to database " << m_database->getName();
+        // NB: break пропущен специально
+
+    case DB_STATE_CONNECTED:
+        if (!m_conn)
+        {
+          m_conn = new RtConnection(this);
+        }
+    break;
+
+//    case DB_STATE_UNINITIALIZED:
+    case DB_STATE_DISCONNECTED:
+        LOG(ERROR) << "Unable to get connection to disconnected or uninitialized database";
+
+    default:
+        LOG(WARNING) << "GEV: add state " << m_database->State() << " to processing";
   }
+
   return m_conn;
 }
 
 // Загрузить ранее сохраненный снимок для указанного Приложения
 const Error& RtEnvironment::LoadSnapshot(const char *filename)
 {
-  if (!m_database)
+/*  if (!m_database)
   {
     m_database = new RtDatabase(m_impl->getName(), m_appli->getOptions());
     LOG(INFO) << "Lazy creating database " << m_database->getName();
     m_database->Connect();
     LOG(INFO) << "Lazy connection to database " << m_database->getName();
+  }*/
+
+  if (m_impl->getLastError().Ok())
+  {
+    m_database->LoadSnapshot(filename);
   }
-  return m_database->LoadSnapshot(/*m_impl->getAppName(),*/ filename);
+
+  return m_impl->getLastError();
 }
 
 const Error& RtEnvironment::MakeSnapshot(const char *filename)
 {
-  return m_impl->MakeSnapshot(filename);
+  return m_database->MakeSnapshot(filename);
 }
 
-mdp::Letter* RtEnvironment::createMessage(int)
+/*mdp::Letter* RtEnvironment::createMessage(int)
 {
   m_impl->setLastError(rtE_NOT_IMPLEMENTED);
   return NULL;
@@ -79,7 +111,7 @@ const Error& RtEnvironment::sendMessage(mdp::Letter* _letter)
 
   m_impl->setLastError(rtE_NOT_IMPLEMENTED);
   return m_impl->getLastError();
-}
+}*/
 
 // Изменить состояние Среды
 void RtEnvironment::setEnvState(EnvState_t _new_state)
@@ -110,18 +142,6 @@ const Error& RtEnvironment::Start()
   return m_impl->getLastError();
 }
 
-// Загрузить справочники
-const Error& RtEnvironment::LoadDictionary()
-{
-  m_impl->setLastError(rtE_NOT_IMPLEMENTED);
-
-  if (m_impl->getLastError().Ok())
-  {
-    m_impl->setEnvState(ENV_STATE_INIT);
-  }
-  return m_impl->getLastError();
-}
-
 // Завершить исполнение
 const Error& RtEnvironment::Shutdown(EnvShutdownOrder_t order)
 {
@@ -138,4 +158,9 @@ const Error& RtEnvironment::Shutdown(EnvShutdownOrder_t order)
 
   m_impl->setLastError(rtE_NOT_IMPLEMENTED);
   return m_impl->getLastError();
+}
+
+RtDatabase* RtEnvironment::getDatabase()
+{
+  return m_database;
 }

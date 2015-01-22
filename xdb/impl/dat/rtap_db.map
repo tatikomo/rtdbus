@@ -1,16 +1,29 @@
+# namespace <schema-namespace> [<cxx-namespace>]
+# [type] <schema-type> <cxx-ret-type> [<cxx-arg-type>];
+#
+# <cxx-ret-type> is a C++ type name that is used as a return
+# type for the post_*() callback. 
+# Optional <cxx-arg-type> is an argument type for callbacks 
+# corresponding to elements and attributes of this type.
+# If <cxx-arg-type> is not specified, it defaults to <cxx-ret-type>.
+# If <cxx-ret-type> ends with * or & (that is, it is a pointer
+# or a reference) and const <cxx-ret-type>& otherwise.
+#
+#
 namespace http://www.example.com/rtap_db rtap_db
 {
   include "rtap_db.hxx";
 
-  ClassType     "ClassType&" "ClassType&";
+  Tag           "Tag&" "Tag&";
   AttributeType "AttributeType&" "AttributeType&";
   PointKind     "PointKind&" "PointKind&";
-  Class         "Class&" "Class&";
-  Code          Code Code;
+  Point         "Point&" "Point&";
+  Objclass      Objclass Objclass;
   Name          "Name&" "Name&";
   Kind          Kind;
   Accessibility "Accessibility&" "Accessibility&";
   DeType        DeType;
   AttrNameType  "AttrNameType&" "AttrNameType&";
+  RTDB_STRUCT   "Points*";
 }
 

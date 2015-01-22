@@ -8,6 +8,8 @@ if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
         rt
         glog
         uuid)
+  # XSD Synthethis
+  include_directories("/usr/local/include")
 else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # LINUX
   set (SYSTEM_EXTERNAL_LIBS
@@ -16,6 +18,7 @@ endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
 include_directories(${LIBGLOG_INCLUDE_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})
+include_directories(${LIBCPPZMQ_INCLUDE_DIR})
 include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
 include_directories(${WORKER_DIR})
@@ -73,7 +76,7 @@ add_custom_command(
         ${XDB_IMPL_DIR}/dat/rtap_db.c
         ${XDB_IMPL_DIR}/dat/rtap_db.hpp
         COMMAND
-        ${LIBEXTREMEDB_MCOCOMP} -hpp rtap_db.mco -P${XDB_IMPL_DIR}/dat
+        ${LIBEXTREMEDB_MCOCOMP} -hpp -x rtap_db.mco -P${XDB_IMPL_DIR}/dat
         DEPENDS
         ${XDB_IMPL_DIR}/dat/rtap_db.mco
         WORKING_DIRECTORY
@@ -89,6 +92,19 @@ add_custom_command(
         DEPENDS
         ${XDB_IMPL_DIR}/dat/rtap_db.xsd
         ${XDB_IMPL_DIR}/dat/rtap_db.map
+        WORKING_DIRECTORY
+        ${XDB_IMPL_DIR}/dat
+        )
+
+add_custom_command(
+        OUTPUT
+        ${XDB_IMPL_DIR}/dat/rtap_db_dict-pskel.hxx
+        ${XDB_IMPL_DIR}/dat/rtap_db_dict-pskel.cxx
+        COMMAND
+        /usr/bin/xsd cxx-parser --type-map rtap_db_dict.map --generate-validation rtap_db_dict.xsd
+        DEPENDS
+        ${XDB_IMPL_DIR}/dat/rtap_db_dict.xsd
+        ${XDB_IMPL_DIR}/dat/rtap_db_dict.map
         WORKING_DIRECTORY
         ${XDB_IMPL_DIR}/dat
         )
@@ -122,7 +138,7 @@ target_link_libraries(${WORKER_ECHO}
     ${SYSTEM_EXTERNAL_LIBS}
     ${LIBZMQ_LIBRARIES})
 
-add_definitions(-fpermissive)
+#add_definitions(-fpermissive)
 # Сборка DIGGER - сервера БДРВ
 ##########################################################
 add_executable (${WORKER_DIGGER} ${WORKER_DIGGER_SOURCES})
@@ -131,9 +147,9 @@ target_link_libraries(${WORKER_DIGGER}
     ${XDB_RTAP_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
     ${TOOLS_LIBRARY_NAME}
-    ${LIBGLOG_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${LIBPROTOBUF_LIBRARIES}
     ${SYSTEM_EXTERNAL_LIBS}
     ${LIBZMQ_LIBRARIES})
+#    ${LIBGLOG_LIBRARIES}
 

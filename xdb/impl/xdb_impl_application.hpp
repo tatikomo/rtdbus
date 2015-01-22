@@ -29,7 +29,7 @@ class ApplicationImpl
     AppState_t  getOperationState() const;
     bool getOption(const std::string&, int&);
     void setOption(const char*, int);
-    Options& getOptions();
+    Options* getOptions();
 
     const Error& getLastError() const;
     void  setLastError(const Error&);

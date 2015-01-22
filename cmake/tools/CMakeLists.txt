@@ -17,6 +17,14 @@ set (TOOLS_SOURCES
         ${TOOLS_DIR}/timer.hpp
         )
 
+if (CMAKE_COMPILER_IS_GNUCC)
+#add_definitions (-Wno-missing-field-initializers)
+#add_definitions(-fpermissive)
+else (CMAKE_COMPILER_IS_GNUCC)
+  add_definitions (-library=stlport4)
+endif (CMAKE_COMPILER_IS_GNUCC)
+add_definitions (-library=stlport4)
+
 add_library (${TOOLS_LIBRARY_NAME} ${TOOLS_SOURCES})
 target_link_libraries(${TOOLS_LIBRARY_NAME}
     ${SYSTEM_EXTERNAL_LIBS})

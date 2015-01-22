@@ -10,8 +10,12 @@
 #ifdef __cplusplus
 extern "C" {
 #include "mco.h"
+# if (EXTREMEDB_VERSION >= 40)
 #include "mcouda.h"  // mco_metadict_header_t
 #include "mcohv.h"   // mcohv_p
+# endif
+#define SETUP_POLICY
+#include "mcoxml.h"
 }
 #endif
 
@@ -24,9 +28,6 @@ namespace xdb {
 class DatabaseImpl
 {
   public:
-    // Обеспечить доступ к внутренностям БД для реализации специфики БД Брокера
-    friend class DatabaseBrokerImpl;
-
     DatabaseImpl(const char*, const Options&, mco_dictionary_h);
     ~DatabaseImpl();
 
@@ -44,6 +45,8 @@ class DatabaseImpl
     const Error& StoreSnapshot(const char* = NULL);
     // Сохранение данных в указанный файл в виде XML
     const Error& SaveAsXML(const char* = NULL, const char* = NULL);
+    // Восстановление содержимого БД из указанного XML файла
+    const Error& LoadFromXML(const char* = NULL);
     // Получить имя базы данных
     const char* getName() { return m_name; };
     // Сменить текущее состояние на новое
@@ -58,9 +61,16 @@ class DatabaseImpl
     void  clearError();
     // Вернуть текущее состояние БД
     DBState_t State() const;
+    // Управление работой БДРВ
+    const Error& Control(rtDbCq&);
+    // Интерфейс управления БД - Контроль Точек
+    const Error& Query(rtDbCq&);
+    // Интерфейс управления БД - Контроль выполнения
+    const Error& Config(rtDbCq&);
+
+    mco_db_h getDbHandler();
 
   protected:
-    mco_db_h getDbHandler();
     unsigned int m_snapshot_counter;
     unsigned int m_DatabaseSize;
     unsigned short m_MemoryPageSize;
@@ -94,6 +104,9 @@ class DatabaseImpl
     char* m_logFileName;
 #endif
 
+    // Успешность загрузки снимка БД (приоритет: двоичный, xml)
+    bool m_snapshot_loaded;
+
 #if EXTREMEDB_VERSION >= 40
     mco_db_params_t    m_db_params;
     mco_device_t       m_dev;
@@ -114,6 +127,8 @@ class DatabaseImpl
      */
     const Error& RegisterEvents();
     const Error& ConnectToInstance();
+    // Установка общих значимых полей для эксорта/импорта данных в XML
+    void setupPolicy(mco_xml_policy_t&);
 };
 
 } // namespace xdb

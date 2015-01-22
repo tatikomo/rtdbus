@@ -3,6 +3,7 @@
 #define GEV_HELPER_HPP
 
 #include <string>
+#include <iterator>
 #include <map>
 #include <bitset>
 
@@ -37,9 +38,14 @@ void LogInfo(
 
 // Описание хранилища опций в виде карты.
 // Пара <символьный ключ> => <числовое значение>
+#if defined __SUN_CC
+typedef std::pair<std::string, int> Pair;
+typedef std::map<std::string, int> Options;
+#else
 typedef std::pair<const std::string, int> Pair;
 typedef std::map<const std::string, int> Options;
-typedef std::map<const std::string, int>::iterator OptionIterator;
+#endif
+typedef Options::iterator OptionIterator;
 
 // Получить значение указанной опции из массива опций
 bool  getOption(Options&, const std::string&, int&);

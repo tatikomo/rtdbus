@@ -3,23 +3,23 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://www.example.com/rtap_db rtap_db.xsd">
 
-	<rtdb:Class>
-	  <rtdb:Code>00</rtdb:Code>
-	  <rtdb:Name>TS</rtdb:Name>
+	<rtdb:Point>
+	  <rtdb:Objclass>00</rtdb:Objclass>
+	  <rtdb:Tag>/KD4005/1/TT01</rtdb:Tag>
 	  <rtdb:Attr>
-		<rtdb:AttrName>OBJCLASS</rtdb:AttrName>
+		<rtdb:AttrName>STATUS</rtdb:AttrName>
 		<rtdb:Kind>SCALAR</rtdb:Kind>
 		<rtdb:Accessibility>PUBLIC</rtdb:Accessibility>
 		<rtdb:DbType>LOGICAL</rtdb:DbType>
 		<rtdb:Value>0</rtdb:Value>
 	  </rtdb:Attr>
-	</rtdb:Class>
+	</rtdb:Point>
 
-	<rtdb:Class>
-	  <rtdb:Code>01</rtdb:Code>
-	  <rtdb:Name>TM</rtdb:Name>
+	<rtdb:Point>
+	  <rtdb:Objclass>01</rtdb:Objclass>
+	  <rtdb:Tag>/KD4005/1/TT02</rtdb:Tag>
 	  <rtdb:Attr>
-		<rtdb:AttrName>OBJCLASS</rtdb:AttrName>
+		<rtdb:AttrName>STATUS</rtdb:AttrName>
 		<rtdb:Kind>SCALAR</rtdb:Kind>
 		<rtdb:Accessibility>PUBLIC</rtdb:Accessibility>
 		<rtdb:DbType>INT8</rtdb:DbType>
@@ -32,19 +32,19 @@
 		<rtdb:DbType>BYTES20</rtdb:DbType>
 		<rtdb:Value>"Описание атрибута-1"</rtdb:Value>
 	  </rtdb:Attr>
-	</rtdb:Class>
+	</rtdb:Point>
 
-	<rtdb:Class>
-	  <rtdb:Code>03</rtdb:Code>
-	  <rtdb:Name>TSA</rtdb:Name>
+	<rtdb:Point>
+	  <rtdb:Objclass>03</rtdb:Objclass>
+	  <rtdb:Tag>/KD4005/3/PT01</rtdb:Tag>
 	  <rtdb:Attr>
-		<rtdb:AttrName>OBJCLASS</rtdb:AttrName>
+		<rtdb:AttrName>STATUS</rtdb:AttrName>
 		<rtdb:Kind>SCALAR</rtdb:Kind>
 		<rtdb:Accessibility>PRIVATE</rtdb:Accessibility>
 		<rtdb:DbType>UINT8</rtdb:DbType>
 		<rtdb:Value>3</rtdb:Value>
 	  </rtdb:Attr>
-	</rtdb:Class>
+	</rtdb:Point>
 
 </rtdb:RTDB_STRUCT>
 

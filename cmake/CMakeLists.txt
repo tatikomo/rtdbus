@@ -11,7 +11,7 @@ set (RTDBUS_VERSION_STRING "${RTDBUS_VERSION}")
 
 set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/modules")
 
-#set (USE_EXTREMEDB_HTTP_SERVER 1)
+set (USE_EXTREMEDB_HTTP_SERVER 0)
 OPTION (RTDBUS_USE_EXTREMEDB_HTTP_SERVER "enable internal http server"  OFF)
 OPTION (RTDBUS_USE_MSEC_IN_EXPIRATION    "enable nanoseconds comparing" OFF)
  
@@ -19,7 +19,20 @@ STRING(TOUPPER ${CMAKE_SYSTEM_NAME} sysname)
 if("${sysname}" MATCHES "SUNOS")
     SET (COMPILER_PLATFORM "SunOS")
     OPTION(HAVE_CONSOLE_OWNER_FILE "enable console owner file (solaris only)" ON)
+
+    if (CMAKE_COMPILER_IS_GNUCC)
+#     add_definitions(-m32)
+    else (CMAKE_COMPILER_IS_GNUCC)
+#     add_definitions(-xarch=v9)
+      add_definitions(+w2)
+      add_definitions("-Qoption ccfe -complextmplexp")
+      add_definitions(-library=stlport4)
+      # replace internal gcc function for branch execution prediction
+      add_definitions(\"-D__builtin_expect\(e,n\)=\(\(e\)\)\")
+    endif (CMAKE_COMPILER_IS_GNUCC)
+
     add_definitions(-DTYPE_OS=SOLARIS)
+
     if(HAVE_CONSOLE_OWNER_FILE)
         SET(DBUS_CONSOLE_OWNER_FILE "/dev/console" CACHE STRING "Directory to check for console ownerhip")
     endif(HAVE_CONSOLE_OWNER_FILE)

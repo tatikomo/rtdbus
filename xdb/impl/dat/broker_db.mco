@@ -43,6 +43,7 @@ class XDBWorker
   tree   <expiration.sec> SK_expiration;
   // У одной Службы может быть несколько Обработчиков
   tree      <service_ref> SK_by_serv_id;
+  list;
 };
 
 /*
@@ -101,5 +102,6 @@ class XDBLetter
   /* Одновременно для каждого Обработчика допускается только одно Сообщение */
   unique tree <worker_ref> SK_by_worker_id;
   tree <service_ref, state>  SK_by_state_for_serv;
+  list;
 };
 

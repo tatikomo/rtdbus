@@ -1,6 +1,9 @@
 #include <iostream>
 #include <string>
 
+#include <stdlib.h> // putenv
+#include <stdio.h>  // fprintf
+
 #include <xercesc/util/PlatformUtils.hpp>
 
 #include "glog/logging.h"
@@ -11,9 +14,17 @@
 #include "xdb_broker_service.hpp"
 #include "xdb_broker_worker.hpp"
 #include "dat/broker_db.hpp"
+// Включение поддержки XML формата хранения данных instance_total
+#include "dat/rtap_db.hxx"
 #include "dat/rtap_db-pimpl.hxx"
 #include "dat/rtap_db-pskel.hxx"
+// Включение поддержки XML формата хранения словарей БДРВ
+#include "dat/rtap_db_dict.hxx"
+#include "dat/rtap_db_dict-pskel.hxx"
+#include "dat/rtap_db_dict-pimpl.hxx"
+
 #include "proto/common.pb.h"
+#include "msg/msg_common.h"
 
 #include "xdb_rtap_const.hpp"
 #include "xdb_rtap_application.hpp"
@@ -45,7 +56,11 @@ xdb::RtConnection* connection = NULL;
  * Инициализируется в функции TestTools.LOAD_XML
  * Используется в функции TestRtapDATABASE.CREATE
  */
-rtap_db::ClassesList class_list;
+rtap_db::Points point_list;
+/*
+ * Экземпляр НСИ БДРВ RTAP
+ */
+rtap_db_dict::Dictionaries_t dict;
 
 void wait()
 {
@@ -490,8 +505,20 @@ TEST(TestDiggerDATABASE, CREATION)
   env = app->loadEnvironment("SINF");
   ASSERT_TRUE(env != NULL);
 
+#if 0
+  // TODO Реализация
   env->Start();
-  EXPECT_EQ(app->getLastError().getCode(), xdb::rtE_NONE /*rtE_NOT_IMPLEMENTED*/);
+  EXPECT_EQ(env->getLastError().getCode(), xdb::rtE_NONE /*rtE_NOT_IMPLEMENTED*/);
+#endif
+
+#if 1
+  // TODO: на 16 октября 2014 вызов этого метода приводит 
+  // к падению внутри mco_db_xml_export()
+  env->MakeSnapshot(NULL);
+  EXPECT_EQ(env->getLastError().getCode(), xdb::rtE_NONE);
+#else
+#warning "TODO: test RtEnvironment::MakeSnapshot()"
+#endif
 
   // Проверка корректности получения экземпляра Среды с одним 
   // названием и невозможности появления её дубликата
@@ -528,49 +555,126 @@ TEST(TestDiggerDATABASE, DESTROY)
 }
 
 using namespace xercesc;
-TEST(TestTools, LOAD_XML)
+TEST(TestTools, LOAD_DICT_XML)
+{
+  const int argc = 2;
+  char *argv[argc] = {
+                    (char*)"LOAD_DICT_XML",
+                    (char*)"rtap_dict.xml"
+                    };
+
+  LOG(INFO) << "BEGIN LOAD_DICT_XML TestTools";
+
+  try
+  {
+    ::rtap_db_dict::Dictionaries_pimpl Dictionaries_p;
+    ::rtap_db_dict::UNITY_LABEL_pimpl UNITY_LABEL_p;
+    ::rtap_db_dict::UnityDimensionType_pimpl UnityDimensionType_p;
+    ::rtap_db_dict::UnityDimensionEntry_pimpl UnityDimensionEntry_p;
+    ::rtap_db_dict::UnityIdEntry_pimpl UnityIdEntry_p;
+    ::rtap_db_dict::UnityLabelEntry_pimpl UnityLabelEntry_p;
+    ::rtap_db_dict::UnityDesignationEntry_pimpl UnityDesignationEntry_p;
+    ::rtap_db_dict::VAL_LABEL_pimpl VAL_LABEL_p;
+    ::rtap_db_dict::ObjClassEntry_pimpl ObjClassEntry_p;
+    ::rtap_db_dict::ValueEntry_pimpl ValueEntry_p;
+    ::rtap_db_dict::ValueLabelEntry_pimpl ValueLabelEntry_p;
+    ::rtap_db_dict::CE_ITEM_pimpl CE_ITEM_p;
+    ::rtap_db_dict::Identifier_pimpl Identifier_p;
+    ::rtap_db_dict::ActionScript_pimpl ActionScript_p;
+    ::rtap_db_dict::INFO_TYPES_pimpl INFO_TYPES_p;
+    ::rtap_db_dict::InfoTypeEntry_pimpl InfoTypeEntry_p;
+    ::xml_schema::string_pimpl string_p;
+
+    // Connect the parsers together.
+    //
+    Dictionaries_p.parsers (UNITY_LABEL_p,
+                            VAL_LABEL_p,
+                            CE_ITEM_p,
+                            INFO_TYPES_p);
+
+    UNITY_LABEL_p.parsers (UnityDimensionType_p,
+                           UnityDimensionEntry_p,
+                           UnityIdEntry_p,
+                           UnityLabelEntry_p,
+                           UnityDesignationEntry_p);
+
+    VAL_LABEL_p.parsers (ObjClassEntry_p,
+                         ValueEntry_p,
+                         ValueLabelEntry_p);
+
+    CE_ITEM_p.parsers (Identifier_p,
+                  ActionScript_p);
+                  
+    INFO_TYPES_p.parsers (ObjClassEntry_p,
+                          InfoTypeEntry_p,
+                          string_p);
+
+    // Parse the XML document.
+    //
+    ::xml_schema::document doc_p (
+      Dictionaries_p,
+      "http://www.example.com/rtap_db_dict",
+      "Dictionaries");
+
+    // TODO: передать внутрь пустые списки НСИ для их инициализации
+    Dictionaries_p.pre (dict);
+    doc_p.parse (argv[1]);
+    Dictionaries_p.post_Dictionaries ();
+
+    EXPECT_EQ(dict.unity_dict.size(), 51);
+    EXPECT_EQ(dict.values_dict.size(), 26);
+    EXPECT_EQ(dict.macros_dict.size(), 0);
+    EXPECT_EQ(dict.infotypes_dict.size(), 0);
+
+    //applyDICT(dict);
+  }
+  catch (const ::xml_schema::exception& e)
+  {
+    std::cerr << e << std::endl;
+    return;
+  }
+  catch (const std::ios_base::failure&)
+  {
+    std::cerr << argv[0] << " error: i/o failure" << std::endl;
+    return;
+  }
+
+  LOG(INFO) << "END LOAD_DICT_XML TestTools";
+}
+
+TEST(TestTools, LOAD_DATA_XML)
 {
   unsigned int class_item;
 //  unsigned int attribute_item;
   const int argc = 2;
   char *argv[argc] = {
-                    (char*)"TestTools",
+                    (char*)"LOAD_DATA_XML",
                     (char*)"classes.xml"
                     };
 
-  try
-  {
-    XMLPlatformUtils::Initialize("UTF-8");
-  }
-  catch (const XMLException& toCatch)
-  {
-    // Do your failure processing here
-    std::cerr << "Error during initialization! :\n"
-              << toCatch.getMessage() << std::endl;
-    return;
-  }
+  LOG(INFO) << "BEGIN LOAD_DATA_XML TestTools";
 
   try
   {
     // Instantiate individual parsers.
     //
     ::rtap_db::RTDB_STRUCT_pimpl RTDB_STRUCT_p;
-    ::rtap_db::Class_pimpl Class_p;
-    ::rtap_db::Code_pimpl Code_p;
-    ::rtap_db::ClassType_pimpl ClassType_p;
-    ::rtap_db::Attr_pimpl Attr_p;
-    ::rtap_db::PointKind_pimpl PointKind_p;
+    ::rtap_db::Point_pimpl       Point_p;
+    ::rtap_db::Objclass_pimpl    Objclass_p;
+    ::rtap_db::Tag_pimpl         Tag_p;
+    ::rtap_db::Attr_pimpl        Attr_p;
+    ::rtap_db::PointKind_pimpl   PointKind_p;
     ::rtap_db::Accessibility_pimpl Accessibility_p;
     ::rtap_db::AttributeType_pimpl AttributeType_p;
-    ::rtap_db::AttrNameType_pimpl AttrNameType_p;
-    ::xml_schema::string_pimpl string_p;
+    ::rtap_db::AttrNameType_pimpl  AttrNameType_p;
+    ::xml_schema::string_pimpl     string_p;
 
     // Connect the parsers together.
     //
-    RTDB_STRUCT_p.parsers (Class_p);
+    RTDB_STRUCT_p.parsers (Point_p);
 
-    Class_p.parsers (Code_p,
-                     ClassType_p,
+    Point_p.parsers (Objclass_p,
+                     Tag_p,
                      Attr_p);
 
     Attr_p.parsers (AttrNameType_p,
@@ -586,33 +690,33 @@ TEST(TestTools, LOAD_XML)
       "http://www.example.com/rtap_db",
       "RTDB_STRUCT");
 
-    RTDB_STRUCT_p.pre (&class_list);
+    RTDB_STRUCT_p.pre (point_list);
     doc_p.parse (argv[1]);
     RTDB_STRUCT_p.post_RTDB_STRUCT ();
 
 #if VERBOSE
-    std::cout << "Parsing XML is over, processed " << class_list.size() << " element(s)" << std::endl;
+    std::cout << "Parsing XML is over, processed " << point_list.size() << " element(s)" << std::endl;
 #endif
     /* В cmake/classes.xml есть 3 точки */
-    EXPECT_EQ(class_list.size(), 3);
+    EXPECT_EQ(point_list.size(), 3);
 
-    for (class_item=0; class_item<class_list.size(); class_item++)
+    for (class_item=0; class_item<point_list.size(); class_item++)
     {
 #if VERBOSE
-      std::cout << "\tCODE:  " << class_list[class_item].code() << std::endl;
-      std::cout << "\tNAME:  '" << class_list[class_item].name() << "'" << std::endl;
-      std::cout << "\t#ATTR: " << class_list[class_item].m_attributes.size() << std::endl;
-      if (class_list[class_item].m_attributes.size())
+      std::cout << "\tOBJCLASS:  " << point_list[class_item].objclass() << std::endl;
+      std::cout << "\tTAG:  '" << point_list[class_item].tag() << "'" << std::endl;
+      std::cout << "\t#ATTR: " << point_list[class_item].m_attributes.size() << std::endl;
+      if (point_list[class_item].m_attributes.size())
       {
         for (attribute_item=0;
-             attribute_item<class_list[class_item].m_attributes.size();
+             attribute_item<point_list[class_item].m_attributes.size();
              attribute_item++)
         {
-          std::cout << "\t\t" << class_list[class_item].m_attributes[attribute_item].name()
-                    << " : "  << class_list[class_item].m_attributes[attribute_item].value()
-                    << " : "  << class_list[class_item].m_attributes[attribute_item].kind()
-                    << " : "  << class_list[class_item].m_attributes[attribute_item].type()
-                    << " : "  << class_list[class_item].m_attributes[attribute_item].accessibility()
+          std::cout << "\t\t" << point_list[class_item].m_attributes[attribute_item].name()
+                    << " : "  << point_list[class_item].m_attributes[attribute_item].value()
+                    << " : "  << point_list[class_item].m_attributes[attribute_item].kind()
+                    << " : "  << point_list[class_item].m_attributes[attribute_item].type()
+                    << " : "  << point_list[class_item].m_attributes[attribute_item].accessibility()
                     << std::endl;
         }
       }
@@ -621,18 +725,18 @@ TEST(TestTools, LOAD_XML)
       switch(class_item)
       {
         case GOF_D_BDR_OBJCLASS_TS:
-            EXPECT_TRUE(class_list[class_item].name().compare("TS") == 0);
-            EXPECT_EQ(class_list[class_item].m_attributes.size(), 1);
+            EXPECT_TRUE(point_list[class_item].objclass() == class_item);
+            EXPECT_EQ(point_list[class_item].m_attributes.size(), 1);
             break;
 
         case GOF_D_BDR_OBJCLASS_TM:
-            EXPECT_TRUE(class_list[class_item].name().compare("TM") == 0);
-            EXPECT_EQ(class_list[class_item].m_attributes.size(), 2);
+            EXPECT_TRUE(point_list[class_item].objclass() == class_item);
+            EXPECT_EQ(point_list[class_item].m_attributes.size(), 2);
             break;
 
         case GOF_D_BDR_OBJCLASS_TSA:
-            EXPECT_TRUE(class_list[class_item].name().compare("TSA") == 0);
-            EXPECT_EQ(class_list[class_item].m_attributes.size(), 1);
+            EXPECT_TRUE(point_list[class_item].objclass() == class_item);
+            EXPECT_EQ(point_list[class_item].m_attributes.size(), 1);
             break;
       }
 
@@ -640,8 +744,6 @@ TEST(TestTools, LOAD_XML)
       std::cout << std::endl;
 #endif
     }
-
-    XMLPlatformUtils::Terminate();
   }
   catch (const ::xml_schema::exception& e)
   {
@@ -650,9 +752,10 @@ TEST(TestTools, LOAD_XML)
   }
   catch (const std::ios_base::failure&)
   {
-    std::cerr << argv[1] << ": error: i/o failure" << std::endl;
+    std::cerr << argv[0] << " error: i/o failure" << std::endl;
     return;
   }
+  LOG(INFO) << "END LOAD_DATA_XML TestTools";
 }
 
 TEST(TestTools, LOAD_CLASSES)
@@ -663,6 +766,8 @@ TEST(TestTools, LOAD_CLASSES)
   char msg_info[255];
   char msg_val[255];
   xdb::AttributeMap_t *pool;
+
+  LOG(INFO) << "BEGIN LOAD_CLASSES TestTools";
 
   getcwd(fpath, 255);
   loaded = xdb::processClassFile(fpath);
@@ -758,8 +863,8 @@ TEST(TestTools, LOAD_CLASSES)
 #endif
         }
     }
-
   }
+  LOG(INFO) << "END LOAD_CLASSES TestTools";
 }
 
 TEST(TestTools, LOAD_INSTANCE)
@@ -767,21 +872,18 @@ TEST(TestTools, LOAD_INSTANCE)
   bool status = false;
   char fpath[255];
 
+  LOG(INFO) << "BEGIN LOAD_INSTANCE TestTools";
   getcwd(fpath, 255);
   status = xdb::processInstanceFile(fpath);
   EXPECT_TRUE(status);
+  LOG(INFO) << "END LOAD_INSTANCE TestTools";
 }
 
+#if 0
 /* Заполнить контент RTDB на основе прочитанных из XML данных */
 TEST(TestRtapDATABASE, CREATE)
 {
-//  bool status = false;
-//  const int argc = 3;
-//  char *argv[argc] = {
-//                    (char*)"RTDB_TEST",
-//                    (char*)"OF_CREATE=1",
-//                    (char*)"OF_TRUNCATE=1"
-//                    };
+  LOG(INFO) << "BEGIN CREATE TestRtapDATABASE";
 
   app = new xdb::RtApplication("RTDB_TEST");
   ASSERT_TRUE(app != NULL);
@@ -796,15 +898,12 @@ TEST(TestRtapDATABASE, CREATE)
   LOG(INFO) << "Operation mode: " << app->getOperationMode();
   LOG(INFO) << "Operation state: " << app->getOperationState();
 
-#if 0
-  env = app->getEnvironment("SINF");
+  env = app->loadEnvironment("SINF");
   EXPECT_TRUE(env != NULL);
 
-  connection = env->createConnection();
-  EXPECT_TRUE(connection != NULL);
-#else
-#warning "Implement environment and connections creation for RtApplication"
-#endif
+//  connection = env->createConnection();
+//  EXPECT_TRUE(connection != NULL);
+  LOG(INFO) << "END CREATE TestRtapDATABASE";
 }
 
 TEST(TestRtapDATABASE, SHOW_CONTENT)
@@ -814,17 +913,44 @@ TEST(TestRtapDATABASE, SHOW_CONTENT)
 
 TEST(TestRtapDATABASE, TERMINATE)
 {
+  LOG(INFO) << "BEGIN TERMINATE TestRtapDATABASE";
 //  delete env;
   delete app;
+  LOG(INFO) << "END TERMINATE TestRtapDATABASE";
 }
+#endif
 
 int main(int argc, char** argv)
 {
   ::google::InitGoogleLogging(argv[0]);
   ::testing::InitGoogleTest(&argc, argv);
   ::google::InstallFailureSignalHandler();
+
+  // Инициировать XML-движок единственный раз в рамках одного процесса
+  try
+  {
+    XMLPlatformUtils::Initialize("UTF-8");
+  }
+  catch (const XMLException& toCatch)
+  {
+    std::cerr << "Error during initialization! :\n"
+              << toCatch.getMessage() << std::endl;
+    return -1;
+  }
+
   setenv("MCO_RUNTIME_STOP", "1", 0);
   int retval = RUN_ALL_TESTS();
+
+  try
+  {
+    XMLPlatformUtils::Terminate();
+  }
+  catch (const XMLException& toCatch)
+  {
+    std::cerr << "Error during finalization! :\n"
+              << toCatch.getMessage() << std::endl;
+  }
+
   ::google::protobuf::ShutdownProtobufLibrary();
   ::google::ShutdownGoogleLogging();
   return retval;

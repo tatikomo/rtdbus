@@ -8,13 +8,15 @@
 #if defined HAVE_CONFIG_H
 #include "config.h"
 #endif
+#include "dat/rtap_db.hxx"
 #include "xdb_impl_error.hpp"
+//#include "xdb_impl_info.hpp"
 #include "xdb_rtap_const.hpp"
 #include "xdb_rtap_filter.hpp"
 
 namespace xdb {
 
-class RtAttribute;
+//class RtEnvironment;
 class RtConnection;
 class RtPointFilter;
 class RtData;
@@ -29,22 +31,24 @@ typedef enum
 class RtPoint
 {
   public:
-    RtPoint();
-    void          addPoint(univname_t name);
-    const Error&  setName(univname_t);
+    RtPoint(/*RtEnvironment*,*/ rtap_db::Point&);
+    ~RtPoint();
 
     // Получить тип хранилища данной точки
     RtResidence   getResidence() const;
-    // Получить алиас точки
-    RtAttribute*  getAlias() const;
     // Получить количество атрибутов точки
-    int           getAttibuteCount();
+    int           getAttibuteCount() const;
+    // Получить Универсальное Имя точки
+    const std::string& getTag() const;
     // Получить количество атрибутов точки, подходящих под данный шаблон
-    int           getAttibuteCount(const char*);
+    int           getAttibuteCount(const char*) const;
     // Получить все атрибуты точки
-    RtAttribute*  getAttributes();
+    rtap_db::AttibuteList& getAttributes();
+    // Вернуть значения всех атрибутов точки
+    rtap_db::Point& info() { return m_info; };
+
     // Получить все атрибуты точки, подходящие под данный шаблон
-    RtAttribute*  getAttributes(const char*);
+    //rtap_db::AttibuteList* getAttributes(const char*);
     // Вернуть все дочерние точки
     RtPoint*      getChildren();
     // Вернуть объект подключения к БД
@@ -61,15 +65,22 @@ class RtPoint
     const Error&  matchPoints(RtPointFilter::ScopeType, int level, RtPointFilter*);
     const Error&  matchPoints(RtPointFilter*);
 
+#if 0
+    // NB: Стоит перенести все подобные методы на уровень RtConnection или RtEnvironment
+
+    // Полная запись данных точки
+    const Error&  write();
     // Запись множества значений атрибутов данной точки
     const Error&  write(std::vector<std::string> attrNames, RtData* data);
     // Запись значения заданного атрибута данной точки
     const Error&  write(std::string& attrName, RtData* data);
+#endif
 
   private:
     DISALLOW_COPY_AND_ASSIGN(RtPoint);
-    Error         m_last_error;
-    RtResidence   m_residence;
+    rtap_db::Point   m_info;
+    Error            m_last_error;
+    RtResidence      m_residence;
 };
 
 } // namespace xdb

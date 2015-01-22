@@ -6,6 +6,7 @@
 #  LIBEXTREMEDB_LIBRARIES - The libraries needed to use EXTREMEDB
 
 #  set (EXTREMEDB_VERSION 35)
+#  set (EXTREMEDB_VERSION 41)
   set (EXTREMEDB_VERSION 50)
 
   if ("${EXTREMEDB_VERSION}"  EQUAL "35")
@@ -30,12 +31,25 @@
 
     set (LIBEXTREMEDB_INCLUDE_DIR "${RTDBUS_SOURCE_DIR}/../../eXtremeDB_41/sources/include")
     set (LIBEXTREMEDB_LIBRARIES_DIR "${RTDBUS_SOURCE_DIR}/../../eXtremeDB_41/sources/target/bin.so")
-    set (LIBEXTREMEDB_MCOCOMP "${RTDBUS_SOURCE_DIR}/../../master_eXtremeDB_41/sources/host/bin/mcocomp")
+    set (LIBEXTREMEDB_MCOCOMP "${RTDBUS_SOURCE_DIR}/../../eXtremeDB_41/sources/host/bin/mcocomp")
 
     if (${COMPILER_PLATFORM} MATCHES "SunOS")
       # SOLARIS EXTREMEDB 4.1
-      set (LIBEXTREMEDB_LIBRARIES "mcossun mcounrt mcovtmem mcouwrt")
-      set (LIBEXTREMEDB_LIBRARIES_ALL "mcossun -lmcounrt -lmcovtmem -lmcouwrt")
+      set (LIBEXTREMEDB_LIBRARIES "mcossun mcounrt mcovtmem mcouwrt mcomipc mcolib mcovtmem mcouwrt mcotmursiw")
+      set (LIBEXTREMEDB_LIBRARIES_ALL "mcossun -lmcounrt -lmcovtmem -lmcouwrt -lmcomipc -lmcolib -lmcovtmem -lmcouwrt -lmcotmursiw")
+
+      # inmem_load && inmem_save
+      set(LIBEXTREMEDB_EXTRA_LIBRARIES mcoseri)
+
+      if (${USE_EXTREMEDB_HTTP_SERVER})
+        message("Internal eXtremeDB http server ON")
+        set (LIBEXTREMEDB_LIBRARIES "${LIBEXTREMEDB_LIBRARIES} mcouda mcohv mcoews_cgi")
+        set (LIBEXTREMEDB_LIBRARIES_ALL "${LIBEXTREMEDB_LIBRARIES_ALL} -lmcohv -lmcouda -lmcoews_cgi")
+      else ()
+        message("Internal eXtremeDB http server OFF")
+      endif ()
+
+
     else ()
       message("Unsupported combination platform ${COMPILER_PLATFORM} and eXtremeDB version ${EXTREMEDB_VERSION}")
       return()

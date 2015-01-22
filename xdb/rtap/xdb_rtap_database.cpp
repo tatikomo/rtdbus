@@ -7,29 +7,24 @@
 #if defined HAVE_CONFIG_H
 #include "config.h"
 #endif
+#include "dat/rtap_db.hxx"
 #include "xdb_impl_common.hpp"
 #include "xdb_impl_database.hpp"
+#include "xdb_impl_db_rtap.hpp"
 #include "xdb_rtap_database.hpp"
-
-#ifdef __cplusplus
-extern "C" {
-#include "mco.h"
-}
-#endif
-
-#include "dat/rtap_db.hpp"
 
 using namespace xdb;
 
-RtDatabase::RtDatabase(const char* _name, const Options& _options)
+RtDatabase::RtDatabase(const char* _name, const ::Options* _options)
+ : m_options(_options)
 {
   assert (_name);
-  m_impl = new DatabaseImpl(_name, _options, rtap_db_get_dictionary());
+  // GEV Опции создания БД для RTAP сейчас игнорируются
+  m_impl = new DatabaseRtapImpl(_name); //, _options, rtap_db_get_dictionary());
 }
 
 RtDatabase::~RtDatabase()
 {
-//  m_impl->Disconnect();
   delete m_impl;
 }
 
@@ -48,19 +43,27 @@ void RtDatabase::setError(ErrorCode_t _new_error_code)
   m_impl->setError(_new_error_code);
 }
 
-const Error&  RtDatabase::Connect()
+const Error& RtDatabase::Connect()
 {
-  return m_impl->Connect();
+  if (!m_impl->Connect())
+  {
+    LOG(ERROR) << "Connection failed";
+  }
+  return m_impl->getLastError();
 }
 
-const Error&  RtDatabase::Disconnect()
+const Error& RtDatabase::Disconnect()
 {
-  return m_impl->Disconnect();
+  if (!m_impl->Disconnect())
+  {
+    LOG(ERROR) << "Disconnect failed";
+  }
+  return m_impl->getLastError();
 }
 
-const Error&  RtDatabase::Init()
+const Error& RtDatabase::Init()
 {
-  return m_impl->Init();
+  return getLastError();
 }
 
 const Error& RtDatabase::getLastError() const
@@ -71,18 +74,80 @@ const Error& RtDatabase::getLastError() const
 const Error& RtDatabase::Create()
 {
   setError(rtE_NOT_IMPLEMENTED);
-  return getLastError();
+  return m_impl->getLastError();
 }
 
-const Error& RtDatabase::LoadSnapshot(const char*)
+// NB: входящий указатель на имя файла может быть нулевым
+const Error& RtDatabase::LoadSnapshot(const char* _fname)
 {
-  setError(rtE_NOT_IMPLEMENTED);
-  return getLastError();
+  if (!m_impl->LoadSnapshot(_fname))
+  {
+    LOG(ERROR) << "LoadSnapshot failed";
+  }
+  return m_impl->getLastError();
 }
 
-const Error& RtDatabase::StoreSnapshot(const char*)
+const Error& RtDatabase::MakeSnapshot(const char* _fname)
 {
-  setError(rtE_NOT_IMPLEMENTED);
-  return getLastError();
+  if (!m_impl->MakeSnapshot(_fname))
+  {
+    LOG(ERROR) << "MakeSnapshot failed";
+  }
+  return m_impl->getLastError();
+}
+
+// Функции изменения содержимого БД
+// ====================================================
+// Создание Точки
+const Error& RtDatabase::create(rtap_db::Point&)
+{
+  return m_impl->getLastError();
+}
+
+// Удаление Точки
+const Error& RtDatabase::erase(rtap_db::Point&)
+{
+  return m_impl->getLastError();
+}
+
+// Чтение данных Точки
+const Error& RtDatabase::read(rtap_db::Point&)
+{
+  return m_impl->getLastError();
+}
+
+// Изменение данных Точки
+const Error& RtDatabase::write(rtap_db::Point& info)
+{
+  return m_impl->write(info);
+}
+
+// Блокировка данных Точки от изменения в течение заданного времени
+const Error& RtDatabase::lock(rtap_db::Point&, int)
+{
+  return m_impl->getLastError();
+}
+
+const Error& RtDatabase::unlock(rtap_db::Point&)
+{
+  return m_impl->getLastError();
+}
+
+// Интерфейс управления БД - Контроль выполнения
+const Error& RtDatabase::Control(rtDbCq& info)
+{
+  return m_impl->Control(info);
+}
+
+// Интерфейс управления БД - Контроль Точек
+const Error& RtDatabase::Query(rtDbCq& info)
+{
+  return m_impl->Query(info);
+}
+
+// Интерфейс управления БД - Контроль выполнения
+const Error& RtDatabase::Config(rtDbCq& info)
+{
+  return m_impl->Config(info);
 }
 

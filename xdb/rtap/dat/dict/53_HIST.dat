@@ -1,5 +1,5 @@
 C 25400HIST_SET           HIST_SET           RAM Natural     Enabled
-S CODE               PUB        rtBYTES8       
+#S CODE               PUB        rtBYTES8       
 S UNIVNAME           PUB        rtBYTES32       
 S OBJCLASS           PUB        rtUINT8        54
 S TRIGGERQH          PUB        rtINT8         0

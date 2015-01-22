@@ -17,9 +17,14 @@ namespace xdb {
 
 // Описание хранилища опций в виде карты.
 // Пара <символьный ключ> => <числовое значение>
+#ifdef __SUNPRO_CC
+typedef std::pair<std::string, int> Pair;
+typedef std::map<std::string, int> Options;
+#else
 typedef std::pair<const std::string, int> Pair;
 typedef std::map<const std::string, int> Options;
-typedef std::map<const std::string, int>::iterator OptionIterator;
+#endif
+typedef Options::iterator OptionIterator;
 
 class RtEnvironment;
 class ApplicationImpl;
@@ -34,7 +39,8 @@ class RtApplication
 
     const Error& initialize();
 
-    const Options& getOptions() const;
+    const ::Options* getOptions() const;
+
     bool  getOption(const std::string&, int&);
     void  setOption(const char*, int);
     const char* getAppName() const;

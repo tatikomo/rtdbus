@@ -5,7 +5,7 @@
 #include "mdp_worker_api.hpp"
 #include "wecho.hpp"
 
-extern int s_interrupted;
+extern int interrupt_worker;
 
 int Echo::handle_request(mdp::zmsg* request, std::string*& reply_to)
 {
@@ -32,7 +32,7 @@ int main(int argc, char **argv)
   try
   {
     Echo *engine = new Echo("tcp://localhost:5555", "echo", verbose);
-    while (!s_interrupted) 
+    while (!interrupt_worker) 
     {
        std::string *reply_to = new std::string;
        mdp::zmsg   *request  = NULL;

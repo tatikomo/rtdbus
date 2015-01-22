@@ -8,6 +8,7 @@
 #if defined HAVE_CONFIG_H
 #include "config.h"
 #endif
+#include "helper.hpp"
 #include "xdb_impl_error.hpp"
 #include "xdb_impl_application.hpp"
 #include "xdb_impl_environment.hpp"
@@ -57,7 +58,7 @@ ApplicationImpl* RtApplication::getImpl()
   return m_impl;
 }
 
-const Options& RtApplication::getOptions() const
+const ::Options* RtApplication::getOptions() const
 {
   return m_impl->getOptions();
 }
@@ -98,6 +99,7 @@ AppState_t RtApplication::getOperationState() const
 RtEnvironment* RtApplication::loadEnvironment(const char* _env_name)
 {
   Error status;
+  int   val;
   RtEnvironment *env = isEnvironmentRegistered(_env_name);
   
   if (env)
@@ -110,47 +112,62 @@ RtEnvironment* RtApplication::loadEnvironment(const char* _env_name)
   // Создать экземпляр RtEnvironment
   env = getEnvironment(_env_name);
 
-  // Загрузить ранее сохраненное содержимое
-  status = env->LoadSnapshot();
-
-  if (status.Ok())
+  // Загрузить ранее сохраненное содержимое только при включенной LOAD_SNAP
+  if (getOption("OF_LOAD_SNAP", val) && val)
   {
+    status = env->LoadSnapshot(); // Имя по-умолчанию: НАЗВАНИЕ_СРЕДЫ.snap.xml
+
+    switch(status.code())
+    {
+      case rtE_NONE:
+        LOG(INFO) << "'" << _env_name << "' DB content is loaded succesfully";
+      break;
+      
+      case rtE_SNAPSHOT_NOT_EXIST:
+          // TODO восстановить состояние по конфигурационным файлам
+          LOG(ERROR) << "Construct empty database contents for '"
+                     << m_impl->getAppName() << ":" << env->getName() << "'";
+          status.set(rtE_NOT_IMPLEMENTED);
+      break;
+
+      case rtE_SNAPSHOT_READ:
+          // TODO восстановить состояние по конфигурационным файлам
+          LOG(ERROR) << "Recovery database contents for '"
+                     << m_impl->getAppName() << ":" << env->getName() << "'";
+          status.set(rtE_NOT_IMPLEMENTED);
+      break;
+
+      default:
+        LOG(ERROR) << m_impl->getAppName() << " fault loads '" << env->getName()
+                   << "' DB content from its snapshot";
+    }
+
+#if 0
+        // Удаляем экземпляр Среды, созданный с ошибкой
+        delete env;
+        env = NULL;
+#else
+#warning "Нельзя регистрировать ошибочные экземпляры Сред. Сейчас это сделано для тестов."
+#endif
+    // Владение экземпляром перешло к RtApplication
+    registerEnvironment(env);
+  }
+  else
+  {
+    LOG(INFO) << "Using clean content '"<< env->getName() <<"' database";
+
     // Владение экземпляром перешло к RtApplication
     registerEnvironment(env);
 
     LOG(INFO) << "Environment '" << env->getName()
               << "' is loaded in App '" << m_impl->getAppName() << "'";
   }
-  else
-  {
-    if (rtE_SNAPSHOT_NOT_EXIST == status.code())
-    {
-      // TODO восстановить состояние по конфигурационным файлам
-      LOG(ERROR) << "Construct empty database contents for '"
-                 << m_impl->getAppName() << ":" << env->getName() << "'";
-      status.set(rtE_NOT_IMPLEMENTED);
-    }
-
-    LOG(ERROR) << "Fault loading environment '" << m_impl->getAppName()
-               << ":" << env->getName() << "' from its snapshot";
-
-#if 0
-    // Удаляем экземпляр Среды, созданный с ошибкой
-    delete env;
-    env = NULL;
-#else
-    // Владение экземпляром перешло к RtApplication
-    registerEnvironment(env);
-#warning "Нельзя регистрировать ошибочные экземпляры Сред. Сейчас это сделано для тестов."
-#endif
-  }
 
   return env;
 }
 
 
-// Зарегистрировать в Приложении новую Среду
-// TODO: Проверить на повторное наличие 
+// Зарегистрировать в Приложении новую Среду, кроме дубликатов 
 void RtApplication::registerEnvironment(RtEnvironment* _new_env)
 {
   if (!isEnvironmentRegistered(_new_env->getName()))

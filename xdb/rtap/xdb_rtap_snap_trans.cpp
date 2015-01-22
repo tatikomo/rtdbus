@@ -7,6 +7,7 @@
 #include <string>
 #include <stdlib.h> // atoi()
 #include <string.h> // memcpy()
+#include <stdio.h>  // sprintf()
 #include "glog/logging.h"
 
 #if defined HAVE_CONFIG_H
@@ -17,6 +18,9 @@
 
 using namespace xdb;
 
+static const std::string UNIVNAME_STRING = "UNIVNAME";
+static const std::string OBJCLASS_STRING = "OBJCLASS";
+
 /*------------------*/
 /* Global variables */
 /*------------------*/
@@ -25,9 +29,15 @@ char     currentAttrName [NAME_SIZE+1];
 char     currentStrDeType[DETYPE_SIZE+1];
 rtDeType currentDeType;
  	
-typedef std::map  <const std::string, DbType_t> DbTypesHash_t;
-typedef std::map  <const std::string, DbType_t>::iterator DbTypesHashIterator_t;
+#ifdef __SUNPRO_CC
+typedef std::pair <std::string, DbType_t> DbTypesHashPair_t;
+typedef std::map  <std::string, DbType_t> DbTypesHash_t;
+#else
 typedef std::pair <const std::string, DbType_t> DbTypesHashPair_t;
+typedef std::map  <const std::string, DbType_t> DbTypesHash_t;
+#endif
+typedef DbTypesHash_t::iterator DbTypesHashIterator_t;
+
 typedef std::map  <std::string, int> DbPointsTypeHash_t;
 typedef std::pair <std::string, int> DbPointsTypeHashPair_t;
 DbTypesHash_t       dbTypesHash;
@@ -164,7 +174,8 @@ void LoadDbTypesDictionary()
    dbTypesHash.insert(DbTypesHashPair_t("rtTIME_OF_DAY",DB_TYPE_INT64));
    dbTypesHash.insert(DbTypesHashPair_t("rtABS_TIME",   DB_TYPE_INT64));
 
-   /* TODO release memory */
+   // TODO: release memory
+   // NB: не используется, удалить?
    dbPointsTypeHash.insert(DbPointsTypeHashPair_t("DISP_TABLE_H",
                            GOF_D_BDR_OBJCLASS_DISP_TABLE_H));
    dbPointsTypeHash.insert(DbPointsTypeHashPair_t("DISP_TABLE_J",
@@ -212,6 +223,7 @@ int xdb::processClassFile(const char* fpath)
   std::string line;
   std::string::size_type first;
   std::string::size_type second;
+  std::istringstream iss;
 
   assert(fpath);
   LoadDbTypesDictionary();
@@ -259,7 +271,8 @@ int xdb::processClassFile(const char* fpath)
         {
           // S OBJCLASS           PUB        rtUINT8        0
           // создать массив лексем
-          std::istringstream iss(line);
+          iss.clear();
+          iss.str(line);
           if (iss >> s_skip >> s_univname >> s_access >> s_type)
           {
              // Если в iss еще остались данные, и тип атрибута символьный,
@@ -320,7 +333,7 @@ int xdb::processClassFile(const char* fpath)
     }
     else
     {
-//      LOG(ERROR) << "Ошибка "<<ifs.rdstate()<<" чтения входного файла "<<fname;
+      LOG(ERROR) << "Ошибка "<<ifs.rdstate()<<" чтения входного файла "<<fname;
     }
   }
 
@@ -523,9 +536,9 @@ std::string& xdb::dump_point(
     AttributeMap_t         *attributes_template;
     AttributeInfo_t        *element;
     AttributeMapIterator_t  it_given;
-    std::stringstream            class_item_presentation;
+    std::stringstream       class_item_presentation;
     AttributeMapIterator_t  it_attr_pool;
-    std::string                  univname;
+    std::string             univname;
 
     if (class_idx == GOF_D_BDR_OBJCLASS_UNUSED)
     {
@@ -537,12 +550,11 @@ std::string& xdb::dump_point(
     if (NULL != (attributes_template = ClassDescriptionTable[class_idx].attributes_pool))
     {
         class_item_presentation
-                  << "<rtdb:Class>" << std::endl
-                  << "  <rtdb:Code>"<< (int)class_idx <<"</rtdb:Code>" << std::endl
-                  << "  <rtdb:Name>"<< ClassDescriptionTable[class_idx].name <<"</rtdb:Name>" << std::endl;
+                  << "<rtdb:Point>" << std::endl
+                  << "  <rtdb:Objclass>"<< (int)class_idx <<"</rtdb:Objclass>" << std::endl;
 
         // Найти тег БДРВ (атрибут ".UNIVNAME")
-        it_given = attributes_given.find("UNIVNAME");
+        it_given = attributes_given.find(UNIVNAME_STRING);
         if (it_given != attributes_given.end())
         {
           univname.assign(it_given->second.value.val_bytes.data,
@@ -550,19 +562,35 @@ std::string& xdb::dump_point(
         }
         else
         {
-          LOG(ERROR) << "RTDB tag 'UNIVNAME' not found for point " << pointName;
+          LOG(WARNING) << "RTDB tag 'UNIVNAME' not found for point " << pointName;
+          univname.assign("/");
+          univname+=pointName;
         }
+
+        class_item_presentation << "  <rtdb:Tag>"<< univname <<"</rtdb:Tag>" << std::endl;
 
         for (AttributeMapIterator_t it=attributes_template->begin();
              it!=attributes_template->end();
              ++it)
         {
+          // TODO: удалить проверку UNIVNAME и OBJCLASS после редактирования словарей ??_*.dat
+          // Атрибут БДРВ UNIVNAME пропустить, он уже сохранен как атрибут XML Тег
+          if (!it->second.name.compare(UNIVNAME_STRING))
+            continue;
+
+          // Атрибут БДРВ OBJCLASS пропустить, он уже сохранен как атрибут XML Тег
+          if (!it->second.name.compare(OBJCLASS_STRING))
+            continue;
+
+          // Сохранить остальные атрибуты
           class_item_presentation
                 << "  <rtdb:Attr>" << std::endl
-        		<< "    <rtdb:AttrName>" << it->second.name << "</rtdb:AttrName>" << std::endl
+        		<< "    <rtdb:AttrName>" << it->second.name
+                    << "</rtdb:AttrName>" << std::endl
                 << "    <rtdb:Kind>SCALAR</rtdb:Kind>" << std::endl
         		<< "    <rtdb:Accessibility>PUBLIC</rtdb:Accessibility>" << std::endl
-        		<< "    <rtdb:DbType>" << GetDbNameFromType(it->second.db_type) << "</rtdb:DbType>" << std::endl;
+        		<< "    <rtdb:DbType>" << GetDbNameFromType(it->second.db_type)
+                    << "</rtdb:DbType>" << std::endl;
 
           // Если Атрибут из шаблона найден во входном перечне Атрибутов, то
           //    (1) Значения по умолчанию следует брать из входного перечня
@@ -581,11 +609,12 @@ std::string& xdb::dump_point(
           }
 
           class_item_presentation
-            << "    <rtdb:Value>"<< getValueAsString(element, true) <<"</rtdb:Value>"<< std::endl
+            << "    <rtdb:Value>"
+            << getValueAsString(element, true) <<"</rtdb:Value>"<< std::endl
             << "  </rtdb:Attr>"<< std::endl;
         }
 
-        class_item_presentation << "</rtdb:Class>" << std::endl;
+        class_item_presentation << "</rtdb:Point>" << std::endl;
         dump.assign(class_item_presentation.str());
     }
     else
@@ -594,7 +623,9 @@ std::string& xdb::dump_point(
     }
 
     // Удалить из attributes_given динамически выделенные данные (тип данных DB_TYPE_BYTES)
-    for (it_attr_pool = attributes_given.begin(); it_attr_pool != attributes_given.end(); ++it_attr_pool)
+    for (it_attr_pool  = attributes_given.begin();
+         it_attr_pool != attributes_given.end();
+         ++it_attr_pool)
     {
       switch(it_attr_pool->second.db_type)
       {
@@ -643,6 +674,7 @@ bool xdb::processInstanceFile(const char* fpath)
   std::string instance_file_name(fpath); // полное имя файла instances
   std::string xml_file_name(fpath);      // полное имя выходного XML-файла
   std::string point_view;
+  std::istringstream iss;
   int         indiceTab = 0;
   int         colonne;
   int         colvect;
@@ -708,7 +740,8 @@ bool xdb::processInstanceFile(const char* fpath)
       typeRecord = xdb::getRecordType(buffer);
       // TODO: проверить, что происходит с памятью при разборе большого файла
       // поскольку istringstream не удаляется
-      std::istringstream iss(buffer);
+      iss.clear();
+      iss.str(buffer);
       value.clear();
 
       switch(typeRecord)
@@ -914,6 +947,7 @@ bool xdb::processInstanceFile(const char* fpath)
          /*------------*/
          case DF_TYPE :
            // ligne = buffer[со 2 по 7 позицию]
+           // TODO: создание istringstream довольно затратно, переделать на повторное использование
            std::istringstream(buffer.substr(2, 7)) >> ligne;
 //           LOG(INFO) << "ligne="<<ligne;
          break;

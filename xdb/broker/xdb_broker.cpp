@@ -180,6 +180,8 @@ bool DatabaseBroker::AssignLetterToWorker(Worker* worker, Letter* letter)
   assert(m_impl);
 
   if (!m_impl) return false;
+  // TODO: проверить, возможно только для команды MDPW_DISCONNECT
+  if (!letter) return false;
   return m_impl->AssignLetterToWorker(worker, letter);
 }
 

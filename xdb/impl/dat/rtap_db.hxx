@@ -1,11 +1,15 @@
 #pragma once
-#ifndef XDB_RTAP_DAT_HXX
-#define XDB_RTAP_DAT_HXX
+#ifndef XDB_RTAP_DB_HXX
+#define XDB_RTAP_DB_HXX
 
 #include <string>
 #include <vector>
 
 #include "config.h"
+
+//#include "rtap_db_dict.hxx"
+// неиспользуемый макс. номер (см. ObjClass_t в rtap_db_dict.hxx)
+#define OBJCLASS_UNUSED 127
 
 namespace rtap_db
 {
@@ -14,16 +18,12 @@ namespace rtap_db
   typedef std::string Value;
 
   // Код Класса
-  //
-  typedef unsigned int Code;
+  // TODO: аналог задан в rtap_db_dict.hxx, объединить
+  typedef unsigned int Objclass;
 
-  // Наименование типа Класса - TS, TM, TSA,...
+  // Тэг, ранее "универсальное имя точки"
   // 
-  typedef std::string ClassType;
-
-  // Наименование Класса
-  // 
-  typedef std::string ClassName;
+  typedef std::string Tag;
 
   // Наименование атрибута
   // 
@@ -111,34 +111,74 @@ namespace rtap_db
   typedef std::vector<rtap_db::Attrib> AttibuteList;
 
   // Основной класс-хранилище экземпляров для каждого OBJCLASS (Rtap)
-  struct Class
+  struct Point
   {
     // 
     //
-    unsigned int code() const
+    Objclass objclass() const
     {
-      return m_class_code;
+      return m_objclass;
     }
 
-    const std::string& name () const
+    const std::string& tag () const
     {
-      return m_class_name;
+      return m_tag;
     }
 
     void clear()
     {
-      m_class_code = 0;
-      m_class_name.clear();
+      m_tag.clear();
+      m_objclass = OBJCLASS_UNUSED;
       m_attributes.clear();
     }
 
-    Code      m_class_code;
-    ClassName m_class_name;
+    rtap_db::Attrib* attrib(const char* _attr_name)
+    {
+      std::string given_attr_name = _attr_name;
+
+      return attrib(given_attr_name);
+    }
+
+    rtap_db::Attrib* attrib(const std::string& _attr_name)
+    {
+      rtap_db::Attrib* located = NULL;
+
+      // По заданному имени атрибута вернуть его данные из списка m_attributes
+      // TODO ускорить поиск
+      if (m_attributes.size())
+      {
+        for (unsigned int attribute_item=0;
+             attribute_item < m_attributes.size();
+             attribute_item++)
+        {
+           if (0 == (_attr_name.compare(m_attributes[attribute_item].name())))
+           {
+             located = &m_attributes[attribute_item];
+             break;
+           }
+        }
+      }
+
+      return located;
+    }
+
+    rtap_db::Attrib& attrib(unsigned int idx)
+    {
+      return m_attributes[idx];
+    }
+
+    AttibuteList& attributes()
+    {
+      return m_attributes;
+    }
+
+    Objclass     m_objclass;
+    Tag          m_tag;
     AttibuteList m_attributes;
   };
 
   // Список Классов
-  typedef std::vector<rtap_db::Class> ClassesList;
+  typedef std::vector<rtap_db::Point> Points;
 
 } // namespace
 

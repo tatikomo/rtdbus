@@ -27,18 +27,18 @@ namespace rtap_db
     AttrNameType m_impl;
   };
 
-  class ClassType_pimpl: public virtual ClassType_pskel,
+  class Tag_pimpl: public virtual Tag_pskel,
     public ::xml_schema::string_pimpl
   {
     public:
     virtual void
     pre ();
 
-    virtual rtap_db::ClassType&
-    post_ClassType ();
+    virtual rtap_db::Tag&
+    post_Tag ();
 
     private:
-    ClassType m_impl;
+    Tag m_impl;
   };
 
   class AttributeType_pimpl: public virtual AttributeType_pskel,
@@ -73,54 +73,58 @@ namespace rtap_db
   {
     public:
     virtual void
-    pre (rtap_db::ClassesList*);
-    // GEV
+    pre (rtap_db::Points&);
+    // Используется в ходе тестирования, без создания списка классов
+    // Принимает указатель на имя входящего XML-файла
     virtual void
     pre (const char*);
 
     virtual void
-    Class (rtap_db::Class&);
+    Point (rtap_db::Point&);
 
-    virtual void
+    virtual rtap_db::Points*
     post_RTDB_STRUCT ();
+
+    private:
+    rtap_db::Points* m_classes;
   };
 
-  class Class_pimpl: public virtual Class_pskel
+  class Point_pimpl: public virtual Point_pskel
   {
     public:
     virtual void
     pre ();
 
     virtual void
-    Code (rtap_db::Code);
+    Objclass (rtap_db::Objclass);
 
     virtual void
-    Name (rtap_db::ClassType&);
+    Tag (rtap_db::Tag&);
 
     virtual void
     Attr ();
 
-    virtual rtap_db::Class&
-    post_Class ();
+    virtual rtap_db::Point&
+    post_Point ();
 
-    ~Class_pimpl();
+    ~Point_pimpl();
 
     private:
-    Class *m_impl;
+    Point *m_impl;
   };
 
-  class Code_pimpl: public virtual Code_pskel,
+  class Objclass_pimpl: public virtual Objclass_pskel,
     public ::xml_schema::integer_pimpl
   {
     public:
     virtual void
     pre ();
 
-    virtual rtap_db::Code
-    post_Code ();
+    virtual rtap_db::Objclass
+    post_Objclass ();
 
     private:
-    Code m_impl;
+    Objclass m_impl;
   };
 
   class Attr_pimpl: public virtual Attr_pskel
@@ -149,7 +153,7 @@ namespace rtap_db
 
     private:
     Attrib m_impl;
-    Class *m_class;
+    Point *m_class;
   };
 
   class Accessibility_pimpl: public virtual Accessibility_pskel,

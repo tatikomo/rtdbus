@@ -1,0 +1,30 @@
+# namespace <schema-namespace> [<cxx-namespace>]
+# [type] <schema-type> <cxx-ret-type> [<cxx-arg-type>];
+#
+# <cxx-ret-type> is a C++ type name that is used as a return
+# type for the post_*() callback. 
+# Optional <cxx-arg-type> is an argument type for callbacks 
+# corresponding to elements and attributes of this type.
+# If <cxx-arg-type> is not specified, it defaults to <cxx-ret-type>.
+# If <cxx-ret-type> ends with * or & (that is, it is a pointer
+# or a reference) and const <cxx-ret-type>& otherwise.
+#
+#
+namespace http://www.example.com/rtap_db_dict rtap_db_dict
+{
+  include "rtap_db_dict.hxx";
+
+  ObjClassEntry   "ObjClass_t";
+  ValueEntry      "idx_t";
+  ValueLabelEntry "Label_t&";
+  UnityIdEntry    "idx_t";
+  UnityIdType     "idx_t";
+  UnityLabelEntry "Label_t&";
+  InfoTypeEntry   "Label_t&";
+  UnityDimensionType    "idx_t";
+  UnityDimensionEntry   "Label_t&";
+  UnityDesignationEntry "Label_t&";
+  Identifier            "idx_t";
+  ActionScript          "Label_t&";
+}
+

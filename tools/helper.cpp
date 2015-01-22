@@ -1,4 +1,4 @@
-#if OS_TYPE == LINUX
+#if TYPE_OS == LINUX
 #include <unistd.h>
 #include <sys/syscall.h> // gettid()
 #endif
@@ -12,8 +12,10 @@
 
 #include <string>
 #include <map>
+#include <iterator>
 
 #include "helper.hpp"
+typedef Options::iterator OptionIterator;
 
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 char buf[4000];
@@ -30,10 +32,12 @@ void LogError(int rc,
     va_list args;
 
     pthread_mutex_lock(&mutex);
-#if OS_TYPE == LINUX
+#if defined(sun)
+    printf ("[%lu] ", pthread_self());
+#elif TYPE_OS==LINUX
     printf ("[%ld] ", static_cast<long int>(syscall(SYS_gettid)));
 #else
-    printf ("[%lu] ", pthread_self());
+#warning "Unsupported OS"
 #endif
 
     sprintf(buffer, pre_format, 
@@ -66,10 +70,12 @@ void LogWarn(
     va_start (args, format);
     vsprintf (user_msg, format, args);
     strncat(buffer, user_msg, sizeof(buffer)-1);
-#if OS_TYPE == LINUX
+#if defined(sun)
+    fprintf(stdout, "[%lu] %s\n", pthread_self(), buffer);
+#elif (TYPE_OS==LINUX)
     fprintf(stdout, "[%ld] %s\n", static_cast<long int>(syscall(SYS_gettid)), buffer);
 #else
-    fprintf(stdout, "[%lu] %s\n", pthread_self(), buffer);
+#warning "Unsupported OS"
 #endif
     fflush(stdout);
     va_end (args);
@@ -94,10 +100,12 @@ void LogInfo(
     va_start (args, format);
     vsprintf (user_msg, format, args);
     strncat(buffer, user_msg, sizeof(buffer)-1);
-#if OS_TYPE == LINUX
+#if defined(sun)
+    fprintf(stdout, "[%lu] %s\n", pthread_self(), buffer);
+#elif (TYPE_OS==LINUX)
     fprintf(stdout, "[%ld] %s\n", static_cast<long int>(syscall(SYS_gettid)), buffer);
 #else
-    fprintf(stdout, "[%lu] %s\n", pthread_self(), buffer);
+#warning "Unsupported OS"
 #endif
     fflush(stdout);
     va_end (args);

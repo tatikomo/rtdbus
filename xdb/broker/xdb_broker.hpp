@@ -26,8 +26,11 @@ class DatabaseBroker
     DatabaseBroker();
     ~DatabaseBroker();
 
+    // Подключение к БД Брокера
     bool Connect();
+    // Отключение от БД Брокера
     bool Disconnect();
+    // Получение текущего состояния БД
     int  State();
 
     /* Зарегистрировать Сервис */

@@ -7,7 +7,7 @@
 #endif
 #include "xdb_impl_application.hpp"
 #include "xdb_impl_environment.hpp"
-#include "xdb_impl_connection.hpp"
+//#include "xdb_impl_connection.hpp"
 #include "xdb_impl_database.hpp"
 #include "xdb_impl_error.hpp"
 
@@ -134,7 +134,7 @@ const Error& EnvironmentImpl::MakeSnapshot(const char *filename)
   m_last_error = rtE_NONE;
 
   assert(filename);
-  m_last_error.set(rtE_XML_NOT_OPENED);
+  m_last_error.set(rtE_XML_OPEN);
   return m_last_error;
 }
 

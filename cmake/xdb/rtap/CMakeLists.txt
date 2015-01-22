@@ -7,7 +7,7 @@ if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
         rt)
 else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # LINUX
-  link_directories(/lib/i386-linux-gnu/)
+#  link_directories(/lib/i386-linux-gnu/)
   set (SYSTEM_EXTERNAL_LIBS
         nsl
         pthread
@@ -23,6 +23,7 @@ include_directories(${XDB_IMPL_DIR})
 include_directories(${XDB_IMPL_DIR}/dat)
 include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})
+# Заголовочные файлы нужны при включении xdb_impl_database
 include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
 
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
@@ -47,7 +48,7 @@ add_custom_command(
         ${XDB_IMPL_DIR}/dat/rtap_db.c
         ${XDB_IMPL_DIR}/dat/rtap_db.hpp
         COMMAND
-        ${LIBEXTREMEDB_MCOCOMP} -hpp rtap_db.mco -P${XDB_IMPL_DIR}/dat
+        ${LIBEXTREMEDB_MCOCOMP} -hpp -x rtap_db.mco -P${XDB_IMPL_DIR}/dat
         DEPENDS
         ${XDB_IMPL_DIR}/dat/rtap_db.mco
         WORKING_DIRECTORY
@@ -68,6 +69,19 @@ add_custom_command(
         DEPENDS
         ${XDB_IMPL_DIR}/dat/rtap_db.xsd
         ${XDB_IMPL_DIR}/dat/rtap_db.map
+        WORKING_DIRECTORY
+        ${XDB_IMPL_DIR}/dat
+        )
+
+add_custom_command(
+        OUTPUT
+        ${XDB_IMPL_DIR}/dat/rtap_db_dict-pskel.hxx
+        ${XDB_IMPL_DIR}/dat/rtap_db_dict-pskel.cxx
+        COMMAND
+        /usr/bin/xsd cxx-parser --type-map rtap_db_dict.map --generate-validation rtap_db_dict.xsd
+        DEPENDS
+        ${XDB_IMPL_DIR}/dat/rtap_db_dict.xsd
+        ${XDB_IMPL_DIR}/dat/rtap_db_dict.map
         WORKING_DIRECTORY
         ${XDB_IMPL_DIR}/dat
         )
@@ -118,15 +132,14 @@ set (XDB_RTAP_SOURCES
         ${XDB_RTAP_DIR}/xdb_rtap_point.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_point.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_unity.cpp
-        ${XDB_RTAP_DIR}/xdb_rtap_unity.hpp
-        ${XDB_RTAP_DIR}/xdb_rtap_analog.cpp
-        ${XDB_RTAP_DIR}/xdb_rtap_analog.hpp
-        ${XDB_RTAP_DIR}/xdb_rtap_binary.cpp
-        ${XDB_RTAP_DIR}/xdb_rtap_binary.hpp
-        ${XDB_RTAP_DIR}/xdb_rtap_discrete.cpp
-        ${XDB_RTAP_DIR}/xdb_rtap_discrete.hpp)
+        ${XDB_RTAP_DIR}/xdb_rtap_unity.hpp)
 
-add_definitions(-fpermissive)
+if (CMAKE_COMPILER_IS_GNUCC)
+#add_definitions(-fpermissive)
+else (CMAKE_COMPILER_IS_GNUCC)
+add_definitions (-library=stlport4)
+endif (CMAKE_COMPILER_IS_GNUCC)
+add_definitions (-library=stlport4)
 
 set_source_files_properties(${XDB_IMPL_DIR}/dat/broker_db.h
                             ${XDB_IMPL_DIR}/dat/broker_db.c

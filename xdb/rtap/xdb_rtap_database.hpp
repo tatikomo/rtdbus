@@ -7,15 +7,17 @@
 #endif
 #include "xdb_impl_error.hpp"
 #include "xdb_impl_common.hpp"
+#include "helper.hpp"
+#include "dat/rtap_db.hxx"
 
 namespace xdb {
 
-class DatabaseImpl;
+class DatabaseRtapImpl;
 
 class RtDatabase
 {
   public:
-    RtDatabase(const char*, const Options&);
+    RtDatabase(const char*, const ::Options*);
     ~RtDatabase();
 
     const char* DatabaseName() const;
@@ -29,7 +31,7 @@ class RtDatabase
     const Error& Connect();
     const Error& Disconnect();
     const Error& LoadSnapshot(const char* = 0);
-    const Error& StoreSnapshot(const char* = 0);
+    const Error& MakeSnapshot(const char* = 0);
     const char* getName() const;
     // Вернуть последнюю ошибку
     const Error& getLastError() const;
@@ -42,8 +44,28 @@ class RtDatabase
     // Вернуть текущее состояние БД
     DBState_t State() const;
 
+    // Функции изменения содержимого БД
+    // Разименованный указатель на данные используется с целью
+    // отвязки от включения специфичного для XDB 
+    // ====================================================
+    const Error& Control(rtDbCq&);
+    const Error& Query(rtDbCq&);
+    const Error& Config(rtDbCq&);
+    // Создание Точки
+    const Error& create(rtap_db::Point&);
+    // Удаление Точки
+    const Error& erase(rtap_db::Point&);
+    // Чтение данных Точки
+    const Error& read(rtap_db::Point&);
+    // Изменение данных Точки
+    const Error& write(rtap_db::Point&);
+    // Блокировка данных Точки от изменения в течение заданного времени
+    const Error& lock(rtap_db::Point&, int);
+    const Error& unlock(rtap_db::Point&);
+
   private:
-    DatabaseImpl *m_impl;
+    DatabaseRtapImpl *m_impl;
+    const Options    *m_options;
 };
 
 } //namespace xdb

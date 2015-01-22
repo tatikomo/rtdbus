@@ -15,18 +15,21 @@ extern "C" {
 #endif
 
 #include "mco.h"
-#include "mcouda.h"  // mco_metadict_header_t
-#include "mcohv.h"   // mcohv_p
 
-#if defined DEBUG
 # if (EXTREMEDB_VERSION <= 40)
 mco_size_t file_writer(void*, const void*, mco_size_t);
 # else
+#include "mcouda.h"  // mco_metadict_header_t
+#include "mcohv.h"   // mcohv_p
 mco_size_sig_t file_writer(void*, const void*, mco_size_t);
+mco_size_sig_t file_reader(void*, void*, mco_size_t);
 # endif
+
 #define SETUP_POLICY
 #include "mcoxml.h"
-#endif
+
+void impl_errhandler(MCO_RET);
+void extended_impl_errhandler(MCO_RET, const char*, int);
 
 #ifdef __cplusplus
 }
@@ -55,7 +58,13 @@ void extended_impl_errhandler(MCO_RET errcode, const char* file, int line)
 
 
 /* Stream writer with prototype mco_stream_write */
-mco_size_sig_t file_writer( void *stream_handle /* FILE *  */, const void *from, mco_size_t nbytes )
+
+#if (EXTREMEDB_VERSION <= 40)
+mco_size_t 
+#else
+mco_size_sig_t 
+#endif
+file_writer( void *stream_handle /* FILE *  */, const void *from, mco_size_t nbytes )
 {
   FILE *f = (FILE *)stream_handle;
   mco_size_sig_t nbs;
@@ -65,7 +74,12 @@ mco_size_sig_t file_writer( void *stream_handle /* FILE *  */, const void *from,
 }
 
 /* Stream reader with prototype mco_stream_read */
-mco_size_sig_t file_reader( void *stream_handle /* FILE *  */,  /* OUT */void *to, mco_size_t max_nbytes )
+#if (EXTREMEDB_VERSION <= 40)
+mco_size_t 
+#else
+mco_size_sig_t 
+#endif
+file_reader( void *stream_handle /* FILE *  */,  /* OUT */void *to, mco_size_t max_nbytes )
 {
   FILE *f = (FILE *)stream_handle;
   mco_size_sig_t nbs;
@@ -79,9 +93,11 @@ DatabaseImpl::DatabaseImpl(const char* _name, const Options& _options, mco_dicti
   m_snapshot_counter(0),
   m_state(DB_STATE_UNINITIALIZED),
   m_last_error(rtE_NONE),
+  m_db(NULL),
   m_dict(_dict),
   m_db_access_flags(_options),
-  m_save_to_xml_feature(false)
+  m_save_to_xml_feature(false),
+  m_snapshot_loaded(false)
 {
   int val;
 #if EXTREMEDB_VERSION >= 40 && USE_EXTREMEDB_HTTP_SERVER
@@ -128,6 +144,11 @@ DatabaseImpl::DatabaseImpl(const char* _name, const Options& _options, mco_dicti
   {
     LOG(INFO) << m_name << ": Load database content from snapshot";
     m_flags.set(OF_POS_LOAD_SNAP);
+  }
+  if (getOption(m_db_access_flags,"OF_SAVE_SNAP", val) && val)
+  {
+    LOG(INFO) << m_name << ": Store database content before exit";
+    m_flags.set(OF_POS_SAVE_SNAP);
   }
 
   // Проверить флаги открытия базы данных. Не могут быть установленными
@@ -180,7 +201,7 @@ DatabaseImpl::DatabaseImpl(const char* _name, const Options& _options, mco_dicti
   }
   else m_MapAddress = 0x20000000;
 
-#if defined USE_EXTREMEDB_HTTP_SERVER
+#if (EXTREMEDB_VERSION >= 40) && USE_EXTREMEDB_HTTP_SERVER
   m_intf.interface_addr = strdup("0.0.0.0"); // Принимать подключения с любого адреса
   if (getOption(m_db_access_flags,"OF_HTTP_PORT", val) && val)
   {
@@ -268,7 +289,7 @@ DatabaseImpl::~DatabaseImpl()
     break;
   }
 
-#if defined USE_EXTREMEDB_HTTP_SERVER
+#if (EXTREMEDB_VERSION >= 40) && USE_EXTREMEDB_HTTP_SERVER
   free(m_intf.interface_addr);
 #endif
 
@@ -282,13 +303,18 @@ DatabaseImpl::~DatabaseImpl()
 
 mco_db_h DatabaseImpl::getDbHandler()
 {
+  if (!m_db)
+  {
+    LOG(ERROR) << "Get NULL database handler, current state: "<<m_state;
+  }
+  assert(m_db);
   return m_db;
 }
 
 /* NB: Сначала Инициализация runtime (Init), потом Подключение (Connect) */
 const Error& DatabaseImpl::Init()
 {
-    MCO_RET rc;
+    MCO_RET rc = MCO_S_OK;
     mco_runtime_info_t info;
 
     clearError();
@@ -308,6 +334,41 @@ const Error& DatabaseImpl::Init()
     m_count++;
     LOG(INFO) << "mco_runtime_start '" << m_name << "' " << m_count;
 
+#if EXTREMEDB_VERSION >= 40
+  memset(static_cast<void*>(&m_dev), '\0', sizeof(m_dev));
+  /* setup memory device as a shared named memory region */
+  m_dev.assignment = MCO_MEMORY_ASSIGN_DATABASE;
+  m_dev.size       = m_DatabaseSize;
+  m_dev.type       = MCO_MEMORY_NAMED; /* DB in shared memory */
+  sprintf(m_dev.dev.named.name, "%s-db", m_name);
+  m_dev.dev.named.flags = 0;
+  m_dev.dev.named.hint  = 0;
+
+  mco_db_params_init (&m_db_params);
+  m_db_params.db_max_connections = 1;
+  /* set page size for in memory part */
+  m_db_params.mem_page_size      = m_MemoryPageSize;
+  /* set page size for persistent storage */
+  m_db_params.disk_page_size     = m_DbDiskPageSize;
+
+#if 0
+  m_db_params.mode_mask |= MCO_DB_USE_CRC_CHECK;
+  m_db_params.cipher_key = (const char*)"my_secure_key";
+#endif
+
+#endif
+
+    mco_get_runtime_info(&info);
+    if (!info.mco_save_load_supported)
+    {
+      LOG(WARNING) << "XML import/export doesn't supported by runtime";
+      m_save_to_xml_feature = false;
+    }
+    else
+    {
+      m_save_to_xml_feature = true;
+    }
+
     if (rc)
     {
       TransitionToState(DB_STATE_UNINITIALIZED);
@@ -321,17 +382,6 @@ const Error& DatabaseImpl::Init()
     }
     else
     {
-      mco_get_runtime_info(&info);
-      if (!info.mco_save_load_supported)
-      {
-          LOG(WARNING) << "XML import/export doesn't supported by runtime";
-          m_save_to_xml_feature = false;
-      }
-      else
-      {
-          m_save_to_xml_feature = true;
-      }
-
       if (!info.mco_shm_supported)
       {
           LOG(WARNING) << "This program requires shared memory database runtime";
@@ -371,7 +421,7 @@ const Error& DatabaseImpl::Init()
           }
       }
 #endif
-
+      // Рантайм запущен, база не подключена
       TransitionToState(DB_STATE_INITIALIZED);
     }
 
@@ -382,7 +432,7 @@ const Error& DatabaseImpl::Connect()
 {
   clearError();
 
-  if (DB_STATE_INITIALIZED != State())
+  if (State() != DB_STATE_INITIALIZED)
     Init();
 
   switch (State())
@@ -391,14 +441,17 @@ const Error& DatabaseImpl::Connect()
       LOG(WARNING)<<"Try to connect to uninitialized database "<<m_name;
     break;
 
-    case DB_STATE_ATTACHED:
     case DB_STATE_CONNECTED:
       LOG(WARNING)<<"Try to re-open database "<<m_name;
     break;
 
     case DB_STATE_INITIALIZED:
-        ConnectToInstance();
-        // переход в состояние CONNECTED
+      // Open() вызывается далее, в ConnectToInstance()
+    case DB_STATE_ATTACHED:
+      // Текущее состояние : выполнен mco_db_open()
+      // Требуется подключение к БД с помощью mco_db_connect()
+      ConnectToInstance();
+      // переход в состояние CONNECTED
     break;
 
     case DB_STATE_DISCONNECTED:
@@ -415,7 +468,7 @@ const Error& DatabaseImpl::Connect()
 }
 
 // Подключиться к базе данных.
-// NB: Нельзя открывать БД, это выполняется классом RtConnection
+// NB: Не открывать БД, это выполняется классом RtConnection
 //
 // Если указан флаг O_TRUNCATE:
 //  - попробовать удалить предыдующий экземпляр mco_db_kill()
@@ -426,6 +479,7 @@ const Error& DatabaseImpl::ConnectToInstance()
 {
   MCO_RET rc = MCO_S_OK;
   int opt_val;
+  char fname[150];
 
   clearError();
 
@@ -441,6 +495,27 @@ const Error& DatabaseImpl::ConnectToInstance()
   LOG(INFO) << "mco_db_connect '" << m_name
             << "', state=" << m_state
             << ", rc=" << rc;
+
+  if ((m_flags[OF_POS_LOAD_SNAP]) && (!m_snapshot_loaded))
+  {
+      // Двоичный снимок не загружен, можем ли попробовать восстановиться с XML-снимка?
+      if (m_last_error.code() == rtE_SNAPSHOT_READ)
+      {
+        snprintf(fname, sizeof(fname)-1, "%s.xml", m_name);
+
+        // Загрузить данные из XML формата eXtremeDB
+        LoadFromXML(fname);
+
+        if (!getLastError().Ok())
+        {
+          LOG(ERROR) << "Unable to read data from XML initial snap";
+        }
+        else
+        {
+          m_snapshot_loaded = true;
+        }
+      }
+  }
 
   // При открытии БД была ошибка. Возможно, еще не существует экземпляра.
   if (rc)
@@ -504,13 +579,19 @@ const Error& DatabaseImpl::ConnectToInstance()
   return getLastError();
 }
 
+/*
+ * Сохранение содержимого БД в виде файла XML формата McObject.
+ *
+ * NB: Внутри функции может упасть xdb runtime в том случае, если 
+ * сохраняемая БД имеет хотя бы один безиндексный класс.
+ */
 const Error& DatabaseImpl::SaveAsXML(const char* given_file_name, const char *msg)
 {
   MCO_RET rc = MCO_S_OK;
   mco_xml_policy_t op, np;
   mco_trans_h t;
   static char calc_file_name[150];
-  char *fname;
+  char *fname = &calc_file_name[0];
   FILE* f;
 
   m_last_error.clear();
@@ -524,8 +605,8 @@ const Error& DatabaseImpl::SaveAsXML(const char* given_file_name, const char *ms
 
   if (!given_file_name)
   {
-    snprintf(calc_file_name, sizeof(calc_file_name-1),
-          "%09d.%s.%s.snap",
+    snprintf(calc_file_name, sizeof(calc_file_name)-1,
+          "%09d.%s.%s.snap.xml",
           getSnapshotCounter(),
           m_name,
           (NULL == msg)? "xdb" : msg);
@@ -540,27 +621,18 @@ const Error& DatabaseImpl::SaveAsXML(const char* given_file_name, const char *ms
       calc_file_name[sizeof(calc_file_name) - 1] = '\0';
     }
   }
-  fname = calc_file_name;
     
   /* setup policy */
-  np.blob_coding = MCO_TEXT_BASE64;
-  np.encode_lf = MCO_YES;
-  np.encode_nat = MCO_NO; /*MCO_YES ЯаШТХФХв Ъ зШбЫЮТЮЩ ЪЮФШаЮТЪХ агббЪШе СгЪТ */
-  np.encode_spec = MCO_YES;
-  np.float_format = MCO_FLOAT_FIXED;
-  np.ignore_field = MCO_YES;
-  np.indent = MCO_YES; /*or MCO_NO*/
-  np.int_base = MCO_NUM_DEC;
-  np.quad_base = MCO_NUM_HEX; /* other are invalid */
-  np.text_coding = MCO_TEXT_ASCII;
-  np.truncate_sp = MCO_YES;
-  np.use_xml_attrs = MCO_NO; //YES;
-  np.ignore_autoid = MCO_NO;
-  np.ignore_autooid = MCO_NO;
+  setupPolicy(np);
 
   LOG(INFO) << "Export DB to " << fname;
   f = fopen(fname, "wb");
-
+  if (!f)
+  {
+    LOG(ERROR) << "Unable to open XML-snapshot file " << fname;
+    m_last_error = rtE_XML_EXPORT;
+    return m_last_error;
+  }
   /* export content of the database to a file */
 #ifdef SETUP_POLICY
   rc = mco_trans_start(m_db, MCO_READ_WRITE, MCO_TRANS_HIGH, &t);
@@ -607,9 +679,30 @@ const Error& DatabaseImpl::SaveAsXML(const char* given_file_name, const char *ms
   return m_last_error;
 } /* ========================================================================= */
 
+// Установка общих значимых полей для эксорта/импорта данных в XML
+void DatabaseImpl::setupPolicy(mco_xml_policy_t& policy)
+{
+  policy.blob_coding = MCO_TEXT_BASE64; //MCO_TEXT_BINHEX
+  // encode line feeds
+  policy.encode_lf   = MCO_YES;
+  // encode national chars, MCO_YES ПРИВЕДЕТ К ЧИСЛОВОЙ КОДИРОВКЕ РУССКИХ БУКВ
+  policy.encode_nat  = MCO_NO;
+  policy.encode_spec = MCO_YES;
+  policy.float_format= MCO_FLOAT_FIXED;
+  policy.ignore_field= MCO_YES;
+  policy.indent      = MCO_YES;
+  policy.int_base    = MCO_NUM_DEC;
+  policy.quad_base   = MCO_NUM_HEX; /* other are invalid */
+  policy.text_coding = MCO_TEXT_ASCII;
+  policy.truncate_sp = MCO_YES;
+  policy.use_xml_attrs  = MCO_NO; //YES;
+  policy.ignore_autoid  = MCO_NO;
+  policy.ignore_autooid = MCO_NO;
+}
+
 const Error& DatabaseImpl::StoreSnapshot(const char* given_file_name)
 {
-  FILE* fbak;
+  FILE* fbak = NULL;
   MCO_RET rc = MCO_S_OK;
   char fname[40];
 
@@ -621,20 +714,20 @@ const Error& DatabaseImpl::StoreSnapshot(const char* given_file_name)
     {
       if (strlen(given_file_name) > sizeof(fname))
       {
-        LOG(ERROR) << "Given file name for XML snapshot storing is exceed limits ("<<sizeof(fname)<<")";
+        LOG(ERROR) << "Given snapshot filename is exceed limits ("<<sizeof(fname)<<")";
       }
-      snprintf(fname, sizeof(fname), "%s.snap", given_file_name);
+      snprintf(fname, sizeof(fname)-1, "%s.snap.bin", given_file_name);
     }
     else
     {
-      snprintf(fname, sizeof(fname), "%s.snap", m_name);
+      snprintf(fname, sizeof(fname)-1, "%s.snap.bin", m_name);
     }
     fname[sizeof(fname)-1] = '\0';
 
     /* Backup database */
     if (NULL != (fbak = fopen(fname, "wb")))
     {
-      rc = mco_inmem_save(static_cast<void*>(fbak), file_writer, m_db);
+      rc = mco_db_save(static_cast<void*>(fbak), file_writer, m_db);
       if (rc)
       {
         LOG(ERROR) << "Unable to save "<<m_name<<" snapshot into "<<fname;
@@ -647,9 +740,26 @@ const Error& DatabaseImpl::StoreSnapshot(const char* given_file_name)
       setError(rtE_SNAPSHOT_WRITE);
     }
   } while(false);
+    
 #else
-#warning "DatabaseImpl::StoreSnapshot is disabled"
+#warning "Binary snapshot is disabled for this version"
+   LOG(WARNING) << "Binary snapshot is disabled for this version";
 #endif
+
+    // Попытаться сохранить содержимое в XML-формате eXtremeDB
+    if (m_flags[OF_POS_SAVE_SNAP]) // Допустим снимок
+    {
+      snprintf(fname, sizeof(fname)-1, "%s.snap.xml", m_name);
+
+      // Название снимка д.б. в формате "...."
+      const Error &status = SaveAsXML(fname, NULL);
+
+      if (!status.Ok())
+      {
+        LOG(ERROR) << "Can't save content in RTDB's XML format";
+      }
+    }
+
 
   return getLastError();
 }
@@ -719,14 +829,50 @@ const Error& DatabaseImpl::Disconnect()
   return getLastError();
 }
 
-// NB: нужно выполнить до mco_db_connect
+// NB: нужно выполнить до mco_db_connect (m_db д.б. NULL)
+// БД должна быть в состоянии ATTACHED, иначе при попытке 
+// восстановления содержимого получим ошибку MCO_E_INSTANCE_DUPLICATE
+//
 const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
 {
   MCO_RET rc = MCO_S_OK;
   FILE* fbak;
-  char fname[40];
+  char fname[150];
 
   clearError();
+  fname[0] = '\0';
+  assert(!m_db);
+
+  switch(State())
+  {
+    case DB_STATE_UNINITIALIZED:
+        LOG(INFO) << "Current state: " << State() << ", init runtime first";
+        Init();
+        // NB: break пропущен специально
+    case DB_STATE_INITIALIZED:
+    case DB_STATE_ATTACHED:
+        LOG(INFO) << "Current state: " << State() << ", load snapshot of " << getName();
+    break;
+
+    default:
+        LOG(INFO) << "Load snapshot of '" << getName() << "' from state " << State();
+  }
+
+
+  if (given_file_name)
+  {
+    if (strlen(given_file_name) > sizeof(fname))
+    {
+      LOG(ERROR) << "Given snapshot filename is exceed limits ("<<sizeof(fname)<<")";
+    }
+    strncpy(fname, given_file_name, sizeof(fname));
+    fname[sizeof(fname)-1] = '\0';
+  }
+  else
+  {
+    strcpy(fname, m_name);
+    strcat(fname, ".snap.bin");
+  }
 
 #if EXTREMEDB_VERSION >= 40
   do
@@ -738,21 +884,6 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
       break;
     }
 
-    if (given_file_name)
-    {
-      if (strlen(given_file_name) > sizeof(fname))
-      {
-        LOG(ERROR) << "Given file name for XML snapshot storing is exceed limits ("<<sizeof(fname)<<")";
-      }
-      strncpy(fname, given_file_name, sizeof(fname));
-      fname[sizeof(fname)-1] = '\0';
-    }
-    else
-    {
-      strcpy(fname, m_name);
-      strcat(fname, ".snap");
-    }
-
     if (NULL == (fbak = fopen(fname, "rb")))
     {
       LOG(ERROR) << "Unable to open snapshot file "<<fname;
@@ -760,7 +891,7 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
       break;
     }
 
-    rc = mco_inmem_load(static_cast<void*>(fbak),
+    rc = mco_db_load(static_cast<void*>(fbak),
                         file_reader,
                         m_name,
                         m_dict,
@@ -769,8 +900,14 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
                         &m_db_params);
     if (rc)
     {
-      LOG(ERROR) << "Unable to read data from snapshot file, rc="<<rc;
+      LOG(ERROR) << "Unable to read data from snap file '" <<fname<<"' , rc="<<rc;
+      m_snapshot_loaded = false;
       setError(rtE_SNAPSHOT_READ);
+    }
+    else
+    {
+      // Успешно прочитали бинарный дамп
+      m_snapshot_loaded = true;
     }
     fclose(fbak);
 
@@ -781,37 +918,107 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
 #endif
 
   } while (false);
+#else /* EXTREMEDB_VERSION >= 40 */
+  // Не можем читать двоичный дамп, попробуем XML
+  // Но для этого необходимо открыть БД с помощью mco_db_open_dev
+  setError(rtE_SNAPSHOT_READ);
 #endif
 
   return getLastError();
 }
 
+// Попробовать восстановить данные из XML
+// 1. прочитать XML-файл НСИ
+// 1. загрузки данные из XML-файла с данными
+const Error& DatabaseImpl::LoadFromXML(const char* given_file_name)
+{
+  MCO_RET           rc = MCO_S_OK;
+  mco_trans_h       t;
+  mco_xml_policy_t  policy;
+//  static char       calc_file_name[150];
+//  char             *fname = &calc_file_name[0];
+  FILE             *f = NULL;
+
+  m_last_error.clear();
+  assert(m_db);
+
+  if (false == m_save_to_xml_feature)
+  {
+    // Отсутствует поддержка сохранения в XML со стороны BD
+    m_last_error = rtE_NOT_IMPLEMENTED;
+    return m_last_error;
+  }
+
+  LOG(INFO) << "Try to restore '" << m_name << "' content from XML";
+
+  if (m_snapshot_loaded)
+  {
+    LOG(WARNING) << "Database " << m_name << " snapshot is already loaded";
+    return m_last_error;
+  }
+
+  do
+  {
+    if (NULL == (f = fopen(given_file_name, "rb")))
+    {
+      LOG(ERROR) << "Can't open XML snapshot '"
+                 << given_file_name
+                 << "' for reading (" << strerror(errno) << ")";
+      setError(rtE_XML_IMPORT);
+      break;
+    }
+
+    rc = mco_trans_start(m_db, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+    if (rc)
+    {
+      LOG(ERROR) << "Starting transaction, rc=" << rc;
+      setError(rtE_RUNTIME_FATAL);
+      break;
+    }
+
+    // Изменить стандартные правила экспорта/импорта на свои
+    mco_xml_get_policy(t, &policy);
+    setupPolicy(policy);
+    mco_xml_set_policy(t, &policy);
+
+    rc = mco_db_xml_import(t, f, file_reader);
+
+    if (MCO_S_OK == rc)
+    {
+      rc = mco_trans_commit(t);
+      LOG(INFO) << "XML-import '" << m_name << "' is done, rc=" << rc;
+      m_snapshot_loaded = true;
+    }
+    else
+    {
+      rc = mco_trans_rollback(t);
+      LOG(INFO) << "XML-import '" << m_name << "' failure, rc=" << rc;
+      m_snapshot_loaded = true;
+    }
+
+  } while(false);
+
+  if (f)
+    fclose(f);
+
+  if (rc)
+  {
+    m_last_error.set(rtE_XML_IMPORT);
+  }
+
+  return getLastError();
+}
 
 // Создать базу данных с помощью mco_db_open
 const Error& DatabaseImpl::Open()
 {
   MCO_RET rc = MCO_S_OK;
-  int opt_val;
+  int  opt_val;
+  char fname[150];
 
   clearError();
 
 #if EXTREMEDB_VERSION >= 40
-  memset(static_cast<void*>(&m_dev), '\0', sizeof(m_dev));
-  /* setup memory device as a shared named memory region */
-  m_dev.assignment = MCO_MEMORY_ASSIGN_DATABASE;
-  m_dev.size       = m_DatabaseSize;
-//  m_dev.dev.conv.ptr = (void*) malloc(m_DatabaseSize); 
-  m_dev.type       = MCO_MEMORY_NAMED; /* DB in shared memory */
-  sprintf(m_dev.dev.named.name, "%s-db", m_name);
-  m_dev.dev.named.flags = 0;
-  m_dev.dev.named.hint  = 0;
-
-  mco_db_params_init (&m_db_params);
-  m_db_params.db_max_connections = 10;
-  /* set page size for in memory part */
-  m_db_params.mem_page_size      = m_MemoryPageSize;
-  /* set page size for persistent storage */
-  m_db_params.disk_page_size     = m_DbDiskPageSize;
 
 #if USE_EXTREMEDB_HTTP_SERVER
   rc = mco_uda_db_open(m_metadict,
@@ -829,30 +1036,55 @@ const Error& DatabaseImpl::Open()
     return m_last_error;
   }
 #else /* EXTREMEDB_VERSION > 4 and not USE_EXTREMEDB_HTTP_SERVER */
+
+#if 1
+  // NB: Загружать снимок можно только до вызова mco_uda_db_open(),
+  // после будет ошибка MCO_E_INSTANCE_DUPLICATE
+  //
+  // Требуется прочитать ранее сохраненный двоичный снимок?
+  // Проверить, не был ли он уже прочитан ранее функцией loadEnvironment()
+  if (m_flags[OF_POS_LOAD_SNAP] && !m_snapshot_loaded)
+  {
+    // Внутри LoadSnapshot: mco_db_load() -> mco_db_open_dev()
+    if (!(LoadSnapshot()).Ok())
+    {
+      LOG(ERROR) << "Unable to restore content from binary snapshot";
+    }
+    else
+    {
+      // Состояние CONNECTED - инициализировано подключение (m_db все еще NULL)
+      TransitionToState(DB_STATE_ATTACHED);
+    }
+  }
+#else
+  // Состояние CONNECTED - инициализировано подключение (m_db все еще NULL)
+  TransitionToState(DB_STATE_ATTACHED);
+#endif
+
+  // Если снимок загружен успешно, значит БД уже работает,
+  // пропустим повторное ее открытие
+  if (!m_snapshot_loaded)
+  {
     rc = mco_db_open_dev(m_name,
                          m_dict,
                          &m_dev,
                          1,
                          &m_db_params);
     LOG(INFO) << "mco_db_open_dev '" << m_name << "', rc=" << rc;
-#endif /* USE_EXTREMEDB_HTTP_SERVER */
-
-  if ((true == getOption(m_db_access_flags, "OF_LOAD_SNAP", opt_val)) && opt_val) 
-  {
-    // Внутри mco_inmem_load вызывается mco_db_open_dev
-    if ((LoadSnapshot()).Ok())
-    {
-      LOG(ERROR) << "Unable to restore content from snapshot";
-    }
+    // Состояние ATTACHED - подключение m_db не инициализировано
+    TransitionToState(DB_STATE_ATTACHED);
   }
 
-#else /* EXTREMEDB_VERSION >= 40 */
+#endif /* USE_EXTREMEDB_HTTP_SERVER */
+
+
+#else /* EXTREMEDB_VERSION >= 40 && not USE_EXTREMEDB_HTTP_SERVER */
 
    rc = mco_db_open(m_name,
                     m_dict,
                     (void*)m_MapAddress,
                     m_DatabaseSize + m_DbDiskCache,
-                    PAGESIZE);
+                    m_MemoryPageSize /*PAGESIZE*/);
     LOG(INFO) << "mco_db_open '" << m_name << "', rc=" << rc;
 
 #endif /* EXTREMEDB_VERSION >= 40 */
@@ -891,11 +1123,12 @@ const Error& DatabaseImpl::Open()
     && (rc != MCO_E_INSTANCE_DUPLICATE))
    {
      LOG(ERROR) << "Error creating disk database, rc=" << rc;
+     TransitionToState(DB_STATE_INITIALIZED);
      setError(rtE_RUNTIME_FATAL);
      return getLastError();
    }
 #endif
-  return TransitionToState(DB_STATE_ATTACHED);
+  return getLastError();
 }
 
 const Error& DatabaseImpl::RegisterEvents()
@@ -953,10 +1186,10 @@ const Error& DatabaseImpl::RegisterEvents()
 /*
  * DB_STATE_UNINITIALIZED = 1, // первоначальное состояние
  * DB_STATE_INITIALIZED   = 2, // инициализирован runtime
- * DB_STATE_ATTACHED      = 3, // вызван mco_db_open
- * DB_STATE_CONNECTED     = 4, // вызван mco_db_connect
- * DB_STATE_DISCONNECTED  = 5, // вызван mco_db_disconnect
- * DB_STATE_CLOSED        = 6  // вызван mco_db_close
+ * DB_STATE_ATTACHED      = 3, // вызван mco_db_open    - база подключена
+ * DB_STATE_CONNECTED     = 4, // вызван mco_db_connect - база подключена и открыта
+ * DB_STATE_DISCONNECTED  = 5, // вызван mco_db_disconnect  - база подключена и закрыта
+ * DB_STATE_CLOSED        = 6  // вызван mco_db_close       - база отключена
  */
 const Error& DatabaseImpl::TransitionToState(DBState_t new_state)
 {
@@ -1059,7 +1292,7 @@ const Error& DatabaseImpl::TransitionToState(DBState_t new_state)
     m_state = new_state;
   }
   else
-    setError(rtE_INCORRECT_DB_TRANSITION_STATE);
+    setError(rtE_INCORRECT_DB_STATE);
 
   return getLastError();
 }
@@ -1093,3 +1326,25 @@ void DatabaseImpl::clearError()
   m_last_error.set(rtE_NONE);
 }
 
+// Реализация в классе DatabaseRtapImpl
+//
+// Интерфейс управления БД - Контроль выполнения
+const Error& DatabaseImpl::Control(rtDbCq& info)
+{
+  m_last_error = rtE_NOT_IMPLEMENTED;
+  return m_last_error;
+}
+
+// Интерфейс управления БД - Контроль Точек
+const Error& DatabaseImpl::Query(rtDbCq& info)
+{
+  m_last_error = rtE_NOT_IMPLEMENTED;
+  return m_last_error;
+}
+
+// Интерфейс управления БД - Контроль выполнения
+const Error& DatabaseImpl::Config(rtDbCq& info)
+{
+  m_last_error = rtE_NOT_IMPLEMENTED;
+  return m_last_error;
+}
