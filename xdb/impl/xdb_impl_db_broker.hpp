@@ -150,6 +150,9 @@ class DatabaseBrokerImpl
     bool ClearWorkersForService(const char*);
     bool ClearWorkersForService(const std::string&);
 
+    // Удалить все Службы, при этом выполняется:
+    // 1. Удаление всех Обработчиков, зарегистрированных за данной Службой
+    // 2. Одновременное удаление Сообщений, присвоенных удаляемым Обработчикам
     bool ClearServices();
 
     void EnableServiceCommand (const std::string&, const std::string&);
@@ -166,6 +169,9 @@ class DatabaseBrokerImpl
     DatabaseImpl            *m_database;
     ServiceList             *m_service_list;
     Options                  m_opt;
+
+    // Удаление временных данных перед закрытием БД
+    bool Cleanup();
 
     /*
      * Зарегистрировать все обработчики событий, заявленные в БД

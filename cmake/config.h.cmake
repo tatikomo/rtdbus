@@ -274,4 +274,5 @@
 #define _dbus_verbose_C_S _dbus_verbose
 #endif 
 
-#endif  // _RTDBUS_CONFIG_H
+#endif  /* _RTDBUS_CONFIG_H */
+

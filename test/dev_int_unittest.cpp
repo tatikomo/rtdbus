@@ -642,10 +642,12 @@ TEST(TestProxy, SERVICE_DISPATCH)
 ////////////////////////////////////////////////////////////////////////////////
 TEST(TestProxy, BROKER_DELETE)
 {
-//  printf("Visit 'http://localhost:8082'\nPress any key to exit\n");
-//  int input = getchar();
-  delete broker;
+  // Очистить временные данные из БД перед сохранением её снимка
+  // -----------------------------------------------------------
 
+  //  printf("Visit 'http://localhost:8082'\nPress any key to exit\n");
+  //  int input = getchar();
+  delete broker;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

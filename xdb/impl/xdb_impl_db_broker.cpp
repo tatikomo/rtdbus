@@ -74,6 +74,9 @@ DatabaseBrokerImpl::DatabaseBrokerImpl(const char* _name) :
 
 DatabaseBrokerImpl::~DatabaseBrokerImpl()
 {
+  // В случае нормального останова почистить содержимое БД
+  Cleanup();
+
   delete m_service_list;
   delete m_database;
 }
@@ -88,6 +91,135 @@ bool DatabaseBrokerImpl::Connect()
 {
   Error err = m_database->Connect();
   return err.Ok();
+}
+
+bool DatabaseBrokerImpl::Cleanup()
+{
+  char ident[IDENTITY_MAXLEN + 1];
+  char name[SERVICE_NAME_MAXLEN + 1];
+  bool status;
+  MCO_RET rc;
+  mco_trans_h t;
+  mco_cursor_t csr;
+  XDBWorker instance_worker;
+  XDBService instance_service;
+  XDBLetter instance_letter;
+  autoid_t aid;
+  int lost_of_workers, lost_of_services, lost_of_letters;
+
+  // Очистить содержимое БД
+  // 1. Удалить все Сообщения
+  // 2. Удалить Обработчиков
+  // 3. Удалить Службы
+
+  LOG(INFO) << "Cleanup broker database started";
+  status = ClearServices();
+  if (!status)
+  {
+    LOG(ERROR) << "Cleanup existing database resources";
+  }
+
+  // Найти оставшиеся ничейные Сообщения и Обработчики
+  // TODO: это нештатная ситуация, нарушение структуры БД
+  // Показать ничейные объекты
+  do
+  {
+    rc = mco_trans_start(m_database->getDbHandler(), MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
+    if (rc) LOG(ERROR) << "Starting transaction, rc=" << rc;
+
+    // Сообщения
+    // -------------------------------------------------------
+    rc = XDBLetter_list_cursor(t, &csr);
+    if (rc && (rc != MCO_S_CURSOR_EMPTY)) LOG(ERROR) << "Get Letters cursor, rc=" << rc;
+
+    for (lost_of_letters = 0, rc = mco_cursor_first(t, &csr);
+         MCO_S_OK == rc;
+         rc = mco_cursor_next(t, &csr), lost_of_letters++)
+    {
+        rc = XDBLetter_from_cursor(t, &csr, &instance_letter);
+        if (rc) LOG(ERROR) << "Get Letter's instance, rc=" << rc;
+
+        rc = XDBLetter_autoid_get(&instance_letter, &aid);
+        if (rc) LOG(ERROR) << "Get Letter's id, rc=" << rc;
+
+        rc = XDBLetter_origin_get(&instance_letter, ident, static_cast<uint2>(IDENTITY_MAXLEN));
+        if (rc) { LOG(ERROR) << "Unable to get origin for letter id="<<aid; break; }
+
+        LOG(WARNING) << "Found lost letter "<< ident <<", id="<<aid;
+    }
+
+    // Обработчики
+    // -------------------------------------------------------
+    rc = XDBWorker_list_cursor(t, &csr);
+    if (rc && (rc != MCO_S_CURSOR_EMPTY)) LOG(ERROR) << "Get Worker's cursor, rc=" << rc;
+
+    for (lost_of_workers = 0, rc = mco_cursor_first(t, &csr);
+         MCO_S_OK == rc;
+         rc = mco_cursor_next(t, &csr), lost_of_workers++)
+    {
+        rc = XDBWorker_from_cursor(t, &csr, &instance_worker);
+        if (rc) LOG(ERROR) << "Get Worker's instance, rc=" << rc;
+
+        rc = XDBWorker_autoid_get(&instance_worker, &aid);
+        if (rc) LOG(ERROR) << "Get Worker's id, rc=" << rc;
+
+        rc = XDBWorker_identity_get(&instance_worker, ident, static_cast<uint2>(IDENTITY_MAXLEN));
+        if (rc) { LOG(ERROR) << "Unable to get identity for worker id="<<aid; break; }
+
+        LOG(WARNING) << "Found lost worker "<< ident <<", id="<<aid;
+    }
+
+    // Сервисы
+    // -------------------------------------------------------
+    rc = XDBService_list_cursor(t, &csr);
+    if (rc && (rc != MCO_S_CURSOR_EMPTY)) LOG(ERROR) << "Get Service's cursor, rc=" << rc;
+
+    for (lost_of_services = 0, rc = mco_cursor_first(t, &csr);
+         MCO_S_OK == rc;
+         rc = mco_cursor_next(t, &csr), lost_of_services++)
+    {
+        rc = XDBService_from_cursor(t, &csr, &instance_service);
+        if (rc) LOG(ERROR) << "Get Service's instance, rc=" << rc;
+
+        rc = XDBService_autoid_get(&instance_service, &aid);
+        if (rc) LOG(ERROR) << "Get Service's id, rc=" << rc;
+
+        rc = XDBService_name_get(&instance_service, name, static_cast<uint2>(SERVICE_NAME_MAXLEN));
+        if (rc) { LOG(ERROR) << "Unable to get identity for service id="<<aid; break; }
+
+        LOG(WARNING) << "Found lost service "<< name <<", id="<<aid;
+    }
+
+  } while (false);
+  rc = mco_trans_rollback(t);
+
+  // Удалить ничейные объекты
+  do
+  {
+    rc = mco_trans_start(m_database->getDbHandler(), MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+    if (rc) LOG(ERROR) << "Starting transaction, rc=" << rc;
+
+    rc = XDBLetter_delete_all(t);
+    if (rc) LOG(ERROR) << "Removing lost Letters, rc=" << rc;
+
+    rc = XDBWorker_delete_all(t);
+    if (rc) LOG(ERROR) << "Removing lost Workers, rc=" << rc;
+
+    rc = XDBService_delete_all(t);
+    if (rc) LOG(ERROR) << "Removing lost Services, rc=" << rc;
+
+    rc = mco_trans_commit(t);
+
+  } while (false);
+
+  if (rc)
+  {
+    LOG(ERROR) << "Cleanup lost workers, letters, services";
+    mco_trans_rollback(t);
+  }
+
+  LOG(INFO) << "Cleanup broker database finished";
+  return status;
 }
 
 bool DatabaseBrokerImpl::Disconnect()
@@ -939,7 +1071,7 @@ bool DatabaseBrokerImpl::ClearWorkersForService(const Service *service)
     return true;
 }
 
-/* Очистить спул Обработчиков и всех Служб */
+/* Очистить спул Обработчиков для всех Служб */
 bool DatabaseBrokerImpl::ClearServices()
 {
   Service  *srv;
@@ -953,6 +1085,7 @@ bool DatabaseBrokerImpl::ClearServices()
   srv = m_service_list->first();
   while (srv)
   {
+    // При этом удаляются Сообщения, присвоенные удаляемым Обработчикам
     if (true == (status = ClearWorkersForService(srv)))
     {
       status = RemoveService(srv->GetNAME());

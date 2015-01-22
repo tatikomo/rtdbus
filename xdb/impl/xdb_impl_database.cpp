@@ -92,12 +92,12 @@ file_reader( void *stream_handle /* FILE *  */,  /* OUT */void *to, mco_size_t m
 DatabaseImpl::DatabaseImpl(const char* _name, const Options& _options, mco_dictionary_h _dict) :
   m_snapshot_counter(0),
   m_state(DB_STATE_UNINITIALIZED),
-  m_snapshot_loaded(false),
   m_last_error(rtE_NONE),
   m_db(NULL),
   m_dict(_dict),
   m_db_access_flags(_options),
-  m_save_to_xml_feature(false)
+  m_save_to_xml_feature(false),
+  m_snapshot_loaded(false)
 {
   int val;
 #if EXTREMEDB_VERSION >= 40 && USE_EXTREMEDB_HTTP_SERVER
@@ -303,6 +303,11 @@ DatabaseImpl::~DatabaseImpl()
 
 mco_db_h DatabaseImpl::getDbHandler()
 {
+  if (!m_db)
+  {
+    LOG(ERROR) << "Get NULL database handler, current state: "<<m_state;
+  }
+  assert(m_db);
   return m_db;
 }
 
@@ -328,6 +333,30 @@ const Error& DatabaseImpl::Init()
     }
     m_count++;
     LOG(INFO) << "mco_runtime_start '" << m_name << "' " << m_count;
+
+#if EXTREMEDB_VERSION >= 40
+  memset(static_cast<void*>(&m_dev), '\0', sizeof(m_dev));
+  /* setup memory device as a shared named memory region */
+  m_dev.assignment = MCO_MEMORY_ASSIGN_DATABASE;
+  m_dev.size       = m_DatabaseSize;
+  m_dev.type       = MCO_MEMORY_NAMED; /* DB in shared memory */
+  sprintf(m_dev.dev.named.name, "%s-db", m_name);
+  m_dev.dev.named.flags = 0;
+  m_dev.dev.named.hint  = 0;
+
+  mco_db_params_init (&m_db_params);
+  m_db_params.db_max_connections = 1;
+  /* set page size for in memory part */
+  m_db_params.mem_page_size      = m_MemoryPageSize;
+  /* set page size for persistent storage */
+  m_db_params.disk_page_size     = m_DbDiskPageSize;
+
+#if 0
+  m_db_params.mode_mask |= MCO_DB_USE_CRC_CHECK;
+  m_db_params.cipher_key = (const char*)"my_secure_key";
+#endif
+
+#endif
 
     mco_get_runtime_info(&info);
     if (!info.mco_save_load_supported)
@@ -812,9 +841,23 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
 
   clearError();
   fname[0] = '\0';
-  LOG(INFO) << "Load snapshot of '" << getName() << "' from state " << State();
   assert(!m_db);
-  // assert(State() == DB_STATE_ATTACHED);
+
+  switch(State())
+  {
+    case DB_STATE_UNINITIALIZED:
+        LOG(INFO) << "Current state: " << State() << ", init runtime first";
+        Init();
+        // NB: break пропущен специально
+    case DB_STATE_INITIALIZED:
+    case DB_STATE_ATTACHED:
+        LOG(INFO) << "Current state: " << State() << ", load snapshot of " << getName();
+    break;
+
+    default:
+        LOG(INFO) << "Load snapshot of '" << getName() << "' from state " << State();
+  }
+
 
   if (given_file_name)
   {
@@ -858,7 +901,13 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
     if (rc)
     {
       LOG(ERROR) << "Unable to read data from snap file '" <<fname<<"' , rc="<<rc;
+      m_snapshot_loaded = false;
       setError(rtE_SNAPSHOT_READ);
+    }
+    else
+    {
+      // Успешно прочитали бинарный дамп
+      m_snapshot_loaded = true;
     }
     fclose(fbak);
 
@@ -869,7 +918,7 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
 #endif
 
   } while (false);
-#else
+#else /* EXTREMEDB_VERSION >= 40 */
   // Не можем читать двоичный дамп, попробуем XML
   // Но для этого необходимо открыть БД с помощью mco_db_open_dev
   setError(rtE_SNAPSHOT_READ);
@@ -902,9 +951,14 @@ const Error& DatabaseImpl::LoadFromXML(const char* given_file_name)
 
   LOG(INFO) << "Try to restore '" << m_name << "' content from XML";
 
-  while(true)
+  if (m_snapshot_loaded)
   {
+    LOG(WARNING) << "Database " << m_name << " snapshot is already loaded";
+    return m_last_error;
+  }
 
+  do
+  {
     if (NULL == (f = fopen(given_file_name, "rb")))
     {
       LOG(ERROR) << "Can't open XML snapshot '"
@@ -933,15 +987,16 @@ const Error& DatabaseImpl::LoadFromXML(const char* given_file_name)
     {
       rc = mco_trans_commit(t);
       LOG(INFO) << "XML-import '" << m_name << "' is done, rc=" << rc;
+      m_snapshot_loaded = true;
     }
     else
     {
       rc = mco_trans_rollback(t);
       LOG(INFO) << "XML-import '" << m_name << "' failure, rc=" << rc;
+      m_snapshot_loaded = true;
     }
 
-    break;
-  }
+  } while(false);
 
   if (f)
     fclose(f);
@@ -964,21 +1019,6 @@ const Error& DatabaseImpl::Open()
   clearError();
 
 #if EXTREMEDB_VERSION >= 40
-  memset(static_cast<void*>(&m_dev), '\0', sizeof(m_dev));
-  /* setup memory device as a shared named memory region */
-  m_dev.assignment = MCO_MEMORY_ASSIGN_DATABASE;
-  m_dev.size       = m_DatabaseSize;
-  m_dev.type       = MCO_MEMORY_NAMED; /* DB in shared memory */
-  sprintf(m_dev.dev.named.name, "%s-db", m_name);
-  m_dev.dev.named.flags = 0;
-  m_dev.dev.named.hint  = 0;
-
-  mco_db_params_init (&m_db_params);
-  m_db_params.db_max_connections = 10;
-  /* set page size for in memory part */
-  m_db_params.mem_page_size      = m_MemoryPageSize;
-  /* set page size for persistent storage */
-  m_db_params.disk_page_size     = m_DbDiskPageSize;
 
 #if USE_EXTREMEDB_HTTP_SERVER
   rc = mco_uda_db_open(m_metadict,
@@ -997,22 +1037,29 @@ const Error& DatabaseImpl::Open()
   }
 #else /* EXTREMEDB_VERSION > 4 and not USE_EXTREMEDB_HTTP_SERVER */
 
+#if 1
+  // NB: Загружать снимок можно только до вызова mco_uda_db_open(),
+  // после будет ошибка MCO_E_INSTANCE_DUPLICATE
+  //
   // Требуется прочитать ранее сохраненный двоичный снимок?
-  if (m_flags[OF_POS_LOAD_SNAP])
+  // Проверить, не был ли он уже прочитан ранее функцией loadEnvironment()
+  if (m_flags[OF_POS_LOAD_SNAP] && !m_snapshot_loaded)
   {
     // Внутри LoadSnapshot: mco_db_load() -> mco_db_open_dev()
     if (!(LoadSnapshot()).Ok())
     {
       LOG(ERROR) << "Unable to restore content from binary snapshot";
-      m_snapshot_loaded = false;
     }
     else
     {
-      m_snapshot_loaded = true;
       // Состояние CONNECTED - инициализировано подключение (m_db все еще NULL)
       TransitionToState(DB_STATE_ATTACHED);
     }
   }
+#else
+  // Состояние CONNECTED - инициализировано подключение (m_db все еще NULL)
+  TransitionToState(DB_STATE_ATTACHED);
+#endif
 
   // Если снимок загружен успешно, значит БД уже работает,
   // пропустим повторное ее открытие
@@ -1031,7 +1078,7 @@ const Error& DatabaseImpl::Open()
 #endif /* USE_EXTREMEDB_HTTP_SERVER */
 
 
-#else /* EXTREMEDB_VERSION >= 40 */
+#else /* EXTREMEDB_VERSION >= 40 && not USE_EXTREMEDB_HTTP_SERVER */
 
    rc = mco_db_open(m_name,
                     m_dict,

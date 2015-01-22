@@ -71,8 +71,6 @@ bool xdb::loadFromXML(RtEnvironment* env, const char* filename)
 
   applyClassListToDB(env, dictionary, point_list);
 
-  env->MakeSnapshot(NULL);
-
 #ifdef USE_EXTREMEDB_HTTP_SERVER
   // При использовании встроенного в БДРВ HTTP-сервера можно
   // посмотреть статистику свежесозданного экземпляра до его закрытия
