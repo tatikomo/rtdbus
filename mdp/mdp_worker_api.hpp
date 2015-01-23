@@ -40,6 +40,15 @@ class mdwrk {
     //  Connect or reconnect to broker
     void connect_to_broker ();
 
+    //  ---------------------------------------------------------------------
+    //  Connect or reconnect to everyone
+    //  Этот сокет используется для обмена "быстрыми" сообщениями, минуя Брокера
+    void connect_to_world ();
+
+    //  ---------------------------------------------------------------------
+    //  Get service endpoint
+    //  Получить строку подключения для своего Сервиса
+    void ask_endpoint();
 
     //  ---------------------------------------------------------------------
     //  Set heartbeat delay
@@ -64,6 +73,7 @@ class mdwrk {
     std::string      m_service;
     zmq::context_t * m_context;
     zmq::socket_t  * m_worker;      //  Socket to broker
+    zmq::socket_t  * m_welcome;     //  Socket to subscribe on brokerless messages
     int              m_verbose;     //  Print activity to stdout
     //  Heartbeat management
     int64_t          m_heartbeat_at;//  When to send HEARTBEAT

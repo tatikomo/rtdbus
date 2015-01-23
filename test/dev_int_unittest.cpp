@@ -385,14 +385,9 @@ TEST(TestProxy, BROKER_INTERNAL)
   LOG(INFO) << "TestProxy BROKER_INTERNAL start";
   broker = new mdp::Broker(true); // be verbose
   ASSERT_TRUE (broker != NULL);
-  /*
-   * NB: "tcp://lo:5555" использует локальный интерфейс, 
-   * что удобно для мониторинга wireshark-ом.
-   */
 
-  status = broker->bind ("tcp://*:5555");
-  EXPECT_EQ(status, true);
-
+  // 1. Создать БД, попытаться открыть снимок
+  // 2. Связать сокет со службой Брокера (bind)
   status = broker->Init();
   EXPECT_EQ(status, true);
 

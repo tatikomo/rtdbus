@@ -27,6 +27,17 @@ class DatabaseImpl;
 class Service;
 class Worker;
 
+// Структура записи соответствия между названием Сервиса
+// и точкой подключения к нему
+typedef struct {
+  // Название Службы
+  const char name[SERVICE_NAME_MAXLEN + 1];
+  // Значение по-умолчанию
+  const char endpoint_default[ENDPOINT_MAXLEN + 1];
+  // Значение, прочитанное из снимка БД
+  char endpoint_given[ENDPOINT_MAXLEN + 1];
+} ServiceEndpoint_t;
+
 void errhandler(MCO_RET);
 void extended_errhandler(MCO_RET errcode, const char* file, int line);
 
@@ -81,12 +92,17 @@ class DatabaseBrokerImpl
     DatabaseBrokerImpl(const char*);
     ~DatabaseBrokerImpl();
 
-    bool Init();
     // Создание экземпляра БД или подключение к уже существующему
     bool Connect();
     bool Disconnect();
     //
-    DBState_t State();
+    DBState_t State() const;
+
+    // Получить свою точку подключения
+    const char* getEndpoint() const;
+
+    // Получить точку подключения для указанного Сервиса
+    const char* getEndpoint(const std::string&) const;
 
     Service *AddService(const char*);
     Service *AddService(const std::string&);
@@ -170,6 +186,8 @@ class DatabaseBrokerImpl
     ServiceList             *m_service_list;
     Options                  m_opt;
 
+    // Загрузка НСИ
+    bool LoadDictionaries();
     // Удаление временных данных перед закрытием БД
     bool Cleanup();
 

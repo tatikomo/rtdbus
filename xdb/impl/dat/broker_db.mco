@@ -1,14 +1,19 @@
 /*
- * Создать структуры XDBService, XDBWorker, XDBLetter
+ XDBService: Службы
+ XDBWorker:  Обработчики
+ XDBLetter:  Сообщения между Клиентами и Обработчиками Служб
+ XDBEndpointLinks: Связь между именами Служб и атрибутами доступа к ним
  */
 
 #define MAX_SERVICES_ENTRY  400
 #define MAX_WORKERS_ENTRY   400
+#define ENDPOINT_MAXLEN     100
 #define LETTERS4SERVICE_QUEUE_MAXLEN  600
 #define uint4               unsigned<4>
 #define uint1               unsigned<1>
 #define uint8               unsigned<8>
 #define service_name_t      char<32>
+#define endpoint_t          char<ENDPOINT_MAXLEN>
 #define identity_t          char<11>
 #define WORKERS_FOR_SERVICE 2
 
@@ -28,16 +33,29 @@ class XDBWorker
 {
   /* Автоинкрементный числовой идентификатор */
   autoid[MAX_WORKERS_ENTRY];
+
   /* Строковый идентификатор Обработчика */
   identity_t identity;
+
   /* Состояние */
   WorkerState state = ARMED;
+
   /* Время ожидания получения подтверждения "Я ЖИВ" */
   timer_mark expiration;
+
   /* ссылка на объект XDBLetter */
   autoid_t   service_ref;
+
   /* ссылка на объект XDBLetter */
   autoid_t   letter_ref;
+
+  /*
+   * Событие на изменение состояние Обработчика.
+   * Если есть хотя бы один Обработчик в состояниях
+   * ARMED, OCCUPIED => изменить состояние Службы на REGISTERED
+   */
+  event <state update> update_state;
+
   /* Поиск Обработчика по имени */
   unique tree  <identity> SK_by_ident;
   tree   <expiration.sec> SK_expiration;
@@ -54,14 +72,27 @@ class XDBService
 {
   /* Автоинкрементный числовой идентификатор */
   autoid[MAX_SERVICES_ENTRY];
+
   /* Имя Сервиса */
   service_name_t name;
+
   /* Текущее состояние */
   ServiceState state = UNKNOWN;
+
+  /*
+   * Строка подключения к общему сокету (welcome)
+   * Берется из сообщения READY от Обработчика.
+   * Отправляется Клиенту по его запросу mmi.service, 
+   * для прямого взаимодействия со Службой, минуя Брокер.
+   */
+  endpoint_t      endpoint;
+
   /* Поиск Сервиса по имени */
   hash           <name> PK_name[MAX_SERVICES_ENTRY];
+  
   /* Доступ ко всем зарегистрированным Сервисам */
   list;
+  
   /*event <checkpoint>   newService;*/
   event <new>   newService;
   event <delete>       delService;

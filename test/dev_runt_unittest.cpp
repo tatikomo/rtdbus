@@ -281,11 +281,6 @@ broker_task (void* /*args*/)
      s_version_assert (3, 2);
      s_catch_signals ();
      broker = new mdp::Broker(verbose);
-     /*
-      * NB: "tcp://lo:5555" использует локальный интерфейс, 
-      * что удобно для мониторинга wireshark-ом.
-      */
-     broker->bind ("tcp://*:5555");
 
      // Обозначить завершение своей инициализации
      broker_ready_sign = true;

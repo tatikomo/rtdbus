@@ -31,7 +31,11 @@ class DatabaseBroker
     // Отключение от БД Брокера
     bool Disconnect();
     // Получение текущего состояния БД
-    int  State();
+    int  State() const;
+    // Получить свою точку подключения
+    const char* getEndpoint() const;
+    // Получить точку подключения для указанного Сервиса
+    const char* getEndpoint(const std::string&) const;
 
     /* Зарегистрировать Сервис */
     Service *AddService(const char*);

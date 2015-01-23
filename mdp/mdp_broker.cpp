@@ -52,8 +52,26 @@ Broker::Broker (bool verbose) :
 
 bool Broker::Init()
 {
+  bool status;
+
   assert(m_database);
-  return (m_database->Connect());
+
+  status = m_database->Connect();
+  if (status)
+  {
+    status = bind();
+  }
+
+  if (true == status)
+  {
+    LOG(INFO) << "Initialization success";
+  }
+  else
+  {
+    LOG(ERROR) << "Initialization failed";
+  }
+
+  return status;
 }
 
 // -------------------------------------------------------------
@@ -76,14 +94,15 @@ Broker::~Broker ()
 //  Bind broker to endpoint, can call this multiple times
 //  We use a single socket for both clients and workers.
 bool
-Broker::bind (const std::string& endpoint)
+Broker::bind ()
 {
     bool status = false;
+    const char* endpoint = m_database->getEndpoint();
 
-    m_endpoint = endpoint;
+    m_endpoint.assign(endpoint);
     try
     {
-      m_socket->bind(m_endpoint.c_str());
+      m_socket->bind(endpoint);
       LOG(INFO) << "MDP Broker/0.2.0 is active at " << endpoint;
       status = true;
     }
@@ -116,10 +135,17 @@ Broker::database_snapshot(const char* msg)
 //  ---------------------------------------------------------------------
 //  Delete any idle workers that haven't pinged us in a while.
 //  
-//  TODO: необходимо единовременно получить список Обработчиков 
+//  Необходимо единовременно получить список Обработчиков 
 //  в состоянии ARMED для заданного Сервиса. PopWorker всегда будет 
 //  возвращать один и тот же экземпляр Обработчика до тех пор, пока 
 //  у него не сменится состояние (к примеру, после окончания срока годности)
+//
+//  TODO 22/01/2015 - Переработать логику. Получить список всех Обработчиков,
+//  и проверить их таймауты. Для тех из них, кто превысил время, проверить состояние.
+//  1. Если Обработчик был свободен (ARMED), просто удалить его.
+//  2. Если Обработчик был занят обслуживанием запроса (OCCUPIED), передать 
+//  выполнение запроса другому Обработчику. Если время жизни запроса истекло, отправить 
+//  отрицательную квитанцию Клиенту. 
 //
 void
 Broker::purge_workers ()
@@ -251,6 +277,15 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
 
 //  ---------------------------------------------------------------------
 //  Handle internal service according to 8/MMI specification
+//
+//  TODO: Реализация службы получения информации Клиентами о наличии и атрибутам
+//  подключения к Сервисам (реализующим их функциональность Обработчикам)
+//
+//  1. Обработчик Сервиса посылает Брокеру сообщение READY, содержащее
+//  строку подключения к своему общему сокету (welcome).
+//  2. Брокер сохраняет эти сведения в своей БД.
+//  3. При получении служебного сообщения mmi.service от Клиента Брокер
+//  отправляет ему признак существования Службы и атрибуты доступа к ней (endpoint)
 void
 Broker::service_internal (const std::string& service_name, zmsg *msg)
 {
@@ -302,13 +337,17 @@ Broker::service_internal (const std::string& service_name, zmsg *msg)
 
     //  Remove & save client return envelope and insert the
     //  protocol header and service name, then rewrap envelope.
-    char* client = msg->unwrap();
+    //  msg::unwrap() returns reference to memory that may be deleted by msg::pop_front()
+    std::string client = msg->unwrap();
     msg->wrap(MDPC_CLIENT, service_name.c_str());
+    msg->push_front(srv->GetENDPOINT()); // TODO: Строка подключения Службы
     msg->push_front(const_cast<char*>(MDPC_REPORT));
     msg->push_front(const_cast<char*>(MDPC_CLIENT));
-    msg->wrap (client, EMPTY_FRAME);
+    msg->wrap (client.c_str(), EMPTY_FRAME);
     msg->send (*m_socket);
-    delete[] client;
+//    delete[] client;
+
+    delete srv;
 }
 
 //  ---------------------------------------------------------------------
@@ -412,6 +451,7 @@ Broker::worker_process_READY(xdb::Worker*& worker,
   return status;
 }
 
+//  ---------------------------------------------------------------------
 bool 
 Broker::worker_process_REPORT(xdb::Worker*& worker,
                               const std::string& sender_identity,
@@ -468,6 +508,7 @@ Broker::worker_process_REPORT(xdb::Worker*& worker,
   return status;
 }
 
+//  ---------------------------------------------------------------------
 bool 
 Broker::worker_process_HEARTBEAT(xdb::Worker*& worker,
                                  const std::string& sender_identity,
@@ -494,6 +535,7 @@ Broker::worker_process_HEARTBEAT(xdb::Worker*& worker,
   return status;
 }
 
+//  ---------------------------------------------------------------------
 bool 
 Broker::worker_process_DISCONNECT(xdb::Worker*& worker, const std::string& sender_identity, zmsg*)
 {
@@ -525,34 +567,16 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
    * Сервису принадлежит сообщение от данного Обработчика.
    */
   if (command.compare (MDPW_READY) == 0)
-  {
     status = worker_process_READY(wrk, sender_identity, msg);
-  }
-  else
-  {
-    if (command.compare (MDPW_REPORT) == 0)
-    {
-      status = worker_process_REPORT(wrk, sender_identity, msg);
-    }
-    else 
-    {
-      if (command.compare (MDPW_HEARTBEAT) == 0)
-      {
-         status = worker_process_HEARTBEAT(wrk, sender_identity, msg);
-      }
-      else 
-      {
-        if (command.compare (MDPW_DISCONNECT) == 0)
-        {
-          status = worker_process_DISCONNECT(wrk, sender_identity, msg);
-        }
-        else
-        {
-          LOG(ERROR) << "Invalid input message '" << command << "'";
-          msg->dump ();
-        }
-      }
-    }
+  else if (command.compare (MDPW_REPORT) == 0)
+    status = worker_process_REPORT(wrk, sender_identity, msg);
+  else if (command.compare (MDPW_HEARTBEAT) == 0)
+    status = worker_process_HEARTBEAT(wrk, sender_identity, msg);
+  else if (command.compare (MDPW_DISCONNECT) == 0)
+    status = worker_process_DISCONNECT(wrk, sender_identity, msg);
+  else {
+     LOG(ERROR) << "Invalid input message '" << command << "'";
+     msg->dump ();
   }
 
   if (false == status)
@@ -712,8 +736,8 @@ Broker::worker_waiting (xdb::Worker *worker)
     {
       // Такое возможно после восстановления снимка БД:
       // Обработчик есть, а его Сервис отсутствует
-      LOG(WARNING) << "Missed Service with id=" << worker->GetSERVICE_ID()
-                   << " for Worker id=" << worker->GetIDENTITY();
+      LOG(ERROR) << "Missed Service with id=" << worker->GetSERVICE_ID()
+                 << " for Worker id=" << worker->GetIDENTITY();
     }
 }
 
@@ -733,8 +757,15 @@ Broker::client_msg (const std::string& sender, zmsg *msg)
     {
         LOG(ERROR) << "Request from client '"<<sender
             <<"' to unknown service '"<<service_frame<<"'";
+
+        msg->clear();
+        msg->push_front ((char*) service_frame.c_str());
+        msg->push_front ((char*) MDPC_NAK);
+        msg->push_front ((char*) MDPC_CLIENT);
+        msg->wrap(sender.c_str(), EMPTY_FRAME);
+        msg->send (*m_socket);
     }
-    else /* Сервис известен */
+    else /* Сервис известен - Служба доступна */
     {
       /* является служебным (mmi.*) или одним из внешних */
       /* Установить обратный адрес */
@@ -750,7 +781,6 @@ Broker::client_msg (const std::string& sender, zmsg *msg)
         if (msg && msg->parts() >= 1)
         {
             std::string client_frame = msg->front ();
-            // TODO: проверить доступность Службы, которой адресуется сообщение
             //[011]@006B8B4568                      - автоматически подставляется Брокером при приёме!
             //[000]                                 - заполняется клиентом
             //[006]MDPC0X                           - заполняется клиентом
@@ -760,20 +790,6 @@ Broker::client_msg (const std::string& sender, zmsg *msg)
             /* внести команду в очередь и обработать её */
             service_dispatch (srv, msg);
             delete srv;
-#if 0
-#error "continue here!"
-
-            else /*  Send a NAK message back to the client. */
-            {
-              LOG(INFO) << "Disabled command " << cmd_frame;
-              msg->clear();
-              msg->push_front ((char*) service_frame.c_str());
-              msg->push_front ((char*) MDPC_NAK);
-              msg->push_front ((char*) MDPC_CLIENT);
-              msg->wrap(sender.c_str(), EMPTY_FRAME);
-              msg->send (*m_socket);
-            }
-#endif
         }
       } /* запрос к внешнему сервису */
     }   /* запрос к известному сервису */
