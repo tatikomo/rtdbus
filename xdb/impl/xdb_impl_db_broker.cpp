@@ -51,6 +51,16 @@ using namespace xdb;
 #include "dat/broker_db.h"
 #include "dat/broker_db.hpp"
 
+ServiceEndpoint_t Endpoints[] = {
+    {"BROKER","tcp://lo:5555", ""}, // Сам Брокер (BROKER_ENDPOINT_IDX)
+    {"SINF",  "tcp://lo:5556", ""}, // Информационный сервер БДРВ
+    {"IHM",   "tcp://lo:5557", ""}, // Сервер отображения
+    {"ECH",   "tcp://lo:5558", ""}, // Сервер обменов
+    {"", "", ""}  // Последняя запись
+};
+// Запись о точке подключения к Брокеру д.б. первой
+#define BROKER_ENDPOINT_IDX 0
+
 DatabaseBrokerImpl::DatabaseBrokerImpl(const char* _name) :
     m_service_list(NULL)
 {
@@ -81,16 +91,158 @@ DatabaseBrokerImpl::~DatabaseBrokerImpl()
   delete m_database;
 }
 
+#if 0
 bool DatabaseBrokerImpl::Init()
 {
+  LOG(INFO) << "WOW!";
   Error err = m_database->Open();
   return err.Ok();
 }
+#endif
 
 bool DatabaseBrokerImpl::Connect()
 {
-  Error err = m_database->Connect();
-  return err.Ok();
+  Error status;
+  
+  status = m_database->Connect();
+
+  if (status.Ok())
+  {
+     // TODO: загрузить данные в таблицу связей между
+     // точками подключения и названиями Служб
+     LoadDictionaries();
+  }
+
+  return status.Ok();
+}
+
+// Загрузка НСИ
+// 1. Соответствие между именем Сервиса и точкой подключения его Обработчиков
+// 2. ...
+bool DatabaseBrokerImpl::LoadDictionaries()
+{
+  mco_trans_h t;
+  MCO_RET rc;
+  XDBEndpointLinks link_instance;
+  int entry_idx;
+
+  // Проверить, существует ли запись для каждого из Сервисов.
+  // Если нет - вставить значения "по-умолчанию", или из файла (TODO)
+  // ----------------------------------------------------------------
+  do
+  {
+    rc = mco_trans_start(m_database->getDbHandler(), MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+    if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
+
+    // Чтобы не пропустить нулевой индекс (запись Брокера)
+    entry_idx = -1;
+    while (Endpoints[++entry_idx].name[0])  // До пустой записи в конце массива
+    {
+        LOG(INFO) << "Checking '" << Endpoints[entry_idx].name << "' endpoint";
+
+        // Найдется Службу по названию?
+        rc = XDBEndpointLinks_SK_name_find(t,
+                                       Endpoints[entry_idx].name,
+                                       strlen(Endpoints[entry_idx].name),
+                                       &link_instance);
+        if (MCO_S_OK == rc)
+        {
+            // Найдена уже существующая запись => прочтем заданное ей значение
+            rc = XDBEndpointLinks_endpoint_get(&link_instance,
+                                       Endpoints[entry_idx].endpoint_given,
+                                       (uint2)ENDPOINT_MAXLEN);
+            Endpoints[entry_idx].endpoint_given[ENDPOINT_MAXLEN] = '\0';
+            if (rc)
+            {
+                LOG(ERROR) << "Reading endpoint link for '"
+                           << Endpoints[entry_idx].name <<"', rc=" << rc;
+                // Обнулим возможно прочитанный мусор (?)
+                Endpoints[entry_idx].endpoint_given[0] = '\0';
+
+                // TODO: что делать в случае невозможности определения точки подключения к Службе?
+                // Это может иметь значительные последствия для дальнейшей работы всей системы.
+                //
+                // GEV 23/01/2015 - Пока продолжим работу, проверяя остальные Службы
+                continue;
+            }
+        }
+        else if (MCO_S_NOTFOUND == rc) // Требуемая Служба не найдена
+        {
+            // Нет такой записи, внесем данные по ней 
+            rc = XDBEndpointLinks_new(t, &link_instance);
+            if (rc) { LOG(ERROR) << "Creating endpoint link, rc=" << rc; break; }
+
+            rc = XDBEndpointLinks_name_put(&link_instance,
+                                           Endpoints[entry_idx].name,
+                                           strlen(Endpoints[entry_idx].name));
+            if (rc) { LOG(ERROR) << "Creating endpoint link, rc=" << rc; break; }
+
+            rc = XDBEndpointLinks_endpoint_put(&link_instance,
+                                           Endpoints[entry_idx].endpoint_default,
+                                           strlen(Endpoints[entry_idx].endpoint_default));
+            if (rc) { LOG(ERROR) << "Creating endpoint link, rc=" << rc; break; }
+
+            rc = XDBEndpointLinks_checkpoint(&link_instance);
+            if (rc) { LOG(ERROR) << "Checkpointing link, rc=" << rc; break; }
+
+            LOG(INFO) << "Set default endpoint value '" << Endpoints[entry_idx].endpoint_default 
+                      << "' for service '" << Endpoints[entry_idx].name << "'";
+        }
+        else // Любая другая ошибка => проверка следующей Службы
+        {
+          Endpoints[entry_idx].endpoint_given[0] = '\0';
+          continue;
+        }
+    }
+
+    // Только если не было ошибок при внесении ВСЕХ сведений
+    if (rc)
+    {
+      rc = mco_trans_rollback(t);
+      LOG(ERROR) << "Fail loading endpoints";
+    }
+    else
+    {
+      rc = mco_trans_commit(t);
+      LOG(INFO) << "Endpoints loaded";
+    }
+  } while (false);
+
+  return (MCO_S_OK == rc);
+}
+
+// Получить свою точку подключения.
+// Если есть прочитанное из БД значение, вернуть его
+// Иначе вернуть значение по-умолчанию
+const char* DatabaseBrokerImpl::getEndpoint() const
+{
+  return (Endpoints[BROKER_ENDPOINT_IDX].endpoint_given[0])?
+    Endpoints[BROKER_ENDPOINT_IDX].endpoint_given : 
+    Endpoints[BROKER_ENDPOINT_IDX].endpoint_default;
+}
+
+// Получить точку подключения для указанного Сервиса
+const char* DatabaseBrokerImpl::getEndpoint(const std::string& service_name) const
+{
+  int entry_idx = 0; // =0 вместо -1, чтобы пропустить нулевой индекс (Брокера)
+  const char* endpoint;
+
+  while (Endpoints[++entry_idx].name[0])  // До пустой записи в конце массива
+  {
+    if (0 == service_name.compare(Endpoints[entry_idx].name))
+    {
+        // Нашли искомую Службу.
+        // Есть ли для нее значение из БД?
+        if (Endpoints[entry_idx].endpoint_given[0])
+          endpoint = Endpoints[entry_idx].endpoint_given;   // Да
+        else
+          endpoint = Endpoints[entry_idx].endpoint_default; // Нет
+
+        break; // Завершаем поиск, т.к. названия Служб уникальны
+    }
+  }
+
+  return endpoint;
 }
 
 bool DatabaseBrokerImpl::Cleanup()
@@ -227,7 +379,7 @@ bool DatabaseBrokerImpl::Disconnect()
   return (m_database->Disconnect()).Ok();
 }
 
-DBState_t DatabaseBrokerImpl::State()
+DBState_t DatabaseBrokerImpl::State() const
 {
   return m_database->State();
 }

@@ -35,18 +35,21 @@ class Service
     ~Service();
     void SetID(const int64_t);
     void SetNAME(const char*);
+    void SetENDPOINT(const char*);
     void SetSTATE(State);
     void SetVALID();
     int64_t GetID();
-    const char   *GetNAME();
-    State         GetSTATE();
-    bool          GetVALID();
+    const char   *GetNAME() const;
+    const char   *GetENDPOINT() const;
+    State         GetSTATE() const;
+    bool          GetVALID() const;
 
   private:
     // Заблокировать конструктор копирования
     DISALLOW_COPY_AND_ASSIGN(Service);
     int64_t  m_id;
     char    *m_name;
+    char    *m_endpoint;
     State    m_state;
     bool     m_modified;
 };

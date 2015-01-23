@@ -45,12 +45,6 @@ class Broker {
 #endif
 
    //  ---------------------------------------------------------------------
-   //  Bind broker to endpoint, can call this multiple times
-   //  We use a single socket for both clients and workers.
-   bool
-   bind (const std::string& endpoint);
-
-   //  ---------------------------------------------------------------------
    //  Delete any idle workers that haven't pinged us in a while.
    void
    purge_workers ();
@@ -133,9 +127,6 @@ class Broker {
     bool              m_verbose;               //  Print activity to stdout
     std::string       m_endpoint;              //  Broker binds to this endpoint
     int64_t           m_heartbeat_at;          //  When to send HEARTBEAT
-//    std::map<std::string, xdb::Service*> m_services;//  Hash of known services
-//    std::map<std::string, xdb::Worker*>  m_workers; //  Hash of known workers
-//    std::vector<xdb::Worker*>            m_waiting; //  List of waiting workers
 
     /* 
      * Назначение: Локальная база данных в разделяемой памяти.
@@ -143,6 +134,11 @@ class Broker {
      * Содержание: список Сервисов и их Обработчиков
      */
     xdb::DatabaseBroker *m_database;
+
+    //  ---------------------------------------------------------------------
+    //  Bind broker to endpoint, can call this multiple times
+    //  We use a single socket for both clients and workers.
+    bool bind ();
 
     /* Обработка соответствующих команд, полученных от Обработчиков */
     bool worker_process_READY(xdb::Worker*&, const std::string&, zmsg*);

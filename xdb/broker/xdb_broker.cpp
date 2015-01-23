@@ -36,9 +36,21 @@ bool DatabaseBroker::Disconnect()
   return m_impl->Disconnect();
 }
 
-int DatabaseBroker::State()
+int DatabaseBroker::State() const
 {
   return static_cast<xdb::DBState_t>(m_impl->State());
+}
+
+// Получить свою точку подключения
+const char* DatabaseBroker::getEndpoint() const
+{
+  return m_impl->getEndpoint();
+}
+
+// Получить точку подключения для указанного Сервиса
+const char* DatabaseBroker::getEndpoint(const std::string& service_name) const
+{
+  return m_impl->getEndpoint(service_name);
 }
 
 bool DatabaseBroker::SetWorkerState(Worker* worker, Worker::State new_state)

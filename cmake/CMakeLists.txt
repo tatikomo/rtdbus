@@ -138,12 +138,15 @@ OPTION(RTDBUS_BUILD_TESTS "enable unit test code" ON)
 # ограничение размера полей данных из схемы MCO
 set (MAX_SERVICES_ENTRY      400)
 set (MAX_WORKERS_ENTRY       800) # WORKERS_SPOOL_SIZE * MAX_SERVICES_ENTRY
+set (ENDPOINT_MAXLEN         100)
 set (SERVICE_NAME_MAXLEN      32)
 set (IDENTITY_MAXLEN          11)
 set (DBNAME_MAXLEN            10)
 # TODO Объединить все подобные интервалы (HEARTBEAT) в единую структуру. 
 # Сейчас у Брокера и Обработчиков могут быть разные значения.
 set (HEARTBEAT_PERIOD_MSEC  2500)
+# Разумный интервал 3..5
+set (HEARTBEAT_LIVENESS 3)
 
 set (WORKERS_SPOOL_SIZE        2)
 set (MESSAGE_EXPIRATION_PERIOD_MSEC  500)

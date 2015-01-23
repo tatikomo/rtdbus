@@ -34,6 +34,7 @@ mdwrk::mdwrk (std::string broker, std::string service, int verbose) :
   m_service(service),
   m_context(NULL),
   m_worker(0),
+  m_welcome(0),
   m_verbose(verbose),
   m_heartbeat(HeartbeatInterval), //  msecs
   m_reconnect(HeartbeatInterval), //  msecs
@@ -50,15 +51,19 @@ mdwrk::mdwrk (std::string broker, std::string service, int verbose) :
     m_context = new zmq::context_t (1);
     s_catch_signals ();
     connect_to_broker ();
+    connect_to_world ();
 }
 
 //  ---------------------------------------------------------------------
 //  Destructor
 mdwrk::~mdwrk ()
 {
-  LOG(INFO) << "Worker destructor";
+    LOG(INFO) << "Worker destructor";
+
     send_to_broker (MDPW_DISCONNECT, NULL, NULL);
+
     delete m_worker;
+    delete m_welcome;
     delete m_context;
 }
 
@@ -96,6 +101,8 @@ void mdwrk::connect_to_broker ()
     }
     m_worker = new zmq::socket_t (*m_context, ZMQ_DEALER);
     m_worker->setsockopt (ZMQ_LINGER, &linger, sizeof (linger));
+    // GEV 22/01/2015: ZMQ_IDENTITY добавлено для теста
+    m_worker->setsockopt (ZMQ_IDENTITY, m_service.c_str(), m_service.size());
     m_worker->connect (m_broker.c_str());
     if (m_verbose)
         LOG(INFO) << "Connecting to broker " << m_broker;
@@ -106,8 +113,49 @@ void mdwrk::connect_to_broker ()
     //  If liveness hits zero, queue is considered disconnected
     m_liveness = HEARTBEAT_LIVENESS;
     m_heartbeat_at = s_clock () + m_heartbeat;
+
+    // TODO: Получить строку подключения общего сокета Сервиса,
+    // для прямых взаимодействий с Клиентами
+    ask_endpoint();
 }
 
+void mdwrk::ask_endpoint ()
+{
+  LOG(INFO) << "Ask endpoint for '" << m_service << "'";
+}
+
+//  ---------------------------------------------------------------------
+//  Connect or reconnect to world
+void mdwrk::connect_to_world ()
+{
+  int linger = 0;
+
+  try
+  {
+    if (m_welcome) {
+        delete m_welcome;
+    }
+
+    // Сокет типа "Ответ", процесс играет роль сервера, получая запросы
+    m_welcome = new zmq::socket_t (*m_context, ZMQ_REP);
+    m_welcome->setsockopt (ZMQ_LINGER, &linger, sizeof (linger));
+    // ===================================================================================
+    // TODO: Каждый Сервис должен иметь уникальную строку подключения
+    // Предложение: таблицу связей между Сервисами и их строками подключения читает Брокер,
+    // после чего каждый Обработчик в ответе на свое первое сообщение Брокеру (READY) 
+    // получает нужную строку. Эту же строку получают все Клиенты, заинтересованные 
+    // в прямой передаче данных между ними и Обработчиками
+    // ===================================================================================
+    //
+//    m_welcome->bind (m_service.c_str());
+    if (m_verbose)
+        LOG(INFO) << "Connecting to world";
+  }
+  catch(zmq::error_t err)
+  {
+    LOG(ERROR) << "Opening world socket: " << err.what();
+  }
+}
 
 //  ---------------------------------------------------------------------
 //  Set heartbeat delay
@@ -132,16 +180,19 @@ mdwrk::set_reconnect (int reconnect)
 zmsg *
 mdwrk::recv (std::string *&reply)
 {
+  zmq::pollitem_t items [] = {
+            { *m_worker,   0, ZMQ_POLLIN, 0 },
+            { *m_welcome,  0, ZMQ_POLLIN, 0 } };
+
   //  Format and send the reply if we were provided one
   assert (reply || !m_expect_reply);
 
   try
   {
     m_expect_reply = true;
-    while (!interrupt_worker) {
-        zmq::pollitem_t items [] = {
-            { *m_worker,  0, ZMQ_POLLIN, 0 } };
-        zmq::poll (items, 1, m_heartbeat);
+    while (!interrupt_worker)
+    {
+        zmq::poll (items, 2, m_heartbeat);
 
         if (items [0].revents & ZMQ_POLLIN) {
             zmsg *msg = new zmsg(*m_worker);
