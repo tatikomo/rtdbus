@@ -30,6 +30,12 @@ void s_catch_signals ()
 }
 
 
+/*
+ * Клиент может иметь представление о Службах, с которыми ему
+ * предстоит работать. В этом случае можно, помимо подключения 
+ * к Брокеру, создавать подключения к общему сокету Служб.
+ * TODO: Что за тип у общих сокетов Служб (m_welcome)?
+ */
 mdcli::mdcli (std::string broker, int verbose) :
    m_broker(broker),
    m_context(NULL),
@@ -41,6 +47,7 @@ mdcli::mdcli (std::string broker, int verbose) :
    m_context = new zmq::context_t (1);
    s_catch_signals ();
    connect_to_broker ();
+   connect_to_services ();
 }
 
 
@@ -69,6 +76,13 @@ void mdcli::connect_to_broker ()
         LOG(INFO) << "Connecting to broker " << m_broker;
 }
 
+//  ---------------------------------------------------------------------
+//  Connect or reconnect to Services
+void mdcli::connect_to_services ()
+{
+   if (m_verbose)
+        LOG(INFO) << "Connecting to services (?)";
+}
 
 //  ---------------------------------------------------------------------
 //  Set request timeout
@@ -78,6 +92,42 @@ mdcli::set_timeout (int timeout)
    m_timeout = timeout;
 }
 
+//  ---------------------------------------------------------------------
+//  Get the endpoint connecton string for specified service name
+int mdcli::ask_endpoint(const char* service_name, char* service_endpoint, int buf_size)
+{
+  mdp::zmsg *report  = NULL;
+  mdp::zmsg *request = new mdp::zmsg ();
+  const char *mmi_service_get_name = "mmi.service";
+
+  assert(service_endpoint);
+  LOG(INFO) << "Ask BROKER to get endpoint for " << service_name;
+
+  // Брокеру - именно для этого Сервиса дай точку входа
+  request->push_front(const_cast<char*>(service_name));
+  // второй фрейм запроса - идентификатор ображения к внутренней службе Брокера
+  send (mmi_service_get_name, request);
+
+  // TODO: Дождаться получения ответа от Брокера
+  LOG(INFO) << "mdcli::ask_endpoint delay start";
+  usleep(100000);
+  LOG(INFO) << "mdcli::ask_endpoint delay finish";
+
+  report = recv();
+  if (NULL == (report = recv()))
+  {
+    LOG(ERROR) << "Unable to receive enpoint's response";
+  }
+  else
+  {
+    LOG(INFO) << "Receive enpoint's response";
+    report->dump();
+  }
+
+  service_endpoint[buf_size] = '\0';
+
+  return 0;
+}
 
 //  ---------------------------------------------------------------------
 //  Send request to broker
@@ -117,6 +167,7 @@ mdcli::send (std::string service, zmsg *&request_p)
 zmsg *
 mdcli::recv ()
 {
+   int mdpc_command;
    //  Poll socket for a reply, with timeout
    zmq::pollitem_t items [] = { { *m_client, 0, ZMQ_POLLIN, 0 } };
    zmq::poll (items, 1, m_timeout /** 1000*/); // 1000 -> msec
@@ -138,10 +189,17 @@ mdcli::recv ()
         std::string header = msg->pop_front();
         assert (header.compare(MDPC_CLIENT) == 0);
 
-        std::string service = msg->pop_front();
-        // TODO следующая функция всегда вернет 0
-        assert (service.compare(service) == 0);
-
+        std::string command = msg->pop_front();
+        // Возможные ответы: [1]REQUEST, [2]REPORT, [3]NAK
+        mdpc_command = *command.c_str();
+        if (mdpc_command && (mdpc_command <= (int)*MDPC_NAK))
+        {
+          if (m_verbose) LOG(INFO) << "Receive " << mdpc_commands[(int)*command.c_str()];
+        }
+        else
+        {
+          LOG(ERROR) << "Receive unknown command code: " << (int)mdpc_command;
+        }
         // TODO: добавить фрейм КОМАНДА
 
         return msg;     //  Success

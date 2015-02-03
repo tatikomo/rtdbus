@@ -68,9 +68,12 @@ class mdwrk {
 
   private:
     DISALLOW_COPY_AND_ASSIGN(mdwrk);
+    const char* getEndpoint() const;
 
     std::string      m_broker;
     std::string      m_service;
+    // Точка подключения 
+    const char     * m_welcome_endpoint;
     zmq::context_t * m_context;
     zmq::socket_t  * m_worker;      //  Socket to broker
     zmq::socket_t  * m_welcome;     //  Socket to subscribe on brokerless messages

@@ -85,6 +85,7 @@ int main (int argc, char *argv [])
   int num_good_received = 0; // количество полученных сообщений, на которые мы ожидали ответ
   int opt;
   char service_name[SERVICE_NAME_MAXLEN + 1];
+  char service_endpoint[ENDPOINT_MAXLEN + 1];
   bool is_service_name_given = false;
   rtdbExchangeId sent_exchange_id;
 
@@ -139,6 +140,10 @@ int main (int argc, char *argv [])
 
   try
   {
+    std::cout << "Ask endpoint for service " << service_name;
+    client->ask_endpoint(service_name, service_endpoint, ENDPOINT_MAXLEN);
+    std::cout << "Get point to " << service_endpoint;
+
     for (sent_exchange_id=1; sent_exchange_id<=num_iter; sent_exchange_id++)
     {
       request = generateNewOrder(sent_exchange_id);

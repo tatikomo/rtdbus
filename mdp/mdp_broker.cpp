@@ -45,7 +45,6 @@ Broker::Broker (bool verbose) :
     //  Initialize broker state
     m_context = new zmq::context_t(1);
     m_socket = new zmq::socket_t(*m_context, ZMQ_ROUTER);
-    // TODO: объединить значения интервалов Брокера и Обработчика
     m_heartbeat_at = s_clock () + Broker::HeartbeatInterval;
     m_database = new xdb::DatabaseBroker();
 }
@@ -289,9 +288,10 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
 void
 Broker::service_internal (const std::string& service_name, zmsg *msg)
 {
+    xdb::Service * srv = m_database->GetServiceByName(service_name);
+
     if (service_name.compare("mmi.service") == 0) 
     {
-        xdb::Service * srv = m_database->GetServiceByName(service_name);
         // Если у Сервиса есть активные Обработчики
         if (srv->GetSTATE() == xdb::Service::ACTIVATED)
         {
@@ -340,7 +340,7 @@ Broker::service_internal (const std::string& service_name, zmsg *msg)
     //  msg::unwrap() returns reference to memory that may be deleted by msg::pop_front()
     std::string client = msg->unwrap();
     msg->wrap(MDPC_CLIENT, service_name.c_str());
-    msg->push_front(srv->GetENDPOINT()); // TODO: Строка подключения Службы
+    msg->push_front(const_cast<char*>(srv->GetENDPOINT())); // Строка подключения Службы
     msg->push_front(const_cast<char*>(MDPC_REPORT));
     msg->push_front(const_cast<char*>(MDPC_CLIENT));
     msg->wrap (client.c_str(), EMPTY_FRAME);

@@ -70,10 +70,10 @@ void Service::SetENDPOINT(const char *_endpoint)
   if (!_endpoint) return;
 
   /* удалить старое значение названия сервиса */
-  delete []_endpoint;
+  delete []m_endpoint;
 
-  _endpoint = new char[strlen(_endpoint)+1];
-  strcpy(_endpoint, _endpoint);
+  m_endpoint = new char[strlen(_endpoint)+1];
+  strcpy(m_endpoint, _endpoint);
 
   m_modified = true;
 }
@@ -90,7 +90,10 @@ const char* Service::GetNAME() const
 
 const char* Service::GetENDPOINT() const
 {
-  return m_endpoint;
+//  if (!m_endpoint)
+//    std::cout << "Service::GetENDPOINT() : endpoint is NULL" << std::endl;
+  assert(m_endpoint);
+  return (m_endpoint)? m_endpoint : "";
 }
 
 /* Подтвердить соответствие состояния объекта своему отображению в БД */

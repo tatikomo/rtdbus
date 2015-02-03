@@ -34,9 +34,17 @@ class mdcli {
    void connect_to_broker ();
 
    //  ---------------------------------------------------------------------
+   //  Connect or reconnect to Services
+   void connect_to_services ();
+
+   //  ---------------------------------------------------------------------
    //  Set request timeout
    void
    set_timeout (int timeout);
+
+   //  ---------------------------------------------------------------------
+   //  Get the endpoint connecton string for specified service name
+   int ask_endpoint(const char* service_name, char* service_endpoint, int size);
 
    //  ---------------------------------------------------------------------
    //  Send request to broker

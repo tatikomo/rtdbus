@@ -146,14 +146,19 @@ client_task (void* /*args*/)
   RTDBM::AskLife    pb_request_asklife;
   RTDBM::ExecResult pb_responce_exec_result;
   mdp::Letter      *mdp_letter;
-  const std::string dest = "NYSE";
+//  const std::string dest = "NYSE";
+  char service_endpoint[ENDPOINT_MAXLEN + 1];
   static int        user_exchange_id = 0;
   const int         i_num_sent_letters = 1;
 
   LOG(INFO) << "Start client thread";
   try
   {
-    mdp_letter = new mdp::Letter(ADG_D_MSG_ASKLIFE, dest);
+    LOG(INFO) << "Ask endpoint for service " << service_name;
+    client->ask_endpoint(service_name.c_str(), service_endpoint, ENDPOINT_MAXLEN);
+    LOG(INFO) << "Get endpoint to '" << service_endpoint << "' for " << service_name;
+
+    mdp_letter = new mdp::Letter(ADG_D_MSG_ASKLIFE, service_name);
 
     //  Send some ADG_D_MSG_ASKLIFE orders
     for (user_exchange_id = 0; user_exchange_id < i_num_sent_letters; user_exchange_id++) {
@@ -183,10 +188,15 @@ client_task (void* /*args*/)
         report->dump();
         assert (report->parts () >= 2);
         
+#if 0
         mdp_letter = new mdp::Letter(report);
+//        TODO: Доделать разбор сообщений
         Dump(mdp_letter);
 
         delete mdp_letter;
+#else
+#warning    "Дамп сообщений заблокирован"
+#endif
         delete report;
     }
     // Приняли ровно столько, сколько ранее отправили

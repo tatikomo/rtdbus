@@ -5,6 +5,28 @@
 
 using namespace mdp;
 
+// NB: Это дубликат структуры, хранящийся в xdb_impl_db_broker.cpp
+// Структура записи соответствия между названием Сервиса и точкой подключения к нему
+typedef struct {
+  // Название Службы
+  const char name[SERVICE_NAME_MAXLEN + 1];
+  // Значение по-умолчанию
+  const char endpoint_default[ENDPOINT_MAXLEN + 1];
+  // Значение, прочитанное из снимка БД
+  char endpoint_given[ENDPOINT_MAXLEN + 1];
+} ServiceEndpoint_t;
+
+// Таблица соответствия названия службы и ее точки входа Endpoints 
+// NB: Это дубликат структуры, хранящийся в xdb_impl_db_broker.cpp
+// TODO: вывести соответствия между Службой и её точкой входа в общую конфигурацию
+ServiceEndpoint_t Endpoints[] = {
+    {"BROKER","tcp://lo:5555", ""}, // Сам Брокер (BROKER_ENDPOINT_IDX)
+    {"SINF",  "tcp://lo:5556", ""}, // Информационный сервер БДРВ
+    {"IHM",   "tcp://lo:5557", ""}, // Сервер отображения
+    {"ECH",   "tcp://lo:5558", ""}, // Сервер обменов
+    {"", "", ""}  // Последняя запись
+};
+
 //  ---------------------------------------------------------------------
 //  Signal handling
 //
@@ -32,6 +54,7 @@ static void s_catch_signals ()
 mdwrk::mdwrk (std::string broker, std::string service, int verbose) :
   m_broker(broker),
   m_service(service),
+  m_welcome_endpoint(NULL),
   m_context(NULL),
   m_worker(0),
   m_welcome(0),
@@ -50,6 +73,10 @@ mdwrk::mdwrk (std::string broker, std::string service, int verbose) :
 
     m_context = new zmq::context_t (1);
     s_catch_signals ();
+
+    // Получить ссылку на статически выделенную строку с параметрами подключения
+    m_welcome_endpoint = getEndpoint();
+
     connect_to_broker ();
     connect_to_world ();
 }
@@ -61,6 +88,8 @@ mdwrk::~mdwrk ()
     LOG(INFO) << "Worker destructor";
 
     send_to_broker (MDPW_DISCONNECT, NULL, NULL);
+
+    // NB: удалять m_welcome_endpoint не нужно
 
     delete m_worker;
     delete m_welcome;
@@ -113,10 +142,6 @@ void mdwrk::connect_to_broker ()
     //  If liveness hits zero, queue is considered disconnected
     m_liveness = HEARTBEAT_LIVENESS;
     m_heartbeat_at = s_clock () + m_heartbeat;
-
-    // TODO: Получить строку подключения общего сокета Сервиса,
-    // для прямых взаимодействий с Клиентами
-    ask_endpoint();
 }
 
 void mdwrk::ask_endpoint ()
@@ -146,10 +171,16 @@ void mdwrk::connect_to_world ()
     // получает нужную строку. Эту же строку получают все Клиенты, заинтересованные 
     // в прямой передаче данных между ними и Обработчиками
     // ===================================================================================
-    //
-//    m_welcome->bind (m_service.c_str());
-    if (m_verbose)
-        LOG(INFO) << "Connecting to world";
+    // 
+    if(m_welcome_endpoint)
+    {
+      m_welcome->bind (m_welcome_endpoint);
+      LOG(INFO) << "Connecting to world at " << m_welcome_endpoint;
+    }
+    else
+    {
+      LOG(ERROR) << "Can't find endpoint for unknown service " << m_service;
+    }
   }
   catch(zmq::error_t err)
   {
@@ -192,7 +223,7 @@ mdwrk::recv (std::string *&reply)
     m_expect_reply = true;
     while (!interrupt_worker)
     {
-        zmq::poll (items, 2, m_heartbeat);
+        zmq::poll (items, 1, m_heartbeat);
 
         if (items [0].revents & ZMQ_POLLIN) {
             zmsg *msg = new zmsg(*m_worker);
@@ -266,5 +297,29 @@ mdwrk::recv (std::string *&reply)
   if (interrupt_worker)
       LOG(WARNING) << "Interrupt received, killing worker...";
   return NULL;
+}
+
+// Получить точку подключения для указанного Сервиса
+const char* mdwrk::getEndpoint() const
+{
+  int entry_idx = 0; // =0 вместо -1, чтобы пропустить нулевой индекс (Брокера)
+  const char* endpoint = NULL;
+
+  while (Endpoints[++entry_idx].name[0])  // До пустой записи в конце массива
+  {
+    if (0 == m_service.compare(Endpoints[entry_idx].name))
+    {
+        // Нашли нашу Службу
+        // Есть ли для нее значение из БД?
+        if (Endpoints[entry_idx].endpoint_given[0])
+          endpoint = Endpoints[entry_idx].endpoint_given;   // Да
+        else
+          endpoint = Endpoints[entry_idx].endpoint_default; // Нет
+
+        break; // Завершаем поиск, т.к. названия Служб уникальны
+    }
+  }
+
+  return endpoint;
 }
 
