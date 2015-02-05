@@ -57,7 +57,7 @@ class Broker {
    //  ---------------------------------------------------------------------
    //  Locate or create new service entry
    xdb::Service *
-   service_require (const std::string& name);
+   service_require (const std::string& name/*, const std::string& endpoint*/);
 
    zmq::socket_t&
    get_socket() { return *m_socket; };

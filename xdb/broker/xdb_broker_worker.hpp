@@ -25,7 +25,7 @@ class Worker
     /* NB: должен быть размер поля identity_t из broker.mco */
     static const int IdentityMaxLen = IDENTITY_MAXLEN;
 
-    // NB: создан на основе WorkerState из генерируемого dat/xdb_broker.h
+    // NB: изменения синхронизировать с WorkerState из broker_db.mco
     enum State {
         DISARMED    = 0,
         ARMED       = 1,    // Свободен, готов к использованию

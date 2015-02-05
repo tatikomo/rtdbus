@@ -91,7 +91,7 @@ DatabaseBrokerImpl::~DatabaseBrokerImpl()
   delete m_database;
 }
 
-#if 0
+#if 1
 bool DatabaseBrokerImpl::Init()
 {
   LOG(INFO) << "WOW!";
@@ -121,8 +121,9 @@ bool DatabaseBrokerImpl::Connect()
 // 2. ...
 bool DatabaseBrokerImpl::LoadDictionaries()
 {
+  MCO_RET rc = MCO_S_OK;
+#if 0
   mco_trans_h t;
-  MCO_RET rc;
   XDBEndpointLinks link_instance;
   int entry_idx;
 
@@ -208,6 +209,7 @@ bool DatabaseBrokerImpl::LoadDictionaries()
     }
   } while (false);
 
+#endif
   return (MCO_S_OK == rc);
 }
 
@@ -495,12 +497,12 @@ MCO_RET DatabaseBrokerImpl::RegisterEvents()
   return rc;
 }
 
-Service *DatabaseBrokerImpl::AddService(const std::string& name)
+Service *DatabaseBrokerImpl::AddService(const std::string& name/*, const std::string& endpoint*/)
 {
-  return AddService(name.c_str());
+  return AddService(name.c_str()/*, endpoint.c_str()*/);
 }
 
-Service *DatabaseBrokerImpl::AddService(const char *name)
+Service *DatabaseBrokerImpl::AddService(const char *name/*, const char *endpoint*/)
 {
   broker_db::XDBService service_instance;
   Service       *srv = NULL;
@@ -520,6 +522,22 @@ Service *DatabaseBrokerImpl::AddService(const char *name)
     rc = service_instance.name_put(name, static_cast<uint2>(strlen(name)));
     if (rc) { LOG(ERROR) << "Setting '" << name << "' name"; break; }
 
+    // Если пишется известная нам Служба => присвоить точке подключения значение "по умолчанию"
+    // Пропустить нулевой индекс (запись Брокера)
+    int entry_idx = 0;
+    while (Endpoints[++entry_idx].name[0])  // До пустой записи в конце массива
+    {
+        // Проверить все известные названия Служб
+        if (0 == strcmp(name, Endpoints[entry_idx].name))
+        {
+          rc = service_instance.endpoint_put(Endpoints[entry_idx].endpoint_default,
+                   static_cast<uint2>(strlen(Endpoints[entry_idx].endpoint_default)));
+          break;
+        }
+    }
+    // Если с ошибкой вышли из предыдущего цикла поиска названия Службы
+    if (rc) { LOG(ERROR) << "Setting default endpoint for " << name; break; }
+
     rc = service_instance.state_put(REGISTERED);
     if (rc) { LOG(ERROR) << "Setting '" << name << "' state"; break; }
 
@@ -527,7 +545,6 @@ Service *DatabaseBrokerImpl::AddService(const char *name)
     if (rc) { LOG(ERROR) << "Getting service "<<name<<" id, rc=" << rc; break; }
 
     srv = new Service(aid, name);
-    //srv->SetSTATE(Service::State::REGISTERED);
     srv->SetSTATE(Service::REGISTERED);
 
     rc = mco_trans_commit(t);
@@ -538,6 +555,54 @@ Service *DatabaseBrokerImpl::AddService(const char *name)
     mco_trans_rollback(t);
 
   return srv;
+}
+
+// Обновить состояние экземпляра в БД
+bool DatabaseBrokerImpl::Update(Worker* instance)
+{
+  bool status = false;
+
+  assert(instance);
+  return status;
+}
+
+// Обновить состояние экземпляра в БД
+bool DatabaseBrokerImpl::Update(Service* srv)
+{
+  bool status = false;
+
+  assert(srv);
+  broker_db::XDBService service_instance;
+  MCO_RET        rc;
+  mco_trans_h    t;
+
+  do
+  {
+    rc = mco_trans_start(m_database->getDbHandler(), MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+    if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
+
+    rc = broker_db::XDBService::autoid::find(t, srv->GetID(), service_instance);
+    if (rc) { LOG(ERROR) << "Locating instance, rc=" << rc; break; }
+
+    rc = service_instance.name_put(srv->GetNAME(), static_cast<uint2>(strlen(srv->GetNAME())));
+    if (rc) { LOG(ERROR) << "Setting '" << srv->GetNAME() << "' name"; break; }
+
+    rc = service_instance.endpoint_put(srv->GetENDPOINT(), static_cast<uint2>(strlen(srv->GetENDPOINT())));
+    if (rc) { LOG(ERROR) << "Setting '" << srv->GetENDPOINT() << "' endpoint for " << srv->GetNAME(); break; }
+
+    LOG(INFO) << "Setting '" << srv->GetENDPOINT() << "' endpoint for " << srv->GetNAME();
+
+    rc = service_instance.state_put(StateConvert(srv->GetSTATE()));
+    if (rc) { LOG(ERROR) << "Setting '" << srv->GetSTATE() << "' state"; break; }
+
+    rc = mco_trans_commit(t);
+    if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; }
+  } while(false);
+
+  if (rc)
+    mco_trans_rollback(t);
+
+  return status;
 }
 
 // TODO: возможно стоит удалить этот метод-обертку, оставив GetServiceByName
@@ -890,6 +955,58 @@ Service *DatabaseBrokerImpl::GetServiceByName(const char* name)
   return service;
 }
 
+// Конвертировать состояние Службы из БД в состояние
+Service::State DatabaseBrokerImpl::StateConvert(ServiceState s)
+{
+    Service::State result = Service::State::UNKNOWN;
+
+    switch (s)
+    {
+      case REGISTERED:
+      result = Service::State::REGISTERED;
+      break;
+      case ACTIVATED:
+      result = Service::State::ACTIVATED;
+      break;
+      case DISABLED:
+      result = Service::State::DISABLED;
+      break;
+      case UNKNOWN:
+      result = Service::State::UNKNOWN;
+      break;
+      default:
+      LOG(WARNING) << "Wrong service state, set to UNKNOWN";
+      result = Service::State::UNKNOWN;
+    }
+    return result;
+}
+
+// Конвертировать состояние Службы из БД в состояние
+ServiceState DatabaseBrokerImpl::StateConvert(Service::State s)
+{
+    ServiceState result = UNKNOWN;
+
+    switch (s)
+    {
+      case Service::State::REGISTERED:
+      result = REGISTERED;
+      break;
+      case Service::State::ACTIVATED:
+      result = ACTIVATED;
+      break;
+      case Service::State::DISABLED:
+      result = DISABLED;
+      break;
+      case Service::State::UNKNOWN:
+      result = UNKNOWN;
+      break;
+      default:
+      LOG(WARNING) << "Wrong service state, set to UNKNOWN";
+      result = UNKNOWN;
+    }
+    return result;
+}
+
 Service *DatabaseBrokerImpl::LoadService(
         autoid_t &aid,
         broker_db::XDBService& instance)
@@ -897,18 +1014,29 @@ Service *DatabaseBrokerImpl::LoadService(
   Service      *service = NULL;
   MCO_RET       rc = MCO_S_OK;
   char          name[Service::NameMaxLen + 1];
+  char          endpoint[Service::EndpointMaxLen + 1];
   ServiceState  state;
+  Service::State update_state;
 
   do
   {
+    name[0] = '\0';
+    endpoint[0] = '\0';
+
     rc = instance.name_get(name, Service::NameMaxLen);
     name[Service::NameMaxLen] = '\0';
     if (rc) { LOG(ERROR)<<"Unable to get service's name, rc="<<rc; break; }
+    rc = instance.endpoint_get(endpoint, Service::EndpointMaxLen);
+    name[Service::EndpointMaxLen] = '\0';
+    if (rc) { LOG(ERROR)<<"Unable to get service's endpoint, rc="<<rc; break; }
     rc = instance.state_get(state);
     if (rc) { LOG(ERROR)<<"Unable to get service id for "<<name; break; }
+    
+    update_state = StateConvert(state);
 
     service = new Service(aid, name);
-    service->SetSTATE((Service::State)state);
+    service->SetSTATE(update_state);
+    service->SetENDPOINT(endpoint);
     /* Состояние объекта полностью соответствует хранимому в БД */
     service->SetVALID();
   } while (false);

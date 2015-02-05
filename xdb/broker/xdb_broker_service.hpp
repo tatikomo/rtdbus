@@ -17,7 +17,9 @@ class Service
 {
   public:
     static const short NameMaxLen = SERVICE_NAME_MAXLEN;
+    static const short EndpointMaxLen = ENDPOINT_MAXLEN;
 
+    // NB: изменения синхронизировать с ServiceState из broker_db.mco
     enum State
     {
         UNKNOWN    = 0,

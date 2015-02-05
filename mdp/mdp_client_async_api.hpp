@@ -44,7 +44,7 @@ class mdcli {
 
    //  ---------------------------------------------------------------------
    //  Get the endpoint connecton string for specified service name
-   int ask_endpoint(const char* service_name, char* service_endpoint, int size);
+   int ask_service_info(const char* service_name, char* service_endpoint, int size);
 
    //  ---------------------------------------------------------------------
    //  Send request to broker

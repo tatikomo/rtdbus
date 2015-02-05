@@ -150,13 +150,42 @@ client_task (void* /*args*/)
   char service_endpoint[ENDPOINT_MAXLEN + 1];
   static int        user_exchange_id = 0;
   const int         i_num_sent_letters = 1;
+  int               service_status;
 
   LOG(INFO) << "Start client thread";
   try
   {
     LOG(INFO) << "Ask endpoint for service " << service_name;
-    client->ask_endpoint(service_name.c_str(), service_endpoint, ENDPOINT_MAXLEN);
+    service_status = client->ask_service_info(service_name.c_str(), service_endpoint, ENDPOINT_MAXLEN);
     LOG(INFO) << "Get endpoint to '" << service_endpoint << "' for " << service_name;
+
+    switch(service_status)
+    {
+      case 200:
+      LOG(INFO) << service_name << " status OK : " << service_status;
+      break;
+
+      case 400:
+      LOG(INFO) << service_name << " status BAD_REQUEST : " << service_status;
+      break;
+
+      case 404:
+      LOG(INFO) << service_name << " status NOT_FOUND : " << service_status;
+      break;
+
+      case 501:
+      LOG(INFO) << service_name << " status NOT_SUPPORTED : " << service_status;
+      break;
+
+      default:
+      LOG(INFO) << service_name << " status UNKNOWN : " << service_status;
+    }
+
+    if (200 != service_status)
+    {
+      pthread_exit(NULL);
+      return NULL;
+    }
 
     mdp_letter = new mdp::Letter(ADG_D_MSG_ASKLIFE, service_name);
 

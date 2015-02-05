@@ -98,15 +98,13 @@ class XDBService
   event <delete>       delService;
 };
 
+// NB: изменения синхронизировать с Service::State из xdb_broker_service.hpp
 enum ServiceState
 {
-  UNKNOWN, REGISTERED, DISABLED
+  UNKNOWN, REGISTERED, ACTIVATED, DISABLED
 };
 
-/*
-Необходимо поддерживать аналогичный порядок и в заголовочном файле 
-класса Worker - database/xdb_database_worker.hpp 
-*/
+// NB: изменения синхронизировать с Worker::State из xdb_broker_worker.hpp
 enum WorkerState
 {
   DISARMED, ARMED, INIT, SHUTDOWN, OCCUPIED, EXPIRED

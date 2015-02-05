@@ -81,6 +81,7 @@ int main (int argc, char *argv [])
   mdp::Letter *letter = NULL;
   RTDBM::AskLife* pb_asklife = NULL;
   int verbose = 0;
+  int service_status;   // 200|400|404|501
   int num_received = 0; // общее количество полученных сообщений
   int num_good_received = 0; // количество полученных сообщений, на которые мы ожидали ответ
   int opt;
@@ -140,9 +141,37 @@ int main (int argc, char *argv [])
 
   try
   {
-    std::cout << "Ask endpoint for service " << service_name;
-    client->ask_endpoint(service_name, service_endpoint, ENDPOINT_MAXLEN);
-    std::cout << "Get point to " << service_endpoint;
+    std::cout << "Checking '" << service_name << "' status " << std::endl;
+    service_status = client->ask_service_info(service_name, service_endpoint, ENDPOINT_MAXLEN);
+
+    switch(service_status)
+    {
+      case 200:
+      std::cout << service_name << " status OK : " << service_status << std::endl;
+      std::cout << "Get point to " << service_endpoint << std::endl;
+      break;
+
+      case 400:
+      std::cout << service_name << " status BAD_REQUEST : " << service_status << std::endl;
+      break;
+
+      case 404:
+      std::cout << service_name << " status NOT_FOUND : " << service_status << std::endl;
+      break;
+
+      case 501:
+      std::cout << service_name << " status NOT_SUPPORTED : " << service_status << std::endl;
+      break;
+
+      default:
+      std::cout << service_name << " status UNKNOWN : " << service_status << std::endl;
+    }
+
+    if (200 != service_status)
+    {
+      std::cout << "Service '" << service_name << "' is not running, exiting" << std::endl;
+      exit(service_status);
+    }
 
     for (sent_exchange_id=1; sent_exchange_id<=num_iter; sent_exchange_id++)
     {

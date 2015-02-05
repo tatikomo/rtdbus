@@ -18,6 +18,7 @@ extern "C" {
 #include "dat/broker_db.hpp"
 #include "xdb_broker_letter.hpp"
 #include "xdb_broker_worker.hpp"
+#include "xdb_broker_service.hpp"
 #include "xdb_impl_common.h"
 #include "xdb_impl_common.hpp"
 
@@ -94,6 +95,7 @@ class DatabaseBrokerImpl
 
     // Создание экземпляра БД или подключение к уже существующему
     bool Connect();
+    bool Init();
     bool Disconnect();
     //
     DBState_t State() const;
@@ -104,12 +106,16 @@ class DatabaseBrokerImpl
     // Получить точку подключения для указанного Сервиса
     const char* getEndpoint(const std::string&) const;
 
-    Service *AddService(const char*);
-    Service *AddService(const std::string&);
+    // Создать новый Сервис с указанной точкой подключения
+    Service *AddService(const char* /*, const char**/);
+    Service *AddService(const std::string& /*, const std::string&*/);
 
     // получить доступ к текущему списку Сервисов
     ServiceList* GetServiceList();
-    //
+
+    // Обновить состояние экземпляра в БД
+    bool Update(Worker*);
+    bool Update(Service*);
 
     bool RemoveService(const char*);
     /* Удалить Обработчик из всех связанных с ним таблиц БД */
@@ -237,6 +243,9 @@ class DatabaseBrokerImpl
      */
     //MCO_RET LoadWorkerByIdent(mco_trans_h, autoid_t&, Worker*);
 
+    // Конвертировать состояние Службы из БД в состояние
+    Service::State StateConvert(ServiceState);
+    ServiceState StateConvert(Service::State);
 };
 
 } //namespace xdb

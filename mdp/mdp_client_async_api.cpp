@@ -94,14 +94,16 @@ mdcli::set_timeout (int timeout)
 
 //  ---------------------------------------------------------------------
 //  Get the endpoint connecton string for specified service name
-int mdcli::ask_endpoint(const char* service_name, char* service_endpoint, int buf_size)
+int mdcli::ask_service_info(const char* service_name, char* service_endpoint, int buf_size)
 {
   mdp::zmsg *report  = NULL;
   mdp::zmsg *request = new mdp::zmsg ();
   const char *mmi_service_get_name = "mmi.service";
+  int service_status_code;
 
   assert(service_endpoint);
   LOG(INFO) << "Ask BROKER to get endpoint for " << service_name;
+  service_endpoint[0] = '\0';
 
   // Брокеру - именно для этого Сервиса дай точку входа
   request->push_front(const_cast<char*>(service_name));
@@ -109,24 +111,42 @@ int mdcli::ask_endpoint(const char* service_name, char* service_endpoint, int bu
   send (mmi_service_get_name, request);
 
   // TODO: Дождаться получения ответа от Брокера
-  LOG(INFO) << "mdcli::ask_endpoint delay start";
+  LOG(INFO) << "mdcli::ask_service_info delay start";
   usleep(100000);
-  LOG(INFO) << "mdcli::ask_endpoint delay finish";
+  LOG(INFO) << "mdcli::ask_service_info delay finish";
 
-  report = recv();
   if (NULL == (report = recv()))
   {
-    LOG(ERROR) << "Unable to receive enpoint's response";
+    LOG(ERROR) << "Receiving enpoint failure";
+    // Возможно, Брокер не запущен
+    service_status_code = 0;
   }
   else
   {
     LOG(INFO) << "Receive enpoint's response";
     report->dump();
+
+    // MDPC0X
+    std::string client_code = report->pop_front();
+    // mmi.service
+    std::string service_request  = report->pop_front();
+    assert(service_request.compare(mmi_service_get_name) == 0);
+    // 200|404|501
+    std::string existance_code = report->pop_front();
+    service_status_code = atoi(existance_code.c_str());
+    // Точка подключения - пока только при получении кода 200
+    if (200 == service_status_code)
+    {
+      std::string endpoint = report->pop_front();
+      strncpy(service_endpoint, endpoint.c_str(), buf_size);
+      service_endpoint[buf_size] = '\0';
+    }
+
+    LOG(INFO) << "'" << service_name << "' status: " << existance_code
+              << " endpoint: " << service_endpoint;
   }
 
-  service_endpoint[buf_size] = '\0';
-
-  return 0;
+  return service_status_code;
 }
 
 //  ---------------------------------------------------------------------

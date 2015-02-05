@@ -185,7 +185,7 @@ Broker::purge_workers ()
 //  ---------------------------------------------------------------------
 //  Locate or create new service entry
 xdb::Service *
-Broker::service_require (const std::string& service_name)
+Broker::service_require (const std::string& service_name/*, const std::string& endpoint*/)
 {
     xdb::Service *acquired_service = NULL;
 
@@ -197,7 +197,8 @@ Broker::service_require (const std::string& service_name)
     if (NULL == (acquired_service = m_database->GetServiceByName(service_name.c_str())))
     {
         LOG(WARNING) << "Service '" << service_name << "' is not registered";
-        acquired_service = m_database->AddService(service_name.c_str());
+        // Зарегистрировать Службу с указанным именем и атрибутами подключения
+        acquired_service = m_database->AddService(service_name.c_str()/*, endpoint.c_str()*/);
     }
     else if (m_verbose)
     {
@@ -288,27 +289,42 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
 void
 Broker::service_internal (const std::string& service_name, zmsg *msg)
 {
-    xdb::Service * srv = m_database->GetServiceByName(service_name);
+  xdb::Service *srv = NULL;
 
-    if (service_name.compare("mmi.service") == 0) 
-    {
-        // Если у Сервиса есть активные Обработчики
-        if (srv->GetSTATE() == xdb::Service::ACTIVATED)
+  assert(msg && msg->parts() >= 2);
+
+  if (service_name.compare("mmi.service") == 0) {
+        // Имя искомого Сервиса идет следующим фреймом
+        //
+        // std::string asked_service_frame = msg->pop_front(); - не нарушаем структуру сообщения:
+        // [0] @<UUID> (Идентификатор)
+        // [1] "" (пустой кадр)
+        // [2] <Название Службы>
+        assert(msg && msg->parts() == 3);
+        std::string asked_service_frame = *msg->get_part(2);
+        LOG(INFO) << "GET request 'mmi.service' for '" << asked_service_frame << "'";
+        srv = m_database->GetServiceByName(asked_service_frame);
+
+        // Если Сервис известен и у него есть активные Обработчики
+        if (srv
+            &&
+            ((srv->GetSTATE() == xdb::Service::ACTIVATED)
+            ||
+            (srv->GetSTATE() == xdb::Service::REGISTERED)))
         {
+            // Строка подключения Службы
             msg->body_set("200");
+            msg->push_back(const_cast<char*>(srv->GetENDPOINT()));
         }
         else
         {
             msg->body_set("404");
         }
-    }
-    else
-    // The filter service that can be used to manipulate
-    // the command filter table.
-    if (service_name.compare("mmi.filter") == 0) {
+  } // end if - команда mmi.service
+  else if (service_name.compare("mmi.filter") == 0) {
+        // The filter service that can be used to manipulate
+        // the command filter table.
         std::string operation_frame = msg->pop_front();
-        // GEV : как так?
-        // ведь service_name уже прочитан и передан в качестве параметра? +++
         std::string service_frame   = msg->pop_front();
         std::string command_frame   = msg->pop_front();
 
@@ -330,24 +346,23 @@ Broker::service_internal (const std::string& service_name, zmsg *msg)
 
         //  Add an empty frame; it will be replaced by the return code.
         msg->push_front((char*)EMPTY_FRAME);
-    }
-        else {
+  } // end if - команда mmi.filter
+  else { // Неизвестный внутренний запрос
         msg->body_set("501");
-    }
+  }
 
-    //  Remove & save client return envelope and insert the
-    //  protocol header and service name, then rewrap envelope.
-    //  msg::unwrap() returns reference to memory that may be deleted by msg::pop_front()
-    std::string client = msg->unwrap();
-    msg->wrap(MDPC_CLIENT, service_name.c_str());
-    msg->push_front(const_cast<char*>(srv->GetENDPOINT())); // Строка подключения Службы
-    msg->push_front(const_cast<char*>(MDPC_REPORT));
-    msg->push_front(const_cast<char*>(MDPC_CLIENT));
-    msg->wrap (client.c_str(), EMPTY_FRAME);
-    msg->send (*m_socket);
-//    delete[] client;
+  //  Remove & save client return envelope and insert the
+  //  protocol header and service name, then rewrap envelope.
+  //  msg::unwrap() returns reference to memory that may be deleted by msg::pop_front()
+  std::string client = msg->unwrap();
+  msg->wrap(MDPC_CLIENT, service_name.c_str());
+  msg->push_front(const_cast<char*>(MDPC_REPORT));
+  msg->push_front(const_cast<char*>(MDPC_CLIENT));
+  msg->wrap (client.c_str(), EMPTY_FRAME);
+  msg->dump();
+  msg->send (*m_socket);
 
-    delete srv;
+  delete srv;
 }
 
 //  ---------------------------------------------------------------------
@@ -427,11 +442,17 @@ Broker::worker_process_READY(xdb::Worker*& worker,
       // Attach worker to service and mark as idle
       // Получить название сервиса
       std::string service_name = msg->pop_front();
+      // Получить точку подключения Сервиса
+      std::string endpoint = msg->pop_front();
 
       // найти сервис по имени или создать новый
       // NB: Service creation is only possible on first workers call
       service = service_require(service_name);
       assert (service);
+      LOG(INFO) << "Get endpoint '" << endpoint << "' from worker";
+      service->SetENDPOINT(endpoint.c_str());
+      m_database->Update(service);
+
       if (!worker)
       {
         // Создать экземпляр Обработчика
@@ -748,38 +769,42 @@ Broker::worker_waiting (xdb::Worker *worker)
 void
 Broker::client_msg (const std::string& sender, zmsg *msg)
 {
-//    bool enabled = false;
-
     assert (msg && msg->parts () >= 2);     //  Service name + body
     std::string service_frame = msg->pop_front();
-    xdb::Service *srv = service_require (service_frame);
-    if (!srv) /* сервис неизвестен - выводим предупреждение */
-    {
-        LOG(ERROR) << "Request from client '"<<sender
-            <<"' to unknown service '"<<service_frame<<"'";
 
-        msg->clear();
-        msg->push_front ((char*) service_frame.c_str());
-        msg->push_front ((char*) MDPC_NAK);
-        msg->push_front ((char*) MDPC_CLIENT);
-        msg->wrap(sender.c_str(), EMPTY_FRAME);
-        msg->send (*m_socket);
-    }
-    else /* Сервис известен - Служба доступна */
+    // Проверить, является ли полученный запрос внутренним
+    if ((service_frame.length() >= 4)
+     && (service_frame.find("mmi.") != std::string::npos))
     {
-      /* является служебным (mmi.*) или одним из внешних */
-      /* Установить обратный адрес */
-      msg->wrap (sender.c_str(), EMPTY_FRAME);
-      if (service_frame.length() >= 4
-      &&  service_frame.find("mmi.") != std::string::npos) {
-          /* Запрос к служебному сервису */
-          service_internal (service_frame, msg);
-      }
-      else /* запрос к внешнему сервису */
-      {
-        /* как минимум, содержит идентификатор Клиента */
-        if (msg && msg->parts() >= 1)
+        // Установить обратный адрес
+        msg->wrap (sender.c_str(), EMPTY_FRAME);
+        // Да, т.к. имя Сервиса начинается с ключевой фразы "mmi."
+        service_internal (service_frame, msg);
+    }
+    else // Нет, это запрос общего порядка 
+    {
+        // Проверим наличие такого Сервиса
+        xdb::Service *srv = m_database->GetServiceByName(service_frame.c_str());
+
+        if (!srv) // Сервис неизвестен - выводим предупреждение
         {
+            LOG(ERROR) << "Request from client '"<<sender
+                <<"' to unknown service '"<<service_frame<<"'";
+
+            msg->clear();
+            msg->push_front (const_cast<char*>(service_frame.c_str()));
+            msg->push_front (const_cast<char*>(MDPC_NAK));
+            msg->push_front (const_cast<char*>(MDPC_CLIENT));
+            msg->wrap(sender.c_str(), EMPTY_FRAME);
+            msg->send (*m_socket);
+        }
+        else // Сервис известен - Служба доступна
+        {
+          // Установить обратный адрес
+          msg->wrap (sender.c_str(), EMPTY_FRAME);
+          // Сообщение, как минимум, содержит идентификатор Клиента */
+          if (msg && msg->parts() >= 1)
+          {
             std::string client_frame = msg->front ();
             //[011]@006B8B4568                      - автоматически подставляется Брокером при приёме!
             //[000]                                 - заполняется клиентом
@@ -790,9 +815,14 @@ Broker::client_msg (const std::string& sender, zmsg *msg)
             /* внести команду в очередь и обработать её */
             service_dispatch (srv, msg);
             delete srv;
+          }
+          else
+          {
+            LOG(ERROR) << "Got incorrect message from client to " << service_frame;
+          }
         }
-      } /* запрос к внешнему сервису */
-    }   /* запрос к известному сервису */
+    }
+
     delete msg;
 }
 

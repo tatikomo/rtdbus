@@ -88,6 +88,20 @@ Service *DatabaseBroker::GetServiceByName(const char *service_name)
   return m_impl->GetServiceByName(service_name);
 }
 
+// Обновить состояние экземпляра в БД
+bool DatabaseBroker::Update(Service* srv)
+{
+  assert(m_impl);
+  return m_impl->Update(srv);
+}
+
+// Обновить состояние экземпляра в БД
+bool DatabaseBroker::Update(Worker* wrk)
+{
+  assert(m_impl);
+  return m_impl->Update(wrk);
+}
+
 Service *DatabaseBroker::AddService(const std::string& service_name)
 {
   if (!m_impl) return (Service*)NULL;

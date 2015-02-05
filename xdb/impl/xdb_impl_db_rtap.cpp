@@ -577,6 +577,7 @@ void DatabaseRtapImpl::GenerateXSD()
 /* Тестовый API сохранения базы */
 bool DatabaseRtapImpl::MakeSnapshot(const char* msg)
 {
+  assert (State() == DB_STATE_UNINITIALIZED);
   // Сохранить структуру БД
   GenerateXSD();
   // Сохранить содержимое БД
@@ -951,8 +952,6 @@ MCO_RET DatabaseRtapImpl::createPassport(PointInDatabase* point)
 {
   MCO_RET   rc = MCO_E_UNSUPPORTED;
   autoid_t  passport_id = point->id();
-
-#warning "Продолжить здесь"
 
   switch(point->objclass())
   {

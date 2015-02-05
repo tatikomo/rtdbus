@@ -877,10 +877,10 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
 #if EXTREMEDB_VERSION >= 40
   do
   {
-    if (rc)
+    if (m_snapshot_loaded)
     {
-      LOG(ERROR) << "Unable to clean '"<<m_name<<"' database content";
-      setError(rtE_RUNTIME_FATAL);
+      LOG(ERROR) << "Try to re-open '"<<m_name<<"' database content";
+      setError(rtE_SNAPSHOT_READ);
       break;
     }
 

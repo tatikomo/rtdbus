@@ -126,6 +126,9 @@ void mdwrk::connect_to_broker ()
     int linger = 0;
 
     if (m_worker) {
+        // TODO: Пересоздание сокета влечет за собой ошибку zmq-рантайма 
+        // "Socket operation on non-socket" при выполнении zmq::poll
+        LOG(INFO) << "connect_to_broker() => delete old m_worker";
         delete m_worker;
     }
     m_worker = new zmq::socket_t (*m_context, ZMQ_DEALER);
@@ -136,10 +139,16 @@ void mdwrk::connect_to_broker ()
     if (m_verbose)
         LOG(INFO) << "Connecting to broker " << m_broker;
 
-    //  Register service with broker
-    send_to_broker ((char*)MDPW_READY, m_service.c_str(), NULL);
+    // Register service with broker
+    // Внесены изменения из-за необходимости передачи значения точки подключения 
+    zmsg *msg = new zmsg ();
+    msg->push_front ((char*)m_welcome_endpoint);
+    msg->push_front ((char*)m_service.c_str());
+    send_to_broker((char*)MDPW_READY, NULL, msg);
 
-    //  If liveness hits zero, queue is considered disconnected
+    delete msg;
+
+    // If liveness hits zero, queue is considered disconnected
     m_liveness = HEARTBEAT_LIVENESS;
     m_heartbeat_at = s_clock () + m_heartbeat;
 }
@@ -223,6 +232,7 @@ mdwrk::recv (std::string *&reply)
     m_expect_reply = true;
     while (!interrupt_worker)
     {
+        // NB: До реализации m_welcome пока будет 1 сокет
         zmq::poll (items, 1, m_heartbeat);
 
         if (items [0].revents & ZMQ_POLLIN) {
@@ -267,6 +277,9 @@ mdwrk::recv (std::string *&reply)
             }
             else if (command.compare (MDPW_DISCONNECT) == 0) {
                 connect_to_broker ();
+                // После подключения к Брокеру сокет связи с ним был пересоздан
+                // Обновить сокет для zmq::poll
+                items[0].socket = *m_worker;
             }
             else {
                 LOG(ERROR) << "Receive invalid message " << (int) *(command.c_str());
@@ -281,6 +294,9 @@ mdwrk::recv (std::string *&reply)
             }
             s_sleep (m_reconnect);
             connect_to_broker ();
+            // После подключения к Брокеру сокет связи с ним был пересоздан
+            // Обновить сокет для zmq::poll
+            items[0].socket = *m_worker;
         }
 
         if (s_clock () > m_heartbeat_at) {
