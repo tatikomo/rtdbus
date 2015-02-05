@@ -185,7 +185,7 @@ Broker::purge_workers ()
 //  ---------------------------------------------------------------------
 //  Locate or create new service entry
 xdb::Service *
-Broker::service_require (const std::string& service_name/*, const std::string& endpoint*/)
+Broker::service_require (const std::string& service_name)
 {
     xdb::Service *acquired_service = NULL;
 
@@ -198,7 +198,7 @@ Broker::service_require (const std::string& service_name/*, const std::string& e
     {
         LOG(WARNING) << "Service '" << service_name << "' is not registered";
         // Зарегистрировать Службу с указанным именем и атрибутами подключения
-        acquired_service = m_database->AddService(service_name.c_str()/*, endpoint.c_str()*/);
+        acquired_service = m_database->AddService(service_name.c_str());
     }
     else if (m_verbose)
     {
@@ -545,7 +545,9 @@ Broker::worker_process_HEARTBEAT(xdb::Worker*& worker,
     {
       LOG(ERROR) << "Unable to register worker " << worker->GetIDENTITY();
     }
+
     database_snapshot("HEARTBEAT");
+
     worker_waiting(worker);
   }
   else

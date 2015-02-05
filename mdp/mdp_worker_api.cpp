@@ -74,6 +74,10 @@ mdwrk::mdwrk (std::string broker, std::string service, int verbose) :
     m_context = new zmq::context_t (1);
     s_catch_signals ();
 
+    // Обнулим хранище данных сокетов для zmq::poll
+    // Заполняется хранилище в функциях connect_to_*
+    memset (static_cast<void*>(m_socket_items), '\0', sizeof(zmq::pollitem_t) * SOCKET_COUNT);
+
     // Получить ссылку на статически выделенную строку с параметрами подключения
     m_welcome_endpoint = getEndpoint();
 
@@ -136,6 +140,12 @@ void mdwrk::connect_to_broker ()
     // GEV 22/01/2015: ZMQ_IDENTITY добавлено для теста
     m_worker->setsockopt (ZMQ_IDENTITY, m_service.c_str(), m_service.size());
     m_worker->connect (m_broker.c_str());
+    // Инициализация записей для zmq::poll для Брокера
+    m_socket_items[BROKER_ITEM].socket = *m_worker;
+    m_socket_items[BROKER_ITEM].fd = 0;
+    m_socket_items[BROKER_ITEM].events = ZMQ_POLLIN;
+    m_socket_items[BROKER_ITEM].revents = 0;
+
     if (m_verbose)
         LOG(INFO) << "Connecting to broker " << m_broker;
 
@@ -149,8 +159,8 @@ void mdwrk::connect_to_broker ()
     delete msg;
 
     // If liveness hits zero, queue is considered disconnected
-    m_liveness = HEARTBEAT_LIVENESS;
-    m_heartbeat_at = s_clock () + m_heartbeat;
+    update_heartbeat_sign();
+    LOG(INFO) << "Next HEARTBEAT will be in " << m_heartbeat << " msec, m_liveness=" << m_liveness;
 }
 
 void mdwrk::ask_endpoint ()
@@ -184,6 +194,12 @@ void mdwrk::connect_to_world ()
     if(m_welcome_endpoint)
     {
       m_welcome->bind (m_welcome_endpoint);
+      // Инициализация записей для zmq::poll для общей точки входа
+      m_socket_items[WORLD_ITEM].socket = *m_welcome;
+      m_socket_items[WORLD_ITEM].fd = 0;
+      m_socket_items[WORLD_ITEM].events = ZMQ_POLLIN;
+      m_socket_items[WORLD_ITEM].revents = 0;
+
       LOG(INFO) << "Connecting to world at " << m_welcome_endpoint;
     }
     else
@@ -220,10 +236,6 @@ mdwrk::set_reconnect (int reconnect)
 zmsg *
 mdwrk::recv (std::string *&reply)
 {
-  zmq::pollitem_t items [] = {
-            { *m_worker,   0, ZMQ_POLLIN, 0 },
-            { *m_welcome,  0, ZMQ_POLLIN, 0 } };
-
   //  Format and send the reply if we were provided one
   assert (reply || !m_expect_reply);
 
@@ -233,15 +245,15 @@ mdwrk::recv (std::string *&reply)
     while (!interrupt_worker)
     {
         // NB: До реализации m_welcome пока будет 1 сокет
-        zmq::poll (items, 1, m_heartbeat);
+        zmq::poll (m_socket_items, SOCKET_COUNT, m_heartbeat);
 
-        if (items [0].revents & ZMQ_POLLIN) {
+        if (m_socket_items[BROKER_ITEM].revents & ZMQ_POLLIN) {
             zmsg *msg = new zmsg(*m_worker);
             if (m_verbose) {
                 LOG(INFO) << "New message from broker:";
                 msg->dump ();
             }
-            m_liveness = HEARTBEAT_LIVENESS;
+            update_heartbeat_sign();
 
             //  Don't try to handle errors, just assert noisily
             assert (msg->parts () >= 3);
@@ -272,14 +284,12 @@ mdwrk::recv (std::string *&reply)
                 return msg;     //  We have a request to process
             }
             else if (command.compare (MDPW_HEARTBEAT) == 0) {
-                LOG(INFO) << "HEARTBEAT from broker";
+                LOG(INFO) << "HEARTBEAT from broker, m_liveness=" << m_liveness;
                 //  Do nothing for heartbeats
             }
             else if (command.compare (MDPW_DISCONNECT) == 0) {
-                connect_to_broker ();
                 // После подключения к Брокеру сокет связи с ним был пересоздан
-                // Обновить сокет для zmq::poll
-                items[0].socket = *m_worker;
+                connect_to_broker ();
             }
             else {
                 LOG(ERROR) << "Receive invalid message " << (int) *(command.c_str());
@@ -287,21 +297,34 @@ mdwrk::recv (std::string *&reply)
             }
             delete msg;
         }
-        else /* Ожидание нового запроса завершено по таймауту */
+        else if (m_socket_items[WORLD_ITEM].revents & ZMQ_POLLIN) // Событие на общем сокете
+        {
+            zmsg *msg = new zmsg(*m_worker);
+//            if (m_verbose) {
+                LOG(INFO) << "New message from world:";
+                msg->dump ();
+//            }
+            delete msg;
+        }
+        else // Ожидание нового запроса завершено по таймауту
         if (--m_liveness == 0) {
+            LOG(INFO) << "timeout, last HEARTBEAT was planned "
+                      << s_clock() - m_heartbeat_at << " sec ago, m_liveness=" << m_liveness;
             if (m_verbose) {
                 LOG(WARNING) << "Disconnected from broker - retrying...";
             }
+            // TODO: в этот период Служба недоступна. Уточнить таймауты!
+            // см. запись в README от 05.02.2015
             s_sleep (m_reconnect);
-            connect_to_broker ();
             // После подключения к Брокеру сокет связи с ним был пересоздан
-            // Обновить сокет для zmq::poll
-            items[0].socket = *m_worker;
+            connect_to_broker ();
         }
 
         if (s_clock () > m_heartbeat_at) {
             send_to_broker ((char*)MDPW_HEARTBEAT, NULL, NULL);
-            m_heartbeat_at = s_clock () + m_heartbeat;
+            LOG(INFO) << "update m_heartbeat_at, new HEARTBEAT will be in  "
+                      << s_clock () - m_heartbeat_at << ", m_liveness = " << m_liveness;
+            update_heartbeat_sign();
         }
     }
   }
@@ -313,6 +336,19 @@ mdwrk::recv (std::string *&reply)
   if (interrupt_worker)
       LOG(WARNING) << "Interrupt received, killing worker...";
   return NULL;
+}
+
+// Обновить значения атрибутов, отвечающих за время выдачи HEARBEAT Брокеру
+// Вызывается после успешной явной отправки HEARTBEAT, или в процессе нормального 
+// обмена сообщениями между Службой и Брокером, т.к. успешность этого процесса 
+// так же говорит о хорошем состоянии процесса Службы.
+void mdwrk::update_heartbeat_sign()
+{
+  // Назначить время следующей подачи HEARTBEAT
+  m_heartbeat_at = s_clock () + m_heartbeat;
+  // Сбросить счетчик таймаутов
+  // При достижении им 0 соединение с Брокером пересоздается
+  m_liveness = HEARTBEAT_LIVENESS;
 }
 
 // Получить точку подключения для указанного Сервиса

@@ -21,6 +21,9 @@ namespace mdp {
 //  We access these properties only via class methods
 class mdwrk {
   public:
+    enum { BROKER_ITEM = 0, WORLD_ITEM = 1};
+    enum { SOCKET_COUNT = 2 };
+
     static const int HeartbeatInterval = HEARTBEAT_PERIOD_MSEC;
     //  ---------------------------------------------------------------------
     //  Constructor
@@ -68,7 +71,12 @@ class mdwrk {
 
   private:
     DISALLOW_COPY_AND_ASSIGN(mdwrk);
-    const char* getEndpoint() const;
+    // Хранилище из двух сокетов для работы zmq::poll
+    // [0] подключение к Брокеру
+    // [1] прямое подключение
+    zmq::pollitem_t  m_socket_items[2];
+    const char     * getEndpoint() const;
+    void             update_heartbeat_sign();
 
     std::string      m_broker;
     std::string      m_service;

@@ -32,6 +32,7 @@ Worker::Worker(int64_t     _service_id,
   m_state(INIT),
   m_modified(true)
 {
+  // Таймаут выставляется при активации Службы
   timer_mark_t mark = {0, 0};
 
   SetIDENTITY(_self_identity);
