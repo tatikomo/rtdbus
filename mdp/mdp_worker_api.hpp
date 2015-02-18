@@ -17,9 +17,8 @@
 
 namespace mdp {
 
-//  Structure of our class
-//  We access these properties only via class methods
-class mdwrk {
+class mdwrk
+{
   public:
     enum { BROKER_ITEM = 0, WORLD_ITEM = 1};
     enum { SOCKET_COUNT = 2 };
@@ -27,7 +26,7 @@ class mdwrk {
     static const int HeartbeatInterval = HEARTBEAT_PERIOD_MSEC;
     //  ---------------------------------------------------------------------
     //  Constructor
-    mdwrk (std::string broker, std::string service, int verbose);
+    mdwrk (std::string, std::string, int);
 
     //  ---------------------------------------------------------------------
     //  Destructor
@@ -58,7 +57,6 @@ class mdwrk {
     void
     set_heartbeat (int heartbeat);
 
-
     //  ---------------------------------------------------------------------
     //  Set reconnect delay
     void
@@ -69,20 +67,16 @@ class mdwrk {
     zmsg *
     recv (std::string *&reply);
 
+  protected:
+    zmq::context_t   m_context;
+
   private:
     DISALLOW_COPY_AND_ASSIGN(mdwrk);
-    // Хранилище из двух сокетов для работы zmq::poll
-    // [0] подключение к Брокеру
-    // [1] прямое подключение
-    zmq::pollitem_t  m_socket_items[2];
-    const char     * getEndpoint() const;
-    void             update_heartbeat_sign();
 
     std::string      m_broker;
     std::string      m_service;
     // Точка подключения 
     const char     * m_welcome_endpoint;
-    zmq::context_t * m_context;
     zmq::socket_t  * m_worker;      //  Socket to broker
     zmq::socket_t  * m_welcome;     //  Socket to subscribe on brokerless messages
     int              m_verbose;     //  Print activity to stdout
@@ -93,6 +87,13 @@ class mdwrk {
     int              m_reconnect;   //  Reconnect delay, msecs
     //  Internal state
     bool             m_expect_reply;//  Zero only at start
+
+    // Хранилище из двух сокетов для работы zmq::poll
+    // [0] подключение к Брокеру
+    // [1] прямое подключение
+    zmq::pollitem_t  m_socket_items[2];
+    const char     * getEndpoint() const;
+    void             update_heartbeat_sign();
 };
 
 } //namespace mdp

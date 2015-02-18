@@ -30,7 +30,7 @@
 
 Альтернатива: в (О) может быть несколько нитей для обслуживания запросов. Главный
 процесс (О) получает запросы от (К) на сокет ROUTER, и передает из через inproc://workers
-остальным своим нитям (смотри пример zguide/C/mtserver.c). Обмен ROUTER<->ROUTER возможен,
+остальным своим нитям (смотри пример zguide/C/mtserver.c, asyncsrv). Обмен ROUTER<->ROUTER возможен,
 но не прост (согласно ZMQ guide).
 
 ROUTER will route messages asynchronously to any peer connected to it, if you prefix the identity as the first frame of the message.

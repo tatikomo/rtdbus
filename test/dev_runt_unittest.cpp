@@ -5,6 +5,7 @@
 
 #include "helper.hpp"
 
+
 #include "mdp_zmsg.hpp"
 #include "mdp_common.h"
 #include "mdp_broker.hpp"
@@ -13,10 +14,13 @@
 #include "mdp_client_async_api.hpp"
 #include "mdp_proxy.hpp"
 
+using namespace xdb;
 #include "xdb_broker.hpp"
 #include "xdb_impl_db_broker.hpp"
+#include "xdb_rtap_application.hpp"
+#include "xdb_rtap_environment.hpp"
+#include "xdb_rtap_connection.hpp"
 
-using namespace xdb;
 #include "wdigger.hpp"
 #include "pulsar.hpp"
 

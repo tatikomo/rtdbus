@@ -44,6 +44,12 @@
 #cmakedefine MESSAGE_EXPIRATION_PERIOD_MSEC      @MESSAGE_EXPIRATION_PERIOD_MSEC@
 #cmakedefine USE_EXTREMEDB_HTTP_SERVER  @USE_EXTREMEDB_HTTP_SERVER@
 
+/* Endpoint names for Services with direct connection possibilities */
+#cmakedefine ENDPOINT_BROKER        "@ENDPOINT_BROKER@"
+#cmakedefine ENDPOINT_SINF          "@ENDPOINT_SINF@"
+#cmakedefine ENDPOINT_IHM           "@ENDPOINT_IHM@"
+#cmakedefine ENDPOINT_EXCH          "@ENDPOINT_EXCH@"
+
 
 // test binaries
 /* Full path to test file test/test-exit in builddir */

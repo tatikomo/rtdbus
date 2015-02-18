@@ -21,6 +21,7 @@ if("${sysname}" MATCHES "SUNOS")
     OPTION(HAVE_CONSOLE_OWNER_FILE "enable console owner file (solaris only)" ON)
 
     if (CMAKE_COMPILER_IS_GNUCC)
+     add_definitions(-std=c++11)
 #     add_definitions(-m32)
     else (CMAKE_COMPILER_IS_GNUCC)
 #     add_definitions(-xarch=v9)
@@ -150,6 +151,14 @@ set (HEARTBEAT_LIVENESS 3)
 
 set (WORKERS_SPOOL_SIZE        2)
 set (MESSAGE_EXPIRATION_PERIOD_MSEC  500)
+
+# Значение по-умолчанию точки подключения к Брокеру
+set (ENDPOINT_BROKER "tcp://lo:5555")
+# Значения по-умолчанию точек подключения к Службам
+set (ENDPOINT_SINF   "tcp://lo:5556")
+set (ENDPOINT_IHM    "tcp://lo:5557")
+set (ENDPOINT_EXCH   "tcp://lo:5558")
+# Адрес tcp://lo:5559 занят управляющим сокетом DiggerProxy
 
 if(RTDBUS_BUILD_TESTS)
     add_definitions(-DRTDBUS_BUILD_TESTS)

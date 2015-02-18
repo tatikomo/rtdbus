@@ -1,3 +1,15 @@
+/*
+ * реализация Службы
+ */
+
+#include <vector>
+#include <thread>
+#include <memory>
+#include <functional>
+
+#include "zmq.hpp"
+#include "zhelpers.hpp"
+
 #include <glog/logging.h>
 #include "config.h"
 #include "mdp_common.h"
@@ -16,14 +28,19 @@ typedef struct {
   char endpoint_given[ENDPOINT_MAXLEN + 1];
 } ServiceEndpoint_t;
 
-// Таблица соответствия названия службы и ее точки входа Endpoints 
+// Таблица соответствия названия службы и ее точки входа Endpoints
+// Формат endpoint серверный, предназначен для передачи в bind()
+//
 // NB: Это дубликат структуры, хранящийся в xdb_impl_db_broker.cpp
+// Для удаленного подключения по указанному endpoint нужно заменить "lo" на "localhost",
+// то есть привести в соответствие с требуемым синтаксисом для вызова connect()
 // TODO: вывести соответствия между Службой и её точкой входа в общую конфигурацию
+//
 ServiceEndpoint_t Endpoints[] = {
-    {"BROKER","tcp://lo:5555", ""}, // Сам Брокер (BROKER_ENDPOINT_IDX)
-    {"SINF",  "tcp://lo:5556", ""}, // Информационный сервер БДРВ
-    {"IHM",   "tcp://lo:5557", ""}, // Сервер отображения
-    {"ECH",   "tcp://lo:5558", ""}, // Сервер обменов
+    {"BROKER",ENDPOINT_BROKER /*"tcp://lo:5555"*/, ""}, // Сам Брокер (BROKER_ENDPOINT_IDX)
+    {"SINF",  ENDPOINT_SINF   /*"tcp://lo:5556"*/, ""}, // Информационный сервер БДРВ
+    {"IHM",   ENDPOINT_IHM    /*"tcp://lo:5557"*/, ""}, // Сервер отображения
+    {"ECH",   ENDPOINT_EXCH   /*"tcp://lo:5558"*/, ""}, // Сервер обменов
     {"", "", ""}  // Последняя запись
 };
 
@@ -35,44 +52,41 @@ ServiceEndpoint_t Endpoints[] = {
 //  zmq_poll.
 int interrupt_worker = 0;
 
-static void s_signal_handler (int signal_value)
+static void signal_handler (int signal_value)
 {
     interrupt_worker = 1;
     LOG(INFO) << "Got signal "<<signal_value;
 }
 
-static void s_catch_signals ()
+static void catch_signals ()
 {
     struct sigaction action;
-    action.sa_handler = s_signal_handler;
+    action.sa_handler = signal_handler;
     action.sa_flags = 0;
     sigemptyset (&action.sa_mask);
-    sigaction (SIGINT, &action, NULL);
+    sigaction (SIGINT,  &action, NULL);
     sigaction (SIGTERM, &action, NULL);
+    sigaction (SIGUSR1, &action, NULL);
 }
 
 mdwrk::mdwrk (std::string broker, std::string service, int verbose) :
   m_broker(broker),
   m_service(service),
+  m_context(1),
   m_welcome_endpoint(NULL),
-  m_context(NULL),
-  m_worker(0),
-  m_welcome(0),
+  m_worker(NULL),
+  m_welcome(NULL),
   m_verbose(verbose),
   m_heartbeat(HeartbeatInterval), //  msecs
   m_reconnect(HeartbeatInterval), //  msecs
   m_expect_reply(false)
 {
-    /* NB
-     * Отличия в версиях 2.1       3.2
-     * ZMQ_RECVMORE:     int64 ->  int
-     *
-     * смотри https://github.com/zeromq/CZMQ/blob/master/sockopts.xml
-     */
     s_version_assert (3, 2);
 
-    m_context = new zmq::context_t (1);
-    s_catch_signals ();
+    catch_signals ();
+
+//    m_context = new zmq::context_t(1);
+    LOG(INFO) << "mdwrk new context " << m_context;
 
     // Обнулим хранище данных сокетов для zmq::poll
     // Заполняется хранилище в функциях connect_to_*
@@ -87,17 +101,36 @@ mdwrk::mdwrk (std::string broker, std::string service, int verbose) :
 
 //  ---------------------------------------------------------------------
 //  Destructor
+// NB: m_welcome_endpoint размещена статически, удалять не нужно
 mdwrk::~mdwrk ()
 {
-    LOG(INFO) << "Worker destructor";
+    LOG(INFO) << "mdwrk destructor";
 
     send_to_broker (MDPW_DISCONNECT, NULL, NULL);
 
-    // NB: удалять m_welcome_endpoint не нужно
+    try
+    {
+      LOG(INFO) << "mdwrk destroy m_worker " << m_worker;
+      if (m_worker)
+      {
+        m_worker->close();
+        delete m_worker;
+      }
 
-    delete m_worker;
-    delete m_welcome;
-    delete m_context;
+      LOG(INFO) << "mdwrk destroy m_welcome " << m_welcome;
+      if (m_welcome)
+      {
+        m_welcome->close();
+        delete m_welcome;
+      }
+
+      LOG(INFO) << "mdwrk destroy context " << m_context;
+      m_context.close();
+    }
+    catch(zmq::error_t error)
+    {
+      LOG(ERROR) << "mdwrk destructor: " << error.what();
+    }
 }
 
 //  ---------------------------------------------------------------------
@@ -135,10 +168,10 @@ void mdwrk::connect_to_broker ()
         LOG(INFO) << "connect_to_broker() => delete old m_worker";
         delete m_worker;
     }
-    m_worker = new zmq::socket_t (*m_context, ZMQ_DEALER);
+    m_worker = new zmq::socket_t (m_context, ZMQ_DEALER);
     m_worker->setsockopt (ZMQ_LINGER, &linger, sizeof (linger));
     // GEV 22/01/2015: ZMQ_IDENTITY добавлено для теста
-    m_worker->setsockopt (ZMQ_IDENTITY, m_service.c_str(), m_service.size());
+    //m_worker->setsockopt (ZMQ_IDENTITY, m_service.c_str(), m_service.size());
     m_worker->connect (m_broker.c_str());
     // Инициализация записей для zmq::poll для Брокера
     m_socket_items[BROKER_ITEM].socket = *m_worker;
@@ -181,7 +214,7 @@ void mdwrk::connect_to_world ()
     }
 
     // Сокет типа "Ответ", процесс играет роль сервера, получая запросы
-    m_welcome = new zmq::socket_t (*m_context, ZMQ_REP);
+    m_welcome = new zmq::socket_t (m_context, ZMQ_REP);
     m_welcome->setsockopt (ZMQ_LINGER, &linger, sizeof (linger));
     // ===================================================================================
     // TODO: Каждый Сервис должен иметь уникальную строку подключения
@@ -244,7 +277,6 @@ mdwrk::recv (std::string *&reply)
     m_expect_reply = true;
     while (!interrupt_worker)
     {
-        // NB: До реализации m_welcome пока будет 1 сокет
         zmq::poll (m_socket_items, SOCKET_COUNT, m_heartbeat);
 
         if (m_socket_items[BROKER_ITEM].revents & ZMQ_POLLIN) {
@@ -299,7 +331,7 @@ mdwrk::recv (std::string *&reply)
         }
         else if (m_socket_items[WORLD_ITEM].revents & ZMQ_POLLIN) // Событие на общем сокете
         {
-            zmsg *msg = new zmsg(*m_worker);
+            zmsg *msg = new zmsg(*m_welcome);
 //            if (m_verbose) {
                 LOG(INFO) << "New message from world:";
                 msg->dump ();

@@ -52,10 +52,10 @@ using namespace xdb;
 #include "dat/broker_db.hpp"
 
 ServiceEndpoint_t Endpoints[] = {
-    {"BROKER","tcp://lo:5555", ""}, // Сам Брокер (BROKER_ENDPOINT_IDX)
-    {"SINF",  "tcp://lo:5556", ""}, // Информационный сервер БДРВ
-    {"IHM",   "tcp://lo:5557", ""}, // Сервер отображения
-    {"ECH",   "tcp://lo:5558", ""}, // Сервер обменов
+    {"BROKER", ENDPOINT_BROKER, ""}, // Сам Брокер (BROKER_ENDPOINT_IDX)
+    {"SINF"  , ENDPOINT_SINF  , ""}, // Информационный сервер БДРВ
+    {"IHM"   , ENDPOINT_IHM   , ""}, // Сервер отображения
+    {"EXCH"  , ENDPOINT_EXCH  , ""}, // Сервер обменов
     {"", "", ""}  // Последняя запись
 };
 // Запись о точке подключения к Брокеру д.б. первой
