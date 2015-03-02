@@ -30,8 +30,7 @@ class mdwrk
 
     //  ---------------------------------------------------------------------
     //  Destructor
-    virtual
-    ~mdwrk ();
+    virtual ~mdwrk ();
 
     //  ---------------------------------------------------------------------
     //  Send message to broker
@@ -54,18 +53,15 @@ class mdwrk
 
     //  ---------------------------------------------------------------------
     //  Set heartbeat delay
-    void
-    set_heartbeat (int heartbeat);
+    void set_heartbeat (int heartbeat);
 
     //  ---------------------------------------------------------------------
     //  Set reconnect delay
-    void
-    set_reconnect (int reconnect);
+    void set_reconnect (int reconnect);
 
     //  ---------------------------------------------------------------------
     //  wait for next request and get the address for reply.
-    zmsg *
-    recv (std::string *&reply);
+    zmsg * recv (std::string *&reply);
 
   protected:
     zmq::context_t   m_context;
@@ -73,7 +69,7 @@ class mdwrk
   private:
     DISALLOW_COPY_AND_ASSIGN(mdwrk);
 
-    std::string      m_broker;
+    std::string      m_broker_endpoint;
     std::string      m_service;
     // Точка подключения 
     const char     * m_welcome_endpoint;
@@ -92,7 +88,8 @@ class mdwrk
     // [0] подключение к Брокеру
     // [1] прямое подключение
     zmq::pollitem_t  m_socket_items[2];
-    const char     * getEndpoint() const;
+    // Вернуть строку подключения, если параметр = true - преобразовать для bind()
+    const char     * getEndpoint(bool = false) const;
     void             update_heartbeat_sign();
 };
 

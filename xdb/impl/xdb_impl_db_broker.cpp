@@ -53,9 +53,9 @@ using namespace xdb;
 
 ServiceEndpoint_t Endpoints[] = {
     {"BROKER", ENDPOINT_BROKER, ""}, // Сам Брокер (BROKER_ENDPOINT_IDX)
-    {"SINF"  , ENDPOINT_SINF  , ""}, // Информационный сервер БДРВ
-    {"IHM"   , ENDPOINT_IHM   , ""}, // Сервер отображения
-    {"EXCH"  , ENDPOINT_EXCH  , ""}, // Сервер обменов
+    {"SINF"  , ENDPOINT_SINF_FRONTEND, ""}, // Информационный сервер БДРВ
+    {"IHM"   , ENDPOINT_IHM_FRONTEND , ""}, // Сервер отображения
+    {"EXCH"  , ENDPOINT_EXCH_FRONTEND, ""}, // Сервер обменов
     {"", "", ""}  // Последняя запись
 };
 // Запись о точке подключения к Брокеру д.б. первой

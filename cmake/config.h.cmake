@@ -45,10 +45,12 @@
 #cmakedefine USE_EXTREMEDB_HTTP_SERVER  @USE_EXTREMEDB_HTTP_SERVER@
 
 /* Endpoint names for Services with direct connection possibilities */
-#cmakedefine ENDPOINT_BROKER        "@ENDPOINT_BROKER@"
-#cmakedefine ENDPOINT_SINF          "@ENDPOINT_SINF@"
-#cmakedefine ENDPOINT_IHM           "@ENDPOINT_IHM@"
-#cmakedefine ENDPOINT_EXCH          "@ENDPOINT_EXCH@"
+#cmakedefine ENDPOINT_BROKER          "@ENDPOINT_BROKER@"
+#cmakedefine ENDPOINT_SINF_FRONTEND   "@ENDPOINT_SINF_FRONTEND@"
+#cmakedefine ENDPOINT_SINF_PROXY_CTRL "@ENDPOINT_SINF_PROXY_CTRL@"
+#cmakedefine ENDPOINT_SINF_BACKEND    "@ENDPOINT_SINF_BACKEND@"
+#cmakedefine ENDPOINT_IHM_FRONTEND    "@ENDPOINT_IHM_FRONTEND@"
+#cmakedefine ENDPOINT_EXCH_FRONTEND   "@ENDPOINT_EXCH_FRONTEND@"
 
 
 // test binaries

@@ -96,18 +96,30 @@ bool
 Broker::bind ()
 {
     bool status = false;
+    size_t pos;
     const char* endpoint = m_database->getEndpoint();
-
     m_endpoint.assign(endpoint);
     try
     {
-      m_socket->bind(endpoint);
-      LOG(INFO) << "MDP Broker/0.2.0 is active at " << endpoint;
+      // замена localhost на '*' или 'lo'
+      // "tcp://-------:0000" |=> "tcp://*:0000"
+      if ((pos = m_endpoint.find("localhost")) != std::string::npos)
+      {
+        m_endpoint.replace(pos, strlen("localhost"), "lo");
+      }
+      else
+      {
+        LOG(WARNING) << "Given Broker's endpoint '" << m_endpoint
+            << "' doesn't contain 'localhost', will use it as is";
+      }
+
+      m_socket->bind(m_endpoint.c_str());
+      LOG(INFO) << "MDP Broker/0.2.0 is active at " << m_endpoint;
       status = true;
     }
     catch(zmq::error_t err)
     {
-      LOG(ERROR) << "MDP Broker/0.2.0 unable bind to " << endpoint 
+      LOG(ERROR) << "MDP Broker/0.2.0 unable bind to " << m_endpoint 
         << " [" <<  err.what() << "]";
       status = false;
     }
@@ -353,15 +365,17 @@ Broker::service_internal (const std::string& service_name, zmsg *msg)
 
   //  Remove & save client return envelope and insert the
   //  protocol header and service name, then rewrap envelope.
-  //  msg::unwrap() returns reference to memory that may be deleted by msg::pop_front()
-  std::string client = msg->unwrap();
+  //  TODO msg::unwrap() returns reference to memory that may be deleted by msg::pop_front()
+  const char* client = msg->unwrap();
+
   msg->wrap(MDPC_CLIENT, service_name.c_str());
   msg->push_front(const_cast<char*>(MDPC_REPORT));
   msg->push_front(const_cast<char*>(MDPC_CLIENT));
-  msg->wrap (client.c_str(), EMPTY_FRAME);
+  msg->wrap (client, EMPTY_FRAME);
   msg->dump();
   msg->send (*m_socket);
 
+  delete [] client;
   delete srv;
 }
 
@@ -839,7 +853,7 @@ Broker::start_brokering()
    {
        zmq::pollitem_t items [] = {
            { *m_socket,  0, ZMQ_POLLIN, 0 } };
-       zmq::poll (items, 1, Broker::HeartbeatInterval);
+       zmq::poll (items, 1, Broker::PollInterval);
 
        //  Process next input message, if any
        if (items [0].revents & ZMQ_POLLIN) {

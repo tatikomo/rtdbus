@@ -22,13 +22,9 @@ using namespace mdp;
 
 extern int interrupt_worker;
 
-// Сокеты для обмена с DiggerWorker-ами через DiggerProxy
-const char* endpoint_helper_frontend = "inproc://helper_frontend";
-const char* endpoint_helper_backend  = "inproc://helper_backend";
-const char* endpoint_helper_control  = "tcp://lo:5559";
-
 const int DiggerProxy::kMaxThread = 3;
 
+// --------------------------------------------------------------------------------
 DiggerWorker::DiggerWorker(zmq::context_t &ctx, int sock_type, xdb::RtEnvironment* env) :
  m_context(ctx),
  m_worker(m_context, sock_type),
@@ -36,82 +32,85 @@ DiggerWorker::DiggerWorker(zmq::context_t &ctx, int sock_type, xdb::RtEnvironmen
  m_environment(env),
  m_db_connection(NULL)
 {
-  LOG(INFO) << "DiggerWorker start, copy context " << m_context;
+  LOG(INFO) << "DiggerWorker created";
 }
 
+// --------------------------------------------------------------------------------
 DiggerWorker::~DiggerWorker()
 {
-  LOG(INFO) << "DiggerWorker stop, context " << m_context;
+  LOG(INFO) << "DiggerWorker destroyed";
 }
 
 // Нитевой обработчик запросов
+// Выход из функции:
+// 1. по исключению
+// 2. получение строки идентификации, равной "TERMINATE"
+// --------------------------------------------------------------------------------
 void DiggerWorker::work()
 {
    int linger = 0;
+   zmsg *request = NULL;
+   zmsg *replay = NULL;
 
-   m_worker.connect(endpoint_helper_backend);
+   m_worker.connect(ENDPOINT_SINF_BACKEND);
    m_worker.setsockopt (ZMQ_LINGER, &linger, sizeof (linger));
-   LOG(INFO) << "DiggerWorker work() start connect to " << endpoint_helper_backend;
+   LOG(INFO) << "DiggerWorker thread connects to " << ENDPOINT_SINF_BACKEND;
 
    try {
-        while (!m_interrupt) {
-            zmq::message_t identity;
-            zmq::message_t msg;
-            zmq::message_t copied_id;
-            zmq::message_t copied_msg;
-            m_worker.recv(&identity);
-            m_worker.recv(&msg);
-            LOG(INFO) << "DiggerWorker work() recv()";
+        // TODO: получить подключение к БДРВ
+        //
+        //
+        //
+        //
+        while (!m_interrupt)
+        {
+          request = new zmsg (m_worker);
+          assert (request);
 
-            int replies = within(2);
-            for (int reply = 0; reply < replies; ++reply) {
-                s_sleep(within(2) + 1);
-                copied_id.copy(&identity);
-                copied_msg.copy(&msg);
-                m_worker.send(copied_id, ZMQ_SNDMORE);
-                m_worker.send(copied_msg);
-                LOG(INFO) << "DiggerWorker work() send reply";
-            }
+          LOG(INFO) << "received request:";
+          request->dump ();
+
+          // replay address
+          std::string identity  = request->pop_front();
+          if ((identity.size() == 9) && (identity.compare("TERMINATE") == 0))
+          {
+              LOG(INFO) << "Got shutdown command, terminating this DiggerWorker thread";
+              m_interrupt = true;
+              // Перед выходом очистить уже прочитанный запрос и identity
+              delete request;
+              break;
+          }
+
+          std::string header    = request->pop_front();
+          std::string payload   = request->pop_front();
+
+          replay = new zmsg ();
+          replay->push_front (const_cast<char*>(payload.c_str()));
+          replay->push_front (const_cast<char*>(header.c_str()));
+          replay->wrap (const_cast<char*>(identity.c_str()), EMPTY_FRAME);
+          LOG(INFO) << "send replay:";
+          replay->dump ();
+          replay->send (m_worker);
+
+          delete request;
+          delete replay;
         }
+
+        m_worker.close();
    }
    catch (std::exception &e) {
-        LOG(ERROR) << e.what();
-        m_interrupt = true;
-        // Вызов исключения используется для прерывания работы DiggerWorker::work
-        // путем удаления контекста из DiggerProxy.
+     LOG(ERROR) << e.what();
+     m_interrupt = true;
    }
 
-   try
-   {
-     m_worker.close();
-   }
-   catch(zmq::error_t error)
-   {
-     LOG(ERROR) << "DiggerWorker deleting socket: " << error.what();
-   }
-
-   LOG(INFO) << "DiggerWorker work() is done";
+   LOG(INFO) << "DiggerWorker thread is done";
 }
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-DiggerProxy::DiggerProxy(xdb::RtEnvironment* env) :
- m_context(1),
+// --------------------------------------------------------------------------------
+DiggerProxy::DiggerProxy(zmq::context_t &ctx, xdb::RtEnvironment* env) :
+ m_context(ctx),
  m_control(m_context, ZMQ_SUB),
  m_frontend(m_context, ZMQ_ROUTER),
  m_backend(m_context, ZMQ_DEALER),
@@ -120,34 +119,43 @@ DiggerProxy::DiggerProxy(xdb::RtEnvironment* env) :
   LOG(INFO) << "DiggerProxy start, new context " << m_context;
 }
 
-
+// --------------------------------------------------------------------------------
+//  Класс-прокси запросов от главной нити (Digger) к исполнителям (DiggerWorker)
+// --------------------------------------------------------------------------------
 DiggerProxy::~DiggerProxy()
 {
   // NB: Ничего не делать, все ресурсы освобождаются при завершении run()
   LOG(INFO) << "DiggerProxy destructor";
 }
 
-// Отдельная нить бесконечной переадресации между Broker и BrokerWorker
+// --------------------------------------------------------------------------------
+// Отдельная нить бесконечной переадресации между нитями Digger и DiggerWorker
+//  Условия завершения работы:
+//  1. Исключение zmq::error
+//  2. Получение от нити Digger сообщения "TERMINATE", что завершает работу
+//  функции zmq_proxy_steerable
+// --------------------------------------------------------------------------------
 void DiggerProxy::run()
 {
-    //
+    int mandatory = 1;
+    // Список экземпляров класса DiggerWorker
     std::vector<DiggerWorker *> m_worker;
+    // Список экземпляров нитей DiggerWorker::work()
     std::vector<std::thread *>  m_worker_thread;
 
-    m_worker.clear();
-    m_worker_thread.clear();
-
     try {
-      // Выполняется в отдельной нити 
-      m_frontend.bind(endpoint_helper_frontend);
-      LOG(INFO) << "DiggerProxy binds to " << endpoint_helper_frontend;
-      m_backend.bind(endpoint_helper_backend);
-      LOG(INFO) << "DiggerProxy binds to " << endpoint_helper_backend;
+      // Сокет прямого подключения к экземплярям DiggerWorker
+      // NB: Выполняется в отдельной нити 
+      m_frontend.setsockopt (ZMQ_ROUTER_MANDATORY, &mandatory, sizeof (mandatory));
+      m_frontend.bind("tcp://lo:5556" /*ENDPOINT_SINF_FRONTEND*/);
+      LOG(INFO) << "DiggerProxy binds to DiggerWorkers frontend " << ENDPOINT_SINF_FRONTEND;
+      m_backend.bind(ENDPOINT_SINF_BACKEND);
+      LOG(INFO) << "DiggerProxy binds to DiggerWorkers backend " << ENDPOINT_SINF_BACKEND;
 
       // Настройка управляющего сокета
-      // Для получения точки подключения заменить в endpoint_helper_control
-      // "lo" на "localhost"
-      m_control.connect("tcp://localhost:5559");
+      LOG(INFO) << "DiggerProxy is ready to connect with DiggerWorkers control";
+      m_control.connect(ENDPOINT_SINF_PROXY_CTRL);
+      LOG(INFO) << "DiggerProxy connects to DiggerWorkers control " << ENDPOINT_SINF_PROXY_CTRL;
       m_control.setsockopt(ZMQ_SUBSCRIBE, "", 0);
 
       // Создали пул Обработчиков Службы
@@ -157,51 +165,43 @@ void DiggerProxy::run()
         m_worker_thread.push_back(new std::thread(std::bind(&DiggerWorker::work, m_worker[i])));
 
         LOG(INFO) << "created DiggerWorker["<<i<<"] " << m_worker[i] << ", thread " << m_worker_thread[i];
-
-        // m_worker_thread[i]->detach();
       }
 
-      LOG(INFO) << "DiggerProxy (" << endpoint_helper_frontend
-                << ", " << endpoint_helper_backend << ")";
+      LOG(INFO) << "DiggerProxy (" << ENDPOINT_SINF_FRONTEND
+                << ", " << ENDPOINT_SINF_BACKEND << ")";
 
       int rc = zmq_proxy_steerable (m_frontend, m_backend, nullptr, m_control);
       if (0 == rc)
       {
-        LOG(INFO) << "DiggerProxy zmq::proxy finish";
+        LOG(INFO) << "DiggerProxy zmq::proxy finish successfuly";
       }
       else
       {
+        LOG(ERROR) << "DiggerProxy zmq::proxy failure";
         throw error_t ();
       }
 
-    LOG(INFO) << "DiggerProxy close frontend socket";
-    m_frontend.close();
-    LOG(INFO) << "DiggerProxy close backend socket";
-    m_backend.close();
-    LOG(INFO) << "DiggerProxy close control socket";
-    m_control.close();
+      // Вызвать останов функции DiggerWorker::work() для завершения треда
+      for (int i = 0; i < kMaxThread; ++i)
+      {
+        LOG(INFO) << "Send TERMINATE to DiggerWorker " << i;
+        m_backend.send("TERMINATE", 9, 0);
+      }
 
-    sleep(1);
+      m_frontend.close();
+      m_backend.close();
+      m_control.close();
 
-    LOG(INFO) << "DiggerProxy context closing";
-    m_context.close();
-    LOG(INFO) << "DiggerProxy context closed";
-    // Завершение контекста Прокси должно вызвать сбой poll внутри DiggerWorker::work(),
-    // что приведет к завершению треда и возможности join.
+      LOG(INFO) << "DiggerProxy cleanup "<<m_worker.size()<<" workers and threads";
 
-      LOG(INFO) << "DiggerProxy cleanup "<< m_worker.size()
-                << " workers and threads, destroy context "
-                << m_context;
-
-      // Размер m_worker и m_worker_thread может быть меньше kMaxThread, 
-      // если исключение возникло до занесения в них элементов. 
-      for (int i = 0; i < kMaxThread; ++i) {
-
+      for (int i = 0; i < kMaxThread; ++i)
+      {
         LOG(INFO) << "delete DiggerWorker["<<i+1<<"/"<<m_worker.size()<<"] "
-                  << m_worker[i] << ", thread " << m_worker_thread[i]
-                  << "joinable: " << m_worker_thread[i]->joinable();
+                  << m_worker[i]
+                  << ", thread " << m_worker_thread[i]
+                  << ", joinable: " << m_worker_thread[i]->joinable();
         m_worker_thread[i]->join();
-        LOG(INFO) << "thread joined";
+        LOG(INFO) << "DiggerProxy joins DiggerWorker' tread " << i+1;
 
         delete m_worker[i];
         delete m_worker_thread[i];
@@ -211,35 +211,17 @@ void DiggerProxy::run()
     {
       LOG(ERROR) << "DiggerProxy catch the signal: " << e.what();
     }
-
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// 2 нити обработки запросов
-Digger::Digger(std::string broker, std::string service, int verbose)
+// Класс-расширение штатной Службы для обработки запросов к БДРВ
+// --------------------------------------------------------------------------------
+Digger::Digger(std::string broker_endpoint, std::string service, int verbose)
    :
-   mdp::mdwrk(broker, service, verbose),
-   m_helpers_frontend(m_context, ZMQ_ROUTER),
+   mdp::mdwrk(broker_endpoint, service, verbose),
    m_helpers_control(m_context, ZMQ_PUB),
    m_digger_proxy(NULL),
+   m_proxy_thread(NULL),
    m_appli(NULL),
    m_environment(NULL),
    m_db_connection(NULL)
@@ -253,12 +235,13 @@ Digger::Digger(std::string broker, std::string service, int verbose)
   m_appli->setOption("OF_MAP_ADDRESS",      0x25000000);
   m_appli->setOption("OF_HTTP_PORT",        8083);
 
-//3  m_appli->initialize();
+  m_appli->initialize();
 
-//2  m_environment = m_appli->loadEnvironment("SINF");
-//2  m_db_connection = m_environment->getConnection();
+//RTDB  m_environment = m_appli->loadEnvironment("SINF");
+//RTDB  m_db_connection = m_environment->getConnection();
 }
 
+// --------------------------------------------------------------------------------
 Digger::~Digger()
 {
   LOG(INFO) << "Digger destructor";
@@ -267,8 +250,9 @@ Digger::~Digger()
 
   try
   {
-    m_helpers_frontend.close();
     m_helpers_control.close();
+
+    delete m_proxy_thread;
   }
   catch(zmq::error_t error)
   {
@@ -276,25 +260,24 @@ Digger::~Digger()
   }
 }
 
+// Запуск DiggerProxy и цикла получения сообщений
+// --------------------------------------------------------------------------------
 void Digger::run()
 {
   interrupt_worker = false;
-#if 1
+
   try
   {
     LOG(INFO) << "DiggerProxy creating";
-    m_digger_proxy = new DiggerProxy(m_environment);
-
-    LOG(INFO) << "DiggerProxy helpers connecting";
-    //m_helpers_frontend.connect(endpoint_helper_frontend);
-
-    LOG(INFO) << "DiggerProxy control connecting";
-    m_helpers_control.bind(endpoint_helper_control);
+    m_digger_proxy = new DiggerProxy(m_context, m_environment);
 
     LOG(INFO) << "DiggerProxy starting thread";
-    std::thread digger_proxy_thread(std::bind(&DiggerProxy::run, m_digger_proxy));
+    m_proxy_thread = new std::thread(std::bind(&DiggerProxy::run, m_digger_proxy));
+    sleep(2);
 
-#endif
+    LOG(INFO) << "DiggerProxy control connecting";
+    m_helpers_control.bind("tcp://lo:5557" /*ENDPOINT_SINF_PROXY_CTRL*/);
+
     // Ожидание завершения работы Прокси
     while (!interrupt_worker)
     {
@@ -302,6 +285,9 @@ void Digger::run()
       mdp::zmsg   *request  = NULL;
 
       LOG(INFO) << "Digger::recv() ready";
+      // NB: Функция recv возвращает только PERSISTENT-сообщения,
+      // DIRECT-сообщения передаются в DiggerProxy, а тот пересылает их DiggerWorker-ам
+      // Чтение DIRECT-сокета заблокировано в zmq::poll функции mdwrk::recv()
       request = recv (reply_to);
       if (request)
       {
@@ -317,29 +303,7 @@ void Digger::run()
       delete reply_to;
     }
 
-    // Остановить DiggerProxy, послав служебное сообщение его управляющему сокету
-    proxy_terminate();
-
-    // Дождались останова
-    LOG(INFO) << "Waiting joinable DiggerProxy thread";
-    while (true)
-    {
-      if (digger_proxy_thread.joinable())
-      {
-        digger_proxy_thread.join();
-        LOG(INFO) << "thread DiggerProxy joined";
-        break;
-      }
-      else
-      {
-        sleep(1);
-        LOG(INFO) << "tick join DiggerProxy waiting thread";
-      }
-    }
-
-    // Освободить ресурсы DiggerProxy
-    // NB: ресурсы выделялись в другой нити!
-    delete m_digger_proxy;
+    cleanup();
   }
   catch(zmq::error_t error)
   {
@@ -353,11 +317,54 @@ void Digger::run()
   }
 }
 
+// Останов DiggerProxy и освобождение занятых в run() ресурсов
+// --------------------------------------------------------------------------------
+void Digger::cleanup()
+{
+  try
+  {
+    // Остановить DiggerProxy, послав служебное сообщение его управляющему сокету.
+    // При этом DiggerProxy:
+    // 1. Пошлет сообщение о завершении работы своим DiggerWorker-ам.
+    // 2. Завершит все нити DiggerWorker
+    // 3. Освободит все ресурсы, закрыв сокеты
+    proxy_terminate();
+
+    // Дождались останова
+    LOG(INFO) << "Waiting joinable DiggerProxy thread";
+    while (true)
+    {
+      if (m_proxy_thread->joinable())
+      {
+        m_proxy_thread->join();
+        LOG(INFO) << "thread DiggerProxy joined";
+        break;
+      }
+      else
+      {
+        sleep(1);
+        LOG(INFO) << "tick join DiggerProxy waiting thread";
+      }
+    }
+
+    // Освободить ресурсы DiggerProxy
+    // NB: ресурсов в конструкторе не создавалось.
+    // Они были созданы и освобождены в другой нити, в функции DiggerProxy::run()
+    delete m_digger_proxy;
+  }
+  catch(std::exception &e)
+  {
+    LOG(ERROR) << e.what();
+  }
+}
+
 // Пауза прокси-треда
+// --------------------------------------------------------------------------------
 void Digger::proxy_pause()
 {
   try
   {
+    LOG(INFO) << "Send PAUSE to DiggerProxy";
     m_helpers_control.send("PAUSE", 5, 0);
   }
   catch(std::exception &e)
@@ -367,10 +374,12 @@ void Digger::proxy_pause()
 }
 
 // Продолжить исполнение прокси-треда
+// --------------------------------------------------------------------------------
 void Digger::proxy_resume()
 {
   try
   {
+    LOG(INFO) << "Send RESUME to DiggerProxy";
     m_helpers_control.send("RESUME", 6, 0);
   }
   catch(std::exception &e)
@@ -380,6 +389,7 @@ void Digger::proxy_resume()
 }
 
 // Завершить работу прокси-треда
+// --------------------------------------------------------------------------------
 void Digger::proxy_terminate()
 {
   try
@@ -394,6 +404,7 @@ void Digger::proxy_terminate()
 }
 
 
+// --------------------------------------------------------------------------------
 int Digger::handle_request(mdp::zmsg* request, std::string*& reply_to)
 {
   rtdbMsgType msgType;
@@ -436,18 +447,21 @@ int Digger::handle_request(mdp::zmsg* request, std::string*& reply_to)
   return 0;
 }
 
+// --------------------------------------------------------------------------------
 int Digger::handle_read(mdp::Letter*, std::string*)
 {
   LOG(INFO) << "Processing read request";
   return 0;
 }
 
+// --------------------------------------------------------------------------------
 int Digger::handle_write(mdp::Letter*, std::string*)
 {
   LOG(INFO) << "Processing write request";
   return 0;
 }
 
+// --------------------------------------------------------------------------------
 int Digger::handle_asklife(mdp::Letter* letter, std::string* reply_to)
 {
   RTDBM::AskLife *pb_asklife = NULL;
@@ -458,19 +472,43 @@ int Digger::handle_asklife(mdp::Letter* letter, std::string* reply_to)
   response->wrap(reply_to->c_str(), "");
 
   pb_asklife = static_cast<RTDBM::AskLife*>(letter->data());
-  std::cout << "asklife uid:"<< pb_asklife->user_exchange_id() << std::endl;
+  std::cout << "Processing asklife from " << *reply_to
+            << " uid:" << pb_asklife->user_exchange_id()
+            << " sid:" << letter->header().get_exchange_id()
+            << " dest:" << letter->header().get_proc_dest()
+            << " origin:" << letter->header().get_proc_origin() << std::endl;
+
   LOG(INFO) << "Processing asklife from " << *reply_to
             << " uid:" << pb_asklife->user_exchange_id()
             << " sid:" << letter->header().get_exchange_id()
             << " dest:" << letter->header().get_proc_dest()
             << " origin:" << letter->header().get_proc_origin();
 
-  send_to_broker((char*) MDPW_REPORT, NULL, response);
+#if 0
+  // TODO: Т.к. запрос мог поступить не только от Брокера, но и напрямую от Клиента,
+  // то здесь выбрать нужного получателя ответа.
+  switch(m_
+  {
+    case DIRECT:
+      send_direct((char*) MDPW_REPORT, NULL, response);
+      break;
+
+    case PERSISTENT:
+#endif
+      send_to_broker((char*) MDPW_REPORT, NULL, response);
+#if 0
+      break;
+      
+    default:
+      LOG(ERROR) << "Unsupported messaging reply type: " << ;
+  }
+#endif
   delete response;
 
   return 0;
 }
 
+// --------------------------------------------------------------------------------
 #if !defined _FUNCTIONAL_TEST
 int main(int argc, char **argv)
 {

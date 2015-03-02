@@ -8,7 +8,7 @@
 #include <functional>
 
 #include "zmq.hpp"
-#include "zhelpers.hpp"
+#include "mdp_helpers.hpp"
 
 #include <glog/logging.h>
 #include "config.h"
@@ -32,16 +32,18 @@ typedef struct {
 // Формат endpoint серверный, предназначен для передачи в bind()
 //
 // NB: Это дубликат структуры, хранящийся в xdb_impl_db_broker.cpp
-// Для удаленного подключения по указанному endpoint нужно заменить "lo" на "localhost",
-// то есть привести в соответствие с требуемым синтаксисом для вызова connect()
+// Для серверного подключения с помощью bind по указанному endpoint 
+// нужно заменить "localhost" на "*" или "lo", поскольку в таблице
+// синтаксис endpoint приведен для вызова connect()
+//
 // TODO: вывести соответствия между Службой и её точкой входа в общую конфигурацию
 //
 ServiceEndpoint_t Endpoints[] = {
-    {"BROKER",ENDPOINT_BROKER /*"tcp://lo:5555"*/, ""}, // Сам Брокер (BROKER_ENDPOINT_IDX)
-    {"SINF",  ENDPOINT_SINF   /*"tcp://lo:5556"*/, ""}, // Информационный сервер БДРВ
-    {"IHM",   ENDPOINT_IHM    /*"tcp://lo:5557"*/, ""}, // Сервер отображения
-    {"ECH",   ENDPOINT_EXCH   /*"tcp://lo:5558"*/, ""}, // Сервер обменов
-    {"", "", ""}  // Последняя запись
+  {"BROKER",ENDPOINT_BROKER /* tcp://localhost:5555 */, ""}, // Сам Брокер (BROKER_ENDPOINT_IDX)
+  {"SINF",  ENDPOINT_SINF_FRONTEND  /* tcp://localhost:5556 */, ""}, // Информационный сервер БДРВ
+  {"IHM",   ENDPOINT_IHM_FRONTEND   /* tcp://localhost:5557 */, ""}, // Сервер отображения
+  {"ECH",   ENDPOINT_EXCH_FRONTEND  /* tcp://localhost:5558 */, ""}, // Сервер обменов
+  {"", "", ""}  // Последняя запись
 };
 
 //  ---------------------------------------------------------------------
@@ -69,14 +71,16 @@ static void catch_signals ()
     sigaction (SIGUSR1, &action, NULL);
 }
 
-mdwrk::mdwrk (std::string broker, std::string service, int verbose) :
-  m_broker(broker),
-  m_service(service),
+// Базовый экземпляр Службы
+mdwrk::mdwrk (std::string broker_endpoint, std::string service, int verbose) :
   m_context(1),
+  m_broker_endpoint(broker_endpoint),
+  m_service(service),
   m_welcome_endpoint(NULL),
   m_worker(NULL),
   m_welcome(NULL),
   m_verbose(verbose),
+  m_liveness(HEARTBEAT_LIVENESS),
   m_heartbeat(HeartbeatInterval), //  msecs
   m_reconnect(HeartbeatInterval), //  msecs
   m_expect_reply(false)
@@ -85,23 +89,22 @@ mdwrk::mdwrk (std::string broker, std::string service, int verbose) :
 
     catch_signals ();
 
-//    m_context = new zmq::context_t(1);
     LOG(INFO) << "mdwrk new context " << m_context;
 
     // Обнулим хранище данных сокетов для zmq::poll
     // Заполняется хранилище в функциях connect_to_*
     memset (static_cast<void*>(m_socket_items), '\0', sizeof(zmq::pollitem_t) * SOCKET_COUNT);
 
-    // Получить ссылку на статически выделенную строку с параметрами подключения
-    m_welcome_endpoint = getEndpoint();
+    // Получить ссылку на динамически выделенную строку с параметрами подключения для bind
+    m_welcome_endpoint = getEndpoint(true);
 
     connect_to_broker ();
-    connect_to_world ();
+    // GEV: Попытка повторного создания серверного сокета здесь и в DiggerProxy::run()
+//    connect_to_world ();
 }
 
 //  ---------------------------------------------------------------------
 //  Destructor
-// NB: m_welcome_endpoint размещена статически, удалять не нужно
 mdwrk::~mdwrk ()
 {
     LOG(INFO) << "mdwrk destructor";
@@ -131,6 +134,9 @@ mdwrk::~mdwrk ()
     {
       LOG(ERROR) << "mdwrk destructor: " << error.what();
     }
+
+    // Или == NULL, или память выделялась в getEndpoint()
+    delete []m_welcome_endpoint;
 }
 
 //  ---------------------------------------------------------------------
@@ -163,16 +169,17 @@ void mdwrk::connect_to_broker ()
     int linger = 0;
 
     if (m_worker) {
-        // TODO: Пересоздание сокета влечет за собой ошибку zmq-рантайма 
-        // "Socket operation on non-socket" при выполнении zmq::poll
+        // Пересоздание сокета без обновления таблицы m_socket_items
+        // влечет за собой ошибку zmq-рантайма "Socket operation on non-socket"
+        // при выполнении zmq::poll
         LOG(INFO) << "connect_to_broker() => delete old m_worker";
         delete m_worker;
     }
     m_worker = new zmq::socket_t (m_context, ZMQ_DEALER);
     m_worker->setsockopt (ZMQ_LINGER, &linger, sizeof (linger));
     // GEV 22/01/2015: ZMQ_IDENTITY добавлено для теста
-    //m_worker->setsockopt (ZMQ_IDENTITY, m_service.c_str(), m_service.size());
-    m_worker->connect (m_broker.c_str());
+    m_worker->setsockopt (ZMQ_IDENTITY, m_service.c_str(), m_service.size());
+    m_worker->connect (m_broker_endpoint.c_str());
     // Инициализация записей для zmq::poll для Брокера
     m_socket_items[BROKER_ITEM].socket = *m_worker;
     m_socket_items[BROKER_ITEM].fd = 0;
@@ -180,13 +187,14 @@ void mdwrk::connect_to_broker ()
     m_socket_items[BROKER_ITEM].revents = 0;
 
     if (m_verbose)
-        LOG(INFO) << "Connecting to broker " << m_broker;
+        LOG(INFO) << "Connecting to broker " << m_broker_endpoint;
 
     // Register service with broker
     // Внесены изменения из-за необходимости передачи значения точки подключения 
     zmsg *msg = new zmsg ();
-    msg->push_front ((char*)m_welcome_endpoint);
-    msg->push_front ((char*)m_service.c_str());
+    const char* endp = getEndpoint(false);
+    msg->push_front (const_cast<char*>(endp));
+    msg->push_front (const_cast<char*>(m_service.c_str()));
     send_to_broker((char*)MDPW_READY, NULL, msg);
 
     delete msg;
@@ -277,7 +285,9 @@ mdwrk::recv (std::string *&reply)
     m_expect_reply = true;
     while (!interrupt_worker)
     {
-        zmq::poll (m_socket_items, SOCKET_COUNT, m_heartbeat);
+        // GEV: отключим пока m_welcome, т.к. он также создается и в DiggerProxy,
+        // что приводит к ошибке 'Address already in use'
+        zmq::poll (m_socket_items, 1/*SOCKET_COUNT*/, m_heartbeat);
 
         if (m_socket_items[BROKER_ITEM].revents & ZMQ_POLLIN) {
             zmsg *msg = new zmsg(*m_worker);
@@ -332,11 +342,11 @@ mdwrk::recv (std::string *&reply)
         else if (m_socket_items[WORLD_ITEM].revents & ZMQ_POLLIN) // Событие на общем сокете
         {
             zmsg *msg = new zmsg(*m_welcome);
-//            if (m_verbose) {
+            if (m_verbose) {
                 LOG(INFO) << "New message from world:";
                 msg->dump ();
-//            }
-            delete msg;
+            }
+            return msg;
         }
         else // Ожидание нового запроса завершено по таймауту
         if (--m_liveness == 0) {
@@ -383,8 +393,8 @@ void mdwrk::update_heartbeat_sign()
   m_liveness = HEARTBEAT_LIVENESS;
 }
 
-// Получить точку подключения для указанного Сервиса
-const char* mdwrk::getEndpoint() const
+// Получить точку подключения для нашего Сервиса
+const char* mdwrk::getEndpoint(bool convertation_asked) const
 {
   int entry_idx = 0; // =0 вместо -1, чтобы пропустить нулевой индекс (Брокера)
   const char* endpoint = NULL;
@@ -396,9 +406,28 @@ const char* mdwrk::getEndpoint() const
         // Нашли нашу Службу
         // Есть ли для нее значение из БД?
         if (Endpoints[entry_idx].endpoint_given[0])
+        {
           endpoint = Endpoints[entry_idx].endpoint_given;   // Да
+        }
         else
+        {
           endpoint = Endpoints[entry_idx].endpoint_default; // Нет
+        }
+        
+        // Для bind() нужно переделать строку подключения, т.к. она в формате connect()
+        // Заменить "tcp://адрес:порт" на "tcp://*:порт" или "tcp://lo:порт"
+        if (convertation_asked)
+        {
+          char *endp = new char[strlen(endpoint) + 1];
+          strcpy(endp, endpoint);
+          char *pos_slash = strrchr(endp, '/');
+          char *pos_colon = strrchr(endp, ':');
+
+          strcpy(pos_slash + 1, "*"); // "tcp://*"
+          strcat(endp, pos_colon);    // "tcp://*:5555"
+
+          endpoint = endp;
+        }
 
         break; // Завершаем поиск, т.к. названия Служб уникальны
     }

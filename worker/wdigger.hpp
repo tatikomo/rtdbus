@@ -26,19 +26,20 @@ class DiggerWorker
 {
   public:
     DiggerWorker(zmq::context_t&, int, xdb::RtEnvironment*);
-    virtual ~DiggerWorker();
+    ~DiggerWorker();
     //
     void work();
 
   private:
+    // Копия контекста основной нити Digger
+    // требуется для работы транспорта inproc
     zmq::context_t &m_context;
     zmq::socket_t   m_worker;
     // Сигнал к завершению работы
     bool            m_interrupt;
 
     // Объекты доступа к БДРВ
-    // TODO: как поведет себя БДРВ?
-    // одномоментно исполняется несколько конкурирующих экземпляров
+    // TODO: поведение БДРВ при одномоментном исполнении нескольких конкурирующих экземпляров?
     xdb::RtEnvironment *m_environment;
     xdb::RtConnection  *m_db_connection;
 };
@@ -51,6 +52,8 @@ class DiggerWorker
 //  Принимает входящие подключения с сокета ROUTER транспорт tcp://*:5570
 //  Передает задачи в пул через сокет DEALER транспорт inproc://backend
 //
+//  Первичный получатель всех запросов Клиентов (при прямом обмене)
+//
 //  TODO: предусмотреть интерфейс изменения размера пула
 //
 //  ---------------------------------------------------------------------
@@ -59,15 +62,16 @@ class DiggerProxy
   public:
     static const int kMaxThread;
 
-    DiggerProxy(xdb::RtEnvironment *);
+    DiggerProxy(zmq::context_t&, xdb::RtEnvironment*);
     ~DiggerProxy();
 
     // Запуск прокси-треда обмена между DiggerProxy и DiggerWorker
     void run();
 
   private:
-    // Отдельный от основной нити контекст 
-    zmq::context_t   m_context;
+    // Копия контекста основной нити Digger
+    // требуется для работы транспорта inproc
+    zmq::context_t  &m_context;
     // Управляющий сокет Прокси - для паузы, продолжения или завершения работы
     zmq::socket_t    m_control;
     // Входящее соединение от Клиентов
@@ -79,16 +83,17 @@ class DiggerProxy
 };
 
 
-// Первичный получатель всех запросов:
-// от Брокера (надежная доставка) 
-// и Клиентов (при прямом обмене)
+// Первичный получатель всех запросов от Брокера (надежная доставка) 
 class Digger : public mdp::mdwrk
 {
   public:
     Digger(std::string, std::string, int);
     ~Digger();
 
+    // Запуск DiggerProxy и цикла получения сообщений
     void run();
+    // Останов DiggerProxy и освобождение занятых в run() ресурсов
+    void cleanup();
 
     int handle_request(mdp::zmsg*, std::string *&);
     int handle_read(mdp::Letter*, std::string*);
@@ -99,13 +104,13 @@ class Digger : public mdp::mdwrk
     void proxy_pause();
     // Продолжить исполнение прокси-треда
     void proxy_resume();
-    // Завершить работу прокси-треда
+    // Завершить работу прокси-треда DiggerProxy
     void proxy_terminate();
 
   private:
-    zmq::socket_t       m_helpers_frontend;   //  Socket to proxy helpers
-    zmq::socket_t       m_helpers_control;    //  Socket to control proxy helpers
+    zmq::socket_t       m_helpers_control;    //  "tcp://" socket to control proxy helpers
     DiggerProxy        *m_digger_proxy; 
+    std::thread        *m_proxy_thread;
 
     xdb::RtApplication *m_appli;
     xdb::RtEnvironment *m_environment;

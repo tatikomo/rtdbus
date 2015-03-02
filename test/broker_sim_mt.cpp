@@ -87,7 +87,7 @@ int main(int argc, char*argv[])
 {
     broker_instance *ct[THREAD_MAX];
     std::thread *t[THREAD_MAX];
-    unsigned int threads;
+    unsigned int threads = 5;
 
     catch_signals();
     printf("Start async mdp::broker emulation at %s\nCompiler options: %s\n",

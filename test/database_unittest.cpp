@@ -64,8 +64,10 @@ rtap_db_dict::Dictionaries_t dict;
 
 void wait()
 {
+#ifdef USE_EXTREMEDB_HTTP_SERVER
 //  puts("\nNext...");
 //  getchar();
+#endif
 }
 
 void show_runtime_info(const char * lead_line)
@@ -466,8 +468,10 @@ TEST(TestBrokerDATABASE, DESTROY)
     EXPECT_EQ(state, DB_STATE_DISCONNECTED);
 #endif
 
-//    printf("Press any key to continue...");
-//    int ch = getchar();
+#ifdef USE_EXTREMEDB_HTTP_SERVER
+    printf("Press any key to continue...");
+    int ch = getchar();
+#endif
 
     delete database;
 }

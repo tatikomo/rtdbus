@@ -22,15 +22,41 @@ static unsigned int user_exchange_id = 1;
 static unsigned int num_iter = 1200;
 
 rtdbExchangeId id_list[MAX_LETTERS];
-typedef enum {
-  SENT_OUT      = 1,
-  RECEIVED_IN   = 2
-} Status;
-
-Pulsar::Pulsar(std::string broker, int verbose) : mdcli(broker, verbose)
+Pulsar::Pulsar(std::string broker, int verbose)
+    :
+    mdcli(broker, verbose),
+    m_channel(mdp::ChannelType::PERSISTENT) // По умолчанию обмен сообщениями со Службой через Брокер
 {
 }
 
+void Pulsar::fire_messages()
+{
+  switch(m_channel)
+  {
+    case mdp::ChannelType::DIRECT:
+    fire_direct();
+    break;
+
+    case  mdp::ChannelType::PERSISTENT:
+    fire_persistent();
+    break;
+
+    default:
+    LOG(ERROR) << "Unsupported message transport: " << m_channel;
+  }
+}
+
+void Pulsar::fire_direct()
+{
+  LOG(INFO) << "send direct messages to a service";
+}
+
+void Pulsar::fire_persistent()
+{
+  LOG(INFO) << "send messages to a service via broker";
+}
+
+// Создать сообщение и заполнить ему требуемые поля
 mdp::zmsg* generateNewOrder(rtdbExchangeId id)
 {
   std::string pb_serialized_request;
@@ -86,14 +112,18 @@ int main (int argc, char *argv [])
   int num_good_received = 0; // количество полученных сообщений, на которые мы ожидали ответ
   int opt;
   char service_name[SERVICE_NAME_MAXLEN + 1];
+  std::string service_name_str;
   char service_endpoint[ENDPOINT_MAXLEN + 1];
+  // Указано название Службы
   bool is_service_name_given = false;
+  mdp::ChannelType channel = mdp::ChannelType::PERSISTENT;
+  // По умолчанию обмен сообщениями со Службой через Брокер
   rtdbExchangeId sent_exchange_id;
 
   ::google::InstallFailureSignalHandler();
   ::google::InitGoogleLogging(argv[0]);
 
-  while ((opt = getopt (argc, argv, "vn:s:")) != -1)
+  while ((opt = getopt (argc, argv, "vdn:s:")) != -1)
   {
      switch (opt)
      {
@@ -108,6 +138,10 @@ int main (int argc, char *argv [])
             std::cout << "W: truncate given messages count ("<<num_iter<<") to "<<MAX_LETTERS<<std::endl;
             num_iter = MAX_LETTERS;
          }
+         break;
+
+       case 'd': // Direct - прямые сообщения в адрес Службы
+         channel = mdp::ChannelType::DIRECT;
          break;
 
        case 's':
@@ -144,32 +178,34 @@ int main (int argc, char *argv [])
     std::cout << "Checking '" << service_name << "' status " << std::endl;
     service_status = client->ask_service_info(service_name, service_endpoint, ENDPOINT_MAXLEN);
 
+    service_name_str.assign(service_name);
+
     switch(service_status)
     {
       case 200:
-      std::cout << service_name << " status OK : " << service_status << std::endl;
+      std::cout << service_name_str << " status OK : " << service_status << std::endl;
       std::cout << "Get point to " << service_endpoint << std::endl;
       break;
 
       case 400:
-      std::cout << service_name << " status BAD_REQUEST : " << service_status << std::endl;
+      std::cout << service_name_str << " status BAD_REQUEST : " << service_status << std::endl;
       break;
 
       case 404:
-      std::cout << service_name << " status NOT_FOUND : " << service_status << std::endl;
+      std::cout << service_name_str << " status NOT_FOUND : " << service_status << std::endl;
       break;
 
       case 501:
-      std::cout << service_name << " status NOT_SUPPORTED : " << service_status << std::endl;
+      std::cout << service_name_str << " status NOT_SUPPORTED : " << service_status << std::endl;
       break;
 
       default:
-      std::cout << service_name << " status UNKNOWN : " << service_status << std::endl;
+      std::cout << service_name_str << " status UNKNOWN : " << service_status << std::endl;
     }
 
     if (200 != service_status)
     {
-      std::cout << "Service '" << service_name << "' is not running, exiting" << std::endl;
+      std::cout << "Service '" << service_name_str << "' is not running, exiting" << std::endl;
       exit(service_status);
     }
 
@@ -177,13 +213,19 @@ int main (int argc, char *argv [])
     {
       request = generateNewOrder(sent_exchange_id);
 
-      client->send (service_name, request);
+      // Способ передачи указан в channel:
+      // - через Брокера (PERSISTENT)
+      // - напрямую процессу Службы (DIRECT)
+      client->send (service_name_str, request, channel);
+
       if (verbose)
         std::cout << "["<<sent_exchange_id<<"/"<<num_iter<<"] Send" << std::endl;
       delete request;
 
       id_list[sent_exchange_id] = SENT_OUT;
-#if 0
+      
+#ifdef ASYNC_EXCHANGE
+      // Асинхронный обмен
     }
 
     //  Wait for all trading reports
@@ -239,13 +281,12 @@ int main (int argc, char *argv [])
         delete letter;
     }
 #else
+        // Синхронный обмен
+        //-------------------------------------------------------------
         report = client->recv();
         if (report == NULL)
             break;
 
-        if (verbose)
-          report->dump();
-            
         letter = new mdp::Letter(report);
         num_received++;
         rtdbExchangeId recv_message_exchange_id = (static_cast<RTDBM::AskLife*>(letter->data()))->user_exchange_id();
@@ -290,7 +331,7 @@ int main (int argc, char *argv [])
 
   std::cout << std::endl;
   std::cout << "Received "<<num_received<<" of "<<num_iter
-  <<", exchange id was approved for "<<num_good_received<<std::endl;
+            <<", exchange id was approved for "<<num_good_received<<std::endl;
 
   // Проверить, все ли отправленные сообщения получены
   if (num_good_received < num_received)

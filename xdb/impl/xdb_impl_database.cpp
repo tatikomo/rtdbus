@@ -345,7 +345,7 @@ const Error& DatabaseImpl::Init()
   m_dev.dev.named.hint  = 0;
 
   mco_db_params_init (&m_db_params);
-  m_db_params.db_max_connections = 1;
+  m_db_params.db_max_connections = 2;
   /* set page size for in memory part */
   m_db_params.mem_page_size      = m_MemoryPageSize;
   /* set page size for persistent storage */

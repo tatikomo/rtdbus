@@ -152,13 +152,19 @@ set (HEARTBEAT_LIVENESS 3)
 set (WORKERS_SPOOL_SIZE        2)
 set (MESSAGE_EXPIRATION_PERIOD_MSEC  500)
 
+# Для использования точек подключения в серверах следует подстроку
+# от последнего символа '/' до символа ':' 
 # Значение по-умолчанию точки подключения к Брокеру
-set (ENDPOINT_BROKER "tcp://lo:5555")
-# Значения по-умолчанию точек подключения к Службам
-set (ENDPOINT_SINF   "tcp://lo:5556")
-set (ENDPOINT_IHM    "tcp://lo:5557")
-set (ENDPOINT_EXCH   "tcp://lo:5558")
-# Адрес tcp://lo:5559 занят управляющим сокетом DiggerProxy
+set (ENDPOINT_BROKER "tcp://localhost:5555")
+# Значения по-умолчанию точек подключения к Службе БДРВ
+set (ENDPOINT_SINF_FRONTEND   "tcp://localhost:5556")
+# Управляющий сокет DiggerProxy
+set (ENDPOINT_SINF_PROXY_CTRL "tcp://localhost:5557")
+# Теневой сокет DiggerProxy <=> DiggerWorker
+# NB: транспорт inproc работает между нитями только в пределах единого контекста zmq
+set (ENDPOINT_SINF_BACKEND    "inproc://sinf_backend")
+set (ENDPOINT_IHM_FRONTEND    "tcp://localhost:5558")
+set (ENDPOINT_EXCH_FRONTEND   "tcp://localhost:5559")
 
 if(RTDBUS_BUILD_TESTS)
     add_definitions(-DRTDBUS_BUILD_TESTS)
