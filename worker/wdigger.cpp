@@ -81,6 +81,7 @@ void DiggerWorker::work()
               break;
           }
 
+          std::string empty     = request->pop_front();
           std::string header    = request->pop_front();
           std::string payload   = request->pop_front();
 
@@ -177,8 +178,8 @@ void DiggerProxy::run()
       }
       else
       {
-        LOG(ERROR) << "DiggerProxy zmq::proxy failure";
-        throw error_t ();
+        LOG(ERROR) << "DiggerProxy zmq::proxy failure, rc=" << rc;
+        //throw error_t ();
       }
 
       // Вызвать останов функции DiggerWorker::work() для завершения треда
@@ -206,6 +207,10 @@ void DiggerProxy::run()
         delete m_worker[i];
         delete m_worker_thread[i];
       }
+    }
+    catch(zmq::error_t error)
+    {
+      LOG(ERROR) << "DiggerProxy catch: " << error.what();
     }
     catch (std::exception &e)
     {

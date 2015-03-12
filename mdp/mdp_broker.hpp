@@ -95,7 +95,9 @@ class Broker {
    //  Send message to worker
    //  If pointer to message is provided, sends that message
    void
-   worker_send (xdb::Worker*, const char*, const std::string&, zmsg *msg);
+   worker_send (const char*, const char*, const std::string&, zmsg *msg = NULL);
+//   void
+//   worker_send (xdb::Worker*, const char*, const std::string&, zmsg *msg);
    void
    worker_send (xdb::Worker*, const char*, const std::string&, xdb::Letter*);
    void

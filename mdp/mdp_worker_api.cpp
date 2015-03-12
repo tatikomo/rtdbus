@@ -374,6 +374,10 @@ mdwrk::recv (std::string *&reply)
   {
     LOG(ERROR) << err.what();
   }
+  catch(std::exception &e)
+  {
+    LOG(ERROR) << e.what();
+  }
 
   if (interrupt_worker)
       LOG(WARNING) << "Interrupt received, killing worker...";

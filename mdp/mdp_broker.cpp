@@ -102,7 +102,7 @@ Broker::bind ()
     try
     {
       // замена localhost на '*' или 'lo'
-      // "tcp://-------:0000" |=> "tcp://*:0000"
+      // TODO: "tcp://-------:0000" |=> "tcp://*:0000"
       if ((pos = m_endpoint.find("localhost")) != std::string::npos)
       {
         m_endpoint.replace(pos, strlen("localhost"), "lo");
@@ -408,7 +408,7 @@ Broker::release (xdb::Worker *&wrk, int disconnect)
   assert (wrk);
   if (disconnect) 
   {
-    worker_send (wrk, MDPW_DISCONNECT, EMPTY_FRAME, (xdb::Letter*)NULL);
+    worker_send (wrk->GetIDENTITY(), MDPW_DISCONNECT, EMPTY_FRAME);
   }
 
   if (false == (status = m_database->RemoveWorker(wrk)))
@@ -621,7 +621,12 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
     if (wrk)
       LOG(ERROR) << "Processing message from worker " << wrk->GetIDENTITY();
     else
+    {
       LOG(ERROR) << "Processing message from unknown worker";
+      // Послать сообщение о разрыве связи с этой неизвестной Службой sender_identity.
+      // NB: данная ситуация возможна, если Служба стартовала до запуска Брокера.
+      worker_send(sender_identity.c_str(), MDPW_DISCONNECT, EMPTY_FRAME);
+    }
   }
 
   delete wrk;
@@ -699,8 +704,9 @@ Broker::worker_send (
     /* IN     */ std::string& body)
 {
   if (m_verbose)
-    LOG(INFO) << "Send message #"<<(int)command<<" to worker '"
-              <<worker->GetIDENTITY()<<"'";
+    LOG(INFO) << "Send message #"<<(int)command
+              <<" to worker '" << worker->GetIDENTITY() <<"'";
+
   zmsg *msg = new zmsg();
   //  Stack protocol envelope to start of message
   if (option.size()>0) {                 //  Optional frame after command
@@ -729,7 +735,7 @@ Broker::worker_send (
 //  Send message to worker
 //  If pointer to message is provided, sends that message
 void
-Broker::worker_send (xdb::Worker *worker,
+Broker::worker_send (const char *worker_identity,
     const char *command, const std::string& option, zmsg *msg)
 {
     msg = (msg ? new zmsg(*msg) : new zmsg ());
@@ -741,16 +747,17 @@ Broker::worker_send (xdb::Worker *worker,
     msg->push_front (const_cast<char*>(command));
     msg->push_front (const_cast<char*>(MDPW_WORKER));
     //  Stack routing envelope to start of message
-    msg->wrap(worker->GetIDENTITY(), EMPTY_FRAME);
+    msg->wrap(worker_identity, EMPTY_FRAME);
 
     if (m_verbose) {
         LOG(INFO) << "Sending '" << mdpw_commands [static_cast<int>(*command)]
-                  << "' to worker '" << worker->GetIDENTITY() << "'";
+                  << "' to worker '" << worker_identity << "'";
         msg->dump ();
     }
     msg->send (*m_socket);
     delete msg;
 }
+
 
 //  ---------------------------------------------------------------------
 //  This worker is now waiting for work
@@ -855,7 +862,9 @@ Broker::start_brokering()
            { *m_socket,  0, ZMQ_POLLIN, 0 } };
        zmq::poll (items, 1, Broker::PollInterval);
 
-       //  Process next input message, if any
+       // Можно не посылать HEARTBEAT если от службы
+       // было получено любое сообщение, датированное в пределах
+       // интервала опроса HEARTBEAT_INTERVAL.
        if (items [0].revents & ZMQ_POLLIN) {
            zmsg *msg = new zmsg(*m_socket);
            if (m_verbose) {
@@ -888,20 +897,11 @@ Broker::start_brokering()
                delete msg;
            }
        }
+
        //  Disconnect and delete any expired workers
-           //  Send heartbeats to idle workers if needed
+       //  Send heartbeats to idle workers if needed
        if (s_clock () > m_heartbeat_at) {
            purge_workers ();
-#if 0
-           // TODO: можно не посылать HEARTBEAT если от службы 
-           // было получено любое сообщение, датированное в пределах 
-           // интервала опроса HEARTBEAT_INTERVAL
-           for (std::vector<Worker*>::iterator it = m_waiting.begin();
-                 it != m_waiting.end() && (*it)!=0; it++) {
-               worker_send (*it, (char*)MDPW_HEARTBEAT, EMPTY_FRAME, NULL);
-           }
-           m_heartbeat_at = s_clock () + Broker::HeartbeatInterval;
-#endif
        }
    }
 }

@@ -27,6 +27,7 @@ Pulsar::Pulsar(std::string broker, int verbose)
     mdcli(broker, verbose),
     m_channel(mdp::ChannelType::PERSISTENT) // По умолчанию обмен сообщениями со Службой через Брокер
 {
+  usleep(500000); // Подождать 0.5 сек, чтобы ZMQ успело физически подключиться к Брокеру 
 }
 
 void Pulsar::fire_messages()

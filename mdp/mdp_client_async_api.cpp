@@ -95,8 +95,8 @@ void mdcli::connect_to_broker ()
    }
 
    m_client = new zmq::socket_t (*m_context, ZMQ_DEALER);
-   m_client->setsockopt (ZMQ_LINGER, &linger, sizeof (linger));
    m_client->connect (m_broker.c_str());
+   m_client->setsockopt (ZMQ_LINGER, &linger, sizeof (linger));
 
    // Заполним структуру для работы recv с помощью zmq::poll
    m_socket_items[BROKER_ITEM].socket = *m_client;
@@ -196,7 +196,7 @@ int mdcli::ask_service_info(const char* service_name, char* service_endpoint, in
   else
   {
     LOG(INFO) << "Receive enpoint's response";
-    report->dump();
+    //report->dump();
 
     // MDPC0X
     std::string client_code = report->pop_front();
@@ -426,7 +426,12 @@ int mdcli::send_direct(std::string& service_name, zmsg *&request)
         // Сокета для прямых подключений еще не было, создадим его один раз
         m_peer = new zmq::socket_t(*m_context, ZMQ_DEALER);
         LOG(INFO) << "Created DIRECT messaging socket";
-        m_peer->setsockopt(ZMQ_IDENTITY, "CLI_IDENT", 9);
+
+        // generate random identity
+        char identity[10] = {};
+        sprintf(identity, "%04X-%04X", within(0x10000), within(0x10000));
+        printf("%s\n", identity);
+        m_peer->setsockopt(ZMQ_IDENTITY, identity, strlen(identity));
       }
       m_peer->connect(info->endpoint);
 
