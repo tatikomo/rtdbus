@@ -25,10 +25,17 @@ extern "C" {
 
 namespace xdb {
 
+// Четыре различных устройства БДРВ:
+// [0] БД в разделяемой памяти
+// [1] Кэш
+// [2] Persistent-часть
+// [3] Лог
+#define NDEV    4
+
 class DatabaseImpl
 {
   public:
-    DatabaseImpl(const char*, const Options&, mco_dictionary_h);
+    DatabaseImpl(const char*, const Options*, mco_dictionary_h);
     ~DatabaseImpl();
 
     // Инициализация рантайма
@@ -94,7 +101,7 @@ class DatabaseImpl
     char         m_name[DBNAME_MAXLEN+1];
     mco_db_h     m_db;
     mco_dictionary_h m_dict;
-    Options      m_db_access_flags;
+    const Options     *m_db_access_flags;
     bool         m_save_to_xml_feature;
     BitSet8      m_flags;
     static       int m_count;
@@ -104,12 +111,16 @@ class DatabaseImpl
     char* m_logFileName;
 #endif
 
+    // Максимальное количество допустимых одновременных подключений
+    int m_max_connections;
+
     // Успешность загрузки снимка БД (приоритет: двоичный, xml)
     bool m_snapshot_loaded;
 
 #if EXTREMEDB_VERSION >= 40
     mco_db_params_t    m_db_params;
-    mco_device_t       m_dev;
+    int                m_dev_num;
+    mco_device_t       m_dev[NDEV];
 #if defined USE_EXTREMEDB_HTTP_SERVER
     /*
      * Internal HttpServer http://localhost:8082/

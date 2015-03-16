@@ -155,7 +155,7 @@ class DatabaseRtapImpl
   friend class DatabaseImpl;
 
   public:
-    DatabaseRtapImpl(const char*);
+    DatabaseRtapImpl(const char*, const Options*);
     ~DatabaseRtapImpl();
 
     // Работа с состоянием БД -  инициализация, подключение, ...

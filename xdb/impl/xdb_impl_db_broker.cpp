@@ -34,6 +34,7 @@ mco_size_sig_t file_writer(void*, const void*, mco_size_t);
 #include "xdb_impl_common.hpp"
 
 #include "helper.hpp"
+#include "timer.hpp"
 #include "dat/broker_db.hpp"
 #include "xdb_impl_database.hpp"
 #include "xdb_impl_db_broker.hpp"
@@ -67,19 +68,19 @@ DatabaseBrokerImpl::DatabaseBrokerImpl(const char* _name) :
   assert(_name);
 
   // Опции по умолчанию
-  setOption(m_opt, "OF_CREATE",    1);
-  setOption(m_opt, "OF_LOAD_SNAP", 1);
-  setOption(m_opt, "OF_DATABASE_SIZE",   1024 * 1024 * 10);
-  setOption(m_opt, "OF_MEMORYPAGE_SIZE", 1024); // 0..65535
-  setOption(m_opt, "OF_MAP_ADDRESS", 0x20000000);
+  setOption(&m_opt, "OF_CREATE",    1);
+  setOption(&m_opt, "OF_LOAD_SNAP", 1);
+  setOption(&m_opt, "OF_DATABASE_SIZE",   1024 * 1024 * 10);
+  setOption(&m_opt, "OF_MEMORYPAGE_SIZE", 1024); // 0..65535
+  setOption(&m_opt, "OF_MAP_ADDRESS", 0x20000000);
 #if defined USE_EXTREMEDB_HTTP_SERVER
-  setOption(m_opt, "OF_HTTP_PORT", 8081);
+  setOption(&m_opt, "OF_HTTP_PORT", 8081);
 #endif
-  setOption(m_opt, "OF_DISK_CACHE_SIZE", 0);
+  setOption(&m_opt, "OF_DISK_CACHE_SIZE", 0);
 
   mco_dictionary_h broker_dict = broker_db_get_dictionary();
 
-  m_database = new DatabaseImpl(_name, m_opt, broker_dict);
+  m_database = new DatabaseImpl(_name, &m_opt, broker_dict);
 }
 
 DatabaseBrokerImpl::~DatabaseBrokerImpl()
@@ -728,8 +729,8 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
   mco_trans_h   t;
   broker_db::XDBService service_instance;
   broker_db::XDBWorker  worker_instance;
-  timer_mark_t  now_time, next_heartbeat_time;
-  broker_db::timer_mark xdb_next_heartbeat_time;
+  timer_mark_t          next_expiration_time;
+  broker_db::timer_mark xdb_next_expiration_time;
   autoid_t      srv_aid;
   autoid_t      wrk_aid;
 
@@ -789,20 +790,13 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
                              <<"' with service id "<<srv_aid<<", rc="<<rc; break; }
 
         /* Установить новое значение expiration */
-        // TODO: wrk->CalculateEXPIRATION_TIME();
-        if (GetTimerValue(now_time))
-        {
-          next_heartbeat_time.tv_nsec = now_time.tv_nsec;
-          next_heartbeat_time.tv_sec = now_time.tv_sec + (Worker::HeartbeatPeriodValue/1000);
-          LOG(INFO) << "Set new expiration time for reactivated worker "<<wrk->GetIDENTITY();
-        }
-        else { LOG(ERROR) << "Unable to calculate expiration time, rc="<<rc; break; }
+        wrk->CalculateEXPIRATION_TIME(next_expiration_time);
 
-        rc = worker_instance.expiration_write(xdb_next_heartbeat_time);
+        rc = worker_instance.expiration_write(xdb_next_expiration_time);
         if (rc) { LOG(ERROR) << "Unable to set worker's expiration time, rc="<<rc; break; }
-        rc = xdb_next_heartbeat_time.sec_put(next_heartbeat_time.tv_sec);
+        rc = xdb_next_expiration_time.sec_put(next_expiration_time.tv_sec);
         if (rc) { LOG(ERROR) << "Unable to set the expiration seconds, rc="<<rc; break; }
-        rc = xdb_next_heartbeat_time.nsec_put(next_heartbeat_time.tv_nsec);
+        rc = xdb_next_expiration_time.nsec_put(next_expiration_time.tv_nsec);
         if (rc) { LOG(ERROR) << "Unable to set expiration time nanoseconds, rc="<<rc; break; }
       }
       else if (MCO_S_NOTFOUND == rc) // Экземпляр не найден, так как ранее не регистрировался
@@ -828,19 +822,13 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
         wrk->SetID(wrk_aid);
 
         /* Установить новое значение expiration */
-        if (GetTimerValue(now_time))
-        {
-          next_heartbeat_time.tv_nsec = now_time.tv_nsec;
-          next_heartbeat_time.tv_sec = now_time.tv_sec + Worker::HeartbeatPeriodValue/1000;
-          LOG(INFO) << "Set new expiration time for new worker "<<wrk->GetIDENTITY();
-        }
-        else { LOG(ERROR) << "Unable to calculate expiration time, rc="<<rc; break; }
+        wrk->CalculateEXPIRATION_TIME(next_expiration_time);
 
-        rc = worker_instance.expiration_write(xdb_next_heartbeat_time);
+        rc = worker_instance.expiration_write(xdb_next_expiration_time);
         if (rc) { LOG(ERROR) << "Unable to set worker's expiration time, rc="<<rc; break; }
-        rc = xdb_next_heartbeat_time.sec_put(next_heartbeat_time.tv_sec);
+        rc = xdb_next_expiration_time.sec_put(next_expiration_time.tv_sec);
         if (rc) { LOG(ERROR) << "Unable to set the expiration seconds, rc="<<rc; break; }
-        rc = xdb_next_heartbeat_time.nsec_put(next_heartbeat_time.tv_nsec);
+        rc = xdb_next_expiration_time.nsec_put(next_expiration_time.tv_nsec);
         if (rc) { LOG(ERROR) << "Unable to set expiration time nanoseconds, rc="<<rc; break; }
       }
       else 

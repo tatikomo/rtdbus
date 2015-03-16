@@ -152,6 +152,9 @@ set (HEARTBEAT_LIVENESS 3)
 set (WORKERS_SPOOL_SIZE        2)
 set (MESSAGE_EXPIRATION_PERIOD_MSEC  500)
 
+# Зарезервированный размер памяти под БДРВ [Мб]
+set (DIGGER_DB_SIZE_MB  10)
+
 # Для использования точек подключения в серверах следует подстроку
 # от последнего символа '/' до символа ':' 
 # Значение по-умолчанию точки подключения к Брокеру
@@ -165,6 +168,9 @@ set (ENDPOINT_SINF_PROXY_CTRL "tcp://localhost:5557")
 set (ENDPOINT_SINF_BACKEND    "inproc://sinf_backend")
 set (ENDPOINT_IHM_FRONTEND    "tcp://localhost:5558")
 set (ENDPOINT_EXCH_FRONTEND   "tcp://localhost:5559")
+
+# Максимальное количество одновременно допустимых подключений
+set (DEFAULT_MAX_DB_CONNECTIONS_ALLOWED  2)
 
 if(RTDBUS_BUILD_TESTS)
     add_definitions(-DRTDBUS_BUILD_TESTS)

@@ -13,6 +13,7 @@ namespace xdb {
 
 class RtEnvironment;
 class RtPoint;
+class ConnectionImpl;
 
 class RtConnection
 {
@@ -37,6 +38,7 @@ class RtConnection
   private:
     DISALLOW_COPY_AND_ASSIGN(RtConnection);
     RtEnvironment  *m_environment;
+    ConnectionImpl *m_impl;
     Error           m_last_error;
 };
 

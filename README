@@ -1,10 +1,10 @@
 Макет комплекса обмена сообщениями и доступа к БДРВ.
 
 Используемые продукты и технологии
-1. zeromq 3.2
-2. eXtremeDB 3.5
-3. google protobuf 2.4.1
-4. google logging 1.6.0
+1. zeromq 4
+2. eXtremeDB 3.5 & 5.0
+3. google protobuf 2.5.1
+4. google logging 1.7.0
 5. xercesc 3.1.1
 6. CodeSynthesis XSD XML Schema to C++ compiler 3.3.0
 
@@ -31,7 +31,8 @@
 Альтернатива: в (О) может быть несколько нитей для обслуживания запросов. Главный
 процесс (О) получает запросы от (К) на сокет ROUTER, и передает из через inproc://workers
 остальным своим нитям (смотри пример zguide/C/mtserver.c, asyncsrv). Обмен ROUTER<->ROUTER возможен,
-но не прост (согласно ZMQ guide).
+но не прост (согласно ZMQ guide), т.к. необходимо заранее знать и указывать в передаваемом сообщении
+IDENTITY адресата.
 
 ROUTER will route messages asynchronously to any peer connected to it, if you prefix the identity as the first frame of the message.
 Think of REQ and DEALER sockets as "clients" and REP and ROUTER sockets as "servers"
@@ -211,6 +212,10 @@ PushWorker() для существующего Обработчика обнов
     integration   /var/git/rtdbus.git (push)
     origin    git@bitbucket.org:gev76/rtdbus.git (fetch)
     origin    git@bitbucket.org:gev76/rtdbus.git (push)
+
+Требование:
+Предусмотреть отдельную нить мониторинга соединений с БДРВ для Службы БДРВ.
+Примеры реализации см. в "samples/core/19-recovery/sniffer/"
 
 ==========================================================
 (gdb) print *((mco_db_connection_t*)(con0))

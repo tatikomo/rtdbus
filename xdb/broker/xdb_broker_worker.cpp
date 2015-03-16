@@ -132,3 +132,19 @@ bool Worker::Expired() const
   return expired;
 }
 
+bool Worker::CalculateEXPIRATION_TIME(timer_mark_t& next_expiration_time)
+{
+  bool status = false;
+  timer_mark_t now_time;
+
+  if (GetTimerValue(now_time))
+  {
+    next_expiration_time.tv_nsec = now_time.tv_nsec;
+    // Время до окончания срока годности => удвоенное значение интервала между двумя HEARTBEAT
+    next_expiration_time.tv_sec = now_time.tv_sec + ((Worker::HeartbeatPeriodValue/1000) * 2);
+    status = true;
+  }
+
+  return status;
+}
+

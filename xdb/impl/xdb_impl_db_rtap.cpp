@@ -305,26 +305,14 @@ MCO_RET PointInDatabase::update_references()
   return m_rc;
 }
 
-DatabaseRtapImpl::DatabaseRtapImpl(const char* _name)
+// Опции по умолчанию устанавливаются в через setOption() в RtApplication
+DatabaseRtapImpl::DatabaseRtapImpl(const char* _name, const Options* _options)
 {
-  Options opt;
   assert(_name);
-
-  // Опции по умолчанию
-  setOption(opt, "OF_CREATE",    1);
-  setOption(opt, "OF_LOAD_SNAP", 1);
-  setOption(opt, "OF_SAVE_SNAP", 1);
-  setOption(opt, "OF_DATABASE_SIZE",   1024 * 1024 * 10);
-  setOption(opt, "OF_MEMORYPAGE_SIZE", 1024); // 0..65535
-  setOption(opt, "OF_MAP_ADDRESS", 0x25000000);
-#if defined USE_EXTREMEDB_HTTP_SERVER
-  setOption(opt, "OF_HTTP_PORT", 8082);
-#endif
-  setOption(opt, "OF_DISK_CACHE_SIZE", 0);
 
   mco_dictionary_h rtap_dict = rtap_db_get_dictionary();
 
-  m_impl = new DatabaseImpl(_name, opt, rtap_dict);
+  m_impl = new DatabaseImpl(_name, _options, rtap_dict);
 
   // Инициализация карты функций создания атрибутов
   AttrFuncMapInit();
@@ -597,8 +585,8 @@ bool DatabaseRtapImpl::LoadSnapshot(const char* _fname)
   {
     // TODO Прочитать данные из XML в формате XMLSchema 'rtap_db.xsd'
     // с помощью <Classname>_xml_create() создавать содержимое БД
-    LOG(INFO) << "Прочитать данные из XML в формате XMLSchema 'rtap_db.xsd', err "
-              << getLastError().code();
+    LOG(ERROR)<< "Unable to read from XML file (format XMLSchema 'rtap_db.xsd'): "
+              << getLastError().what();
   }
   else status = true;
 

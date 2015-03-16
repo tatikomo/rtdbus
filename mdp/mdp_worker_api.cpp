@@ -373,10 +373,12 @@ mdwrk::recv (std::string *&reply)
   catch(zmq::error_t err)
   {
     LOG(ERROR) << err.what();
+    interrupt_worker = 1;
   }
   catch(std::exception &e)
   {
     LOG(ERROR) << e.what();
+    interrupt_worker = 1;
   }
 
   if (interrupt_worker)

@@ -549,20 +549,15 @@ Broker::worker_process_HEARTBEAT(xdb::Worker*& worker,
                                  const std::string& sender_identity,
                                  zmsg*)
 {
-  bool status = false;
+  bool status = true;
 
   LOG(INFO) << "Get HEARTBEAT from '" << sender_identity << "'";
   if (worker)
   {
-    // worker содержит идентификатор своего Сервиса
-    if (false == (status = m_database->PushWorker(worker)))
-    {
-      LOG(ERROR) << "Unable to register worker " << worker->GetIDENTITY();
-    }
+    // Внутри выполняется PushWorker()
+    worker_waiting(worker);
 
     database_snapshot("HEARTBEAT");
-
-    worker_waiting(worker);
   }
   else
   {
@@ -768,8 +763,13 @@ Broker::worker_waiting (xdb::Worker *worker)
 {
     xdb::Service *service = NULL;
     assert (worker);
+
     //  Queue to broker and service waiting lists
-    m_database->PushWorker(worker);
+    if (false == m_database->PushWorker(worker))
+    {
+      LOG(ERROR) << "Unable to register worker " << worker->GetIDENTITY();
+    }
+
     service = m_database->GetServiceById(worker->GetSERVICE_ID());
     if (service)
     {

@@ -2,6 +2,10 @@
 #include "glog/logging.h"
 #include "google/protobuf/stubs/common.h"
 
+#if defined HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <vector>
 #include <thread>
 #include <memory>
@@ -10,6 +14,7 @@
 #include "xdb_rtap_application.hpp"
 #include "xdb_rtap_environment.hpp"
 #include "xdb_rtap_connection.hpp"
+#include "xdb_rtap_point.hpp"
 
 #include "wdigger.hpp"
 
@@ -23,6 +28,7 @@ using namespace mdp;
 extern int interrupt_worker;
 
 const int DiggerProxy::kMaxThread = 3;
+const int Digger::DatabaseSizeBytes = 1024 * 1024 * DIGGER_DB_SIZE_MB;
 
 // --------------------------------------------------------------------------------
 DiggerWorker::DiggerWorker(zmq::context_t &ctx, int sock_type, xdb::RtEnvironment* env) :
@@ -51,13 +57,17 @@ void DiggerWorker::work()
    int linger = 0;
    zmsg *request = NULL;
    zmsg *replay = NULL;
+   xdb::RtPoint *point = NULL;
 
    m_worker.connect(ENDPOINT_SINF_BACKEND);
    m_worker.setsockopt (ZMQ_LINGER, &linger, sizeof (linger));
    LOG(INFO) << "DiggerWorker thread connects to " << ENDPOINT_SINF_BACKEND;
 
    try {
-        // TODO: получить подключение к БДРВ
+        // Каждая нить процесса, желающая работать с БДРВ,
+        // должна получить свой экземпляр RtConnection
+        m_db_connection = m_environment->getConnection();
+
         //
         //
         //
@@ -85,6 +95,17 @@ void DiggerWorker::work()
           std::string header    = request->pop_front();
           std::string payload   = request->pop_front();
 
+          // Для тестирования - ищем определенную точку в БДРВ
+#warning "2015/03/13 Продолжить здесь"
+          //
+          //
+          point = m_db_connection->locate("/KA4003/K20003/3/PT01d");
+          if (!point)
+            LOG(WARNING) << "Not found";
+          delete point;
+          //
+          //
+          //
           replay = new zmsg ();
           replay->push_front (const_cast<char*>(payload.c_str()));
           replay->push_front (const_cast<char*>(header.c_str()));
@@ -103,6 +124,8 @@ void DiggerWorker::work()
      LOG(ERROR) << e.what();
      m_interrupt = true;
    }
+
+   delete m_db_connection;
 
    LOG(INFO) << "DiggerWorker thread is done";
 }
@@ -232,24 +255,37 @@ Digger::Digger(std::string broker_endpoint, std::string service, int verbose)
    m_db_connection(NULL)
 {
   m_appli = new xdb::RtApplication("DIGGER");
-  m_appli->setOption("OF_CREATE",1);    // Создать если БД не было ранее
+  m_appli->setOption("OF_CREATE",   1);    // Создать если БД не было ранее
   m_appli->setOption("OF_LOAD_SNAP",1);
+  m_appli->setOption("OF_SAVE_SNAP",1);
+  // Максимальное число подключений к БД:
+  // a) по одному на каждый экземпляр DiggerWorker
+  // b) один для Digger
+  // c) один для мониторинга
+  m_appli->setOption("OF_MAX_CONNECTIONS",  DiggerProxy::kMaxThread + 2);
   m_appli->setOption("OF_RDWR",1);      // Открыть БД для чтения/записи
-  m_appli->setOption("OF_DATABASE_SIZE",    1024 * 1024 * 1);
+  m_appli->setOption("OF_DATABASE_SIZE",    Digger::DatabaseSizeBytes);
   m_appli->setOption("OF_MEMORYPAGE_SIZE",  1024);
-  m_appli->setOption("OF_MAP_ADDRESS",      0x25000000);
+  m_appli->setOption("OF_MAP_ADDRESS",      0x20000000);
+#if defined USE_EXTREMEDB_HTTP_SERVER
   m_appli->setOption("OF_HTTP_PORT",        8083);
+#endif
+  m_appli->setOption("OF_DISK_CACHE_SIZE",  0);
 
   m_appli->initialize();
 
-//RTDB  m_environment = m_appli->loadEnvironment("SINF");
-//RTDB  m_db_connection = m_environment->getConnection();
+  m_environment = m_appli->loadEnvironment("SINF");
+  // Каждая нить процесса, желающая работать с БДРВ, должна получить свой экземпляр
+  m_db_connection = m_environment->getConnection();
 }
 
 // --------------------------------------------------------------------------------
 Digger::~Digger()
 {
   LOG(INFO) << "Digger destructor";
+
+  delete m_db_connection;
+
   // RtEnvironment удаляется в деструкторе RtApplication
   delete m_appli;
 

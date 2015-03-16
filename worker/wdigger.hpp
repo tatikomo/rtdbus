@@ -87,6 +87,8 @@ class DiggerProxy
 class Digger : public mdp::mdwrk
 {
   public:
+    // Зарезервированный размер памяти для БДРВ
+    static const int DatabaseSizeBytes;
     Digger(std::string, std::string, int);
     ~Digger();
 
