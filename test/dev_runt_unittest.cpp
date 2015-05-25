@@ -65,13 +65,13 @@ void Dump(mdp::Letter* letter)
 
   std::cout << (int)letter->header().get_protocol_version();
   std::cout << "/" << letter->header().get_exchange_id();
+  std::cout << "/" << letter->header().get_interest_id();
   std::cout << "/" << letter->header().get_source_pid();
   std::cout << "/" << letter->header().get_proc_dest();
   std::cout << "/" << letter->header().get_proc_origin();
   std::cout << "/" << letter->header().get_sys_msg_type();
   std::cout << "/" << letter->header().get_usr_msg_type();
-  std::cout << "[" << kokoko->user_exchange_id();
-  std::cout << "/" << kokoko->exec_result();
+  std::cout << "[" << kokoko->exec_result();
   std::cout << "/" << kokoko->failure_cause()<<"]";
   std::cout << std::endl;
 }
@@ -199,7 +199,7 @@ client_task (void* /*args*/)
 
         // Единственное поле, которое может устанавливать клиент
         // напрямую в ADG_D_MSG_ASKLIFE
-        static_cast<RTDBM::AskLife*>(mdp_letter->mutable_data())->set_user_exchange_id(user_exchange_id);
+        static_cast<RTDBM::AskLife*>(mdp_letter->mutable_data())->set_status(user_exchange_id % 10);
         request->push_front(const_cast<std::string&>(mdp_letter->SerializedData()));
         request->push_front(const_cast<std::string&>(mdp_letter->SerializedHeader()));
         LOG(INFO) << "Send message id="<<user_exchange_id<<" from client";

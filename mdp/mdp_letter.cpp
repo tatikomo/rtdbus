@@ -56,6 +56,7 @@ Letter::Letter(const rtdbMsgType user_type, const std::string& dest, const std::
   // TODO Создать Header самостоятельно
   m_header_instance.instance().set_protocol_version(1);
   m_header_instance.instance().set_exchange_id(GenerateExchangeId());
+  m_header_instance.instance().set_interest_id(0);
   m_header_instance.instance().set_source_pid(getpid());
   m_header_instance.instance().set_proc_dest(dest);
   m_header_instance.instance().set_proc_origin(m_source_procname);
@@ -176,7 +177,6 @@ bool Letter::UnserializeFrom(const int user_type, const std::string* b)
       // Присвоить значения по умолчанию, поскольку иначе protobuf не сериализует эти поля
       if (!b || !b->size())
       {
-        static_cast<RTDBM::ExecResult*>(m_body_instance)->set_user_exchange_id(0);
         static_cast<RTDBM::ExecResult*>(m_body_instance)->set_exec_result(0);
         static_cast<RTDBM::ExecResult*>(m_body_instance)->set_failure_cause(0);
         // Заполнить строку сериализованными значениями по умолчанию
@@ -189,7 +189,7 @@ bool Letter::UnserializeFrom(const int user_type, const std::string* b)
       m_body_instance = new RTDBM::AskLife;
       if (!b || !b->size())
       {
-        static_cast<RTDBM::AskLife*>(m_body_instance)->set_user_exchange_id(0);
+        static_cast<RTDBM::AskLife*>(m_body_instance)->set_status(0);
         // Заполнить строку сериализованными значениями по умолчанию
         static_cast<RTDBM::AskLife*>(m_body_instance)->SerializeToString(&m_serialized_data);
         status = true;

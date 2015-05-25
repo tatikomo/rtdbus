@@ -81,14 +81,13 @@ xdb::Letter* GetNewLetter(rtdbMsgType msg_type, rtdbExchangeId user_exchange)
   {
     case ADG_D_MSG_EXECRESULT:
         pb_message = new RTDBM::ExecResult;
-        static_cast<RTDBM::ExecResult*>(pb_message)->set_user_exchange_id(user_exchange);
-        static_cast<RTDBM::ExecResult*>(pb_message)->set_exec_result(1);
-        static_cast<RTDBM::ExecResult*>(pb_message)->set_failure_cause(0);
+        static_cast<RTDBM::ExecResult*>(pb_message)->set_exec_result(user_exchange % 10);
+        static_cast<RTDBM::ExecResult*>(pb_message)->set_failure_cause(user_exchange % 100);
         break;
 
     case ADG_D_MSG_ASKLIFE:
         pb_message = new RTDBM::AskLife;
-        static_cast<RTDBM::AskLife*>(pb_message)->set_user_exchange_id(user_exchange);
+        static_cast<RTDBM::AskLife*>(pb_message)->set_status(user_exchange % 10);
         break;
 
     default:
@@ -249,13 +248,13 @@ void Dump(mdp::Letter* letter)
 
   std::cout << (int)letter->header().get_protocol_version();
   std::cout << "/" << letter->header().get_exchange_id();
+  std::cout << "/" << letter->header().get_interest_id();
   std::cout << "/" << letter->header().get_source_pid();
   std::cout << "/" << letter->header().get_proc_dest();
   std::cout << "/" << letter->header().get_proc_origin();
   std::cout << "/" << letter->header().get_sys_msg_type();
   std::cout << "/" << letter->header().get_usr_msg_type();
-  std::cout << "[" << kokoko->user_exchange_id();
-  std::cout << "/" << kokoko->exec_result();
+  std::cout << "[" << kokoko->exec_result();
   std::cout << "/" << kokoko->failure_cause()<<"]";
   std::cout << std::endl;
 }
@@ -269,9 +268,8 @@ TEST(TestLetter, USAGE)
   std::string       pb_serialized_header;
   std::string       pb_serialized_request;
 
-  pb_exec_result_request.set_user_exchange_id(102);
-  pb_exec_result_request.set_exec_result(1);
-  pb_exec_result_request.set_failure_cause(0);
+  pb_exec_result_request.set_exec_result(1234);
+  pb_exec_result_request.set_failure_cause(567);
   pb_exec_result_request.SerializeToString(&pb_serialized_request);  
 
   letter1 = new mdp::Letter(ADG_D_MSG_EXECRESULT, "NYSE", &pb_serialized_request);
@@ -279,13 +277,11 @@ TEST(TestLetter, USAGE)
 
   letter2 = new mdp::Letter(ADG_D_MSG_EXECRESULT, "NYSE");
   RTDBM::ExecResult* exec_result = static_cast<RTDBM::ExecResult*>(letter2->mutable_data());
-  exec_result->set_user_exchange_id(103);
   exec_result->set_exec_result(104);
   exec_result->set_failure_cause(105);
   Dump(letter2);
 
   pb_exec_result_request.ParseFromString(letter2->SerializedData());
-  ASSERT_EQ(pb_exec_result_request.user_exchange_id(), 103);
   ASSERT_EQ(pb_exec_result_request.exec_result(), 104);
   ASSERT_EQ(pb_exec_result_request.failure_cause(), 105);
 
@@ -484,15 +480,15 @@ TEST(TestProxy, CLIENT_MESSAGE)
   broker->database_snapshot("TEST_CLIENT_MESSAGE.START");
   pb_header.set_protocol_version(1);
   pb_header.set_exchange_id(1);
+  pb_header.set_interest_id(2);
   pb_header.set_source_pid(getpid());
   pb_header.set_proc_dest("dest");
   pb_header.set_proc_origin("src");
-  pb_header.set_sys_msg_type(100);
+  pb_header.set_sys_msg_type(USER_MESSAGE_TYPE);
   pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
 
-  pb_exec_result_request.set_user_exchange_id(1);
-  pb_exec_result_request.set_exec_result(1);
-  pb_exec_result_request.set_failure_cause(1);
+  pb_exec_result_request.set_exec_result(3);
+  pb_exec_result_request.set_failure_cause(4);
 
   pb_header.SerializeToString(&pb_serialized_header);
   pb_exec_result_request.SerializeToString(&pb_serialized_request);
@@ -601,14 +597,14 @@ TEST(TestProxy, SERVICE_DISPATCH)
   ASSERT_TRUE(worker != NULL);
 
   pb_header.set_protocol_version(1);
-  pb_header.set_exchange_id(9999999);
+  pb_header.set_exchange_id(1234567);
+  pb_header.set_interest_id(7654321);
   pb_header.set_source_pid(9999);
   pb_header.set_proc_dest("В чащах юга жил-был Цитрус?");
   pb_header.set_proc_origin("Да! Но фальшивый экземпляр.");
-  pb_header.set_sys_msg_type(100);
+  pb_header.set_sys_msg_type(USER_MESSAGE_TYPE);
   pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
 
-  pb_exec_result_request.set_user_exchange_id(9999999);
   pb_exec_result_request.set_exec_result(23145);
   pb_exec_result_request.set_failure_cause(5);
 

@@ -8,20 +8,20 @@ message CommonRequest {
 
 message Header {
   required int32    protocol_version    = 1; /* версия протокола */
-  required int32    exchange_id         = 2; /* идентификатор сообщения */
-  required int32    source_pid          = 3; /* системый идентификатор процесса-отправителя сообщения */
-  required string   proc_dest           = 4; /* название процесса-получателя */
-  required string   proc_origin         = 5; /* название процесса-создателя сообщения */
-  required int32    sys_msg_type        = 6; /* системный тип сообщения */
-  required int32    usr_msg_type        = 7; /* клиентский тип сообщения */
+  required int32    exchange_id         = 2; /* системный идентификатор обмена */
+  required int32    interest_id         = 3; /* идентификатор сообщения в рамках данного обмена */
+  required int32    source_pid          = 4; /* системый идентификатор процесса-отправителя сообщения */
+  required string   proc_dest           = 5; /* название процесса-получателя */
+  required string   proc_origin         = 6; /* название процесса-создателя сообщения */
+  required int32    sys_msg_type        = 7; /* системный тип сообщения */
+  required int32    usr_msg_type        = 8; /* клиентский тип сообщения */
 }
 
 message ExecResult {
-  required int32    user_exchange_id    = 1; /* клиентский идентификатор обмена */
-  required int32    exec_result         = 2; /* */
-  required int32    failure_cause       = 3; /* */
+  required int32    exec_result         = 1; /* */
+  required int32    failure_cause       = 2; /* */
 }
 
 message AskLife {
-  required int32    user_exchange_id    = 1; /* клиентский идентификатор обмена */
+  required int32    status              = 1; /* состояние процесса */
 }

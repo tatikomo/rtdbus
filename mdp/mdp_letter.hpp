@@ -11,6 +11,7 @@
 
 namespace mdp {
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
 class Letter
 {
   public:
@@ -56,7 +57,7 @@ class Letter
 
   private:
     DISALLOW_COPY_AND_ASSIGN(Letter);
-    msg::Header  m_header_instance; // содержит protobuf RTDBM::Header
+    msg::Header  m_header_instance;
     std::string  m_serialized_data;
     std::string  m_serialized_header;
     bool         m_initialized;
@@ -64,7 +65,66 @@ class Letter
     bool         m_header_needs_reserialization;
     std::string  m_source_procname;
     ::google::protobuf::Message *m_body_instance;
+
+  protected:
+    // системный тип сообщения
+    rtdbMsgType m_system_type;
+    // пользовательский тип сообщения
+    rtdbMsgType m_user_type;
+    // идентификатор обмена 
+    rtdbExchangeId m_exchange_id;
+    // идентификатор запроса в рамках обмена
+    rtdbExchangeId m_interest_id;
 };
+
+#if 0
+////////////////////////////////////////////////////////////////////////////////////////////////////
+class AskLife : public Letter
+{
+  public:
+    AskLife();
+    AskLife(rtdbExchangeId);
+    AskLife(const std::string&, const std::string&);
+   ~AskLife();
+    rtdbMsgType type() { return m_user_type; };
+
+    int status();
+
+  private:
+    RTDBM::AskLife  m_pb_impl;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+class ExecResult : public Letter
+{
+  public:
+    ExecResult();
+    ExecResult(rtdbExchangeId);
+    ExecResult(const std::string&, const std::string&);
+   ~ExecResult();
+   rtdbMsgType type() { return m_user_type; };
+
+  private:
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+class MessageFactory
+{
+  public:
+    MessageFactory();
+   ~MessageFactory();
+
+    // вернуть новое сообщение указанного типа
+    Letter* create(rtdbMsgType);
+
+  private:
+    int     m_version_message_system;
+    int     m_version_rtdbus;
+    pid_t   m_pid;
+    rtdbExchangeId m_exchange_id;
+};
+
+#endif
 
 } // namespace mdp
 

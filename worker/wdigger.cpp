@@ -514,14 +514,16 @@ int Digger::handle_asklife(mdp::Letter* letter, std::string* reply_to)
 
   pb_asklife = static_cast<RTDBM::AskLife*>(letter->data());
   std::cout << "Processing asklife from " << *reply_to
-            << " uid:" << pb_asklife->user_exchange_id()
+            << " status:" << pb_asklife->status()
             << " sid:" << letter->header().get_exchange_id()
+            << " iid:" << letter->header().get_interest_id()
             << " dest:" << letter->header().get_proc_dest()
             << " origin:" << letter->header().get_proc_origin() << std::endl;
 
   LOG(INFO) << "Processing asklife from " << *reply_to
-            << " uid:" << pb_asklife->user_exchange_id()
+            << " status:" << pb_asklife->status()
             << " sid:" << letter->header().get_exchange_id()
+            << " iid:" << letter->header().get_interest_id()
             << " dest:" << letter->header().get_proc_dest()
             << " origin:" << letter->header().get_proc_origin();
 

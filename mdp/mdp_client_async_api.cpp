@@ -75,6 +75,20 @@ mdcli::~mdcli ()
 
     delete m_peer;
     delete m_client;
+    // ISSUE 25.05.2015: если Клиент попытался отправить сообщение несуществующему Сервису,
+    // а затем завершает свою работу, то он "зависает" на удалении контекста:
+    // #0  0xb7fdd424 in __kernel_vsyscall ()
+    // #1  0xb7c0ac8b in poll () at ../sysdeps/unix/syscall-template.S:81
+    // #2  0xb7f329d5 in zmq::signaler_t::wait (this=0x8053dd0, timeout_=-1) at src/signaler.cpp:205
+    // #3  0xb7f13da2 in zmq::mailbox_t::recv (this=0x8053d9c, cmd_=0xbfffee00, timeout_=-1) at src/mailbox.cpp:70
+    // #4  0xb7f02867 in zmq::ctx_t::terminate (this=0x8053d48) at src/ctx.cpp:158
+    // #5  0xb7f4fbdc in zmq_ctx_term (ctx_=0x8053d48) at src/zmq.cpp:157
+    // #6  0xb7f4fdbd in zmq_ctx_destroy (ctx_=0x8053d48) at src/zmq.cpp:227
+    // #7  0xb7fcf214 in zmq::context_t::close (this=0x80549c8) at /home/gev/ITG/sandbox/rtdbus/cmake/../../cppzmq/zmq.hpp:309
+    // #8  0xb7fcf1e3 in zmq::context_t::~context_t (this=0x80549c8, __in_chrg=<optimized out>)
+    //     at /home/gev/ITG/sandbox/rtdbus/cmake/../../cppzmq/zmq.hpp:302
+    // #9  0xb7fcd518 in mdp::mdcli::~mdcli (this=0x8053b50, __in_chrg=<optimized out>)
+    //
     delete m_context;
   }
   catch(zmq::error_t err)

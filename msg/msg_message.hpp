@@ -27,6 +27,7 @@ class Header
     // RO-доступ к служебным полям
     uint32_t       get_protocol_version() const;
     rtdbExchangeId get_exchange_id() const;
+    rtdbExchangeId get_interest_id() const;
     rtdbPid        get_source_pid() const;
     const std::string&   get_proc_dest() const;
     const std::string&   get_proc_origin() const;
@@ -56,6 +57,96 @@ class Header
     // Сам заголовок
     RTDBM::Header   m_header_instance;
 };
+
+// Тело сообщения
+class Payload
+{
+  public:
+    Payload();
+    // входной параметр - фрейм заголовка из zmsg
+    Payload(const std::string&);
+    virtual ~Payload();
+    const std::string&   get_serialized();
+
+  private:
+    std::string     pb_serialized;
+};
+
+// Сообщение целиком
+class Message
+{
+  public:
+    // Создание нового соощения
+    Message(rtdbMsgType, uint32_t);
+    // Восстановление сообщения на основе фреймов заголовка и нагрузки
+    Message(const std::string&, const std::string&);
+    virtual ~Message();
+    const Header*   get_head();
+    const Payload*  get_body();
+    virtual rtdbMsgType type() = 0;
+
+    virtual void dump();
+
+  protected:
+    RTDBM::Header  m_pb_header;
+    Header  *m_header;
+    Payload *m_payload;
+    // системный тип сообщения
+    rtdbMsgType m_system_type;
+    // пользовательский тип сообщения
+    rtdbMsgType m_user_type;
+    // идентификатор обмена 
+    rtdbExchangeId m_exchange_id;
+    // идентификатор запроса в рамках обмена
+    rtdbExchangeId m_interest_id;
+
+  private:
+};
+
+class AskLife : public Message
+{
+  public:
+    AskLife();
+    AskLife(rtdbExchangeId);
+    AskLife(const std::string&, const std::string&);
+   ~AskLife();
+    rtdbMsgType type() { return m_user_type; };
+
+    int status();
+
+  private:
+    RTDBM::AskLife  m_pb_impl;
+};
+
+class ExecResult : public Message
+{
+  public:
+    ExecResult();
+    ExecResult(rtdbExchangeId);
+    ExecResult(const std::string&, const std::string&);
+   ~ExecResult();
+   rtdbMsgType type() { return m_user_type; };
+
+  private:
+};
+
+
+class MessageFactory
+{
+  public:
+    MessageFactory();
+   ~MessageFactory();
+
+    // вернуть новое сообщение указанного типа
+    Message* create(rtdbMsgType);
+
+  private:
+    int     m_version_message_system;
+    int     m_version_rtdbus;
+    pid_t   m_pid;
+    rtdbExchangeId m_exchange_id;
+};
+
 
 } //namespace msg
 

@@ -18,7 +18,7 @@
 const unsigned int MAX_LETTERS = 1200;
 
 //static unsigned int system_exchange_id = 100000;
-static unsigned int user_exchange_id = 1;
+//static unsigned int user_exchange_id = 1;
 static unsigned int num_iter = 1200;
 
 rtdbExchangeId id_list[MAX_LETTERS];
@@ -70,15 +70,16 @@ mdp::zmsg* generateNewOrder(rtdbExchangeId id)
   // TODO: все поля pb_header должны заполняться автоматически, скрыто от клиента!
   pb_header.set_protocol_version(1);
   pb_header.set_exchange_id(id);
+  pb_header.set_interest_id(0); // начальное значение
   pb_header.set_source_pid(getpid());
   pb_header.set_proc_dest("world");
   pb_header.set_proc_origin("pulsar");
-  pb_header.set_sys_msg_type(100);
+  pb_header.set_sys_msg_type(USER_MESSAGE_TYPE);
   // Значение этого поля может передаваться служебной фукции 'ОТПРАВИТЬ'
   pb_header.set_usr_msg_type(ADG_D_MSG_ASKLIFE);
 
   // Единственное поле, которое может устанавливать клиент напрямую
-  pb_request_asklife.set_user_exchange_id(user_exchange_id++);
+  pb_request_asklife.set_status(1);
 
   if (false == pb_header.SerializeToString(&pb_serialized_header))
   {
@@ -106,7 +107,7 @@ int main (int argc, char *argv [])
   mdp::zmsg *report    = NULL;
   Pulsar    *client    = NULL;
   mdp::Letter *letter = NULL;
-  RTDBM::AskLife* pb_asklife = NULL;
+  //RTDBM::AskLife* pb_asklife = NULL;
   int verbose = 0;
   int service_status;   // 200|400|404|501
   int num_received = 0; // общее количество полученных сообщений
@@ -237,7 +238,7 @@ int main (int argc, char *argv [])
         
         letter = new mdp::Letter(report);
         num_received++;
-        rtdbExchangeId recv_message_exchange_id = (static_cast<RTDBM::AskLife*>(letter->data()))->user_exchange_id();
+        rtdbExchangeId recv_message_exchange_id = (static_cast<RTDBM::AskLife*>(letter->data()))->get_exchange_id();
         if ((1 <= recv_message_exchange_id) && (recv_message_exchange_id <= num_iter))
         {
           // Идентификатор в пределах положенного
@@ -261,10 +262,11 @@ int main (int argc, char *argv [])
             std::cout << "gotcha!"      << std::endl;
             std::cout << "proto ver:"   << (int) letter->header().instance().protocol_version() << std::endl;
             std::cout << "sys exch_id:" << letter->header().instance().exchange_id() << std::endl;
+            std::cout << "interest_id:" << letter->header().instance().interest_id() << std::endl;
             std::cout << "from:"        << letter->header().instance().proc_origin() << std::endl;
             std::cout << "to:"          << letter->header().instance().proc_dest() << std::endl;
             pb_asklife = static_cast<RTDBM::AskLife*>(letter->data());
-            std::cout << "user exch_id:"<< pb_asklife->user_exchange_id() << std::endl;
+            std::cout << "user status:"<< pb_asklife->status() << std::endl;
             std::cout << "==========================================" << std::endl;
         }
         else
@@ -290,7 +292,8 @@ int main (int argc, char *argv [])
 
         letter = new mdp::Letter(report);
         num_received++;
-        rtdbExchangeId recv_message_exchange_id = (static_cast<RTDBM::AskLife*>(letter->data()))->user_exchange_id();
+        //rtdbExchangeId recv_message_exchange_id = (static_cast<RTDBM::AskLife*>(letter->header()))->get_exchange_id();
+        rtdbExchangeId recv_message_exchange_id = letter->header().get_exchange_id();
         if ((1 <= recv_message_exchange_id) && (recv_message_exchange_id <= num_iter))
         {
           // Идентификатор в пределах положенного
