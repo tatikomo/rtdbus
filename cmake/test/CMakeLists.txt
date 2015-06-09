@@ -68,6 +68,8 @@ set (TEST_DEV_INTERNAL_SOURCES
         ${MDP_DIR}/mdp_common.h
         ${MDP_DIR}/mdp_zmsg.hpp
         ${MSG_DIR}/msg_common.h
+        ${MSG_DIR}/msg_message.hpp
+        ${MSG_DIR}/msg_adm.hpp
         ${MSG_DIR}/proto/common.pb.cc
         ${MSG_DIR}/proto/common.pb.h
         ${TEST_RTDBUS_DIR}/dev_int_unittest.cpp)
@@ -119,8 +121,25 @@ set (TEST_MSG_SOURCES
         ${GTEST_DIR}/include/gtest/gtest.h
         ${MDP_DIR}/mdp_zmsg.hpp
         ${MDP_DIR}/mdp_helpers.cpp
+        ${XDB_IMPL_DIR}/dat/broker_db.hpp
+        ${XDB_IMPL_DIR}/dat/broker_db.h
+        ${XDB_IMPL_DIR}/dat/broker_db.c
+        ${XDB_BROKER_DIR}/xdb_broker_worker.hpp
+        ${XDB_BROKER_DIR}/xdb_broker.hpp
+        ${XDB_BROKER_DIR}/xdb_broker_service.hpp
+        ${XDB_BROKER_DIR}/xdb_broker_letter.hpp
+        ${MDP_DIR}/mdp_broker.hpp
+        ${MDP_DIR}/mdp_broker.cpp
+        ${MDP_DIR}/mdp_worker_api.hpp
+        ${MDP_DIR}/mdp_client_async_api.hpp
+        ${MDP_DIR}/mdp_proxy.hpp
+        ${MDP_DIR}/mdp_common.h
+        ${MDP_DIR}/mdp_zmsg.hpp
         ${MSG_DIR}/proto/common.pb.cc
         ${MSG_DIR}/proto/common.pb.h
+        ${MSG_DIR}/msg_common.h
+        ${MSG_DIR}/msg_message.hpp
+        ${MSG_DIR}/msg_adm.hpp
         ${TEST_RTDBUS_DIR}/message_unittest.cpp)
 
 if (CMAKE_COMPILER_IS_GNUCC)
@@ -231,10 +250,6 @@ target_link_libraries(${UNITTEST_DEV_RUN}
     ${XDB_BROKER_LIBRARY_NAME}
     ${XDB_RTAP_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
-    ${MSG_LIBRARY_NAME}
-    ${TOOLS_LIBRARY_NAME}
-    ${LIBEXTREMEDB_LIBRARIES_ALL}
-    ${LIBGLOG_LIBRARIES}
     ${SYSTEM_EXTERNAL_LIBS})
 
 add_executable (${UNITTEST_DATABASE} ${TEST_DATABASE_SOURCES})
@@ -242,17 +257,12 @@ target_link_libraries(${UNITTEST_DATABASE}
     ${XDB_BROKER_LIBRARY_NAME}
     ${XDB_RTAP_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
-    ${TOOLS_LIBRARY_NAME}
-    ${LIBPROTOBUF_LIBRARIES}
-    ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${SYSTEM_EXTERNAL_LIBS})
 
 add_executable (${UNITTEST_MESSAGE} ${TEST_MSG_SOURCES})
 target_link_libraries(${UNITTEST_MESSAGE}
     ${MDP_LIBRARY_NAME}
     ${LIBPROTOBUF_LIBRARIES}
-    ${MSG_LIBRARY_NAME}
-    ${XDB_BROKER_IMPL_LIBRARY_NAME}
     ${XDB_BROKER_LIBRARY_NAME}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${SYSTEM_EXTERNAL_LIBS})

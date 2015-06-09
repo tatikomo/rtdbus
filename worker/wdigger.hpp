@@ -11,9 +11,11 @@
 #include "config.h"
 #include "mdp_worker_api.hpp"
 #include "mdp_zmsg.hpp"
-#include "mdp_letter.hpp"
+#include "msg_message.hpp"
 
 namespace mdp {
+
+const char* const DIGGER_NAME = "digger";
 
 // Вторичный обработчик запросов:
 // Процедура:
@@ -98,9 +100,9 @@ class Digger : public mdp::mdwrk
     void cleanup();
 
     int handle_request(mdp::zmsg*, std::string *&);
-    int handle_read(mdp::Letter*, std::string*);
-    int handle_write(mdp::Letter*, std::string*);
-    int handle_asklife(mdp::Letter*, std::string*);
+    int handle_read(msg::Letter*, std::string*);
+    int handle_write(msg::Letter*, std::string*);
+    int handle_asklife(msg::Letter*, std::string*);
 
     // Пауза прокси-треда
     void proxy_pause();
@@ -113,6 +115,9 @@ class Digger : public mdp::mdwrk
     zmq::socket_t       m_helpers_control;    //  "tcp://" socket to control proxy helpers
     DiggerProxy        *m_digger_proxy; 
     std::thread        *m_proxy_thread;
+
+    // Фабрика сообщений
+    msg::MessageFactory *m_message_factory;
 
     xdb::RtApplication *m_appli;
     xdb::RtEnvironment *m_environment;

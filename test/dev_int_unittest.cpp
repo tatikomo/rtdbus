@@ -9,20 +9,18 @@
 #include "mdp_common.h"
 #include "mdp_broker.hpp"
 #include "mdp_worker_api.hpp"
-#include "mdp_letter.hpp"
 #include "mdp_client_async_api.hpp"
 #include "mdp_proxy.hpp"
 
 #include "xdb_broker.hpp"
 #include "xdb_impl_db_broker.hpp"
-//#include "xdb_broker_letter.hpp"
-//#include "xdb_broker_service.hpp"
 
 using namespace xdb;
-#include "pulsar.hpp"
 
 // Определения пользовательских сообщений и их сериализованных структур
 #include "msg_common.h"
+#include "msg_message.hpp"
+#include "msg_adm.hpp"
 #include "proto/common.pb.h"
 
 mdp::Broker *broker = NULL;
@@ -37,6 +35,7 @@ std::string client_identity_2 = "@C000000002";
 
 xdb::DatabaseBroker *database = NULL;
 
+msg::MessageFactory *message_factory = NULL;
 const char *attributes_connection_to_broker = (const char*)"tcp://localhost:5555";
 const char *BROKER_SNAP_FILE = (const char*)"broker_db.snap";
 xdb::Service *service1 = NULL;
@@ -55,7 +54,7 @@ typedef enum
 /*
  * Прототипы функций
  */
-void         Dump(mdp::Letter*);
+void         Dump(msg::Letter*);
 void         PrintWorker(xdb::Worker*);
 xdb::Letter* GetNewLetter(rtdbMsgType, rtdbExchangeId);
 
@@ -72,22 +71,20 @@ void PrintWorker(xdb::Worker* worker)
 
 xdb::Letter* GetNewLetter(rtdbMsgType msg_type, rtdbExchangeId user_exchange)
 {
-  ::google::protobuf::Message* pb_message = NULL;
-  std::string   pb_serialized_request;
   xdb::Letter  *xdb_letter;
-  mdp::Letter  *mdp_letter;
+  msg::Letter  *msg_letter;
+
+  msg_letter = message_factory->create(msg_type);
 
   switch(msg_type)
   {
     case ADG_D_MSG_EXECRESULT:
-        pb_message = new RTDBM::ExecResult;
-        static_cast<RTDBM::ExecResult*>(pb_message)->set_exec_result(user_exchange % 10);
-        static_cast<RTDBM::ExecResult*>(pb_message)->set_failure_cause(user_exchange % 100);
+        static_cast<msg::ExecResult*>(msg_letter)->set_exec_result(user_exchange % 10);
+        static_cast<msg::ExecResult*>(msg_letter)->set_failure_cause(user_exchange % 100);
         break;
 
     case ADG_D_MSG_ASKLIFE:
-        pb_message = new RTDBM::AskLife;
-        static_cast<RTDBM::AskLife*>(pb_message)->set_status(user_exchange % 10);
+        static_cast<msg::AskLife*>(msg_letter)->set_status(user_exchange % 10);
         break;
 
     default:
@@ -95,25 +92,14 @@ xdb::Letter* GetNewLetter(rtdbMsgType msg_type, rtdbExchangeId user_exchange)
         break;
   }
 
-  pb_message->SerializeToString(&pb_serialized_request);
-  delete pb_message;
-  mdp_letter = new mdp::Letter(msg_type, 
-                               static_cast<const std::string&>(service_name_1),
-                               static_cast<const std::string*>(&pb_serialized_request));
-
   xdb_letter = new xdb::Letter(client_identity_2.c_str(),
                            /* заголовок */
-                           mdp_letter->SerializedHeader(),
+                           msg_letter->header()->get_serialized(),
                            /* тело сообщения */
-                           mdp_letter->SerializedData());
-  delete mdp_letter;
+                           msg_letter->data()->get_serialized());
+  delete msg_letter;
 
   return xdb_letter;
-}
-
-Pulsar::Pulsar(std::string broker, int verbose) : mdcli(broker, verbose)
-{
-  LOG(INFO) << "Create pulsar instance";
 }
 
 void purge_workers(PurgeFilter_t filter)
@@ -242,53 +228,54 @@ TEST(TestHelper, CLOCK)
   LOG(INFO) << "TestHelper CLOCK stop";
 }
 
-void Dump(mdp::Letter* letter)
+void Dump(msg::Letter* letter)
 {
-  RTDBM::ExecResult *kokoko = static_cast<RTDBM::ExecResult*>(letter->data());
-
-  std::cout << (int)letter->header().get_protocol_version();
-  std::cout << "/" << letter->header().get_exchange_id();
-  std::cout << "/" << letter->header().get_interest_id();
-  std::cout << "/" << letter->header().get_source_pid();
-  std::cout << "/" << letter->header().get_proc_dest();
-  std::cout << "/" << letter->header().get_proc_origin();
-  std::cout << "/" << letter->header().get_sys_msg_type();
-  std::cout << "/" << letter->header().get_usr_msg_type();
-  std::cout << "[" << kokoko->exec_result();
-  std::cout << "/" << kokoko->failure_cause()<<"]";
+  std::cout << (int)letter->header()->protocol_version();
+  std::cout << "/" << letter->header()->exchange_id();
+  std::cout << "/" << letter->header()->interest_id();
+  std::cout << "/" << letter->header()->source_pid();
+  std::cout << "/" << letter->header()->proc_dest();
+  std::cout << "/" << letter->header()->proc_origin();
+  std::cout << "/" << letter->header()->sys_msg_type();
+  std::cout << "/" << letter->header()->usr_msg_type();
+  std::cout << "/" << letter->header()->time_mark();
   std::cout << std::endl;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+TEST(TestLetter, FACTORY_CREATE)
+{
+  message_factory = new msg::MessageFactory("dev_int_test");
+  ASSERT_TRUE(message_factory);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 TEST(TestLetter, USAGE)
 {
-  mdp::Letter* letter1 = NULL;
-  mdp::Letter* letter2 = NULL;
+  msg::ExecResult  *letter = NULL;
   RTDBM::ExecResult pb_exec_result_request;
   std::string       pb_serialized_header;
   std::string       pb_serialized_request;
 
-  pb_exec_result_request.set_exec_result(1234);
-  pb_exec_result_request.set_failure_cause(567);
-  pb_exec_result_request.SerializeToString(&pb_serialized_request);  
+  letter = static_cast<msg::ExecResult*>(message_factory->create(ADG_D_MSG_EXECRESULT));
+  letter->set_exec_result(1234);
+  letter->set_failure_cause(567);
+  Dump(letter);
+  EXPECT_TRUE(letter->exec_result() == 1234);
+  EXPECT_TRUE(letter->failure_cause() == 567);
 
-  letter1 = new mdp::Letter(ADG_D_MSG_EXECRESULT, "NYSE", &pb_serialized_request);
-  Dump(letter1);
+  pb_exec_result_request.ParseFromString(letter->data()->get_serialized());
+  EXPECT_TRUE(pb_exec_result_request.exec_result() == 1234);
+  EXPECT_TRUE(pb_exec_result_request.failure_cause() == 567);
 
-  letter2 = new mdp::Letter(ADG_D_MSG_EXECRESULT, "NYSE");
-  RTDBM::ExecResult* exec_result = static_cast<RTDBM::ExecResult*>(letter2->mutable_data());
-  exec_result->set_exec_result(104);
-  exec_result->set_failure_cause(105);
-  Dump(letter2);
-
-  pb_exec_result_request.ParseFromString(letter2->SerializedData());
-  ASSERT_EQ(pb_exec_result_request.exec_result(), 104);
-  ASSERT_EQ(pb_exec_result_request.failure_cause(), 105);
-
-  delete letter1;
-  delete letter2;
-
+  delete letter;
   // TODO: создать экземпляры остальных типов сообщений
+}
+
+////////////////////////////////////////////////////////////////////////////////
+TEST(TestLetter, FACTORY_DESTROY)
+{
+  delete message_factory;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -486,6 +473,7 @@ TEST(TestProxy, CLIENT_MESSAGE)
   pb_header.set_proc_origin("src");
   pb_header.set_sys_msg_type(USER_MESSAGE_TYPE);
   pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
+  pb_header.set_time_mark(time(0));
 
   pb_exec_result_request.set_exec_result(3);
   pb_exec_result_request.set_failure_cause(4);
@@ -604,6 +592,7 @@ TEST(TestProxy, SERVICE_DISPATCH)
   pb_header.set_proc_origin("Да! Но фальшивый экземпляр.");
   pb_header.set_sys_msg_type(USER_MESSAGE_TYPE);
   pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
+  pb_header.set_time_mark(time(0));
 
   pb_exec_result_request.set_exec_result(23145);
   pb_exec_result_request.set_failure_cause(5);

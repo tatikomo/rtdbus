@@ -102,12 +102,19 @@ int task_id_check( pid_t tid ){
 
 DatabaseImpl::DatabaseImpl(const char* _name, const Options* _options, mco_dictionary_h _dict) :
   m_snapshot_counter(0),
+  m_DatabaseSize(1024 * 1024 * 10),
+  m_MemoryPageSize(256),
+  m_MapAddress(0x20000000),
+  m_DbDiskCache(0),
+  m_DbDiskPageSize(0),
   m_state(DB_STATE_UNINITIALIZED),
   m_last_error(rtE_NONE),
   m_db(NULL),
   m_dict(_dict),
   m_db_access_flags(_options),
   m_save_to_xml_feature(false),
+  m_flags(0),
+  m_max_connections(DEFAULT_MAX_DB_CONNECTIONS_ALLOWED),
   m_snapshot_loaded(false)
 {
   int val;
@@ -1063,8 +1070,6 @@ const Error& DatabaseImpl::LoadFromXML(const char* given_file_name)
 const Error& DatabaseImpl::Open()
 {
   MCO_RET rc = MCO_S_OK;
-  int  opt_val;
-  char fname[150];
 
   clearError();
 
@@ -1386,6 +1391,7 @@ void DatabaseImpl::clearError()
 // Интерфейс управления БД - Контроль выполнения
 const Error& DatabaseImpl::Control(rtDbCq& info)
 {
+  
   m_last_error = rtE_NOT_IMPLEMENTED;
   return m_last_error;
 }

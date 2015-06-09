@@ -9,7 +9,7 @@ const char * EMPTY_FRAME = "";
 //  This is the version of MDP/Client we implement
 const char * MDPC_CLIENT = "MDPC0X";
 
-char *mdpc_commands [] = {
+const char *mdpc_commands [] = {
     '\0',
     (const char*)"REQUEST",
     (const char*)"REPORT",
@@ -20,7 +20,7 @@ char *mdpc_commands [] = {
 const char * MDPW_WORKER = "MDPW0X";
 
 // TODO: в версии 0.2 REPORT заменен на PARTIAL и FINAL
-char *mdpw_commands [] = {
+const char *mdpw_commands [] = {
     '\0',
     (const char*)"READY",
     (const char*)"REQUEST",

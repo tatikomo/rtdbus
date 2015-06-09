@@ -11,6 +11,7 @@
 #include "mdp_zmsg.hpp"
 #include "mdp_common.h"
 #include "msg_message.hpp"
+#include "msg_adm.hpp"
 #include "proto/common.pb.h"
 #include "xdb_broker_letter.hpp"
 
@@ -23,13 +24,11 @@ xdb::Letter       *letter = NULL;
 mdp::zmsg         *message = NULL;
 
 msg::MessageFactory *message_factory = NULL;
-msg::Message        *messa = NULL;
-const msg::Header   *head = NULL;
-const msg::Payload  *body = NULL;
 // Сообщения, создаваемые фабрикой сообщений в зависимости от указанного типа
 msg::AskLife        *ask_life = NULL;
-
-char              *my_name = (char*)"message_test";
+const msg::Header   *head = NULL;
+const msg::Data     *data = NULL;
+static const char   *my_name = (const char*)"message_test";
 
 TEST(TestProtobuf, PROTO_VERSION)
 {
@@ -51,6 +50,7 @@ TEST(TestProtobuf, EXEC_RESULT)
   pb_header.set_proc_origin("Да! Но фальшивый экземпляр.");
   pb_header.set_sys_msg_type(100);
   pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
+  pb_header.set_time_mark(time(0));
 
   pb_exec_result_request.set_exec_result(23145);
   pb_exec_result_request.set_failure_cause(5);
@@ -64,7 +64,7 @@ TEST(TestProtobuf, EXEC_RESULT)
   message->push_front(pb_serialized_request);
   message->push_front(pb_serialized_header);
   message->push_front(const_cast<char*>(EMPTY_FRAME));
-  message->push_front(my_name);
+  message->push_front(const_cast<char*>(my_name));
   message->dump();
 }
 
@@ -102,34 +102,19 @@ TEST(TestPayload, ACCESS)
 
   exec_result.ParseFromString(letter->GetDATA());
 
-  EXPECT_EQ(pb_header.protocol_version(),            header->get_protocol_version());
-  EXPECT_EQ((rtdbExchangeId)pb_header.exchange_id(), header->get_exchange_id());
-  EXPECT_EQ((rtdbExchangeId)pb_header.interest_id(), header->get_interest_id());
-  EXPECT_EQ((rtdbPid)pb_header.source_pid(),         header->get_source_pid());
-  EXPECT_EQ(pb_header.proc_dest(),        header->get_proc_dest());
-  EXPECT_EQ(pb_header.proc_origin(),      header->get_proc_origin());
-  EXPECT_EQ(pb_header.sys_msg_type(),     header->get_sys_msg_type());
-  EXPECT_EQ(pb_header.usr_msg_type(),     header->get_usr_msg_type());
+  EXPECT_EQ(pb_header.protocol_version(),            header->protocol_version());
+  EXPECT_EQ((rtdbExchangeId)pb_header.exchange_id(), header->exchange_id());
+  EXPECT_EQ((rtdbExchangeId)pb_header.interest_id(), header->interest_id());
+  EXPECT_EQ((rtdbPid)pb_header.source_pid(),         header->source_pid());
+  EXPECT_EQ(pb_header.proc_dest(),        header->proc_dest());
+  EXPECT_EQ(pb_header.proc_origin(),      header->proc_origin());
+  EXPECT_EQ(pb_header.sys_msg_type(),     header->sys_msg_type());
+  EXPECT_EQ(pb_header.usr_msg_type(),     header->usr_msg_type());
+  EXPECT_EQ(pb_header.time_mark(),        header->time_mark());
 
   EXPECT_EQ(pb_exec_result_request.exec_result(),      exec_result.exec_result());
   EXPECT_EQ(pb_exec_result_request.failure_cause(),    exec_result.failure_cause());
 
-#if 0
-  std::cout << "HEADER --------------------------- " << std::endl;
-  std::cout << "Protocol version: " << (int) header->get_protocol_version() << std::endl;
-  std::cout << "Exchange ID: "      << header->get_exchange_id() << std::endl;
-  std::cout << "Interest ID: "      << header->get_interest_id() << std::endl;
-  std::cout << "Source pid:"        << header->get_source_pid() << std::endl;
-  std::cout << "Destination: "      << header->get_proc_dest() << std::endl;
-  std::cout << "Originator: "       << header->get_proc_origin() << std::endl;
-  std::cout << "Msg system type: "  << header->get_sys_msg_type() << std::endl;
-  std::cout << "Usr system type: "  << header->get_usr_msg_type() << std::endl;
-  
-  std::cout << "MESSAGE --------------------------- " << std::endl;
-  std::cout << "User exchange ID: "   << exec_result.user_exchange_id() << std::endl;
-  std::cout << "Execution result: "   << exec_result.exec_result() << std::endl;
-  std::cout << "User failure cause: " << exec_result.failure_cause() << std::endl;
-#endif
   delete header;
 }
 
@@ -139,23 +124,13 @@ TEST(TespPayload, DELETE)
   delete letter;
 }
 
-TEST(TestMessageFactory, CREATE)
+TEST(TestMessage, CREATE_FACTORY)
 {
-  message_factory = new msg::MessageFactory();
+  message_factory = new msg::MessageFactory(my_name);
   ASSERT_TRUE(message_factory);
-
-  ask_life = static_cast<msg::AskLife*>(message_factory->create(ADG_D_MSG_ASKLIFE));
-  ASSERT_TRUE(ask_life);
-
-  ask_life->dump();
 }
 
-TEST(TestMessageFactory, DESTROY)
-{
-  delete message_factory;
-}
-
-TEST(TestMessage, CREATE)
+TEST(TestMessage, CREATE_LETTER)
 {
   // Начало сериализации данных тестового запроса AskLife
   RTDBM::Header   pb_header_asklife;
@@ -171,32 +146,95 @@ TEST(TestMessage, CREATE)
   pb_header_asklife.set_proc_origin("SON");
   pb_header_asklife.set_sys_msg_type(USER_MESSAGE_TYPE);
   pb_header_asklife.set_usr_msg_type(ADG_D_MSG_ASKLIFE);
+  pb_header_asklife.set_time_mark(time(0));
 
-  pb_request_asklife.set_status(654321);
+  pb_request_asklife.SerializeToString(&pb_serialized_request_asklife);
+  // д.б. пустая строка, поскольку protobuf не сериализует неинициализированные поля
+  EXPECT_EQ(pb_serialized_request_asklife.size(), 0);
+
+  for (int idx = 1; idx<5; idx++)
+  {
+    pb_request_asklife.set_status(idx);
+    EXPECT_EQ(pb_request_asklife.status(), idx);
+
+    pb_request_asklife.SerializeToString(&pb_serialized_request_asklife);
+
+    // Содержит нормальные значения, т.к. была проведена инициализация
+    EXPECT_EQ((pb_serialized_request_asklife.size() > 0), true);
+  }
+
+  pb_request_asklife.set_status(54321);
+  EXPECT_EQ(pb_request_asklife.status(), 54321);
+
+  pb_request_asklife.SerializeToString(&pb_serialized_request_asklife);
 
   pb_header_asklife.SerializeToString(&pb_serialized_header_asklife);
-  pb_request_asklife.SerializeToString(&pb_serialized_request_asklife);
+//  hex_dump(pb_serialized_header_asklife);
+//  hex_dump(pb_serialized_request_asklife);
   // Завершение сериализации запроса AskLife
 
-  msg::AskLife* messa = new msg::AskLife(pb_serialized_header_asklife,
-                           pb_serialized_request_asklife);
-  ASSERT_TRUE(messa);
+  ask_life = static_cast<msg::AskLife*>(message_factory->unserialize(
+                                pb_serialized_header_asklife,
+                                pb_serialized_request_asklife));
+  ASSERT_TRUE(ask_life);
 
-  head = messa->get_head();
+  //ask_life->dump();
+
+  head = ask_life->header();
   ASSERT_TRUE(head);
 
-  body = messa->get_body();
-  ASSERT_TRUE(body);
+  data = ask_life->data();
+  ASSERT_TRUE(data);
 
-  EXPECT_EQ(messa->type(), ADG_D_MSG_ASKLIFE);
-  EXPECT_EQ(messa->status(), 654321);
+  EXPECT_EQ(ask_life->header()->usr_msg_type(), ADG_D_MSG_ASKLIFE);
+  EXPECT_EQ(ask_life->header()->proc_origin().compare("SON"), 0);
+  EXPECT_EQ(ask_life->header()->proc_dest().compare("DAD"), 0);
+  EXPECT_EQ(ask_life->header()->exchange_id(), 12345678);
+  EXPECT_EQ(ask_life->header()->interest_id(), 1);
+  EXPECT_EQ(ask_life->header()->sys_msg_type(), USER_MESSAGE_TYPE);
+  EXPECT_EQ(ask_life->status(), 54321);
+//  hex_dump(ask_life->header()->get_serialized());
+//  hex_dump(ask_life->data()->get_serialized());
 
-  messa->dump();
+  delete ask_life;
+
+  ask_life = static_cast<msg::AskLife*>(message_factory->create(ADG_D_MSG_ASKLIFE));
+  ASSERT_TRUE(ask_life);
+  EXPECT_EQ(ask_life->header()->usr_msg_type(), ADG_D_MSG_ASKLIFE);
+  EXPECT_EQ(ask_life->header()->sys_msg_type(), USER_MESSAGE_TYPE);
+  EXPECT_EQ(ask_life->header()->exchange_id(), 1); // т.к. это первый вызов create()
+  EXPECT_EQ(ask_life->header()->interest_id(), 0); // 0 по-умолчанию
+
+  ask_life->set_status(0xDEAD);
+  EXPECT_EQ(ask_life->status(), 0xDEAD);
+//  hex_dump(ask_life->data()->get_serialized());
+
+  ask_life->dump();
+
+  delete ask_life;
+
+  ask_life = static_cast<msg::AskLife*>(message_factory->create(ADG_D_MSG_ASKLIFE));
+  ASSERT_TRUE(ask_life);
+  EXPECT_EQ(ask_life->header()->usr_msg_type(), ADG_D_MSG_ASKLIFE);
+  EXPECT_EQ(ask_life->header()->sys_msg_type(), USER_MESSAGE_TYPE);
+  EXPECT_EQ(ask_life->header()->exchange_id(), 2); // т.к. уже второй вызов create()
+  EXPECT_EQ(ask_life->header()->interest_id(), 0); // 0 по-умолчанию
+
+//  ask_life->set_status(0xBEAF);
+//  EXPECT_EQ(ask_life->status(), 0xBEAF);
+//  hex_dump(ask_life->data()->get_serialized());
+
+//  ask_life->dump();
 }
 
-TEST(TestMessage, DESTROY)
+TEST(TestMessage, DESTROY_LETTER)
 {
-  delete messa;
+  delete ask_life;
+}
+
+TEST(TestMessage, DESTROY_FACTORY)
+{
+  delete message_factory;
 }
 
 int main(int argc, char** argv)

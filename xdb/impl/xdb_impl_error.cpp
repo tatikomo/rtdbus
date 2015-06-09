@@ -5,7 +5,7 @@
 
 using namespace xdb;
 
-char* Error::m_error_descriptions[Error::MaxErrorCode + 1];
+const char* Error::m_error_descriptions[Error::MaxErrorCode + 1];
 bool Error::m_initialized = false;
 
 Error::Error() :
@@ -26,9 +26,8 @@ Error::Error(ErrorCode_t _t) :
   set(_t);
 }*/
 
-Error::Error(const Error& _origin)
+Error::Error(const Error& _origin) : m_error_code(static_cast<ErrorCode_t>(_origin.getCode()))
 {
-  m_error_code = static_cast<ErrorCode_t>(_origin.getCode());
   init();
 }
 

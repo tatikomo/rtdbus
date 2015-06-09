@@ -12,8 +12,8 @@ typedef enum {
 class Pulsar: public mdp::mdcli
 {
   public:
-    Pulsar(std::string broker, int verbose);
-    ~Pulsar() {};
+    Pulsar(const char* broker, int verbose);
+    ~Pulsar();
     // Отправить сообщения
     void fire_messages();
 

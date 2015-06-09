@@ -84,7 +84,7 @@ There are some other flags defined in logging.cc. Please grep the source code fo
 ctags -R --c++-kinds=+p --fields=+iaS --extra=+q .
 
 Используется cppcheck для статической проверки исходных текстов:
-cppcheck . --force -Icmake -Imdp -I../libzmq/src -Imsg -Itools -Ixdb/impl -Ixdb/rtap -Ixdb/broker -I../eXtremeDB_5_fusion_eval/include -I../glog-0.3.3/src -I../gtest-1.7.0/include -Iclient -Iworker
+cppcheck . --force -I../libzmq/src -I../eXtremeDB_5_fusion_eval/include -I../glog/src -I../protobuf/src -I../gtest-1.7.0/include -Iclient -Iworker -Itest -Imsg -Itools -Ixdb/impl -Ixdb/rtap -Ixdb/broker -Icmake -Imdp
 
 Подробная трассировка тестов включается с помощью:
 ctest -R НАЗВАНИЕ_ТЕСТА -VV

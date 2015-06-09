@@ -44,6 +44,7 @@ set (XDB_BROKER_SOURCES
         ${XDB_BROKER_DIR}/xdb_broker_letter.cpp
         ${XDB_BROKER_DIR}/xdb_broker_letter.hpp
         ${MSG_DIR}/msg_common.h
+        ${MSG_DIR}/msg_message.hpp
         ${MSG_DIR}/proto/common.pb.cc
         ${MSG_DIR}/proto/common.pb.h
         )
@@ -103,6 +104,5 @@ add_dependencies(${XDB_BROKER_LIBRARY_NAME} ${XDB_BROKER_IMPL_LIBRARY_NAME})
 target_link_libraries(${XDB_BROKER_LIBRARY_NAME}
     ${MSG_LIBRARY_NAME}
     ${XDB_BROKER_IMPL_LIBRARY_NAME}
-    ${LIBEXTREMEDB_EXTRA_LIBRARIES}
     ${SYSTEM_EXTERNAL_LIBS})
 

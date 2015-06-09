@@ -10,10 +10,12 @@
 #include "mdp_common.h"
 #include "mdp_zmsg.hpp"
 #include "mdp_client_async_api.hpp"
-#include "mdp_letter.hpp"
 #include "msg_message.hpp"
 #include "proto/common.pb.h"
 #include "pulsar.hpp"
+
+#include "../tools/helper.hpp"
+#include "../tools/helper.cpp"
 
 const unsigned int MAX_LETTERS = 1200;
 
@@ -21,13 +23,18 @@ const unsigned int MAX_LETTERS = 1200;
 //static unsigned int user_exchange_id = 1;
 static unsigned int num_iter = 1200;
 
+
 rtdbExchangeId id_list[MAX_LETTERS];
-Pulsar::Pulsar(std::string broker, int verbose)
+Pulsar::Pulsar(const char* broker, int verbose)
     :
     mdcli(broker, verbose),
     m_channel(mdp::ChannelType::PERSISTENT) // По умолчанию обмен сообщениями со Службой через Брокер
 {
   usleep(500000); // Подождать 0.5 сек, чтобы ZMQ успело физически подключиться к Брокеру 
+}
+
+Pulsar::~Pulsar()
+{
 }
 
 void Pulsar::fire_messages()
@@ -58,43 +65,62 @@ void Pulsar::fire_persistent()
 }
 
 // Создать сообщение и заполнить ему требуемые поля
-mdp::zmsg* generateNewOrder(rtdbExchangeId id)
+mdp::zmsg* generateNewOrder(msg::MessageFactory* factory, rtdbExchangeId id, const char* service_name, rtdbMsgType type)
 {
-  std::string pb_serialized_request;
-  std::string pb_serialized_header;
-  RTDBM::Header     pb_header;
-  RTDBM::AskLife    pb_request_asklife;
-  RTDBM::ExecResult pb_responce_exec_result;
+  msg::Letter *letter;
   mdp::zmsg* request = new mdp::zmsg ();
 
-  // TODO: все поля pb_header должны заполняться автоматически, скрыто от клиента!
-  pb_header.set_protocol_version(1);
-  pb_header.set_exchange_id(id);
-  pb_header.set_interest_id(0); // начальное значение
-  pb_header.set_source_pid(getpid());
-  pb_header.set_proc_dest("world");
-  pb_header.set_proc_origin("pulsar");
-  pb_header.set_sys_msg_type(USER_MESSAGE_TYPE);
-  // Значение этого поля может передаваться служебной фукции 'ОТПРАВИТЬ'
-  pb_header.set_usr_msg_type(ADG_D_MSG_ASKLIFE);
+  letter = factory->create(type);
+  assert(letter);
+  assert(letter->header()->usr_msg_type() == type);
 
-  // Единственное поле, которое может устанавливать клиент напрямую
-  pb_request_asklife.set_status(1);
+  letter->header()->set_exchange_id(id);
+  letter->set_destination(service_name);
 
-  if (false == pb_header.SerializeToString(&pb_serialized_header))
-  {
-    std::cout << "Unable to serialize header for exchange id "<<id<<std::endl;
-  }
+  // Единственное поле, которое должен устанавливать клиент напрямую
+  //letter->data()->set_status(1);
+  // NB: для этого нужно городить огромный switch с перечислением всех известных типов сообщений
+  std::string hd = letter->header()->get_serialized();
+  std::string dt = letter->data()->get_serialized();
+  hex_dump(hd);
+  hex_dump(dt);
 
-  if (false == pb_request_asklife.SerializeToString(&pb_serialized_request))
-  {
-    std::cout << "Unable to serialize data for exchange id "<<id<<std::endl;
-  }
-
-  request->push_front(pb_serialized_request);
-  request->push_front(pb_serialized_header);
+  request->push_front(dt);
+  request->push_front(hd);
 
   return request;
+}
+
+// Вернуть тип сообщения, 
+rtdbMsgType get_message_type(const char* type_name)
+{
+  rtdbMsgType type;
+
+  // TODO: Поиск по хешу структур строка - код сообщения
+  if (0 == strcmp(type_name, "ADG_D_MSG_EXECRESULT"))
+    type = ADG_D_MSG_ASKLIFE;
+  else if (0 == strcmp(type_name, "ADG_D_MSG_ENDINITACK"))
+    type = ADG_D_MSG_ENDINITACK;
+  else if (0 == strcmp(type_name, "ADG_D_MSG_INIT"))
+    type = ADG_D_MSG_INIT;
+  else if (0 == strcmp(type_name, "ADG_D_MSG_STOP"))
+    type = ADG_D_MSG_STOP;
+  else if (0 == strcmp(type_name, "ADG_D_MSG_ENDALLINIT"))
+    type = ADG_D_MSG_ENDALLINIT;
+  else if (0 == strcmp(type_name, "ADG_D_MSG_ASKLIFE"))
+    type = ADG_D_MSG_ASKLIFE;
+  else if (0 == strcmp(type_name, "ADG_D_MSG_LIVING"))
+    type = ADG_D_MSG_LIVING;
+  else if (0 == strcmp(type_name, "ADG_D_MSG_STARTAPPLI"))
+    type = ADG_D_MSG_STARTAPPLI;
+  else if (0 == strcmp(type_name, "ADG_D_MSG_STOPAPPLI"))
+    type = ADG_D_MSG_STOPAPPLI;
+  else if (0 == strcmp(type_name, "ADG_D_MSG_DIFINIT"))
+    type = ADG_D_MSG_DIFINIT;
+  else // неизвестное пока значение
+    type = ADG_D_MSG_ASKLIFE;
+
+  return type;
 }
 
 /*
@@ -106,8 +132,11 @@ int main (int argc, char *argv [])
   mdp::zmsg *request   = NULL;
   mdp::zmsg *report    = NULL;
   Pulsar    *client    = NULL;
-  mdp::Letter *letter = NULL;
-  //RTDBM::AskLife* pb_asklife = NULL;
+  msg::Letter *letter = NULL;
+  msg::MessageFactory *message_factory = NULL;
+  rtdbMsgType          mess_type = ADG_D_MSG_ASKLIFE;
+  bool                 is_type_name_given = false;
+  char type_name[SERVICE_NAME_MAXLEN + 1];
   int verbose = 0;
   int service_status;   // 200|400|404|501
   int num_received = 0; // общее количество полученных сообщений
@@ -125,7 +154,7 @@ int main (int argc, char *argv [])
   ::google::InstallFailureSignalHandler();
   ::google::InitGoogleLogging(argv[0]);
 
-  while ((opt = getopt (argc, argv, "vdn:s:")) != -1)
+  while ((opt = getopt (argc, argv, "vdn:s:t:")) != -1)
   {
      switch (opt)
      {
@@ -152,6 +181,12 @@ int main (int argc, char *argv [])
          is_service_name_given = true;
          break;
 
+       case 't':
+         strncpy(type_name, optarg, SERVICE_NAME_MAXLEN);
+         type_name[SERVICE_NAME_MAXLEN] = '\0';
+         is_type_name_given = true;
+         break;
+
        case '?':
          if (optopt == 'n')
            fprintf (stderr, "Option -%c requires an argument.\n", optopt);
@@ -172,6 +207,13 @@ int main (int argc, char *argv [])
     std::cout << "Service name not given.\nUse -s <name> option.\n";
     return(1);
   }
+
+  if (!is_type_name_given)
+  {
+    std::cout << "Message type name not given, will use ASKLIFE.\n";
+    mess_type = ADG_D_MSG_ASKLIFE;
+  }
+  else mess_type = get_message_type(type_name);
 
   client = new Pulsar ("tcp://localhost:5555", verbose);
 
@@ -211,9 +253,11 @@ int main (int argc, char *argv [])
       exit(service_status);
     }
 
+    message_factory = new msg::MessageFactory("pulsar");
+
     for (sent_exchange_id=1; sent_exchange_id<=num_iter; sent_exchange_id++)
     {
-      request = generateNewOrder(sent_exchange_id);
+      request = generateNewOrder(message_factory, sent_exchange_id, service_name, mess_type);
 
       // Способ передачи указан в channel:
       // - через Брокера (PERSISTENT)
@@ -236,9 +280,9 @@ int main (int argc, char *argv [])
         if (report == NULL)
             break;
         
-        letter = new mdp::Letter(report);
+        letter = message_factory->create(report);
         num_received++;
-        rtdbExchangeId recv_message_exchange_id = (static_cast<RTDBM::AskLife*>(letter->data()))->get_exchange_id();
+        rtdbExchangeId recv_message_exchange_id = letter->header()->exchange_id();
         if ((1 <= recv_message_exchange_id) && (recv_message_exchange_id <= num_iter))
         {
           // Идентификатор в пределах положенного
@@ -290,10 +334,10 @@ int main (int argc, char *argv [])
         if (report == NULL)
             break;
 
-        letter = new mdp::Letter(report);
+        letter = message_factory->create(report);
         num_received++;
-        //rtdbExchangeId recv_message_exchange_id = (static_cast<RTDBM::AskLife*>(letter->header()))->get_exchange_id();
-        rtdbExchangeId recv_message_exchange_id = letter->header().get_exchange_id();
+        //rtdbExchangeId recv_message_exchange_id = letter->header()->exchange_id();
+        rtdbExchangeId recv_message_exchange_id = letter->header()->exchange_id();
         if ((1 <= recv_message_exchange_id) && (recv_message_exchange_id <= num_iter))
         {
           // Идентификатор в пределах положенного
@@ -331,6 +375,7 @@ int main (int argc, char *argv [])
   {
       std::cout << "E: " << err.what() << std::endl;
   }
+  delete message_factory;
   delete client;
 
   std::cout << std::endl;

@@ -1,6 +1,3 @@
-set(MSG_DIR ${CMAKE_SOURCE_DIR}/../msg)
-#set(MSG_LIBRARY_NAME zmsg)
-
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # SOLARIS
   set (SYSTEM_EXTERNAL_LIBS
@@ -17,8 +14,10 @@ endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 include_directories(${TOOLS_DIR})
 include_directories(${MDP_DIR})
 include_directories(${MSG_DIR})
+include_directories(${MDP_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})
+include_directories(${LIBCPPZMQ_INCLUDE_DIR})
 include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 
 #link_directories(${LIBGLOG_LIBRARIES_DIR})
@@ -30,7 +29,7 @@ add_custom_command(
         ${MSG_DIR}/proto/common.pb.cc
         ${MSG_DIR}/proto/common.pb.h
         COMMAND
-        ${PROTOC} --cpp_out=. --proto_path=. common.proto
+        sh -c "LD_LIBRARY_PATH=${LIBPROTOBUF_LIBRARIES_DIR} ${PROTOC} --cpp_out=. --proto_path=. common.proto"
         DEPENDS
         ${MSG_DIR}/proto/common.proto
         WORKING_DIRECTORY
@@ -44,7 +43,11 @@ set (MSG_SOURCES
         ${MSG_DIR}/proto/common.pb.h
         ${MSG_DIR}/msg_common.h
         ${MSG_DIR}/msg_message.hpp
-        ${MSG_DIR}/msg_message.cpp)
+        ${MSG_DIR}/msg_message.cpp
+        ${MSG_DIR}/msg_message_impl.hpp
+        ${MSG_DIR}/msg_message_impl.cpp
+        ${MSG_DIR}/msg_adm.hpp
+        ${MSG_DIR}/msg_adm.cpp)
 
 set_source_files_properties(${MSG_DIR}/proto/common.pb.cc
                             ${MSG_DIR}/proto/common.pb.h

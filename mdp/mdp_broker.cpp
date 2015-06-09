@@ -238,7 +238,12 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
     // Сообщение может отсутствовать
     if (processing_msg)
     {
+#if 1
       letter = new xdb::Letter(processing_msg);
+#else
+      letter = NULL;
+#warning "Replace xdb::Letter(zmsg*) into xdb::Letter(string&, string&)"
+#endif
       status = m_database->PushRequestToService(srv, letter);
       if (!status) 
         LOG(ERROR) << "Unable to push new letter "<<letter->GetID()

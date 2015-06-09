@@ -63,6 +63,7 @@ ServiceEndpoint_t Endpoints[] = {
 #define BROKER_ENDPOINT_IDX 0
 
 DatabaseBrokerImpl::DatabaseBrokerImpl(const char* _name) :
+    m_database(NULL),
     m_service_list(NULL)
 {
   assert(_name);
@@ -946,25 +947,25 @@ Service *DatabaseBrokerImpl::GetServiceByName(const char* name)
 // Конвертировать состояние Службы из БД в состояние
 Service::State DatabaseBrokerImpl::StateConvert(ServiceState s)
 {
-    Service::State result = Service::State::UNKNOWN;
+    Service::State result = Service::UNKNOWN;
 
     switch (s)
     {
       case REGISTERED:
-      result = Service::State::REGISTERED;
+      result = Service::REGISTERED;
       break;
       case ACTIVATED:
-      result = Service::State::ACTIVATED;
+      result = Service::ACTIVATED;
       break;
       case DISABLED:
-      result = Service::State::DISABLED;
+      result = Service::DISABLED;
       break;
       case UNKNOWN:
-      result = Service::State::UNKNOWN;
+      result = Service::UNKNOWN;
       break;
       default:
       LOG(WARNING) << "Wrong service state, set to UNKNOWN";
-      result = Service::State::UNKNOWN;
+      result = Service::UNKNOWN;
     }
     return result;
 }
@@ -976,16 +977,16 @@ ServiceState DatabaseBrokerImpl::StateConvert(Service::State s)
 
     switch (s)
     {
-      case Service::State::REGISTERED:
+      case Service::REGISTERED:
       result = REGISTERED;
       break;
-      case Service::State::ACTIVATED:
+      case Service::ACTIVATED:
       result = ACTIVATED;
       break;
-      case Service::State::DISABLED:
+      case Service::DISABLED:
       result = DISABLED;
       break;
-      case Service::State::UNKNOWN:
+      case Service::UNKNOWN:
       result = UNKNOWN;
       break;
       default:
@@ -2259,9 +2260,9 @@ ServiceList* DatabaseBrokerImpl::GetServiceList()
 ServiceList::ServiceList(mco_db_h _db) :
     m_current_index(0),
     m_db_handler(_db),
+    m_array(new Service*[MAX_SERVICES_ENTRY]),
     m_size(0)
 {
-  m_array = new Service*[MAX_SERVICES_ENTRY];
   memset(m_array, '\0', MAX_SERVICES_ENTRY*sizeof(Service*));
   assert(m_db_handler);
 }

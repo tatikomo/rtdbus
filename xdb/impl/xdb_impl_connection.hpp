@@ -30,6 +30,7 @@ class ConnectionImpl
     rtap_db::Point* locate(const char*);
 
   private:
+    DISALLOW_COPY_AND_ASSIGN(ConnectionImpl);
     // Среда подключения
     EnvironmentImpl *m_env_impl;
     // Хендл экземпляра подключения

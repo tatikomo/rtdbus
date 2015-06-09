@@ -20,8 +20,12 @@
 
 #include "msg_common.h"
 #include "mdp_worker_api.hpp"
-#include "mdp_letter.hpp"
 #include "mdp_zmsg.hpp"
+
+// общий интерфейс сообщений
+#include "msg_message.hpp"
+// сообщения общего порядка
+#include "msg_adm.hpp"
 
 using namespace mdp;
 
@@ -250,6 +254,7 @@ Digger::Digger(std::string broker_endpoint, std::string service, int verbose)
    m_helpers_control(m_context, ZMQ_PUB),
    m_digger_proxy(NULL),
    m_proxy_thread(NULL),
+   m_message_factory(new msg::MessageFactory(DIGGER_NAME)),
    m_appli(NULL),
    m_environment(NULL),
    m_db_connection(NULL)
@@ -283,6 +288,8 @@ Digger::Digger(std::string broker_endpoint, std::string service, int verbose)
 Digger::~Digger()
 {
   LOG(INFO) << "Digger destructor";
+
+  delete m_message_factory;
 
   delete m_db_connection;
 
@@ -454,10 +461,10 @@ int Digger::handle_request(mdp::zmsg* request, std::string*& reply_to)
   LOG(INFO) << "Process new request with " << request->parts() 
             << " parts and reply to " << *reply_to;
 
-  mdp::Letter *letter = new mdp::Letter(request);
-  if (letter->GetVALIDITY())
+  msg::Letter *letter = m_message_factory->create(request);
+  if (letter->valid())
   {
-    msgType = letter->header().get_usr_msg_type();
+    msgType = letter->header()->usr_msg_type();
 
     switch(msgType)
     {
@@ -481,7 +488,7 @@ int Digger::handle_request(mdp::zmsg* request, std::string*& reply_to)
   }
   else
   {
-    LOG(ERROR) << "Readed letter "<<letter->header().get_exchange_id()<<" not valid";
+    LOG(ERROR) << "Readed letter "<<letter->header()->exchange_id()<<" not valid";
   }
 
   delete letter;
@@ -489,43 +496,44 @@ int Digger::handle_request(mdp::zmsg* request, std::string*& reply_to)
 }
 
 // --------------------------------------------------------------------------------
-int Digger::handle_read(mdp::Letter*, std::string*)
+int Digger::handle_read(msg::Letter*, std::string*)
 {
   LOG(INFO) << "Processing read request";
   return 0;
 }
 
 // --------------------------------------------------------------------------------
-int Digger::handle_write(mdp::Letter*, std::string*)
+int Digger::handle_write(msg::Letter*, std::string*)
 {
   LOG(INFO) << "Processing write request";
   return 0;
 }
 
 // --------------------------------------------------------------------------------
-int Digger::handle_asklife(mdp::Letter* letter, std::string* reply_to)
+int Digger::handle_asklife(msg::Letter* letter, std::string* reply_to)
 {
-  RTDBM::AskLife *pb_asklife = NULL;
+  msg::AskLife   *msg_ask_life = static_cast<msg::AskLife*>(letter);
   mdp::zmsg      *response = new mdp::zmsg();
 
-  response->push_front(const_cast<std::string&>(letter->SerializedData()));
-  response->push_front(const_cast<std::string&>(letter->SerializedHeader()));
+  msg_ask_life->set_status(1);
+
+  response->push_front(const_cast<std::string&>(msg_ask_life->data()->get_serialized()));
+  response->push_front(const_cast<std::string&>(msg_ask_life->header()->get_serialized()));
   response->wrap(reply_to->c_str(), "");
 
-  pb_asklife = static_cast<RTDBM::AskLife*>(letter->data());
   std::cout << "Processing asklife from " << *reply_to
-            << " status:" << pb_asklife->status()
-            << " sid:" << letter->header().get_exchange_id()
-            << " iid:" << letter->header().get_interest_id()
-            << " dest:" << letter->header().get_proc_dest()
-            << " origin:" << letter->header().get_proc_origin() << std::endl;
+            << " status:" << msg_ask_life->status()
+            << " sid:" << msg_ask_life->header()->exchange_id()
+            << " iid:" << msg_ask_life->header()->interest_id()
+            << " dest:" << msg_ask_life->header()->proc_dest()
+            << " origin:" << msg_ask_life->header()->proc_origin() << std::endl;
 
   LOG(INFO) << "Processing asklife from " << *reply_to
-            << " status:" << pb_asklife->status()
-            << " sid:" << letter->header().get_exchange_id()
-            << " iid:" << letter->header().get_interest_id()
-            << " dest:" << letter->header().get_proc_dest()
-            << " origin:" << letter->header().get_proc_origin();
+            << " status:" << msg_ask_life->status()
+            << " sid:" << msg_ask_life->header()->exchange_id()
+            << " iid:" << msg_ask_life->header()->interest_id()
+            << " dest:" << msg_ask_life->header()->proc_dest()
+            << " origin:" << msg_ask_life->header()->proc_origin();
 
 #if 0
   // TODO: Т.к. запрос мог поступить не только от Брокера, но и напрямую от Клиента,

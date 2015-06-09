@@ -1,11 +1,8 @@
+syntax = "proto2";
+
 package RTDBM;
 
-message CommonRequest {
-  required int32  field_1_int32 = 1;
-  required string field_2_string = 2;
-  required int32  field_3_int32 = 3;
-}
-
+// Общая часть всех сообщений RTDBUS
 message Header {
   required int32    protocol_version    = 1; /* версия протокола */
   required int32    exchange_id         = 2; /* системный идентификатор обмена */
@@ -15,6 +12,9 @@ message Header {
   required string   proc_origin         = 6; /* название процесса-создателя сообщения */
   required int32    sys_msg_type        = 7; /* системный тип сообщения */
   required int32    usr_msg_type        = 8; /* клиентский тип сообщения */
+  /* может занимать как 32, так и 64 бита, в зависимости от разрядности системы */
+  /* NB: используем максимально возможный размер, для общения разнородных платформ */
+  required int64    time_mark           = 9; /* время выдачи запроса */
 }
 
 message ExecResult {

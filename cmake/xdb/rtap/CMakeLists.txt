@@ -111,7 +111,7 @@ set (XDB_RTAP_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
         ${TOOLS_DIR}/helper.hpp
         ${TOOLS_DIR}/helper.cpp
-        ${MDP_DIR}/mdp_letter.hpp
+        ${MSG_DIR}/msg_message.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_const.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_const.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_common.h

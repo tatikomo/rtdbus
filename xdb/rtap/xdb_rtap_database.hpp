@@ -64,6 +64,7 @@ class RtDatabase
     const Error& unlock(rtap_db::Point&);
 
   private:
+    DISALLOW_COPY_AND_ASSIGN(RtDatabase);
     DatabaseRtapImpl *m_impl;
     const Options    *m_options;
 };

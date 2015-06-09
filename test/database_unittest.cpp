@@ -403,11 +403,13 @@ TEST(TestBrokerDATABASE, CHECK_LETTER)
   std::string       pb_serialized_request;
 
   pb_header.set_protocol_version(1);
+  pb_header.set_interest_id(1);
   pb_header.set_source_pid(getpid());
   pb_header.set_proc_dest("dest");
   pb_header.set_proc_origin("src");
   pb_header.set_sys_msg_type(USER_MESSAGE_TYPE);
   pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
+  pb_header.set_time_mark(time(0));
 
 //  pb_exec_result_request.set_exec_result(0);
 //  pb_exec_result_request.set_failure_cause(1);
@@ -416,7 +418,6 @@ TEST(TestBrokerDATABASE, CHECK_LETTER)
   {
     sprintf(reply, "@C0000000%02d", i);
     pb_header.set_exchange_id(i);
-    pb_header.set_interest_id(i);
     pb_header.SerializeToString(&pb_serialized_header);
 
     pb_exec_result_request.set_exec_result(i % 2);

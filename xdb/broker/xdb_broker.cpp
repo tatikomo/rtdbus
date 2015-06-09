@@ -10,7 +10,7 @@
 #include "xdb_broker.hpp"
 #include "xdb_broker_service.hpp"
 #include "xdb_broker_worker.hpp"
-#include "mdp_letter.hpp"
+#include "msg_message.hpp"
 
 using namespace xdb;
 

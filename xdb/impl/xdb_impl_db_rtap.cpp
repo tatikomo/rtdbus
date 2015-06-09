@@ -119,7 +119,8 @@ schema_f ALL_TYPES_LIST[] = {
 };
 
 PointInDatabase::PointInDatabase(rtap_db::Point* info)
-    : m_rc(MCO_S_OK), m_info(info)
+  : m_rc(MCO_S_OK),
+    m_info(info)
 {
   m_objclass = static_cast<objclass_t>(m_info->objclass());
   m_passport.root_pointer = NULL;
@@ -378,7 +379,7 @@ bool DatabaseRtapImpl::AttrFuncMapInit()
   m_attr_creation_func_map.insert(AttrCreationFuncPair_t("DISPP",      &xdb::DatabaseRtapImpl::createDISPP));
   m_attr_creation_func_map.insert(AttrCreationFuncPair_t("CURRENT_SHIFT_TIME", &xdb::DatabaseRtapImpl::createCURRENT_SHIFT_TIME));
   m_attr_creation_func_map.insert(AttrCreationFuncPair_t("PREV_SHIFT_TIME",    &xdb::DatabaseRtapImpl::createPREV_SHIFT_TIME));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("DATEAINS",   &xdb::DatabaseRtapImpl::createDATEAINS));
+  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("DATEAINS",           &xdb::DatabaseRtapImpl::createDATEAINS));
   m_attr_creation_func_map.insert(AttrCreationFuncPair_t("PREV_DISPATCHER",    &xdb::DatabaseRtapImpl::createPREV_DISPATCHER));
   m_attr_creation_func_map.insert(AttrCreationFuncPair_t("INHIB",      &xdb::DatabaseRtapImpl::createINHIB));
   m_attr_creation_func_map.insert(AttrCreationFuncPair_t("INHIBLOCAL", &xdb::DatabaseRtapImpl::createINHIBLOCAL));
@@ -390,22 +391,22 @@ bool DatabaseRtapImpl::AttrFuncMapInit()
   m_attr_creation_func_map.insert(AttrCreationFuncPair_t("L_EQTTYP",   &xdb::DatabaseRtapImpl::createL_EQTTYP));
   m_attr_creation_func_map.insert(AttrCreationFuncPair_t("ALDEST",     &xdb::DatabaseRtapImpl::createALDEST));
   m_attr_creation_func_map.insert(AttrCreationFuncPair_t("FUNCTION",   &xdb::DatabaseRtapImpl::createFUNCTION));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("CONVERTCOEFF", &xdb::DatabaseRtapImpl::createCONVERTCOEFF));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("MXPRESSURE",   &xdb::DatabaseRtapImpl::createMXPRESSURE));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("PLANPRESSURE", &xdb::DatabaseRtapImpl::createPLANPRESSURE));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("MXFLOW",     &xdb::DatabaseRtapImpl::createMXFLOW));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("NMFLOW",     &xdb::DatabaseRtapImpl::createNMFLOW));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("SYNTHSTATE", &xdb::DatabaseRtapImpl::createSYNTHSTATE));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("DELEGABLE",  &xdb::DatabaseRtapImpl::createDELEGABLE));
+  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("CONVERTCOEFF",   &xdb::DatabaseRtapImpl::createCONVERTCOEFF));
+  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("MXPRESSURE",     &xdb::DatabaseRtapImpl::createMXPRESSURE));
+  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("PLANPRESSURE",   &xdb::DatabaseRtapImpl::createPLANPRESSURE));
+  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("MXFLOW",         &xdb::DatabaseRtapImpl::createMXFLOW));
+  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("NMFLOW",         &xdb::DatabaseRtapImpl::createNMFLOW));
+  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("SYNTHSTATE",     &xdb::DatabaseRtapImpl::createSYNTHSTATE));
+  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("DELEGABLE",      &xdb::DatabaseRtapImpl::createDELEGABLE));
   m_attr_creation_func_map.insert(AttrCreationFuncPair_t("CONFREMOTECMD",  &xdb::DatabaseRtapImpl::createCONFREMOTECMD));
   m_attr_creation_func_map.insert(AttrCreationFuncPair_t("FLGREMOTECMD",   &xdb::DatabaseRtapImpl::createFLGREMOTECMD));
   m_attr_creation_func_map.insert(AttrCreationFuncPair_t("FLGMAINTENANCE", &xdb::DatabaseRtapImpl::createFLGMAINTENANCE));
   m_attr_creation_func_map.insert(AttrCreationFuncPair_t("NAMEMAINTENANCE",&xdb::DatabaseRtapImpl::createNAMEMAINTENANCE));
   m_attr_creation_func_map.insert(AttrCreationFuncPair_t("TSSYNTHETICAL",  &xdb::DatabaseRtapImpl::createTSSYNTHETICAL));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("ALARMBEGIN", &xdb::DatabaseRtapImpl::createALARMBEGIN));
+  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("ALARMBEGIN",     &xdb::DatabaseRtapImpl::createALARMBEGIN));
   m_attr_creation_func_map.insert(AttrCreationFuncPair_t("ALARMBEGINACK",  &xdb::DatabaseRtapImpl::createALARMBEGINACK));
   m_attr_creation_func_map.insert(AttrCreationFuncPair_t("ALARMENDACK",    &xdb::DatabaseRtapImpl::createALARMENDACK));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("ALARMSYNTH", &xdb::DatabaseRtapImpl::createALARMSYNTH));
+  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("ALARMSYNTH",     &xdb::DatabaseRtapImpl::createALARMSYNTH));
   m_attr_creation_func_map.insert(AttrCreationFuncPair_t("REMOTECONTROL",  &xdb::DatabaseRtapImpl::createREMOTECONTROL));
   m_attr_creation_func_map.insert(AttrCreationFuncPair_t("ACTIONTYP",  &xdb::DatabaseRtapImpl::createACTIONTYP));
   m_attr_creation_func_map.insert(AttrCreationFuncPair_t("VAL_LABEL",  &xdb::DatabaseRtapImpl::createVAL_LABEL));
@@ -438,15 +439,15 @@ bool DatabaseRtapImpl::AttrFuncMapInit()
  * Статический метод, вызываемый из runtime базы данных 
  * при создании нового экземпляра XDBService
  */
-MCO_RET DatabaseRtapImpl::new_Point(mco_trans_h t,
+MCO_RET DatabaseRtapImpl::new_Point(mco_trans_h /* t */,
         XDBPoint *obj,
-        MCO_EVENT_TYPE et,
+        MCO_EVENT_TYPE /* et */,
         void *p)
 {
   DatabaseRtapImpl *self = static_cast<DatabaseRtapImpl*> (p);
-  MCO_RET rc;
-  autoid_t aid;
-  bool status = false;
+//  MCO_RET rc;
+//  autoid_t aid;
+//  bool status = false;
 
   assert(self);
   assert(obj);
@@ -470,7 +471,7 @@ MCO_RET DatabaseRtapImpl::del_Point(mco_trans_h t,
         void *p)
 {
   DatabaseRtapImpl *self = static_cast<DatabaseRtapImpl*> (p);
-  MCO_RET rc;
+//  MCO_RET rc;
 
   assert(self);
   assert(obj);
@@ -617,7 +618,7 @@ const Error& DatabaseRtapImpl::write(rtap_db::Point& info)
 {
   rtap_db::XDBPoint instance;
   autoid_t    passport_aid;
-  autoid_t    point_aid;
+//  autoid_t    point_aid;
   MCO_RET     rc = MCO_S_OK;
   mco_trans_h t;
   PointInDatabase *point;
@@ -689,14 +690,14 @@ const Error& DatabaseRtapImpl::unlock(rtap_db::Point&)
 }
 
 // Группа функций управления
-const Error& DatabaseRtapImpl::Control(rtDbCq& info)
+const Error& DatabaseRtapImpl::Control(rtDbCq& /* info */)
 {
   setError(rtE_NOT_IMPLEMENTED);
   return getLastError();
 }
 
 // Группа функций управления
-const Error& DatabaseRtapImpl::Query(rtDbCq& info)
+const Error& DatabaseRtapImpl::Query(rtDbCq& /* info */)
 {
   setError(rtE_NOT_IMPLEMENTED);
   return getLastError();
@@ -1184,9 +1185,9 @@ MCO_RET DatabaseRtapImpl::createPassport(PointInDatabase* point)
 MCO_RET DatabaseRtapImpl::createPoint(PointInDatabase* instance)
 {
   MCO_RET    rc = MCO_S_OK;
-  rtap_db::Attrib*    attr = NULL;
-  int val;
-  int code;
+//  rtap_db::Attrib*    attr = NULL;
+//  int val;
+//  int code;
   // найдена ли у данной точки функция создания хотя бы для одного
   // атрибута из перечня известных?
   bool func_found;
@@ -1356,7 +1357,7 @@ MCO_RET DatabaseRtapImpl::createUNITY(PointInDatabase* instance, rtap_db::Attrib
 // TODO:
 // 1. Получить идентификатор данной СС в НСИ
 // 2. Занести этот идентификатор в поле SA_ref
-MCO_RET DatabaseRtapImpl::createL_SA(PointInDatabase* instance, rtap_db::Attrib& attr)
+MCO_RET DatabaseRtapImpl::createL_SA(PointInDatabase* /* instance */, rtap_db::Attrib& /* attr */)
 {
   //autoid_t sa_id;
   MCO_RET rc = MCO_S_OK;
@@ -1587,7 +1588,7 @@ MCO_RET DatabaseRtapImpl::createVALIDCHANGE(PointInDatabase* instance, rtap_db::
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::createLABEL (PointInDatabase* instance, rtap_db::Attrib& attr)
+MCO_RET DatabaseRtapImpl::createLABEL (PointInDatabase* /* instance */, rtap_db::Attrib& /* attr */)
 {
 //  LOG(INFO) << "CALL createLABEL on " << attr.name();
 //  NB: Пока молча пропустим этот атрибут, зато потом...
@@ -2923,13 +2924,13 @@ MCO_RET DatabaseRtapImpl::createACTIONTYP(PointInDatabase* instance, rtap_db::At
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::createVAL_LABEL  (PointInDatabase* instance, rtap_db::Attrib& attr)
+MCO_RET DatabaseRtapImpl::createVAL_LABEL  (PointInDatabase* /* instance */, rtap_db::Attrib& /* attr */)
 {
   // NB: Пропустим этот атрибут
   return MCO_S_OK;
 }
 
-MCO_RET DatabaseRtapImpl::createLINK_HIST(PointInDatabase* instance, rtap_db::Attrib& attr)
+MCO_RET DatabaseRtapImpl::createLINK_HIST(PointInDatabase* /* instance */, rtap_db::Attrib& /* attr */)
 {
   // NB: Пропустим этот атрибут
   return MCO_S_OK;

@@ -99,7 +99,7 @@ class PointInDatabase
     rtap_db::AlarmItem& alarm()      { return m_alarm; };
 
   private:
-
+    DISALLOW_COPY_AND_ASSIGN(PointInDatabase);
     // Ссылки на другие таблицы БДРВ
     autoid_t            m_point_aid;
     autoid_t            m_passport_aid;

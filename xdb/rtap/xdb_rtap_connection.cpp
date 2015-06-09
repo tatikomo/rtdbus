@@ -16,12 +16,12 @@ using namespace xdb;
 
 RtConnection::RtConnection(RtEnvironment* _env) :
   m_environment(_env),
+  m_impl(new ConnectionImpl(m_environment->m_impl /*getName()*/)),
   m_last_error(rtE_NONE)
 {
   // Вызвать mco_db_connect() для получения хендла на БДРВ.
   // Для каждого потока требуется вызвать mco_db_connect и создать
   // отдельный экземпляр mco_db_h.
-  m_impl = new ConnectionImpl(m_environment->m_impl /*getName()*/);
 }
 
 RtConnection::~RtConnection()
