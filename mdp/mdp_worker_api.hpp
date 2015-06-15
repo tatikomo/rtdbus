@@ -17,19 +17,20 @@
 
 namespace mdp {
 
-//  Structure of our class
-//  We access these properties only via class methods
-class mdwrk {
+class mdwrk
+{
   public:
+    enum { BROKER_ITEM = 0, WORLD_ITEM = 1};
+    enum { SOCKET_COUNT = 2 };
+
     static const int HeartbeatInterval = HEARTBEAT_PERIOD_MSEC;
     //  ---------------------------------------------------------------------
     //  Constructor
-    mdwrk (std::string broker, std::string service, int verbose);
+    mdwrk (std::string, std::string, int);
 
     //  ---------------------------------------------------------------------
     //  Destructor
-    virtual
-    ~mdwrk ();
+    virtual ~mdwrk ();
 
     //  ---------------------------------------------------------------------
     //  Send message to broker
@@ -40,30 +41,43 @@ class mdwrk {
     //  Connect or reconnect to broker
     void connect_to_broker ();
 
+#if 0
+// NB: заблокируем, т.к. эту заботу сейчас берет на себя DiggerProxy
+    //  ---------------------------------------------------------------------
+    //  Connect or reconnect to everyone
+    //  Этот сокет используется для обмена "быстрыми" сообщениями, минуя Брокера
+    void connect_to_world ();
+#endif
+
+    //  ---------------------------------------------------------------------
+    //  Get service endpoint
+    //  Получить строку подключения для своего Сервиса
+    void ask_endpoint();
 
     //  ---------------------------------------------------------------------
     //  Set heartbeat delay
-    void
-    set_heartbeat (int heartbeat);
-
+    void set_heartbeat (int heartbeat);
 
     //  ---------------------------------------------------------------------
     //  Set reconnect delay
-    void
-    set_reconnect (int reconnect);
+    void set_reconnect (int reconnect);
 
     //  ---------------------------------------------------------------------
     //  wait for next request and get the address for reply.
-    zmsg *
-    recv (std::string *&reply);
+    zmsg * recv (std::string *&reply);
+
+  protected:
+    zmq::context_t   m_context;
 
   private:
     DISALLOW_COPY_AND_ASSIGN(mdwrk);
 
-    std::string      m_broker;
+    std::string      m_broker_endpoint;
     std::string      m_service;
-    zmq::context_t * m_context;
+    // Точка подключения 
+    const char     * m_welcome_endpoint;
     zmq::socket_t  * m_worker;      //  Socket to broker
+    zmq::socket_t  * m_welcome;     //  Socket to subscribe on brokerless messages
     int              m_verbose;     //  Print activity to stdout
     //  Heartbeat management
     int64_t          m_heartbeat_at;//  When to send HEARTBEAT
@@ -72,6 +86,14 @@ class mdwrk {
     int              m_reconnect;   //  Reconnect delay, msecs
     //  Internal state
     bool             m_expect_reply;//  Zero only at start
+
+    // Хранилище из двух сокетов для работы zmq::poll
+    // [0] подключение к Брокеру
+    // [1] прямое подключение
+    zmq::pollitem_t  m_socket_items[2];
+    // Вернуть строку подключения, если параметр = true - преобразовать для bind()
+    const char     * getEndpoint(bool = false) const;
+    void             update_heartbeat_sign();
 };
 
 } //namespace mdp

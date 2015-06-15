@@ -57,9 +57,9 @@ set (WORKER_DIGGER_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
         ${MDP_DIR}/mdp_zmsg.hpp
         ${MDP_DIR}/mdp_common.h
-        ${MDP_DIR}/mdp_letter.hpp
         ${MDP_DIR}/mdp_client_async_api.hpp
         ${MDP_DIR}/mdp_worker_api.hpp
+        ${MSG_DIR}/msg_message.hpp
         ${XDB_IMPL_DIR}/dat/rtap_db-pskel.hxx
         ${XDB_IMPL_DIR}/dat/rtap_db-pskel.cxx
         ${XDB_IMPL_DIR}/dat/rtap_db-pimpl.hxx

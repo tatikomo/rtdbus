@@ -5,7 +5,7 @@ project(RTDBUS CXX C)
 set (RTDBUS_PROJECT_PREFIX "rtdb")
 set (RTDBUS_MAJOR_VERSION "0")
 set (RTDBUS_MINOR_VERSION "0")
-set (RTDBUS_MICRO_VERSION "3")
+set (RTDBUS_MICRO_VERSION "4")
 set (RTDBUS_VERSION ${RTDBUS_MAJOR_VERSION}.${RTDBUS_MINOR_VERSION}.${RTDBUS_MICRO_VERSION})
 set (RTDBUS_VERSION_STRING "${RTDBUS_VERSION}")
 
@@ -21,6 +21,7 @@ if("${sysname}" MATCHES "SUNOS")
     OPTION(HAVE_CONSOLE_OWNER_FILE "enable console owner file (solaris only)" ON)
 
     if (CMAKE_COMPILER_IS_GNUCC)
+     add_definitions(-std=c++11)
 #     add_definitions(-m32)
     else (CMAKE_COMPILER_IS_GNUCC)
 #     add_definitions(-xarch=v9)
@@ -138,15 +139,38 @@ OPTION(RTDBUS_BUILD_TESTS "enable unit test code" ON)
 # ограничение размера полей данных из схемы MCO
 set (MAX_SERVICES_ENTRY      400)
 set (MAX_WORKERS_ENTRY       800) # WORKERS_SPOOL_SIZE * MAX_SERVICES_ENTRY
+set (ENDPOINT_MAXLEN         100)
 set (SERVICE_NAME_MAXLEN      32)
 set (IDENTITY_MAXLEN          11)
 set (DBNAME_MAXLEN            10)
 # TODO Объединить все подобные интервалы (HEARTBEAT) в единую структуру. 
 # Сейчас у Брокера и Обработчиков могут быть разные значения.
 set (HEARTBEAT_PERIOD_MSEC  2500)
+# Разумный интервал 3..5
+set (HEARTBEAT_LIVENESS 3)
 
 set (WORKERS_SPOOL_SIZE        2)
 set (MESSAGE_EXPIRATION_PERIOD_MSEC  500)
+
+# Зарезервированный размер памяти под БДРВ [Мб]
+set (DIGGER_DB_SIZE_MB  10)
+
+# Для использования точек подключения в серверах следует подстроку
+# от последнего символа '/' до символа ':' 
+# Значение по-умолчанию точки подключения к Брокеру
+set (ENDPOINT_BROKER "tcp://localhost:5555")
+# Значения по-умолчанию точек подключения к Службе БДРВ
+set (ENDPOINT_SINF_FRONTEND   "tcp://localhost:5556")
+# Управляющий сокет DiggerProxy
+set (ENDPOINT_SINF_PROXY_CTRL "tcp://localhost:5557")
+# Теневой сокет DiggerProxy <=> DiggerWorker
+# NB: транспорт inproc работает между нитями только в пределах единого контекста zmq
+set (ENDPOINT_SINF_BACKEND    "inproc://sinf_backend")
+set (ENDPOINT_IHM_FRONTEND    "tcp://localhost:5558")
+set (ENDPOINT_EXCH_FRONTEND   "tcp://localhost:5559")
+
+# Максимальное количество одновременно допустимых подключений
+set (DEFAULT_MAX_DB_CONNECTIONS_ALLOWED  4)
 
 if(RTDBUS_BUILD_TESTS)
     add_definitions(-DRTDBUS_BUILD_TESTS)
@@ -244,6 +268,7 @@ message(STATUS "Building w/o checks:      ${RTDBUS_DISABLE_CHECKS}            ")
 message(STATUS "Building XML docs:        ${RTDBUS_ENABLE_XML_DOCS}           ")
 message(STATUS "Using XML parser:         ${XML_LIB}                          ")
 message(STATUS "Daemon executable name:   ${RTDBUS_DAEMON_NAME}               ")
+#message(STATUS "LD_LIBRARY_PATH:          $ENV{LD_LIBRARY_PATH}               ")
 
 MESSAGE(" ")
 if (RTDBUS_BUILD_TESTS)

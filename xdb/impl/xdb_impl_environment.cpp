@@ -16,7 +16,8 @@ using namespace xdb;
 EnvironmentImpl::EnvironmentImpl(ApplicationImpl* _app, const char* _name) :
   m_state(ENV_STATE_UNKNOWN),
   m_last_error(rtE_NONE),
-  m_appli(_app)
+  m_appli(_app),
+  m_conn(NULL)
 {
   BitSet8 open_flags;
   int cheched_val;

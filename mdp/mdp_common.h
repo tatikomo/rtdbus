@@ -34,8 +34,5 @@ extern char *mdpw_commands [];
 #define MDPW_HEARTBEAT      (const char*)"\004"
 #define MDPW_DISCONNECT     (const char*)"\005"
 
-//  We'd normally pull these from config data
-#define HEARTBEAT_LIVENESS  4       //  3-5 is reasonable
-
 #endif
 

@@ -64,8 +64,10 @@ rtap_db_dict::Dictionaries_t dict;
 
 void wait()
 {
+#ifdef USE_EXTREMEDB_HTTP_SERVER
 //  puts("\nNext...");
 //  getchar();
+#endif
 }
 
 void show_runtime_info(const char * lead_line)
@@ -401,14 +403,16 @@ TEST(TestBrokerDATABASE, CHECK_LETTER)
   std::string       pb_serialized_request;
 
   pb_header.set_protocol_version(1);
+  pb_header.set_interest_id(1);
   pb_header.set_source_pid(getpid());
   pb_header.set_proc_dest("dest");
   pb_header.set_proc_origin("src");
-  pb_header.set_sys_msg_type(100);
+  pb_header.set_sys_msg_type(USER_MESSAGE_TYPE);
   pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
+  pb_header.set_time_mark(time(0));
 
-  pb_exec_result_request.set_exec_result(0);
-  pb_exec_result_request.set_failure_cause(1);
+//  pb_exec_result_request.set_exec_result(0);
+//  pb_exec_result_request.set_failure_cause(1);
 
   for (int i=1; i<10; i++)
   {
@@ -416,7 +420,8 @@ TEST(TestBrokerDATABASE, CHECK_LETTER)
     pb_header.set_exchange_id(i);
     pb_header.SerializeToString(&pb_serialized_header);
 
-    pb_exec_result_request.set_user_exchange_id(i);
+    pb_exec_result_request.set_exec_result(i % 2);
+    pb_exec_result_request.set_failure_cause(i * 2);
     pb_exec_result_request.SerializeToString(&pb_serialized_request);
 
     letter = new xdb::Letter(reply, pb_serialized_header, pb_serialized_request);
@@ -452,6 +457,10 @@ TEST(TestBrokerDATABASE, DESTROY)
 //    ASSERT_TRUE(letter != NULL);
 //    delete letter;
 
+    // NB: удаление этих двух объектов Сервиса приведет
+    // к выводу ошибки в консоль, поскольку они уже удалены
+    // ранее в тесте REMOVE_SERVICE.
+    // Сохранился только класс, без своего представления в БДРВ.
     ASSERT_TRUE (service1 != NULL);
     delete service1;
 
@@ -466,15 +475,18 @@ TEST(TestBrokerDATABASE, DESTROY)
     EXPECT_EQ(state, DB_STATE_DISCONNECTED);
 #endif
 
-//    printf("Press any key to continue...");
-//    int ch = getchar();
+#ifdef USE_EXTREMEDB_HTTP_SERVER
+    printf("Press any key to continue...");
+    int ch = getchar();
+#endif
 
     delete database;
 }
 
 TEST(TestDiggerDATABASE, CREATION)
 {
-  //bool status = false;
+//  bool status = false;
+  xdb::Error err;
   RtEnvironment *env1 = NULL;
 //  const int argc = 3;
 //  char *argv[argc] = {
@@ -511,14 +523,9 @@ TEST(TestDiggerDATABASE, CREATION)
   EXPECT_EQ(env->getLastError().getCode(), xdb::rtE_NONE /*rtE_NOT_IMPLEMENTED*/);
 #endif
 
-#if 1
-  // TODO: на 16 октября 2014 вызов этого метода приводит 
-  // к падению внутри mco_db_xml_export()
-  env->MakeSnapshot(NULL);
+  err = env->MakeSnapshot(NULL);
   EXPECT_EQ(env->getLastError().getCode(), xdb::rtE_NONE);
-#else
-#warning "TODO: test RtEnvironment::MakeSnapshot()"
-#endif
+  EXPECT_EQ(env->getLastError().getCode(), err.getCode());
 
   // Проверка корректности получения экземпляра Среды с одним 
   // названием и невозможности появления её дубликата
@@ -532,10 +539,14 @@ TEST(TestDiggerDATABASE, CREATION)
     // и адресом
     EXPECT_TRUE(env == env1);
 
+#if 1
     connection = env->getConnection();
     EXPECT_TRUE(connection != NULL);
+#endif
 
-    env->MakeSnapshot("DIGGER");
+    err = env->MakeSnapshot("DIGGER");
+    EXPECT_EQ(env->getLastError().getCode(), xdb::rtE_NONE);
+    EXPECT_EQ(env->getLastError().getCode(), err.getCode());
   }
   else
   {
@@ -549,7 +560,7 @@ TEST(TestDiggerDATABASE, CREATION)
 TEST(TestDiggerDATABASE, DESTROY)
 {
   LOG(INFO) << "BEGIN DESTROY TestDiggerDATABASE";
-//  delete connection;
+  delete connection;
   delete app;
   LOG(INFO) << "END DESTROY TestDiggerDATABASE";
 }

@@ -1,6 +1,11 @@
 #include <climits> // USHRT_MAX
 #include <assert.h>
 #include <bitset>
+
+// kill()
+#include <sys/types.h>
+#include <signal.h>
+
 #include <stdio.h> // snprintf
 #include <stdlib.h> // exit
 
@@ -88,15 +93,28 @@ file_reader( void *stream_handle /* FILE *  */,  /* OUT */void *to, mco_size_t m
   return nbs;
 }
 
+// Проверка статуса процесса по его идентификатору
+int task_id_check( pid_t tid ){
+    // If sig is 0, then no signal is sent, but error checking is still performed;
+    // this can be used to check for the existence of a process ID or process  group ID.
+    return kill(tid, 0) == 0 ? 0 : 1;
+}
 
-DatabaseImpl::DatabaseImpl(const char* _name, const Options& _options, mco_dictionary_h _dict) :
+DatabaseImpl::DatabaseImpl(const char* _name, const Options* _options, mco_dictionary_h _dict) :
   m_snapshot_counter(0),
+  m_DatabaseSize(1024 * 1024 * 10),
+  m_MemoryPageSize(256),
+  m_MapAddress(0x20000000),
+  m_DbDiskCache(0),
+  m_DbDiskPageSize(0),
   m_state(DB_STATE_UNINITIALIZED),
   m_last_error(rtE_NONE),
   m_db(NULL),
   m_dict(_dict),
   m_db_access_flags(_options),
   m_save_to_xml_feature(false),
+  m_flags(0),
+  m_max_connections(DEFAULT_MAX_DB_CONNECTIONS_ALLOWED),
   m_snapshot_loaded(false)
 {
   int val;
@@ -120,35 +138,43 @@ DatabaseImpl::DatabaseImpl(const char* _name, const Options& _options, mco_dicti
 
   LOG(INFO) << "Constructor database " << m_name;
 
-  if (getOption(m_db_access_flags,"OF_CREATE", val) && val)
+  if (getOption(const_cast<Options*>(m_db_access_flags),"OF_CREATE", val) && val)
   {
     LOG(INFO) << m_name << ": Creates database if it not exist";
     m_flags.set(OF_POS_CREATE);
   }
-  if (getOption(m_db_access_flags,"OF_TRUNCATE", val) && val)
+  if (getOption(const_cast<Options*>(m_db_access_flags),"OF_TRUNCATE", val) && val)
   {
     LOG(INFO) << m_name << ": Truncate database";
     m_flags.set(OF_POS_TRUNCATE);
   }
-  if (getOption(m_db_access_flags,"OF_RDWR", val) && val)
+  if (getOption(const_cast<Options*>(m_db_access_flags),"OF_RDWR", val) && val)
   {
     LOG(INFO) << m_name << ": Mount database in read/write mode";
     m_flags.set(OF_POS_RDWR);
   }
-  if (getOption(m_db_access_flags,"OF_READONLY", val) && val)
+  if (getOption(const_cast<Options*>(m_db_access_flags),"OF_READONLY", val) && val)
   {
     LOG(INFO) << m_name << ": Mount database in read-only mode";
     m_flags.set(OF_POS_READONLY);
   }
-  if (getOption(m_db_access_flags,"OF_LOAD_SNAP", val) && val)
+  if (getOption(const_cast<Options*>(m_db_access_flags),"OF_LOAD_SNAP", val) && val)
   {
     LOG(INFO) << m_name << ": Load database content from snapshot";
     m_flags.set(OF_POS_LOAD_SNAP);
   }
-  if (getOption(m_db_access_flags,"OF_SAVE_SNAP", val) && val)
+  if (getOption(const_cast<Options*>(m_db_access_flags),"OF_SAVE_SNAP", val) && val)
   {
     LOG(INFO) << m_name << ": Store database content before exit";
     m_flags.set(OF_POS_SAVE_SNAP);
+  }
+  if (getOption(const_cast<Options*>(m_db_access_flags),"OF_MAX_CONNECTIONS", m_max_connections))
+  {
+    LOG(INFO) << m_name << ": Max allowed database connections is: " << m_max_connections;
+  }
+  else
+  {
+    m_max_connections = DEFAULT_MAX_DB_CONNECTIONS_ALLOWED;
   }
 
   // Проверить флаги открытия базы данных. Не могут быть установленными
@@ -168,14 +194,14 @@ DatabaseImpl::DatabaseImpl(const char* _name, const Options& _options, mco_dicti
     m_flags.reset(OF_POS_RDWR);
   }
 
-  if (getOption(m_db_access_flags,"OF_DATABASE_SIZE", val) && val)
+  if (getOption(const_cast<Options*>(m_db_access_flags),"OF_DATABASE_SIZE", val) && val)
   {
     LOG(INFO) << m_name << ": Change default database size to " << val << " byte(s)";
     m_DatabaseSize = val;
   }
   else m_DatabaseSize = 1024 * 1024 * 10; // По умолчанию размер базы 10Мб
 
-  if (getOption(m_db_access_flags,"OF_MEMORYPAGE_SIZE", val) && val)
+  if (getOption(const_cast<Options*>(m_db_access_flags),"OF_MEMORYPAGE_SIZE", val) && val)
   {
     LOG(INFO) << m_name << ": Change default page size to " << val << " byte(s)";
     if ((0 < val) && (val < USHRT_MAX))
@@ -194,7 +220,7 @@ DatabaseImpl::DatabaseImpl(const char* _name, const Options& _options, mco_dicti
     m_MemoryPageSize = 256;
   }
 
-  if (getOption(m_db_access_flags,"OF_MAP_ADDRESS", val) && val)
+  if (getOption(const_cast<Options*>(m_db_access_flags),"OF_MAP_ADDRESS", val) && val)
   {
     LOG(INFO) << m_name << ": Change default map address to " << val;
     m_MapAddress = val;
@@ -203,7 +229,7 @@ DatabaseImpl::DatabaseImpl(const char* _name, const Options& _options, mco_dicti
 
 #if (EXTREMEDB_VERSION >= 40) && USE_EXTREMEDB_HTTP_SERVER
   m_intf.interface_addr = strdup("0.0.0.0"); // Принимать подключения с любого адреса
-  if (getOption(m_db_access_flags,"OF_HTTP_PORT", val) && val)
+  if (getOption(const_cast<Options*>(m_db_access_flags),"OF_HTTP_PORT", val) && val)
   {
     LOG(INFO) << m_name << ": Change default http server port to " << val;
     m_intf.port = val;
@@ -216,7 +242,7 @@ DatabaseImpl::DatabaseImpl(const char* _name, const Options& _options, mco_dicti
 #   define DB_LOG_TYPE REDO_LOG
 # endif
 #endif
-  if (getOption(m_db_access_flags, "OF_DISK_CACHE_SIZE", val) && val)
+  if (getOption(const_cast<Options*>(m_db_access_flags), "OF_DISK_CACHE_SIZE", val) && val)
   {
     m_DbDiskCache = val;
     m_DbDiskPageSize = 1024;
@@ -319,6 +345,7 @@ const Error& DatabaseImpl::Init()
 
     clearError();
 
+    m_dev_num = 1;
     if (DB_STATE_UNINITIALIZED != m_state)
     {
       LOG(WARNING) << "Try to re-init database " << m_name;
@@ -329,23 +356,63 @@ const Error& DatabaseImpl::Init()
     if (!m_count)
     {
       rc = mco_runtime_start();
-      LOG(INFO) << "mco_runtime_start '" << m_name << "', rc=" << rc;
     }
     m_count++;
-    LOG(INFO) << "mco_runtime_start '" << m_name << "' " << m_count;
+
+    LOG(INFO) << "mco_runtime_start '" << m_name << "' " << m_count << ", rc=" << rc;
+    mco_get_runtime_info(&info);
+    if (!info.mco_save_load_supported)
+    {
+      LOG(WARNING) << "XML import/export doesn't supported by runtime";
+      m_save_to_xml_feature = false;
+    }
+    else
+    {
+      m_save_to_xml_feature = true;
+    }
 
 #if EXTREMEDB_VERSION >= 40
-  memset(static_cast<void*>(&m_dev), '\0', sizeof(m_dev));
+  memset(static_cast<void*>(&m_dev), '\0', sizeof(mco_device_t) * NDEV);
   /* setup memory device as a shared named memory region */
-  m_dev.assignment = MCO_MEMORY_ASSIGN_DATABASE;
-  m_dev.size       = m_DatabaseSize;
-  m_dev.type       = MCO_MEMORY_NAMED; /* DB in shared memory */
-  sprintf(m_dev.dev.named.name, "%s-db", m_name);
-  m_dev.dev.named.flags = 0;
-  m_dev.dev.named.hint  = 0;
+  m_dev[0].assignment = MCO_MEMORY_ASSIGN_DATABASE;
+  m_dev[0].size       = m_DatabaseSize;
+  m_dev[0].type       = MCO_MEMORY_NAMED; /* DB in shared memory */
+  sprintf(m_dev[0].dev.named.name, "%s-db", m_name);
+  m_dev[0].dev.named.flags = 0;
+  m_dev[0].dev.named.hint  = 0;
+
+  if (info.mco_disk_supported) {
+    /* setup memory device for cache */
+    m_dev[1].assignment = MCO_MEMORY_ASSIGN_CACHE;      /* assign the device as cache */
+    m_dev[1].size       = m_DatabaseSize/2;
+    if (info.mco_shm_supported) {
+      m_dev[1].type       = MCO_MEMORY_NAMED;           /* set the device as shared named memory device */
+      sprintf( m_dev[1].dev.named.name, "%s-cache", m_name ); /* set memory name */
+      m_dev[1].dev.named.flags = 0;                     /* zero flags */
+      m_dev[1].dev.named.hint  = 0;                     /* set mapping address or null it */
+    } else {
+      m_dev[1].type       = MCO_MEMORY_CONV;            /* set the device as a conventional memory device */
+      m_dev[1].dev.conv.ptr = (void*)malloc( m_DatabaseSize/2 ); /* allocate memory and set device pointer */
+    }
+    
+    /* setup memory device for main database storage */
+    m_dev[2].type       = MCO_MEMORY_FILE;                /* set the device as a file device */
+    m_dev[2].assignment = MCO_MEMORY_ASSIGN_PERSISTENT;   /* assign the device as a main database persistent storage */
+    sprintf( m_dev[2].dev.file.name, "%s.dbs", m_name ); /* name the device */
+    m_dev[2].dev.file.flags = MCO_FILE_OPEN_DEFAULT;      /* set the device flags */
+
+    /* setup memory device for transaction log */
+    m_dev[3].type       = MCO_MEMORY_FILE;                /* set the device as a file device */
+    m_dev[3].assignment = MCO_MEMORY_ASSIGN_LOG;          /* assign the device as a log */
+    sprintf( m_dev[3].dev.file.name, "%s.log", m_name ); /* name the device */
+    m_dev[3].dev.file.flags = MCO_FILE_OPEN_DEFAULT;      /* set the device flags */
+
+    m_dev_num += 3;
+  }
 
   mco_db_params_init (&m_db_params);
-  m_db_params.db_max_connections = 1;
+  m_db_params.db_max_connections       = m_max_connections;
+  m_db_params.connection_context_size  = sizeof(pid_t);
   /* set page size for in memory part */
   m_db_params.mem_page_size      = m_MemoryPageSize;
   /* set page size for persistent storage */
@@ -357,17 +424,6 @@ const Error& DatabaseImpl::Init()
 #endif
 
 #endif
-
-    mco_get_runtime_info(&info);
-    if (!info.mco_save_load_supported)
-    {
-      LOG(WARNING) << "XML import/export doesn't supported by runtime";
-      m_save_to_xml_feature = false;
-    }
-    else
-    {
-      m_save_to_xml_feature = true;
-    }
 
     if (rc)
     {
@@ -522,7 +578,7 @@ const Error& DatabaseImpl::ConnectToInstance()
   {
     // Да, экземпляр базы не найден, и допускается его создание
     if ((MCO_E_NOINSTANCE == rc)
-     && ((true == getOption(m_db_access_flags, "OF_CREATE", opt_val)) && opt_val))
+     && ((true == getOption(const_cast<Options*>(m_db_access_flags), "OF_CREATE", opt_val)) && opt_val))
     {
       // Повторно попытаться создать экземпляр, поскольку он еще не существовал
       if (!Open().Ok())
@@ -544,7 +600,7 @@ const Error& DatabaseImpl::ConnectToInstance()
      TransitionToState(DB_STATE_CONNECTED);
 
      // Если требуется удалить старый экземпляр БД
-     if (true == getOption(m_db_access_flags, "OF_TRUNCATE", opt_val) && opt_val)
+     if (true == getOption(const_cast<Options*>(m_db_access_flags), "OF_TRUNCATE", opt_val) && opt_val)
      {
        /*
         * NB: предварительное удаление экземпляра БД делает бесполезной 
@@ -790,7 +846,11 @@ const Error& DatabaseImpl::Disconnect()
 
       rc = mco_db_disconnect(m_db);
       LOG(INFO)<<"mco_db_disconnect '" << m_name << "', rc=" << rc;
-      if (rc) { LOG(ERROR)<<"Unable to disconnect from "<<m_name<<", rc="<<rc; }
+      if (rc) 
+      {
+        LOG(ERROR)<<"Unable to disconnect from "<<m_name<<", rc="<<rc;
+      }
+      else TransitionToState(DB_STATE_DISCONNECTED);
 
       // NB: break пропущен специально
     case DB_STATE_ATTACHED:  // база подключена
@@ -800,9 +860,11 @@ const Error& DatabaseImpl::Disconnect()
       rc = mco_db_close(m_name);
 #endif
       LOG(INFO)<<"mco_db_close '"<<m_name<<"', rc="<<rc;
-      if (rc) { LOG(ERROR)<<"Unable to close "<<m_name<<", rc="<<rc; }
-
-      TransitionToState(DB_STATE_DISCONNECTED);
+      if (rc)
+      {
+        LOG(ERROR)<<"Unable to close "<<m_name<<", rc="<<rc;
+      }
+      else TransitionToState(DB_STATE_CLOSED);
     break;
 
     default:
@@ -877,10 +939,10 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
 #if EXTREMEDB_VERSION >= 40
   do
   {
-    if (rc)
+    if (m_snapshot_loaded)
     {
-      LOG(ERROR) << "Unable to clean '"<<m_name<<"' database content";
-      setError(rtE_RUNTIME_FATAL);
+      LOG(ERROR) << "Try to re-open '"<<m_name<<"' database content";
+      setError(rtE_SNAPSHOT_READ);
       break;
     }
 
@@ -895,12 +957,12 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
                         file_reader,
                         m_name,
                         m_dict,
-                        &m_dev,
-                        1,
+                        m_dev,
+                        m_dev_num,
                         &m_db_params);
     if (rc)
     {
-      LOG(ERROR) << "Unable to read data from snap file '" <<fname<<"' , rc="<<rc;
+      LOG(ERROR) << "Unable to load '" << m_name << "' snapshot file '" <<fname << "', rc="<<rc;
       m_snapshot_loaded = false;
       setError(rtE_SNAPSHOT_READ);
     }
@@ -908,6 +970,7 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
     {
       // Успешно прочитали бинарный дамп
       m_snapshot_loaded = true;
+      LOG(INFO) << "Binary dump '" << fname << "' succesfully loaded";
     }
     fclose(fbak);
 
@@ -1013,8 +1076,6 @@ const Error& DatabaseImpl::LoadFromXML(const char* given_file_name)
 const Error& DatabaseImpl::Open()
 {
   MCO_RET rc = MCO_S_OK;
-  int  opt_val;
-  char fname[150];
 
   clearError();
 
@@ -1067,8 +1128,8 @@ const Error& DatabaseImpl::Open()
   {
     rc = mco_db_open_dev(m_name,
                          m_dict,
-                         &m_dev,
-                         1,
+                         m_dev,
+                         m_dev_num,
                          &m_db_params);
     LOG(INFO) << "mco_db_open_dev '" << m_name << "', rc=" << rc;
     // Состояние ATTACHED - подключение m_db не инициализировано
@@ -1080,12 +1141,17 @@ const Error& DatabaseImpl::Open()
 
 #else /* EXTREMEDB_VERSION >= 40 && not USE_EXTREMEDB_HTTP_SERVER */
 
+  // Если снимок загружен успешно, значит БД уже работает,
+  // пропустим повторное ее открытие
+  if (!m_snapshot_loaded)
+  {
    rc = mco_db_open(m_name,
                     m_dict,
                     (void*)m_MapAddress,
                     m_DatabaseSize + m_DbDiskCache,
                     m_MemoryPageSize /*PAGESIZE*/);
     LOG(INFO) << "mco_db_open '" << m_name << "', rc=" << rc;
+  }
 
 #endif /* EXTREMEDB_VERSION >= 40 */
 
@@ -1331,6 +1397,7 @@ void DatabaseImpl::clearError()
 // Интерфейс управления БД - Контроль выполнения
 const Error& DatabaseImpl::Control(rtDbCq& info)
 {
+  
   m_last_error = rtE_NOT_IMPLEMENTED;
   return m_last_error;
 }

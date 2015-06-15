@@ -41,7 +41,8 @@ add_custom_command(
         ${MSG_DIR}/proto/common.pb.cc
         ${MSG_DIR}/proto/common.pb.h
         COMMAND
-        ${PROTOC} --cpp_out=. --proto_path=. common.proto
+        sh -c "LD_LIBRARY_PATH=${LIBPROTOBUF_LIBRARIES_DIR} ${PROTOC} --cpp_out=. --proto_path=. common.proto"
+#        ${PROTOC} --cpp_out=. --proto_path=. common.proto
         DEPENDS
         ${MSG_DIR}/proto/common.proto
         WORKING_DIRECTORY
@@ -68,12 +69,11 @@ set (MDP_SOURCES
         ${MDP_DIR}/mdp_common.h
         ${MDP_DIR}/mdp_helpers.hpp
         ${MDP_DIR}/mdp_helpers.cpp
-        ${MDP_DIR}/mdp_letter.hpp
-        ${MDP_DIR}/mdp_letter.cpp
         ${MDP_DIR}/mdp_client_async_api.hpp
         ${MDP_DIR}/mdp_client_async_api.cpp
         ${MDP_DIR}/mdp_worker_api.hpp
-        ${MDP_DIR}/mdp_worker_api.cpp)
+        ${MDP_DIR}/mdp_worker_api.cpp
+        ${MSG_DIR}/msg_message.cpp)
 
 set (BROKER_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
@@ -88,11 +88,11 @@ set (BROKER_SOURCES
         ${MDP_DIR}/mdp_zmsg.hpp
         ${MDP_DIR}/mdp_zmsg.cpp
         ${MDP_DIR}/mdp_common.h
-        ${MSG_DIR}/msg_message.hpp
         ${MDP_DIR}/mdp_helpers.hpp
         ${MDP_DIR}/mdp_helpers.cpp
         ${MDP_DIR}/mdp_broker.hpp
-        ${MDP_DIR}/mdp_broker.cpp)
+        ${MDP_DIR}/mdp_broker.cpp
+        ${MSG_DIR}/msg_message.hpp)
 
 set_source_files_properties(${XDB_IMPL_DIR}/dat/broker_db.h
                             ${XDB_IMPL_DIR}/dat/broker_db.c
@@ -109,7 +109,6 @@ add_library (${MDP_LIBRARY_NAME} ${MDP_SOURCES})
 target_link_libraries(${MDP_LIBRARY_NAME}
     ${MSG_LIBRARY_NAME}
     ${LIBZMQ_LIBRARIES}
-    ${TOOLS_LIBRARY_NAME}
     ${SYSTEM_EXTERNAL_LIBS})
 
 # Сборка брокера
@@ -119,10 +118,7 @@ add_executable (${MDP_BROKER} ${BROKER_SOURCES})
 target_link_libraries(${MDP_BROKER}
     ${LIBZMQ_LIBRARIES}
     ${TOOLS_LIBRARY_NAME}
-    ${MDP_LIBRARY_NAME}
-    ${MSG_LIBRARY_NAME}
     ${XDB_BROKER_LIBRARY_NAME}
-    ${XDB_BROKER_IMPL_LIBRARY_NAME}
     ${LIBGLOG_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${LIBPROTOBUF_LIBRARIES}

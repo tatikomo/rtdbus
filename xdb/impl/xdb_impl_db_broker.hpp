@@ -18,6 +18,7 @@ extern "C" {
 #include "dat/broker_db.hpp"
 #include "xdb_broker_letter.hpp"
 #include "xdb_broker_worker.hpp"
+#include "xdb_broker_service.hpp"
 #include "xdb_impl_common.h"
 #include "xdb_impl_common.hpp"
 
@@ -26,6 +27,17 @@ namespace xdb {
 class DatabaseImpl;
 class Service;
 class Worker;
+
+// Структура записи соответствия между названием Сервиса
+// и точкой подключения к нему
+typedef struct {
+  // Название Службы
+  const char name[SERVICE_NAME_MAXLEN + 1];
+  // Значение по-умолчанию
+  const char endpoint_default[ENDPOINT_MAXLEN + 1];
+  // Значение, прочитанное из снимка БД
+  char endpoint_given[ENDPOINT_MAXLEN + 1];
+} ServiceEndpoint_t;
 
 void errhandler(MCO_RET);
 void extended_errhandler(MCO_RET errcode, const char* file, int line);
@@ -81,19 +93,29 @@ class DatabaseBrokerImpl
     DatabaseBrokerImpl(const char*);
     ~DatabaseBrokerImpl();
 
-    bool Init();
     // Создание экземпляра БД или подключение к уже существующему
     bool Connect();
+    bool Init();
     bool Disconnect();
     //
-    DBState_t State();
+    DBState_t State() const;
 
-    Service *AddService(const char*);
-    Service *AddService(const std::string&);
+    // Получить свою точку подключения
+    const char* getEndpoint() const;
+
+    // Получить точку подключения для указанного Сервиса
+    const char* getEndpoint(const std::string&) const;
+
+    // Создать новый Сервис с указанной точкой подключения
+    Service *AddService(const char* /*, const char**/);
+    Service *AddService(const std::string& /*, const std::string&*/);
 
     // получить доступ к текущему списку Сервисов
     ServiceList* GetServiceList();
-    //
+
+    // Обновить состояние экземпляра в БД
+    bool Update(Worker*);
+    bool Update(Service*);
 
     bool RemoveService(const char*);
     /* Удалить Обработчик из всех связанных с ним таблиц БД */
@@ -170,6 +192,8 @@ class DatabaseBrokerImpl
     ServiceList             *m_service_list;
     Options                  m_opt;
 
+    // Загрузка НСИ
+    bool LoadDictionaries();
     // Удаление временных данных перед закрытием БД
     bool Cleanup();
 
@@ -219,6 +243,9 @@ class DatabaseBrokerImpl
      */
     //MCO_RET LoadWorkerByIdent(mco_trans_h, autoid_t&, Worker*);
 
+    // Конвертировать состояние Службы из БД в состояние
+    Service::State StateConvert(ServiceState);
+    ServiceState StateConvert(Service::State);
 };
 
 } //namespace xdb

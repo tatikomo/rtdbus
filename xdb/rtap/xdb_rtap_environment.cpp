@@ -27,7 +27,8 @@ RtEnvironment::RtEnvironment(RtApplication* _app, const char* _name) :
 
 RtEnvironment::~RtEnvironment()
 {
-  delete m_conn;
+// Подключения должны удаляться в вызывающем контексте
+//1  delete m_conn;
   delete m_impl;
 //  if (m_database)
 //  {
@@ -42,6 +43,8 @@ const char* RtEnvironment::getName() const
 }
 
 // вернуть подключение к указанной БД/среде
+// TODO: каждая нить, требующая подключения к БД, должна выполнить mco_db_connection(),
+// чтобы получить свой mco_db_h.
 RtConnection* RtEnvironment::getConnection()
 {
   switch(m_database->State())
@@ -58,9 +61,12 @@ RtConnection* RtEnvironment::getConnection()
         // NB: break пропущен специально
 
     case DB_STATE_CONNECTED:
-        if (!m_conn)
+//1        if (!m_conn)
         {
+          // Каждый раз возвращать новое подключение, поскольку вызовы могут быть из разных нитей
+          // Каждая нить владеет одним подключением, и явно закрывает его при завершении работы.
           m_conn = new RtConnection(this);
+          LOG(INFO) << "Created new RtConnection " << m_conn;
         }
     break;
 

@@ -18,10 +18,10 @@
 using namespace xdb;
 
 RtApplication::RtApplication(const char* _name)
+  : m_impl(new ApplicationImpl(_name)),
+    m_initialized(false)
 {
-  m_initialized = false;
-  m_impl = new ApplicationImpl(_name);
-  m_env_list.clear();
+  m_env_list.reserve(4);
 }
 
 RtApplication::~RtApplication()

@@ -22,6 +22,7 @@ namespace mdp {
 //  This defines a single broker
 class Broker {
  public:
+   static const int PollInterval = HEARTBEAT_PERIOD_MSEC/3;
    static const int HeartbeatInterval = HEARTBEAT_PERIOD_MSEC;
    static const int HeartbeatExpiration = HEARTBEAT_PERIOD_MSEC * HEARTBEAT_LIVENESS;
    //  ---------------------------------------------------------------------
@@ -45,12 +46,6 @@ class Broker {
 #endif
 
    //  ---------------------------------------------------------------------
-   //  Bind broker to endpoint, can call this multiple times
-   //  We use a single socket for both clients and workers.
-   bool
-   bind (const std::string& endpoint);
-
-   //  ---------------------------------------------------------------------
    //  Delete any idle workers that haven't pinged us in a while.
    void
    purge_workers ();
@@ -63,7 +58,7 @@ class Broker {
    //  ---------------------------------------------------------------------
    //  Locate or create new service entry
    xdb::Service *
-   service_require (const std::string& name);
+   service_require (const std::string& name/*, const std::string& endpoint*/);
 
    zmq::socket_t&
    get_socket() { return *m_socket; };
@@ -100,7 +95,9 @@ class Broker {
    //  Send message to worker
    //  If pointer to message is provided, sends that message
    void
-   worker_send (xdb::Worker*, const char*, const std::string&, zmsg *msg);
+   worker_send (const char*, const char*, const std::string&, zmsg *msg = NULL);
+//   void
+//   worker_send (xdb::Worker*, const char*, const std::string&, zmsg *msg);
    void
    worker_send (xdb::Worker*, const char*, const std::string&, xdb::Letter*);
    void
@@ -133,9 +130,6 @@ class Broker {
     bool              m_verbose;               //  Print activity to stdout
     std::string       m_endpoint;              //  Broker binds to this endpoint
     int64_t           m_heartbeat_at;          //  When to send HEARTBEAT
-//    std::map<std::string, xdb::Service*> m_services;//  Hash of known services
-//    std::map<std::string, xdb::Worker*>  m_workers; //  Hash of known workers
-//    std::vector<xdb::Worker*>            m_waiting; //  List of waiting workers
 
     /* 
      * Назначение: Локальная база данных в разделяемой памяти.
@@ -143,6 +137,11 @@ class Broker {
      * Содержание: список Сервисов и их Обработчиков
      */
     xdb::DatabaseBroker *m_database;
+
+    //  ---------------------------------------------------------------------
+    //  Bind broker to endpoint, can call this multiple times
+    //  We use a single socket for both clients and workers.
+    bool bind ();
 
     /* Обработка соответствующих команд, полученных от Обработчиков */
     bool worker_process_READY(xdb::Worker*&, const std::string&, zmsg*);

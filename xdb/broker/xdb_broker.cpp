@@ -10,7 +10,7 @@
 #include "xdb_broker.hpp"
 #include "xdb_broker_service.hpp"
 #include "xdb_broker_worker.hpp"
-#include "mdp_letter.hpp"
+#include "msg_message.hpp"
 
 using namespace xdb;
 
@@ -36,9 +36,21 @@ bool DatabaseBroker::Disconnect()
   return m_impl->Disconnect();
 }
 
-int DatabaseBroker::State()
+int DatabaseBroker::State() const
 {
   return static_cast<xdb::DBState_t>(m_impl->State());
+}
+
+// Получить свою точку подключения
+const char* DatabaseBroker::getEndpoint() const
+{
+  return m_impl->getEndpoint();
+}
+
+// Получить точку подключения для указанного Сервиса
+const char* DatabaseBroker::getEndpoint(const std::string& service_name) const
+{
+  return m_impl->getEndpoint(service_name);
 }
 
 bool DatabaseBroker::SetWorkerState(Worker* worker, Worker::State new_state)
@@ -74,6 +86,20 @@ Service *DatabaseBroker::GetServiceByName(const char *service_name)
 {
   if (!m_impl) return NULL;
   return m_impl->GetServiceByName(service_name);
+}
+
+// Обновить состояние экземпляра в БД
+bool DatabaseBroker::Update(Service* srv)
+{
+  assert(m_impl);
+  return m_impl->Update(srv);
+}
+
+// Обновить состояние экземпляра в БД
+bool DatabaseBroker::Update(Worker* wrk)
+{
+  assert(m_impl);
+  return m_impl->Update(wrk);
 }
 
 Service *DatabaseBroker::AddService(const std::string& service_name)

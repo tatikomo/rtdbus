@@ -4,11 +4,22 @@
 #include "helper.hpp"
 #include "mdp_zmsg.hpp"
 #include "mdp_worker_api.hpp"
-#include "mdp_letter.hpp"
+#include "msg_message.hpp"
 #include "proto/common.pb.h"
 #include "wtester.hpp"
 
 extern int interrupt_worker;
+
+Tester::Tester(const std::string& broker, const std::string& service, int verbose) 
+  : mdwrk(broker, service, verbose),
+    m_message_factory(new msg::MessageFactory(service.c_str()))
+{
+}
+
+Tester::~Tester()
+{
+  delete m_message_factory;
+}
 
 int Tester::handle_request(mdp::zmsg* request, std::string*& reply_to)
 {
@@ -29,14 +40,14 @@ int Tester::handle_request(mdp::zmsg* request, std::string*& reply_to)
         request->dump();
   }
 #else
-  mdp::Letter *letter = new mdp::Letter(request);
-  if (letter->GetVALIDITY())
+  msg::Letter *letter = m_message_factory->create(request);
+  if (letter->valid())
   {
     handle_rtdbus_message(letter, reply_to);
   }
   else
   {
-    LOG(ERROR) << "Readed letter "<<letter->header().get_exchange_id()<<" not valid";
+    LOG(ERROR) << "Readed letter "<<letter->header()->exchange_id()<<" not valid";
   }
 
   delete letter;
@@ -45,22 +56,23 @@ int Tester::handle_request(mdp::zmsg* request, std::string*& reply_to)
   return 0;
 }
 
-int Tester::handle_rtdbus_message(mdp::Letter* letter, 
+int Tester::handle_rtdbus_message(msg::Letter* letter, 
                                 std::string *reply_to)
 {
     assert(reply_to != NULL);
     mdp::zmsg * msg = new mdp::zmsg();
 
     /* TODO: поменять местами в заголовке значения полей "Отправитель" и "Получатель" */
-    std::string origin = letter->header().instance().proc_origin();
-    std::string dest = letter->header().instance().proc_dest();
+    std::string origin = letter->header()->proc_origin();
+    std::string dest = letter->header()->proc_dest();
 
-    letter->SetOrigin(dest.c_str());
-    letter->SetDestination(origin.c_str());
+    letter->set_origin(dest.c_str());
+    letter->set_destination(origin.c_str());
 
-    msg->push_front(const_cast<std::string&>(letter->SerializedData()));
-    msg->push_front(const_cast<std::string&>(letter->SerializedHeader()));
+    msg->push_front(const_cast<std::string&>(letter->data()->get_serialized()));
+    msg->push_front(const_cast<std::string&>(letter->header()->get_serialized()));
     msg->wrap(reply_to->c_str(), "");
+
     send_to_broker((char*) MDPW_REPORT, NULL, msg);
     delete msg;
     return 0;

@@ -111,7 +111,7 @@ set (XDB_RTAP_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
         ${TOOLS_DIR}/helper.hpp
         ${TOOLS_DIR}/helper.cpp
-        ${MDP_DIR}/mdp_letter.hpp
+        ${MSG_DIR}/msg_message.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_const.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_const.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_common.h
@@ -160,7 +160,6 @@ add_executable (${XDB_RTAP_SNAP_NAME} ${XDB_RTAP_SNAP_SOURCES})
 target_link_libraries(${XDB_RTAP_SNAP_NAME}
     ${XDB_RTAP_LIBRARY_NAME}
     ${XDB_RTAP_IMPL_LIBRARY_NAME}
-    ${MDP_LIBRARY_NAME}
     ${LIBGLOG_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${SYSTEM_EXTERNAL_LIBS})

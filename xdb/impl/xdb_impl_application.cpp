@@ -84,7 +84,7 @@ AppState_t ApplicationImpl::getOperationState() const
 
 bool ApplicationImpl::getOption(const std::string& key, int& val)
 {
-  bool status = ::getOption(m_map_options, key, val);
+  bool status = ::getOption(&m_map_options, key, val);
   return status;
 }
 

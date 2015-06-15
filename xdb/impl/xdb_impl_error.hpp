@@ -71,7 +71,7 @@ class Error
   private:
     void init();
     static bool  m_initialized;
-    static char* m_error_descriptions[MaxErrorCode + 1];
+    static const char* m_error_descriptions[MaxErrorCode + 1];
     ErrorCode_t  m_error_code;
 };
 

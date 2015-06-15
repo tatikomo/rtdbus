@@ -25,7 +25,7 @@ class Worker
     /* NB: должен быть размер поля identity_t из broker.mco */
     static const int IdentityMaxLen = IDENTITY_MAXLEN;
 
-    // NB: создан на основе WorkerState из генерируемого dat/xdb_broker.h
+    // NB: изменения синхронизировать с WorkerState из broker_db.mco
     enum State {
         DISARMED    = 0,
         ARMED       = 1,    // Свободен, готов к использованию
@@ -52,8 +52,10 @@ class Worker
      */
     void SetSTATE(const State);
     void SetVALID();
-    // Получить отметку времени
+    // Получить отметку времени срока годности
     const timer_mark_t& GetEXPIRATION() const;
+    // Сгенерировать новую метку срока годности
+    bool CalculateEXPIRATION_TIME(timer_mark_t&);
     State   GetSTATE() const;
     int64_t GetSERVICE_ID() const { return m_service_id; }
     int64_t GetLETTER_ID() const  { return m_letter_id; }

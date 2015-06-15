@@ -9,7 +9,7 @@ const char * EMPTY_FRAME = "";
 //  This is the version of MDP/Client we implement
 const char * MDPC_CLIENT = "MDPC0X";
 
-char *mdpc_commands [] = {
+const char *mdpc_commands [] = {
     '\0',
     (const char*)"REQUEST",
     (const char*)"REPORT",
@@ -20,7 +20,7 @@ char *mdpc_commands [] = {
 const char * MDPW_WORKER = "MDPW0X";
 
 // TODO: в версии 0.2 REPORT заменен на PARTIAL и FINAL
-char *mdpw_commands [] = {
+const char *mdpw_commands [] = {
     '\0',
     (const char*)"READY",
     (const char*)"REQUEST",
@@ -46,9 +46,9 @@ bool
 s_send (zmq::socket_t & socket, const std::string & string) {
 
     zmq::message_t message(string.size());
-    memcpy(message.data(), string.data(), string.size());
+    memcpy (message.data(), string.data(), string.size());
 
-    bool rc = socket.send(message);
+    bool rc = socket.send (message);
     return (rc);
 }
 
@@ -57,9 +57,9 @@ bool
 s_sendmore (zmq::socket_t & socket, const std::string & string) {
 
     zmq::message_t message(string.size());
-    memcpy(message.data(), string.data(), string.size());
+    memcpy (message.data(), string.data(), string.size());
 
-    bool rc = socket.send(message, ZMQ_SNDMORE);
+    bool rc = socket.send (message, ZMQ_SNDMORE);
     return (rc);
 }
 
@@ -72,7 +72,6 @@ s_dump (zmq::socket_t & socket)
 
     while (1) {
         //  Process all parts of the message
-
         zmq::message_t message;
         socket.recv(&message);
 
@@ -102,10 +101,9 @@ s_dump (zmq::socket_t & socket)
         }
         std::cout << std::endl;
 
-        int more;           //  Multipart detection
+        int more = 0;           //  Multipart detection
         size_t more_size = sizeof (more);
-        socket.getsockopt(ZMQ_RCVMORE, &more, &more_size);
-
+        socket.getsockopt (ZMQ_RCVMORE, &more, &more_size);
         if (!more)
             break;      //  Last message part
     }
@@ -118,8 +116,8 @@ s_set_id (zmq::socket_t & socket)
 {
     std::stringstream ss;
     ss << std::hex << std::uppercase
-          << std::setw(4) << std::setfill('0') << within (0x10000) << "-"
-          << std::setw(4) << std::setfill('0') << within (0x10000);
+       << std::setw(4) << std::setfill('0') << within (0x10000) << "-"
+       << std::setw(4) << std::setfill('0') << within (0x10000);
     socket.setsockopt(ZMQ_IDENTITY, ss.str().c_str(), ss.str().length());
     return ss.str();
 }
@@ -189,14 +187,14 @@ zclock_time (void)
 int64_t
 s_clock (void)
 {
-#if (defined (__WINDOWS__))
+#if (defined (_WIN32))
     SYSTEMTIME st;
     GetSystemTime (&st);
     return (int64_t) st.wSecond * 1000 + st.wMilliseconds;
 #else
     struct timeval tv;
     gettimeofday (&tv, NULL);
-    return (int64_t) ((int64_t)tv.tv_sec * 1000 + (int64_t)tv.tv_usec / 1000);
+    return (int64_t) (tv.tv_sec * 1000 + tv.tv_usec / 1000);
 #endif
 }
 
@@ -204,7 +202,7 @@ s_clock (void)
 void
 s_sleep (int msecs)
 {
-#if (defined (__WINDOWS__))
+#if (defined (_WIN32))
     Sleep (msecs);
 #else
     struct timespec t;

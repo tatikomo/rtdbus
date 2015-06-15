@@ -8,6 +8,7 @@ using namespace xdb;
 Service::Service() :
   m_id(0),
   m_name(NULL),
+  m_endpoint(NULL),
   m_state(DISABLED),
   m_modified(false)
 {
@@ -16,6 +17,7 @@ Service::Service() :
 Service::Service(const int64_t _id, const char *_name) :
   m_id(_id),
   m_name(NULL),
+  m_endpoint(NULL),
   m_state(DISABLED),
   m_modified(true)
 {
@@ -25,6 +27,7 @@ Service::Service(const int64_t _id, const char *_name) :
 Service::~Service()
 {
   delete []m_name;
+  delete []m_endpoint;
 }
 
 // TODO: проверить обоснованность присваивания
@@ -34,7 +37,7 @@ void Service::SetSTATE(State _state)
   m_modified = true;
 }
 
-Service::State Service::GetSTATE()
+Service::State Service::GetSTATE() const
 {
   return m_state;
 }
@@ -60,14 +63,37 @@ void Service::SetNAME(const char *_name)
   m_modified = true;
 }
 
+void Service::SetENDPOINT(const char *_endpoint)
+{
+  assert(_endpoint);
+
+  if (!_endpoint) return;
+
+  /* удалить старое значение названия сервиса */
+  delete []m_endpoint;
+
+  m_endpoint = new char[strlen(_endpoint)+1];
+  strcpy(m_endpoint, _endpoint);
+
+  m_modified = true;
+}
+
 int64_t Service::GetID()
 {
   return m_id;
 }
 
-const char* Service::GetNAME()
+const char* Service::GetNAME() const
 {
   return m_name;
+}
+
+const char* Service::GetENDPOINT() const
+{
+//  if (!m_endpoint)
+//    std::cout << "Service::GetENDPOINT() : endpoint is NULL" << std::endl;
+  assert(m_endpoint);
+  return (m_endpoint)? m_endpoint : "";
 }
 
 /* Подтвердить соответствие состояния объекта своему отображению в БД */
@@ -77,7 +103,7 @@ void Service::SetVALID()
 }
 
 /* Соответствует или нет экземпляр своему хранимому в БД состоянию */
-bool Service::GetVALID()
+bool Service::GetVALID() const
 {
   return (m_modified == false);
 }

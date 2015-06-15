@@ -48,8 +48,8 @@ typedef std::map<const std::string, int> Options;
 typedef Options::iterator OptionIterator;
 
 // Получить значение указанной опции из массива опций
-bool  getOption(Options&, const std::string&, int&);
-bool  setOption(Options&, const std::string&, int);
+bool  getOption(Options*, const std::string&, int&);
+bool  setOption(Options*, const std::string&, int);
 
 #ifdef __cplusplus
 }

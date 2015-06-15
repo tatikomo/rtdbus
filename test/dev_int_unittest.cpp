@@ -9,20 +9,18 @@
 #include "mdp_common.h"
 #include "mdp_broker.hpp"
 #include "mdp_worker_api.hpp"
-#include "mdp_letter.hpp"
 #include "mdp_client_async_api.hpp"
 #include "mdp_proxy.hpp"
 
 #include "xdb_broker.hpp"
 #include "xdb_impl_db_broker.hpp"
-//#include "xdb_broker_letter.hpp"
-//#include "xdb_broker_service.hpp"
 
 using namespace xdb;
-#include "pulsar.hpp"
 
 // Определения пользовательских сообщений и их сериализованных структур
 #include "msg_common.h"
+#include "msg_message.hpp"
+#include "msg_adm.hpp"
 #include "proto/common.pb.h"
 
 mdp::Broker *broker = NULL;
@@ -37,6 +35,7 @@ std::string client_identity_2 = "@C000000002";
 
 xdb::DatabaseBroker *database = NULL;
 
+msg::MessageFactory *message_factory = NULL;
 const char *attributes_connection_to_broker = (const char*)"tcp://localhost:5555";
 const char *BROKER_SNAP_FILE = (const char*)"broker_db.snap";
 xdb::Service *service1 = NULL;
@@ -55,9 +54,9 @@ typedef enum
 /*
  * Прототипы функций
  */
-void         Dump(mdp::Letter*);
+void         Dump(msg::Letter*);
 void         PrintWorker(xdb::Worker*);
-xdb::Letter* GetNewLetter(rtdbMsgType, rtdbExchangeId);
+xdb::Letter* CreateNewLetter(rtdbMsgType, rtdbExchangeId, const std::string&);
 
 /*
  * Реализация функций
@@ -70,25 +69,26 @@ void PrintWorker(xdb::Worker* worker)
     <<"/"<<worker->GetSTATE()<<"/"<<worker->Expired()<<std::endl;
 }
 
-xdb::Letter* GetNewLetter(rtdbMsgType msg_type, rtdbExchangeId user_exchange)
+xdb::Letter* CreateNewLetter(rtdbMsgType msg_type,
+                             rtdbExchangeId user_exchange,
+                             const std::string& dest)
 {
-  ::google::protobuf::Message* pb_message = NULL;
-  std::string   pb_serialized_request;
   xdb::Letter  *xdb_letter;
-  mdp::Letter  *mdp_letter;
+  msg::Letter  *msg_letter;
+
+  assert(message_factory);
+  msg_letter = message_factory->create(msg_type);
+  msg_letter->set_destination(dest);
 
   switch(msg_type)
   {
     case ADG_D_MSG_EXECRESULT:
-        pb_message = new RTDBM::ExecResult;
-        static_cast<RTDBM::ExecResult*>(pb_message)->set_user_exchange_id(user_exchange);
-        static_cast<RTDBM::ExecResult*>(pb_message)->set_exec_result(1);
-        static_cast<RTDBM::ExecResult*>(pb_message)->set_failure_cause(0);
+        static_cast<msg::ExecResult*>(msg_letter)->set_exec_result(user_exchange % 10);
+        static_cast<msg::ExecResult*>(msg_letter)->set_failure_cause(user_exchange % 100);
         break;
 
     case ADG_D_MSG_ASKLIFE:
-        pb_message = new RTDBM::AskLife;
-        static_cast<RTDBM::AskLife*>(pb_message)->set_user_exchange_id(user_exchange);
+        static_cast<msg::AskLife*>(msg_letter)->set_status(user_exchange % 10);
         break;
 
     default:
@@ -96,25 +96,14 @@ xdb::Letter* GetNewLetter(rtdbMsgType msg_type, rtdbExchangeId user_exchange)
         break;
   }
 
-  pb_message->SerializeToString(&pb_serialized_request);
-  delete pb_message;
-  mdp_letter = new mdp::Letter(msg_type, 
-                               static_cast<const std::string&>(service_name_1),
-                               static_cast<const std::string*>(&pb_serialized_request));
-
   xdb_letter = new xdb::Letter(client_identity_2.c_str(),
                            /* заголовок */
-                           mdp_letter->SerializedHeader(),
+                           msg_letter->header()->get_serialized(),
                            /* тело сообщения */
-                           mdp_letter->SerializedData());
-  delete mdp_letter;
+                           msg_letter->data()->get_serialized());
+  delete msg_letter;
 
   return xdb_letter;
-}
-
-Pulsar::Pulsar(std::string broker, int verbose) : mdcli(broker, verbose)
-{
-  LOG(INFO) << "Create pulsar instance";
 }
 
 void purge_workers(PurgeFilter_t filter)
@@ -243,56 +232,55 @@ TEST(TestHelper, CLOCK)
   LOG(INFO) << "TestHelper CLOCK stop";
 }
 
-void Dump(mdp::Letter* letter)
+void Dump(msg::Letter* letter)
 {
-  RTDBM::ExecResult *kokoko = static_cast<RTDBM::ExecResult*>(letter->data());
-
-  std::cout << (int)letter->header().get_protocol_version();
-  std::cout << "/" << letter->header().get_exchange_id();
-  std::cout << "/" << letter->header().get_source_pid();
-  std::cout << "/" << letter->header().get_proc_dest();
-  std::cout << "/" << letter->header().get_proc_origin();
-  std::cout << "/" << letter->header().get_sys_msg_type();
-  std::cout << "/" << letter->header().get_usr_msg_type();
-  std::cout << "[" << kokoko->user_exchange_id();
-  std::cout << "/" << kokoko->exec_result();
-  std::cout << "/" << kokoko->failure_cause()<<"]";
+  std::cout << (int)letter->header()->protocol_version();
+  std::cout << "/" << letter->header()->exchange_id();
+  std::cout << "/" << letter->header()->interest_id();
+  std::cout << "/" << letter->header()->source_pid();
+  std::cout << "/" << letter->header()->proc_dest();
+  std::cout << "/" << letter->header()->proc_origin();
+  std::cout << "/" << letter->header()->sys_msg_type();
+  std::cout << "/" << letter->header()->usr_msg_type();
+  std::cout << "/" << letter->header()->time_mark();
   std::cout << std::endl;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+TEST(TestLetter, FACTORY_CREATE)
+{
+  message_factory = new msg::MessageFactory("dev_int_test");
+  ASSERT_TRUE(message_factory);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 TEST(TestLetter, USAGE)
 {
-  mdp::Letter* letter1 = NULL;
-  mdp::Letter* letter2 = NULL;
+  msg::ExecResult  *letter = NULL;
   RTDBM::ExecResult pb_exec_result_request;
   std::string       pb_serialized_header;
   std::string       pb_serialized_request;
 
-  pb_exec_result_request.set_user_exchange_id(102);
-  pb_exec_result_request.set_exec_result(1);
-  pb_exec_result_request.set_failure_cause(0);
-  pb_exec_result_request.SerializeToString(&pb_serialized_request);  
+  letter = static_cast<msg::ExecResult*>(message_factory->create(ADG_D_MSG_EXECRESULT));
+  letter->set_exec_result(1234);
+  letter->set_failure_cause(567);
+  letter->set_destination("<unknown>");
+  Dump(letter);
+  EXPECT_TRUE(letter->exec_result() == 1234);
+  EXPECT_TRUE(letter->failure_cause() == 567);
 
-  letter1 = new mdp::Letter(ADG_D_MSG_EXECRESULT, "NYSE", &pb_serialized_request);
-  Dump(letter1);
+  pb_exec_result_request.ParseFromString(letter->data()->get_serialized());
+  EXPECT_TRUE(pb_exec_result_request.exec_result() == 1234);
+  EXPECT_TRUE(pb_exec_result_request.failure_cause() == 567);
 
-  letter2 = new mdp::Letter(ADG_D_MSG_EXECRESULT, "NYSE");
-  RTDBM::ExecResult* exec_result = static_cast<RTDBM::ExecResult*>(letter2->mutable_data());
-  exec_result->set_user_exchange_id(103);
-  exec_result->set_exec_result(104);
-  exec_result->set_failure_cause(105);
-  Dump(letter2);
-
-  pb_exec_result_request.ParseFromString(letter2->SerializedData());
-  ASSERT_EQ(pb_exec_result_request.user_exchange_id(), 103);
-  ASSERT_EQ(pb_exec_result_request.exec_result(), 104);
-  ASSERT_EQ(pb_exec_result_request.failure_cause(), 105);
-
-  delete letter1;
-  delete letter2;
-
+  delete letter;
   // TODO: создать экземпляры остальных типов сообщений
+}
+
+////////////////////////////////////////////////////////////////////////////////
+TEST(TestLetter, FACTORY_DESTROY)
+{
+  delete message_factory;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -385,14 +373,9 @@ TEST(TestProxy, BROKER_INTERNAL)
   LOG(INFO) << "TestProxy BROKER_INTERNAL start";
   broker = new mdp::Broker(true); // be verbose
   ASSERT_TRUE (broker != NULL);
-  /*
-   * NB: "tcp://lo:5555" использует локальный интерфейс, 
-   * что удобно для мониторинга wireshark-ом.
-   */
 
-  status = broker->bind ("tcp://*:5555");
-  EXPECT_EQ(status, true);
-
+  // 1. Создать БД, попытаться открыть снимок
+  // 2. Связать сокет со службой Брокера (bind)
   status = broker->Init();
   EXPECT_EQ(status, true);
 
@@ -456,7 +439,7 @@ TEST(TestProxy, PUSH_REQUEST)
   broker->database_snapshot("TEST_PUSH_REQUEST.START");
   for (int idx=1; idx<20; idx++)
   {
-      letter = GetNewLetter(ADG_D_MSG_ASKLIFE, idx);
+      letter = CreateNewLetter(ADG_D_MSG_ASKLIFE, idx, service_name_1);
       status = broker->get_internal_db_api()->PushRequestToService(service1, letter);
       EXPECT_EQ(status, true);
       delete letter;
@@ -489,15 +472,16 @@ TEST(TestProxy, CLIENT_MESSAGE)
   broker->database_snapshot("TEST_CLIENT_MESSAGE.START");
   pb_header.set_protocol_version(1);
   pb_header.set_exchange_id(1);
+  pb_header.set_interest_id(2);
   pb_header.set_source_pid(getpid());
   pb_header.set_proc_dest("dest");
   pb_header.set_proc_origin("src");
-  pb_header.set_sys_msg_type(100);
+  pb_header.set_sys_msg_type(USER_MESSAGE_TYPE);
   pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
+  pb_header.set_time_mark(time(0));
 
-  pb_exec_result_request.set_user_exchange_id(1);
-  pb_exec_result_request.set_exec_result(1);
-  pb_exec_result_request.set_failure_cause(1);
+  pb_exec_result_request.set_exec_result(3);
+  pb_exec_result_request.set_failure_cause(4);
 
   pb_header.SerializeToString(&pb_serialized_header);
   pb_exec_result_request.SerializeToString(&pb_serialized_request);
@@ -606,14 +590,15 @@ TEST(TestProxy, SERVICE_DISPATCH)
   ASSERT_TRUE(worker != NULL);
 
   pb_header.set_protocol_version(1);
-  pb_header.set_exchange_id(9999999);
+  pb_header.set_exchange_id(1234567);
+  pb_header.set_interest_id(7654321);
   pb_header.set_source_pid(9999);
   pb_header.set_proc_dest("В чащах юга жил-был Цитрус?");
   pb_header.set_proc_origin("Да! Но фальшивый экземпляр.");
-  pb_header.set_sys_msg_type(100);
+  pb_header.set_sys_msg_type(USER_MESSAGE_TYPE);
   pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
+  pb_header.set_time_mark(time(0));
 
-  pb_exec_result_request.set_user_exchange_id(9999999);
   pb_exec_result_request.set_exec_result(23145);
   pb_exec_result_request.set_failure_cause(5);
 
@@ -645,8 +630,10 @@ TEST(TestProxy, BROKER_DELETE)
   // Очистить временные данные из БД перед сохранением её снимка
   // -----------------------------------------------------------
 
-  //  printf("Visit 'http://localhost:8082'\nPress any key to exit\n");
-  //  int input = getchar();
+#ifdef USE_EXTREMEDB_HTTP_SERVER
+  printf("Visit 'http://localhost:8082'\nPress any key to exit\n");
+  int input = getchar();
+#endif
   delete broker;
 }
 

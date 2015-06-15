@@ -34,6 +34,7 @@ mco_size_sig_t file_writer(void*, const void*, mco_size_t);
 #include "xdb_impl_common.hpp"
 
 #include "helper.hpp"
+#include "timer.hpp"
 #include "dat/broker_db.hpp"
 #include "xdb_impl_database.hpp"
 #include "xdb_impl_db_broker.hpp"
@@ -51,25 +52,36 @@ using namespace xdb;
 #include "dat/broker_db.h"
 #include "dat/broker_db.hpp"
 
+ServiceEndpoint_t Endpoints[] = {
+    {"BROKER", ENDPOINT_BROKER, ""}, // Сам Брокер (BROKER_ENDPOINT_IDX)
+    {"SINF"  , ENDPOINT_SINF_FRONTEND, ""}, // Информационный сервер БДРВ
+    {"IHM"   , ENDPOINT_IHM_FRONTEND , ""}, // Сервер отображения
+    {"EXCH"  , ENDPOINT_EXCH_FRONTEND, ""}, // Сервер обменов
+    {"", "", ""}  // Последняя запись
+};
+// Запись о точке подключения к Брокеру д.б. первой
+#define BROKER_ENDPOINT_IDX 0
+
 DatabaseBrokerImpl::DatabaseBrokerImpl(const char* _name) :
+    m_database(NULL),
     m_service_list(NULL)
 {
   assert(_name);
 
   // Опции по умолчанию
-  setOption(m_opt, "OF_CREATE",    1);
-  setOption(m_opt, "OF_LOAD_SNAP", 1);
-  setOption(m_opt, "OF_DATABASE_SIZE",   1024 * 1024 * 10);
-  setOption(m_opt, "OF_MEMORYPAGE_SIZE", 1024); // 0..65535
-  setOption(m_opt, "OF_MAP_ADDRESS", 0x20000000);
+  setOption(&m_opt, "OF_CREATE",    1);
+  setOption(&m_opt, "OF_LOAD_SNAP", 1);
+  setOption(&m_opt, "OF_DATABASE_SIZE",   1024 * 1024 * 10);
+  setOption(&m_opt, "OF_MEMORYPAGE_SIZE", 1024); // 0..65535
+  setOption(&m_opt, "OF_MAP_ADDRESS", 0x20000000);
 #if defined USE_EXTREMEDB_HTTP_SERVER
-  setOption(m_opt, "OF_HTTP_PORT", 8081);
+  setOption(&m_opt, "OF_HTTP_PORT", 8081);
 #endif
-  setOption(m_opt, "OF_DISK_CACHE_SIZE", 0);
+  setOption(&m_opt, "OF_DISK_CACHE_SIZE", 0);
 
   mco_dictionary_h broker_dict = broker_db_get_dictionary();
 
-  m_database = new DatabaseImpl(_name, m_opt, broker_dict);
+  m_database = new DatabaseImpl(_name, &m_opt, broker_dict);
 }
 
 DatabaseBrokerImpl::~DatabaseBrokerImpl()
@@ -81,22 +93,166 @@ DatabaseBrokerImpl::~DatabaseBrokerImpl()
   delete m_database;
 }
 
+#if 1
 bool DatabaseBrokerImpl::Init()
 {
+  LOG(INFO) << "WOW!";
   Error err = m_database->Open();
   return err.Ok();
 }
+#endif
 
 bool DatabaseBrokerImpl::Connect()
 {
-  Error err = m_database->Connect();
-  return err.Ok();
+  Error status;
+  
+  status = m_database->Connect();
+
+  if (status.Ok())
+  {
+     // TODO: загрузить данные в таблицу связей между
+     // точками подключения и названиями Служб
+     LoadDictionaries();
+  }
+
+  return status.Ok();
+}
+
+// Загрузка НСИ
+// 1. Соответствие между именем Сервиса и точкой подключения его Обработчиков
+// 2. ...
+bool DatabaseBrokerImpl::LoadDictionaries()
+{
+  MCO_RET rc = MCO_S_OK;
+#if 0
+  mco_trans_h t;
+  XDBEndpointLinks link_instance;
+  int entry_idx;
+
+  // Проверить, существует ли запись для каждого из Сервисов.
+  // Если нет - вставить значения "по-умолчанию", или из файла (TODO)
+  // ----------------------------------------------------------------
+  do
+  {
+    rc = mco_trans_start(m_database->getDbHandler(), MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+    if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
+
+    // Чтобы не пропустить нулевой индекс (запись Брокера)
+    entry_idx = -1;
+    while (Endpoints[++entry_idx].name[0])  // До пустой записи в конце массива
+    {
+        LOG(INFO) << "Checking '" << Endpoints[entry_idx].name << "' endpoint";
+
+        // Найдется Службу по названию?
+        rc = XDBEndpointLinks_SK_name_find(t,
+                                       Endpoints[entry_idx].name,
+                                       strlen(Endpoints[entry_idx].name),
+                                       &link_instance);
+        if (MCO_S_OK == rc)
+        {
+            // Найдена уже существующая запись => прочтем заданное ей значение
+            rc = XDBEndpointLinks_endpoint_get(&link_instance,
+                                       Endpoints[entry_idx].endpoint_given,
+                                       (uint2)ENDPOINT_MAXLEN);
+            Endpoints[entry_idx].endpoint_given[ENDPOINT_MAXLEN] = '\0';
+            if (rc)
+            {
+                LOG(ERROR) << "Reading endpoint link for '"
+                           << Endpoints[entry_idx].name <<"', rc=" << rc;
+                // Обнулим возможно прочитанный мусор (?)
+                Endpoints[entry_idx].endpoint_given[0] = '\0';
+
+                // TODO: что делать в случае невозможности определения точки подключения к Службе?
+                // Это может иметь значительные последствия для дальнейшей работы всей системы.
+                //
+                // GEV 23/01/2015 - Пока продолжим работу, проверяя остальные Службы
+                continue;
+            }
+        }
+        else if (MCO_S_NOTFOUND == rc) // Требуемая Служба не найдена
+        {
+            // Нет такой записи, внесем данные по ней 
+            rc = XDBEndpointLinks_new(t, &link_instance);
+            if (rc) { LOG(ERROR) << "Creating endpoint link, rc=" << rc; break; }
+
+            rc = XDBEndpointLinks_name_put(&link_instance,
+                                           Endpoints[entry_idx].name,
+                                           strlen(Endpoints[entry_idx].name));
+            if (rc) { LOG(ERROR) << "Creating endpoint link, rc=" << rc; break; }
+
+            rc = XDBEndpointLinks_endpoint_put(&link_instance,
+                                           Endpoints[entry_idx].endpoint_default,
+                                           strlen(Endpoints[entry_idx].endpoint_default));
+            if (rc) { LOG(ERROR) << "Creating endpoint link, rc=" << rc; break; }
+
+            rc = XDBEndpointLinks_checkpoint(&link_instance);
+            if (rc) { LOG(ERROR) << "Checkpointing link, rc=" << rc; break; }
+
+            LOG(INFO) << "Set default endpoint value '" << Endpoints[entry_idx].endpoint_default 
+                      << "' for service '" << Endpoints[entry_idx].name << "'";
+        }
+        else // Любая другая ошибка => проверка следующей Службы
+        {
+          Endpoints[entry_idx].endpoint_given[0] = '\0';
+          continue;
+        }
+    }
+
+    // Только если не было ошибок при внесении ВСЕХ сведений
+    if (rc)
+    {
+      rc = mco_trans_rollback(t);
+      LOG(ERROR) << "Fail loading endpoints";
+    }
+    else
+    {
+      rc = mco_trans_commit(t);
+      LOG(INFO) << "Endpoints loaded";
+    }
+  } while (false);
+
+#endif
+  return (MCO_S_OK == rc);
+}
+
+// Получить свою точку подключения.
+// Если есть прочитанное из БД значение, вернуть его
+// Иначе вернуть значение по-умолчанию
+const char* DatabaseBrokerImpl::getEndpoint() const
+{
+  return (Endpoints[BROKER_ENDPOINT_IDX].endpoint_given[0])?
+    Endpoints[BROKER_ENDPOINT_IDX].endpoint_given : 
+    Endpoints[BROKER_ENDPOINT_IDX].endpoint_default;
+}
+
+// Получить точку подключения для указанного Сервиса
+const char* DatabaseBrokerImpl::getEndpoint(const std::string& service_name) const
+{
+  int entry_idx = 0; // =0 вместо -1, чтобы пропустить нулевой индекс (Брокера)
+  const char* endpoint;
+
+  while (Endpoints[++entry_idx].name[0])  // До пустой записи в конце массива
+  {
+    if (0 == service_name.compare(Endpoints[entry_idx].name))
+    {
+        // Нашли искомую Службу.
+        // Есть ли для нее значение из БД?
+        if (Endpoints[entry_idx].endpoint_given[0])
+          endpoint = Endpoints[entry_idx].endpoint_given;   // Да
+        else
+          endpoint = Endpoints[entry_idx].endpoint_default; // Нет
+
+        break; // Завершаем поиск, т.к. названия Служб уникальны
+    }
+  }
+
+  return endpoint;
 }
 
 bool DatabaseBrokerImpl::Cleanup()
 {
-  char ident[IDENTITY_MAXLEN + 1];
-  char name[SERVICE_NAME_MAXLEN + 1];
+  char ident[IDENTITY_MAXLEN + 1] = "";
+  char name[SERVICE_NAME_MAXLEN + 1] = "";
   bool status;
   MCO_RET rc;
   mco_trans_h t;
@@ -227,7 +383,7 @@ bool DatabaseBrokerImpl::Disconnect()
   return (m_database->Disconnect()).Ok();
 }
 
-DBState_t DatabaseBrokerImpl::State()
+DBState_t DatabaseBrokerImpl::State() const
 {
   return m_database->State();
 }
@@ -343,12 +499,12 @@ MCO_RET DatabaseBrokerImpl::RegisterEvents()
   return rc;
 }
 
-Service *DatabaseBrokerImpl::AddService(const std::string& name)
+Service *DatabaseBrokerImpl::AddService(const std::string& name/*, const std::string& endpoint*/)
 {
-  return AddService(name.c_str());
+  return AddService(name.c_str()/*, endpoint.c_str()*/);
 }
 
-Service *DatabaseBrokerImpl::AddService(const char *name)
+Service *DatabaseBrokerImpl::AddService(const char *name/*, const char *endpoint*/)
 {
   broker_db::XDBService service_instance;
   Service       *srv = NULL;
@@ -368,6 +524,22 @@ Service *DatabaseBrokerImpl::AddService(const char *name)
     rc = service_instance.name_put(name, static_cast<uint2>(strlen(name)));
     if (rc) { LOG(ERROR) << "Setting '" << name << "' name"; break; }
 
+    // Если пишется известная нам Служба => присвоить точке подключения значение "по умолчанию"
+    // Пропустить нулевой индекс (запись Брокера)
+    int entry_idx = 0;
+    while (Endpoints[++entry_idx].name[0])  // До пустой записи в конце массива
+    {
+        // Проверить все известные названия Служб
+        if (0 == strcmp(name, Endpoints[entry_idx].name))
+        {
+          rc = service_instance.endpoint_put(Endpoints[entry_idx].endpoint_default,
+                   static_cast<uint2>(strlen(Endpoints[entry_idx].endpoint_default)));
+          break;
+        }
+    }
+    // Если с ошибкой вышли из предыдущего цикла поиска названия Службы
+    if (rc) { LOG(ERROR) << "Setting default endpoint for " << name; break; }
+
     rc = service_instance.state_put(REGISTERED);
     if (rc) { LOG(ERROR) << "Setting '" << name << "' state"; break; }
 
@@ -375,7 +547,6 @@ Service *DatabaseBrokerImpl::AddService(const char *name)
     if (rc) { LOG(ERROR) << "Getting service "<<name<<" id, rc=" << rc; break; }
 
     srv = new Service(aid, name);
-    //srv->SetSTATE(Service::State::REGISTERED);
     srv->SetSTATE(Service::REGISTERED);
 
     rc = mco_trans_commit(t);
@@ -386,6 +557,54 @@ Service *DatabaseBrokerImpl::AddService(const char *name)
     mco_trans_rollback(t);
 
   return srv;
+}
+
+// Обновить состояние экземпляра в БД
+bool DatabaseBrokerImpl::Update(Worker* instance)
+{
+  bool status = false;
+
+  assert(instance);
+  return status;
+}
+
+// Обновить состояние экземпляра в БД
+bool DatabaseBrokerImpl::Update(Service* srv)
+{
+  bool status = false;
+
+  assert(srv);
+  broker_db::XDBService service_instance;
+  MCO_RET        rc;
+  mco_trans_h    t;
+
+  do
+  {
+    rc = mco_trans_start(m_database->getDbHandler(), MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+    if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
+
+    rc = broker_db::XDBService::autoid::find(t, srv->GetID(), service_instance);
+    if (rc) { LOG(ERROR) << "Locating instance, rc=" << rc; break; }
+
+    rc = service_instance.name_put(srv->GetNAME(), static_cast<uint2>(strlen(srv->GetNAME())));
+    if (rc) { LOG(ERROR) << "Setting '" << srv->GetNAME() << "' name"; break; }
+
+    rc = service_instance.endpoint_put(srv->GetENDPOINT(), static_cast<uint2>(strlen(srv->GetENDPOINT())));
+    if (rc) { LOG(ERROR) << "Setting '" << srv->GetENDPOINT() << "' endpoint for " << srv->GetNAME(); break; }
+
+    LOG(INFO) << "Setting '" << srv->GetENDPOINT() << "' endpoint for " << srv->GetNAME();
+
+    rc = service_instance.state_put(StateConvert(srv->GetSTATE()));
+    if (rc) { LOG(ERROR) << "Setting '" << srv->GetSTATE() << "' state"; break; }
+
+    rc = mco_trans_commit(t);
+    if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; }
+  } while(false);
+
+  if (rc)
+    mco_trans_rollback(t);
+
+  return status;
 }
 
 // TODO: возможно стоит удалить этот метод-обертку, оставив GetServiceByName
@@ -511,8 +730,8 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
   mco_trans_h   t;
   broker_db::XDBService service_instance;
   broker_db::XDBWorker  worker_instance;
-  timer_mark_t  now_time, next_heartbeat_time;
-  broker_db::timer_mark xdb_next_heartbeat_time;
+  timer_mark_t          next_expiration_time;
+  broker_db::timer_mark xdb_next_expiration_time;
   autoid_t      srv_aid;
   autoid_t      wrk_aid;
 
@@ -572,20 +791,13 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
                              <<"' with service id "<<srv_aid<<", rc="<<rc; break; }
 
         /* Установить новое значение expiration */
-        // TODO: wrk->CalculateEXPIRATION_TIME();
-        if (GetTimerValue(now_time))
-        {
-          next_heartbeat_time.tv_nsec = now_time.tv_nsec;
-          next_heartbeat_time.tv_sec = now_time.tv_sec + (Worker::HeartbeatPeriodValue/1000);
-          LOG(INFO) << "Set new expiration time for reactivated worker "<<wrk->GetIDENTITY();
-        }
-        else { LOG(ERROR) << "Unable to calculate expiration time, rc="<<rc; break; }
+        wrk->CalculateEXPIRATION_TIME(next_expiration_time);
 
-        rc = worker_instance.expiration_write(xdb_next_heartbeat_time);
+        rc = worker_instance.expiration_write(xdb_next_expiration_time);
         if (rc) { LOG(ERROR) << "Unable to set worker's expiration time, rc="<<rc; break; }
-        rc = xdb_next_heartbeat_time.sec_put(next_heartbeat_time.tv_sec);
+        rc = xdb_next_expiration_time.sec_put(next_expiration_time.tv_sec);
         if (rc) { LOG(ERROR) << "Unable to set the expiration seconds, rc="<<rc; break; }
-        rc = xdb_next_heartbeat_time.nsec_put(next_heartbeat_time.tv_nsec);
+        rc = xdb_next_expiration_time.nsec_put(next_expiration_time.tv_nsec);
         if (rc) { LOG(ERROR) << "Unable to set expiration time nanoseconds, rc="<<rc; break; }
       }
       else if (MCO_S_NOTFOUND == rc) // Экземпляр не найден, так как ранее не регистрировался
@@ -611,19 +823,13 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
         wrk->SetID(wrk_aid);
 
         /* Установить новое значение expiration */
-        if (GetTimerValue(now_time))
-        {
-          next_heartbeat_time.tv_nsec = now_time.tv_nsec;
-          next_heartbeat_time.tv_sec = now_time.tv_sec + Worker::HeartbeatPeriodValue/1000;
-          LOG(INFO) << "Set new expiration time for new worker "<<wrk->GetIDENTITY();
-        }
-        else { LOG(ERROR) << "Unable to calculate expiration time, rc="<<rc; break; }
+        wrk->CalculateEXPIRATION_TIME(next_expiration_time);
 
-        rc = worker_instance.expiration_write(xdb_next_heartbeat_time);
+        rc = worker_instance.expiration_write(xdb_next_expiration_time);
         if (rc) { LOG(ERROR) << "Unable to set worker's expiration time, rc="<<rc; break; }
-        rc = xdb_next_heartbeat_time.sec_put(next_heartbeat_time.tv_sec);
+        rc = xdb_next_expiration_time.sec_put(next_expiration_time.tv_sec);
         if (rc) { LOG(ERROR) << "Unable to set the expiration seconds, rc="<<rc; break; }
-        rc = xdb_next_heartbeat_time.nsec_put(next_heartbeat_time.tv_nsec);
+        rc = xdb_next_expiration_time.nsec_put(next_expiration_time.tv_nsec);
         if (rc) { LOG(ERROR) << "Unable to set expiration time nanoseconds, rc="<<rc; break; }
       }
       else 
@@ -738,6 +944,58 @@ Service *DatabaseBrokerImpl::GetServiceByName(const char* name)
   return service;
 }
 
+// Конвертировать состояние Службы из БД в состояние
+Service::State DatabaseBrokerImpl::StateConvert(ServiceState s)
+{
+    Service::State result = Service::UNKNOWN;
+
+    switch (s)
+    {
+      case REGISTERED:
+      result = Service::REGISTERED;
+      break;
+      case ACTIVATED:
+      result = Service::ACTIVATED;
+      break;
+      case DISABLED:
+      result = Service::DISABLED;
+      break;
+      case UNKNOWN:
+      result = Service::UNKNOWN;
+      break;
+      default:
+      LOG(WARNING) << "Wrong service state, set to UNKNOWN";
+      result = Service::UNKNOWN;
+    }
+    return result;
+}
+
+// Конвертировать состояние Службы из БД в состояние
+ServiceState DatabaseBrokerImpl::StateConvert(Service::State s)
+{
+    ServiceState result = UNKNOWN;
+
+    switch (s)
+    {
+      case Service::REGISTERED:
+      result = REGISTERED;
+      break;
+      case Service::ACTIVATED:
+      result = ACTIVATED;
+      break;
+      case Service::DISABLED:
+      result = DISABLED;
+      break;
+      case Service::UNKNOWN:
+      result = UNKNOWN;
+      break;
+      default:
+      LOG(WARNING) << "Wrong service state, set to UNKNOWN";
+      result = UNKNOWN;
+    }
+    return result;
+}
+
 Service *DatabaseBrokerImpl::LoadService(
         autoid_t &aid,
         broker_db::XDBService& instance)
@@ -745,18 +1003,29 @@ Service *DatabaseBrokerImpl::LoadService(
   Service      *service = NULL;
   MCO_RET       rc = MCO_S_OK;
   char          name[Service::NameMaxLen + 1];
+  char          endpoint[Service::EndpointMaxLen + 1];
   ServiceState  state;
+  Service::State update_state;
 
   do
   {
+    name[0] = '\0';
+    endpoint[0] = '\0';
+
     rc = instance.name_get(name, Service::NameMaxLen);
     name[Service::NameMaxLen] = '\0';
     if (rc) { LOG(ERROR)<<"Unable to get service's name, rc="<<rc; break; }
+    rc = instance.endpoint_get(endpoint, Service::EndpointMaxLen);
+    name[Service::EndpointMaxLen] = '\0';
+    if (rc) { LOG(ERROR)<<"Unable to get service's endpoint, rc="<<rc; break; }
     rc = instance.state_get(state);
     if (rc) { LOG(ERROR)<<"Unable to get service id for "<<name; break; }
+    
+    update_state = StateConvert(state);
 
     service = new Service(aid, name);
-    service->SetSTATE((Service::State)state);
+    service->SetSTATE(update_state);
+    service->SetENDPOINT(endpoint);
     /* Состояние объекта полностью соответствует хранимому в БД */
     service->SetVALID();
   } while (false);
@@ -1882,8 +2151,8 @@ bool DatabaseBrokerImpl::PushRequestToService(Service *srv, Letter *letter)
   broker_db::XDBLetter  letter_instance;
   broker_db::XDBService service_instance;
   broker_db::XDBWorker  worker_instance;
-  autoid_t     aid;
-  timer_mark_t what_time;
+  autoid_t     aid = 0;
+  timer_mark_t what_time = { 0, 0 };
   broker_db::timer_mark   mark;
 
   assert (srv);
@@ -1991,9 +2260,9 @@ ServiceList* DatabaseBrokerImpl::GetServiceList()
 ServiceList::ServiceList(mco_db_h _db) :
     m_current_index(0),
     m_db_handler(_db),
+    m_array(new Service*[MAX_SERVICES_ENTRY]),
     m_size(0)
 {
-  m_array = new Service*[MAX_SERVICES_ENTRY];
   memset(m_array, '\0', MAX_SERVICES_ENTRY*sizeof(Service*));
   assert(m_db_handler);
 }

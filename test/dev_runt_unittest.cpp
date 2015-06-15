@@ -1,3 +1,5 @@
+#include <pthread.h>
+#include <syscall.h>
 #include <string>
 #include "gtest/gtest.h"
 #include "glog/logging.h"
@@ -5,28 +7,33 @@
 
 #include "helper.hpp"
 
+
 #include "mdp_zmsg.hpp"
 #include "mdp_common.h"
 #include "mdp_broker.hpp"
 #include "mdp_worker_api.hpp"
-#include "mdp_letter.hpp"
 #include "mdp_client_async_api.hpp"
 #include "mdp_proxy.hpp"
 
+using namespace xdb;
 #include "xdb_broker.hpp"
 #include "xdb_impl_db_broker.hpp"
+#include "xdb_rtap_application.hpp"
+#include "xdb_rtap_environment.hpp"
+#include "xdb_rtap_connection.hpp"
 
-using namespace xdb;
 #include "wdigger.hpp"
 #include "pulsar.hpp"
 
 // Определения пользовательских сообщений и их сериализованных структур
-#include "msg_common.h"
 #include "proto/common.pb.h"
+#include "msg_common.h"
+#include "msg_message.hpp"
+#include "msg_adm.hpp"
 
 mdp::Digger *digger = NULL;
 mdp::Broker *broker = NULL;
-std::string service_name = "SINF";
+const char *service_name = "SINF";
 const char *attributes_connection_to_broker = (const char*) "tcp://localhost:5555";
 const char *BROKER_SNAP_FILE = (const char*) "broker_db.snap";
 const char *RTAP_SNAP_FILE = (const char*) "SINF.snap";
@@ -44,31 +51,35 @@ bool  worker_ready_sign = false;
 /*
  * Прототипы функций
  */
-void         Dump(mdp::Letter*);
+void  Dump(msg::Letter*);
 
 /*
  * Реализация функций
  */
-Pulsar::Pulsar(std::string broker, int verbose) : mdcli(broker, verbose)
+Pulsar::Pulsar(const char* broker, int verbose) 
+  : mdcli(broker, verbose),
+    m_channel(mdp::ChannelType::PERSISTENT)
 {
   LOG(INFO) << "Create pulsar instance";
 }
 
-////////////////////////////////////////////////////////////////////////////////
-void Dump(mdp::Letter* letter)
+Pulsar::~Pulsar()
 {
-  RTDBM::ExecResult *kokoko = static_cast<RTDBM::ExecResult*>(letter->data());
+}
 
-  std::cout << (int)letter->header().get_protocol_version();
-  std::cout << "/" << letter->header().get_exchange_id();
-  std::cout << "/" << letter->header().get_source_pid();
-  std::cout << "/" << letter->header().get_proc_dest();
-  std::cout << "/" << letter->header().get_proc_origin();
-  std::cout << "/" << letter->header().get_sys_msg_type();
-  std::cout << "/" << letter->header().get_usr_msg_type();
-  std::cout << "[" << kokoko->user_exchange_id();
-  std::cout << "/" << kokoko->exec_result();
-  std::cout << "/" << kokoko->failure_cause()<<"]";
+
+////////////////////////////////////////////////////////////////////////////////
+void Dump(msg::Letter* letter)
+{
+  std::cout << (int)letter->header()->protocol_version();
+  std::cout << "/" << letter->header()->exchange_id();
+  std::cout << "/" << letter->header()->interest_id();
+  std::cout << "/" << letter->header()->source_pid();
+  std::cout << "/" << letter->header()->proc_dest();
+  std::cout << "/" << letter->header()->proc_origin();
+  std::cout << "/" << letter->header()->sys_msg_type();
+  std::cout << "/" << letter->header()->usr_msg_type();
+  std::cout << "/" << letter->header()->time_mark();
   std::cout << std::endl;
 }
 
@@ -143,32 +154,72 @@ client_task (void* /*args*/)
   Pulsar    *client    = new Pulsar (attributes_connection_to_broker, verbose);
   int        count;
   std::string       pb_serialized_request;
-  RTDBM::AskLife    pb_request_asklife;
-  RTDBM::ExecResult pb_responce_exec_result;
-  mdp::Letter      *mdp_letter;
-  const std::string dest = "NYSE";
+  msg::AskLife      *letter;
+  char service_endpoint[ENDPOINT_MAXLEN + 1];
   static int        user_exchange_id = 0;
   const int         i_num_sent_letters = 1;
+  int               service_status;
+  msg::MessageFactory *message_factory = NULL;
+  char str_thread_id[ENDPOINT_MAXLEN + 1];
+  int               sid; // LWP id
 
   LOG(INFO) << "Start client thread";
   try
   {
-    mdp_letter = new mdp::Letter(ADG_D_MSG_ASKLIFE, dest);
+    LOG(INFO) << "Ask endpoint for service " << service_name;
+    service_status = client->ask_service_info(service_name, service_endpoint, ENDPOINT_MAXLEN);
+    LOG(INFO) << "Get endpoint to '" << service_endpoint << "' for " << service_name;
+
+    switch(service_status)
+    {
+      case 200:
+      LOG(INFO) << service_name << " status OK : " << service_status;
+      break;
+
+      case 400:
+      LOG(INFO) << service_name << " status BAD_REQUEST : " << service_status;
+      break;
+
+      case 404:
+      LOG(INFO) << service_name << " status NOT_FOUND : " << service_status;
+      break;
+
+      case 501:
+      LOG(INFO) << service_name << " status NOT_SUPPORTED : " << service_status;
+      break;
+
+      default:
+      LOG(INFO) << service_name << " status UNKNOWN : " << service_status;
+    }
+
+    if (200 != service_status)
+    {
+      delete client;
+      pthread_exit(NULL);
+      return NULL;
+    }
+
+    sid = syscall(SYS_gettid);
+    sprintf(str_thread_id, "CLIENT_%d", sid);
+
+    message_factory = new msg::MessageFactory(str_thread_id);
+
+    letter = static_cast<msg::AskLife*>(message_factory->create(ADG_D_MSG_ASKLIFE));
+    letter->set_destination(service_name);
 
     //  Send some ADG_D_MSG_ASKLIFE orders
     for (user_exchange_id = 0; user_exchange_id < i_num_sent_letters; user_exchange_id++) {
         request = new mdp::zmsg ();
 
-        // Единственное поле, которое может устанавливать клиент
-        // напрямую в ADG_D_MSG_ASKLIFE
-        static_cast<RTDBM::AskLife*>(mdp_letter->mutable_data())->set_user_exchange_id(user_exchange_id);
-        request->push_front(const_cast<std::string&>(mdp_letter->SerializedData()));
-        request->push_front(const_cast<std::string&>(mdp_letter->SerializedHeader()));
+        letter->set_status(user_exchange_id % 10);
+        request->push_front(const_cast<std::string&>(letter->data()->get_serialized()));
+        request->push_front(const_cast<std::string&>(letter->header()->get_serialized()));
+
         LOG(INFO) << "Send message id="<<user_exchange_id<<" from client";
-        client->send (service_name.c_str(), request);
+        client->send (service_name, request);
         delete request;
     }
-    delete mdp_letter;
+    delete letter;
 
     EXPECT_EQ(user_exchange_id, i_num_sent_letters);
     count = 0;
@@ -178,15 +229,20 @@ client_task (void* /*args*/)
         report = client->recv ();
         if (report == NULL)
             break;
-        count++;
+        ++count;
         LOG(INFO) << "Receive message id="<<count<<" from worker";
         report->dump();
         assert (report->parts () >= 2);
         
+#if 0
         mdp_letter = new mdp::Letter(report);
+//        TODO: Доделать разбор сообщений
         Dump(mdp_letter);
 
         delete mdp_letter;
+#else
+#warning    "Дамп сообщений заблокирован"
+#endif
         delete report;
     }
     // Приняли ровно столько, сколько ранее отправили
@@ -196,11 +252,12 @@ client_task (void* /*args*/)
   {
       std::cout << "E: " << err.what() << std::endl;
   }
-  delete client;
 
   // Завершить исполнение Брокера - все сообщения отправлены/получены
   interrupt_broker = 1;
   LOG(INFO) << "Stop client thread";
+  delete message_factory;
+  delete client;
   pthread_exit(NULL);
   return NULL; /* NOTREACHED */ 
 }
@@ -222,7 +279,7 @@ worker_task (void* /*args*/)
   try
   {
     mdp::Digger *engine = new mdp::Digger(attributes_connection_to_broker,
-                                service_name.c_str(),
+                                service_name,
                                 verbose);
 
     // Обозначить завершение своей инициализации
@@ -281,11 +338,6 @@ broker_task (void* /*args*/)
      s_version_assert (3, 2);
      s_catch_signals ();
      broker = new mdp::Broker(verbose);
-     /*
-      * NB: "tcp://lo:5555" использует локальный интерфейс, 
-      * что удобно для мониторинга wireshark-ом.
-      */
-     broker->bind ("tcp://*:5555");
 
      // Обозначить завершение своей инициализации
      broker_ready_sign = true;

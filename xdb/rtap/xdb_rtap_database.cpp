@@ -20,7 +20,7 @@ RtDatabase::RtDatabase(const char* _name, const ::Options* _options)
 {
   assert (_name);
   // GEV Опции создания БД для RTAP сейчас игнорируются
-  m_impl = new DatabaseRtapImpl(_name); //, _options, rtap_db_get_dictionary());
+  m_impl = new DatabaseRtapImpl(_name, _options); //, rtap_db_get_dictionary());
 }
 
 RtDatabase::~RtDatabase()
@@ -49,7 +49,7 @@ const Error& RtDatabase::Connect()
   {
     LOG(ERROR) << "Connection failed";
   }
-  return m_impl->getLastError();
+  return getLastError();
 }
 
 const Error& RtDatabase::Disconnect()
@@ -58,7 +58,7 @@ const Error& RtDatabase::Disconnect()
   {
     LOG(ERROR) << "Disconnect failed";
   }
-  return m_impl->getLastError();
+  return getLastError();
 }
 
 const Error& RtDatabase::Init()
@@ -74,7 +74,7 @@ const Error& RtDatabase::getLastError() const
 const Error& RtDatabase::Create()
 {
   setError(rtE_NOT_IMPLEMENTED);
-  return m_impl->getLastError();
+  return getLastError();
 }
 
 // NB: входящий указатель на имя файла может быть нулевым
@@ -84,7 +84,7 @@ const Error& RtDatabase::LoadSnapshot(const char* _fname)
   {
     LOG(ERROR) << "LoadSnapshot failed";
   }
-  return m_impl->getLastError();
+  return getLastError();
 }
 
 const Error& RtDatabase::MakeSnapshot(const char* _fname)
@@ -93,7 +93,7 @@ const Error& RtDatabase::MakeSnapshot(const char* _fname)
   {
     LOG(ERROR) << "MakeSnapshot failed";
   }
-  return m_impl->getLastError();
+  return getLastError();
 }
 
 // Функции изменения содержимого БД
@@ -101,19 +101,19 @@ const Error& RtDatabase::MakeSnapshot(const char* _fname)
 // Создание Точки
 const Error& RtDatabase::create(rtap_db::Point&)
 {
-  return m_impl->getLastError();
+  return getLastError();
 }
 
 // Удаление Точки
 const Error& RtDatabase::erase(rtap_db::Point&)
 {
-  return m_impl->getLastError();
+  return getLastError();
 }
 
 // Чтение данных Точки
 const Error& RtDatabase::read(rtap_db::Point&)
 {
-  return m_impl->getLastError();
+  return getLastError();
 }
 
 // Изменение данных Точки

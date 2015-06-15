@@ -16,12 +16,13 @@ Trader::Trader(std::string broker, int verbose) : mdp::mdcli(broker, verbose)
 
 int main (int argc, char *argv [])
 {
-    int        verbose   = (argc > 1 && (strcmp (argv [1], "-v") == 0));
-    char      *s_price   = NULL;
-    mdp::zmsg *request   = NULL;
-    mdp::zmsg *report    = NULL;
-    Trader    *client    = new Trader ("tcp://localhost:5555", verbose);
-    int        count;
+  int        verbose   = (argc > 1 && (strcmp (argv [1], "-v") == 0));
+  char      *s_price   = NULL;
+  mdp::zmsg *request   = NULL;
+  mdp::zmsg *report    = NULL;
+  Trader    *client    = new Trader ("tcp://localhost:5555", verbose);
+  int        count;
+  const char* service_name = "NYSE";
 
   google::InitGoogleLogging(argv[0]);
   try
@@ -34,7 +35,7 @@ int main (int argc, char *argv [])
         sprintf(s_price, "%d", count + 1000);
         request->push_front ((char*)s_price);
         request->push_front ((char*)"SELL");
-        client->send ("NYSE", request);
+        client->send (service_name, request);
         delete request;
     }
 
@@ -44,7 +45,7 @@ int main (int argc, char *argv [])
     request->push_front ((char*)"800");      // volume
     request->push_front ((char*)"2000");     // price
     request->push_front ((char*)"BUY");
-    client->send ("NYSE", request);
+    client->send (service_name, request);
     delete request;
 
     //  Wait for all trading reports

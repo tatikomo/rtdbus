@@ -3,6 +3,7 @@
 #include <sys/syscall.h> // gettid()
 #endif
 
+#include <assert.h>
 #include <pthread.h>
 #include <sys/time.h>
 #include <stdarg.h>
@@ -181,12 +182,15 @@ char* hex_dump(const char* data, unsigned int size)
    return buf;
 }
 
-bool getOption(Options& _options, const std::string& key, int& val)
+bool getOption(Options* _options, const std::string& key, int& val)
 {
   bool status = false;
-  OptionIterator p = _options.find(key);
 
-  if (p != _options.end())
+  assert(_options);
+
+  OptionIterator p = _options->find(key);
+
+  if (p != _options->end())
   {
     val = p->second;
     status = true;
@@ -195,12 +199,15 @@ bool getOption(Options& _options, const std::string& key, int& val)
   return status;
 }
 
-bool setOption(Options& _options, const std::string& key, int val)
+bool setOption(Options* _options, const std::string& key, int val)
 {
   bool status = false;
-  OptionIterator p = _options.find(key);
 
-  if (p != _options.end())
+  assert(_options);
+
+  OptionIterator p = _options->find(key);
+
+  if (p != _options->end())
   {
     val = p->second;
     status = true;
@@ -210,7 +217,7 @@ bool setOption(Options& _options, const std::string& key, int val)
   }
   else
   {
-    _options.insert(Pair(key, val));
+    _options->insert(Pair(key, val));
 //    std::cout << "Insert into '" << key
 //              << " new value " << val << std::endl;
     status = true;
