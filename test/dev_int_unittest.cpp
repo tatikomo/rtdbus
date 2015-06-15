@@ -56,7 +56,7 @@ typedef enum
  */
 void         Dump(msg::Letter*);
 void         PrintWorker(xdb::Worker*);
-xdb::Letter* GetNewLetter(rtdbMsgType, rtdbExchangeId);
+xdb::Letter* CreateNewLetter(rtdbMsgType, rtdbExchangeId, const std::string&);
 
 /*
  * Реализация функций
@@ -69,12 +69,16 @@ void PrintWorker(xdb::Worker* worker)
     <<"/"<<worker->GetSTATE()<<"/"<<worker->Expired()<<std::endl;
 }
 
-xdb::Letter* GetNewLetter(rtdbMsgType msg_type, rtdbExchangeId user_exchange)
+xdb::Letter* CreateNewLetter(rtdbMsgType msg_type,
+                             rtdbExchangeId user_exchange,
+                             const std::string& dest)
 {
   xdb::Letter  *xdb_letter;
   msg::Letter  *msg_letter;
 
+  assert(message_factory);
   msg_letter = message_factory->create(msg_type);
+  msg_letter->set_destination(dest);
 
   switch(msg_type)
   {
@@ -260,6 +264,7 @@ TEST(TestLetter, USAGE)
   letter = static_cast<msg::ExecResult*>(message_factory->create(ADG_D_MSG_EXECRESULT));
   letter->set_exec_result(1234);
   letter->set_failure_cause(567);
+  letter->set_destination("<unknown>");
   Dump(letter);
   EXPECT_TRUE(letter->exec_result() == 1234);
   EXPECT_TRUE(letter->failure_cause() == 567);
@@ -434,7 +439,7 @@ TEST(TestProxy, PUSH_REQUEST)
   broker->database_snapshot("TEST_PUSH_REQUEST.START");
   for (int idx=1; idx<20; idx++)
   {
-      letter = GetNewLetter(ADG_D_MSG_ASKLIFE, idx);
+      letter = CreateNewLetter(ADG_D_MSG_ASKLIFE, idx, service_name_1);
       status = broker->get_internal_db_api()->PushRequestToService(service1, letter);
       EXPECT_EQ(status, true);
       delete letter;

@@ -14,6 +14,8 @@
 
 using namespace msg;
 
+rtdbExchangeId MessageFactory::m_exchange_id = 0;
+
 // TODO: Создать набор классов, создающих готовое к передаче сообщение типа zmsg
 //
 // А) Класс "Фабрика сообщений"
@@ -351,6 +353,11 @@ void Letter::set_destination(const char* _destination)
   m_header->set_proc_dest(_destination);
 }
 
+void Letter::set_destination(const std::string& _destination)
+{
+  m_header->set_proc_dest(_destination);
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 rtdbExchangeId Letter::generate_next_exchange_id()
 {
@@ -370,7 +377,8 @@ void Letter::dump()
 {
   LOG(INFO) << "dump usr_message_type:" << header()->usr_msg_type()
             << " exchange_id:" << header()->exchange_id()
-            << " interest_id:" << header()->interest_id();
+            << " interest_id:" << header()->interest_id()
+            << " time_mark:"   << header()->time_mark();
 }
 
 
@@ -381,12 +389,16 @@ void Letter::dump()
 MessageFactory::MessageFactory(const char* procname)
   : m_version_message_system(1),
     m_version_rtdbus(1),
-    m_pid(getpid()),
-    m_exchange_id(0)
+    m_pid(getpid()) /*,
+    m_exchange_id(0)*/
 {
   m_default_serialized_header.clear();
-  strncpy(m_source_procname, procname, SERVICE_NAME_MAXLEN);
-  m_source_procname[SERVICE_NAME_MAXLEN] = '\0';
+  if (procname)
+  {
+    strncpy(m_source_procname, procname, SERVICE_NAME_MAXLEN);
+    m_source_procname[SERVICE_NAME_MAXLEN] = '\0';
+  }
+  else m_source_procname[0] = '\0';
   // NB: Начальные значения m_default_pb_header выставляются конструктором по-умолчанию
 }
  

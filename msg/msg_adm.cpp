@@ -29,12 +29,12 @@ AskLife::~AskLife() {}
  
 int AskLife::status()
 {
-  return dynamic_cast<RTDBM::AskLife*>(data()->impl()->instance())->status();
+  return static_cast<RTDBM::AskLife*>(data()->impl()->instance())->status();
 }
  
 void AskLife::set_status(int _new_val)
 {
-  dynamic_cast<RTDBM::AskLife*>(data()->impl()->mutable_instance())->set_status(_new_val);
+  static_cast<RTDBM::AskLife*>(data()->impl()->mutable_instance())->set_status(_new_val);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -55,22 +55,22 @@ ExecResult::~ExecResult() {}
  
 int ExecResult::exec_result()
 {
-  return dynamic_cast<RTDBM::ExecResult*>(data()->impl()->instance())->exec_result();
+  return static_cast<RTDBM::ExecResult*>(data()->impl()->instance())->exec_result();
 }
 
 void ExecResult::set_exec_result(int _new_val)
 {
-  dynamic_cast<RTDBM::ExecResult*>(data()->impl()->mutable_instance())->set_exec_result(_new_val);
+  static_cast<RTDBM::ExecResult*>(data()->impl()->mutable_instance())->set_exec_result(_new_val);
 }
 
 int ExecResult::failure_cause()
 {
-  return dynamic_cast<RTDBM::ExecResult*>(data()->impl()->instance())->failure_cause();
+  return static_cast<RTDBM::ExecResult*>(data()->impl()->instance())->failure_cause();
 }
 
 void ExecResult::set_failure_cause(int _new_val)
 {
-  dynamic_cast<RTDBM::ExecResult*>(data()->impl()->mutable_instance())->set_failure_cause(_new_val);
+  static_cast<RTDBM::ExecResult*>(data()->impl()->mutable_instance())->set_failure_cause(_new_val);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

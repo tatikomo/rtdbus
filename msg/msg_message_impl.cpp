@@ -10,15 +10,12 @@
 
 using namespace msg;
 
-static const char *origin = "source";
-static const char *destination = "destination";
-
 ////////////////////////////////////////////////////////////////////////////////////////////////
 HeaderImpl::HeaderImpl()
   : m_validity(false),
     m_modified(true)
 {
-  LOG(INFO) << "HeaderImpl() [" << this << "]";
+//  LOG(INFO) << "HeaderImpl() [" << this << "]";
   set_initial_values();
 }
 
@@ -49,7 +46,7 @@ RTDBM::Header& HeaderImpl::mutable_instance()
 
 HeaderImpl::~HeaderImpl()
 {
-  LOG(INFO) << "~HeaderImpl() [" << this << "]";
+//  LOG(INFO) << "~HeaderImpl() [" << this << "]";
 }
 
 bool HeaderImpl::ParseFrom(const std::string& frame)
@@ -87,8 +84,6 @@ void HeaderImpl::set_initial_values()
   m_instance.set_exchange_id(0);
   m_instance.set_interest_id(0);
   m_instance.set_source_pid(0);
-  m_instance.set_proc_dest(destination);
-  m_instance.set_proc_origin(origin);
   m_instance.set_sys_msg_type(USER_MESSAGE_TYPE);
   m_instance.set_usr_msg_type(0);
   m_instance.set_time_mark(now);
@@ -162,8 +157,8 @@ void DataImpl::set_initial_values()
     {
       case ADG_D_MSG_EXECRESULT:
         m_protobuf_instance = new RTDBM::ExecResult();
-        dynamic_cast<RTDBM::ExecResult*>(m_protobuf_instance)->set_exec_result(0);
-        dynamic_cast<RTDBM::ExecResult*>(m_protobuf_instance)->set_failure_cause(0);
+        static_cast<RTDBM::ExecResult*>(m_protobuf_instance)->set_exec_result(0);
+        static_cast<RTDBM::ExecResult*>(m_protobuf_instance)->set_failure_cause(0);
 //        if (!m_data.size())
 //        {
 //          m_validity = static_cast<RTDBM::ExecResult*>(m_protobuf_instance)->SerializeToString(&m_data);
@@ -173,7 +168,7 @@ void DataImpl::set_initial_values()
 
       case ADG_D_MSG_ASKLIFE:
         m_protobuf_instance = new RTDBM::AskLife();
-        dynamic_cast<RTDBM::AskLife*>(m_protobuf_instance)->set_status(0);
+        static_cast<RTDBM::AskLife*>(m_protobuf_instance)->set_status(0);
 //        if (!m_data.size())
 //        {
 //          m_validity = static_cast<RTDBM::AskLife*>(m_protobuf_instance)->SerializeToString(&m_data);

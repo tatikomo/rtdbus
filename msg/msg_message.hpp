@@ -36,6 +36,7 @@ class Letter
     // Установить значения полей "Отправитель" и "Получатель"
     void set_origin(const char*);
     void set_destination(const char*);
+    void set_destination(const std::string&);
 
     // признак корректности данных объекта
     bool valid();
@@ -181,7 +182,7 @@ class MessageFactory
     // Изменяется только идентификатор обмена exchange_id
     std::string     m_default_serialized_header;
     // Header          m_default_pb_header;
-    rtdbExchangeId  m_exchange_id;
+    static rtdbExchangeId  m_exchange_id;
     char            m_source_procname[SERVICE_NAME_MAXLEN+1];
 };
 

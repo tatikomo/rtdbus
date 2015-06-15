@@ -251,8 +251,8 @@ const char* DatabaseBrokerImpl::getEndpoint(const std::string& service_name) con
 
 bool DatabaseBrokerImpl::Cleanup()
 {
-  char ident[IDENTITY_MAXLEN + 1];
-  char name[SERVICE_NAME_MAXLEN + 1];
+  char ident[IDENTITY_MAXLEN + 1] = "";
+  char name[SERVICE_NAME_MAXLEN + 1] = "";
   bool status;
   MCO_RET rc;
   mco_trans_h t;
@@ -2151,8 +2151,8 @@ bool DatabaseBrokerImpl::PushRequestToService(Service *srv, Letter *letter)
   broker_db::XDBLetter  letter_instance;
   broker_db::XDBService service_instance;
   broker_db::XDBWorker  worker_instance;
-  autoid_t     aid;
-  timer_mark_t what_time;
+  autoid_t     aid = 0;
+  timer_mark_t what_time = { 0, 0 };
   broker_db::timer_mark   mark;
 
   assert (srv);
