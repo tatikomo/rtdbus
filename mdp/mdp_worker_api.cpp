@@ -100,7 +100,7 @@ mdwrk::mdwrk (std::string broker_endpoint, std::string service, int verbose) :
 
     connect_to_broker ();
     // GEV: Попытка повторного создания серверного сокета здесь и в DiggerProxy::run()
-//    connect_to_world ();
+    // connect_to_world ();
 }
 
 //  ---------------------------------------------------------------------
@@ -277,6 +277,10 @@ mdwrk::set_reconnect (int reconnect)
 zmsg *
 mdwrk::recv (std::string *&reply)
 {
+  zmq::pollitem_t items [] = {
+            { *m_worker,   0, ZMQ_POLLIN, 0 },
+            { *m_welcome,  0, ZMQ_POLLIN, 0 } };
+
   //  Format and send the reply if we were provided one
   assert (reply || !m_expect_reply);
 

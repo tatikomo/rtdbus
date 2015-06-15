@@ -170,7 +170,7 @@ set (ENDPOINT_IHM_FRONTEND    "tcp://localhost:5558")
 set (ENDPOINT_EXCH_FRONTEND   "tcp://localhost:5559")
 
 # Максимальное количество одновременно допустимых подключений
-set (DEFAULT_MAX_DB_CONNECTIONS_ALLOWED  2)
+set (DEFAULT_MAX_DB_CONNECTIONS_ALLOWED  4)
 
 if(RTDBUS_BUILD_TESTS)
     add_definitions(-DRTDBUS_BUILD_TESTS)

@@ -846,7 +846,11 @@ const Error& DatabaseImpl::Disconnect()
 
       rc = mco_db_disconnect(m_db);
       LOG(INFO)<<"mco_db_disconnect '" << m_name << "', rc=" << rc;
-      if (rc) { LOG(ERROR)<<"Unable to disconnect from "<<m_name<<", rc="<<rc; }
+      if (rc) 
+      {
+        LOG(ERROR)<<"Unable to disconnect from "<<m_name<<", rc="<<rc;
+      }
+      else TransitionToState(DB_STATE_DISCONNECTED);
 
       // NB: break пропущен специально
     case DB_STATE_ATTACHED:  // база подключена
@@ -856,9 +860,11 @@ const Error& DatabaseImpl::Disconnect()
       rc = mco_db_close(m_name);
 #endif
       LOG(INFO)<<"mco_db_close '"<<m_name<<"', rc="<<rc;
-      if (rc) { LOG(ERROR)<<"Unable to close "<<m_name<<", rc="<<rc; }
-
-      TransitionToState(DB_STATE_DISCONNECTED);
+      if (rc)
+      {
+        LOG(ERROR)<<"Unable to close "<<m_name<<", rc="<<rc;
+      }
+      else TransitionToState(DB_STATE_CLOSED);
     break;
 
     default:

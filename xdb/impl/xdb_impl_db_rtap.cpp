@@ -566,11 +566,21 @@ void DatabaseRtapImpl::GenerateXSD()
 /* Тестовый API сохранения базы */
 bool DatabaseRtapImpl::MakeSnapshot(const char* msg)
 {
-  assert (State() == DB_STATE_UNINITIALIZED);
-  // Сохранить структуру БД
-  GenerateXSD();
-  // Сохранить содержимое БД
-  return (m_impl->SaveAsXML(NULL, msg)).Ok();
+  bool stat = false;
+
+  //assert (State() == DB_STATE_INITIALIZED);
+  if (State() == DB_STATE_INITIALIZED)
+  {
+    // Сохранить структуру БД
+    GenerateXSD();
+    // Сохранить содержимое БД
+    stat = (m_impl->SaveAsXML(NULL, msg)).Ok();
+  }
+  else
+  {
+    LOG(ERROR) << "Try to MakeSnapshot for uninitalized database";
+  }
+  return stat;
 }
 
 bool DatabaseRtapImpl::LoadSnapshot(const char* _fname)

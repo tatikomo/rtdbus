@@ -457,6 +457,10 @@ TEST(TestBrokerDATABASE, DESTROY)
 //    ASSERT_TRUE(letter != NULL);
 //    delete letter;
 
+    // NB: удаление этих двух объектов Сервиса приведет
+    // к выводу ошибки в консоль, поскольку они уже удалены
+    // ранее в тесте REMOVE_SERVICE.
+    // Сохранился только класс, без своего представления в БДРВ.
     ASSERT_TRUE (service1 != NULL);
     delete service1;
 
@@ -481,7 +485,8 @@ TEST(TestBrokerDATABASE, DESTROY)
 
 TEST(TestDiggerDATABASE, CREATION)
 {
-  //bool status = false;
+//  bool status = false;
+  xdb::Error err;
   RtEnvironment *env1 = NULL;
 //  const int argc = 3;
 //  char *argv[argc] = {
@@ -518,8 +523,9 @@ TEST(TestDiggerDATABASE, CREATION)
   EXPECT_EQ(env->getLastError().getCode(), xdb::rtE_NONE /*rtE_NOT_IMPLEMENTED*/);
 #endif
 
-  env->MakeSnapshot(NULL);
+  err = env->MakeSnapshot(NULL);
   EXPECT_EQ(env->getLastError().getCode(), xdb::rtE_NONE);
+  EXPECT_EQ(env->getLastError().getCode(), err.getCode());
 
   // Проверка корректности получения экземпляра Среды с одним 
   // названием и невозможности появления её дубликата
@@ -533,10 +539,14 @@ TEST(TestDiggerDATABASE, CREATION)
     // и адресом
     EXPECT_TRUE(env == env1);
 
+#if 1
     connection = env->getConnection();
     EXPECT_TRUE(connection != NULL);
+#endif
 
-    env->MakeSnapshot("DIGGER");
+    err = env->MakeSnapshot("DIGGER");
+    EXPECT_EQ(env->getLastError().getCode(), xdb::rtE_NONE);
+    EXPECT_EQ(env->getLastError().getCode(), err.getCode());
   }
   else
   {
@@ -550,7 +560,7 @@ TEST(TestDiggerDATABASE, CREATION)
 TEST(TestDiggerDATABASE, DESTROY)
 {
   LOG(INFO) << "BEGIN DESTROY TestDiggerDATABASE";
-//  delete connection;
+  delete connection;
   delete app;
   LOG(INFO) << "END DESTROY TestDiggerDATABASE";
 }

@@ -10,12 +10,15 @@
 
 using namespace msg;
 
+static const char *origin = "source";
+static const char *destination = "destination";
+
 ////////////////////////////////////////////////////////////////////////////////////////////////
 HeaderImpl::HeaderImpl()
   : m_validity(false),
     m_modified(true)
 {
-//  LOG(INFO) << "HeaderImpl() [" << this << "]";
+  LOG(INFO) << "HeaderImpl() [" << this << "]";
   set_initial_values();
 }
 
@@ -28,7 +31,7 @@ HeaderImpl::HeaderImpl(const std::string& frame)
     LOG(ERROR) << "Unable to unserialize header";
   }
 
-//  LOG(INFO) << "HeaderImpl(" << frame << ")=" << m_validity <<" [" << this << "]";
+  LOG(INFO) << "HeaderImpl(" << frame << ")=" << m_validity <<" [" << this << "]";
 }
 
 RTDBM::Header& HeaderImpl::instance()
@@ -46,7 +49,7 @@ RTDBM::Header& HeaderImpl::mutable_instance()
 
 HeaderImpl::~HeaderImpl()
 {
-//  LOG(INFO) << "~HeaderImpl() [" << this << "]";
+  LOG(INFO) << "~HeaderImpl() [" << this << "]";
 }
 
 bool HeaderImpl::ParseFrom(const std::string& frame)
@@ -84,8 +87,8 @@ void HeaderImpl::set_initial_values()
   m_instance.set_exchange_id(0);
   m_instance.set_interest_id(0);
   m_instance.set_source_pid(0);
-  m_instance.set_proc_dest("");
-  m_instance.set_proc_origin("");
+  m_instance.set_proc_dest(destination);
+  m_instance.set_proc_origin(origin);
   m_instance.set_sys_msg_type(USER_MESSAGE_TYPE);
   m_instance.set_usr_msg_type(0);
   m_instance.set_time_mark(now);
