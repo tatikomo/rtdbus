@@ -214,6 +214,7 @@ client_task (void* /*args*/)
         letter->set_status(user_exchange_id % 10);
         request->push_front(const_cast<std::string&>(letter->data()->get_serialized()));
         request->push_front(const_cast<std::string&>(letter->header()->get_serialized()));
+
         LOG(INFO) << "Send message id="<<user_exchange_id<<" from client";
         client->send (service_name, request);
         delete request;
@@ -228,7 +229,7 @@ client_task (void* /*args*/)
         report = client->recv ();
         if (report == NULL)
             break;
-        count++;
+        ++count;
         LOG(INFO) << "Receive message id="<<count<<" from worker";
         report->dump();
         assert (report->parts () >= 2);

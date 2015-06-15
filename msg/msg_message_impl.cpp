@@ -89,6 +89,7 @@ void HeaderImpl::set_initial_values()
   m_instance.set_time_mark(now);
 
   modified(true);
+  m_validity = true;
 }
 
 

@@ -209,6 +209,7 @@ void mdwrk::ask_endpoint ()
   LOG(INFO) << "Ask endpoint for '" << m_service << "'";
 }
 
+#if 0
 //  ---------------------------------------------------------------------
 //  Connect or reconnect to world
 void mdwrk::connect_to_world ()
@@ -253,6 +254,7 @@ void mdwrk::connect_to_world ()
     LOG(ERROR) << "Opening world socket: " << err.what();
   }
 }
+#endif
 
 //  ---------------------------------------------------------------------
 //  Set heartbeat delay
@@ -277,10 +279,6 @@ mdwrk::set_reconnect (int reconnect)
 zmsg *
 mdwrk::recv (std::string *&reply)
 {
-  zmq::pollitem_t items [] = {
-            { *m_worker,   0, ZMQ_POLLIN, 0 },
-            { *m_welcome,  0, ZMQ_POLLIN, 0 } };
-
   //  Format and send the reply if we were provided one
   assert (reply || !m_expect_reply);
 

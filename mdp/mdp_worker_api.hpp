@@ -41,10 +41,13 @@ class mdwrk
     //  Connect or reconnect to broker
     void connect_to_broker ();
 
+#if 0
+// NB: заблокируем, т.к. эту заботу сейчас берет на себя DiggerProxy
     //  ---------------------------------------------------------------------
     //  Connect or reconnect to everyone
     //  Этот сокет используется для обмена "быстрыми" сообщениями, минуя Брокера
     void connect_to_world ();
+#endif
 
     //  ---------------------------------------------------------------------
     //  Get service endpoint
