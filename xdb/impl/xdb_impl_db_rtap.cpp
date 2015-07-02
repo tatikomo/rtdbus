@@ -627,7 +627,7 @@ const Error& DatabaseRtapImpl::read(rtap_db::Point&)
 const Error& DatabaseRtapImpl::write(rtap_db::Point& info)
 {
   rtap_db::XDBPoint instance;
-  autoid_t    passport_aid;
+//  autoid_t    passport_aid;
 //  autoid_t    point_aid;
   MCO_RET     rc = MCO_S_OK;
   mco_trans_h t;

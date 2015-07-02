@@ -397,8 +397,10 @@ TEST(TestBrokerDATABASE, SERVICE_LIST)
 TEST(TestBrokerDATABASE, CHECK_LETTER)
 {
   char reply[IDENTITY_MAXLEN+1];
+  char cause[IDENTITY_MAXLEN+1];
   RTDBM::Header     pb_header;
   RTDBM::ExecResult pb_exec_result_request;
+  ::RTDBM::gof_t_ExecResult pb_exec_result_val;
   std::string       pb_serialized_header;
   std::string       pb_serialized_request;
 
@@ -417,11 +419,16 @@ TEST(TestBrokerDATABASE, CHECK_LETTER)
   for (int i=1; i<10; i++)
   {
     sprintf(reply, "@C0000000%02d", i);
+    sprintf(cause, "F_CAUSE_%02d", i);
     pb_header.set_exchange_id(i);
     pb_header.SerializeToString(&pb_serialized_header);
 
-    pb_exec_result_request.set_exec_result(i % 2);
-    pb_exec_result_request.set_failure_cause(i * 2);
+    pb_exec_result_val = static_cast<RTDBM::gof_t_ExecResult>(i % 2);
+    pb_exec_result_request.set_exec_result(pb_exec_result_val);
+
+    pb_exec_result_request.mutable_failure_cause()->set_error_code(i * 2);
+    pb_exec_result_request.mutable_failure_cause()->set_error_text(cause);
+
     pb_exec_result_request.SerializeToString(&pb_serialized_request);
 
     letter = new xdb::Letter(reply, pb_serialized_header, pb_serialized_request);

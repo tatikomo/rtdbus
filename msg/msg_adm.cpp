@@ -27,14 +27,30 @@ AskLife::AskLife(const std::string& head, const std::string& body) : Letter(head
  
 AskLife::~AskLife() {}
  
-int AskLife::status()
+bool AskLife::exec_result(int &val)
 {
-  return static_cast<RTDBM::AskLife*>(data()->impl()->instance())->status();
+  bool exec_result_exist = static_cast<RTDBM::SimpleRequest*>(data()->impl()->instance())->has_exec_result();
+
+  if (exec_result_exist)
+  {
+    val = static_cast<RTDBM::SimpleRequest*>(data()->impl()->instance())->exec_result();
+  }
+  else val = RTDBM::GOF_D_UNDETERMINED;
+
+  return exec_result_exist;
 }
  
-void AskLife::set_status(int _new_val)
+void AskLife::set_exec_result(int _new_val)
 {
-  static_cast<RTDBM::AskLife*>(data()->impl()->mutable_instance())->set_status(_new_val);
+  RTDBM::gof_t_ExecResult ex_result;
+  if (!RTDBM::gof_t_ExecResult_IsValid(_new_val))
+  {
+    ex_result = RTDBM::GOF_D_UNDETERMINED;
+    //LOG(ERROR) << "Unable to parse gof_t_ExecResult from (" << _new_val << ")";
+  }
+  else ex_result = static_cast<RTDBM::gof_t_ExecResult>(_new_val);
+
+  static_cast<RTDBM::SimpleRequest*>(data()->impl()->mutable_instance())->set_exec_result(ex_result);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -60,17 +76,38 @@ int ExecResult::exec_result()
 
 void ExecResult::set_exec_result(int _new_val)
 {
-  static_cast<RTDBM::ExecResult*>(data()->impl()->mutable_instance())->set_exec_result(_new_val);
+  RTDBM::gof_t_ExecResult ex_result;
+  if (!RTDBM::gof_t_ExecResult_IsValid(_new_val))
+  {
+    ex_result = RTDBM::GOF_D_UNDETERMINED;
+    //LOG(ERROR) << "Unable to parse gof_t_ExecResult from (" << _new_val << ")";
+  }
+  else ex_result = static_cast<RTDBM::gof_t_ExecResult>(_new_val);
+
+  static_cast<RTDBM::ExecResult*>(data()->impl()->mutable_instance())->set_exec_result(ex_result);
 }
 
-int ExecResult::failure_cause()
+bool ExecResult::failure_cause(int& code, std::string& text)
 {
-  return static_cast<RTDBM::ExecResult*>(data()->impl()->instance())->failure_cause();
+  bool failure_cause_exist = static_cast<RTDBM::ExecResult*>(data()->impl()->instance())->has_failure_cause();
+
+  if (failure_cause_exist)
+  {
+    code = static_cast<RTDBM::ExecResult*>(data()->impl()->instance())->failure_cause().error_code();
+    text.assign(static_cast<RTDBM::ExecResult*>(data()->impl()->instance())->failure_cause().error_text());
+  }
+  else
+  {
+    code = 0;
+    text.clear();
+  }
+  return failure_cause_exist;
 }
 
-void ExecResult::set_failure_cause(int _new_val)
+void ExecResult::set_failure_cause(int _new_val, std::string& _new_cause)
 {
-  static_cast<RTDBM::ExecResult*>(data()->impl()->mutable_instance())->set_failure_cause(_new_val);
+  static_cast<RTDBM::ExecResult*>(data()->impl()->mutable_instance())->mutable_failure_cause()->set_error_code(_new_val);
+  static_cast<RTDBM::ExecResult*>(data()->impl()->mutable_instance())->mutable_failure_cause()->set_error_text(_new_cause);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

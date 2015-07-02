@@ -4,7 +4,9 @@
 
 #include "glog/logging.h"
 
-#include "proto/common.pb.h"
+// Генерированные прототипы
+#include "proto/rtdbus.pb.h"
+
 #include "msg_message_impl.hpp"
 #include "helper.hpp"
 
@@ -145,6 +147,8 @@ void DataImpl::set_initial_values()
 //            << " m_protobuf_instance:" << m_protobuf_instance
 //            << " valid?:" << valid() << " [" << this << "]";
 
+  RTDBM::gof_t_ExecResult ex_result = RTDBM::GOF_D_SUCCESS;
+
   // Объект с данными не должен быть ранее созданным
   assert(!m_protobuf_instance);
 
@@ -158,23 +162,20 @@ void DataImpl::set_initial_values()
     {
       case ADG_D_MSG_EXECRESULT:
         m_protobuf_instance = new RTDBM::ExecResult();
-        static_cast<RTDBM::ExecResult*>(m_protobuf_instance)->set_exec_result(0);
-        static_cast<RTDBM::ExecResult*>(m_protobuf_instance)->set_failure_cause(0);
-//        if (!m_data.size())
-//        {
-//          m_validity = static_cast<RTDBM::ExecResult*>(m_protobuf_instance)->SerializeToString(&m_data);
-//          modified(false);
-//        }
+        static_cast<RTDBM::ExecResult*>(m_protobuf_instance)->set_exec_result(ex_result);
+        //static_cast<RTDBM::ExecResult*>(m_protobuf_instance)->set_failure_cause(0);
       break;
 
       case ADG_D_MSG_ASKLIFE:
-        m_protobuf_instance = new RTDBM::AskLife();
-        static_cast<RTDBM::AskLife*>(m_protobuf_instance)->set_status(0);
-//        if (!m_data.size())
-//        {
-//          m_validity = static_cast<RTDBM::AskLife*>(m_protobuf_instance)->SerializeToString(&m_data);
-//          modified(false);
-//        }
+        m_protobuf_instance = new RTDBM::SimpleRequest();
+      break;
+
+      case SIG_D_MSG_READ_MULTI:
+        m_protobuf_instance = new RTDBM::ReadMulti();
+      break;
+
+      case SIG_D_MSG_WRITE_MULTI:
+        m_protobuf_instance = new RTDBM::WriteMulti();
       break;
 
       default:

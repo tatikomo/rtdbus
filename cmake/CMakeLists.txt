@@ -185,6 +185,7 @@ if (CMAKE_COMPILER_IS_GNUCC)
   add_definitions(-m32)
   add_definitions(-Wall)
   add_definitions(-Wextra)
+  add_definitions(-Wno-unused-parameter)
 
 #  add_definitions(-pedantic)
 #  add_definitions(-Weffc++)

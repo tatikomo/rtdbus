@@ -1,0 +1,112 @@
+syntax = "proto2";
+
+package RTDBM;
+
+import "common.proto";
+
+// =======================================================
+// Объявление перечислений
+// =======================================================
+
+// Request identifier
+enum ech_t_ReqId {
+    ECH_D_GENCONTROL    = 0;  // general control
+    ECH_D_INFOSACQ      = 1;  // global acquisition
+    ECH_D_URGINFOS      = 2;  // urgent data acquisition
+    ECH_D_GAZPROCOP     = 3;  // gaz volume count acquisition
+    ECH_D_EQUIPACQ      = 4;  // equipment acquisition
+    ECH_D_ACQSYSACQ     = 5;  // Sac data acquisition
+    ECH_D_ALATHRES      = 6;  // alarms and thresholds acquisition
+    ECH_D_TELECMD       = 7;  // telecommand
+    ECH_D_TELEREGU      = 8;  // teleregulation
+    ECH_D_SERVCMD       = 9;  // service command
+    ECH_D_GLOBDWLOAD    = 10; // global download
+    ECH_D_PARTDWLOAD    = 11; // partial download
+    ECH_D_GLOBUPLOAD    = 12; // Sac configuration global upload
+    ECH_D_INITCMD       = 13; // initialisation of the exchanges
+    ECH_D_GCPRIMARY     = 14; // Primary general control
+    ECH_D_GCSECOND      = 15; // Secondary general control
+    ECH_D_DIFFPRIMARY   = 16; // Primary differential acquisition
+    ECH_D_DIFFSECOND    = 17; // Secondary differential acquisition
+    ECH_D_INFODIFFUSION = 18; // Information diffusion
+    ECH_D_DELEGATION    = 19; // Process order delegation-end of delegation
+    ECH_D_GCTERTIARY    = 20; // Tertiary general control
+    ECH_D_DIFFTERTIARY  = 21; // Tertiary differential acquisition
+}
+
+// acquisition mode
+enum ech_t_AcqMode {
+    ECH_D_DIFF_MODE     = 1;
+    ECH_D_NONDIFF_MODE  = 2;
+}
+
+// =======================================================
+// Объявление вложенных структур
+// =======================================================
+
+// header of a request : common part to all type of requests
+message ech_t_HeaderRequest {
+    required ech_t_ReqId e_ReqId         = 1;    // request identification
+    required int32       i_ExchangeId    = 2;    // exchange identification
+    required string      s_SacUniversalName = 3; // concerned SAC universal identification
+    required int32       i_Priority      = 4;    // priority of the request
+}
+
+message ech_t_AcqParam {
+    required string     s_EquipUniversalName    = 1;    // тег оборудования
+}
+
+// body of an implicit or explicit acquisition request
+message ech_t_Acquis {
+    required ech_t_HeaderRequest r_HeaderRequest    = 1;
+    // mode of the acquisition
+    required ech_t_AcqMode       e_AcqMode          = 2;
+    // specific parameters of the request (may be empty)
+    optional ech_t_AcqParam      u_AcqParam         = 3;    
+}
+
+// Description of the body of a process telecommand request
+message ech_t_ProcTeleComm {
+    required ech_t_HeaderRequest r_HeaderRequest    = 1;
+    // identification of the technological object concerned by the process command
+    required string              s_TechnObjId       = 2;
+    // equipment type ex : valve, group ....
+    required gof_t_TcType        e_TcType           = 3;
+    // process telecommand value to reach
+    required gof_t_TcOper        e_TeleComValue     = 4;
+    // 07-10-99 by TH : the name of the dispatcher
+    required string              s_dispatch_name    = 5;
+    // 07-10-99 by TH : the responsability flag about permission of the telecommand
+    required bool                b_responsability_change    = 6;
+}
+
+// Description of the body of a process teleregulation request
+message ech_t_ProcTeleReg {
+    required ech_t_HeaderRequest r_HeaderRequest         = 1;
+    // identification of the technological object concerned by the process command
+    required string              s_TechnObjId            = 2;
+    // process teleregulation value to reach
+    required double              f_TeleRegValue          = 3;
+    // the dispatcher name
+    required string              s_dispatch_name         = 4 ;
+    // the responsability flag about permission of the telecommand
+    required bool                b_responsability_change = 5;
+}
+
+// structure of a SA service command message exchanged between 
+// DIDL and SIDL, SIDL and EGSA, EGSA and ESEN.
+ message gof_t_ServCmd {
+	required int32  i_ServCmdType   = 1;
+	required string s_ServCmdParam  = 2;
+}
+
+// Description of the body of a SAC service request
+message ech_t_ServComm {
+    required ech_t_HeaderRequest r_HeaderRequest    = 1;
+    /* Service Command contents composed of a type and a buffer */
+    /* The buffer is not significant for this interface but is only interpreted */
+    /* by the ESEN component */
+    required gof_t_ServCmd       r_ServCmd          = 2;
+}
+
+

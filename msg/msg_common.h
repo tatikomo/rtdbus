@@ -8,13 +8,15 @@ typedef uint32_t rtdbExchangeId;/* системный(служебный) иде
 typedef uint32_t rtdbPid;       /* идентификатор процесса-отправителя */
 typedef uint16_t rtdbMsgType;   /* тип сообщения */
 
-typedef char rtdbProcessId[10]; /* имя процесса */
+typedef char rtdbProcessId[40]; /* имя процесса. TODO: размерность */
 
 /* системный тип служебных сообщений */
 #define CORE_MESSAGE_TYPE       1
 /* системный тип пользовательских сообщений */
 #define USER_MESSAGE_TYPE       100
 
+// используется для идентификации неизвестных типов сообщений
+#define MESSAGE_TYPE_UNKNOWN     999
 
 #define GOF_D_BASE_MSG_INTERNAL 1000
 
@@ -239,10 +241,8 @@ const rtdbMsgType SIG_D_MSG_ACDQUERY            = GOF_D_BASE_MSG_SINF + 125;
  * одного/многих атрибутов
  * Данные константы отсутствуют в ГОФО
  */
-const rtdbMsgType SIG_D_MSG_READ_SINGLE         = GOF_D_BASE_MSG_SINF + 200;
-const rtdbMsgType SIG_D_MSG_READ_MULTI          = GOF_D_BASE_MSG_SINF + 201;
-const rtdbMsgType SIG_D_MSG_WRITE_SINGLE        = GOF_D_BASE_MSG_SINF + 202;
-const rtdbMsgType SIG_D_MSG_WRITE_MULTI         = GOF_D_BASE_MSG_SINF + 203;
+const rtdbMsgType SIG_D_MSG_READ_MULTI          = GOF_D_BASE_MSG_SINF + 200;
+const rtdbMsgType SIG_D_MSG_WRITE_MULTI         = GOF_D_BASE_MSG_SINF + 201;
 
 /*
  * NB: Есть дополнительные константы типов, расположенные в sig/ext/dat: 

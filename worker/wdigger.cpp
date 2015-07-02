@@ -267,7 +267,7 @@ Digger::Digger(std::string broker_endpoint, std::string service, int verbose)
   // a) по одному на каждый экземпляр DiggerWorker
   // b) один для Digger
   // c) один для мониторинга
-  m_appli->setOption("OF_MAX_CONNECTIONS",  DiggerProxy::kMaxThread + 2);
+  m_appli->setOption("OF_MAX_CONNECTIONS",  DiggerProxy::kMaxThread * 2);
   m_appli->setOption("OF_RDWR",1);      // Открыть БД для чтения/записи
   m_appli->setOption("OF_DATABASE_SIZE",    Digger::DatabaseSizeBytes);
   m_appli->setOption("OF_MEMORYPAGE_SIZE",  1024);
@@ -468,12 +468,10 @@ int Digger::handle_request(mdp::zmsg* request, std::string*& reply_to)
 
     switch(msgType)
     {
-      case SIG_D_MSG_READ_SINGLE:
       case SIG_D_MSG_READ_MULTI:
        handle_read(letter, reply_to);
        break;
 
-      case SIG_D_MSG_WRITE_SINGLE:
       case SIG_D_MSG_WRITE_MULTI:
        handle_write(letter, reply_to);
        break;
@@ -514,22 +512,23 @@ int Digger::handle_asklife(msg::Letter* letter, std::string* reply_to)
 {
   msg::AskLife   *msg_ask_life = static_cast<msg::AskLife*>(letter);
   mdp::zmsg      *response = new mdp::zmsg();
+  int exec_val = 1;
 
-  msg_ask_life->set_status(1);
+  msg_ask_life->set_exec_result(exec_val);
 
   response->push_front(const_cast<std::string&>(msg_ask_life->data()->get_serialized()));
   response->push_front(const_cast<std::string&>(msg_ask_life->header()->get_serialized()));
   response->wrap(reply_to->c_str(), "");
 
   std::cout << "Processing asklife from " << *reply_to
-            << " status:" << msg_ask_life->status()
+            << " has status:" << msg_ask_life->exec_result(exec_val)
             << " sid:" << msg_ask_life->header()->exchange_id()
             << " iid:" << msg_ask_life->header()->interest_id()
             << " dest:" << msg_ask_life->header()->proc_dest()
             << " origin:" << msg_ask_life->header()->proc_origin() << std::endl;
 
   LOG(INFO) << "Processing asklife from " << *reply_to
-            << " status:" << msg_ask_life->status()
+            << " has status:" << msg_ask_life->exec_result(exec_val)
             << " sid:" << msg_ask_life->header()->exchange_id()
             << " iid:" << msg_ask_life->header()->interest_id()
             << " dest:" << msg_ask_life->header()->proc_dest()

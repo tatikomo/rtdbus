@@ -1,0 +1,29 @@
+syntax = "proto2";
+
+package RTDBM;
+/*-------------------------------------------------------*/
+/* Base number for internal messages to each environment */
+/*-------------------------------------------------------*/
+//#define GOF_D_BASE_MSG_INTERNAL	1000
+
+/* base number for SINF */
+/*----------------------*/
+//#define GOF_D_BASE_MSG_SINF	2000
+
+/* base number for ECH */
+/*----------------------*/
+//#define GOF_D_BASE_MSG_ECH	3000
+
+/* base number for IHM */
+/*----------------------*/
+//#define GOF_D_BASE_MSG_IHM	4000
+
+/* base number for ADDX */
+/*----------------------*/
+//#define GOF_D_BASE_MSG_ADDX	5000
+
+import "common.proto";
+import "adg.proto";
+import "sinf.proto";
+import "ech.proto";
+

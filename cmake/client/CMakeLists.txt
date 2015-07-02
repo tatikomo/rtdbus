@@ -44,22 +44,6 @@ set (CLIENT_PULSAR_SOURCES
         ${CLIENT_DIR}/pulsar.hpp
         ${CLIENT_DIR}/pulsar.cpp)
 
-add_custom_command(
-        OUTPUT
-        ${MSG_DIR}/proto/common.pb.cc
-        ${MSG_DIR}/proto/common.pb.h
-        COMMAND
-        ${PROTOC} --cpp_out=. --proto_path=. common.proto
-        DEPENDS
-        ${MSG_DIR}/proto/common.proto
-        WORKING_DIRECTORY
-        ${MSG_DIR}/proto
-        )
-
-set_source_files_properties(${MSG_DIR}/proto/common.pb.cc
-                            ${MSG_DIR}/proto/common.pb.h
-                            PROPERTIES GENERATED 1)
-
 if (CMAKE_COMPILER_IS_GNUCC)
 #add_definitions(-fpermissive)
 else (CMAKE_COMPILER_IS_GNUCC)

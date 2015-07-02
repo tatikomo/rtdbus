@@ -174,6 +174,7 @@ typedef union
 } AttrVal_t;
 
 // Коды элементарных типов данных eXtremeDB, которые мы используем
+// Копия используется в файле sinf.proto
 typedef enum
 {
   DB_TYPE_UNDEF     = 0,

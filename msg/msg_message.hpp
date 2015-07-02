@@ -107,6 +107,7 @@ class Header
     // установка pid проводится автоматически
     void set_proc_dest(const std::string&);
     void set_proc_origin(const std::string&);
+    void set_proc_origin(const char*);
     void set_sys_msg_type(rtdbMsgType);
     void set_usr_msg_type(rtdbMsgType);
     void set_time_mark(uint64_t);
@@ -182,8 +183,9 @@ class MessageFactory
     // Изменяется только идентификатор обмена exchange_id
     std::string     m_default_serialized_header;
     // Header          m_default_pb_header;
+    // Название собственного процесса, подставляется при отправке в каждое сообщение
+    std::string     m_source_procname; //[SERVICE_NAME_MAXLEN + 1];
     static rtdbExchangeId  m_exchange_id;
-    char            m_source_procname[SERVICE_NAME_MAXLEN+1];
 };
 
 

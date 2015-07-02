@@ -11,6 +11,7 @@
 #include "msg_message.hpp"
 #include "msg_message_impl.hpp"
 #include "msg_adm.hpp"
+#include "msg_sinf.hpp"
 
 using namespace msg;
 
@@ -138,6 +139,11 @@ void Header::set_interest_id(rtdbExchangeId val)
 void Header::set_proc_dest(const std::string& val)
 {
   impl()->mutable_instance().set_proc_dest(val);
+}
+
+void Header::set_proc_origin(const char* val)
+{
+  impl()->mutable_instance().set_proc_origin(val);
 }
 
 void Header::set_proc_origin(const std::string& val)
@@ -383,22 +389,22 @@ void Letter::dump()
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// TODO:
 // 1. получить PID процесса
 // 2. получить название локального процесса
 MessageFactory::MessageFactory(const char* procname)
   : m_version_message_system(1),
     m_version_rtdbus(1),
-    m_pid(getpid()) /*,
-    m_exchange_id(0)*/
+    m_pid(getpid()),
+    m_source_procname(procname)
 {
   m_default_serialized_header.clear();
-  if (procname)
+  if (m_source_procname.size() > SERVICE_NAME_MAXLEN)
   {
-    strncpy(m_source_procname, procname, SERVICE_NAME_MAXLEN);
-    m_source_procname[SERVICE_NAME_MAXLEN] = '\0';
+    LOG(WARNING) << "Given process name (" << m_source_procname 
+               << " will truncated from " << m_source_procname.size()
+               << " to " << SERVICE_NAME_MAXLEN << " bytes";
+    m_source_procname.resize(SERVICE_NAME_MAXLEN);
   }
-  else m_source_procname[0] = '\0';
   // NB: Начальные значения m_default_pb_header выставляются конструктором по-умолчанию
 }
  
@@ -436,7 +442,14 @@ Letter* MessageFactory::create(rtdbMsgType type)
     break;
     case ADG_D_MSG_ADJTIME:
     break;
- 
+
+    case SIG_D_MSG_READ_MULTI:
+        created = new ReadMulti();
+    break;
+    case SIG_D_MSG_WRITE_MULTI:
+        created = new WriteMulti();
+    break;
+
     default:
       LOG(ERROR) << "Unsupported message type " << type; 
   }
@@ -458,6 +471,7 @@ Letter* MessageFactory::create(mdp::zmsg* request)
   // и восстановить на его основе прикладное сообщение.
   // Первый фрейм - адрес возврата,
   // Два последних фрейма - заголовок и тело сообщения.
+  // Тело Сообщения может быть пустым - если оно опционально.
   int msg_frames = request->parts();
   assert(msg_frames >= 2);
 
@@ -468,14 +482,17 @@ Letter* MessageFactory::create(mdp::zmsg* request)
   assert (body_str);
 
   // Есть непустые данные для десериализации
-  if ((head_str && head_str->size()) && (body_str && body_str->size()))
+  if ((head_str && head_str->size()) && (body_str /*&& body_str->size()*/))
   {
     // Создать экземпляр из полученных фреймов заголовка и данных 
     created = unserialize(*head_str, *body_str);
   }
   else
   {
-    LOG(ERROR) << "Unable to restore received message (head="<<head_str<<", data="<<body_str<<")";
+    LOG(ERROR) << "Unable to restore received message (head="
+               << head_str << " size=" << ((head_str)? head_str->size() : 0)
+               << ", data=" << body_str << " size=" << ((body_str)? body_str->size() : 0)
+               << ")";
   }
 
   return created;
@@ -550,24 +567,32 @@ Letter* MessageFactory::unserialize(const std::string& pb_header, const std::str
     case ADG_D_MSG_EXECRESULT:
         created = new ExecResult(fresh_header, pb_data);
     break;
-    case ADG_D_MSG_ENDINITACK:
-    break;
-    case ADG_D_MSG_INIT:
-    break;
-    case ADG_D_MSG_STOP:
-    break;
-    case ADG_D_MSG_ENDALLINIT:
-    break;
+//    case ADG_D_MSG_ENDINITACK:
+//    break;
+//    case ADG_D_MSG_INIT:
+//    break;
+//    case ADG_D_MSG_STOP:
+//    break;
+//    case ADG_D_MSG_ENDALLINIT:
+//    break;
     case ADG_D_MSG_ASKLIFE:
         created = new AskLife(fresh_header, pb_data);
     break;
-    case ADG_D_MSG_LIVING:
+//    case ADG_D_MSG_LIVING:
+//    break;
+//    case ADG_D_MSG_STARTAPPLI:
+//    break;
+//    case ADG_D_MSG_STOPAPPLI:
+//    break;
+//    case ADG_D_MSG_ADJTIME:
+//    break;
+
+    case SIG_D_MSG_READ_MULTI:
+        created = new ReadMulti(fresh_header, pb_data);
     break;
-    case ADG_D_MSG_STARTAPPLI:
-    break;
-    case ADG_D_MSG_STOPAPPLI:
-    break;
-    case ADG_D_MSG_ADJTIME:
+ 
+    case SIG_D_MSG_WRITE_MULTI:
+        created = new WriteMulti(fresh_header, pb_data);
     break;
  
     default:

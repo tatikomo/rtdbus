@@ -45,8 +45,12 @@ set (XDB_BROKER_SOURCES
         ${XDB_BROKER_DIR}/xdb_broker_letter.hpp
         ${MSG_DIR}/msg_common.h
         ${MSG_DIR}/msg_message.hpp
-        ${MSG_DIR}/proto/common.pb.cc
-        ${MSG_DIR}/proto/common.pb.h
+        ${MSG_DIR}/msg_message_impl.hpp
+        ${MSG_DIR}/proto/common.proto
+        ${MSG_DIR}/proto/rtdbus.proto
+        ${MSG_DIR}/proto/sinf.proto
+        ${MSG_DIR}/proto/adg.proto
+        ${MSG_DIR}/proto/ech.proto
         )
 
 if (CMAKE_COMPILER_IS_GNUCC)
@@ -56,18 +60,6 @@ else (CMAKE_COMPILER_IS_GNUCC)
 add_definitions (-library=stlport4)
 endif (CMAKE_COMPILER_IS_GNUCC)
 add_definitions (-library=stlport4)
-
-add_custom_command(
-        OUTPUT
-        ${MSG_DIR}/proto/common.pb.cc
-        ${MSG_DIR}/proto/common.pb.h
-        COMMAND
-        ${PROTOC} --cpp_out=. --proto_path=. common.proto
-        DEPENDS
-        ${MSG_DIR}/proto/common.proto
-        WORKING_DIRECTORY
-        ${MSG_DIR}/proto
-        )
 
 add_custom_command(
         OUTPUT 

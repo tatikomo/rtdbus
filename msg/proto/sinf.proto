@@ -1,0 +1,57 @@
+syntax = "proto2";
+
+package RTDBM;
+
+import "common.proto";
+
+// Коды элементарных типов данных eXtremeDB, которые мы используем
+// Оригинал в файле xdb_rtap_const.hpp
+enum DbType {
+  DB_TYPE_UNDEF     = 0;
+  DB_TYPE_INT8      = 1;
+  DB_TYPE_UINT8     = 2;
+  DB_TYPE_INT16     = 3;
+  DB_TYPE_UINT16    = 4;
+  DB_TYPE_INT32     = 5;
+  DB_TYPE_UINT32    = 6;
+  DB_TYPE_INT64     = 7;
+  DB_TYPE_UINT64    = 8;
+  DB_TYPE_FLOAT     = 9;
+  DB_TYPE_DOUBLE    = 10;
+  DB_TYPE_BYTES     = 11; // переменная длина строки
+  DB_TYPE_BYTES4    = 12;
+  DB_TYPE_BYTES8    = 13;
+  DB_TYPE_BYTES12   = 14;
+  DB_TYPE_BYTES16   = 15;
+  DB_TYPE_BYTES20   = 16;
+  DB_TYPE_BYTES32   = 17;
+  DB_TYPE_BYTES48   = 18;
+  DB_TYPE_BYTES64   = 19;
+  DB_TYPE_BYTES80   = 20;
+  DB_TYPE_BYTES128  = 21;
+  DB_TYPE_BYTES256  = 22;
+}
+
+message ValueUpdate {
+  required string   tag     = 1;
+  required DbType   type    = 2 [default=DB_TYPE_UNDEF];
+  optional int64    i64_value   = 3;
+  optional int32    i32_value   = 4;
+  optional float    f_value     = 5;
+  optional double   g_value     = 6;
+  optional string   s_value     = 7;
+  // NB: будет ли 'bool' использоваться?
+  // в xdb::DbType_t нет соответствующего типа Logical
+  optional bool     b_value     = 8;
+}
+
+// Чтение одного или более значения из БДРВ
+message ReadMulti {
+  repeated ValueUpdate  update_item = 1;
+}
+
+// Запись одного или более значений в БДРВ
+message WriteMulti {
+  repeated ValueUpdate  update_item = 1;
+}
+

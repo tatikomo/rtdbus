@@ -31,18 +31,6 @@ link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${LIBGLOG_LIBRARIES_DIR})
 
 add_custom_command(
-        OUTPUT
-        ${MSG_DIR}/proto/common.pb.cc
-        ${MSG_DIR}/proto/common.pb.h
-        COMMAND
-        ${PROTOC} --cpp_out=. --proto_path=. common.proto
-        DEPENDS
-        ${MSG_DIR}/proto/common.proto
-        WORKING_DIRECTORY
-        ${MSG_DIR}/proto
-        )
-
-add_custom_command(
         OUTPUT 
         ${XDB_IMPL_DIR}/dat/rtap_db.h
         ${XDB_IMPL_DIR}/dat/rtap_db.c
@@ -144,10 +132,6 @@ add_definitions (-library=stlport4)
 set_source_files_properties(${XDB_IMPL_DIR}/dat/broker_db.h
                             ${XDB_IMPL_DIR}/dat/broker_db.c
                             ${XDB_IMPL_DIR}/dat/broker_db.hpp
-                            PROPERTIES GENERATED 1)
-
-set_source_files_properties(${MSG_DIR}/proto/common.pb.cc
-                            ${MSG_DIR}/proto/common.pb.h
                             PROPERTIES GENERATED 1)
 
 add_library (${XDB_RTAP_LIBRARY_NAME} ${XDB_RTAP_SOURCES})
