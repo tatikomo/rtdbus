@@ -5,20 +5,21 @@
 #if defined HAVE_CONFIG_H
 #include "config.h"
 #endif
+#include "xdb_common.hpp"
 #include "xdb_impl_error.hpp"
-#include "xdb_impl_common.hpp"
 #include "helper.hpp"
 #include "dat/rtap_db.hxx"
 
 namespace xdb {
 
 class DatabaseRtapImpl;
+class ConnectionImpl;
 
 class RtDatabase
 {
   public:
     RtDatabase(const char*, const ::Options*);
-    ~RtDatabase();
+   ~RtDatabase();
 
     const char* DatabaseName() const;
     /* 
@@ -51,21 +52,16 @@ class RtDatabase
     const Error& Control(rtDbCq&);
     const Error& Query(rtDbCq&);
     const Error& Config(rtDbCq&);
-    // Создание Точки
-    const Error& create(rtap_db::Point&);
-    // Удаление Точки
-    const Error& erase(rtap_db::Point&);
-    // Чтение данных Точки
-    const Error& read(rtap_db::Point&);
-    // Изменение данных Точки
-    const Error& write(rtap_db::Point&);
-    // Блокировка данных Точки от изменения в течение заданного времени
-    const Error& lock(rtap_db::Point&, int);
-    const Error& unlock(rtap_db::Point&);
+
+    // NB: Функции манипуляции данными находятся в RtConnection
+    // Нужен для передачи в ConnectionImpl
+    DatabaseRtapImpl *getImpl() { return m_impl; };
+
+  protected:
+    DatabaseRtapImpl *m_impl;
 
   private:
     DISALLOW_COPY_AND_ASSIGN(RtDatabase);
-    DatabaseRtapImpl *m_impl;
     const Options    *m_options;
 };
 

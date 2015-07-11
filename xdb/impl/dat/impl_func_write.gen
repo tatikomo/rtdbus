@@ -1,0 +1,414 @@
+MCO_RET DatabaseRtapImpl::writeACTIONTYP(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeALARMBEGIN(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeALARMBEGINACK(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeALARMENDACK(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeALARMSYNTH(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeALDEST(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeALINHIB(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeCONFREMOTECMD(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeCONVERTCOEFF(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeCURRENT_SHIFT_TIME(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeDATEAINS(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeDATEHOURM(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeDATERTU(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeDELEGABLE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeDISPP(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeFLGMAINTENANCE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeFLGREMOTECMD(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeFUNCTION(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeGRADLEVEL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeINHIB(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeINHIBLOCAL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeKMREFDWN(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeKMREFUPS(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeLABEL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeL_CONSUMER(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeL_CORRIDOR(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeL_DIPL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeL_EQT(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeL_EQTORBORDWN(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeL_EQTORBORUPS(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeL_EQTTYP(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeLINK_HIST(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeL_NET(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeL_NETTYPE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeLOCALFLAG(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeL_PIPE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeL_PIPELINE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeL_SA(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeL_TL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeL_TYPINFO(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeMAXVAL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeMINVAL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeMNVALPHY(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeMXFLOW(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeMXPRESSURE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeMXVALPHY(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeNAMEMAINTENANCE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeNMFLOW(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeNMPRESSURE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writePLANFLOW(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writePLANPRESSURE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writePREV_DISPATCHER(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writePREV_SHIFT_TIME(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeREMOTECONTROL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeSUPPLIER(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeSUPPLIERMODE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeSUPPLIERSTATE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeSYNTHSTATE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeTSSYNTHETICAL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeTYPE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeUNITY(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeVAL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeVALACQ(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeVALEX(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeVALID(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeVALIDACQ(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeVALIDCHANGE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeVAL_LABEL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeVALMANUAL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+

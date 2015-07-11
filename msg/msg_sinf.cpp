@@ -52,16 +52,16 @@ Value::Value(std::string& name, xdb::DbType_t type, void* val)
   switch (m_type)
   {
     case xdb::DB_TYPE_INT32:
-      m_value.val_i32 = *static_cast<int32_t*>(val);
+      m_value.val_int32 = *static_cast<int32_t*>(val);
     break;
     case xdb::DB_TYPE_UINT32:
-      m_value.val_ui32 = *static_cast<uint32_t*>(val);
+      m_value.val_uint32 = *static_cast<uint32_t*>(val);
     break;
     case xdb::DB_TYPE_INT64:
-      m_value.val_i64 = *static_cast<int64_t*>(val);
+      m_value.val_int64 = *static_cast<int64_t*>(val);
     break;
     case xdb::DB_TYPE_UINT64:
-      m_value.val_ui64 = *static_cast<uint64_t*>(val);
+      m_value.val_uint64 = *static_cast<uint64_t*>(val);
     break;
     case xdb::DB_TYPE_FLOAT:
       m_value.val_float = *static_cast<float*>(val);
@@ -83,9 +83,10 @@ Value::Value(std::string& name, xdb::DbType_t type, void* val)
     case xdb::DB_TYPE_BYTES80:
     case xdb::DB_TYPE_BYTES128:
     case xdb::DB_TYPE_BYTES256:
-      m_value.val_char = new char[var_size[m_type]+1];
-      strncpy(m_value.val_char, static_cast<char*>(val), var_size[m_type]);
-      m_value.val_char[var_size[m_type]] = '\0';
+      m_value.val_bytes.size = var_size[m_type];
+      m_value.val_bytes.data = new char[var_size[m_type]+1];
+      strncpy(m_value.val_bytes.data, static_cast<char*>(val), var_size[m_type]);
+      m_value.val_bytes.data[var_size[m_type]] = '\0';
     break;
     default:
     break;
@@ -105,16 +106,16 @@ Value::Value(/*const RTDBM::ValueUpdate* */ const void* vu)
   switch(m_type)
   {
     case xdb::DB_TYPE_INT32:
-      m_value.val_i32 = temp->i32_value();
+      m_value.val_int32 = temp->i32_value();
     break;
     case xdb::DB_TYPE_UINT32:
-      m_value.val_ui32 = temp->i32_value();
+      m_value.val_uint32 = temp->i32_value();
     break;
     case xdb::DB_TYPE_INT64:
-      m_value.val_i64 = temp->i64_value();
+      m_value.val_int64 = temp->i64_value();
     break;
     case xdb::DB_TYPE_UINT64:
-      m_value.val_ui64 = temp->i64_value();
+      m_value.val_uint64 = temp->i64_value();
     break;
     case xdb::DB_TYPE_FLOAT:
       m_value.val_float = temp->f_value();
@@ -147,19 +148,20 @@ Value::Value(/*const RTDBM::ValueUpdate* */ const void* vu)
     case xdb::DB_TYPE_BYTES256:
       // NB Предыдущее ненулевое значение игнорируем, т.к. оно может быть
       // таковым из-за одновременного размещения в памяти и других типов данных
-      m_value.val_char = new char[var_size[m_type]+1];
+      m_value.val_bytes.size = var_size[m_type];
+      m_value.val_bytes.data = new char[var_size[m_type]+1];
 
       if (temp->s_value().size() != var_size[m_type])
         std::cout << "E01: size doesn't equal (" 
                   << temp->s_value().size() << ", "
                   << var_size[m_type] << ")" << std::endl;
 
-      strncpy(m_value.val_char, temp->s_value().c_str(), var_size[m_type]);
-      m_value.val_char[var_size[m_type]] = '\0';
+      strncpy(m_value.val_bytes.data, temp->s_value().c_str(), var_size[m_type]);
+      m_value.val_bytes.data[var_size[m_type]] = '\0';
 #if 0
       std::cout << "NEW char* type=" << m_type 
                 << " size=" << var_size[m_type]
-                << " \"" << m_value.val_char << "\"" << std::endl;
+                << " \"" << m_value.val_bytes.data << "\"" << std::endl;
 #endif
     break;
 
@@ -196,7 +198,7 @@ Value::Value(std::string& name, int32_t val)
 //  m_impl->set_type(RTDBM::DB_TYPE_UINT32);
 //  m_impl->set_i32_value(val);
   memset((void*)&m_value, '\0', sizeof(m_value));
-  m_value.val_i32 = val;
+  m_value.val_int32 = val;
 }
 
 Value::Value(std::string& name, int64_t val)
@@ -207,7 +209,7 @@ Value::Value(std::string& name, int64_t val)
 //  m_impl->set_type(RTDBM::DB_TYPE_UINT64);
 //  m_impl->set_i32_value(val);
   memset((void*)&m_value, '\0', sizeof(m_value));
-  m_value.val_i64 = val;
+  m_value.val_int64 = val;
 }
 
 Value::Value(std::string& name, float val)
@@ -276,8 +278,9 @@ Value::Value(std::string& name, const char* val, size_t size)
               m_type = xdb::DB_TYPE_BYTES4;   break;
   }
 
-  m_value.val_char = new char[var_size[m_type]+1];
-  strcpy(m_value.val_char, val);
+  m_value.val_bytes.size = var_size[m_type];
+  m_value.val_bytes.data = new char[var_size[m_type]+1];
+  strcpy(m_value.val_bytes.data, val);
 }
 
 Value::Value(std::string& name, std::string& val)
@@ -319,13 +322,13 @@ Value::~Value()
     case xdb::DB_TYPE_BYTES128:
     case xdb::DB_TYPE_BYTES256:
 #if 0
-      if (m_value.val_char)
+      if (m_value.val_bytes.data)
         std::cout << "DELETE char* type=" << m_type
-                  << " size=" << var_size[m_type]
-                  << " \"" << m_value.val_char << "\"" << std::endl;
+                  << " size=" << m_value.val_bytes.size
+                  << " \"" << m_value.val_bytes.data << "\"" << std::endl;
 #endif
-      delete [] m_value.val_char;
-      m_value.val_char = NULL;
+      delete [] m_value.val_bytes.data;
+      m_value.val_bytes.data = NULL;
     break;
 
     default:

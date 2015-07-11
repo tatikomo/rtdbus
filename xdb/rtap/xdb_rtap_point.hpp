@@ -10,8 +10,7 @@
 #endif
 #include "dat/rtap_db.hxx"
 #include "xdb_impl_error.hpp"
-//#include "xdb_impl_info.hpp"
-#include "xdb_rtap_const.hpp"
+#include "xdb_common.hpp"
 #include "xdb_rtap_filter.hpp"
 
 namespace xdb {
@@ -37,18 +36,18 @@ class RtPoint
     // Получить тип хранилища данной точки
     RtResidence   getResidence() const;
     // Получить количество атрибутов точки
-    int           getAttibuteCount() const;
+    int           getAttributeCount() const;
     // Получить Универсальное Имя точки
     const std::string& getTag() const;
     // Получить количество атрибутов точки, подходящих под данный шаблон
-    int           getAttibuteCount(const char*) const;
+    int           getAttributeCount(const char*) const;
     // Получить все атрибуты точки
-    rtap_db::AttibuteList& getAttributes();
+    rtap_db::AttributeList& getAttributes();
     // Вернуть значения всех атрибутов точки
     rtap_db::Point& info() { return m_info; };
 
     // Получить все атрибуты точки, подходящие под данный шаблон
-    //rtap_db::AttibuteList* getAttributes(const char*);
+    //rtap_db::AttributeList* getAttributes(const char*);
     // Вернуть все дочерние точки
     RtPoint*      getChildren();
     // Вернуть объект подключения к БД

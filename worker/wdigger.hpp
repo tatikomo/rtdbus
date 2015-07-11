@@ -29,8 +29,17 @@ class DiggerWorker
   public:
     DiggerWorker(zmq::context_t&, int, xdb::RtEnvironment*);
     ~DiggerWorker();
-    //
+    // Бесконечный цикл обработки запросов
     void work();
+    // Первичная обработка нового запроса
+    int processing(mdp::zmsg*, std::string&);
+    // Обработка запроса на чтение данных
+    int handle_read(msg::Letter*, std::string&);
+    // Обработка запроса на изменение данных
+    int handle_write(msg::Letter*, std::string&);
+    // Отправка квитанции о выполнении запроса
+    // TODO: Устранить дублирование с такой же функцией в классе Digger
+    void send_exec_result(int, std::string&);
 
   private:
     // Копия контекста основной нити Digger
@@ -44,6 +53,9 @@ class DiggerWorker
     // TODO: поведение БДРВ при одномоментном исполнении нескольких конкурирующих экземпляров?
     xdb::RtEnvironment *m_environment;
     xdb::RtConnection  *m_db_connection;
+    // Фабрика сообщений
+    msg::MessageFactory *m_message_factory;
+
 };
 
 //  ---------------------------------------------------------------------
@@ -100,18 +112,23 @@ class Digger : public mdp::mdwrk
     void cleanup();
 
     int handle_request(mdp::zmsg*, std::string *&);
-    int handle_read(msg::Letter*, std::string*);
-    int handle_write(msg::Letter*, std::string*);
+//    int handle_read(msg::Letter*, std::string*);
+//    int handle_write(msg::Letter*, std::string*);
     int handle_asklife(msg::Letter*, std::string*);
 
     // Пауза прокси-треда
     void proxy_pause();
     // Продолжить исполнение прокси-треда
     void proxy_resume();
+    // Проверить работу прокси-треда
+    void proxy_probe();
     // Завершить работу прокси-треда DiggerProxy
     void proxy_terminate();
 
   private:
+    // отправить адресату сообщение о статусе исполнения команды
+    void send_exec_result(int, std::string*);
+
     zmq::socket_t       m_helpers_control;    //  "tcp://" socket to control proxy helpers
     DiggerProxy        *m_digger_proxy; 
     std::thread        *m_proxy_thread;

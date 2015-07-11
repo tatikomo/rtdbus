@@ -30,7 +30,7 @@ HeaderImpl::HeaderImpl(const std::string& frame)
     LOG(ERROR) << "Unable to unserialize header";
   }
 
-  LOG(INFO) << "HeaderImpl(" << frame << ")=" << m_validity <<" [" << this << "]";
+//  LOG(INFO) << "HeaderImpl(" << frame << ")=" << m_validity <<" [" << this << "]";
 }
 
 RTDBM::Header& HeaderImpl::instance()
@@ -214,7 +214,7 @@ bool DataImpl::ParseFrom(const std::string& frame)
       // Есть с чего иницииализировать данные
       if (true == (m_validity = m_protobuf_instance->ParseFromString(m_data)))
       {
-        LOG(INFO) << "DataImpl::syncronize() ParseFromString("<< m_data << ") OK [" << this << "]";
+//        LOG(INFO) << "DataImpl::syncronize() ParseFromString("<< m_data << ") OK [" << this << "]";
 //        modified(false);
       }
       else

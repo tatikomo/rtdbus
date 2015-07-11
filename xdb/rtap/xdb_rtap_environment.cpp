@@ -3,6 +3,7 @@
 #if defined HAVE_CONFIG_H
 #include "config.h"
 #endif
+#include "xdb_common.hpp"
 #include "xdb_impl_environment.hpp"
 #include "xdb_impl_application.hpp"
 #include "xdb_rtap_application.hpp"
@@ -65,7 +66,7 @@ RtConnection* RtEnvironment::getConnection()
         {
           // Каждый раз возвращать новое подключение, поскольку вызовы могут быть из разных нитей
           // Каждая нить владеет одним подключением, и явно закрывает его при завершении работы.
-          m_conn = new RtConnection(this);
+          m_conn = new RtConnection(m_database);
           LOG(INFO) << "Created new RtConnection " << m_conn;
         }
     break;

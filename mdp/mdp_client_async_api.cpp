@@ -356,7 +356,7 @@ mdcli::recv ()
 
    try
    {
-     // PERSISTENT-сообщение 
+     // PERSISTENT-сообщение (через Брокер)
      if (m_socket_items [BROKER_ITEM].revents & ZMQ_POLLIN) {
         zmsg *msg = new zmsg (*m_client);
         if (m_verbose) {
@@ -386,7 +386,7 @@ mdcli::recv ()
 
         return msg;     //  Success
      }
-     // DIRECT-сообщение
+     // DIRECT-сообщение (напрямую, минуя Брокер)
      if (m_socket_items [SERVICE_ITEM].revents & ZMQ_POLLIN) {
         zmsg *msg = new zmsg (*m_peer);
         if (m_verbose) {

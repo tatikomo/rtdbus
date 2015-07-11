@@ -19,8 +19,8 @@ extern "C" {
 #include "xdb_broker_letter.hpp"
 #include "xdb_broker_worker.hpp"
 #include "xdb_broker_service.hpp"
-#include "xdb_impl_common.h"
-#include "xdb_impl_common.hpp"
+// Прототипы функций типа mco_ret_string, rc_check и show_runtime_info
+#include "xdb_common.hpp"
 
 namespace xdb {
 

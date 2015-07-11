@@ -58,6 +58,7 @@ static void signal_handler (int signal_value)
 {
     interrupt_worker = 1;
     LOG(INFO) << "Got signal "<<signal_value;
+    // TODO: активировать нить-сторожа для принудительного удаления "зависших" процессов и ресурсов
 }
 
 static void catch_signals ()

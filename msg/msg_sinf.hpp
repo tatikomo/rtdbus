@@ -9,40 +9,9 @@
 #include "msg_common.h"
 #include "msg_message.hpp"
 
-#include "xdb_rtap_const.hpp"
+#include "xdb_common.hpp"
 
 namespace msg {
-
-#if 1
-// Одно элементарное значение из БДРВ
-typedef union
-{
-  int32_t     i32_value;
-  int64_t     i64_value;
-  float       f_value;
-  double      g_value;
-  std::string s_value;
-} ValueItem;
-
-// Структура-описатель элементарного тега
-typedef struct
-{
-  std::string   tag;
-  xdb::DbType_t type;
-  ValueItem     value;
-} UpdateItem;
-#endif
-
-typedef union {
-  int32_t       val_i32;
-  uint32_t      val_ui32;
-  int64_t       val_i64;
-  uint64_t      val_ui64;
-  float         val_float;
-  double        val_double;
-  char*         val_char;
-  std::string*  val_string;
-} common_t;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Хранитель значений 
@@ -68,15 +37,15 @@ class Value
     const std::string& tag() const { return m_tag; };
     // Получить тип параметра, хранимый в БДРВ
     xdb::DbType_t type() const { return m_type; };
-    const common_t& raw() const { return m_value; };
+    const xdb::AttrVal_t& raw() const { return m_value; };
     // Инициализация на основе RTDBM::ValueUpdate
     //void CopyFrom(const void*);
 
   private:
-    // void * RTDBM::ValueUpdate; // NB: напрямую использовать внутри вместо common_t?
+    // void * RTDBM::ValueUpdate; // NB: напрямую использовать внутри вместо AttrVal_t?
     std::string     m_tag;
     xdb::DbType_t   m_type;
-    common_t        m_value;
+    xdb::AttrVal_t  m_value;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -133,6 +133,55 @@ An unavoidable memory leak in ROUTER sockets when there is pending data for clie
 Если Клиент попытался отправить сообщение несуществующуему Сервису, а затем завершает свою работу,
 то он "зависает" в деструкторе mdcli на удалении контекста в mdp_client_async_api.cpp, "delete m_context".
 
+02.07.2015
+Иногда после нештатного завершения процесса-Клиента Диггер не может завершить свою работу штатно.
+Прерывание возможно только отправкой сигнала SIGKILL.
+При этом в логе наблюдается, что все нити DiggerWorker получили команду TERMINATE, DiggerProxy пишет о том,
+что все нити DiggerWorker в состоянии joinable, однако в контексте DiggerProxy команда join завершается только 
+для двух нитей из трех.
+Пример из лога:
+I0703 18:00:07.242611  9824 mdp_worker_api.cpp:60] Got signal 2
+E0703 18:00:07.242763  9824 mdp_worker_api.cpp:378] Interrupted system call
+W0703 18:00:07.243075  9824 mdp_worker_api.cpp:388] Interrupt received, killing worker...
+I0703 18:00:07.243093  9824 wdigger.cpp:358] Digger::recv() got a NULL
+I0703 18:00:07.243103  9824 wdigger.cpp:471] Send TERMINATE to DiggerProxy
+I0703 18:00:07.243141  9824 wdigger.cpp:392] Waiting joinable DiggerProxy thread
+I0703 18:00:07.243299  9827 wdigger.cpp:214] DiggerProxy zmq::proxy finish successfuly
+I0703 18:00:07.243320  9827 wdigger.cpp:225] Send TERMINATE to DiggerWorker 0
+I0703 18:00:07.243345  9827 wdigger.cpp:225] Send TERMINATE to DiggerWorker 1
+I0703 18:00:07.243358  9827 wdigger.cpp:225] Send TERMINATE to DiggerWorker 2
+I0703 18:00:07.243383  9827 wdigger.cpp:233] DiggerProxy cleanup 3 workers and threads
+I0703 18:00:07.243397  9827 wdigger.cpp:237] delete DiggerWorker[1/3] 0xb47009a0, thread 0xb4709858, joinable: 1
+I0703 18:00:07.243402  9829 wdigger.cpp:86] received request:
+I0703 18:00:07.243417  9828 wdigger.cpp:86] received request:
+I0703 18:00:07.243404  9830 wdigger.cpp:86] received request:
+I0703 18:00:07.243454  9828 mdp_zmsg.cpp:369] --------------------------------------
+I0703 18:00:07.243463  9829 mdp_zmsg.cpp:369] --------------------------------------
+I0703 18:00:07.243470  9828 mdp_zmsg.cpp:397] [009] TERMINATE
+I0703 18:00:07.243479  9830 mdp_zmsg.cpp:369] --------------------------------------
+I0703 18:00:07.243489  9828 wdigger.cpp:93] Got TERMINATE command, shuttingdown this DiggerWorker thread
+I0703 18:00:07.243501  9830 mdp_zmsg.cpp:397] [009] TERMINATE
+I0703 18:00:07.243505  9828 xdb_rtap_connection.cpp:29] Destroy RtConnection for env SINF
+I0703 18:00:07.243512  9830 wdigger.cpp:93] Got TERMINATE command, shuttingdown this DiggerWorker thread
+I0703 18:00:07.243517  9828 xdb_impl_connection.cpp:44] Closing database 'SINF' connection 0xb5101c08
+I0703 18:00:07.243525  9830 xdb_rtap_connection.cpp:29] Destroy RtConnection for env SINF
+I0703 18:00:07.243479  9829 mdp_zmsg.cpp:397] [009] TERMINATE
+I0703 18:00:07.243533  9830 xdb_impl_connection.cpp:44] Closing database 'SINF' connection 0xb5101c08
+I0703 18:00:07.243544  9829 wdigger.cpp:93] Got TERMINATE command, shuttingdown this DiggerWorker thread
+I0703 18:00:07.243558  9829 xdb_rtap_connection.cpp:29] Destroy RtConnection for env SINF
+I0703 18:00:07.243566  9829 xdb_impl_connection.cpp:44] Closing database 'SINF' connection 0xb5101e8c
+I0703 18:00:07.243623  9828 wdigger.cpp:144] DiggerWorker thread is done
+I0703 18:00:07.243680  9827 wdigger.cpp:242] DiggerProxy joins DiggerWorker' tread 1
+I0703 18:00:07.243696  9829 wdigger.cpp:144] DiggerWorker thread is done
+I0703 18:00:07.243700  9827 wdigger.cpp:53] DiggerWorker destroyed
+I0703 18:00:07.243732  9827 wdigger.cpp:237] delete DiggerWorker[2/3] 0xb4709948, thread 0xb4709848, joinable: 1
+I0703 18:00:07.243751  9827 wdigger.cpp:242] DiggerProxy joins DiggerWorker' tread 2
+I0703 18:00:07.243763  9827 wdigger.cpp:53] DiggerWorker destroyed
+I0703 18:00:07.243777  9827 wdigger.cpp:237] delete DiggerWorker[3/3] 0xb470a278, thread 0xb470a188, joinable: 1
+I0703 18:01:18.845397  9824 mdp_worker_api.cpp:60] Got signal 15
+<kill -9 9824>
+
+
 TODO
 --------------------------------------------------------------------------------
 Требование:

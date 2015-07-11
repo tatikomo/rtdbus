@@ -22,6 +22,7 @@
 #define byte        unsigned<1>
 #define s_code      char<8>
 #define s_formula   char<40>
+// Соответствующий тип данных приведен в config.h и равен TAG_NAME_MAXLEN
 #define s_tag       char<32>
 #define s_attname   char<16>
 // Для полей, содержащих UTF8, размер увеличен вдвое.

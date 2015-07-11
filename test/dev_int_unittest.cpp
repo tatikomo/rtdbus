@@ -240,8 +240,8 @@ void Dump(msg::Letter* letter)
   std::cout << "/" << letter->header()->exchange_id();
   std::cout << "/" << letter->header()->interest_id();
   std::cout << "/" << letter->header()->source_pid();
-  std::cout << "/" << letter->header()->proc_dest();
   std::cout << "/" << letter->header()->proc_origin();
+  std::cout << "/" << letter->header()->proc_dest();
   std::cout << "/" << letter->header()->sys_msg_type();
   std::cout << "/" << letter->header()->usr_msg_type();
   std::cout << "/" << letter->header()->time_mark();
@@ -249,14 +249,14 @@ void Dump(msg::Letter* letter)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-TEST(TestLetter, FACTORY_CREATE)
+TEST(TestProxy, FACTORY_CREATE)
 {
   message_factory = new msg::MessageFactory("dev_int_test");
   ASSERT_TRUE(message_factory);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-TEST(TestLetter, USAGE)
+TEST(TestProxy, LETTER_USAGE)
 {
   msg::ExecResult  *letter = NULL;
   RTDBM::ExecResult pb_exec_result_request;
@@ -268,7 +268,7 @@ TEST(TestLetter, USAGE)
   letter = static_cast<msg::ExecResult*>(message_factory->create(ADG_D_MSG_EXECRESULT));
   letter->set_exec_result(1234);
 //  letter->set_failure_cause(567);
-  letter->set_destination("<unknown>");
+  letter->set_destination("белый свет");
   Dump(letter);
   // Превышение допустимых пределов значения - получаем GOF_D_UNDETERMINED
   EXPECT_TRUE(letter->exec_result() == RTDBM::GOF_D_UNDETERMINED);
@@ -285,12 +285,6 @@ TEST(TestLetter, USAGE)
 
   delete letter;
   // TODO: создать экземпляры остальных типов сообщений
-}
-
-////////////////////////////////////////////////////////////////////////////////
-TEST(TestLetter, FACTORY_DESTROY)
-{
-  delete message_factory;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -633,6 +627,12 @@ TEST(TestProxy, SERVICE_DISPATCH)
   delete msg;
   delete worker;
   LOG(INFO) << "TestProxy SERVICE_DISPATCH stop";
+}
+
+////////////////////////////////////////////////////////////////////////////////
+TEST(TestProxy, FACTORY_DESTROY)
+{
+  delete message_factory;
 }
 
 

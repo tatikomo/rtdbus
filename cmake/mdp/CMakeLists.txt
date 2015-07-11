@@ -15,6 +15,7 @@ endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
 include_directories(${TOOLS_DIR})
 include_directories(${MDP_DIR})
+include_directories(${XDB_COMMON_DIR})
 include_directories(${XDB_IMPL_DIR})
 include_directories(${XDB_RTAP_DIR})
 include_directories(${XDB_BROKER_DIR})
@@ -140,9 +141,9 @@ set (MDP_SOURCES
 
 set (BROKER_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
+        ${XDB_COMMON_DIR}/xdb_common.hpp
         ${XDB_IMPL_DIR}/xdb_impl_common.h
         ${XDB_IMPL_DIR}/xdb_impl_common.c
-        ${XDB_IMPL_DIR}/xdb_impl_common.hpp
         ${XDB_IMPL_DIR}/dat/broker_db.h
         ${XDB_IMPL_DIR}/dat/broker_db.c
         ${XDB_IMPL_DIR}/dat/broker_db.hpp

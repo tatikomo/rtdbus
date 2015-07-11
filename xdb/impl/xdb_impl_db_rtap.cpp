@@ -24,7 +24,7 @@ extern "C" {
 }
 #endif
 
-#include "xdb_impl_common.hpp"
+#include "xdb_common.hpp"
 #include "xdb_impl_error.hpp"
 
 #include "helper.hpp"
@@ -118,6 +118,7 @@ schema_f ALL_TYPES_LIST[] = {
   NULL
 };
 
+// =================================================================================
 PointInDatabase::PointInDatabase(rtap_db::Point* info)
   : m_rc(MCO_S_OK),
     m_info(info)
@@ -126,6 +127,7 @@ PointInDatabase::PointInDatabase(rtap_db::Point* info)
   m_passport.root_pointer = NULL;
 }
 
+// =================================================================================
 PointInDatabase::~PointInDatabase()
 {
 #if 1
@@ -181,11 +183,13 @@ PointInDatabase::~PointInDatabase()
 #endif
 }
 
+// =================================================================================
 // Начальное создание всех объектов XDB, необходимых для последующего 
 // создания атрибутов с помощью автоматических функций.
 // Экземпляр транзакции запоминается для возможного использования в
 // автоматных функциях создания атрибутов.
 // Транзакция и начинается, и заканчивается вне данной функции.
+// =================================================================================
 MCO_RET PointInDatabase::create(mco_trans_h t)
 {
   m_transaction_handler = t;
@@ -285,6 +289,7 @@ MCO_RET PointInDatabase::create(mco_trans_h t)
   return m_rc;
 }
 
+// =================================================================================
 MCO_RET PointInDatabase::update_references()
 {
   do
@@ -306,6 +311,7 @@ MCO_RET PointInDatabase::update_references()
   return m_rc;
 }
 
+// =================================================================================
 // Опции по умолчанию устанавливаются в через setOption() в RtApplication
 DatabaseRtapImpl::DatabaseRtapImpl(const char* _name, const Options* _options)
 {
@@ -319,126 +325,35 @@ DatabaseRtapImpl::DatabaseRtapImpl(const char* _name, const Options* _options)
   AttrFuncMapInit();
 }
 
+// =================================================================================
 DatabaseRtapImpl::~DatabaseRtapImpl()
 {
   delete m_impl;
 }
 
+// =================================================================================
 bool DatabaseRtapImpl::Connect()
 {
   Error err = m_impl->Connect();
   return err.Ok();
 }
 
+// =================================================================================
 bool DatabaseRtapImpl::Disconnect()
 {
   return (m_impl->Disconnect()).Ok();
 }
 
+// =================================================================================
 DBState_t DatabaseRtapImpl::State()
 {
   return m_impl->State();
 }
 
-// Связать имена атрибутов с создающими их в БДРВ функциями
-// NB: Здесь д.б. прописаны только те атрибуты, которые не создаются в паспортах
-bool DatabaseRtapImpl::AttrFuncMapInit()
-{
-// LABEL пока пропустим, возможно вынесем ее хранение во внешнюю БД (поле 'persistent' eXtremeDB?)
-/*
- * Два атрибута, TAG и OBJCLASS, обрабатываются специальным образом,
- * поэтому исключены из общей обработки.
- *
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("TAG",        &xdb::DatabaseRtapImpl::createTAG));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("OBJCLASS",   &xdb::DatabaseRtapImpl::createOBJCLASS));
-  */
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("LABEL",      &xdb::DatabaseRtapImpl::createLABEL));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("SHORTLABEL", &xdb::DatabaseRtapImpl::createSHORTLABEL));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("L_SA",       &xdb::DatabaseRtapImpl::createL_SA));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("L_PIPE",     &xdb::DatabaseRtapImpl::createL_PIPE));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("L_PIPELINE", &xdb::DatabaseRtapImpl::createL_PIPELINE));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("L_TL",       &xdb::DatabaseRtapImpl::createL_TL));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("VALID",      &xdb::DatabaseRtapImpl::createVALID));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("VALIDACQ",   &xdb::DatabaseRtapImpl::createVALIDACQ));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("DATEHOURM",  &xdb::DatabaseRtapImpl::createDATEHOURM));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("DATERTU",    &xdb::DatabaseRtapImpl::createDATERTU));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("STATUS",     &xdb::DatabaseRtapImpl::createSTATUS));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("VALIDCHANGE",&xdb::DatabaseRtapImpl::createVALIDCHANGE));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("GRADLEVEL",  &xdb::DatabaseRtapImpl::createGRADLEVEL));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("UNITY",      &xdb::DatabaseRtapImpl::createUNITY));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("MINVAL",     &xdb::DatabaseRtapImpl::createMINVAL));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("MAXVAL",     &xdb::DatabaseRtapImpl::createMAXVAL));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("VAL",        &xdb::DatabaseRtapImpl::createVAL));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("VALACQ",     &xdb::DatabaseRtapImpl::createVALACQ));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("VALMANUAL",  &xdb::DatabaseRtapImpl::createVALMANUAL));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("LOCALFLAG",  &xdb::DatabaseRtapImpl::createLOCALFLAG));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("MXVALPHY",   &xdb::DatabaseRtapImpl::createMXVALPHY));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("MNVALPHY",   &xdb::DatabaseRtapImpl::createMNVALPHY));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("ALINHIB",    &xdb::DatabaseRtapImpl::createALINHIB));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("VALEX",      &xdb::DatabaseRtapImpl::createVALEX));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("DISPP",      &xdb::DatabaseRtapImpl::createDISPP));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("CURRENT_SHIFT_TIME", &xdb::DatabaseRtapImpl::createCURRENT_SHIFT_TIME));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("PREV_SHIFT_TIME",    &xdb::DatabaseRtapImpl::createPREV_SHIFT_TIME));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("DATEAINS",           &xdb::DatabaseRtapImpl::createDATEAINS));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("PREV_DISPATCHER",    &xdb::DatabaseRtapImpl::createPREV_DISPATCHER));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("INHIB",      &xdb::DatabaseRtapImpl::createINHIB));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("INHIBLOCAL", &xdb::DatabaseRtapImpl::createINHIBLOCAL));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("SUPPLIER",   &xdb::DatabaseRtapImpl::createSUPPLIER));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("SUPPLIERMODE",   &xdb::DatabaseRtapImpl::createSUPPLIERMODE));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("SUPPLIERSTATE",  &xdb::DatabaseRtapImpl::createSUPPLIERSTATE));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("L_TYPINFO",  &xdb::DatabaseRtapImpl::createL_TYPINFO));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("L_EQT",      &xdb::DatabaseRtapImpl::createL_EQT));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("L_EQTTYP",   &xdb::DatabaseRtapImpl::createL_EQTTYP));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("ALDEST",     &xdb::DatabaseRtapImpl::createALDEST));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("FUNCTION",   &xdb::DatabaseRtapImpl::createFUNCTION));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("CONVERTCOEFF",   &xdb::DatabaseRtapImpl::createCONVERTCOEFF));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("MXPRESSURE",     &xdb::DatabaseRtapImpl::createMXPRESSURE));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("PLANPRESSURE",   &xdb::DatabaseRtapImpl::createPLANPRESSURE));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("MXFLOW",         &xdb::DatabaseRtapImpl::createMXFLOW));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("NMFLOW",         &xdb::DatabaseRtapImpl::createNMFLOW));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("SYNTHSTATE",     &xdb::DatabaseRtapImpl::createSYNTHSTATE));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("DELEGABLE",      &xdb::DatabaseRtapImpl::createDELEGABLE));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("CONFREMOTECMD",  &xdb::DatabaseRtapImpl::createCONFREMOTECMD));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("FLGREMOTECMD",   &xdb::DatabaseRtapImpl::createFLGREMOTECMD));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("FLGMAINTENANCE", &xdb::DatabaseRtapImpl::createFLGMAINTENANCE));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("NAMEMAINTENANCE",&xdb::DatabaseRtapImpl::createNAMEMAINTENANCE));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("TSSYNTHETICAL",  &xdb::DatabaseRtapImpl::createTSSYNTHETICAL));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("ALARMBEGIN",     &xdb::DatabaseRtapImpl::createALARMBEGIN));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("ALARMBEGINACK",  &xdb::DatabaseRtapImpl::createALARMBEGINACK));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("ALARMENDACK",    &xdb::DatabaseRtapImpl::createALARMENDACK));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("ALARMSYNTH",     &xdb::DatabaseRtapImpl::createALARMSYNTH));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("REMOTECONTROL",  &xdb::DatabaseRtapImpl::createREMOTECONTROL));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("ACTIONTYP",  &xdb::DatabaseRtapImpl::createACTIONTYP));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("VAL_LABEL",  &xdb::DatabaseRtapImpl::createVAL_LABEL));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("LINK_HIST",  &xdb::DatabaseRtapImpl::createLINK_HIST));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("L_CONSUMER", &xdb::DatabaseRtapImpl::createL_CONSUMER));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("L_CORRIDOR", &xdb::DatabaseRtapImpl::createL_CORRIDOR));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("L_DIPL",     &xdb::DatabaseRtapImpl::createL_DIPL));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("L_NETTYPE",  &xdb::DatabaseRtapImpl::createL_NETTYPE));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("L_NET",      &xdb::DatabaseRtapImpl::createL_NET));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("L_EQTORBORUPS",  &xdb::DatabaseRtapImpl::createL_EQTORBORUPS));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("L_EQTORBORDWN",  &xdb::DatabaseRtapImpl::createL_EQTORBORDWN));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("TYPE",       &xdb::DatabaseRtapImpl::createTYPE));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("NMPRESSURE", &xdb::DatabaseRtapImpl::createNMPRESSURE));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("KMREFUPS",   &xdb::DatabaseRtapImpl::createKMREFUPS));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("KMREFDWN",   &xdb::DatabaseRtapImpl::createKMREFDWN));
-  m_attr_creation_func_map.insert(AttrCreationFuncPair_t("PLANFLOW",   &xdb::DatabaseRtapImpl::createPLANFLOW));
-
-#if 0
-  for (AttrCreationFuncMapIterator_t it = m_attr_creation_func_map.begin();
-       it != m_attr_creation_func_map.end();
-       it++)
-  {
-    LOG(INFO) << "GEV: attr='" << it->first << "' func=" << it->second;
-  }
-#endif
-  return true;
-}
-
-/*
- * Статический метод, вызываемый из runtime базы данных 
- * при создании нового экземпляра XDBService
- */
+// =================================================================================
+// Статический метод, вызываемый из runtime базы данных 
+// при создании нового экземпляра XDBService
+// =================================================================================
 MCO_RET DatabaseRtapImpl::new_Point(mco_trans_h /* t */,
         XDBPoint *obj,
         MCO_EVENT_TYPE /* et */,
@@ -461,10 +376,10 @@ MCO_RET DatabaseRtapImpl::new_Point(mco_trans_h /* t */,
   return MCO_S_OK;
 }
 
-/*
- * Статический метод, вызываемый из runtime базы данных 
- * при удалении экземпляра XDBService
- */
+// =================================================================================
+// Статический метод, вызываемый из runtime базы данных 
+// при удалении экземпляра XDBService
+// =================================================================================
 MCO_RET DatabaseRtapImpl::del_Point(mco_trans_h t,
         XDBPoint *obj,
         MCO_EVENT_TYPE et,
@@ -485,7 +400,8 @@ MCO_RET DatabaseRtapImpl::del_Point(mco_trans_h t,
   return MCO_S_OK;
 }
 
-MCO_RET DatabaseRtapImpl::RegisterEvents()
+// =================================================================================
+MCO_RET DatabaseRtapImpl::RegisterEvents(mco_db_h& handler)
 {
   MCO_RET rc;
   mco_trans_h t;
@@ -494,7 +410,7 @@ MCO_RET DatabaseRtapImpl::RegisterEvents()
 
   do
   {
-    rc = mco_trans_start(m_impl->getDbHandler(), MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+    rc = mco_trans_start(handler, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
     if (rc) LOG(ERROR) << "Starting transaction, rc=" << rc;
 
 #if EXTREMEDB_VERSION <= 50
@@ -524,9 +440,9 @@ MCO_RET DatabaseRtapImpl::RegisterEvents()
   return rc;
 }
 
-// ------------------------------------------------------------
+// =================================================================================
 // Сохранить XML Scheme БДРВ
-// ------------------------------------------------------------
+// =================================================================================
 void DatabaseRtapImpl::GenerateXSD()
 {
   MCO_RET rc = MCO_S_OK;
@@ -563,72 +479,156 @@ void DatabaseRtapImpl::GenerateXSD()
   }
 }
 
+// =================================================================================
 /* Тестовый API сохранения базы */
 bool DatabaseRtapImpl::MakeSnapshot(const char* msg)
 {
   bool stat = false;
 
-  //assert (State() == DB_STATE_INITIALIZED);
-  if (State() == DB_STATE_INITIALIZED)
+  switch(State())
   {
-    // Сохранить структуру БД
-    GenerateXSD();
-    // Сохранить содержимое БД
-    stat = (m_impl->SaveAsXML(NULL, msg)).Ok();
-  }
-  else
-  {
-    LOG(ERROR) << "Try to MakeSnapshot for uninitalized database";
+    case DB_STATE_INITIALIZED:
+    case DB_STATE_ATTACHED:
+    case DB_STATE_CONNECTED:
+      // Сохранить структуру БД
+      if (NULL != getenv("RTDBUS_GEN_XSD"))
+      {
+        GenerateXSD();
+      }
+      else LOG(INFO) << "Do not make XSD, environment variable RTDBUS_GEN_XSD is not set";
+      // Сохранить содержимое БД
+      stat = (m_impl->SaveAsXML(NULL, msg)).Ok();
+      break;
+
+    default:
+      LOG(ERROR) << "Try to MakeSnapshot for uninitalized database";
   }
   return stat;
 }
 
+// ====================================================
+// Восстановление содержимого БДРВ из снимка
 bool DatabaseRtapImpl::LoadSnapshot(const char* _fname)
 {
-  bool status = false;
-
   // Попытаться восстановить восстановить данные в таком порядке:
   // 1. из файла с двоичным дампом
   // 2. из файла в формате стандартного XML-дампа eXtremeDB
   m_impl->LoadSnapshot(_fname);
 
-  if (!getLastError().Ok())
-  {
-    // TODO Прочитать данные из XML в формате XMLSchema 'rtap_db.xsd'
-    // с помощью <Classname>_xml_create() создавать содержимое БД
-    LOG(ERROR)<< "Unable to read from XML file (format XMLSchema 'rtap_db.xsd'): "
-              << getLastError().what();
-  }
-  else status = true;
+  return getLastError().Ok();
+}
 
-  return status;
+// ====================================================
+// Удаление Точки
+const Error& DatabaseRtapImpl::erase(mco_db_h&, rtap_db::Point&)
+{
+  setError(rtE_NOT_IMPLEMENTED);
+  return getLastError();
+}
+
+// ====================================================
+// Чтение данных Точки
+const Error& DatabaseRtapImpl::read(mco_db_h&, rtap_db::Point&)
+{
+  setError(rtE_NOT_IMPLEMENTED);
+  return getLastError();
+}
+
+// ====================================================
+// Чтение данных Точки
+// В теге должно присутствовать явно название атрибута,
+// например: /KD4504/GOV020.SHORTLABEL
+//
+// По названию атрибута вызывается функция его чтения.
+// Функции чтения содержатся в хеше DatabaseRtapImpl::m_attr_writing_func_map
+const Error& DatabaseRtapImpl::read(mco_db_h& handle, xdb::AttributeInfo_t* info)
+{
+  rtap_db::XDBPoint instance;
+  mco_trans_h t;
+  bool func_found;
+  AttrProcessingFuncMapIterator_t it;
+  MCO_RET rc = MCO_S_OK;
+
+  assert(info);
+  m_impl->clearError();
+
+  std::string::size_type point_pos = info->name.find(".");
+  if (point_pos != std::string::npos)
+  {
+    // Есть точка в составе тега
+    std::string point_name = info->name.substr(0, point_pos);
+    std::string attr_name = info->name.substr(point_pos + 1, info->name.size());
+
+    LOG(INFO) << "Read atribute \"" << attr_name << "\" for point \"" << point_name << "\"";
+
+    do
+    {
+      // TODO: объединить с аналогичной функцией нахождения точки locate() по имени в xdb_impl_connection.cpp
+      rc = mco_trans_start(handle, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
+      if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
+
+      rc = rtap_db::XDBPoint::SK_by_tag::find(t, point_name.c_str(), point_name.size(), instance);
+      if (rc) { LOG(ERROR) << "Locating point '" << point_name << "', rc=" << rc; break; }
+
+      LOG(INFO) << "We found point \"" << point_name;
+      
+      func_found = false;
+      it = m_attr_reading_func_map.find(attr_name);
+      if (it != m_attr_reading_func_map.end())
+      {
+          func_found = true;
+          // Вызвать функцию чтения атрибута
+          rc = (this->*(it->second))(t, instance, info);
+          if (rc)
+          {
+            LOG(ERROR) << "Reading " << point_name << "." << attr_name;
+            break;
+          }
+      }
+
+      if (!func_found)
+      {
+          // Это может быть для атрибутов, создаваемых в паспорте
+          // NB: поведение по умолчанию - пропустить атрибут, выдав предупреждение
+          LOG(WARNING) << "Function for reading attribute '" << attr_name 
+                       << "' doesn't found";
+      }
+      else if (rc)
+      {
+          // Функция найдена, но вернула ошибку
+          LOG(ERROR) << "Function for reading '" << "' failed";
+          break;
+      }
+
+      rc = mco_trans_commit(t);
+      if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; break; }
+
+    } while(false);
+
+    if(rc)
+      rc = mco_trans_rollback(t);
+  }
+  else
+  {
+    LOG(ERROR) << "Tag name doesn't contain attribute: " << info->name;
+  }
+
+  return getLastError();
+}
+
+// ====================================================
+// Изменение данных Точки
+const Error& DatabaseRtapImpl::write(mco_db_h&, rtap_db::Point&)
+{
+  setError(rtE_NOT_IMPLEMENTED);
+  return getLastError();
 }
 
 // ====================================================
 // Создание Точки
-const Error& DatabaseRtapImpl::create(rtap_db::Point&)
-{
-  return m_impl->getLastError();
-}
-
-// Удаление Точки
-const Error& DatabaseRtapImpl::erase(rtap_db::Point&)
-{
-  return m_impl->getLastError();
-}
-
-// Чтение данных Точки
-const Error& DatabaseRtapImpl::read(rtap_db::Point&)
-{
-  return m_impl->getLastError();
-}
-
-// Изменение данных Точки
-const Error& DatabaseRtapImpl::write(rtap_db::Point& info)
+const Error& DatabaseRtapImpl::create(mco_db_h& handler, rtap_db::Point& info)
 {
   rtap_db::XDBPoint instance;
-//  autoid_t    passport_aid;
-//  autoid_t    point_aid;
   MCO_RET     rc = MCO_S_OK;
   mco_trans_h t;
   PointInDatabase *point;
@@ -660,7 +660,7 @@ const Error& DatabaseRtapImpl::write(rtap_db::Point& info)
     // Сейчас проверка выполняется в createPassport:
     //      если точка игнорируется, функция вернет MCO_E_NOTSUPPORTED
     //
-    rc = mco_trans_start(m_impl->getDbHandler(), MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+    rc = mco_trans_start(handler, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
     if (rc) { LOG(ERROR) << "Starting '" << info.tag() << "' transaction, rc=" << rc; break; }
 
     // Создать объект-представление Точки в БД
@@ -688,33 +688,68 @@ const Error& DatabaseRtapImpl::write(rtap_db::Point& info)
   return m_impl->getLastError();
 }
 
+// =================================================================================
 // Блокировка данных Точки от изменения в течение заданного времени
-const Error& DatabaseRtapImpl::lock(rtap_db::Point&, int)
+const Error& DatabaseRtapImpl::lock(mco_db_h&, rtap_db::Point&, int)
 {
-  return m_impl->getLastError();
+  setError(rtE_NOT_IMPLEMENTED);
+  return getLastError();
 }
 
-const Error& DatabaseRtapImpl::unlock(rtap_db::Point&)
+// =================================================================================
+const Error& DatabaseRtapImpl::unlock(mco_db_h&, rtap_db::Point&)
 {
-  return m_impl->getLastError();
+  setError(rtE_NOT_IMPLEMENTED);
+  return getLastError();
 }
 
+// =================================================================================
 // Группа функций управления
+// версия со встроенным идентификатором подключения m_impl->getDbHandler()
 const Error& DatabaseRtapImpl::Control(rtDbCq& /* info */)
 {
   setError(rtE_NOT_IMPLEMENTED);
   return getLastError();
 }
 
+// =================================================================================
 // Группа функций управления
+// версия со встроенным идентификатором подключения m_impl->getDbHandler()
 const Error& DatabaseRtapImpl::Query(rtDbCq& /* info */)
 {
   setError(rtE_NOT_IMPLEMENTED);
   return getLastError();
 }
 
+// =================================================================================
 // Группа функций управления
-const Error& DatabaseRtapImpl::Config(rtDbCq& info)
+// версия со встроенным идентификатором подключения m_impl->getDbHandler()
+const Error& DatabaseRtapImpl::Config(rtDbCq& /* info */)
+{
+  setError(rtE_NOT_IMPLEMENTED);
+  return getLastError();
+}
+
+// =================================================================================
+// Группа функций управления
+const Error& DatabaseRtapImpl::Control(mco_db_h&, rtDbCq& /* info */)
+{
+  setError(rtE_NOT_IMPLEMENTED);
+  return getLastError();
+}
+
+// =================================================================================
+// Группа функций управления
+const Error& DatabaseRtapImpl::Query(mco_db_h&, rtDbCq& /* info */)
+{
+  setError(rtE_NOT_IMPLEMENTED);
+  return getLastError();
+}
+
+// =================================================================================
+// Группа функций управления
+// =================================================================================
+const Error& DatabaseRtapImpl::Config(mco_db_h& handler, rtDbCq& info)
 {
   MCO_RET rc;
 
@@ -723,7 +758,7 @@ const Error& DatabaseRtapImpl::Config(rtDbCq& info)
   switch(info.action.config)
   {
     case rtCONFIG_ADD_TABLE:
-        rc = createTable(info);
+        rc = createTable(handler, info);
         if (rc) { LOG(ERROR) << "Table creation facility"; }
         break;
 
@@ -734,7 +769,8 @@ const Error& DatabaseRtapImpl::Config(rtDbCq& info)
   return getLastError();
 }
 
-MCO_RET DatabaseRtapImpl::createTable(rtDbCq& info)
+// =================================================================================
+MCO_RET DatabaseRtapImpl::createTable(mco_db_h& handler, rtDbCq& info)
 {
   MCO_RET rc = MCO_E_UNSUPPORTED;
   // В перечне тегов только одна запись о названии Таблицы
@@ -743,15 +779,15 @@ MCO_RET DatabaseRtapImpl::createTable(rtDbCq& info)
   // TODO: при увеличении количества таблиц проводить поиск с помощью хеша
   if (0 == (info.tags->at(0).compare("DICT_TSC_VAL_LABEL")))
   {
-    rc = createTableDICT_TSC_VAL_LABEL(static_cast<rtap_db_dict::values_labels_t*>(info.buffer));
+    rc = createTableDICT_TSC_VAL_LABEL(handler, static_cast<rtap_db_dict::values_labels_t*>(info.buffer));
   }
   else if (0 == (info.tags->at(0).compare("DICT_UNITY_ID")))
   {
-    rc = createTableDICT_UNITY_ID(static_cast<rtap_db_dict::unity_labels_t*>(info.buffer));
+    rc = createTableDICT_UNITY_ID(handler, static_cast<rtap_db_dict::unity_labels_t*>(info.buffer));
   }
   else if (0 == (info.tags->at(0).compare("XDB_CE")))
   {
-    rc = createTableXDB_CE(static_cast<rtap_db_dict::macros_def_t*>(info.buffer));
+    rc = createTableXDB_CE(handler, static_cast<rtap_db_dict::macros_def_t*>(info.buffer));
   }
   else
   {
@@ -760,7 +796,8 @@ MCO_RET DatabaseRtapImpl::createTable(rtDbCq& info)
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::createTableDICT_TSC_VAL_LABEL(rtap_db_dict::values_labels_t* dict)
+// =================================================================================
+MCO_RET DatabaseRtapImpl::createTableDICT_TSC_VAL_LABEL(mco_db_h& handler, rtap_db_dict::values_labels_t* dict)
 {
   MCO_RET rc = MCO_E_UNSUPPORTED;
   DICT_TSC_VAL_LABEL instance;
@@ -770,7 +807,7 @@ MCO_RET DatabaseRtapImpl::createTableDICT_TSC_VAL_LABEL(rtap_db_dict::values_lab
 
   do
   {
-    rc = mco_trans_start(m_impl->getDbHandler(), MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+    rc = mco_trans_start(handler, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
     if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
 
     // Очистить прежнее содержимое, если есть
@@ -815,7 +852,8 @@ MCO_RET DatabaseRtapImpl::createTableDICT_TSC_VAL_LABEL(rtap_db_dict::values_lab
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::createTableDICT_UNITY_ID(rtap_db_dict::unity_labels_t* dict)
+// =================================================================================
+MCO_RET DatabaseRtapImpl::createTableDICT_UNITY_ID(mco_db_h& handler, rtap_db_dict::unity_labels_t* dict)
 {
   MCO_RET rc = MCO_E_UNSUPPORTED;
   DICT_UNITY_ID instance;
@@ -825,7 +863,7 @@ MCO_RET DatabaseRtapImpl::createTableDICT_UNITY_ID(rtap_db_dict::unity_labels_t*
 
   do
   {
-    rc = mco_trans_start(m_impl->getDbHandler(), MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+    rc = mco_trans_start(handler, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
     if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
 
     // Очистить прежнее содержимое, если есть
@@ -880,7 +918,8 @@ MCO_RET DatabaseRtapImpl::createTableDICT_UNITY_ID(rtap_db_dict::unity_labels_t*
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::createTableXDB_CE(rtap_db_dict::macros_def_t* dict)
+// =================================================================================
+MCO_RET DatabaseRtapImpl::createTableXDB_CE(mco_db_h& handler, rtap_db_dict::macros_def_t* dict)
 {
   MCO_RET rc = MCO_E_UNSUPPORTED;
   XDB_CE instance;
@@ -890,7 +929,7 @@ MCO_RET DatabaseRtapImpl::createTableXDB_CE(rtap_db_dict::macros_def_t* dict)
 
   do
   {
-    rc = mco_trans_start(m_impl->getDbHandler(), MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+    rc = mco_trans_start(handler, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
     if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
 
     // Очистить прежнее содержимое, если есть
@@ -931,7 +970,7 @@ MCO_RET DatabaseRtapImpl::createTableXDB_CE(rtap_db_dict::macros_def_t* dict)
   return rc;
 }
 
-//
+// =================================================================================
 // Создать паспорт заданной Точки
 //
 // Процедура выполнения
@@ -946,7 +985,7 @@ MCO_RET DatabaseRtapImpl::createTableXDB_CE(rtap_db_dict::macros_def_t* dict)
 //          Возвращается код MCO_E_UNSUPPORTED
 //
 // Создается соответствующий класс
-//
+// =================================================================================
 MCO_RET DatabaseRtapImpl::createPassport(PointInDatabase* point)
 {
   MCO_RET   rc = MCO_E_UNSUPPORTED;
@@ -1192,6 +1231,149 @@ MCO_RET DatabaseRtapImpl::createPassport(PointInDatabase* point)
   return rc;
 }
 
+// =================================================================================
+// Найти точку с указанным тегом.
+// В имени тега не может быть указан атрибут. 
+// Читается весь набор атрибутов заданной точки.
+// =================================================================================
+rtap_db::Point* DatabaseRtapImpl::locate(mco_db_h& handle, const char* _tag)
+{
+  mco_trans_h t;
+  MCO_RET rc = MCO_S_OK;
+  rtap_db::XDBPoint instance;
+  uint2 tag_size;
+  uint4 timer_value;
+  timer_mark_t now_time = {0, 0};
+  timer_mark_t prev_time = {0, 0};
+  rtap_db::timestamp datehourm;
+
+  assert(_tag);
+
+  LOG(INFO) << "Locating point " << _tag;
+  tag_size = strlen(_tag);
+      
+  do
+  {
+    // NB: транзакция сделана на обновление специально с целью измерения производительности
+    // TODO: нахождение точки в БД не должно менять значение ее DATEHOURM
+    rc = mco_trans_start(handle, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+    if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
+
+    rc = rtap_db::XDBPoint::SK_by_tag::find(t, _tag, tag_size, instance);
+    if (rc) { LOG(ERROR) << "Locating point '" << _tag << "', rc=" << rc; break; }
+
+    rc = instance.DATEHOURM_read(datehourm);
+    if (rc) { LOG(ERROR) << "Reading DATEHOURM, point '" << _tag << "', rc=" << rc; break; }
+
+    datehourm.sec_get(timer_value);  prev_time.tv_sec  = timer_value;
+    datehourm.nsec_get(timer_value); prev_time.tv_nsec = timer_value;
+
+    GetTimerValue(now_time);
+
+    LOG(INFO) << "Difference between DATEHOURM : " << now_time.tv_sec - prev_time.tv_sec
+              << "." << (now_time.tv_nsec - prev_time.tv_nsec) / 1000;
+
+    datehourm.sec_put(now_time.tv_sec);
+    datehourm.nsec_put(now_time.tv_nsec);
+
+    rc = instance.DATEHOURM_write(datehourm);
+    if (rc) { LOG(ERROR) << "Writing DATEHOURM, point '" << _tag << "', rc=" << rc; break; }
+
+    rc = mco_trans_commit(t);
+
+  } while (false);
+
+  if (rc)
+    mco_trans_rollback(t);
+
+  return NULL;
+}
+
+// Запись значения атрибута для заданной точки
+// =================================================================================
+const Error& DatabaseRtapImpl::write(mco_db_h& handle, AttributeInfo_t* info)
+{
+  rtap_db::XDBPoint instance;
+  mco_trans_h t;
+  bool func_found;
+  AttrProcessingFuncMapIterator_t it;
+  MCO_RET rc = MCO_S_OK;
+
+  assert(info);
+  m_impl->clearError();
+
+  std::string::size_type point_pos = info->name.find(".");
+  if (point_pos != std::string::npos)
+  {
+
+    // Есть точка в составе тега
+    std::string point_name = info->name.substr(0, point_pos);
+    std::string attr_name = info->name.substr(point_pos + 1, info->name.size());
+
+    LOG(INFO) << "Write atribute \"" << attr_name << "\" for point \"" << point_name << "\"";
+
+    do
+    {
+      // TODO: объединить с аналогичной функцией нахождения точки locate() по имени в xdb_impl_connection.cpp
+      rc = mco_trans_start(handle, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+      if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
+
+      rc = rtap_db::XDBPoint::SK_by_tag::find(t, point_name.c_str(), point_name.size(), instance);
+      if (rc) { LOG(ERROR) << "Locating point '" << point_name << "', rc=" << rc; break; }
+
+      LOG(INFO) << "We found point \"" << point_name;
+      
+      func_found = false;
+      it = m_attr_writing_func_map.find(attr_name);
+      if (it != m_attr_writing_func_map.end())
+      {
+          func_found = true;
+          // NB: Часть атрибутов уже прописана в ходе создания паспорта
+          //
+          // Вызвать функцию создания атрибута
+          rc = (this->*(it->second))(t, instance, info);
+          if (rc)
+          {
+            LOG(ERROR) << "Writing attribute '" << attr_name
+                       << "' for point '" << point_name << "'";
+             m_impl->setError(rtE_ILLEGAL_PARAMETER_VALUE);
+            break;
+          }
+      }
+
+      if (!func_found)
+      {
+          // Это может быть для атрибутов, создаваемых в паспорте
+          // NB: поведение по умолчанию - пропустить атрибут, выдав предупреждение
+          LOG(WARNING) << "Function for writing attribute '" << attr_name 
+                       << "' doesn't found";
+      }
+      else if (rc)
+      {
+          // Функция найдена, но вернула ошибку
+          LOG(ERROR) << "Function for writing '" << "' failed, rc=" << rc;
+          break;
+      }
+
+      rc = mco_trans_commit(t);
+      if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; break; }
+
+    } while(false);
+
+    if (rc)
+      mco_trans_rollback(t);
+
+  }
+  else
+  {
+      LOG(ERROR) << "Tag name doesn't contain attribute: " << info->name;
+  }
+
+  return m_impl->getLastError();
+}
+
+// создать указанную точку со всеми ее атрибутами
+// =================================================================================
 MCO_RET DatabaseRtapImpl::createPoint(PointInDatabase* instance)
 {
   MCO_RET    rc = MCO_S_OK;
@@ -1202,7 +1384,7 @@ MCO_RET DatabaseRtapImpl::createPoint(PointInDatabase* instance)
   // атрибута из перечня известных?
   bool func_found;
   unsigned int attr_idx;
-  AttrCreationFuncMapIterator_t it;
+  AttrCreatingFuncMapIterator_t it;
 
   do
   {
@@ -1233,9 +1415,9 @@ MCO_RET DatabaseRtapImpl::createPoint(PointInDatabase* instance)
         attr_idx++)
     {
       func_found = false;
-      it = m_attr_creation_func_map.find(instance->attribute(attr_idx).name());
+      it = m_attr_creating_func_map.find(instance->attribute(attr_idx).name());
 
-      if (it != m_attr_creation_func_map.end())
+      if (it != m_attr_creating_func_map.end())
       {
         func_found = true;
         // NB: Часть атрибутов уже прописана в ходе создания паспорта
@@ -1305,6 +1487,52 @@ MCO_RET DatabaseRtapImpl::createOBJCLASS(PointInDatabase* instance, rtap_db::Att
   return rc;
 }
 
+// ======================== STATUS ============================
+MCO_RET DatabaseRtapImpl::readSTATUS(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  MCO_RET rc = MCO_S_OK;
+  PointStatus status;
+
+  assert(attr_info);
+
+  rc = instance.STATUS_get(status);
+
+  if (rc)
+  {
+      LOG(ERROR) << "Reading STATUS failure (will be assigned to DISABLED), rc=" << rc;
+      status = DISABLED;
+  }
+  attr_info->value.val_uint8 = static_cast<uint8_t>(status);
+  attr_info->type = DB_TYPE_UINT8;
+
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeSTATUS(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  MCO_RET rc = MCO_S_OK;
+  PointStatus status;
+
+  assert(attr_info);
+
+  switch(attr_info->value.val_uint8)
+  {
+      case 0: status = PLANNED;  break;
+      case 1: status = WORKED;   break;
+      case 2: status = DISABLED; break;
+
+      default:
+        LOG(WARNING) << "Unsupported STATUS value: " << (unsigned int)attr_info->value.val_uint8;
+        rc = MCO_E_ILLEGAL_PARAM; // запретить занесение неверного значения
+      break;
+  }
+
+  if (MCO_S_OK == rc)
+    rc = instance.STATUS_put(status);
+
+  return rc;
+}
+
 MCO_RET DatabaseRtapImpl::createSTATUS(PointInDatabase* instance, rtap_db::Attrib& attr)
 {
   MCO_RET rc;
@@ -1326,6 +1554,39 @@ MCO_RET DatabaseRtapImpl::createSTATUS(PointInDatabase* instance, rtap_db::Attri
   return rc;
 }
 
+// ======================== SHORTLABEL ============================
+MCO_RET DatabaseRtapImpl::readSHORTLABEL(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  MCO_RET rc = MCO_S_OK;
+
+  assert(attr_info);
+
+  attr_info->type = DB_TYPE_BYTES32;
+  attr_info->value.val_bytes.size = DbTypeDescription[DB_TYPE_BYTES32].size;
+  if (attr_info->value.val_bytes.data)
+    attr_info->value.val_bytes.data = new char[attr_info->value.val_bytes.size + 1];
+
+  rc = instance.SHORTLABEL_get(attr_info->value.val_bytes.data, attr_info->value.val_bytes.size);
+
+  if (rc) LOG(ERROR) << "Reading SHORTLABEL failure, rc=" << rc;
+
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeSHORTLABEL(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  MCO_RET rc = MCO_S_OK;
+
+  assert(attr_info);
+  assert(attr_info->value.val_bytes.data);
+  assert(attr_info->type = DB_TYPE_BYTES32);
+
+  rc = instance.SHORTLABEL_put(attr_info->value.val_bytes.data, DbTypeDescription[DB_TYPE_BYTES32].size);
+
+  if (rc) LOG(ERROR) << "Writing SHORTLABEL failure, rc=" << rc;
+  return rc;
+}
+
 MCO_RET DatabaseRtapImpl::createSHORTLABEL(PointInDatabase* instance, rtap_db::Attrib& attr)
 {
   MCO_RET rc = instance->xdbpoint().SHORTLABEL_put(attr.value().c_str(),
@@ -1333,6 +1594,7 @@ MCO_RET DatabaseRtapImpl::createSHORTLABEL(PointInDatabase* instance, rtap_db::A
   return rc;
 }
 
+// ======================== UNITY ============================
 // По заданной строке UNITY найти ее идентификатор, и подставить в поле UNITY_ID
 MCO_RET DatabaseRtapImpl::createUNITY(PointInDatabase* instance, rtap_db::Attrib& attr)
 {
@@ -3100,3 +3362,38 @@ MCO_RET DatabaseRtapImpl::createCONFREMOTECMD(PointInDatabase* instance, rtap_db
   }
   return rc;
 }
+
+// Связать имена атрибутов с создающими их в БДРВ функциями
+// NB: Здесь д.б. прописаны только те атрибуты, которые не создаются в паспортах
+bool DatabaseRtapImpl::AttrFuncMapInit()
+{
+  // Функции записи
+  // ======================================================================================================
+  // LABEL пока пропустим, возможно вынесем ее хранение во внешнюю БД (поле 'persistent' eXtremeDB?)
+  //
+  // Два атрибута, TAG и OBJCLASS, обрабатываются специальным образом, поэтому исключены из общей обработки.
+  //
+  //m_attr_creating_func_map.insert(AttrCreatingFuncPair_t("TAG",        &xdb::DatabaseRtapImpl::createTAG));
+  //m_attr_creating_func_map.insert(AttrCreatingFuncPair_t("OBJCLASS",   &xdb::DatabaseRtapImpl::createOBJCLASS));
+  //
+#include "dat/impl_attr_creating_map.gen"
+  // Функции чтения
+#include "dat/impl_attr_reading_map.gen"
+  // Функции записи
+#include "dat/impl_attr_writing_map.gen"
+
+#if 0
+  for (AttrProcessingFuncMapIterator_t it = m_attr_creating_func_map.begin();
+       it != m_attr_creating_func_map.end();
+       it++)
+  {
+    LOG(INFO) << "GEV: attr='" << it->first << "' func=" << it->second;
+  }
+#endif
+  return true;
+}
+
+#include "dat/impl_func_read.gen"
+
+#include "dat/impl_func_write.gen"
+

@@ -6,28 +6,33 @@
 #include "config.h"
 #endif
 
+#include "xdb_common.hpp"   // rtDbCq
 #include "xdb_impl_error.hpp"
-#include "xdb_impl_common.hpp" // rtDbCq
+#include "xdb_rtap_data.hpp" // RtData
 
 namespace xdb {
 
-class RtEnvironment;
+class RtDatabase;
 class RtPoint;
 class ConnectionImpl;
 
 class RtConnection
 {
   public:
-    RtConnection(RtEnvironment*);
+    RtConnection(RtDatabase*);
    ~RtConnection();
     // Создать точку со всеми её атрибутами
     const Error& create(RtPoint*);
     // Изменить значения атрибутов указанной точки
     const Error& write(RtPoint*);
-    // Найти точку с указанными атрибутами (UNIVNAME?)
+    // Найти точку с указанным тегом и прочитать все её атрибуты
     RtPoint* locate(const char*);
+    // Прочитать значение заданного атрибута точки
+    const Error& read(AttributeInfo_t*);
+    // Записать значение заданного атрибута точки
+    const Error& write(const AttributeInfo_t*);
     // Вернуть ссылку на экземпляр текущей среды
-    RtEnvironment* environment();
+    RtDatabase* database();
     // Интерфейс управления БД
     const Error& ControlDatabase(rtDbCq&);
     const Error& QueryDatabase(rtDbCq&);
@@ -37,7 +42,7 @@ class RtConnection
 
   private:
     DISALLOW_COPY_AND_ASSIGN(RtConnection);
-    RtEnvironment  *m_environment;
+    RtDatabase     *m_database;
     ConnectionImpl *m_impl;
     Error           m_last_error;
 };

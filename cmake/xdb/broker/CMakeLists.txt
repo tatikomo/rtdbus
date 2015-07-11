@@ -15,6 +15,7 @@ else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
 include_directories(${TOOLS_DIR})
+include_directories(${XDB_COMMON_DIR})
 include_directories(${XDB_IMPL_DIR})
 include_directories(${XDB_BROKER_DIR})
 # Для использования ZMSG и RTDBUS_MessageHeader внутри Letter

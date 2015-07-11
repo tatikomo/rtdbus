@@ -4,9 +4,9 @@
 
 #include <assert.h>
 
+#include "xdb_common.hpp"
 #include "xdb_impl_error.hpp"
 #include "xdb_impl_db_broker.hpp"
-#include "xdb_impl_common.hpp"
 #include "xdb_broker.hpp"
 #include "xdb_broker_service.hpp"
 #include "xdb_broker_worker.hpp"

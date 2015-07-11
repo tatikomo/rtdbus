@@ -26,12 +26,14 @@
 #include "msg_message.hpp"
 // сообщения общего порядка
 #include "msg_adm.hpp"
+// сообщения по работе с БДРВ
+#include "msg_sinf.hpp"
 
 using namespace mdp;
 
 extern int interrupt_worker;
 
-const int DiggerProxy::kMaxThread = 3;
+const int DiggerProxy::kMaxThread = 15;
 const int Digger::DatabaseSizeBytes = 1024 * 1024 * DIGGER_DB_SIZE_MB;
 
 // --------------------------------------------------------------------------------
@@ -40,7 +42,8 @@ DiggerWorker::DiggerWorker(zmq::context_t &ctx, int sock_type, xdb::RtEnvironmen
  m_worker(m_context, sock_type),
  m_interrupt(false),
  m_environment(env),
- m_db_connection(NULL)
+ m_db_connection(NULL),
+ m_message_factory(NULL)
 {
   LOG(INFO) << "DiggerWorker created";
 }
@@ -68,6 +71,8 @@ void DiggerWorker::work()
    LOG(INFO) << "DiggerWorker thread connects to " << ENDPOINT_SINF_BACKEND;
 
    try {
+        m_message_factory = new msg::MessageFactory(DIGGER_NAME);
+
         // Каждая нить процесса, желающая работать с БДРВ,
         // должна получить свой экземпляр RtConnection
         m_db_connection = m_environment->getConnection();
@@ -88,17 +93,26 @@ void DiggerWorker::work()
           std::string identity  = request->pop_front();
           if ((identity.size() == 9) && (identity.compare("TERMINATE") == 0))
           {
-              LOG(INFO) << "Got shutdown command, terminating this DiggerWorker thread";
+              LOG(INFO) << "Got TERMINATE command, shuttingdown this DiggerWorker thread";
               m_interrupt = true;
               // Перед выходом очистить уже прочитанный запрос и identity
               delete request;
               break;
           }
 
-          std::string empty     = request->pop_front();
-          std::string header    = request->pop_front();
-          std::string payload   = request->pop_front();
+          if ((identity.size() == 5) && (identity.compare("PROBE") == 0))
+          {
+              LOG(INFO) << "TODO: Got PROBE command, send info about this DiggerWorker thread";
+              m_interrupt = false;
+              delete request;
+              break;
+          }
 
+          std::string empty     = request->pop_front();
+//1          std::string header    = request->pop_front();
+//1          std::string payload   = request->pop_front();
+
+#if 0
           // Для тестирования - ищем определенную точку в БДРВ
 #warning "2015/03/13 Продолжить здесь"
           //
@@ -117,9 +131,12 @@ void DiggerWorker::work()
           LOG(INFO) << "send replay:";
           replay->dump ();
           replay->send (m_worker);
+#else
+          processing(request, identity);
+#endif
 
           delete request;
-          delete replay;
+          //1 delete replay;
         }
 
         m_worker.close();
@@ -130,10 +147,150 @@ void DiggerWorker::work()
    }
 
    delete m_db_connection;
+   delete m_message_factory;
 
    LOG(INFO) << "DiggerWorker thread is done";
 }
 
+
+// --------------------------------------------------------------------------------
+// Функция первично обрабатывает полученный запрос на содержимое БДРВ.
+// NB: Запросы к БД обрабатываются конкурентно, в фоне, нитями DiggerWorker-ов.
+int DiggerWorker::processing(mdp::zmsg* request, std::string &identity)
+{
+  rtdbMsgType msgType;
+
+  LOG(INFO) << "Process new request with " << request->parts() 
+            << " parts and reply to " << identity;
+
+  msg::Letter *letter = m_message_factory->create(request);
+  if (letter->valid())
+  {
+    msgType = letter->header()->usr_msg_type();
+
+    switch(msgType)
+    {
+      case SIG_D_MSG_READ_MULTI:
+       handle_read(letter, identity);
+      break;
+
+      case SIG_D_MSG_WRITE_MULTI:
+       handle_write(letter, identity);
+      break;
+
+      default:
+       LOG(ERROR) << "Unsupported request type: " << msgType;
+    }
+  }
+  else
+  {
+    LOG(ERROR) << "Readed letter "<<letter->header()->exchange_id()<<" not valid";
+  }
+
+  delete letter;
+  return 0;
+}
+
+// --------------------------------------------------------------------------------
+int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
+{
+  msg::ReadMulti *read_msg = dynamic_cast<msg::ReadMulti*>(letter);
+  xdb::RtPoint   *point = NULL;
+  mdp::zmsg      *response = new mdp::zmsg();
+
+#if 0
+  std::cout << "Processing ReadMulti from " << identity
+            << " sid:" << read_msg->header()->exchange_id()
+            << " iid:" << read_msg->header()->interest_id()
+            << " dest:" << read_msg->header()->proc_dest()
+            << " origin:" << read_msg->header()->proc_origin() << std::endl;
+#endif
+
+  LOG(INFO) << "Processing ReadMulti from " << identity
+            << " sid:" << read_msg->header()->exchange_id()
+            << " iid:" << read_msg->header()->interest_id()
+            << " dest:" << read_msg->header()->proc_dest()
+            << " origin:" << read_msg->header()->proc_origin();
+
+  for (int idx = 0; idx < read_msg->num_items(); idx++)
+  {
+    const msg::Value& todo = read_msg->item(idx);
+
+    point = m_db_connection->locate(todo.tag().c_str());
+
+    if (!point) {
+      // Нет такой точки в БДРВ
+      LOG(ERROR) << "Request unexistent point \"" << todo.tag() << "\"";
+    }
+    delete point;
+  }
+
+
+
+
+
+  read_msg->set_destination(identity);
+  response->push_front(const_cast<std::string&>(read_msg->data()->get_serialized()));
+  response->push_front(const_cast<std::string&>(read_msg->header()->get_serialized()));
+  response->wrap(identity.c_str(), EMPTY_FRAME);
+
+  response->send (m_worker); //1
+
+  delete response;
+  return 0;
+}
+
+// --------------------------------------------------------------------------------
+int DiggerWorker::handle_write(msg::Letter* letter, std::string& identity)
+{
+  msg::WriteMulti *write_msg = dynamic_cast<msg::WriteMulti*>(letter);
+  LOG(INFO) << "Processing WriteMulti request to " << identity;
+
+  send_exec_result(0, identity);
+  return 0;
+}
+
+// отправить адресату сообщение о статусе исполнения команды
+// --------------------------------------------------------------------------------
+void DiggerWorker::send_exec_result(int exec_val, std::string& identity)
+{
+  std::string OK = "хорошо";
+  std::string FAIL = "плохо";
+  msg::ExecResult *msg_exec_result = 
+        dynamic_cast<msg::ExecResult*>(m_message_factory->create(ADG_D_MSG_EXECRESULT));
+  mdp::zmsg       *response = new mdp::zmsg();
+
+  msg_exec_result->set_destination(identity);
+  msg_exec_result->set_exec_result(exec_val);
+  msg_exec_result->set_failure_cause(0, OK);
+
+  response->push_front(const_cast<std::string&>(msg_exec_result->data()->get_serialized()));
+  response->push_front(const_cast<std::string&>(msg_exec_result->header()->get_serialized()));
+  response->wrap(identity.c_str(), "");
+
+/*  std::cout << "Send ExecResult to " << identity
+            << " with status:" << msg_exec_result->exec_result()
+            << " sid:" << msg_exec_result->header()->exchange_id()
+            << " iid:" << msg_exec_result->header()->interest_id()
+            << " dest:" << msg_exec_result->header()->proc_dest()
+            << " origin:" << msg_exec_result->header()->proc_origin() << std::endl;*/
+
+  LOG(INFO) << "Send ExecResult to " << identity
+            << " with status:" << msg_exec_result->exec_result()
+            << " sid:" << msg_exec_result->header()->exchange_id()
+            << " iid:" << msg_exec_result->header()->interest_id()
+            << " dest:" << msg_exec_result->header()->proc_dest()
+            << " origin:" << msg_exec_result->header()->proc_origin();
+
+#warning "replace send_to_broker(msg::zmsg*) to send(msg::Letter*)"
+  // TODO: Для упрощения обработки сообщения не следует создавать zmsg и заполнять его
+  // данными из Letter, а сразу напрямую отправлять Letter потребителю.
+  // Возможно, следует указать тип передачи - прямой или через брокер.
+  //1 send_to_broker((char*) MDPW_REPORT, NULL, response);
+  response->send (m_worker); //1
+
+  delete response;
+}
 
 
 // --------------------------------------------------------------------------------
@@ -267,7 +424,7 @@ Digger::Digger(std::string broker_endpoint, std::string service, int verbose)
   // a) по одному на каждый экземпляр DiggerWorker
   // b) один для Digger
   // c) один для мониторинга
-  m_appli->setOption("OF_MAX_CONNECTIONS",  DiggerProxy::kMaxThread * 2);
+  m_appli->setOption("OF_MAX_CONNECTIONS",  DiggerProxy::kMaxThread + 4);
   m_appli->setOption("OF_RDWR",1);      // Открыть БД для чтения/записи
   m_appli->setOption("OF_DATABASE_SIZE",    Digger::DatabaseSizeBytes);
   m_appli->setOption("OF_MEMORYPAGE_SIZE",  1024);
@@ -340,7 +497,10 @@ void Digger::run()
       if (request)
       {
         LOG(INFO) << "Digger::recv() got a message";
+
+        // NB: попробовать передать сообщения от Брокера сразу в очередь DiggerWorker-ам
         handle_request (request, reply_to);
+
         delete request;
       }
       else
@@ -436,6 +596,22 @@ void Digger::proxy_resume()
   }
 }
 
+// Проверить работу прокси-треда
+// --------------------------------------------------------------------------------
+void Digger::proxy_probe()
+{
+  try
+  {
+    LOG(INFO) << "Send PROBE to DiggerProxy";
+    m_helpers_control.send("PROBE", 5, 0);
+  }
+  catch(std::exception &e)
+  {
+    LOG(ERROR) << e.what();
+  }
+}
+
+
 // Завершить работу прокси-треда
 // --------------------------------------------------------------------------------
 void Digger::proxy_terminate()
@@ -453,6 +629,9 @@ void Digger::proxy_terminate()
 
 
 // --------------------------------------------------------------------------------
+// NB : Функция обрабатывает полученное сообщение.
+// Подразумевается обработка только служебных сообщений, не требующих подключения к БДРВ.
+// Сейчас (2015.07.06) эта функция принимает запросы на доступ к БД, но не обрабатывает их.
 int Digger::handle_request(mdp::zmsg* request, std::string*& reply_to)
 {
   rtdbMsgType msgType;
@@ -468,13 +647,18 @@ int Digger::handle_request(mdp::zmsg* request, std::string*& reply_to)
 
     switch(msgType)
     {
-      case SIG_D_MSG_READ_MULTI:
-       handle_read(letter, reply_to);
-       break;
+//
+// Здесь следует обрабатывать только запросы общего характера, не требующие подключения к БД
+// К ним относятся все запросы, влияющие на общее функционирование и управление.
+// В это время, запросы к БД обрабатываются в фоне нитями DiggerWorker-ов.
+//
+//      case SIG_D_MSG_READ_MULTI:
+//       handle_read(letter, reply_to);
+//       break;
 
-      case SIG_D_MSG_WRITE_MULTI:
-       handle_write(letter, reply_to);
-       break;
+//      case SIG_D_MSG_WRITE_MULTI:
+//       handle_write(letter, reply_to);
+//       break;
 
       case ADG_D_MSG_ASKLIFE:
        handle_asklife(letter, reply_to);
@@ -493,18 +677,46 @@ int Digger::handle_request(mdp::zmsg* request, std::string*& reply_to)
   return 0;
 }
 
-// --------------------------------------------------------------------------------
-int Digger::handle_read(msg::Letter*, std::string*)
-{
-  LOG(INFO) << "Processing read request";
-  return 0;
-}
 
+// отправить адресату сообщение о статусе исполнения команды
 // --------------------------------------------------------------------------------
-int Digger::handle_write(msg::Letter*, std::string*)
+void Digger::send_exec_result(int exec_val, std::string* reply_to)
 {
-  LOG(INFO) << "Processing write request";
-  return 0;
+  std::string OK = "хорошо";
+  std::string FAIL = "плохо";
+  msg::ExecResult *msg_exec_result = 
+        dynamic_cast<msg::ExecResult*>(m_message_factory->create(ADG_D_MSG_EXECRESULT));
+  mdp::zmsg       *response = new mdp::zmsg();
+
+  msg_exec_result->set_destination(*reply_to);
+  msg_exec_result->set_exec_result(exec_val);
+  msg_exec_result->set_failure_cause(0, OK);
+
+  response->push_front(const_cast<std::string&>(msg_exec_result->data()->get_serialized()));
+  response->push_front(const_cast<std::string&>(msg_exec_result->header()->get_serialized()));
+  response->wrap(reply_to->c_str(), "");
+
+  std::cout << "Send ExecResult to " << *reply_to
+            << " with status:" << msg_exec_result->exec_result()
+            << " sid:" << msg_exec_result->header()->exchange_id()
+            << " iid:" << msg_exec_result->header()->interest_id()
+            << " dest:" << msg_exec_result->header()->proc_dest()
+            << " origin:" << msg_exec_result->header()->proc_origin() << std::endl;
+
+  LOG(INFO) << "Send ExecResult to " << *reply_to
+            << " with status:" << msg_exec_result->exec_result()
+            << " sid:" << msg_exec_result->header()->exchange_id()
+            << " iid:" << msg_exec_result->header()->interest_id()
+            << " dest:" << msg_exec_result->header()->proc_dest()
+            << " origin:" << msg_exec_result->header()->proc_origin();
+
+#warning "replace send_to_broker(msg::zmsg*) to send(msg::Letter*)"
+  // TODO: Для упрощения обработки сообщения не следует создавать zmsg и заполнять его
+  // данными из Letter, а сразу напрямую отправлять Letter потребителю.
+  // Возможно, следует указать тип передачи - прямой или через брокер.
+  send_to_broker((char*) MDPW_REPORT, NULL, response);
+
+  delete response;
 }
 
 // --------------------------------------------------------------------------------
@@ -520,12 +732,14 @@ int Digger::handle_asklife(msg::Letter* letter, std::string* reply_to)
   response->push_front(const_cast<std::string&>(msg_ask_life->header()->get_serialized()));
   response->wrap(reply_to->c_str(), "");
 
+#if 0
   std::cout << "Processing asklife from " << *reply_to
             << " has status:" << msg_ask_life->exec_result(exec_val)
             << " sid:" << msg_ask_life->header()->exchange_id()
             << " iid:" << msg_ask_life->header()->interest_id()
             << " dest:" << msg_ask_life->header()->proc_dest()
             << " origin:" << msg_ask_life->header()->proc_origin() << std::endl;
+#endif
 
   LOG(INFO) << "Processing asklife from " << *reply_to
             << " has status:" << msg_ask_life->exec_result(exec_val)

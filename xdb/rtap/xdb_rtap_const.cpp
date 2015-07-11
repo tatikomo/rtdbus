@@ -5,6 +5,7 @@
 #include "config.h"
 #endif
 #include "xdb_rtap_const.hpp"
+#include "xdb_common.hpp"
 
 using namespace xdb;
 
@@ -12,7 +13,7 @@ using namespace xdb;
 // Индекс элемента - код типа данных RTAP
 // Значение элемента - соответствующий индексу тип данных в eXtremeDB
 // 
-const DeTypeToDbTypeLink xdb::DeTypeToDbType[] = 
+const DeTypeToDbTypeLink DeTypeToDbType[] = 
 {
     { rtRESERVED0,  DB_TYPE_UNDEF },
     { rtLOGICAL,    DB_TYPE_INT8 },
@@ -49,6 +50,9 @@ const DeTypeToDbTypeLink xdb::DeTypeToDbType[] =
     { rtUNDEFINED,  DB_TYPE_UNDEF },
 };
 
+// TODO: где взять соответствие между названием атрибута и его типом?
+// к примеру, SHORTLABEL => DB_TYPE_BYTES32
+
 // Соответствие между кодом типа БДРВ и его аналогом в RTAP
 const DbTypeToDeTypeLink DbTypeToDeType[] = 
 {
@@ -74,10 +78,13 @@ const DbTypeToDeTypeLink DbTypeToDeType[] =
   { DB_TYPE_BYTES64, rtBYTES64 },
   { DB_TYPE_BYTES80 , rtBYTES80 },
   { DB_TYPE_BYTES128, rtBYTES128 },
-  { DB_TYPE_BYTES256, rtBYTES256 }
+  { DB_TYPE_BYTES256, rtBYTES256 },
+  { DB_TYPE_LAST,     rtUNDEFINED }
 };
 
 // Описание типов данных БДРВ
+// NB: длина символьных типов расчитана, исходя из двухбайтовых кодировок,
+// чтобы иметь возможность хранения русского текста в формате UTF-8.
 const DbTypeDescription_t xdb::DbTypeDescription[] = 
 {
   { DB_TYPE_UNDEF,  "UNDEF",    0 },
@@ -87,8 +94,8 @@ const DbTypeDescription_t xdb::DbTypeDescription[] =
   { DB_TYPE_UINT16, "UINT16",   sizeof(uint16_t) },
   { DB_TYPE_INT32,  "INT32",    sizeof(int32_t) },
   { DB_TYPE_UINT32, "UINT32",   sizeof(uint32_t) },
-  { DB_TYPE_INT64,  "INT64",    sizeof(int32_t) },
-  { DB_TYPE_UINT64, "UINT64",   sizeof(uint32_t) },
+  { DB_TYPE_INT64,  "INT64",    sizeof(int64_t) },
+  { DB_TYPE_UINT64, "UINT64",   sizeof(uint64_t) },
   { DB_TYPE_FLOAT,  "FLOAT",    sizeof(float) },
   { DB_TYPE_DOUBLE, "DOUBLE",   sizeof(double) },
   { DB_TYPE_BYTES,  "BYTES",    0 },    // может варьироваться
@@ -100,13 +107,17 @@ const DbTypeDescription_t xdb::DbTypeDescription[] =
   { DB_TYPE_BYTES32, "BYTES32", sizeof(wchar_t)*32 },
   { DB_TYPE_BYTES48, "BYTES48", sizeof(wchar_t)*48 },
   { DB_TYPE_BYTES64, "BYTES64", sizeof(wchar_t)*64 },
-  { DB_TYPE_BYTES80 , "BYTES80",    sizeof(wchar_t)*80 },
-  { DB_TYPE_BYTES128, "BYTES128",   sizeof(wchar_t)*128 },
-  { DB_TYPE_BYTES256, "BYTES256",   sizeof(wchar_t)*256 }
+  { DB_TYPE_BYTES80 ,"BYTES80",    sizeof(wchar_t)*80 },
+  { DB_TYPE_BYTES128,"BYTES128",   sizeof(wchar_t)*128 },
+  { DB_TYPE_BYTES256,"BYTES256",   sizeof(wchar_t)*256 },
+  { DB_TYPE_LAST,    "LAST",    0 }
 };
 
 // Описание типов данных RTAP
-const DeTypeDescription_t xdb::rtDataElem[] =
+// NB: длина символьных типов расчитана исходя из однобайтовых кодировок.
+// То есть при хранении русского в UTF-8 строки могут обрезАться.
+// Для типов данных XDB принят размер символа в 2 байта (wchar_t)
+const DeTypeDescription_t rtDataElem[] =
 {
     { rtRESERVED0,   "RESERVED0",     0 },
     { rtLOGICAL,     "rtLOGICAL",  sizeof(uint8_t) },

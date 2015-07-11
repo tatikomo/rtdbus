@@ -31,8 +31,6 @@ mco_size_sig_t file_writer(void*, const void*, mco_size_t);
 }
 #endif
 
-#include "xdb_impl_common.hpp"
-
 #include "helper.hpp"
 #include "timer.hpp"
 #include "dat/broker_db.hpp"

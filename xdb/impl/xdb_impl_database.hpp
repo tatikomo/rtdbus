@@ -20,7 +20,7 @@ extern "C" {
 #endif
 
 #include "helper.hpp"
-#include "xdb_impl_common.hpp"
+#include "xdb_common.hpp"
 #include "xdb_impl_error.hpp"
 
 namespace xdb {
@@ -64,6 +64,7 @@ class DatabaseImpl
     bool  ifErrorOccured() const;
     // Установить новое состояние ошибки
     void  setError(ErrorCode_t);
+    void  setError(const Error&);
     // Сбросить ошибку
     void  clearError();
     // Вернуть текущее состояние БД

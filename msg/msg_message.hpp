@@ -35,6 +35,7 @@ class Letter
 
     // Установить значения полей "Отправитель" и "Получатель"
     void set_origin(const char*);
+    void set_origin(const std::string&);
     void set_destination(const char*);
     void set_destination(const std::string&);
 

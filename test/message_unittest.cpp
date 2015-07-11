@@ -15,6 +15,7 @@
 #include "msg_sinf.hpp"
 #include "proto/rtdbus.pb.h"
 #include "xdb_broker_letter.hpp"
+#include "xdb_common.hpp"
 
 std::string        service_name_1 = "service_name_1";
 std::string        pb_serialized_header;
@@ -34,14 +35,7 @@ const msg::Data     *data = NULL;
 static const char   *my_name = (const char*)"message_test";
 msg::MessageFactory *message_factory = NULL;
 
-typedef struct
-{
-  std::string    tag;
-  xdb::DbType_t  type;
-  msg::common_t  value;
-} UpdateItem_t;
-
-UpdateItem_t array_of_parameters[10] = {
+xdb::AttributeInfo_t array_of_parameters[10] = {
   { "/K40001/SITE.VAL", xdb::DB_TYPE_INT32,  0 },
   { "/K41001/SITE.VAL", xdb::DB_TYPE_UINT32, 0 },
   { "/K42001/SITE.VAL", xdb::DB_TYPE_INT64,  0 },
@@ -61,80 +55,83 @@ void allocate_TestSINF_parameters()
     switch(array_of_parameters[i].type)
     {
       case xdb::DB_TYPE_INT32:
-        array_of_parameters[i].value.val_i32 = 1;
+        array_of_parameters[i].value.val_int32 = 1;
         printf("test[%d]=%s %d %d\n", i,
-                array_of_parameters[i].tag.c_str(),
+                array_of_parameters[i].name.c_str(),
                 array_of_parameters[i].type,
-                array_of_parameters[i].value.val_i32);
+                array_of_parameters[i].value.val_int32);
       break;
       case xdb::DB_TYPE_UINT32:
-        array_of_parameters[i].value.val_ui32 = 2;
+        array_of_parameters[i].value.val_uint32 = 2;
         printf("test[%d]=%s %d %d\n", i,
-                array_of_parameters[i].tag.c_str(),
+                array_of_parameters[i].name.c_str(),
                 array_of_parameters[i].type,
-                array_of_parameters[i].value.val_i32);
+                array_of_parameters[i].value.val_int32);
       break;
       case xdb::DB_TYPE_INT64:
-        array_of_parameters[i].value.val_i64 = 3;
+        array_of_parameters[i].value.val_int64 = 3;
         printf("test[%d]=%s %d %lld\n", i,
-                array_of_parameters[i].tag.c_str(),
+                array_of_parameters[i].name.c_str(),
                 array_of_parameters[i].type,
-                array_of_parameters[i].value.val_i64);
+                array_of_parameters[i].value.val_int64);
       break;
       case xdb::DB_TYPE_UINT64:
-        array_of_parameters[i].value.val_ui64 = 4;
+        array_of_parameters[i].value.val_uint64 = 4;
         printf("test[%d]=%s %d %lld\n", i,
-                array_of_parameters[i].tag.c_str(),
+                array_of_parameters[i].name.c_str(),
                 array_of_parameters[i].type,
-                array_of_parameters[i].value.val_i64);
+                array_of_parameters[i].value.val_int64);
       break;
       case xdb::DB_TYPE_FLOAT:
         array_of_parameters[i].value.val_float = 5.678;
         printf("test[%d]=%s %d %f\n", i,
-                array_of_parameters[i].tag.c_str(),
+                array_of_parameters[i].name.c_str(),
                 array_of_parameters[i].type,
                 array_of_parameters[i].value.val_float);
       break;
       case xdb::DB_TYPE_DOUBLE:
         array_of_parameters[i].value.val_double = 6.789;
         printf("test[%d]=%s %d %g\n", i,
-                array_of_parameters[i].tag.c_str(),
+                array_of_parameters[i].name.c_str(),
                 array_of_parameters[i].type,
                 array_of_parameters[i].value.val_double);
       break;
       case xdb::DB_TYPE_BYTES:
         array_of_parameters[i].value.val_string = new std::string("Строка с русским текстом, цифрами 1 2 3, и точкой.");
         printf("test[%d]=%s %d \"%s\"\n", i,
-                array_of_parameters[i].tag.c_str(),
+                array_of_parameters[i].name.c_str(),
                 array_of_parameters[i].type,
                 array_of_parameters[i].value.val_string->c_str());
       break;
       case xdb::DB_TYPE_BYTES4:
-        array_of_parameters[i].value.val_char = new char[4 + 1];
-        strncpy(array_of_parameters[i].value.val_char, "русс", 4);
-        array_of_parameters[i].value.val_char[4] = '\0';
+        array_of_parameters[i].value.val_bytes.size = 4;
+        array_of_parameters[i].value.val_bytes.data = new char[4 + 1];
+        strncpy(array_of_parameters[i].value.val_bytes.data, "русс", 4);
+        array_of_parameters[i].value.val_bytes.data[4] = '\0';
         printf("test[%d]=%s %d \"%s\"\n", i,
-                array_of_parameters[i].tag.c_str(),
+                array_of_parameters[i].name.c_str(),
                 array_of_parameters[i].type,
-                array_of_parameters[i].value.val_char);
+                array_of_parameters[i].value.val_bytes.data);
       break;
       case xdb::DB_TYPE_BYTES48:
-        array_of_parameters[i].value.val_char = new char[48 + 1];
-        strncpy(array_of_parameters[i].value.val_char, "BYTES48:РУССКИЙ текст йцукен фывапрол", 48);
-        array_of_parameters[i].value.val_char[48] = '\0';
+        array_of_parameters[i].value.val_bytes.size = 48;
+        array_of_parameters[i].value.val_bytes.data = new char[48 + 1];
+        strncpy(array_of_parameters[i].value.val_bytes.data, "BYTES48:РУССКИЙ текст йцукен фывапрол", 48);
+        array_of_parameters[i].value.val_bytes.data[48] = '\0';
         printf("test[%d]=%s %d \"%s\"\n", i,
-                array_of_parameters[i].tag.c_str(),
+                array_of_parameters[i].name.c_str(),
                 array_of_parameters[i].type,
-                array_of_parameters[i].value.val_char);
+                array_of_parameters[i].value.val_bytes.data);
       break;
       case xdb::DB_TYPE_BYTES256:
-        array_of_parameters[i].value.val_char = new char[256 + 1];
-        strncpy(array_of_parameters[i].value.val_char, "BYTES256:1234567890ABCDEFGHIJKLOMNOPQRSTUWXYZ", 256);
-        array_of_parameters[i].value.val_char[256] = '\0';
+        array_of_parameters[i].value.val_bytes.size = 256;
+        array_of_parameters[i].value.val_bytes.data = new char[256 + 1];
+        strncpy(array_of_parameters[i].value.val_bytes.data, "BYTES256:1234567890ABCDEFGHIJKLOMNOPQRSTUWXYZ", 256);
+        array_of_parameters[i].value.val_bytes.data[256] = '\0';
         printf("test[%d]=%s %d \"%s\"\n", i,
-                array_of_parameters[i].tag.c_str(),
+                array_of_parameters[i].name.c_str(),
                 array_of_parameters[i].type,
-                array_of_parameters[i].value.val_char);
+                array_of_parameters[i].value.val_bytes.data);
       break;
       default:
         std::cout << "бебе" << std::endl;
@@ -152,18 +149,18 @@ void release_TestSINF_parameters()
       case xdb::DB_TYPE_BYTES:
         delete array_of_parameters[i].value.val_string;
       break;
-      case RTDBM::DB_TYPE_BYTES4:
-      case RTDBM::DB_TYPE_BYTES8:
-      case RTDBM::DB_TYPE_BYTES12:
-      case RTDBM::DB_TYPE_BYTES16:
-      case RTDBM::DB_TYPE_BYTES20:
-      case RTDBM::DB_TYPE_BYTES32:
-      case RTDBM::DB_TYPE_BYTES48:
-      case RTDBM::DB_TYPE_BYTES64:
-      case RTDBM::DB_TYPE_BYTES80:
-      case RTDBM::DB_TYPE_BYTES128:
-      case RTDBM::DB_TYPE_BYTES256:
-        delete [] array_of_parameters[i].value.val_char;
+      case xdb::DB_TYPE_BYTES4:
+      case xdb::DB_TYPE_BYTES8:
+      case xdb::DB_TYPE_BYTES12:
+      case xdb::DB_TYPE_BYTES16:
+      case xdb::DB_TYPE_BYTES20:
+      case xdb::DB_TYPE_BYTES32:
+      case xdb::DB_TYPE_BYTES48:
+      case xdb::DB_TYPE_BYTES64:
+      case xdb::DB_TYPE_BYTES80:
+      case xdb::DB_TYPE_BYTES128:
+      case xdb::DB_TYPE_BYTES256:
+        delete [] array_of_parameters[i].value.val_bytes.data;
       break;
       default:
         // do nothing
@@ -399,13 +396,13 @@ TEST(TestMessage, USE_SINF)
 {
   std::string tag_out = "incorrect initial value";
   xdb::DbType_t type_out = xdb::DB_TYPE_UNDEF;
-  int32_t  val_i32;
-/*  uint32_t val_ui32;
-  int64_t  val_i64;
+  int32_t  val_int32;
+/*  uint32_t val_uint32;
+  int64_t  val_int64;
   uint64_t val_ui64;
   float    val_float = 0.0;
   double   val_double = 0.0;
-  char     val_char[256+1] = "";
+  char     val_chars[256+1] = "";
   std::string val_string;*/
   int idx;
 
@@ -416,15 +413,15 @@ TEST(TestMessage, USE_SINF)
   // Проверка объекта сообщения для чтения одного тега
   // ======================================================
   EXPECT_EQ(readMultiMsg->num_items(), 0);
-  readMultiMsg->add(array_of_parameters[0].tag,
+  readMultiMsg->add(array_of_parameters[0].name,
                     array_of_parameters[0].type,
-                    static_cast<void*>(&array_of_parameters[0].value.val_i32));
+                    static_cast<void*>(&array_of_parameters[0].value.val_int32));
 
-  bool is_success = readMultiMsg->get(0, tag_out, type_out, static_cast<void*>(&val_i32));
+  bool is_success = readMultiMsg->get(0, tag_out, type_out, static_cast<void*>(&val_int32));
   EXPECT_EQ(is_success, true);
-  EXPECT_EQ(tag_out.compare(array_of_parameters[0].tag), 0);
+  EXPECT_EQ(tag_out.compare(array_of_parameters[0].name), 0);
   EXPECT_EQ(type_out, array_of_parameters[0].type);
-  EXPECT_EQ(val_i32,  array_of_parameters[0].value.val_i32);
+  EXPECT_EQ(val_int32,  array_of_parameters[0].value.val_int32);
 
   // ======================================================
   // Проверка объекта сообщения для чтения нескольких тегов
@@ -435,43 +432,43 @@ TEST(TestMessage, USE_SINF)
   {
     if (array_of_parameters[idx].type == xdb::DB_TYPE_BYTES)
     {
-    readMultiMsg->add(array_of_parameters[idx].tag,
+    readMultiMsg->add(array_of_parameters[idx].name,
                       array_of_parameters[idx].type,
                       static_cast<void*>(array_of_parameters[idx].value.val_string));
     }
     else if ((xdb::DB_TYPE_BYTES4 <= array_of_parameters[idx].type)
           && (array_of_parameters[idx].type <= xdb::DB_TYPE_BYTES256))
     {
-    readMultiMsg->add(array_of_parameters[idx].tag,
+    readMultiMsg->add(array_of_parameters[idx].name,
                       array_of_parameters[idx].type,
-                      static_cast<void*>(array_of_parameters[idx].value.val_char));
+                      static_cast<void*>(array_of_parameters[idx].value.val_bytes.data));
     }
     else
     {
-    readMultiMsg->add(array_of_parameters[idx].tag,
+    readMultiMsg->add(array_of_parameters[idx].name,
                       array_of_parameters[idx].type,
-                      static_cast<void*>(&array_of_parameters[idx].value.val_ui64));
+                      static_cast<void*>(&array_of_parameters[idx].value.val_uint64));
     }
 
     // потому что в сообщение уже была добавлена одна запись
     EXPECT_EQ(readMultiMsg->num_items(), idx + 1);
 
     const msg::Value& todo1 = readMultiMsg->item(idx);
-    EXPECT_EQ(todo1.tag().compare(array_of_parameters[idx].tag), 0);
+    EXPECT_EQ(todo1.tag().compare(array_of_parameters[idx].name), 0);
     EXPECT_EQ(todo1.type(), array_of_parameters[idx].type);
     switch(todo1.type())
     {
         case xdb::DB_TYPE_INT32:
-            EXPECT_EQ(todo1.raw().val_i32, array_of_parameters[idx].value.val_i32);
+            EXPECT_EQ(todo1.raw().val_int32, array_of_parameters[idx].value.val_int32);
         break;
         case xdb::DB_TYPE_UINT32:
-            EXPECT_EQ(todo1.raw().val_ui32, array_of_parameters[idx].value.val_ui32);
+            EXPECT_EQ(todo1.raw().val_uint32, array_of_parameters[idx].value.val_uint32);
         break;
         case xdb::DB_TYPE_INT64:
-            EXPECT_EQ(todo1.raw().val_i64, array_of_parameters[idx].value.val_i64);
+            EXPECT_EQ(todo1.raw().val_int64, array_of_parameters[idx].value.val_int64);
         break;
         case xdb::DB_TYPE_UINT64:
-            EXPECT_EQ(todo1.raw().val_ui64, array_of_parameters[idx].value.val_ui64);
+            EXPECT_EQ(todo1.raw().val_uint64, array_of_parameters[idx].value.val_uint64);
         break;
         case xdb::DB_TYPE_FLOAT:
             EXPECT_EQ(todo1.raw().val_float, array_of_parameters[idx].value.val_float);
@@ -493,8 +490,8 @@ TEST(TestMessage, USE_SINF)
         case xdb::DB_TYPE_BYTES80:
         case xdb::DB_TYPE_BYTES128:
         case xdb::DB_TYPE_BYTES256:
-//            std::cout << todo1.raw().val_char << " <-> " << array_of_parameters[idx].value.val_char << std::endl;
-            EXPECT_EQ(strcmp(todo1.raw().val_char, array_of_parameters[idx].value.val_char), 0);
+//            std::cout << todo1.raw().val_bytes.data << " <-> " << array_of_parameters[idx].value.val_bytes.data << std::endl;
+            EXPECT_EQ(strcmp(todo1.raw().val_bytes.data, array_of_parameters[idx].value.val_bytes.data), 0);
         break;
 
         default:
@@ -507,9 +504,9 @@ TEST(TestMessage, USE_SINF)
   // Проверка объекта сообщения для записи одного тега
   // ======================================================
   EXPECT_EQ(writeMultiMsg->num_items(), 0);
-  writeMultiMsg->add(array_of_parameters[0].tag,
+  writeMultiMsg->add(array_of_parameters[0].name,
                      array_of_parameters[0].type,
-                     static_cast<void*>(&array_of_parameters[0].value.val_i32));
+                     static_cast<void*>(&array_of_parameters[0].value.val_int32));
   EXPECT_EQ(writeMultiMsg->num_items(), 1);
 
   // ======================================================
@@ -519,44 +516,44 @@ TEST(TestMessage, USE_SINF)
   {
     if (array_of_parameters[idx].type == xdb::DB_TYPE_BYTES)
     {
-    writeMultiMsg->add(array_of_parameters[idx].tag,
+    writeMultiMsg->add(array_of_parameters[idx].name,
                        array_of_parameters[idx].type,
                        static_cast<void*>(array_of_parameters[idx].value.val_string));
     }
     else if ((xdb::DB_TYPE_BYTES4 <= array_of_parameters[idx].type)
           && (array_of_parameters[idx].type <= xdb::DB_TYPE_BYTES256))
     {
-    writeMultiMsg->add(array_of_parameters[idx].tag,
+    writeMultiMsg->add(array_of_parameters[idx].name,
                        array_of_parameters[idx].type,
-                       static_cast<void*>(array_of_parameters[idx].value.val_char));
+                       static_cast<void*>(array_of_parameters[idx].value.val_bytes.data));
     }
     else
     {
-    writeMultiMsg->add(array_of_parameters[idx].tag,
+    writeMultiMsg->add(array_of_parameters[idx].name,
                        array_of_parameters[idx].type,
-                       static_cast<void*>(&array_of_parameters[idx].value.val_ui64));
+                       static_cast<void*>(&array_of_parameters[idx].value.val_uint64));
     }
 
     // потому что в сообщение уже была добавлена одна запись
     EXPECT_EQ(writeMultiMsg->num_items(), idx + 1);
 
     const msg::Value& todo2 = writeMultiMsg->item(idx);
-    EXPECT_EQ(todo2.tag().compare(array_of_parameters[idx].tag), 0);
+    EXPECT_EQ(todo2.tag().compare(array_of_parameters[idx].name), 0);
     EXPECT_EQ(todo2.type(), array_of_parameters[idx].type);
 
     switch(todo2.type())
     {
         case xdb::DB_TYPE_INT32:
-            EXPECT_EQ(todo2.raw().val_i32, array_of_parameters[idx].value.val_i32);
+            EXPECT_EQ(todo2.raw().val_int32, array_of_parameters[idx].value.val_int32);
         break;
         case xdb::DB_TYPE_UINT32:
-            EXPECT_EQ(todo2.raw().val_ui32, array_of_parameters[idx].value.val_ui32);
+            EXPECT_EQ(todo2.raw().val_uint32, array_of_parameters[idx].value.val_uint32);
         break;
         case xdb::DB_TYPE_INT64:
-            EXPECT_EQ(todo2.raw().val_i64, array_of_parameters[idx].value.val_i64);
+            EXPECT_EQ(todo2.raw().val_int64, array_of_parameters[idx].value.val_int64);
         break;
         case xdb::DB_TYPE_UINT64:
-            EXPECT_EQ(todo2.raw().val_ui64, array_of_parameters[idx].value.val_ui64);
+            EXPECT_EQ(todo2.raw().val_uint64, array_of_parameters[idx].value.val_uint64);
         break;
         case xdb::DB_TYPE_FLOAT:
             EXPECT_EQ(todo2.raw().val_float, array_of_parameters[idx].value.val_float);
@@ -577,8 +574,8 @@ TEST(TestMessage, USE_SINF)
         case xdb::DB_TYPE_BYTES80:
         case xdb::DB_TYPE_BYTES128:
         case xdb::DB_TYPE_BYTES256:
-//            std::cout << todo2.raw().val_char << " <-> " << array_of_parameters[idx].value.val_char << std::endl;
-            EXPECT_EQ(strcmp(todo2.raw().val_char, array_of_parameters[idx].value.val_char), 0);
+//            std::cout << todo2.raw().val_bytes.data << " <-> " << array_of_parameters[idx].value.val_bytes.data << std::endl;
+            EXPECT_EQ(strcmp(todo2.raw().val_bytes.data, array_of_parameters[idx].value.val_bytes.data), 0);
         break;
 
         default:

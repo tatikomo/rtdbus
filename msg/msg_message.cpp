@@ -353,6 +353,11 @@ void Letter::set_origin(const char* _origin)
   m_header->set_proc_origin(_origin);
 }
 
+void Letter::set_origin(const std::string& _origin)
+{
+  m_header->set_proc_origin(_origin);
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 void Letter::set_destination(const char* _destination)
 {
@@ -405,11 +410,13 @@ MessageFactory::MessageFactory(const char* procname)
                << " to " << SERVICE_NAME_MAXLEN << " bytes";
     m_source_procname.resize(SERVICE_NAME_MAXLEN);
   }
+  // std::cout << "GEV : MessageFactory::MessageFactory(" << m_source_procname << ") this=" << this << std::endl;
   // NB: Начальные значения m_default_pb_header выставляются конструктором по-умолчанию
 }
  
 MessageFactory::~MessageFactory()
 {
+  // GEV std::cout << "TOTO-0 : MessageFactory::~MessageFactory(" << m_source_procname << ") this=" << this << std::endl;
 }
  
 Letter* MessageFactory::create(rtdbMsgType type)
@@ -466,6 +473,11 @@ Letter* MessageFactory::create(rtdbMsgType type)
 Letter* MessageFactory::create(mdp::zmsg* request)
 {
   Letter *created = NULL;
+
+  assert(request);
+
+  if (!request)
+    return NULL;
 
   // Прочитать служебные поля транспортного сообщения zmsg
   // и восстановить на его основе прикладное сообщение.
