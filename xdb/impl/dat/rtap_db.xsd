@@ -70,6 +70,7 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     <xs:enumeration value="L_EQTTYP"/>
     <xs:enumeration value="L_DIPL"/>
     <xs:enumeration value="L_NETTYPE"/>
+    <xs:enumeration value="TYPE"/>
     <xs:enumeration value="L_NET"/>
     <xs:enumeration value="L_EQTORBORUPS"/>
     <xs:enumeration value="L_EQTORBORDWN"/>

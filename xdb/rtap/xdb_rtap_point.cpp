@@ -43,19 +43,19 @@ const std::string& RtPoint::getTag() const
 }
 
 // Получить количество атрибутов точки
-int RtPoint::getAttibuteCount() const
+int RtPoint::getAttributeCount() const
 {
   return m_info.m_attributes.size();
 }
 
 // Получить количество атрибутов точки, подходящих под данный шаблон
-int RtPoint::getAttibuteCount(const char*) const
+int RtPoint::getAttributeCount(const char*) const
 {
   return 0;
 }
 
 // Получить все атрибуты точки
-rtap_db::AttibuteList& RtPoint::getAttributes()
+rtap_db::AttributeList& RtPoint::getAttributes()
 {
   return m_info.m_attributes;
 }

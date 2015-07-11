@@ -40,7 +40,6 @@ void extended_impl_errhandler(MCO_RET, const char*, int);
 }
 #endif
 
-#include "xdb_impl_common.hpp"
 #include "xdb_impl_database.hpp"
 
 using namespace xdb;
@@ -802,6 +801,7 @@ const Error& DatabaseImpl::StoreSnapshot(const char* given_file_name)
    LOG(WARNING) << "Binary snapshot is disabled for this version";
 #endif
 
+#if 1
     // Попытаться сохранить содержимое в XML-формате eXtremeDB
     if (m_flags[OF_POS_SAVE_SNAP]) // Допустим снимок
     {
@@ -815,7 +815,7 @@ const Error& DatabaseImpl::StoreSnapshot(const char* given_file_name)
         LOG(ERROR) << "Can't save content in RTDB's XML format";
       }
     }
-
+#endif
 
   return getLastError();
 }
@@ -899,6 +899,7 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
 {
   MCO_RET rc = MCO_S_OK;
   FILE* fbak;
+  Error restoring_state = rtE_SNAPSHOT_READ;
   char fname[150];
 
   clearError();
@@ -946,46 +947,108 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
       break;
     }
 
-    if (NULL == (fbak = fopen(fname, "rb")))
+    if (NULL != (fbak = fopen(fname, "rb")))
     {
-      LOG(ERROR) << "Unable to open snapshot file "<<fname;
-      setError(rtE_SNAPSHOT_READ);
-      break;
-    }
-
-    rc = mco_db_load(static_cast<void*>(fbak),
-                        file_reader,
-                        m_name,
-                        m_dict,
-                        m_dev,
-                        m_dev_num,
-                        &m_db_params);
-    if (rc)
-    {
-      LOG(ERROR) << "Unable to load '" << m_name << "' snapshot file '" <<fname << "', rc="<<rc;
-      m_snapshot_loaded = false;
-      setError(rtE_SNAPSHOT_READ);
+        // Файл двоичного снимка успешно открыт
+        rc = mco_db_load(static_cast<void*>(fbak),
+                            file_reader,
+                            m_name,
+                            m_dict,
+                            m_dev,
+                            m_dev_num,
+                            &m_db_params);
+        if (rc)
+        {
+          LOG(ERROR) << "Unable to load '" << m_name
+                     << "' binary snapshot file '" <<fname
+                     << "', rc="<<rc;
+          m_snapshot_loaded = false;
+          setError(rtE_SNAPSHOT_READ);
+        }
+        else
+        {
+          // Успешно прочитали бинарный дамп
+          m_snapshot_loaded = true;
+          LOG(INFO) << "Binary dump '" << fname << "' succesfully loaded";
+        }
+        fclose(fbak);
     }
     else
     {
-      // Успешно прочитали бинарный дамп
-      m_snapshot_loaded = true;
-      LOG(INFO) << "Binary dump '" << fname << "' succesfully loaded";
-    }
-    fclose(fbak);
+      LOG(ERROR) << "Unable to open binary snapshot file "<<fname;
+      setError(rtE_SNAPSHOT_READ);
 
-#if 0
+      // Попробуем прочитать содержимое из XML
+      // Есть два вида XML-снимков (в порядке уменьшения приоритета чтения):
+      // 1. В формате БДРВ, ранее сделанный с помощью mco_xml_export()
+      // 2. В формате RTDBUS, описатель rtap_db.xsd
+
+      strcpy(fname, m_name);
+      strcat(fname, ".snap.xml");
+
+      rc = mco_db_open_dev(m_name,
+                           m_dict,
+                           m_dev,
+                           m_dev_num,
+                           &m_db_params);
+      LOG(INFO) << "mco_db_open_dev '" << m_name << "', rc=" << rc;
+
+      if ( MCO_S_OK == rc )
+      {
+        // Состояние ATTACHED - подключение m_db не инициализировано
+        TransitionToState(DB_STATE_ATTACHED);
+        m_snapshot_loaded = false;
+
+        rc = mco_db_connect(m_name, &m_db);
+        LOG(INFO) << "mco_db_connect '" << m_name << "', rc=" << rc;
+        if ( MCO_S_OK == rc )
+        {
+          TransitionToState(DB_STATE_CONNECTED);
+          restoring_state = LoadFromXML(fname);
+          m_snapshot_loaded = restoring_state.Ok();
+        }
+        else
+        {
+          LOG(ERROR) << "Can't connecting to freshly opened database "
+                     << m_name << " for XML snapshot import";
+        }
+      }
+      else
+      {
+        LOG(ERROR) << "Failed mco_db_open_dev, rc=" << rc;
+      }
+
+      if (!m_snapshot_loaded)
+      {
+        // TODO Прочитать данные из XML в формате XMLSchema 'rtap_db.xsd'
+        // с помощью <Classname>_xml_create() создавать содержимое БД
+        LOG(ERROR)<< "Unable to read from XML file (format XMLSchema 'rtap_db.xsd'): "
+                  << getLastError().what();
+
+        // Если была ошибка восстановления данных после подключения к пустой БД,
+        // то необходимо отключиться.
+        if (State() == DB_STATE_CONNECTED)
+        {
+            rc = mco_db_disconnect(m_db);
+            TransitionToState(DB_STATE_DISCONNECTED);
+            LOG(INFO) << "Disconnecting from " << m_name << ", rc=" << rc;
+        }
+        setError(restoring_state);
+      }
+      
+      break;
+    }
+
     // Очистить предыдущее содержимое БД, если оно было
-    rc = mco_db_clean(m_db);
-    LOG(INFO) << "mco_db_clean '" << m_name << "', rc=" << rc;
-#endif
+    //rc = mco_db_clean(m_db);
+    //LOG(INFO) << "mco_db_clean '" << m_name << "', rc=" << rc;
 
   } while (false);
 #else /* EXTREMEDB_VERSION >= 40 */
   // Не можем читать двоичный дамп, попробуем XML
   // Но для этого необходимо открыть БД с помощью mco_db_open_dev
   setError(rtE_SNAPSHOT_READ);
-#endif
+#endif /* EXTREMEDB_VERSION >= 40 */
 
   return getLastError();
 }
@@ -1109,7 +1172,7 @@ const Error& DatabaseImpl::Open()
     // Внутри LoadSnapshot: mco_db_load() -> mco_db_open_dev()
     if (!(LoadSnapshot()).Ok())
     {
-      LOG(ERROR) << "Unable to restore content from binary snapshot";
+      LOG(ERROR) << "Unable to restore content from snapshots";
     }
     else
     {
@@ -1367,6 +1430,11 @@ const Error& DatabaseImpl::TransitionToState(DBState_t new_state)
 void DatabaseImpl::setError(ErrorCode_t _new_error_code)
 {
   m_last_error.set(_new_error_code);
+}
+
+void DatabaseImpl::setError(const Error& _new_error)
+{
+  m_last_error = _new_error;
 }
 
 DBState_t DatabaseImpl::State() const

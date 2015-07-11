@@ -7,7 +7,7 @@
 #include "config.h"
 #endif
 #include "xdb_impl_error.hpp"
-#include "xdb_rtap_const.hpp"
+#include "xdb_common.hpp"
 
 namespace xdb {
 

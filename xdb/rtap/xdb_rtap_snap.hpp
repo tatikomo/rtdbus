@@ -7,7 +7,7 @@
 #if defined HAVE_CONFIG_H
 #include "config.h"
 #endif
-#include "xdb_rtap_const.hpp"
+#include "xdb_common.hpp"
 
 namespace xdb {
 
@@ -114,6 +114,9 @@ class RtEnvironment;
 // Начальная позиция поля значения в файле instances
 #define VALUE_POSITION      36
 
+#define NAME_LENGTH         19
+#define TYPE_ENREG_SIZE     2
+
 /*-------------------------------------------------*/
 /* type of formats (class file or instance file)   */
 /*-------------------------------------------------*/
@@ -155,14 +158,12 @@ typedef enum
     UNKNOWN_RECORD_TYPE
 } recordType;
 
-#define TYPE_ENREG_SIZE 2
 
 typedef enum 
 {
   LOAD_FROM_XML = 1,
   SAVE_TO_XML   = 2
 } Commands_t;
-
 
 // ------------------------------------------------------------
 bool loadFromXML(RtEnvironment*, const char*);
@@ -193,7 +194,7 @@ std::string& dump_point(
     int class_idx,
     const std::string& pointName,
     // IN-OUT
-    AttributeMap_t& attributes_given,
+    xdb::AttributeMap_t& attributes_given,
     // OUT
     std::string& dump);
 

@@ -12,8 +12,10 @@
 #include "mdp_common.h"
 #include "msg_message.hpp"
 #include "msg_adm.hpp"
-#include "proto/common.pb.h"
+#include "msg_sinf.hpp"
+#include "proto/rtdbus.pb.h"
 #include "xdb_broker_letter.hpp"
+#include "xdb_common.hpp"
 
 std::string        service_name_1 = "service_name_1";
 std::string        pb_serialized_header;
@@ -23,12 +25,149 @@ RTDBM::ExecResult  pb_exec_result_request;
 xdb::Letter       *letter = NULL;
 mdp::zmsg         *message = NULL;
 
-msg::MessageFactory *message_factory = NULL;
 // Сообщения, создаваемые фабрикой сообщений в зависимости от указанного типа
-msg::AskLife        *ask_life = NULL;
+msg::AskLife        *ask_life       = NULL;
+msg::ReadMulti      *readMultiMsg   = NULL;
+msg::WriteMulti     *writeMultiMsg  = NULL;
+
 const msg::Header   *head = NULL;
 const msg::Data     *data = NULL;
 static const char   *my_name = (const char*)"message_test";
+msg::MessageFactory *message_factory = NULL;
+
+xdb::AttributeInfo_t array_of_parameters[10] = {
+  { "/K40001/SITE.VAL", xdb::DB_TYPE_INT32,  0 },
+  { "/K41001/SITE.VAL", xdb::DB_TYPE_UINT32, 0 },
+  { "/K42001/SITE.VAL", xdb::DB_TYPE_INT64,  0 },
+  { "/K43001/SITE.VAL", xdb::DB_TYPE_UINT64, 0 },
+  { "/K44001/SITE.VAL", xdb::DB_TYPE_FLOAT,  0 },
+  { "/K45001/SITE.VAL", xdb::DB_TYPE_DOUBLE, 0 },
+  { "/K46001/SITE.VAL", xdb::DB_TYPE_BYTES,  0 },
+  { "/K47001/SITE.VAL", xdb::DB_TYPE_BYTES4, 0 },
+  { "/K48001/SITE.VAL", xdb::DB_TYPE_BYTES48, 0 },
+  { "/K49001/SITE.VAL", xdb::DB_TYPE_BYTES256, 0 }
+};
+
+void allocate_TestSINF_parameters()
+{
+  for (int i=0; i<=9; i++)
+  {
+    switch(array_of_parameters[i].type)
+    {
+      case xdb::DB_TYPE_INT32:
+        array_of_parameters[i].value.val_int32 = 1;
+        printf("test[%d]=%s %d %d\n", i,
+                array_of_parameters[i].name.c_str(),
+                array_of_parameters[i].type,
+                array_of_parameters[i].value.val_int32);
+      break;
+      case xdb::DB_TYPE_UINT32:
+        array_of_parameters[i].value.val_uint32 = 2;
+        printf("test[%d]=%s %d %d\n", i,
+                array_of_parameters[i].name.c_str(),
+                array_of_parameters[i].type,
+                array_of_parameters[i].value.val_int32);
+      break;
+      case xdb::DB_TYPE_INT64:
+        array_of_parameters[i].value.val_int64 = 3;
+        printf("test[%d]=%s %d %lld\n", i,
+                array_of_parameters[i].name.c_str(),
+                array_of_parameters[i].type,
+                array_of_parameters[i].value.val_int64);
+      break;
+      case xdb::DB_TYPE_UINT64:
+        array_of_parameters[i].value.val_uint64 = 4;
+        printf("test[%d]=%s %d %lld\n", i,
+                array_of_parameters[i].name.c_str(),
+                array_of_parameters[i].type,
+                array_of_parameters[i].value.val_int64);
+      break;
+      case xdb::DB_TYPE_FLOAT:
+        array_of_parameters[i].value.val_float = 5.678;
+        printf("test[%d]=%s %d %f\n", i,
+                array_of_parameters[i].name.c_str(),
+                array_of_parameters[i].type,
+                array_of_parameters[i].value.val_float);
+      break;
+      case xdb::DB_TYPE_DOUBLE:
+        array_of_parameters[i].value.val_double = 6.789;
+        printf("test[%d]=%s %d %g\n", i,
+                array_of_parameters[i].name.c_str(),
+                array_of_parameters[i].type,
+                array_of_parameters[i].value.val_double);
+      break;
+      case xdb::DB_TYPE_BYTES:
+        array_of_parameters[i].value.val_string = new std::string("Строка с русским текстом, цифрами 1 2 3, и точкой.");
+        printf("test[%d]=%s %d \"%s\"\n", i,
+                array_of_parameters[i].name.c_str(),
+                array_of_parameters[i].type,
+                array_of_parameters[i].value.val_string->c_str());
+      break;
+      case xdb::DB_TYPE_BYTES4:
+        array_of_parameters[i].value.val_bytes.size = 4;
+        array_of_parameters[i].value.val_bytes.data = new char[4 + 1];
+        strncpy(array_of_parameters[i].value.val_bytes.data, "русс", 4);
+        array_of_parameters[i].value.val_bytes.data[4] = '\0';
+        printf("test[%d]=%s %d \"%s\"\n", i,
+                array_of_parameters[i].name.c_str(),
+                array_of_parameters[i].type,
+                array_of_parameters[i].value.val_bytes.data);
+      break;
+      case xdb::DB_TYPE_BYTES48:
+        array_of_parameters[i].value.val_bytes.size = 48;
+        array_of_parameters[i].value.val_bytes.data = new char[48 + 1];
+        strncpy(array_of_parameters[i].value.val_bytes.data, "BYTES48:РУССКИЙ текст йцукен фывапрол", 48);
+        array_of_parameters[i].value.val_bytes.data[48] = '\0';
+        printf("test[%d]=%s %d \"%s\"\n", i,
+                array_of_parameters[i].name.c_str(),
+                array_of_parameters[i].type,
+                array_of_parameters[i].value.val_bytes.data);
+      break;
+      case xdb::DB_TYPE_BYTES256:
+        array_of_parameters[i].value.val_bytes.size = 256;
+        array_of_parameters[i].value.val_bytes.data = new char[256 + 1];
+        strncpy(array_of_parameters[i].value.val_bytes.data, "BYTES256:1234567890ABCDEFGHIJKLOMNOPQRSTUWXYZ", 256);
+        array_of_parameters[i].value.val_bytes.data[256] = '\0';
+        printf("test[%d]=%s %d \"%s\"\n", i,
+                array_of_parameters[i].name.c_str(),
+                array_of_parameters[i].type,
+                array_of_parameters[i].value.val_bytes.data);
+      break;
+      default:
+        std::cout << "бебе" << std::endl;
+      break;
+    }
+  }
+}
+
+void release_TestSINF_parameters()
+{
+  for (int i=0; i<=9; i++)
+  {
+    switch(array_of_parameters[i].type)
+    {
+      case xdb::DB_TYPE_BYTES:
+        delete array_of_parameters[i].value.val_string;
+      break;
+      case xdb::DB_TYPE_BYTES4:
+      case xdb::DB_TYPE_BYTES8:
+      case xdb::DB_TYPE_BYTES12:
+      case xdb::DB_TYPE_BYTES16:
+      case xdb::DB_TYPE_BYTES20:
+      case xdb::DB_TYPE_BYTES32:
+      case xdb::DB_TYPE_BYTES48:
+      case xdb::DB_TYPE_BYTES64:
+      case xdb::DB_TYPE_BYTES80:
+      case xdb::DB_TYPE_BYTES128:
+      case xdb::DB_TYPE_BYTES256:
+        delete [] array_of_parameters[i].value.val_bytes.data;
+      break;
+      default:
+        // do nothing
+      break;
+    }
+  }
+}
 
 TEST(TestProtobuf, PROTO_VERSION)
 {
@@ -42,6 +181,7 @@ TEST(TestProtobuf, PROTO_VERSION)
  */
 TEST(TestProtobuf, EXEC_RESULT)
 {
+  std::string error_text("поддерживается русский текст");
   pb_header.set_protocol_version(1);
   pb_header.set_exchange_id(9999999);
   pb_header.set_interest_id(1234);
@@ -52,8 +192,9 @@ TEST(TestProtobuf, EXEC_RESULT)
   pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
   pb_header.set_time_mark(time(0));
 
-  pb_exec_result_request.set_exec_result(23145);
-  pb_exec_result_request.set_failure_cause(5);
+  pb_exec_result_request.set_exec_result(RTDBM::GOF_D_PARTSUCCESS);
+  pb_exec_result_request.mutable_failure_cause()->set_error_code(5);
+  pb_exec_result_request.mutable_failure_cause()->set_error_text(error_text);
 
   pb_header.SerializeToString(&pb_serialized_header);
   pb_exec_result_request.SerializeToString(&pb_serialized_request);
@@ -113,7 +254,11 @@ TEST(TestPayload, ACCESS)
   EXPECT_EQ(pb_header.time_mark(),        header->time_mark());
 
   EXPECT_EQ(pb_exec_result_request.exec_result(),      exec_result.exec_result());
-  EXPECT_EQ(pb_exec_result_request.failure_cause(),    exec_result.failure_cause());
+
+  EXPECT_EQ(pb_exec_result_request.has_failure_cause(), true);
+  EXPECT_EQ(exec_result.has_failure_cause(), true);
+  EXPECT_EQ(exec_result.failure_cause().error_code(), pb_exec_result_request.failure_cause().error_code());
+  EXPECT_EQ(exec_result.failure_cause().error_text().compare(pb_exec_result_request.failure_cause().error_text()), 0);
 
   delete header;
 }
@@ -133,8 +278,11 @@ TEST(TestMessage, CREATE_FACTORY)
 TEST(TestMessage, CREATE_LETTER)
 {
   // Начало сериализации данных тестового запроса AskLife
-  RTDBM::Header   pb_header_asklife;
-  RTDBM::AskLife  pb_request_asklife;
+  RTDBM::Header         pb_header_asklife;
+  RTDBM::SimpleRequest  pb_simple_request;
+  RTDBM::gof_t_ExecResult idx;
+//  RTDBM::gof_t_ExecResult pb_exec_value;
+  int exec_value;
   std::string     pb_serialized_header_asklife;
   std::string     pb_serialized_request_asklife;
 
@@ -148,25 +296,28 @@ TEST(TestMessage, CREATE_LETTER)
   pb_header_asklife.set_usr_msg_type(ADG_D_MSG_ASKLIFE);
   pb_header_asklife.set_time_mark(time(0));
 
-  pb_request_asklife.SerializeToString(&pb_serialized_request_asklife);
+  pb_simple_request.SerializeToString(&pb_serialized_request_asklife);
   // д.б. пустая строка, поскольку protobuf не сериализует неинициализированные поля
   EXPECT_EQ(pb_serialized_request_asklife.size(), 0);
 
-  for (int idx = 1; idx<5; idx++)
-  {
-    pb_request_asklife.set_status(idx);
-    EXPECT_EQ(pb_request_asklife.status(), idx);
+  idx = RTDBM::gof_t_ExecResult_MIN;
+  pb_simple_request.set_exec_result(idx);
+  EXPECT_EQ(pb_simple_request.exec_result(), idx);
+  pb_simple_request.SerializeToString(&pb_serialized_request_asklife);
+  // Содержит нормальные значения, т.к. была проведена инициализация
+  EXPECT_EQ((pb_serialized_request_asklife.size() > 0), true);
 
-    pb_request_asklife.SerializeToString(&pb_serialized_request_asklife);
+  idx = RTDBM::gof_t_ExecResult_MAX;
+  pb_simple_request.set_exec_result(idx);
+  EXPECT_EQ(pb_simple_request.exec_result(), idx);
+  pb_simple_request.SerializeToString(&pb_serialized_request_asklife);
+  // Содержит нормальные значения, т.к. была проведена инициализация
+  EXPECT_EQ((pb_serialized_request_asklife.size() > 0), true);
 
-    // Содержит нормальные значения, т.к. была проведена инициализация
-    EXPECT_EQ((pb_serialized_request_asklife.size() > 0), true);
-  }
+  pb_simple_request.set_exec_result(RTDBM::GOF_D_PARTSUCCESS);
+  EXPECT_EQ(pb_simple_request.exec_result(), RTDBM::GOF_D_PARTSUCCESS);
 
-  pb_request_asklife.set_status(54321);
-  EXPECT_EQ(pb_request_asklife.status(), 54321);
-
-  pb_request_asklife.SerializeToString(&pb_serialized_request_asklife);
+  pb_simple_request.SerializeToString(&pb_serialized_request_asklife);
 
   pb_header_asklife.SerializeToString(&pb_serialized_header_asklife);
 //  hex_dump(pb_serialized_header_asklife);
@@ -192,7 +343,8 @@ TEST(TestMessage, CREATE_LETTER)
   EXPECT_EQ(ask_life->header()->exchange_id(), 12345678);
   EXPECT_EQ(ask_life->header()->interest_id(), 1);
   EXPECT_EQ(ask_life->header()->sys_msg_type(), USER_MESSAGE_TYPE);
-  EXPECT_EQ(ask_life->status(), 54321);
+  EXPECT_EQ(ask_life->exec_result(exec_value), true);
+  EXPECT_EQ(exec_value, 2); // RTDBM::GOF_D_PARTSUCCESS
 //  hex_dump(ask_life->header()->get_serialized());
 //  hex_dump(ask_life->data()->get_serialized());
 
@@ -205,8 +357,9 @@ TEST(TestMessage, CREATE_LETTER)
   EXPECT_EQ(ask_life->header()->exchange_id(), 1); // т.к. это первый вызов create()
   EXPECT_EQ(ask_life->header()->interest_id(), 0); // 0 по-умолчанию
 
-  ask_life->set_status(0xDEAD);
-  EXPECT_EQ(ask_life->status(), 0xDEAD);
+  ask_life->set_exec_result(1); // set RTDBM::GOF_D_SUCCESS
+  EXPECT_EQ(ask_life->exec_result(exec_value), true);
+  EXPECT_EQ(exec_value, 1);     // get RTDBM::GOF_D_SUCCESS
 //  hex_dump(ask_life->data()->get_serialized());
 
   ask_life->dump();
@@ -220,11 +373,6 @@ TEST(TestMessage, CREATE_LETTER)
   EXPECT_EQ(ask_life->header()->exchange_id(), 2); // т.к. уже второй вызов create()
   EXPECT_EQ(ask_life->header()->interest_id(), 0); // 0 по-умолчанию
 
-//  ask_life->set_status(0xBEAF);
-//  EXPECT_EQ(ask_life->status(), 0xBEAF);
-//  hex_dump(ask_life->data()->get_serialized());
-
-//  ask_life->dump();
 }
 
 TEST(TestMessage, DESTROY_LETTER)
@@ -232,9 +380,223 @@ TEST(TestMessage, DESTROY_LETTER)
   delete ask_life;
 }
 
+TEST(TestMessage, CREATE_SINF)
+{
+  readMultiMsg   = static_cast<msg::ReadMulti*>  (message_factory->create(SIG_D_MSG_READ_MULTI));
+  writeMultiMsg  = static_cast<msg::WriteMulti*> (message_factory->create(SIG_D_MSG_WRITE_MULTI));
+}
+
+//
+// Протестировать поведение сообщений при добавлении в них всех типов данных
+// с последующим корректным чтением.
+//
+
+
+TEST(TestMessage, USE_SINF)
+{
+  std::string tag_out = "incorrect initial value";
+  xdb::DbType_t type_out = xdb::DB_TYPE_UNDEF;
+  int32_t  val_int32;
+/*  uint32_t val_uint32;
+  int64_t  val_int64;
+  uint64_t val_ui64;
+  float    val_float = 0.0;
+  double   val_double = 0.0;
+  char     val_chars[256+1] = "";
+  std::string val_string;*/
+  int idx;
+
+  // Инициировать заполнение тестового массива данными
+  allocate_TestSINF_parameters();
+
+  // ======================================================
+  // Проверка объекта сообщения для чтения одного тега
+  // ======================================================
+  EXPECT_EQ(readMultiMsg->num_items(), 0);
+  readMultiMsg->add(array_of_parameters[0].name,
+                    array_of_parameters[0].type,
+                    static_cast<void*>(&array_of_parameters[0].value.val_int32));
+
+  bool is_success = readMultiMsg->get(0, tag_out, type_out, static_cast<void*>(&val_int32));
+  EXPECT_EQ(is_success, true);
+  EXPECT_EQ(tag_out.compare(array_of_parameters[0].name), 0);
+  EXPECT_EQ(type_out, array_of_parameters[0].type);
+  EXPECT_EQ(val_int32,  array_of_parameters[0].value.val_int32);
+
+  // ======================================================
+  // Проверка объекта сообщения для чтения нескольких тегов
+  // ======================================================
+  EXPECT_EQ(readMultiMsg->num_items(), 1);
+  // потому что в сообщение уже добавлена одна запись
+  for (idx = 1; idx <= 9; idx++)
+  {
+    if (array_of_parameters[idx].type == xdb::DB_TYPE_BYTES)
+    {
+    readMultiMsg->add(array_of_parameters[idx].name,
+                      array_of_parameters[idx].type,
+                      static_cast<void*>(array_of_parameters[idx].value.val_string));
+    }
+    else if ((xdb::DB_TYPE_BYTES4 <= array_of_parameters[idx].type)
+          && (array_of_parameters[idx].type <= xdb::DB_TYPE_BYTES256))
+    {
+    readMultiMsg->add(array_of_parameters[idx].name,
+                      array_of_parameters[idx].type,
+                      static_cast<void*>(array_of_parameters[idx].value.val_bytes.data));
+    }
+    else
+    {
+    readMultiMsg->add(array_of_parameters[idx].name,
+                      array_of_parameters[idx].type,
+                      static_cast<void*>(&array_of_parameters[idx].value.val_uint64));
+    }
+
+    // потому что в сообщение уже была добавлена одна запись
+    EXPECT_EQ(readMultiMsg->num_items(), idx + 1);
+
+    const msg::Value& todo1 = readMultiMsg->item(idx);
+    EXPECT_EQ(todo1.tag().compare(array_of_parameters[idx].name), 0);
+    EXPECT_EQ(todo1.type(), array_of_parameters[idx].type);
+    switch(todo1.type())
+    {
+        case xdb::DB_TYPE_INT32:
+            EXPECT_EQ(todo1.raw().val_int32, array_of_parameters[idx].value.val_int32);
+        break;
+        case xdb::DB_TYPE_UINT32:
+            EXPECT_EQ(todo1.raw().val_uint32, array_of_parameters[idx].value.val_uint32);
+        break;
+        case xdb::DB_TYPE_INT64:
+            EXPECT_EQ(todo1.raw().val_int64, array_of_parameters[idx].value.val_int64);
+        break;
+        case xdb::DB_TYPE_UINT64:
+            EXPECT_EQ(todo1.raw().val_uint64, array_of_parameters[idx].value.val_uint64);
+        break;
+        case xdb::DB_TYPE_FLOAT:
+            EXPECT_EQ(todo1.raw().val_float, array_of_parameters[idx].value.val_float);
+        break;
+        case xdb::DB_TYPE_DOUBLE:
+            EXPECT_EQ(todo1.raw().val_double, array_of_parameters[idx].value.val_double);
+        break;
+        case xdb::DB_TYPE_BYTES:
+//            std::cout << "GEV " << *todo1.raw().val_string << "\nGEV " << *array_of_parameters[idx].value.val_string << std::endl;
+//            std::cout << "GEV " << *todo1.raw().val_string << "\nGEV " << *array_of_parameters[idx].value.val_string << std::endl;
+            EXPECT_EQ(todo1.raw().val_string->compare(*array_of_parameters[idx].value.val_string), 0);
+        break;
+        case xdb::DB_TYPE_BYTES4:
+        case xdb::DB_TYPE_BYTES8:
+        case xdb::DB_TYPE_BYTES12:
+        case xdb::DB_TYPE_BYTES16:
+        case xdb::DB_TYPE_BYTES20:
+        case xdb::DB_TYPE_BYTES48:
+        case xdb::DB_TYPE_BYTES80:
+        case xdb::DB_TYPE_BYTES128:
+        case xdb::DB_TYPE_BYTES256:
+//            std::cout << todo1.raw().val_bytes.data << " <-> " << array_of_parameters[idx].value.val_bytes.data << std::endl;
+            EXPECT_EQ(strcmp(todo1.raw().val_bytes.data, array_of_parameters[idx].value.val_bytes.data), 0);
+        break;
+
+        default:
+            std::cout << "readMultiMsg test: unsupported type " << todo1.type() << std::endl;
+        break;
+    }
+  }
+
+  // ======================================================
+  // Проверка объекта сообщения для записи одного тега
+  // ======================================================
+  EXPECT_EQ(writeMultiMsg->num_items(), 0);
+  writeMultiMsg->add(array_of_parameters[0].name,
+                     array_of_parameters[0].type,
+                     static_cast<void*>(&array_of_parameters[0].value.val_int32));
+  EXPECT_EQ(writeMultiMsg->num_items(), 1);
+
+  // ======================================================
+  // Проверка объекта сообщения для записи нескольких тегов
+  // ======================================================
+  for (idx = 1; idx <= 9; idx++)
+  {
+    if (array_of_parameters[idx].type == xdb::DB_TYPE_BYTES)
+    {
+    writeMultiMsg->add(array_of_parameters[idx].name,
+                       array_of_parameters[idx].type,
+                       static_cast<void*>(array_of_parameters[idx].value.val_string));
+    }
+    else if ((xdb::DB_TYPE_BYTES4 <= array_of_parameters[idx].type)
+          && (array_of_parameters[idx].type <= xdb::DB_TYPE_BYTES256))
+    {
+    writeMultiMsg->add(array_of_parameters[idx].name,
+                       array_of_parameters[idx].type,
+                       static_cast<void*>(array_of_parameters[idx].value.val_bytes.data));
+    }
+    else
+    {
+    writeMultiMsg->add(array_of_parameters[idx].name,
+                       array_of_parameters[idx].type,
+                       static_cast<void*>(&array_of_parameters[idx].value.val_uint64));
+    }
+
+    // потому что в сообщение уже была добавлена одна запись
+    EXPECT_EQ(writeMultiMsg->num_items(), idx + 1);
+
+    const msg::Value& todo2 = writeMultiMsg->item(idx);
+    EXPECT_EQ(todo2.tag().compare(array_of_parameters[idx].name), 0);
+    EXPECT_EQ(todo2.type(), array_of_parameters[idx].type);
+
+    switch(todo2.type())
+    {
+        case xdb::DB_TYPE_INT32:
+            EXPECT_EQ(todo2.raw().val_int32, array_of_parameters[idx].value.val_int32);
+        break;
+        case xdb::DB_TYPE_UINT32:
+            EXPECT_EQ(todo2.raw().val_uint32, array_of_parameters[idx].value.val_uint32);
+        break;
+        case xdb::DB_TYPE_INT64:
+            EXPECT_EQ(todo2.raw().val_int64, array_of_parameters[idx].value.val_int64);
+        break;
+        case xdb::DB_TYPE_UINT64:
+            EXPECT_EQ(todo2.raw().val_uint64, array_of_parameters[idx].value.val_uint64);
+        break;
+        case xdb::DB_TYPE_FLOAT:
+            EXPECT_EQ(todo2.raw().val_float, array_of_parameters[idx].value.val_float);
+        break;
+        case xdb::DB_TYPE_DOUBLE:
+            EXPECT_EQ(todo2.raw().val_double, array_of_parameters[idx].value.val_double);
+        break;
+        case xdb::DB_TYPE_BYTES:
+//            std::cout << todo2.raw().val_string << " <-> " << array_of_parameters[idx].value.val_string << std::endl;
+            EXPECT_EQ(todo2.raw().val_string->compare(*array_of_parameters[idx].value.val_string), 0);
+        break;
+        case xdb::DB_TYPE_BYTES4:
+        case xdb::DB_TYPE_BYTES8:
+        case xdb::DB_TYPE_BYTES12:
+        case xdb::DB_TYPE_BYTES16:
+        case xdb::DB_TYPE_BYTES20:
+        case xdb::DB_TYPE_BYTES48:
+        case xdb::DB_TYPE_BYTES80:
+        case xdb::DB_TYPE_BYTES128:
+        case xdb::DB_TYPE_BYTES256:
+//            std::cout << todo2.raw().val_bytes.data << " <-> " << array_of_parameters[idx].value.val_bytes.data << std::endl;
+            EXPECT_EQ(strcmp(todo2.raw().val_bytes.data, array_of_parameters[idx].value.val_bytes.data), 0);
+        break;
+
+        default:
+           std::cout << "readMultiMsg test: unsupported type " << todo2.type() << std::endl;
+        break;
+    }
+  }
+}
+
+TEST(TestMessage, DESTROY_SINF)
+{
+  delete readMultiMsg;
+  delete writeMultiMsg;
+  // Освободить выделенную память для успокоения valgrind
+  release_TestSINF_parameters();
+}
+
 TEST(TestMessage, DESTROY_FACTORY)
 {
   delete message_factory;
+  message_factory = NULL;
 }
 
 int main(int argc, char** argv)

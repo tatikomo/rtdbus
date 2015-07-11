@@ -211,7 +211,7 @@ client_task (void* /*args*/)
     for (user_exchange_id = 0; user_exchange_id < i_num_sent_letters; user_exchange_id++) {
         request = new mdp::zmsg ();
 
-        letter->set_status(user_exchange_id % 10);
+        letter->set_exec_result(user_exchange_id % 10);
         request->push_front(const_cast<std::string&>(letter->data()->get_serialized()));
         request->push_front(const_cast<std::string&>(letter->header()->get_serialized()));
 

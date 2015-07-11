@@ -26,7 +26,8 @@ Error::Error(ErrorCode_t _t) :
   set(_t);
 }*/
 
-Error::Error(const Error& _origin) : m_error_code(static_cast<ErrorCode_t>(_origin.getCode()))
+Error::Error(const Error& _origin)
+ : m_error_code(static_cast<ErrorCode_t>(_origin.getCode()))
 {
   init();
 }
@@ -64,6 +65,7 @@ void Error::init()
     m_error_descriptions[rtE_POINT_READ]       = (const char*)"Reading point";
     m_error_descriptions[rtE_POINT_WRITE]      = (const char*)"Writing point";
     m_error_descriptions[rtE_POINT_DELETE]     = (const char*)"Deleting point";
+    m_error_descriptions[rtE_ILLEGAL_PARAMETER_VALUE] = (const char*)"Illegal parameter value";
   }
 }
 

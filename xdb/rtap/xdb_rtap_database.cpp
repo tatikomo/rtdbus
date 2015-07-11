@@ -8,13 +8,15 @@
 #include "config.h"
 #endif
 #include "dat/rtap_db.hxx"
-#include "xdb_impl_common.hpp"
 #include "xdb_impl_database.hpp"
 #include "xdb_impl_db_rtap.hpp"
 #include "xdb_rtap_database.hpp"
 
 using namespace xdb;
 
+// Класс-API доступа к БДРВ
+// Функции изменения содержимого доступны через RtConnection
+// ====================================================
 RtDatabase::RtDatabase(const char* _name, const ::Options* _options)
  : m_options(_options)
 {
@@ -94,43 +96,6 @@ const Error& RtDatabase::MakeSnapshot(const char* _fname)
     LOG(ERROR) << "MakeSnapshot failed";
   }
   return getLastError();
-}
-
-// Функции изменения содержимого БД
-// ====================================================
-// Создание Точки
-const Error& RtDatabase::create(rtap_db::Point&)
-{
-  return getLastError();
-}
-
-// Удаление Точки
-const Error& RtDatabase::erase(rtap_db::Point&)
-{
-  return getLastError();
-}
-
-// Чтение данных Точки
-const Error& RtDatabase::read(rtap_db::Point&)
-{
-  return getLastError();
-}
-
-// Изменение данных Точки
-const Error& RtDatabase::write(rtap_db::Point& info)
-{
-  return m_impl->write(info);
-}
-
-// Блокировка данных Точки от изменения в течение заданного времени
-const Error& RtDatabase::lock(rtap_db::Point&, int)
-{
-  return m_impl->getLastError();
-}
-
-const Error& RtDatabase::unlock(rtap_db::Point&)
-{
-  return m_impl->getLastError();
 }
 
 // Интерфейс управления БД - Контроль выполнения

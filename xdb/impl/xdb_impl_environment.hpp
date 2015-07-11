@@ -5,7 +5,7 @@
 #if defined HAVE_CONFIG_H
 #include "config.h"
 #endif
-#include "xdb_impl_common.hpp"
+
 #include "xdb_impl_error.hpp"
 
 namespace xdb {

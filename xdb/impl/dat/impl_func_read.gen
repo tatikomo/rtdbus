@@ -1,0 +1,414 @@
+MCO_RET DatabaseRtapImpl::readACTIONTYP(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readALARMBEGIN(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readALARMBEGINACK(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readALARMENDACK(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readALARMSYNTH(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readALDEST(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readALINHIB(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readCONFREMOTECMD(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readCONVERTCOEFF(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readCURRENT_SHIFT_TIME(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readDATEAINS(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readDATEHOURM(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readDATERTU(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readDELEGABLE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readDISPP(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readFLGMAINTENANCE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readFLGREMOTECMD(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readFUNCTION(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readGRADLEVEL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readINHIB(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readINHIBLOCAL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readKMREFDWN(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readKMREFUPS(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readLABEL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readL_CONSUMER(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readL_CORRIDOR(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readL_DIPL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readL_EQT(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readL_EQTORBORDWN(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readL_EQTORBORUPS(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readL_EQTTYP(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readLINK_HIST(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readL_NET(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readL_NETTYPE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readLOCALFLAG(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readL_PIPE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readL_PIPELINE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readL_SA(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readL_TL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readL_TYPINFO(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readMAXVAL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readMINVAL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readMNVALPHY(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readMXFLOW(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readMXPRESSURE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readMXVALPHY(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readNAMEMAINTENANCE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readNMFLOW(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readNMPRESSURE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readPLANFLOW(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readPLANPRESSURE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readPREV_DISPATCHER(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readPREV_SHIFT_TIME(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readREMOTECONTROL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readSUPPLIER(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readSUPPLIERMODE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readSUPPLIERSTATE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readSYNTHSTATE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readTSSYNTHETICAL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readTYPE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readUNITY(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readVAL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readVALACQ(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readVALEX(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readVALID(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readVALIDACQ(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readVALIDCHANGE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readVAL_LABEL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readVALMANUAL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+{
+  MCO_RET rc = MCO_S_OK;
+  return rc;
+}
+

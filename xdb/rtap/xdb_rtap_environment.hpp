@@ -2,11 +2,11 @@
 #ifndef XDB_RTAP_ENVIRONMENT_HPP
 #define XDB_RTAP_ENVIRONMENT_HPP
 
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif
 
-#include "xdb_impl_common.hpp"
 #include "xdb_impl_error.hpp"
-//#include "mdp_letter.hpp"
 
 namespace xdb {
 
@@ -59,6 +59,9 @@ class RtEnvironment
     // Завершить исполнение
     const Error& Shutdown(EnvShutdownOrder_t);
 
+  protected:
+    RtDatabase      *getDatabase();
+
   private:
     DISALLOW_COPY_AND_ASSIGN(RtEnvironment);
     EnvironmentImpl *m_impl;
@@ -66,7 +69,6 @@ class RtEnvironment
     RtConnection    *m_conn;
     RtDatabase      *m_database;
 
-    RtDatabase      *getDatabase();
 };
 
 } // namespace xdb

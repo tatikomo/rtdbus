@@ -397,8 +397,10 @@ TEST(TestBrokerDATABASE, SERVICE_LIST)
 TEST(TestBrokerDATABASE, CHECK_LETTER)
 {
   char reply[IDENTITY_MAXLEN+1];
+  char cause[IDENTITY_MAXLEN+1];
   RTDBM::Header     pb_header;
   RTDBM::ExecResult pb_exec_result_request;
+  ::RTDBM::gof_t_ExecResult pb_exec_result_val;
   std::string       pb_serialized_header;
   std::string       pb_serialized_request;
 
@@ -417,11 +419,16 @@ TEST(TestBrokerDATABASE, CHECK_LETTER)
   for (int i=1; i<10; i++)
   {
     sprintf(reply, "@C0000000%02d", i);
+    sprintf(cause, "F_CAUSE_%02d", i);
     pb_header.set_exchange_id(i);
     pb_header.SerializeToString(&pb_serialized_header);
 
-    pb_exec_result_request.set_exec_result(i % 2);
-    pb_exec_result_request.set_failure_cause(i * 2);
+    pb_exec_result_val = static_cast<RTDBM::gof_t_ExecResult>(i % 2);
+    pb_exec_result_request.set_exec_result(pb_exec_result_val);
+
+    pb_exec_result_request.mutable_failure_cause()->set_error_code(i * 2);
+    pb_exec_result_request.mutable_failure_cause()->set_error_text(cause);
+
     pb_exec_result_request.SerializeToString(&pb_serialized_request);
 
     letter = new xdb::Letter(reply, pb_serialized_header, pb_serialized_request);
@@ -500,7 +507,10 @@ TEST(TestDiggerDATABASE, CREATION)
   app = new RtApplication("RTAP");
   ASSERT_TRUE(app != NULL);
 
-  app->setOption("OF_CREATE", 1);
+  // Если снимок БД есть - прочитать его при старте,
+  // Если снимка нет - подключения не будет
+  app->setOption("OF_CREATE", 0);
+  app->setOption("OF_LOAD_SNAP", 1);
   app->setOption("OF_RDWR",   1);
   app->setOption("OF_DATABASE_SIZE", 1024 * 1024 * 10);
   app->setOption("OF_MEMORYPAGE_SIZE", 1024); // 0..65535
@@ -515,7 +525,15 @@ TEST(TestDiggerDATABASE, CREATION)
   // Загрузить данные сохраненной среды RTAP
   // Экземпляр env принадлежит app и будет им удален
   env = app->loadEnvironment("SINF");
+  // Проверим успешность создания экземпляра Среды БДРВ
   ASSERT_TRUE(env != NULL);
+  // Проверим успешность восстановления данных БДРВ из снимка
+  // При ошибке восстановления будет код ошибки rtE_XML_IMPORT
+  EXPECT_EQ(env->getLastError().getCode(), rtE_NONE);
+
+  // На данном этапе БД загружена из снимка, но еще нет подключения
+  connection = env->getConnection();
+  ASSERT_TRUE(connection != NULL);
 
 #if 0
   // TODO Реализация
@@ -539,11 +557,6 @@ TEST(TestDiggerDATABASE, CREATION)
     // и адресом
     EXPECT_TRUE(env == env1);
 
-#if 1
-    connection = env->getConnection();
-    EXPECT_TRUE(connection != NULL);
-#endif
-
     err = env->MakeSnapshot("DIGGER");
     EXPECT_EQ(env->getLastError().getCode(), xdb::rtE_NONE);
     EXPECT_EQ(env->getLastError().getCode(), err.getCode());
@@ -555,6 +568,38 @@ TEST(TestDiggerDATABASE, CREATION)
   }
 
   LOG(INFO) << "END CREATION TestDiggerDATABASE";
+}
+
+TEST(TestDiggerDATABASE, READ_WRITE)
+{
+  AttributeInfo_t info;
+  Error status;
+
+  memset((void*)&info.value, '\0', sizeof(info.value));
+  // Проверка чтения
+  // ================================
+  info.name = "/KD4001/GOV022.STATUS";
+  info.type = DB_TYPE_UNDEF;
+
+  status = connection->read(&info);
+  // Проверка успешности чтения данных
+  EXPECT_EQ(status.code(), rtE_NONE);
+  // После чтения атрибута должен определиться его тип
+  EXPECT_EQ(info.type, DB_TYPE_UINT8);
+
+  // Проверка записи
+  // ================================
+  info.type = DB_TYPE_UINT8; // не обязательно
+  // Попытка записать запрещенное значение, допустимы только 0,1,2
+  info.value.val_int32 = 101;
+  status = connection->write(&info);
+  // Недопустимое значение не должно писаться в БДРВ
+  EXPECT_EQ(status.code(), rtE_ILLEGAL_PARAMETER_VALUE);
+
+  info.value.val_int32 = 2;
+  status = connection->write(&info);
+  // Успешность записи корректного значения
+  EXPECT_EQ(status.code(), rtE_NONE);
 }
 
 TEST(TestDiggerDATABASE, DESTROY)
@@ -789,7 +834,7 @@ TEST(TestTools, LOAD_CLASSES)
     pool = xdb::ClassDescriptionTable[objclass_idx].attributes_pool;
     if (!strncmp(xdb::ClassDescriptionTable[objclass_idx].name,
                 D_MISSING_OBJCODE,
-                UNIVNAME_LENGTH))
+                TAG_NAME_MAXLEN))
     {
       continue;
     }
@@ -805,9 +850,9 @@ TEST(TestTools, LOAD_CLASSES)
         for (xdb::AttributeMapIterator_t it=pool->begin(); it!=pool->end(); ++it)
         {
             sprintf(msg_info, "\"%s\" : %02d", 
-                it->second.name.c_str(), it->second.db_type);
+                it->second.name.c_str(), it->second.type);
 
-            switch(it->second.db_type)
+            switch(it->second.type)
             {
               case xdb::DB_TYPE_INT8:
                   sprintf(msg_val, "%02X", it->second.value.val_int8);
@@ -867,7 +912,7 @@ TEST(TestTools, LOAD_CLASSES)
                   break;
 
               default:
-                  LOG(ERROR) << ": <error>=" << it->second.db_type;
+                  LOG(ERROR) << ": <error>=" << it->second.type;
             }
 #if VERBOSE
             std::cout << msg_info << " | " << msg_val << std::endl;
@@ -889,47 +934,6 @@ TEST(TestTools, LOAD_INSTANCE)
   EXPECT_TRUE(status);
   LOG(INFO) << "END LOAD_INSTANCE TestTools";
 }
-
-#if 0
-/* Заполнить контент RTDB на основе прочитанных из XML данных */
-TEST(TestRtapDATABASE, CREATE)
-{
-  LOG(INFO) << "BEGIN CREATE TestRtapDATABASE";
-
-  app = new xdb::RtApplication("RTDB_TEST");
-  ASSERT_TRUE(app != NULL);
-
-  // Прочитать данные из ранее сохраненного XML
-  app->setOption("OF_LOAD_SNAP", 1);
-  EXPECT_EQ(app->getLastError().getCode(), xdb::rtE_NONE);
-
-//  app->setEnvName("RTAP");
-
-  LOG(INFO) << "Initialize: " << app->initialize().getCode();
-  LOG(INFO) << "Operation mode: " << app->getOperationMode();
-  LOG(INFO) << "Operation state: " << app->getOperationState();
-
-  env = app->loadEnvironment("SINF");
-  EXPECT_TRUE(env != NULL);
-
-//  connection = env->createConnection();
-//  EXPECT_TRUE(connection != NULL);
-  LOG(INFO) << "END CREATE TestRtapDATABASE";
-}
-
-TEST(TestRtapDATABASE, SHOW_CONTENT)
-{
-//  env->Dump();
-}
-
-TEST(TestRtapDATABASE, TERMINATE)
-{
-  LOG(INFO) << "BEGIN TERMINATE TestRtapDATABASE";
-//  delete env;
-  delete app;
-  LOG(INFO) << "END TERMINATE TestRtapDATABASE";
-}
-#endif
 
 int main(int argc, char** argv)
 {

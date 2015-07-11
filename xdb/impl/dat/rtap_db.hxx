@@ -7,7 +7,8 @@
 
 #include "config.h"
 
-//#include "rtap_db_dict.hxx"
+#include "xdb_common.hpp"
+
 // неиспользуемый макс. номер (см. ObjClass_t в rtap_db_dict.hxx)
 #define OBJCLASS_UNUSED 127
 
@@ -108,7 +109,7 @@ namespace rtap_db
   };
 
   // Набор Атрибутов Класса
-  typedef std::vector<rtap_db::Attrib> AttibuteList;
+  typedef std::vector<rtap_db::Attrib> AttributeList;
 
   // Основной класс-хранилище экземпляров для каждого OBJCLASS (Rtap)
   struct Point
@@ -167,14 +168,14 @@ namespace rtap_db
       return m_attributes[idx];
     }
 
-    AttibuteList& attributes()
+    AttributeList& attributes()
     {
       return m_attributes;
     }
 
     Objclass     m_objclass;
     Tag          m_tag;
-    AttibuteList m_attributes;
+    AttributeList m_attributes;
   };
 
   // Список Классов

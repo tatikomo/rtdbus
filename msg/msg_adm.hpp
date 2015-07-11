@@ -27,8 +27,10 @@ class AskLife : public Letter
      AskLife(const std::string& head, const std::string& body);
     ~AskLife();
 
-     int  status();
-     void set_status(int);
+     // Получить значения Состояния из сообщения.
+     // Вернет true, если поле "Состояние" в сообщении есть.
+     bool exec_result(int&);
+     void set_exec_result(int);
 
    private:
  };
@@ -45,8 +47,10 @@ class ExecResult : public Letter
      int  exec_result();
      void set_exec_result(int);
 
-     int  failure_cause();
-     void set_failure_cause(int);
+     // Получить значения структуры из сообщения.
+     // Вернет true, если структура в сообщении есть, и заполнит параметры значениями.
+     bool failure_cause(int&, std::string&);
+     void set_failure_cause(int, std::string&);
 
    private:
  };

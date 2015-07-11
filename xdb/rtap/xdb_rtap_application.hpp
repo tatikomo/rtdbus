@@ -10,7 +10,7 @@
 #include "config.h"
 #endif
 #include "helper.hpp"
-#include "xdb_impl_common.hpp"
+#include "xdb_common.hpp"
 #include "xdb_impl_error.hpp"
 
 namespace xdb {

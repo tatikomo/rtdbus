@@ -24,7 +24,7 @@ S SUPPLIERSTATE      PUB        rtBYTES16
 #V ALARMV_FAULT       PUB        rtUINT8        1    
 #S LINKSTATE          PUB        rtLOGICAL      0    
 #V ALARMV_LINKSTATE   PUB        rtUINT8        1    
-#S TYPE               PUB        rtINT32        0
+S TYPE               PUB        rtINT32        0
 #S RTUPARAM_REALCNT   PUB        rtUINT16       0    
 #S RTUPARAM_LASTINDEX PUB        rtUINT16       0    
 #S RTUPARAM_FIRSTFREE PUB        rtUINT16       0    

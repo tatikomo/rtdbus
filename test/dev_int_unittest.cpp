@@ -75,6 +75,7 @@ xdb::Letter* CreateNewLetter(rtdbMsgType msg_type,
 {
   xdb::Letter  *xdb_letter;
   msg::Letter  *msg_letter;
+  std::string   cause_text = "F_CAUSE_";
 
   assert(message_factory);
   msg_letter = message_factory->create(msg_type);
@@ -83,12 +84,13 @@ xdb::Letter* CreateNewLetter(rtdbMsgType msg_type,
   switch(msg_type)
   {
     case ADG_D_MSG_EXECRESULT:
+        cause_text += (user_exchange % 100);
         static_cast<msg::ExecResult*>(msg_letter)->set_exec_result(user_exchange % 10);
-        static_cast<msg::ExecResult*>(msg_letter)->set_failure_cause(user_exchange % 100);
+        static_cast<msg::ExecResult*>(msg_letter)->set_failure_cause(user_exchange % 100, cause_text);
         break;
 
     case ADG_D_MSG_ASKLIFE:
-        static_cast<msg::AskLife*>(msg_letter)->set_status(user_exchange % 10);
+        static_cast<msg::AskLife*>(msg_letter)->set_exec_result(user_exchange % 10);
         break;
 
     default:
@@ -238,8 +240,8 @@ void Dump(msg::Letter* letter)
   std::cout << "/" << letter->header()->exchange_id();
   std::cout << "/" << letter->header()->interest_id();
   std::cout << "/" << letter->header()->source_pid();
-  std::cout << "/" << letter->header()->proc_dest();
   std::cout << "/" << letter->header()->proc_origin();
+  std::cout << "/" << letter->header()->proc_dest();
   std::cout << "/" << letter->header()->sys_msg_type();
   std::cout << "/" << letter->header()->usr_msg_type();
   std::cout << "/" << letter->header()->time_mark();
@@ -247,40 +249,42 @@ void Dump(msg::Letter* letter)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-TEST(TestLetter, FACTORY_CREATE)
+TEST(TestProxy, FACTORY_CREATE)
 {
   message_factory = new msg::MessageFactory("dev_int_test");
   ASSERT_TRUE(message_factory);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-TEST(TestLetter, USAGE)
+TEST(TestProxy, LETTER_USAGE)
 {
   msg::ExecResult  *letter = NULL;
   RTDBM::ExecResult pb_exec_result_request;
   std::string       pb_serialized_header;
   std::string       pb_serialized_request;
+  int               failure_val;
+  std::string       failure_text;
 
   letter = static_cast<msg::ExecResult*>(message_factory->create(ADG_D_MSG_EXECRESULT));
   letter->set_exec_result(1234);
-  letter->set_failure_cause(567);
-  letter->set_destination("<unknown>");
+//  letter->set_failure_cause(567);
+  letter->set_destination("белый свет");
   Dump(letter);
-  EXPECT_TRUE(letter->exec_result() == 1234);
-  EXPECT_TRUE(letter->failure_cause() == 567);
+  // Превышение допустимых пределов значения - получаем GOF_D_UNDETERMINED
+  EXPECT_TRUE(letter->exec_result() == RTDBM::GOF_D_UNDETERMINED);
 
+  // FALSE - потому что не было выделено этого необязательного поля
+  EXPECT_TRUE(letter->failure_cause(failure_val, failure_text) == false);
+  EXPECT_TRUE(failure_val == 0);
+  EXPECT_TRUE(failure_text.empty() == true);
+
+  letter->set_exec_result(0); // RTDBM::GOF_D_FAILURE
   pb_exec_result_request.ParseFromString(letter->data()->get_serialized());
-  EXPECT_TRUE(pb_exec_result_request.exec_result() == 1234);
-  EXPECT_TRUE(pb_exec_result_request.failure_cause() == 567);
+  EXPECT_TRUE(pb_exec_result_request.exec_result() == RTDBM::GOF_D_FAILURE);
+  EXPECT_TRUE(pb_exec_result_request.has_failure_cause() == false);
 
   delete letter;
   // TODO: создать экземпляры остальных типов сообщений
-}
-
-////////////////////////////////////////////////////////////////////////////////
-TEST(TestLetter, FACTORY_DESTROY)
-{
-  delete message_factory;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -480,8 +484,9 @@ TEST(TestProxy, CLIENT_MESSAGE)
   pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
   pb_header.set_time_mark(time(0));
 
-  pb_exec_result_request.set_exec_result(3);
-  pb_exec_result_request.set_failure_cause(4);
+  pb_exec_result_request.set_exec_result(RTDBM::GOF_D_SUCCESS);
+  pb_exec_result_request.mutable_failure_cause()->set_error_code(4);
+  pb_exec_result_request.mutable_failure_cause()->set_error_text("CLIENT_MESSAGE");
 
   pb_header.SerializeToString(&pb_serialized_header);
   pb_exec_result_request.SerializeToString(&pb_serialized_request);
@@ -599,8 +604,9 @@ TEST(TestProxy, SERVICE_DISPATCH)
   pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
   pb_header.set_time_mark(time(0));
 
-  pb_exec_result_request.set_exec_result(23145);
-  pb_exec_result_request.set_failure_cause(5);
+  pb_exec_result_request.set_exec_result(RTDBM::GOF_D_SUCCESS);
+  pb_exec_result_request.mutable_failure_cause()->set_error_code(5);
+  pb_exec_result_request.mutable_failure_cause()->set_error_text("SERVICE_DISPATCH");
 
   pb_header.SerializeToString(&pb_serialized_header);
   pb_exec_result_request.SerializeToString(&pb_serialized_request);
@@ -621,6 +627,12 @@ TEST(TestProxy, SERVICE_DISPATCH)
   delete msg;
   delete worker;
   LOG(INFO) << "TestProxy SERVICE_DISPATCH stop";
+}
+
+////////////////////////////////////////////////////////////////////////////////
+TEST(TestProxy, FACTORY_DESTROY)
+{
+  delete message_factory;
 }
 
 

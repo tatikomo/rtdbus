@@ -231,7 +231,9 @@ int xdb::processClassFile(const char* fpath)
   for (objclass=0; objclass <= GOF_D_BDR_OBJCLASS_LASTUSED; objclass++)
   {
     ClassDescriptionTable[objclass].attributes_pool = NULL;
-    if (!strncmp(ClassDescriptionTable[objclass].name, D_MISSING_OBJCODE, UNIVNAME_LENGTH))
+    if (0 == strncmp(ClassDescriptionTable[objclass].name,
+                 D_MISSING_OBJCODE,
+                 TAG_NAME_MAXLEN))
       continue;
 
     sprintf(fname, "%s/%02d_%s.dat",
@@ -351,7 +353,7 @@ bool getAttrValue(DbType_t db_type,
 
     assert(p_attr_info);
 
-    p_attr_info->db_type = db_type;
+    p_attr_info->type = db_type;
     switch(db_type)
     {
       // TODO: учитывать данное ограничение размера строки
@@ -430,7 +432,7 @@ std::string getValueAsString(AttributeInfo_t* attr_info, bool masquerade)
   std::string::size_type found;
 
   assert(attr_info);
-  switch(attr_info->db_type)
+  switch(attr_info->type)
   {
       case DB_TYPE_BYTES:
       case DB_TYPE_BYTES4:
@@ -589,7 +591,7 @@ std::string& xdb::dump_point(
                     << "</rtdb:AttrName>" << std::endl
                 << "    <rtdb:Kind>SCALAR</rtdb:Kind>" << std::endl
         		<< "    <rtdb:Accessibility>PUBLIC</rtdb:Accessibility>" << std::endl
-        		<< "    <rtdb:DbType>" << GetDbNameFromType(it->second.db_type)
+        		<< "    <rtdb:DbType>" << GetDbNameFromType(it->second.type)
                     << "</rtdb:DbType>" << std::endl;
 
           // Если Атрибут из шаблона найден во входном перечне Атрибутов, то
@@ -627,7 +629,7 @@ std::string& xdb::dump_point(
          it_attr_pool != attributes_given.end();
          ++it_attr_pool)
     {
-      switch(it_attr_pool->second.db_type)
+      switch(it_attr_pool->second.type)
       {
         case DB_TYPE_BYTES:
           delete[] it_attr_pool->second.value.val_bytes.data;

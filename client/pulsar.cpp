@@ -30,12 +30,47 @@ Pulsar::Pulsar(const char* broker, int verbose)
     mdcli(broker, verbose),
     m_channel(mdp::ChannelType::PERSISTENT) // По умолчанию обмен сообщениями со Службой через Брокер
 {
-  usleep(500000); // Подождать 0.5 сек, чтобы ZMQ успело физически подключиться к Брокеру 
+  usleep(500000); // Подождать 0.5 сек, чтобы ZMQ успело физически подключиться к Брокеру
+
+  // Подготовиться к работе, заполнив связь "Название сообщения" <=> "Тип сообщения"
+  init();
 }
 
 Pulsar::~Pulsar()
 {
 }
+
+void Pulsar::init()
+{
+  m_msg_type_hash.insert(MessageTypesHashPair_t("ADG_D_MSG_EXECRESULT", ADG_D_MSG_EXECRESULT));
+  m_msg_type_hash.insert(MessageTypesHashPair_t("ADG_D_MSG_ENDINITACK", ADG_D_MSG_ENDINITACK));
+  m_msg_type_hash.insert(MessageTypesHashPair_t("ADG_D_MSG_INIT",       ADG_D_MSG_INIT));
+  m_msg_type_hash.insert(MessageTypesHashPair_t("ADG_D_MSG_STOP",       ADG_D_MSG_STOP));
+  m_msg_type_hash.insert(MessageTypesHashPair_t("ADG_D_MSG_ENDALLINIT", ADG_D_MSG_ENDALLINIT));
+  m_msg_type_hash.insert(MessageTypesHashPair_t("ADG_D_MSG_ASKLIFE",    ADG_D_MSG_ASKLIFE));
+  m_msg_type_hash.insert(MessageTypesHashPair_t("ADG_D_MSG_LIVING",     ADG_D_MSG_LIVING));
+  m_msg_type_hash.insert(MessageTypesHashPair_t("ADG_D_MSG_STARTAPPLI", ADG_D_MSG_STARTAPPLI));
+  m_msg_type_hash.insert(MessageTypesHashPair_t("ADG_D_MSG_STARTAPPLI", ADG_D_MSG_STARTAPPLI));
+  m_msg_type_hash.insert(MessageTypesHashPair_t("ADG_D_MSG_DIFINIT",    ADG_D_MSG_DIFINIT));
+  m_msg_type_hash.insert(MessageTypesHashPair_t("SIG_D_MSG_READ_MULTI", SIG_D_MSG_READ_MULTI));
+  m_msg_type_hash.insert(MessageTypesHashPair_t("SIG_D_MSG_WRITE_MULTI",SIG_D_MSG_WRITE_MULTI));
+}
+
+rtdbMsgType Pulsar::getMsgTypeByName(std::string& type_name)
+{
+  rtdbMsgType found = MESSAGE_TYPE_UNKNOWN;
+  MessageTypesHashIterator_t it;
+
+  std::cout << "looking \"" << type_name << "\" message" << std::endl;
+  it = m_msg_type_hash.find(type_name);
+  if (it != m_msg_type_hash.end())
+  {
+    found = it->second;
+  }
+
+  return found;
+}
+
 
 void Pulsar::fire_messages()
 {
@@ -91,38 +126,6 @@ mdp::zmsg* generateNewOrder(msg::MessageFactory* factory, rtdbExchangeId id, con
   return request;
 }
 
-// Вернуть тип сообщения, 
-rtdbMsgType get_message_type(const char* type_name)
-{
-  rtdbMsgType type;
-
-  // TODO: Поиск по хешу структур строка - код сообщения
-  if (0 == strcmp(type_name, "ADG_D_MSG_EXECRESULT"))
-    type = ADG_D_MSG_ASKLIFE;
-  else if (0 == strcmp(type_name, "ADG_D_MSG_ENDINITACK"))
-    type = ADG_D_MSG_ENDINITACK;
-  else if (0 == strcmp(type_name, "ADG_D_MSG_INIT"))
-    type = ADG_D_MSG_INIT;
-  else if (0 == strcmp(type_name, "ADG_D_MSG_STOP"))
-    type = ADG_D_MSG_STOP;
-  else if (0 == strcmp(type_name, "ADG_D_MSG_ENDALLINIT"))
-    type = ADG_D_MSG_ENDALLINIT;
-  else if (0 == strcmp(type_name, "ADG_D_MSG_ASKLIFE"))
-    type = ADG_D_MSG_ASKLIFE;
-  else if (0 == strcmp(type_name, "ADG_D_MSG_LIVING"))
-    type = ADG_D_MSG_LIVING;
-  else if (0 == strcmp(type_name, "ADG_D_MSG_STARTAPPLI"))
-    type = ADG_D_MSG_STARTAPPLI;
-  else if (0 == strcmp(type_name, "ADG_D_MSG_STOPAPPLI"))
-    type = ADG_D_MSG_STOPAPPLI;
-  else if (0 == strcmp(type_name, "ADG_D_MSG_DIFINIT"))
-    type = ADG_D_MSG_DIFINIT;
-  else // неизвестное пока значение
-    type = ADG_D_MSG_ASKLIFE;
-
-  return type;
-}
-
 /*
  * Отправить службе NYSE запрос ASKLIFE
  * Служба должна ответить сообщением EXECRESULT
@@ -136,13 +139,12 @@ int main (int argc, char *argv [])
   msg::MessageFactory *message_factory = NULL;
   rtdbMsgType          mess_type = ADG_D_MSG_ASKLIFE;
   bool                 is_type_name_given = false;
-  char type_name[SERVICE_NAME_MAXLEN + 1];
+  std::string type_name;//[SERVICE_NAME_MAXLEN + 1];
   int verbose = 0;
   int service_status;   // 200|400|404|501
   int num_received = 0; // общее количество полученных сообщений
   int num_good_received = 0; // количество полученных сообщений, на которые мы ожидали ответ
   int opt;
-  char service_name[SERVICE_NAME_MAXLEN + 1];
   std::string service_name_str;
   char service_endpoint[ENDPOINT_MAXLEN + 1];
   // Указано название Службы
@@ -176,14 +178,18 @@ int main (int argc, char *argv [])
          break;
 
        case 's':
+         char service_name[SERVICE_NAME_MAXLEN + 1];
          strncpy(service_name, optarg, SERVICE_NAME_MAXLEN);
          service_name[SERVICE_NAME_MAXLEN] = '\0';
+         service_name_str.assign(service_name);
          is_service_name_given = true;
          break;
 
        case 't':
-         strncpy(type_name, optarg, SERVICE_NAME_MAXLEN);
-         type_name[SERVICE_NAME_MAXLEN] = '\0';
+         char message_type[SERVICE_NAME_MAXLEN + 1];
+         strncpy(message_type, optarg, SERVICE_NAME_MAXLEN);
+         message_type[SERVICE_NAME_MAXLEN] = '\0';
+         type_name.assign(message_type);
          is_type_name_given = true;
          break;
 
@@ -204,25 +210,28 @@ int main (int argc, char *argv [])
 
   if (!is_service_name_given)
   {
-    std::cout << "Service name not given.\nUse -s <name> option.\n";
+    std::cout << "Service name not given.\nUse -s <name> [-v] [-d] [-t <message type name>] option.\n";
     return(1);
   }
+
+  client = new Pulsar ("tcp://localhost:5555", verbose);
 
   if (!is_type_name_given)
   {
     std::cout << "Message type name not given, will use ASKLIFE.\n";
     mess_type = ADG_D_MSG_ASKLIFE;
   }
-  else mess_type = get_message_type(type_name);
-
-  client = new Pulsar ("tcp://localhost:5555", verbose);
+  else if (MESSAGE_TYPE_UNKNOWN == (mess_type = client->getMsgTypeByName(type_name)))
+  {
+    std::cout << "Given message type name (" << type_name << ") is not known, will use ASKLIFE.\n";
+    mess_type = ADG_D_MSG_ASKLIFE;
+  }
 
   try
   {
-    std::cout << "Checking '" << service_name << "' status " << std::endl;
-    service_status = client->ask_service_info(service_name, service_endpoint, ENDPOINT_MAXLEN);
+    std::cout << "Checking '" << service_name_str << "' status " << std::endl;
+    service_status = client->ask_service_info(service_name_str.c_str(), service_endpoint, ENDPOINT_MAXLEN);
 
-    service_name_str.assign(service_name);
 
     switch(service_status)
     {
@@ -257,7 +266,7 @@ int main (int argc, char *argv [])
 
     for (sent_exchange_id=1; sent_exchange_id<=num_iter; sent_exchange_id++)
     {
-      request = generateNewOrder(message_factory, sent_exchange_id, service_name, mess_type);
+      request = generateNewOrder(message_factory, sent_exchange_id, service_name_str.c_str(), mess_type);
 
       // Способ передачи указан в channel:
       // - через Брокера (PERSISTENT)
