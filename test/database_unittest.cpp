@@ -9,6 +9,8 @@
 #include "glog/logging.h"
 #include "gtest/gtest.h"
 
+#include "xdb_common.hpp"
+
 #include "xdb_impl_db_broker.hpp"
 #include "xdb_broker.hpp"
 #include "xdb_broker_service.hpp"
@@ -26,7 +28,6 @@
 #include "proto/common.pb.h"
 #include "msg/msg_common.h"
 
-#include "xdb_rtap_const.hpp"
 #include "xdb_rtap_application.hpp"
 #include "xdb_rtap_environment.hpp"
 #include "xdb_rtap_connection.hpp"
@@ -258,7 +259,7 @@ TEST(TestBrokerDATABASE, REMOVE_WORKER)
     // может не совпадать с порядком их помещения в базу
     //EXPECT_STREQ(worker->GetIDENTITY(), worker_identity_2);
     expiration_time_mark = worker->GetEXPIRATION();
-#if 0
+#if defined VERBOSE
     std::cout << "worker: '" << worker->GetIDENTITY() << "' "
               << "state: " << worker->GetSTATE() << " "
               << "expiration: " 
@@ -283,7 +284,7 @@ TEST(TestBrokerDATABASE, REMOVE_WORKER)
     EXPECT_EQ(worker->GetSTATE(), xdb::Worker::ARMED);
     //EXPECT_STREQ(worker->GetIDENTITY(), worker_identity_1);
     expiration_time_mark = worker->GetEXPIRATION();
-#if 0
+#if defined VERBOSE
     std::cout << "worker: '" << worker->GetIDENTITY() << "' "
               << "state: " << worker->GetSTATE() << " "
               << "expiration: " 
@@ -576,7 +577,7 @@ TEST(TestDiggerDATABASE, READ_WRITE)
   Error status;
 
   memset((void*)&info.value, '\0', sizeof(info.value));
-  // Проверка чтения
+  // Проверка чтения дискретного параметра
   // ================================
   info.name = "/KD4001/GOV022.STATUS";
   info.type = DB_TYPE_UNDEF;
@@ -586,20 +587,56 @@ TEST(TestDiggerDATABASE, READ_WRITE)
   EXPECT_EQ(status.code(), rtE_NONE);
   // После чтения атрибута должен определиться его тип
   EXPECT_EQ(info.type, DB_TYPE_UINT8);
+  // Значение по-умолчанию = DISABLED
+  // EXPECT_EQ(info.value.fixed.val_int8, /* DISABLED */ 2);
+  if (info.value.fixed.val_int8 == /* DISABLED */ 2)
+  {
+    // Сохраненный снимок БДРВ имеет первоначальные значения
+  }
 
-  // Проверка записи
+  // Проверка записи - неуспешно
   // ================================
   info.type = DB_TYPE_UINT8; // не обязательно
   // Попытка записать запрещенное значение, допустимы только 0,1,2
-  info.value.val_int32 = 101;
+  info.value.fixed.val_int32 = 101;
   status = connection->write(&info);
   // Недопустимое значение не должно писаться в БДРВ
   EXPECT_EQ(status.code(), rtE_ILLEGAL_PARAMETER_VALUE);
 
-  info.value.val_int32 = 2;
-  status = connection->write(&info);
-  // Успешность записи корректного значения
+  // 0 = PLANNED
+  // 1 = WORKED
+  // 2 = DISABLED
+  for (int stat = 0; stat < 3; stat++)
+  {
+      // Проверка записи - успешно
+      // ================================
+      info.value.fixed.val_int32 = stat;
+      status = connection->write(&info);
+      // Успешность записи корректного значения
+      EXPECT_EQ(status.code(), rtE_NONE);
+
+      // Проверка чтения - успешно
+      // ================================
+      status = connection->read(&info);
+      // Проверка успешности чтения данных
+      EXPECT_EQ(status.code(), rtE_NONE);
+      // После чтения атрибута должен определиться его тип
+      EXPECT_EQ(info.type, DB_TYPE_UINT8);
+      EXPECT_EQ(info.value.fixed.val_int8, stat);
+  }
+
+  // Проверка чтения строкового параметра
+  // ================================
+  info.name = "/KD4001/GOV022.SHORTLABEL";
+  info.type = DB_TYPE_UNDEF;
+  info.value.dynamic.varchar = NULL;
+  status = connection->read(&info);
+  // Проверка успешности чтения данных
   EXPECT_EQ(status.code(), rtE_NONE);
+  // После чтения атрибута должен определиться его тип
+  EXPECT_EQ(info.type, DB_TYPE_BYTES16);
+  std::cout << info.name << " = [" << info.value.dynamic.size << "] '"
+            << info.value.dynamic.varchar << "'" << std::endl;
 }
 
 TEST(TestDiggerDATABASE, DESTROY)
@@ -750,7 +787,7 @@ TEST(TestTools, LOAD_DATA_XML)
     doc_p.parse (argv[1]);
     RTDB_STRUCT_p.post_RTDB_STRUCT ();
 
-#if VERBOSE
+#if defined VERBOSE
     std::cout << "Parsing XML is over, processed " << point_list.size() << " element(s)" << std::endl;
 #endif
     /* В cmake/classes.xml есть 3 точки */
@@ -758,7 +795,7 @@ TEST(TestTools, LOAD_DATA_XML)
 
     for (class_item=0; class_item<point_list.size(); class_item++)
     {
-#if VERBOSE
+#if defined VERBOSE
       std::cout << "\tOBJCLASS:  " << point_list[class_item].objclass() << std::endl;
       std::cout << "\tTAG:  '" << point_list[class_item].tag() << "'" << std::endl;
       std::cout << "\t#ATTR: " << point_list[class_item].m_attributes.size() << std::endl;
@@ -796,7 +833,7 @@ TEST(TestTools, LOAD_DATA_XML)
             break;
       }
 
-#if VERBOSE
+#if defined VERBOSE
       std::cout << std::endl;
 #endif
     }
@@ -821,6 +858,8 @@ TEST(TestTools, LOAD_CLASSES)
   char fpath[255];
   char msg_info[255];
   char msg_val[255];
+  char s_date [D_DATE_FORMAT_LEN + 1];
+  time_t given_time;
   xdb::AttributeMap_t *pool;
 
   LOG(INFO) << "BEGIN LOAD_CLASSES TestTools";
@@ -841,7 +880,7 @@ TEST(TestTools, LOAD_CLASSES)
 
     if (pool)
     {
-#if VERBOSE
+#if defined VERBOSE
         std::cout << "#" << objclass_idx << " : " 
             << xdb::ClassDescriptionTable[objclass_idx].name 
             << "(" << pool->size() << ")" << std::endl;
@@ -854,40 +893,38 @@ TEST(TestTools, LOAD_CLASSES)
 
             switch(it->second.type)
             {
+              case xdb::DB_TYPE_LOGICAL:
+                  sprintf(msg_val, "%d", it->second.value.fixed.val_bool);
+                  break;
               case xdb::DB_TYPE_INT8:
-                  sprintf(msg_val, "%02X", it->second.value.val_int8);
+                  sprintf(msg_val, "%02X", it->second.value.fixed.val_int8);
                   break;
               case xdb::DB_TYPE_UINT8:
-                  sprintf(msg_val, "%02X", it->second.value.val_uint8);
+                  sprintf(msg_val, "%02X", it->second.value.fixed.val_uint8);
                   break;
-
               case xdb::DB_TYPE_INT16:
-                  sprintf(msg_val, "%04X", it->second.value.val_int16);
+                  sprintf(msg_val, "%04X", it->second.value.fixed.val_int16);
                   break;
               case xdb::DB_TYPE_UINT16:
-                  sprintf(msg_val, "%04X", it->second.value.val_uint16);
+                  sprintf(msg_val, "%04X", it->second.value.fixed.val_uint16);
                   break;
-
               case xdb::DB_TYPE_INT32:
-                  sprintf(msg_val, "%08X", it->second.value.val_int32);
+                  sprintf(msg_val, "%08X", it->second.value.fixed.val_int32);
                   break;
               case xdb::DB_TYPE_UINT32:
-                  sprintf(msg_val, "%08X", it->second.value.val_uint32);
+                  sprintf(msg_val, "%08X", it->second.value.fixed.val_uint32);
                   break;
-
               case xdb::DB_TYPE_INT64:
-                  sprintf(msg_val, "%lld", it->second.value.val_int64);
+                  sprintf(msg_val, "%lld", it->second.value.fixed.val_int64);
                   break;
               case xdb::DB_TYPE_UINT64:
-                  sprintf(msg_val, "%llu", it->second.value.val_uint64);
+                  sprintf(msg_val, "%llu", it->second.value.fixed.val_uint64);
                   break;
-
               case xdb::DB_TYPE_FLOAT:
-                  sprintf(msg_val, "%f", it->second.value.val_float);
+                  sprintf(msg_val, "%f", it->second.value.fixed.val_float);
                   break;
-
               case xdb::DB_TYPE_DOUBLE:
-                  sprintf(msg_val, "%g", it->second.value.val_double);
+                  sprintf(msg_val, "%g", it->second.value.fixed.val_double);
                   break;
 
               case xdb::DB_TYPE_BYTES:
@@ -903,18 +940,24 @@ TEST(TestTools, LOAD_CLASSES)
               case xdb::DB_TYPE_BYTES128:
               case xdb::DB_TYPE_BYTES256:
                   sprintf(msg_val, "[%02X] \"%s\"", 
-                    it->second.value.val_bytes.size,
-                    it->second.value.val_bytes.data);
+                    it->second.value.dynamic.size,
+                    it->second.value.dynamic.varchar);
                   break;
 
               case xdb::DB_TYPE_UNDEF:
                   sprintf(msg_val, ": undef %02d", xdb::DB_TYPE_UNDEF);
                   break;
 
+              case xdb::DB_TYPE_ABSTIME:
+                  given_time = it->second.value.fixed.val_time.tv_sec;
+                  strftime(s_date, D_DATE_FORMAT_LEN, D_DATE_FORMAT_STR, localtime(&given_time));
+                  snprintf(msg_val, D_DATE_FORMAT_W_MSEC_LEN, "%s.%06ld", s_date, it->second.value.fixed.val_time.tv_usec);
+                  break;
+
               default:
                   LOG(ERROR) << ": <error>=" << it->second.type;
             }
-#if VERBOSE
+#if defined VERBOSE
             std::cout << msg_info << " | " << msg_val << std::endl;
 #endif
         }

@@ -16,7 +16,6 @@ include_directories(${MDP_DIR})
 include_directories(${MSG_DIR})
 include_directories(${MDP_DIR})
 include_directories(${XDB_COMMON_DIR})
-include_directories(${XDB_RTAP_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})
 include_directories(${LIBCPPZMQ_INCLUDE_DIR})
@@ -86,7 +85,8 @@ add_custom_command(
 
 set (MSG_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
-        ${XDB_RTAP_DIR}/xdb_rtap_const.hpp
+        ${XDB_COMMON_DIR}/xdb_common.cpp
+        ${XDB_COMMON_DIR}/xdb_common.hpp
         ${MDP_DIR}/mdp_zmsg.hpp
         ${MSG_DIR}/proto/common.pb.cc
         ${MSG_DIR}/proto/common.pb.h

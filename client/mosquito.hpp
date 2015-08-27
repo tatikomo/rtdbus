@@ -12,6 +12,8 @@
 #define OPTION_MODE_READ  "read"
 #define OPTION_MODE_WRITE "write"
 #define OPTION_MODE_PROBE "probe"
+// Максимально допустимая длина пути к файлу с входными параметрами
+#define MAX_INPUT_FILENAME_LEN 1000
 
 class Mosquito: public mdp::mdcli
 {
@@ -30,6 +32,9 @@ class Mosquito: public mdp::mdcli
     // Создать новое сообщение заданного типа
     msg::Letter* create_message(rtdbMsgType);
 
+    bool process_read_response(msg::Letter*);
+
+    const msg::MessageFactory* message_factory() { return m_factory; };
   private:
     msg::MessageFactory *m_factory;
     WorkMode_t           m_mode;

@@ -52,19 +52,7 @@ MCO_RET DatabaseRtapImpl::writeCONVERTCOEFF(mco_trans_h&, rtap_db::XDBPoint&, At
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::writeCURRENT_SHIFT_TIME(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
 MCO_RET DatabaseRtapImpl::writeDATEAINS(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
-MCO_RET DatabaseRtapImpl::writeDATEHOURM(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
 {
   MCO_RET rc = MCO_S_OK;
   return rc;
@@ -95,12 +83,6 @@ MCO_RET DatabaseRtapImpl::writeFLGMAINTENANCE(mco_trans_h&, rtap_db::XDBPoint&, 
 }
 
 MCO_RET DatabaseRtapImpl::writeFLGREMOTECMD(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
-MCO_RET DatabaseRtapImpl::writeFUNCTION(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
 {
   MCO_RET rc = MCO_S_OK;
   return rc;
@@ -364,49 +346,13 @@ MCO_RET DatabaseRtapImpl::writeUNITY(mco_trans_h&, rtap_db::XDBPoint&, Attribute
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::writeVAL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
-MCO_RET DatabaseRtapImpl::writeVALACQ(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
 MCO_RET DatabaseRtapImpl::writeVALEX(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
 {
   MCO_RET rc = MCO_S_OK;
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::writeVALID(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
-MCO_RET DatabaseRtapImpl::writeVALIDACQ(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
-MCO_RET DatabaseRtapImpl::writeVALIDCHANGE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
 MCO_RET DatabaseRtapImpl::writeVAL_LABEL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
-MCO_RET DatabaseRtapImpl::writeVALMANUAL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
 {
   MCO_RET rc = MCO_S_OK;
   return rc;

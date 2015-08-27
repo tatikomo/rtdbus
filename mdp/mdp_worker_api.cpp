@@ -57,7 +57,7 @@ int interrupt_worker = 0;
 static void signal_handler (int signal_value)
 {
     interrupt_worker = 1;
-    LOG(INFO) << "Got signal "<<signal_value;
+    LOG(INFO) << "Got signal "<<signal_value<<", interrupt_worker="<<&interrupt_worker;
     // TODO: активировать нить-сторожа для принудительного удаления "зависших" процессов и ресурсов
 }
 
@@ -90,11 +90,11 @@ mdwrk::mdwrk (std::string broker_endpoint, std::string service, int verbose) :
 
     catch_signals ();
 
-    LOG(INFO) << "mdwrk new context " << m_context;
+    LOG(INFO) << "mdwrk new context"; // << m_context;
 
     // Обнулим хранище данных сокетов для zmq::poll
     // Заполняется хранилище в функциях connect_to_*
-    memset (static_cast<void*>(m_socket_items), '\0', sizeof(zmq::pollitem_t) * SOCKET_COUNT);
+//1    memset (static_cast<void*>(m_socket_items), '\0', sizeof(zmq::pollitem_t) * SOCKET_COUNT);
 
     // Получить ссылку на динамически выделенную строку с параметрами подключения для bind
     m_welcome_endpoint = getEndpoint(true);
@@ -128,7 +128,7 @@ mdwrk::~mdwrk ()
         delete m_welcome;
       }
 
-      LOG(INFO) << "mdwrk destroy context " << m_context;
+      LOG(INFO) << "mdwrk destroy context"; // << m_context;
       m_context.close();
     }
     catch(zmq::error_t error)
@@ -182,7 +182,9 @@ void mdwrk::connect_to_broker ()
     m_worker->setsockopt (ZMQ_IDENTITY, m_service.c_str(), m_service.size());
     m_worker->connect (m_broker_endpoint.c_str());
     // Инициализация записей для zmq::poll для Брокера
-    m_socket_items[BROKER_ITEM].socket = *m_worker;
+    // NB: необходимо использовать оператор void* для получения доступа
+    // к внутреннему представлению ptr сокета
+    m_socket_items[BROKER_ITEM].socket = (void*)*m_worker;
     m_socket_items[BROKER_ITEM].fd = 0;
     m_socket_items[BROKER_ITEM].events = ZMQ_POLLIN;
     m_socket_items[BROKER_ITEM].revents = 0;
@@ -238,7 +240,7 @@ void mdwrk::connect_to_world ()
     {
       m_welcome->bind (m_welcome_endpoint);
       // Инициализация записей для zmq::poll для общей точки входа
-      m_socket_items[WORLD_ITEM].socket = *m_welcome;
+      m_socket_items[WORLD_ITEM].socket = (void*)*m_welcome;
       m_socket_items[WORLD_ITEM].fd = 0;
       m_socket_items[WORLD_ITEM].events = ZMQ_POLLIN;
       m_socket_items[WORLD_ITEM].revents = 0;
@@ -342,6 +344,7 @@ mdwrk::recv (std::string *&reply)
             }
             delete msg;
         }
+#if 0
         else if (m_socket_items[WORLD_ITEM].revents & ZMQ_POLLIN) // Событие на общем сокете
         {
             zmsg *msg = new zmsg(*m_welcome);
@@ -351,6 +354,7 @@ mdwrk::recv (std::string *&reply)
             }
             return msg;
         }
+#endif
         else // Ожидание нового запроса завершено по таймауту
         if (--m_liveness == 0) {
             LOG(INFO) << "timeout, last HEARTBEAT was planned "

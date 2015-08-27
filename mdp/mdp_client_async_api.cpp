@@ -48,8 +48,6 @@ mdcli::mdcli (std::string broker, int verbose) :
    m_context = new zmq::context_t (1);
    s_catch_signals ();
 
-   memset(m_socket_items, '\0', sizeof(m_socket_items));
-
    connect_to_broker ();
    connect_to_services ();
 }
@@ -113,7 +111,7 @@ void mdcli::connect_to_broker ()
    m_client->setsockopt (ZMQ_LINGER, &linger, sizeof (linger));
 
    // Заполним структуру для работы recv с помощью zmq::poll
-   m_socket_items[BROKER_ITEM].socket = *m_client;
+   m_socket_items[BROKER_ITEM].socket = (void*)*m_client;
    m_socket_items[BROKER_ITEM].fd = 0;
    m_socket_items[BROKER_ITEM].events = ZMQ_POLLIN;
    m_socket_items[BROKER_ITEM].revents = 0;
@@ -243,7 +241,7 @@ int mdcli::ask_service_info(const char* service_name, char* service_endpoint, in
         if (strncmp(service_info->endpoint, service_endpoint, ENDPOINT_MAXLEN))
         {
           // Есть изменения
-          // TODO: что делать с значением точки подключения к Службе?
+          // TODO: что делать со значением точки подключения к Службе?
           // Нормальная ли это ситуация?
           LOG(WARNING) << "Endpoint for service '" << service_name
                        << "' was changed from " << service_info->endpoint
@@ -386,8 +384,8 @@ mdcli::recv ()
 
         return msg;     //  Success
      }
-     // DIRECT-сообщение (напрямую, минуя Брокер)
-     if (m_socket_items [SERVICE_ITEM].revents & ZMQ_POLLIN) {
+     // Проверить получение DIRECT-сообщения
+     if (m_peer && (m_socket_items [SERVICE_ITEM].revents & ZMQ_POLLIN)) {
         zmsg *msg = new zmsg (*m_peer);
         if (m_verbose) {
             LOG(INFO) << "received direct reply:";
@@ -439,23 +437,21 @@ int mdcli::send_direct(std::string& service_name, zmsg *&request)
       {
         // Сокета для прямых подключений еще не было, создадим его один раз
         m_peer = new zmq::socket_t(*m_context, ZMQ_DEALER);
-        LOG(INFO) << "Created DIRECT messaging socket";
 
         // generate random identity
         char identity[10] = {};
         sprintf(identity, "%04X-%04X", within(0x10000), within(0x10000));
-        printf("%s\n", identity);
+        LOG(INFO) << "Created DIRECT messaging socket with identity " << identity;
+        //printf("new DIRECT messaging socket %s\n", identity);
+
         m_peer->setsockopt(ZMQ_IDENTITY, identity, strlen(identity));
       }
       m_peer->connect(info->endpoint);
 
-      if (!m_socket_items[SERVICE_ITEM].socket)
-      {
-        m_socket_items[SERVICE_ITEM].socket = *m_peer;
-        m_socket_items[SERVICE_ITEM].fd = 0;
-        m_socket_items[SERVICE_ITEM].events = ZMQ_POLLIN;
-        m_socket_items[SERVICE_ITEM].revents = 0;
-      }
+      m_socket_items[SERVICE_ITEM].socket = (void*)*m_peer;
+      m_socket_items[SERVICE_ITEM].fd = 0;
+      m_socket_items[SERVICE_ITEM].events = ZMQ_POLLIN;
+      m_socket_items[SERVICE_ITEM].revents = 0;
 
       // все в порядке => выставим признак "сокет подключен"
       info->connected = 1;

@@ -86,9 +86,9 @@ set (XDB_RTAP_SNAP_SOURCES
         ${XDB_IMPL_DIR}/dat/rtap_db.h
         ${XDB_IMPL_DIR}/dat/rtap_db.hpp
         ${XDB_IMPL_DIR}/dat/rtap_db.c
+        ${XDB_COMMON_DIR}/xdb_common.cpp
+        ${XDB_COMMON_DIR}/xdb_common.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_common.h
-        ${XDB_RTAP_DIR}/xdb_rtap_const.cpp
-        ${XDB_RTAP_DIR}/xdb_rtap_const.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_snap.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_snap_main.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_snap_trans.cpp
@@ -101,8 +101,8 @@ set (XDB_RTAP_SOURCES
         ${TOOLS_DIR}/helper.hpp
         ${TOOLS_DIR}/helper.cpp
         ${MSG_DIR}/msg_message.hpp
-        ${XDB_RTAP_DIR}/xdb_rtap_const.cpp
-        ${XDB_RTAP_DIR}/xdb_rtap_const.hpp
+        ${XDB_COMMON_DIR}/xdb_common.cpp
+        ${XDB_COMMON_DIR}/xdb_common.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_common.h
         ${XDB_RTAP_DIR}/xdb_rtap_database.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_database.hpp

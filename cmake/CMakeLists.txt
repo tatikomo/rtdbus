@@ -288,6 +288,7 @@ endif(RTDBUS_GCOV_ENABLED)
 
 if (RTDBUS_ENABLE_VERBOSE_MODE)
     message("NOTE: building with verbose mode increases library size, may slightly increase security risk, and decreases performance.")
+    add_definitions(-DVERBOSE)
 endif(RTDBUS_ENABLE_VERBOSE_MODE)
 
 if(NOT RTDBUS_DISABLE_ASSERTS)

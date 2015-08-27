@@ -4,19 +4,142 @@
 #if defined HAVE_CONFIG_H
 #include "config.h"
 #endif
-#include "xdb_rtap_const.hpp"
+
 #include "xdb_common.hpp"
 
 using namespace xdb;
 
+// таблица соответствия "тип данных как индекс" => "размер строковой части для set_s_value()"
+// NB: синхронизировать ее с таблицей типов в xdb/common/xdb_common.hpp
+const uint16_t xdb::var_size[xdb::DB_TYPE_LAST+1] = {
+    /* DB_TYPE_UNDEF     = 0  */  0,
+    /* DB_TYPE_LOGICAL   = 1  */  0,
+    /* DB_TYPE_INT8      = 2  */  0,
+    /* DB_TYPE_UINT8     = 3  */  0,
+    /* DB_TYPE_INT16     = 4  */  0,
+    /* DB_TYPE_UINT16    = 5  */  0,
+    /* DB_TYPE_INT32     = 6  */  0,
+    /* DB_TYPE_UINT32    = 7  */  0,
+    /* DB_TYPE_INT64     = 8  */  0,
+    /* DB_TYPE_UINT64    = 9  */  0,
+    /* DB_TYPE_FLOAT     = 10 */  0,
+    /* DB_TYPE_DOUBLE    = 11 */  0,
+    /* DB_TYPE_BYTES     = 12 */  65535, // переменная длина строки
+    /* DB_TYPE_BYTES4    = 13 */  4 * sizeof(wchar_t),
+    /* DB_TYPE_BYTES8    = 14 */  8 * sizeof(wchar_t),
+    /* DB_TYPE_BYTES12   = 15 */  12 * sizeof(wchar_t),
+    /* DB_TYPE_BYTES16   = 16 */  16 * sizeof(wchar_t),
+    /* DB_TYPE_BYTES20   = 17 */  20 * sizeof(wchar_t),
+    /* DB_TYPE_BYTES32   = 18 */  32 * sizeof(wchar_t),
+    /* DB_TYPE_BYTES48   = 19 */  48 * sizeof(wchar_t),
+    /* DB_TYPE_BYTES64   = 20 */  64 * sizeof(wchar_t),
+    /* DB_TYPE_BYTES80   = 21 */  80 * sizeof(wchar_t),
+    /* DB_TYPE_BYTES128  = 22 */  128 * sizeof(wchar_t),
+    /* DB_TYPE_BYTES256  = 23 */  256 * sizeof(wchar_t),
+    /* DB_TYPE_ABSTIME   = 24 */  sizeof(timeval),
+    /* DB_TYPE_LAST      = 25 */  0
+};
+
+// Соответствие между индексом атрибута, и его типом и размером
+const AttrTypeDescription_t xdb::AttrTypeDescription[] = 
+{
+//#include "dat/attr_type.gen"
+// NB: Поле size для типов данных DB_TYPE_BYTES* определяет максимальный,
+// а не фактический размер, поскольку в кодировке UTF-8 символ может занимать
+// как 1 (латиница), так и 2 байта (кириллица).
+    { RTDB_ATT_IDX_ACTIONTYP,       DB_TYPE_UINT16, sizeof(uint16_t) },   // 0
+    { RTDB_ATT_IDX_ALARMBEGIN,      DB_TYPE_UINT32, sizeof(uint32_t) },   // 1
+    { RTDB_ATT_IDX_ALARMBEGINACK,   DB_TYPE_UINT32, sizeof(uint32_t) },   // 2
+    { RTDB_ATT_IDX_ALARMENDACK,     DB_TYPE_UINT32, sizeof(uint32_t) },   // 3
+    { RTDB_ATT_IDX_ALARMSYNTH,      DB_TYPE_UINT8,  sizeof(uint8_t) },    // 4
+    { RTDB_ATT_IDX_ALDEST,          DB_TYPE_LOGICAL,sizeof(bool) },       // 5
+    { RTDB_ATT_IDX_ALINHIB,         DB_TYPE_LOGICAL,sizeof(bool) },       // 6
+    { RTDB_ATT_IDX_CONFREMOTECMD,   DB_TYPE_LOGICAL,sizeof(bool) },       // 7
+    { RTDB_ATT_IDX_CONVERTCOEFF,    DB_TYPE_DOUBLE, sizeof(double) },     // 8
+    { RTDB_ATT_IDX_CURRENT_SHIFT_TIME, DB_TYPE_ABSTIME, sizeof(timeval) },// 9
+    { RTDB_ATT_IDX_DATEAINS,        DB_TYPE_BYTES12,sizeof(wchar_t)*12 }, // 10
+    { RTDB_ATT_IDX_DATEHOURM,       DB_TYPE_ABSTIME,sizeof(timeval) },    // 11
+    { RTDB_ATT_IDX_DATERTU,         DB_TYPE_ABSTIME,sizeof(timeval) },    // 12
+    { RTDB_ATT_IDX_DELEGABLE,       DB_TYPE_UINT8,  sizeof(uint8_t) },    // 13
+    { RTDB_ATT_IDX_DISPP,           DB_TYPE_BYTES20,sizeof(wchar_t)*20 }, // 14
+    { RTDB_ATT_IDX_FLGMAINTENANCE,  DB_TYPE_LOGICAL,sizeof(bool) },       // 15
+    { RTDB_ATT_IDX_FLGREMOTECMD,    DB_TYPE_LOGICAL,sizeof(bool) },       // 16
+    { RTDB_ATT_IDX_FUNCTION,        DB_TYPE_BYTES20,sizeof(wchar_t)*20 }, // 17
+    { RTDB_ATT_IDX_GRADLEVEL,       DB_TYPE_DOUBLE, sizeof(double) },     // 18
+    { RTDB_ATT_IDX_INHIB,           DB_TYPE_LOGICAL,sizeof(bool) },    // 19
+    { RTDB_ATT_IDX_INHIBLOCAL,      DB_TYPE_LOGICAL,sizeof(bool) },    // 20
+    { RTDB_ATT_IDX_KMREFDWN,        DB_TYPE_DOUBLE, sizeof(double) },     // 21
+    { RTDB_ATT_IDX_KMREFUPS,        DB_TYPE_DOUBLE, sizeof(double) },     // 22
+    { RTDB_ATT_IDX_LABEL,           DB_TYPE_BYTES20,sizeof(wchar_t)*20 }, // 23
+    { RTDB_ATT_IDX_L_CONSUMER,      DB_TYPE_BYTES32,sizeof(wchar_t)*32 }, // 24
+    { RTDB_ATT_IDX_L_CORRIDOR,      DB_TYPE_BYTES32,sizeof(wchar_t)*32 }, // 25
+    { RTDB_ATT_IDX_L_DIPL,          DB_TYPE_BYTES32,sizeof(wchar_t)*32 }, // 26
+    { RTDB_ATT_IDX_L_EQT,           DB_TYPE_BYTES32,sizeof(wchar_t)*32 }, // 27
+    { RTDB_ATT_IDX_L_EQTORBORDWN,   DB_TYPE_BYTES32,sizeof(wchar_t)*32 }, // 28
+    { RTDB_ATT_IDX_L_EQTORBORUPS,   DB_TYPE_BYTES32,sizeof(wchar_t)*32 }, // 29
+    { RTDB_ATT_IDX_L_EQTTYP,        DB_TYPE_BYTES32,sizeof(wchar_t)*32 }, // 30
+    { RTDB_ATT_IDX_LINK_HIST,       DB_TYPE_UINT64, sizeof(uint64_t) },   // 31
+    { RTDB_ATT_IDX_L_NET,           DB_TYPE_BYTES32,sizeof(wchar_t)*32 }, // 32
+    { RTDB_ATT_IDX_L_NETTYPE,       DB_TYPE_BYTES32,sizeof(wchar_t)*32 }, // 33
+    { RTDB_ATT_IDX_LOCALFLAG,       DB_TYPE_UINT8,  sizeof(uint8_t) },    // 34
+    { RTDB_ATT_IDX_L_PIPE,          DB_TYPE_BYTES32,sizeof(wchar_t)*32 }, // 35
+    { RTDB_ATT_IDX_L_PIPELINE,      DB_TYPE_BYTES32,sizeof(wchar_t)*32 }, // 36
+    { RTDB_ATT_IDX_L_SA,            DB_TYPE_BYTES32,sizeof(wchar_t)*32 }, // 37
+    { RTDB_ATT_IDX_L_TL,            DB_TYPE_BYTES32,sizeof(wchar_t)*32 }, // 38
+    { RTDB_ATT_IDX_L_TM,            DB_TYPE_BYTES32,sizeof(wchar_t)*32 }, // 39
+    { RTDB_ATT_IDX_L_TYPINFO,       DB_TYPE_BYTES32,sizeof(wchar_t)*32 }, // 40
+    { RTDB_ATT_IDX_MAXVAL,          DB_TYPE_DOUBLE, sizeof(double) },     // 41
+    { RTDB_ATT_IDX_MINVAL,          DB_TYPE_DOUBLE, sizeof(double) },     // 42
+    { RTDB_ATT_IDX_MNVALPHY,        DB_TYPE_DOUBLE, sizeof(double) },     // 43
+    { RTDB_ATT_IDX_MXFLOW,          DB_TYPE_DOUBLE, sizeof(double) },     // 44
+    { RTDB_ATT_IDX_MXPRESSURE,      DB_TYPE_DOUBLE, sizeof(double) },     // 45
+    { RTDB_ATT_IDX_MXVALPHY,        DB_TYPE_DOUBLE, sizeof(double) },     // 46
+    { RTDB_ATT_IDX_NAMEMAINTENANCE, DB_TYPE_BYTES12,sizeof(wchar_t)*12 }, // 47
+    { RTDB_ATT_IDX_NMFLOW,          DB_TYPE_DOUBLE, sizeof(double) },     // 48
+    { RTDB_ATT_IDX_NMPRESSURE,      DB_TYPE_DOUBLE, sizeof(double) },     // 49
+// NB: OBJCLASS - особый случай, этот атрибут более не является самостоятельным,
+// став принадлежностью XDBPoint
+    { RTDB_ATT_IDX_OBJCLASS,        DB_TYPE_UINT8,  sizeof(uint8_t) },    // 50
+    { RTDB_ATT_IDX_PLANFLOW,        DB_TYPE_DOUBLE, sizeof(double) },     // 51
+    { RTDB_ATT_IDX_PLANPRESSURE,    DB_TYPE_DOUBLE, sizeof(double) },     // 52
+    { RTDB_ATT_IDX_PREV_DISPATCHER, DB_TYPE_BYTES12,sizeof(wchar_t)*12 }, // 53
+    { RTDB_ATT_IDX_PREV_SHIFT_TIME, DB_TYPE_UINT64, sizeof(uint64_t) },   // 54
+    { RTDB_ATT_IDX_REMOTECONTROL,   DB_TYPE_UINT8,  sizeof(uint8_t) },    // 55
+    { RTDB_ATT_IDX_SHORTLABEL,      DB_TYPE_BYTES16,sizeof(wchar_t)*16 }, // 56
+    { RTDB_ATT_IDX_STATUS,          DB_TYPE_UINT8,  sizeof(uint8_t) },    // 57
+    { RTDB_ATT_IDX_SUPPLIER,        DB_TYPE_BYTES16,sizeof(wchar_t)*16 }, // 58
+    { RTDB_ATT_IDX_SUPPLIERMODE,    DB_TYPE_BYTES16,sizeof(wchar_t)*16 }, // 59
+    { RTDB_ATT_IDX_SUPPLIERSTATE,   DB_TYPE_BYTES16,sizeof(wchar_t)*16 }, // 60
+    { RTDB_ATT_IDX_SYNTHSTATE,      DB_TYPE_UINT8,  sizeof(uint8_t) },    // 61
+    { RTDB_ATT_IDX_TSSYNTHETICAL,   DB_TYPE_UINT8,  sizeof(uint8_t) },    // 62
+    { RTDB_ATT_IDX_TYPE,            DB_TYPE_UINT32, sizeof(uint32_t) },   // 63
+    { RTDB_ATT_IDX_UNITY,           DB_TYPE_BYTES20,sizeof(wchar_t)*20 }, // 64
+    { RTDB_ATT_IDX_UNITYCATEG,      DB_TYPE_UINT8,  sizeof(uint8_t) },    // 65
+// NB: UNIVNAME - особый случай, этот атрибут более не является самостоятельным,
+// став принадлежностью XDBPoint
+// Размерность определяется значением TAG_NAME_MAXLEN в файле config.h
+    { RTDB_ATT_IDX_UNIVNAME,        DB_TYPE_BYTES32,sizeof(wchar_t)*32 }, // 66
+// NB: VAL - особый случай, может быть как целочисленным, так и double 
+    { RTDB_ATT_IDX_VAL,             DB_TYPE_DOUBLE, sizeof(double) },     // 67
+// NB: VALACQ - особый случай, может быть как целочисленным, так и double 
+    { RTDB_ATT_IDX_VALACQ,          DB_TYPE_DOUBLE, sizeof(double) },     // 68
+    { RTDB_ATT_IDX_VALEX,           DB_TYPE_DOUBLE, sizeof(double) },     // 69
+    { RTDB_ATT_IDX_VALID,           DB_TYPE_UINT8,  sizeof(uint8_t) },    // 70
+    { RTDB_ATT_IDX_VALIDACQ,        DB_TYPE_UINT8,  sizeof(uint8_t) },    // 71
+    { RTDB_ATT_IDX_VALIDCHANGE,     DB_TYPE_UINT8,  sizeof(uint8_t) },    // 72
+// NB: VALMANUAL - особый случай, может быть как целочисленным, так и double 
+    { RTDB_ATT_IDX_VALMANUAL,       DB_TYPE_DOUBLE, sizeof(double) },     // 73
+    { RTDB_ATT_IDX_UNEXIST,         DB_TYPE_UNDEF,  0 }                   // 74
+};
+
 // Перекодировочная таблица замены типам RTAP на тип eXtremeDB
 // Индекс элемента - код типа данных RTAP
 // Значение элемента - соответствующий индексу тип данных в eXtremeDB
-// 
+//
 const DeTypeToDbTypeLink DeTypeToDbType[] = 
 {
     { rtRESERVED0,  DB_TYPE_UNDEF },
-    { rtLOGICAL,    DB_TYPE_INT8 },
+    { rtLOGICAL,    DB_TYPE_LOGICAL },
     { rtINT8,       DB_TYPE_INT8 },
     { rtUINT8,      DB_TYPE_UINT8 },
     { rtINT16,      DB_TYPE_INT16 },
@@ -44,19 +167,17 @@ const DeTypeToDbTypeLink DeTypeToDbType[] =
     { rtBYTES256,   DB_TYPE_BYTES256 },
     { rtRESERVED27, DB_TYPE_UNDEF },
     { rtDB_XREF,    DB_TYPE_UINT64 },
-    { rtDATE,       DB_TYPE_UINT64 },
-    { rtTIME_OF_DAY,DB_TYPE_UINT64 },
-    { rtASB_TIME,   DB_TYPE_UINT64 },
+    { rtDATE,       DB_TYPE_ABSTIME },
+    { rtTIME_OF_DAY,DB_TYPE_ABSTIME },
+    { rtABS_TIME,   DB_TYPE_ABSTIME },
     { rtUNDEFINED,  DB_TYPE_UNDEF },
 };
-
-// TODO: где взять соответствие между названием атрибута и его типом?
-// к примеру, SHORTLABEL => DB_TYPE_BYTES32
 
 // Соответствие между кодом типа БДРВ и его аналогом в RTAP
 const DbTypeToDeTypeLink DbTypeToDeType[] = 
 {
   { DB_TYPE_UNDEF,  rtUNDEFINED },
+  { DB_TYPE_LOGICAL,rtLOGICAL },
   { DB_TYPE_INT8,   rtINT8 },
   { DB_TYPE_UINT8,  rtUINT8 },
   { DB_TYPE_INT16,  rtINT16 },
@@ -79,6 +200,7 @@ const DbTypeToDeTypeLink DbTypeToDeType[] =
   { DB_TYPE_BYTES80 , rtBYTES80 },
   { DB_TYPE_BYTES128, rtBYTES128 },
   { DB_TYPE_BYTES256, rtBYTES256 },
+  { DB_TYPE_ABSTIME,  rtABS_TIME },
   { DB_TYPE_LAST,     rtUNDEFINED }
 };
 
@@ -88,6 +210,7 @@ const DbTypeToDeTypeLink DbTypeToDeType[] =
 const DbTypeDescription_t xdb::DbTypeDescription[] = 
 {
   { DB_TYPE_UNDEF,  "UNDEF",    0 },
+  { DB_TYPE_LOGICAL,"LOGICAL",  sizeof(bool) },
   { DB_TYPE_INT8,   "INT8",     sizeof(int8_t) },
   { DB_TYPE_UINT8,  "UINT8",    sizeof(uint8_t) },
   { DB_TYPE_INT16,  "INT16",    sizeof(int16_t) },
@@ -110,6 +233,7 @@ const DbTypeDescription_t xdb::DbTypeDescription[] =
   { DB_TYPE_BYTES80 ,"BYTES80",    sizeof(wchar_t)*80 },
   { DB_TYPE_BYTES128,"BYTES128",   sizeof(wchar_t)*128 },
   { DB_TYPE_BYTES256,"BYTES256",   sizeof(wchar_t)*256 },
+  { DB_TYPE_ABSTIME, "ABS_TIME",   sizeof(timeval) },
   { DB_TYPE_LAST,    "LAST",    0 }
 };
 
@@ -117,10 +241,10 @@ const DbTypeDescription_t xdb::DbTypeDescription[] =
 // NB: длина символьных типов расчитана исходя из однобайтовых кодировок.
 // То есть при хранении русского в UTF-8 строки могут обрезАться.
 // Для типов данных XDB принят размер символа в 2 байта (wchar_t)
-const DeTypeDescription_t rtDataElem[] =
+const DeTypeDescription_t xdb::rtDataElem[] =
 {
     { rtRESERVED0,   "RESERVED0",     0 },
-    { rtLOGICAL,     "rtLOGICAL",  sizeof(uint8_t) },
+    { rtLOGICAL,     "rtLOGICAL",  sizeof(bool) },
     { rtINT8,        "rtINT8",     sizeof(int8_t) },
     { rtUINT8,       "rtUINT8",    sizeof(uint8_t) },
     { rtINT16,       "rtINT16",    sizeof(int16_t) },
@@ -147,10 +271,10 @@ const DeTypeDescription_t rtDataElem[] =
     { rtBYTES128,    "rtBYTES128", sizeof(uint8_t)*128 },
     { rtBYTES256,    "rtBYTES256", sizeof(uint8_t)*256 },
     { rtRESERVED27,  "RESERVED27",    0 },
-    { rtDB_XREF,     "rtXREF",        0 }, // TODO: возможно, это д.б. символьная ссылка
+    { rtDB_XREF,     "rtDB_XREF",     0 }, // TODO: возможно, это д.б. символьная ссылка
     { rtDATE,        "rtDATE",        sizeof(timeval) },
     { rtTIME_OF_DAY, "rtTIME_OF_DAY", sizeof(timeval) },
-    { rtASB_TIME,    "rtABSTIME",     sizeof(timeval) },
+    { rtABS_TIME,    "rtABS_TIME",    sizeof(timeval) },
     { rtUNDEFINED,   "rtUNDEFINED",   0 }
 };
 

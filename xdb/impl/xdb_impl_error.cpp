@@ -5,19 +5,48 @@
 
 using namespace xdb;
 
-const char* Error::m_error_descriptions[Error::MaxErrorCode + 1];
-bool Error::m_initialized = false;
+const char* g_error_descriptions[Error::MaxErrorCode + 1];
+
+static __attribute__((constructor)) void my_errortable_init()
+{
+  g_error_descriptions[rtE_NONE]             = (const char*)"OK";
+  g_error_descriptions[rtE_UNKNOWN]          = (const char*)"Unknown error";
+  g_error_descriptions[rtE_NOT_IMPLEMENTED]  = (const char*)"Not yet implemented";
+  g_error_descriptions[rtE_STRING_TOO_LONG]  = (const char*)"Given string is too long";
+  g_error_descriptions[rtE_STRING_IS_EMPTY]  = (const char*)"Given string is empty";
+  g_error_descriptions[rtE_DB_NOT_FOUND]     = (const char*)"Database is not found";
+  g_error_descriptions[rtE_DB_NOT_OPENED]    = (const char*)"Database is not opened";
+  g_error_descriptions[rtE_DB_NOT_DISCONNECTED] = (const char*)"Database is not disconnected";
+  g_error_descriptions[rtE_XML_OPEN]         = (const char*)"Error opening XML snap";
+  g_error_descriptions[rtE_INCORRECT_DB_STATE] = (const char*)"New DB state is incorrect";
+  g_error_descriptions[rtE_SNAPSHOT_WRITE]   = (const char*)"Snapshot writing failure";
+  g_error_descriptions[rtE_SNAPSHOT_READ]    = (const char*)"Snapshot reading failure";
+  g_error_descriptions[rtE_SNAPSHOT_NOT_EXIST] = (const char*)"Snapshot not exist";
+  g_error_descriptions[rtE_RUNTIME_FATAL]    = (const char*)"Fatal runtime failure";
+  g_error_descriptions[rtE_RUNTIME_ERROR]    = (const char*)"Runtime error";
+  g_error_descriptions[rtE_RUNTIME_WARNING]  = (const char*)"Recoverable runtime failure";
+  g_error_descriptions[rtE_TABLE_CREATE]     = (const char*)"Creating table"; 
+  g_error_descriptions[rtE_TABLE_READ]       = (const char*)"Reading from table";
+  g_error_descriptions[rtE_TABLE_WRITE]      = (const char*)"Writing into table";
+  g_error_descriptions[rtE_TABLE_DELETE]     = (const char*)"Deleting table";
+  g_error_descriptions[rtE_POINT_CREATE]     = (const char*)"Creating point";
+  g_error_descriptions[rtE_POINT_READ]       = (const char*)"Reading point";
+  g_error_descriptions[rtE_POINT_WRITE]      = (const char*)"Writing point";
+  g_error_descriptions[rtE_POINT_DELETE]     = (const char*)"Deleting point";
+  g_error_descriptions[rtE_ILLEGAL_PARAMETER_VALUE] = (const char*)"Illegal parameter value";
+  g_error_descriptions[rtE_POINT_NOT_FOUND]  = (const char*)"Specific point is not found";
+  g_error_descriptions[rtE_ATTR_NOT_FOUND]   = (const char*)"Specific attribute is not found";
+  g_error_descriptions[rtE_ILLEGAL_TAG_NAME] = (const char*)"Illegal point's tag";
+}
 
 Error::Error() :
   m_error_code(rtE_NONE)
 {
-  init();
 }
 
 Error::Error(ErrorCode_t _t) :
   m_error_code(_t)
 {
-  init();
 }
 
 /*Error::Error(int _t)
@@ -29,49 +58,26 @@ Error::Error(ErrorCode_t _t) :
 Error::Error(const Error& _origin)
  : m_error_code(static_cast<ErrorCode_t>(_origin.getCode()))
 {
-  init();
 }
 
 Error::~Error()
 {
 }
 
-void Error::init()
-{
-  if (!m_initialized)
-  {
-    m_initialized = true;
-    m_error_descriptions[rtE_NONE]             = (const char*)"OK";
-    m_error_descriptions[rtE_UNKNOWN]          = (const char*)"Unknown error";
-    m_error_descriptions[rtE_NOT_IMPLEMENTED]  = (const char*)"Not yet implemented";
-    m_error_descriptions[rtE_STRING_TOO_LONG]  = (const char*)"Given string is too long";
-    m_error_descriptions[rtE_STRING_IS_EMPTY]  = (const char*)"Given string is empty";
-    m_error_descriptions[rtE_DB_NOT_FOUND]     = (const char*)"Database is not found";
-    m_error_descriptions[rtE_DB_NOT_OPENED]    = (const char*)"Database is not opened";
-    m_error_descriptions[rtE_DB_NOT_DISCONNECTED] = (const char*)"Database is not disconnected";
-    m_error_descriptions[rtE_XML_OPEN]         = (const char*)"Error opening XML snap";
-    m_error_descriptions[rtE_INCORRECT_DB_STATE] = (const char*)"New DB state is incorrect";
-    m_error_descriptions[rtE_SNAPSHOT_WRITE]   = (const char*)"Snapshot writing failure";
-    m_error_descriptions[rtE_SNAPSHOT_READ]    = (const char*)"Snapshot reading failure";
-    m_error_descriptions[rtE_SNAPSHOT_NOT_EXIST] = (const char*)"Snapshot not exist";
-    m_error_descriptions[rtE_RUNTIME_FATAL]    = (const char*)"Fatal runtime failure";
-    m_error_descriptions[rtE_RUNTIME_ERROR]    = (const char*)"Runtime error";
-    m_error_descriptions[rtE_RUNTIME_WARNING]  = (const char*)"Recoverable runtime failure";
-    m_error_descriptions[rtE_TABLE_CREATE]     = (const char*)"Creating table"; 
-    m_error_descriptions[rtE_TABLE_READ]       = (const char*)"Reading from table";
-    m_error_descriptions[rtE_TABLE_WRITE]      = (const char*)"Writing into table";
-    m_error_descriptions[rtE_TABLE_DELETE]     = (const char*)"Deleting table";
-    m_error_descriptions[rtE_POINT_CREATE]     = (const char*)"Creating point";
-    m_error_descriptions[rtE_POINT_READ]       = (const char*)"Reading point";
-    m_error_descriptions[rtE_POINT_WRITE]      = (const char*)"Writing point";
-    m_error_descriptions[rtE_POINT_DELETE]     = (const char*)"Deleting point";
-    m_error_descriptions[rtE_ILLEGAL_PARAMETER_VALUE] = (const char*)"Illegal parameter value";
-  }
-}
-
 const char* Error::what() const
 {
-  return m_error_descriptions[m_error_code];
+  return g_error_descriptions[m_error_code];
+}
+
+const char* Error::what(int code)
+{
+  const char* message = 0;
+
+  if ((rtE_NONE <= code) && (code <= rtE_LAST))
+  {
+    message = g_error_descriptions[code];
+  }
+  return message;
 }
 
 void Error::set(ErrorCode_t _t)

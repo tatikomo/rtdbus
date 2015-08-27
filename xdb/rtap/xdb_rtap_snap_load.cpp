@@ -7,8 +7,9 @@
 #include "config.h"
 #endif
 
+#include "xdb_common.hpp"
+
 #include "xdb_rtap_snap.hpp"
-#include "xdb_rtap_const.hpp"
 #include "xdb_rtap_database.hpp"
 #include "xdb_rtap_environment.hpp"
 #include "xdb_rtap_connection.hpp"

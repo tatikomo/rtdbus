@@ -45,9 +45,7 @@ RtConnection::~RtConnection()
 const Error& RtConnection::create(RtPoint* _point)
 {
   assert(_point);
-
-  m_last_error = m_impl->create(&_point->info());
-  return getLastError();
+  return m_impl->create(&_point->info());
 }
 
 // Вернуть ссылку на экземпляр текущей среды
@@ -58,8 +56,7 @@ RtDatabase* RtConnection::database()
 
 const Error& RtConnection::write(RtPoint* _point)
 {
-  m_last_error = m_impl->write(_point->info());
-  return getLastError();
+  return m_impl->write(_point->info());
 }
 
 // Найти точку с указанным тегом и прочитать все значения её атрибутов
@@ -70,6 +67,10 @@ RtPoint* RtConnection::locate(const char* _tag)
   assert(_tag);
 
   // В теге не должно быть точки - читаем все атрибуты разом
+  if (strrchr(_tag, '.'))
+  {
+    LOG(ERROR) << "RtConnection::locate() shouldn't accept attribute name: " << _tag;
+  }
   assert(strrchr(_tag, '.') == 0);
 
   rtap_db::Point* data = m_impl->locate(_tag);
@@ -88,11 +89,11 @@ RtPoint* RtConnection::locate(const char* _tag)
 // Выходные значения:
 //   type - тип атрибута
 //   value - значение
+//   quality - качество
 //   признак успешности чтения значения точки
 const Error& RtConnection::read(AttributeInfo_t* output)
 {
-  m_last_error = m_impl->read(output);
-  return getLastError();
+  return m_impl->read(output);
 }
 
 // Прочитать значение заданного атрибута точки
@@ -104,34 +105,27 @@ const Error& RtConnection::read(AttributeInfo_t* output)
 //   Признак успешности чтения значения точки
 const Error& RtConnection::write(const AttributeInfo_t* input)
 {
-  m_last_error = m_impl->write(input);
-  return getLastError();
+  return m_impl->write(input);
 }
 
 // Интерфейс управления БД - Контроль выполнения
 const Error& RtConnection::ControlDatabase(rtDbCq& info)
 {
   info.act_type = CONTROL;
-//  m_last_error = m_environment->getDatabase()->Control(info);
-  m_last_error = m_impl->Control(info);
-  return getLastError();
+  return m_impl->Control(info);
 }
 
 // Интерфейс управления БД - Контроль Точек
 const Error& RtConnection::QueryDatabase(rtDbCq& info)
 {
   info.act_type = QUERY;
-//  m_last_error = m_environment->getDatabase()->Query(info);
-  m_last_error = m_impl->Query(info);
-  return getLastError();
+  return m_impl->Query(info);
 }
 
 // Интерфейс управления БД - Контроль выполнения
 const Error& RtConnection::ConfigDatabase(rtDbCq& info)
 {
   info.act_type = CONFIG;
-//  m_last_error = m_environment->getDatabase()->Config(info);
-  m_last_error = m_impl->Config(info);
-  return getLastError();
+  return m_impl->Config(info);
 }
 

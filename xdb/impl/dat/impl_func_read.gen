@@ -52,19 +52,7 @@ MCO_RET DatabaseRtapImpl::readCONVERTCOEFF(mco_trans_h&, rtap_db::XDBPoint&, Att
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::readCURRENT_SHIFT_TIME(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
 MCO_RET DatabaseRtapImpl::readDATEAINS(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
-MCO_RET DatabaseRtapImpl::readDATEHOURM(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
 {
   MCO_RET rc = MCO_S_OK;
   return rc;
@@ -95,12 +83,6 @@ MCO_RET DatabaseRtapImpl::readFLGMAINTENANCE(mco_trans_h&, rtap_db::XDBPoint&, A
 }
 
 MCO_RET DatabaseRtapImpl::readFLGREMOTECMD(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
-MCO_RET DatabaseRtapImpl::readFUNCTION(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
 {
   MCO_RET rc = MCO_S_OK;
   return rc;
@@ -364,49 +346,13 @@ MCO_RET DatabaseRtapImpl::readUNITY(mco_trans_h&, rtap_db::XDBPoint&, AttributeI
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::readVAL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
-MCO_RET DatabaseRtapImpl::readVALACQ(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
 MCO_RET DatabaseRtapImpl::readVALEX(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
 {
   MCO_RET rc = MCO_S_OK;
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::readVALID(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
-MCO_RET DatabaseRtapImpl::readVALIDACQ(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
-MCO_RET DatabaseRtapImpl::readVALIDCHANGE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
 MCO_RET DatabaseRtapImpl::readVAL_LABEL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
-MCO_RET DatabaseRtapImpl::readVALMANUAL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
 {
   MCO_RET rc = MCO_S_OK;
   return rc;

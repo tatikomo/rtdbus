@@ -1,4 +1,4 @@
-//  Многонитевой митатор Брокера
+//  Многонитевой имитатор Брокера
 //  Параметры командной строки
 //  1. Числовое значение количества нитей {1..10}, по-умолчанию 5.
 //
@@ -48,7 +48,7 @@ public:
         client_socket_.setsockopt(ZMQ_IDENTITY, identity, strlen(identity));
         client_socket_.connect(endpoint);
 
-        zmq::pollitem_t items[] = {{client_socket_, 0, ZMQ_POLLIN, 0}};
+        zmq::pollitem_t items[] = {{ (void*)client_socket_, 0, ZMQ_POLLIN, 0 }};
         int request_nbr = 0;
         try {
             while (!interrupt_broker) {

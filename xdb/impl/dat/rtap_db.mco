@@ -26,10 +26,10 @@
 #define s_tag       char<32>
 #define s_attname   char<16>
 // Для полей, содержащих UTF8, размер увеличен вдвое.
-#define s_label         char<80>
-#define s_dispatch      char<24>
-#define s_valabel       char<40>
-#define s_shortlabel    char<32>
+#define s_label         char<100>
+#define s_dispatch      char<60>
+#define s_valabel       char<80>
+#define s_shortlabel    char<80>
 #define s_statelabel    char<64>
 
 // All points
@@ -228,6 +228,22 @@ enum objclass_t {
     //HIST = 53,
     FIXEDPOINT   = 79,
     HIST = 80
+};
+
+// Константы значений атрибута VALIDCHANGE
+enum ValidChange {
+    VALIDCHANGE_VALID          = 1,
+    VALIDCHANGE_FORCED         = 2,
+    VALIDCHANGE_INHIB          = 3,
+    VALIDCHANGE_MANUAL         = 4,
+    VALIDCHANGE_END_INHIB      = 5,
+    VALIDCHANGE_END_FORCED     = 6,
+    VALIDCHANGE_INHIB_GBL      = 7,
+    VALIDCHANGE_END_INHIB_GBL  = 8,
+    VALIDCHANGE_NULL           = 9 /* VIDE */,
+    VALIDCHANGE_FAULT_GBL      = 10,
+    VALIDCHANGE_INHIB_SA       = 11,
+    VALIDCHANGE_END_INHIB_SA   = 12
 };
 
 /* ===================================================================== */
@@ -464,7 +480,7 @@ class XDBPoint
 
   /* Point common DYNAMIC part */
   /* Runtime values modification support */
-  uint1         VALIDCHANGE; /* CE trigger */
+  ValidChange   VALIDCHANGE = VALIDCHANGE_NULL; /* CE trigger */
   timestamp     DATEHOURM;   /* last modification time */
   timestamp     DATERTU;     /* last acquired time */
   Validity      VALIDITY     = INVALID;

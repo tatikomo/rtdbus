@@ -21,7 +21,7 @@ typedef enum
   rtE_XML_OPEN          = 8,
   rtE_XML_IMPORT        = 9,
   rtE_XML_EXPORT        = 10,
-  rtE_INCORRECT_DB_STATE    = 11,
+  rtE_INCORRECT_DB_STATE= 11,
   rtE_SNAPSHOT_WRITE    = 12,
   rtE_SNAPSHOT_READ     = 13,
   rtE_SNAPSHOT_NOT_EXIST= 14,
@@ -37,7 +37,10 @@ typedef enum
   rtE_POINT_WRITE       = 24,
   rtE_POINT_DELETE      = 25,
   rtE_ILLEGAL_PARAMETER_VALUE       = 26,
-  rtE_LAST              = 27
+  rtE_POINT_NOT_FOUND   = 27,
+  rtE_ATTR_NOT_FOUND    = 28,
+  rtE_ILLEGAL_TAG_NAME  = 29,
+  rtE_LAST              = 30
 } ErrorCode_t;
 
 class Error
@@ -68,11 +71,9 @@ class Error
     void clear() { m_error_code = rtE_NONE; };
     // Получить символьное описание ошибки
     const char* what() const;
+    static const char* what(int);
 
   private:
-    void init();
-    static bool  m_initialized;
-    static const char* m_error_descriptions[MaxErrorCode + 1];
     ErrorCode_t  m_error_code;
 };
 

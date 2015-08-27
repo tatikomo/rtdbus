@@ -39,7 +39,7 @@ int main(int argc, char** argv)
   command_name[0] = '\0';
   database_name[0] = '\0';
 
-  while ((opt = getopt (argc, argv, "vc:p:e:g")) != -1)
+  while ((opt = getopt (argc, argv, "vc:p:s:g")) != -1)
   {
      switch (opt)
      {
@@ -88,7 +88,7 @@ int main(int argc, char** argv)
           }
         break;
 
-        case 'e':
+        case 's':
           strncpy(database_name, optarg, SERVICE_NAME_MAXLEN);
           database_name[SERVICE_NAME_MAXLEN] = '\0';
           is_database_name_given = true;
@@ -111,7 +111,7 @@ int main(int argc, char** argv)
 //  if (false == is_command_name_given)
 //    LOG(ERROR) << "Command '-c <name>' not given";
 //  if (false == is_database_name_given)
-//    LOG(ERROR) << "Database '-e <name>' not given";
+//    LOG(ERROR) << "Database '-s <name>' not given";
   if (is_translation_given)
   {
     if (!is_file_path_given)
