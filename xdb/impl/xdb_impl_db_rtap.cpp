@@ -331,6 +331,46 @@ DatabaseRtapImpl::~DatabaseRtapImpl()
   delete m_impl;
 }
 
+// Получить название БДРВ
+const char* DatabaseRtapImpl::getName()
+{
+//  LOG(INFO) << "DatabaseRtapImpl::getName() impl=" << m_impl;
+  assert(m_impl);
+  return m_impl->getName();
+}
+
+// Вернуть последнюю ошибку
+const Error& DatabaseRtapImpl::getLastError() const
+{
+//  LOG(INFO) << "DatabaseRtapImpl::getLastError() impl=" << m_impl;
+  assert(m_impl);
+  return m_impl->getLastError();
+}
+
+// Вернуть признак отсутствия ошибки
+bool DatabaseRtapImpl::ifErrorOccured() const
+{
+//  LOG(INFO) << "DatabaseRtapImpl::ifErrorOccured() impl=" << m_impl;
+  assert(m_impl);
+  return m_impl->ifErrorOccured();
+}
+
+// Установить новое состояние ошибки
+void DatabaseRtapImpl::setError(ErrorCode_t code)
+{
+//  LOG(INFO) << "DatabaseRtapImpl::setError() impl=" << m_impl;
+  assert(m_impl);
+  m_impl->setError(code);
+}
+
+// Сбросить ошибку
+void DatabaseRtapImpl::clearError()
+{
+//  LOG(INFO) << "DatabaseRtapImpl::clearError() impl=" << m_impl;
+  assert(m_impl);
+  m_impl->clearError();
+}
+
 // =================================================================================
 bool DatabaseRtapImpl::Connect()
 {
@@ -1853,7 +1893,32 @@ MCO_RET DatabaseRtapImpl::createDATERTU(PointInDatabase* instance, rtap_db::Attr
 }
 
 
-MCO_RET DatabaseRtapImpl::createVALIDCHANGE(PointInDatabase* instance, rtap_db::Attrib& attr)
+  switch (vc)
+  {
+    case VALIDCHANGE_VALID:         attr_info->value.fixed.val_int8 = 1;  break;
+    case VALIDCHANGE_FORCED:        attr_info->value.fixed.val_int8 = 2;  break;
+    case VALIDCHANGE_INHIB:         attr_info->value.fixed.val_int8 = 3;  break;
+    case VALIDCHANGE_MANUAL:        attr_info->value.fixed.val_int8 = 4;  break;
+    case VALIDCHANGE_END_INHIB:     attr_info->value.fixed.val_int8 = 5;  break;
+    case VALIDCHANGE_END_FORCED:    attr_info->value.fixed.val_int8 = 6;  break;
+    case VALIDCHANGE_INHIB_GBL:     attr_info->value.fixed.val_int8 = 7;  break;
+    case VALIDCHANGE_END_INHIB_GBL: attr_info->value.fixed.val_int8 = 8;  break;
+    case VALIDCHANGE_NULL:          attr_info->value.fixed.val_int8 = 9;  break;
+    case VALIDCHANGE_FAULT_GBL:     attr_info->value.fixed.val_int8 = 10; break;
+    case VALIDCHANGE_INHIB_SA:      attr_info->value.fixed.val_int8 = 11; break;
+    case VALIDCHANGE_END_INHIB_SA:  attr_info->value.fixed.val_int8 = 12; break;
+    default: attr_info->value.fixed.val_int8 = 9;
+  }
+  attr_info->type = AttrTypeDescription[RTDB_ATT_IDX_VALIDCHANGE].type;
+
+#if defined VERBOSE
+  LOG(INFO) << attr_info->name << " = " << (unsigned int)attr_info->value.fixed.val_int8;
+#endif
+
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeVALIDCHANGE(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
 {
   uint1 value = atoi(attr.value().c_str());
   MCO_RET rc = instance->xdbpoint().VALIDCHANGE_put(value);

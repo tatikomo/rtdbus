@@ -4,6 +4,7 @@ SET(UNITTEST_DEV_INT  dev_int_test)
 SET(UNITTEST_DEV_RUN  dev_run_test)
 SET(UNITTEST_DATABASE db_test)
 SET(UNITTEST_MESSAGE  msg_test)
+SET(UNITTEST_METRICS  metric_test)
 
 SET (GTEST_VERSION "1.7.0")
 
@@ -51,6 +52,12 @@ link_directories(${XDB_BROKER_DIR})
 link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
+
+set (TEST_METRICS_SOURCES
+        ${GTEST_DIR}/include/gtest/gtest.h
+        ${TOOLS_DIR}/tool_metrics.cpp
+        ${TOOLS_DIR}/tool_metrics.hpp
+        ${TEST_RTDBUS_DIR}/metrics_unittest.cpp)
 
 set (TEST_DEV_INTERNAL_SOURCES
         ${GTEST_DIR}/include/gtest/gtest.h
@@ -225,6 +232,12 @@ set_source_files_properties(${XDB_IMPL_DIR}/dat/rtap_db-pskel.hxx
                             ${XDB_IMPL_DIR}/dat/rtap_db-pskel.cxx
                             PROPERTIES GENERATED 1)
 
+add_executable (${UNITTEST_METRICS} ${TEST_METRICS_SOURCES})
+add_definitions (-D_FUNCTIONAL_TEST)
+target_link_libraries(${UNITTEST_METRICS}
+    ${TOOLS_LIBRARY_NAME}
+    ${SYSTEM_EXTERNAL_LIBS})
+
 add_executable (${UNITTEST_DEV_INT} ${TEST_DEV_INTERNAL_SOURCES})
 add_definitions (-D_FUNCTIONAL_TEST)
 #add_definitions(-fpermissive)
@@ -269,3 +282,4 @@ add_test(NAME DATABASE_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXEC
 add_test(NAME DEV_INT_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_DEV_INT})
 add_test(NAME DEV_RUN_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_DEV_RUN})
 add_test(NAME MESSAGE_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_MESSAGE})
+add_test(NAME METRICS_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_METRICS})

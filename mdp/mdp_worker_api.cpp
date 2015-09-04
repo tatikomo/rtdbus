@@ -73,8 +73,8 @@ static void catch_signals ()
 }
 
 // Базовый экземпляр Службы
-mdwrk::mdwrk (std::string broker_endpoint, std::string service, int verbose) :
-  m_context(1),
+mdwrk::mdwrk (std::string broker_endpoint, std::string service, int verbose, int num_threads) :
+  m_context(num_threads),
   m_broker_endpoint(broker_endpoint),
   m_service(service),
   m_welcome_endpoint(NULL),
@@ -168,6 +168,8 @@ void mdwrk::send_to_broker(const char *command, const char* option, zmsg *_msg)
 void mdwrk::connect_to_broker ()
 {
     int linger = 0;
+    int send_timeout_msec = 1000000;
+    int recv_timeout_msec = 3000000;
 
     if (m_worker) {
         // Пересоздание сокета без обновления таблицы m_socket_items
@@ -177,7 +179,9 @@ void mdwrk::connect_to_broker ()
         delete m_worker;
     }
     m_worker = new zmq::socket_t (m_context, ZMQ_DEALER);
-    m_worker->setsockopt (ZMQ_LINGER, &linger, sizeof (linger));
+    m_worker->setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
+    m_worker->setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
+    m_worker->setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
     // GEV 22/01/2015: ZMQ_IDENTITY добавлено для теста
     m_worker->setsockopt (ZMQ_IDENTITY, m_service.c_str(), m_service.size());
     m_worker->connect (m_broker_endpoint.c_str());

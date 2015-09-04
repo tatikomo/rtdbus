@@ -174,16 +174,17 @@ class DatabaseRtapImpl
     bool Disconnect();
     // Текущее состояние БД
     DBState_t State();
+    // Название БДРВ
+    const char* getName();
 
     // Работа с ошибками
     // ====================================================
-    const char* getName() { return m_impl->getName(); };
     // Вернуть последнюю ошибку
-    const Error& getLastError() const  { return m_impl->getLastError(); };
+    const Error& getLastError() const;
     // Вернуть признак отсутствия ошибки
-    bool  ifErrorOccured() const { return m_impl->ifErrorOccured(); };
+    bool  ifErrorOccured() const;
     // Установить новое состояние ошибки
-    void  setError(ErrorCode_t code) { m_impl->setError(code); };
+    void  setError(ErrorCode_t code);
     // Сбросить ошибку
     void  clearError();
 

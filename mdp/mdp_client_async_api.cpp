@@ -103,6 +103,8 @@ mdcli::~mdcli ()
 void mdcli::connect_to_broker ()
 {
    int linger = 0;
+   int send_timeout_msec = 1000000; // 1 sec
+   int recv_timeout_msec = 3000000; // 3 sec
 
    if (m_client) {
      delete m_client;
@@ -110,7 +112,9 @@ void mdcli::connect_to_broker ()
 
    m_client = new zmq::socket_t (*m_context, ZMQ_DEALER);
    m_client->connect (m_broker.c_str());
-   m_client->setsockopt (ZMQ_LINGER, &linger, sizeof (linger));
+   m_client->setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
+   m_client->setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
+   m_client->setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
 
    // Заполним структуру для работы recv с помощью zmq::poll
    m_socket_items[BROKER_ITEM].socket = *m_client;
@@ -320,7 +324,9 @@ mdcli::send (std::string& service, zmsg *&request_p, ChannelType chan)
        request->push_front (const_cast<char*>(MDPC_CLIENT));     // frame 1
        request->push_front (const_cast<char*>(""));              // frame 0
 
+    LOG(INFO) << "client-api: before calling send";
        request->send (*m_client);
+    LOG(INFO) << "client-api: after calling send";
        status = true;
      break;
 
@@ -330,7 +336,9 @@ mdcli::send (std::string& service, zmsg *&request_p, ChannelType chan)
        //   Если было - отправить сообщение на ранее сохраненный прямой сокет.
        //   Если нет - подключить клиентский сокет к точке подключения данной Службы
        request->push_front (const_cast<char*>(""));
+    LOG(INFO) << "client-api: before calling direct send";
        status = send_direct (service, request);
+    LOG(INFO) << "client-api: after calling direct send";
      break;
 
      default:
@@ -412,6 +420,9 @@ mdcli::recv ()
 int mdcli::send_direct(std::string& service_name, zmsg *&request)
 {
   int status = 0;
+  int hwm = 100;
+  int send_timeout_msec = 1000000; // 1 sec
+  int recv_timeout_msec = 3000000; // 3 sec
   ServiceInfo* info;
 
   if (!service_info_by_name(service_name.c_str(), info))
@@ -446,6 +457,10 @@ int mdcli::send_direct(std::string& service_name, zmsg *&request)
         sprintf(identity, "%04X-%04X", within(0x10000), within(0x10000));
         printf("%s\n", identity);
         m_peer->setsockopt(ZMQ_IDENTITY, identity, strlen(identity));
+        m_peer->setsockopt(ZMQ_RCVHWM, &hwm, sizeof(hwm));
+        m_peer->setsockopt(ZMQ_SNDHWM, &hwm, sizeof(hwm));
+        m_peer->setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
+        m_peer->setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
       }
       m_peer->connect(info->endpoint);
 

@@ -19,13 +19,12 @@ extern "C" {
 
 namespace xdb {
 
-//class EnvironmentImpl;
 class DatabaseRtapImpl;
 
 class ConnectionImpl
 {
   public:
-    ConnectionImpl(DatabaseRtapImpl* /*EnvironmentImpl *env*/);
+    ConnectionImpl(DatabaseRtapImpl*);
    ~ConnectionImpl();
 
     mco_db_h handle();
@@ -49,8 +48,6 @@ class ConnectionImpl
 
   private:
     DISALLOW_COPY_AND_ASSIGN(ConnectionImpl);
-    // Среда подключения
-    // EnvironmentImpl *m_env_impl;
     // Имплементация Базы данных
     DatabaseRtapImpl *m_rtap_db_impl;
     // Хендл экземпляра подключения
