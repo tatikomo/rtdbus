@@ -53,6 +53,7 @@ RtConnection* RtEnvironment::getConnection()
     case DB_STATE_UNINITIALIZED:
         m_database->Init();
         // NB: break пропущен специально
+
     case DB_STATE_INITIALIZED:
     case DB_STATE_ATTACHED:
         // Если мы еще не подключились к БД, самое время сделать это сейчас
@@ -62,21 +63,17 @@ RtConnection* RtEnvironment::getConnection()
         // NB: break пропущен специально
 
     case DB_STATE_CONNECTED:
-//1        if (!m_conn)
-        {
-          // Каждый раз возвращать новое подключение, поскольку вызовы могут быть из разных нитей
-          // Каждая нить владеет одним подключением, и явно закрывает его при завершении работы.
-          m_conn = new RtConnection(m_database);
-          LOG(INFO) << "Created new RtConnection " << m_conn;
-        }
+        // Каждый раз возвращать новое подключение, поскольку вызовы могут быть из разных нитей
+        // Каждая нить владеет одним подключением, и явно закрывает его при завершении работы.
+        m_conn = new RtConnection(m_database);
+        LOG(INFO) << "Created new RtConnection " << m_conn;
     break;
 
-//    case DB_STATE_UNINITIALIZED:
     case DB_STATE_DISCONNECTED:
+    case DB_STATE_CLOSED:
         LOG(ERROR) << "Unable to get connection to disconnected or uninitialized database";
-
-    default:
-        LOG(WARNING) << "GEV: add state " << m_database->State() << " to processing";
+//1        m_conn = NULL;
+    break;
   }
 
   return m_conn;

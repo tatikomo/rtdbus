@@ -167,7 +167,8 @@ set (ENDPOINT_SINF_FRONTEND   "tcp://localhost:5556")
 set (ENDPOINT_SINF_PROXY_CTRL "tcp://localhost:5557")
 # Теневой сокет DiggerProxy <=> DiggerWorker
 # NB: транспорт inproc работает между нитями только в пределах единого контекста zmq
-set (ENDPOINT_SINF_BACKEND    "inproc://sinf_backend")
+set (ENDPOINT_SINF_DATA_BACKEND    "inproc://rtdb_digger_data")
+set (ENDPOINT_SINF_COMMAND_BACKEND    "inproc://rtdb_digger_command")
 set (ENDPOINT_IHM_FRONTEND    "tcp://localhost:5558")
 set (ENDPOINT_EXCH_FRONTEND   "tcp://localhost:5559")
 

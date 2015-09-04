@@ -26,7 +26,7 @@ class mdwrk
     static const int HeartbeatInterval = HEARTBEAT_PERIOD_MSEC;
     //  ---------------------------------------------------------------------
     //  Constructor
-    mdwrk (std::string, std::string, int);
+    mdwrk (std::string, std::string, int=0, int=1);
 
     //  ---------------------------------------------------------------------
     //  Destructor

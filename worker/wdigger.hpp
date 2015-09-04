@@ -9,13 +9,26 @@
 #include <functional>
 
 #include "config.h"
+#include "helper.hpp"
+// класс измерения производительности
+#include "tool_metrics.hpp"
+
 #include "mdp_worker_api.hpp"
 #include "mdp_zmsg.hpp"
 #include "msg_message.hpp"
 
 namespace mdp {
 
+// Количество семплов времени в DiggerWorker
+#define NUM_TIME_SAMPLES        25
+// Интервал времени в секундах между периодами выдачи
+// DiggerProbe команды POLL в адрес DiggerWorker
+#define POLLING_PROBE_PERIOD    7
+
 const char* const DIGGER_NAME = "digger";
+
+// Класс для измерения и хранения метрик производительности
+class Metrics;
 
 // Вторичный обработчик запросов:
 // Процедура:
@@ -27,10 +40,14 @@ const char* const DIGGER_NAME = "digger";
 class DiggerWorker
 {
   public:
+    static const int PollingTimeout;
+
     DiggerWorker(zmq::context_t&, int, xdb::RtEnvironment*);
     ~DiggerWorker();
     // Бесконечный цикл обработки запросов
     void work();
+    // Обработка запроса статистики
+    int probe(mdp::zmsg*);
     // Первичная обработка нового запроса
     int processing(mdp::zmsg*, std::string&);
     // Обработка запроса на чтение данных
@@ -46,8 +63,10 @@ class DiggerWorker
     // требуется для работы транспорта inproc
     zmq::context_t &m_context;
     zmq::socket_t   m_worker;
+    zmq::socket_t   m_commands;
     // Сигнал к завершению работы
     bool            m_interrupt;
+    pid_t           m_thread_id;
 
     // Объекты доступа к БДРВ
     // TODO: поведение БДРВ при одномоментном исполнении нескольких конкурирующих экземпляров?
@@ -56,25 +75,39 @@ class DiggerWorker
     // Фабрика сообщений
     msg::MessageFactory *m_message_factory;
 
+    // Сбор статистики
+    tool::Metrics *m_metric_center;
 };
 
 class DiggerProbe
 {
   public:
+    static const int kMaxThread;
+
     DiggerProbe(zmq::context_t&, xdb::RtEnvironment*);
    ~DiggerProbe();
     // Нить проверки состояния нитей DiggerWorker
     void work();
     void stop();
+    int  start_workers();
 
   private:
+    // Останов Обработчиков, вызывается неявно
+    void shutdown_workers();
+
     // Копия контекста основной нити Digger
     // требуется для работы транспорта inproc
     zmq::context_t  &m_context;
+    // Сокет для связи с экземплярами DiggerWorker
+    zmq::socket_t    m_worker_command_socket;
     // Признак продолжения работы нити Probe
     static bool      m_probe_continue;
     // Передача доступа в БДРВ
     xdb::RtEnvironment *m_environment;
+    // Локальный список экземпляров класса DiggerWorker
+    std::vector<DiggerWorker*> m_worker_list;
+    // Локальный список экземпляров нитей DiggerWorker::work()
+    std::vector<std::thread*>  m_worker_thread;
 };
 
 //  ---------------------------------------------------------------------
@@ -93,8 +126,6 @@ class DiggerProbe
 class DiggerProxy
 {
   public:
-    static const int kMaxThread;
-
     DiggerProxy(zmq::context_t&, xdb::RtEnvironment*);
    ~DiggerProxy();
 

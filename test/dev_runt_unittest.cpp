@@ -338,7 +338,6 @@ for (iteration = 0; iteration < 2; iteration++)
   LOG(INFO) << "Stop client thread";
   delete message_factory;
   delete client;
-#warning Удаление объекта client приводит к зависанию в деструкторе
   pthread_exit(NULL);
   return NULL; /* NOTREACHED */ 
 }

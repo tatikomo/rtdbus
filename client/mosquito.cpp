@@ -441,7 +441,7 @@ int main (int argc, char *argv [])
     }
   }
 
-  //1 google::InitGoogleLogging(argv[0]);
+  google::InitGoogleLogging(argv[0]);
 
   if (!is_service_name_given)
   {

@@ -56,6 +56,8 @@ set (WORKER_ECHO_SOURCES
 
 set (WORKER_DIGGER_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
+        ${TOOLS_DIR}/helper.hpp
+        ${TOOLS_DIR}/helper.cpp
         ${MDP_DIR}/mdp_zmsg.hpp
         ${MDP_DIR}/mdp_common.h
         ${MDP_DIR}/mdp_client_async_api.hpp

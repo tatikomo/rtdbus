@@ -326,6 +326,46 @@ DatabaseRtapImpl::~DatabaseRtapImpl()
   delete m_impl;
 }
 
+// Получить название БДРВ
+const char* DatabaseRtapImpl::getName()
+{
+//  LOG(INFO) << "DatabaseRtapImpl::getName() impl=" << m_impl;
+  assert(m_impl);
+  return m_impl->getName();
+}
+
+// Вернуть последнюю ошибку
+const Error& DatabaseRtapImpl::getLastError() const
+{
+//  LOG(INFO) << "DatabaseRtapImpl::getLastError() impl=" << m_impl;
+  assert(m_impl);
+  return m_impl->getLastError();
+}
+
+// Вернуть признак отсутствия ошибки
+bool DatabaseRtapImpl::ifErrorOccured() const
+{
+//  LOG(INFO) << "DatabaseRtapImpl::ifErrorOccured() impl=" << m_impl;
+  assert(m_impl);
+  return m_impl->ifErrorOccured();
+}
+
+// Установить новое состояние ошибки
+void DatabaseRtapImpl::setError(ErrorCode_t code)
+{
+//  LOG(INFO) << "DatabaseRtapImpl::setError() impl=" << m_impl;
+  assert(m_impl);
+  m_impl->setError(code);
+}
+
+// Сбросить ошибку
+void DatabaseRtapImpl::clearError()
+{
+//  LOG(INFO) << "DatabaseRtapImpl::clearError() impl=" << m_impl;
+  assert(m_impl);
+  m_impl->clearError();
+}
+
 // =================================================================================
 bool DatabaseRtapImpl::Connect()
 {
@@ -2277,7 +2317,9 @@ MCO_RET DatabaseRtapImpl::readVALIDCHANGE(mco_trans_h& t, rtap_db::XDBPoint& ins
   }
   attr_info->type = AttrTypeDescription[RTDB_ATT_IDX_VALIDCHANGE].type;
 
+#if defined VERBOSE
   LOG(INFO) << attr_info->name << " = " << (unsigned int)attr_info->value.fixed.val_int8;
+#endif
 
   return rc;
 }

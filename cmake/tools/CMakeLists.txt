@@ -15,6 +15,8 @@ set (TOOLS_SOURCES
         ${TOOLS_DIR}/helper.hpp
         ${TOOLS_DIR}/timer.cpp
         ${TOOLS_DIR}/timer.hpp
+        ${TOOLS_DIR}/tool_metrics.cpp
+        ${TOOLS_DIR}/tool_metrics.hpp
         )
 
 if (CMAKE_COMPILER_IS_GNUCC)
