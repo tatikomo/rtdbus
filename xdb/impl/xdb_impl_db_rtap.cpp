@@ -36,6 +36,7 @@ extern "C" {
 
 using namespace xdb;
 
+
 /* 
  * Включение динамически генерируемых определений 
  * структуры данных для внутренней базы RTAP.
@@ -54,12 +55,6 @@ mco_size_sig_t file_writer(void* stream_handle, const void* from, mco_size_t nby
 {
   return (mco_size_t) fwrite(from, 1, nbytes, (FILE*) stream_handle);
 }
-
-typedef union
-{
-  uint8 common;
-  uint4 part[2];
-} datetime_t;
 
 typedef MCO_RET (*schema_f) (mco_trans_h, void*, mco_stream_write);
 // ===============================================================================
@@ -216,7 +211,11 @@ MCO_RET PointInDatabase::create(mco_trans_h t)
         // Группа точек, имеющих и тревоги, и дискретные атрибуты значения 
         // ===============================================================
         case TS:  /* 0 */
-        case TSC: /* 4 */
+        //1 case TSC: /* 4 */
+        case VA:
+        case ATC:
+        case AUX1:
+        case AUX2:
         case AL:  /* 6 */
         case ICS: /* 7 */
             m_rc = assign(m_alarm);
@@ -241,10 +240,6 @@ MCO_RET PointInDatabase::create(mco_trans_h t)
             // Только создать аналоговую часть Точки, значения заполняются автоматными функциями
             m_rc = assign(m_ai);
             if (m_rc) { LOG(ERROR) << m_info->tag() << " assign analog information, rc="<<m_rc; break; }
-
-            // Характеристики текущего тревожного сигнала
-            m_rc = assign(m_alarm);
-            if (m_rc) { LOG(ERROR) << m_info->tag() << " assign alarm information, rc="<<m_rc; break; }
         break;
 
         // Группа точек, не имеющих атрибутов значений VAL|VALACQ
@@ -253,9 +248,9 @@ MCO_RET PointInDatabase::create(mco_trans_h t)
         case PIPE:/* 11 */
         case PIPELINE:/* 15 */
         case TL:  /* 16 */
-        case VA:  /* 19 */
+        //1 case VA:  /* 19 */
         case SC:  /* 20 */
-        case ATC: /* 21 */
+        //1 case ATC: /* 21 */
         case GRC: /* 22 */
         case SV:  /* 23 */
         case SDG: /* 24 */
@@ -272,8 +267,8 @@ MCO_RET PointInDatabase::create(mco_trans_h t)
         case DIR: /* 30 */
         case DIPL:/* 31 */
         case INVT:/* 37 */
-        case AUX1:/* 38 */
-        case AUX2:/* 39 */
+        //1 case AUX1:/* 38 */
+        //1 case AUX2:/* 39 */
         case SA:  /* 50 */
         case SITE:/* 45 */
         case FIXEDPOINT:  /* 79 */
@@ -284,6 +279,136 @@ MCO_RET PointInDatabase::create(mco_trans_h t)
         default:
         LOG(ERROR) << "Unsupported objclass " << objclass() << " for point " << tag();
       }
+  } while (false);
+
+  return m_rc;
+}
+
+// =================================================================================
+// Загрузить атрибуты данной Точки
+// Перечень читаемых атрибутов:
+// TAG
+// OBJCLASS
+// STATUS
+// VALID
+// VALID_ACQ
+// VAL
+// тревоги
+// паспортные данные
+//
+// В начальных данных есть тоько m_point_aid
+MCO_RET PointInDatabase::load(mco_trans_h t)
+{
+  // Учтено увеличение размера строки при хранении русского в UTF-8
+  char s_tag[sizeof(wchar_t)*TAG_NAME_MAXLEN + 1];
+  uint2 tag_size = sizeof(wchar_t)*TAG_NAME_MAXLEN;
+  Validity valid;
+
+  m_rc = MCO_S_OK;
+  m_point_aid = m_info->m_tag_id;
+
+  do
+  {
+    // 1. По заданному идентификатору найти экземпляр XDBpoint
+    m_rc = rtap_db::XDBPoint::autoid::find(t, m_point_aid, m_point);
+    if (m_rc) { LOG(ERROR) << "Can't locating point with id=" << m_info->tag_id() << ", rc=" << m_rc; break; }
+
+    m_rc = m_point.TAG_get(s_tag, tag_size);
+    if (m_rc) { LOG(ERROR) << "Reading tag for point id=" << m_info->tag_id() << ", rc=" << m_rc; break; }
+    m_info->m_tag.assign(s_tag);
+
+    m_rc = m_point.OBJCLASS_get(m_objclass);
+    if (m_rc) { LOG(ERROR) << "Reading objclass for point '" << m_info->tag() << "', rc=" << m_rc; break; }
+
+//    m_rc = m_point.STATUS_get();
+//    if (m_rc) { LOG(ERROR) << "Reading '"<< m_info->tag()<<"."<<RTDB_ATT_STATUS<<"', rc=" << m_rc; break; }
+
+    m_rc = m_point.passport_ref_get(m_passport_aid);
+    if (m_rc) { LOG(ERROR) << "Reading passport info '" << m_info->tag() << "', rc=" << m_rc; break; }
+
+    m_rc = m_point.VALIDITY_get(valid);
+    if (m_rc) { LOG(ERROR) << "Reading '"<< m_info->tag()<<"."<<RTDB_ATT_VALID<<"', rc=" << m_rc; break; }
+
+//    m_rc = m_point.VALIDACQ_get();
+//    if (m_rc) { LOG(ERROR) << "Reading '"<< m_info->tag()<<"."<<RTDB_ATT_VALIDACQ<<"', rc=" << m_rc; break; }
+
+    m_rc = m_point.alarm_read(m_alarm);
+    if (m_rc) { LOG(ERROR) << "Reading alarm info '"<< m_info->tag()<<", rc=" << m_rc; break; }
+
+    switch (m_objclass)
+    {
+        // Группа точек, имеющих и тревоги, и дискретные атрибуты значения 
+        // ===============================================================
+        case TS:  /* 0 */
+        //1 case TSC: /* 4 */
+        case VA:
+        case ATC:
+        case AUX1:
+        case AUX2:
+        case AL:  /* 6 */
+        case ICS: /* 7 */
+            m_rc = m_point.alarm_read(m_alarm);
+            if (m_rc) { LOG(ERROR) << m_info->tag() << " assign alarm information, rc="<<m_rc; break; }
+        // Группа точек, имеющих только дискретные атрибуты значения 
+        // =========================================================
+        case TSA: /* 3 */ // Вынесен ниже остальных, поскольку не имеет Alarm
+            // Только создать дискретную часть Точки, значения заполняются автоматными функциями
+            m_rc = m_point.di_read(m_di);
+            if (m_rc) { LOG(ERROR) << m_info->tag() << " assign discrete information, rc="<<m_rc; break; }
+        break;
+
+        // Группа точек, имеющих и тревоги, и аналоговые атрибуты значения
+        // ===============================================================
+        case TM:  /* 1 */
+        case ICM: /* 8 */
+            m_rc = m_point.alarm_read(m_alarm);
+            if (m_rc) { LOG(ERROR) << m_info->tag() << " assign alarm information, rc="<<m_rc; break; }
+        // Группа точек, имеющих только аналоговые атрибуты значения
+        // =========================================================
+        case TR:  /* 2 */ // Вынесен ниже остальных, поскольку не имеет Alarm
+            // Только создать аналоговую часть Точки, значения заполняются автоматными функциями
+            m_rc = m_point.ai_read(m_ai);
+            if (m_rc) { LOG(ERROR) << m_info->tag() << " assign analog information, rc="<<m_rc; break; }
+        break;
+
+        // Группа точек, не имеющих атрибутов значений VAL|VALACQ
+        // ======================================================
+        case TC:  /* 5 */
+        case PIPE:/* 11 */
+        case PIPELINE:/* 15 */
+        case TL:  /* 16 */
+        //1 case VA:  /* 19 */
+        case SC:  /* 20 */
+        //1 case ATC: /* 21 */
+        case GRC: /* 22 */
+        case SV:  /* 23 */
+        case SDG: /* 24 */
+        case RGA: /* 25 */
+        case SSDG:/* 26 */
+        case BRG: /* 27 */
+        case SCP: /* 28 */
+        case STG: /* 29 */
+        case METLINE: /* 32 */
+        case ESDG:/* 33 */
+        case SVLINE:  /* 34 */
+        case SCPLINE: /* 35 */
+        case TLLINE:  /* 36 */
+        case DIR: /* 30 */
+        case DIPL:/* 31 */
+        case INVT:/* 37 */
+        //1 case AUX1:/* 38 */
+        //1 case AUX2:/* 39 */
+        case SA:  /* 50 */
+        case SITE:/* 45 */
+        case FIXEDPOINT:  /* 79 */
+        case HIST: /* 80 */
+        // Хватит паспорта и общей части атрибутов Точки
+        break;
+
+        default:
+        LOG(ERROR) << "Unsupported objclass " << m_info->objclass() << " for point " << m_info->tag();
+    }
+
   } while (false);
 
   return m_rc;
@@ -590,7 +715,9 @@ const Error& DatabaseRtapImpl::read(mco_db_h& handle, xdb::AttributeInfo_t* info
   MCO_RET rc = MCO_S_OK;
 
   assert(info);
-  m_impl->clearError();
+  setError(rtE_RUNTIME_ERROR);
+
+  info->quality = xdb::ATTR_NOT_FOUND;
 
   std::string::size_type point_pos = info->name.find(".");
   if (point_pos != std::string::npos)
@@ -599,8 +726,7 @@ const Error& DatabaseRtapImpl::read(mco_db_h& handle, xdb::AttributeInfo_t* info
     std::string point_name = info->name.substr(0, point_pos);
     std::string attr_name = info->name.substr(point_pos + 1, info->name.size());
 
-    LOG(INFO) << "Read atribute \"" << attr_name << "\" for point \"" << point_name << "\"";
-
+//    LOG(INFO) << "Read atribute \"" << attr_name << "\" for point \"" << point_name << "\"";
     do
     {
       // TODO: объединить с аналогичной функцией нахождения точки locate() по имени в xdb_impl_connection.cpp
@@ -608,10 +734,8 @@ const Error& DatabaseRtapImpl::read(mco_db_h& handle, xdb::AttributeInfo_t* info
       if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
 
       rc = rtap_db::XDBPoint::SK_by_tag::find(t, point_name.c_str(), point_name.size(), instance);
-      if (rc) { LOG(ERROR) << "Locating point '" << point_name << "', rc=" << rc; break; }
+      if (rc) { LOG(ERROR) << "Locating point '" << point_name << "', rc=" << rc; setError(rtE_POINT_NOT_FOUND); break; }
 
-      LOG(INFO) << "We found point \"" << point_name;
-      
       func_found = false;
       it = m_attr_reading_func_map.find(attr_name);
       if (it != m_attr_reading_func_map.end())
@@ -622,6 +746,7 @@ const Error& DatabaseRtapImpl::read(mco_db_h& handle, xdb::AttributeInfo_t* info
           if (rc)
           {
             LOG(ERROR) << "Reading " << point_name << "." << attr_name;
+            setError(rtE_ILLEGAL_PARAMETER_VALUE);
             break;
           }
       }
@@ -632,6 +757,7 @@ const Error& DatabaseRtapImpl::read(mco_db_h& handle, xdb::AttributeInfo_t* info
           // NB: поведение по умолчанию - пропустить атрибут, выдав предупреждение
           LOG(WARNING) << "Function for reading attribute '" << attr_name 
                        << "' doesn't found";
+          setError(rtE_ATTR_NOT_FOUND);
       }
       else if (rc)
       {
@@ -643,6 +769,10 @@ const Error& DatabaseRtapImpl::read(mco_db_h& handle, xdb::AttributeInfo_t* info
       rc = mco_trans_commit(t);
       if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; break; }
 
+      // Качество атрибута хорошее (без ошибок)
+      info->quality = xdb::ATTR_OK;
+      clearError();
+
     } while(false);
 
     if(rc)
@@ -650,10 +780,425 @@ const Error& DatabaseRtapImpl::read(mco_db_h& handle, xdb::AttributeInfo_t* info
   }
   else
   {
-    LOG(ERROR) << "Tag name doesn't contain attribute: " << info->name;
+    LOG(ERROR) << "Tag doesn't contain attribute: " << info->name;
+    setError(rtE_ILLEGAL_TAG_NAME);
   }
 
   return getLastError();
+}
+
+// ====================================================
+// Чтение данных набора Точек из заданной группы
+// Для определения количества точек в группе вызвать функцию с size=0
+const Error& DatabaseRtapImpl::read(mco_db_h& handle, std::string& sbs_name, int* p_size, xdb::SubscriptionPoints_t* points_list)
+{
+  mco_trans_h t;
+  MCO_RET rc;
+  // Элементарная запись о связи идентификатора группы и точки
+  rtap_db::SBS_GROUPS_ITEM sbs_item_instance;
+  SBS_GROUPS_ITEM sbs_item_handle;
+  // Элементарная запись о состоянии данной группы подписки
+  rtap_db::SBS_GROUPS_STAT sbs_stat_instance;
+  autoid_t  point_aid;
+  autoid_t  sbs_aid;
+  int       compare_result = 0;
+  int       num_points = 0;
+  // Набор атрибутов для одного элемента группы подписки
+  PointDescription_t* point_info = NULL;
+  mco_cursor_t csr;
+
+#warning "Продолжить здесь 2015-09-08"
+  assert(p_size);
+
+  LOG(INFO) << "Read values of SBS GROUP '" << sbs_name << "'";
+
+  setError(rtE_RUNTIME_ERROR);
+
+  do
+  {
+    rc = mco_trans_start(handle, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+    if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
+
+    // Проверить, существует ли уже группа с таким названием?
+    rc = rtap_db::SBS_GROUPS_STAT::PK_by_name::find(t, sbs_name.c_str(), sbs_name.size(), sbs_stat_instance);
+    if (rc && rc != MCO_S_NOTFOUND)
+       { LOG(ERROR) << "Locating SBS " << sbs_name << ", rc="<<rc; break; }
+
+    if (rc != MCO_S_NOTFOUND)
+    {
+      // Группа найдена, получить ее идентификатор
+      rc = sbs_stat_instance.autoid_get(sbs_aid);
+      if (rc) { LOG(ERROR) << "Get autoid for SBS " << sbs_name << ", rc="<<rc; break; }
+
+      // 1. Получить список элементов данной группы из SBS_GROUPS_ITEM
+      rc = SBS_GROUPS_ITEM_PK_by_group_id_index_cursor(t, &csr);
+      if (MCO_S_OK == rc)
+      {
+        rc = SBS_GROUPS_ITEM_PK_by_group_id_search(t, &csr, MCO_EQ, sbs_aid);
+        if (rc && (rc != MCO_S_NOTFOUND)) { LOG(ERROR) << "Can't find items in SBS_GROUPS_ITEM with id="<<sbs_aid<<", rc="<<rc; break; }
+
+        if (rc != MCO_S_NOTFOUND)
+        {
+            // Прочитать очередной экземпляр SBS_GROUPS_ITEM
+            rc = mco_cursor_first(t, &csr);
+            if (rc) { LOG(ERROR) << "Unable to get first item from SBS_GROUPS_ITEM with id="<<sbs_aid<<", rc=" << rc; break; }
+
+            while (MCO_S_OK == rc)
+            {
+              rc = SBS_GROUPS_ITEM_PK_by_group_id_compare(t, &csr, sbs_aid, &compare_result);
+              if (rc) { LOG(ERROR) << "Unable to compare current item from SBS_GROUPS_ITEM with id="<<sbs_aid<<", rc=" << rc; break; }
+
+              if (0 == compare_result) // Найден элемент, принадлежащий нужной группе
+              {
+                // Если был передан нулевой размер выходного массива
+                if (!*p_size)
+                {
+                  // То считаем количество элементов
+                  num_points++;
+                }
+                else // Иначе читаем фактические данные
+                {
+                  rc = SBS_GROUPS_ITEM_from_cursor(t, &csr, &sbs_item_handle);
+                  if (rc) { LOG(ERROR) << "Unable to get current item from SBS_GROUPS_ITEM with id="<<sbs_aid<<", rc=" << rc; break; }
+
+                  rc = SBS_GROUPS_ITEM_tag_id_get(&sbs_item_handle, &point_aid);
+                  if (rc) { LOG(ERROR) << "Unable to get point id in SBS_GROUPS_ITEM, rc=" << rc; break; }
+
+                  point_info = new xdb::PointDescription_t;
+                  // По заданному id Точки прочитать значения её значимых для группы подписки атрибутов
+                  rc = LoadPointInfo(handle, t, point_aid, point_info);
+
+                  // TODO: что делать в случае единичной ошибки чтения? продолжить или прервать работу?
+                  if (rc)
+                  {
+                    LOG(ERROR) << "Unable to load attributes for point id="<<point_aid<<", rc=" << rc;
+                    delete point_info;
+                    break;
+                  }
+
+                  points_list->push_back(point_info);
+
+                  // С этим атрибутом закончили, переходим к следующему
+                  num_points++;
+                }
+
+              } // конец проверки, принадлежит ли нужной группе очередной элемент курсора
+
+              rc = mco_cursor_next(t, &csr);
+
+            } // конец цикла проверки всех элементов в SBS_GROUPS_ITEM
+        } // конец проверки на существование группы с заданным именем
+
+        rc = mco_cursor_close(t, &csr);
+        if (rc) { LOG(ERROR) << "Unable to close SBS_GROUPS_ITEM cursor, rc=" << rc; break; }
+      }
+
+      // Если был запрос на получение количества элементов в группе, передадим подсчитанную цифру
+      if (!*p_size)
+        *p_size = num_points;
+
+      // 2. SBS_GROUPS_STAT
+      rc = rtap_db::SBS_GROUPS_STAT::autoid::find(t, sbs_aid, sbs_stat_instance);
+      if (rc) { LOG(ERROR) << "Locating SBS_STAT " << sbs_name << ", rc="<<rc; break; }
+
+      rc = mco_trans_commit(t);
+      if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; break; }
+
+      // Все ОК
+      clearError();
+    }
+    else
+    {
+      LOG(WARNING) << "Try to read unexistant subscription group: " << sbs_name;
+    }
+
+  } while (false);
+
+  if (rc)
+    mco_trans_rollback(t);
+
+  return getLastError();
+}
+
+// По заданной своим id XDBPoint создать и заполнить структуру AttributeInfo_t
+MCO_RET DatabaseRtapImpl::LoadPointInfo(mco_db_h& handle, mco_trans_h t, autoid_t point_aid, xdb::PointDescription_t* point_info)
+{
+  // Учтено увеличение размера строки при хранении русского в UTF-8
+  char s_tag[sizeof(wchar_t)*TAG_NAME_MAXLEN + 1];
+  uint2 tag_size = sizeof(wchar_t)*TAG_NAME_MAXLEN;
+  rtap_db::XDBPoint point;
+  // Аналоговая часть Точки
+  rtap_db::AnalogInfoType   ai;
+  // Дискретная часть Точки
+  rtap_db::DiscreteInfoType di;
+  // Тревожная часть :)
+  rtap_db::AlarmItem        alarm;
+  bool read_func_found;
+  autoid_t aid;
+  objclass_t objclass;
+  PointStatus status;
+  AttributeInfo_t attr_info;
+  AttrProcessingFuncMapIterator_t it;
+  MCO_RET rc;
+
+  rc = MCO_S_OK;
+
+  do
+  {
+    // 1. По заданному идентификатору найти экземпляр XDBpoint
+    rc = rtap_db::XDBPoint::autoid::find(t, point_aid, point);
+    if (rc) { LOG(ERROR) << "Can't locating point with id=" << point_aid << ", rc=" << rc; break; }
+
+    // 2. Прочитать тег и класс точки
+    rc = point.TAG_get(s_tag, tag_size);
+    if (rc) { LOG(ERROR) << "Reading tag for point id=" << point_aid << ", rc=" << rc; break; }
+    point_info->tag.assign(s_tag);
+
+    rc = point.OBJCLASS_get(objclass);
+    if (rc) { LOG(ERROR) << "Reading OBJCLASS for point '" << s_tag << "', rc=" << rc; break; }
+    point_info->objclass = objclass;
+
+    // 3. Прочитать все участвующие в подписке атрибуты
+    for(int idx = 2; idx < 6; idx++)
+    {
+      read_func_found = false;
+      it = m_attr_reading_func_map.find(attributes_for_subscription_group[idx]);
+      if (it != m_attr_reading_func_map.end())
+      {
+          read_func_found = true;
+          // Вызвать функцию чтения атрибута
+          rc = (this->*(it->second))(t, point, &attr_info);
+          if (rc)
+          {
+            LOG(ERROR) << "Reading " << s_tag << "." << attributes_for_subscription_group[idx];
+            setError(rtE_ILLEGAL_PARAMETER_VALUE);
+            break;
+          }
+          else
+          {
+            point_info->attributes.insert(AttributeMapPair_t(attributes_for_subscription_group[idx], attr_info));
+          }
+      }
+      else
+      {
+        LOG(ERROR) << "Point '"<<s_tag<<"' doesn't have necessary attribute "<<attributes_for_subscription_group[idx];
+      }
+    }
+  } while(false);
+
+#if 0
+    rc = point.STATUS_get(status);
+    if (rc) { LOG(ERROR) << "Reading objclass for point '" << point_info->tag << "', rc=" << rc; break; }
+    point_info->status = status;
+
+    switch (objclass)
+    {
+        // Группа точек, имеющих и тревоги, и дискретные атрибуты значения 
+        // ===============================================================
+        case TS:  /* 0 */
+        case TSC: /* 4 */
+        case AL:  /* 6 */
+        case ICS: /* 7 */
+            rc = point.alarm_read(alarm);
+            if (rc)
+            {
+              LOG(ERROR) << point_info->tag << " read alarm information, rc="<<rc;
+              break;
+            }
+            // Прочитать 4 атрибута:
+            // а) ALARMBEGIN
+            attr_info.name.assign(RTDB_ATT_ALARMBEGIN);
+            attr_info.type = AttrTypeDescription[RTDB_ATT_IDX_ALARMBEGIN].type;
+            attr_info.quality = ATTR_OK;
+            point_info->attributes.insert(AttributeMapPair_t(RTDB_ATT_ALARMBEGIN, attr_info));
+            // б) ALARMBEGINACK
+            attr_info.name.assign(RTDB_ATT_ALARMBEGINACK);
+            attr_info.type = AttrTypeDescription[RTDB_ATT_IDX_ALARMBEGINACK].type;
+            attr_info.quality = ATTR_OK;
+            point_info->attributes.insert(AttributeMapPair_t(RTDB_ATT_ALARMBEGINACK, attr_info));
+            // в) ALARMENDACK
+            attr_info.name.assign(RTDB_ATT_ALARMENDACK);
+            attr_info.type = AttrTypeDescription[RTDB_ATT_IDX_ALARMENDACK].type;
+            attr_info.quality = ATTR_OK;
+            point_info->attributes.insert(AttributeMapPair_t(RTDB_ATT_ALARMENDACK, attr_info));
+            // г) ALARMSYNTH
+            attr_info.name.assign(RTDB_ATT_ALARMSYNTH);
+            attr_info.type = AttrTypeDescription[RTDB_ATT_IDX_ALARMSYNTH].type;
+            attr_info.quality = ATTR_OK;
+            point_info->attributes.insert(AttributeMapPair_t(RTDB_ATT_ALARMSYNTH, attr_info));
+
+        // Группа точек, имеющих только дискретные атрибуты значения 
+        // =========================================================
+        case TSA: /* 3 */ // Вынесен ниже остальных, поскольку не имеет Alarm
+            // Только создать дискретную часть Точки, значения заполняются автоматными функциями
+            rc = point.di_read(di);
+            if (rc) { LOG(ERROR) << point_info->tag << " assign discrete information, rc="<<rc; break; }
+        break;
+
+        // Группа точек, имеющих и тревоги, и аналоговые атрибуты значения
+        // ===============================================================
+        case TM:  /* 1 */
+        case ICM: /* 8 */
+            rc = point.alarm_read(alarm);
+            if (rc) { LOG(ERROR) << point_info->tag << " assign alarm information, rc="<<rc; break; }
+        // Группа точек, имеющих только аналоговые атрибуты значения
+        // =========================================================
+        case TR:  /* 2 */ // Вынесен ниже остальных, поскольку не имеет Alarm
+            // Только создать аналоговую часть Точки, значения заполняются автоматными функциями
+            rc = point.ai_read(ai);
+            if (rc) { LOG(ERROR) << point_info->tag << " assign analog information, rc="<<rc; break; }
+        break;
+
+        // Группа точек, не имеющих атрибутов значений VAL|VALACQ
+        // ======================================================
+        case TC:  /* 5 */
+        case PIPE:/* 11 */
+        case PIPELINE:/* 15 */
+        case TL:  /* 16 */
+        case VA:  /* 19 */
+        case SC:  /* 20 */
+        case ATC: /* 21 */
+        case GRC: /* 22 */
+        case SV:  /* 23 */
+        case SDG: /* 24 */
+        case RGA: /* 25 */
+        case SSDG:/* 26 */
+        case BRG: /* 27 */
+        case SCP: /* 28 */
+        case STG: /* 29 */
+        case METLINE: /* 32 */
+        case ESDG:/* 33 */
+        case SVLINE:  /* 34 */
+        case SCPLINE: /* 35 */
+        case TLLINE:  /* 36 */
+        case DIR: /* 30 */
+        case DIPL:/* 31 */
+        case INVT:/* 37 */
+        case AUX1:/* 38 */
+        case AUX2:/* 39 */
+        case SA:  /* 50 */
+        case SITE:/* 45 */
+        case FIXEDPOINT:  /* 79 */
+        case HIST: /* 80 */
+        // Хватит паспорта и общей части атрибутов Точки
+        break;
+
+        default:
+        LOG(ERROR) << "Unsupported objclass " << point_info->objclass << " for point " << point_info->tag;
+    }
+
+  } while(false);
+  
+#endif
+
+
+
+
+
+
+
+#if 0
+  do
+  {
+    // 1. По заданному идентификатору найти экземпляр XDBpoint
+    rc = rtap_db::XDBPoint::autoid::find(t, point_aid, point);
+    if (rc) { LOG(ERROR) << "Can't locating point with id=" << info->tag_id() << ", rc=" << rc; break; }
+
+    rc = point.TAG_get(s_tag, tag_size);
+    if (rc) { LOG(ERROR) << "Reading tag for point id=" << info->tag_id() << ", rc=" << rc; break; }
+    info->tag.assign(s_tag);
+
+    rc = point.OBJCLASS_get(objclass);
+    if (rc) { LOG(ERROR) << "Reading objclass for point '" << info->tag() << "', rc=" << rc; break; }
+
+    rc = readSTATUS(t, point, NULL);
+    if (rc) { LOG(ERROR) << "Reading '"<< info->tag()<<"."<<RTDB_ATT_STATUS<<"', rc=" << rc; break; }
+
+    rc = point.passport_ref_get(passport_aid);
+    if (rc) { LOG(ERROR) << "Reading passport info '" << info->tag() << "', rc=" << rc; break; }
+
+    rc = readVALID(t, point, NULL);
+    if (rc) { LOG(ERROR) << "Reading '"<< info->tag()<<"."<<RTDB_ATT_VALID<<"', rc=" << rc; break; }
+
+    rc = readVALIDACQ(t, point, NULL);
+    if (rc) { LOG(ERROR) << "Reading '"<< info->tag()<<"."<<RTDB_ATT_VALIDACQ<<"', rc=" << rc; break; }
+
+    rc = point.alarm_read(alarm);
+    if (rc) { LOG(ERROR) << "Reading alarm info '"<< info->tag()<<", rc=" << rc; break; }
+
+    switch (objclass)
+    {
+        // Группа точек, имеющих и тревоги, и дискретные атрибуты значения 
+        // ===============================================================
+        case TS:  /* 0 */
+        case TSC: /* 4 */
+        case AL:  /* 6 */
+        case ICS: /* 7 */
+            rc = point.alarm_read(alarm);
+            if (rc) { LOG(ERROR) << info->tag() << " assign alarm information, rc="<<rc; break; }
+        // Группа точек, имеющих только дискретные атрибуты значения 
+        // =========================================================
+        case TSA: /* 3 */ // Вынесен ниже остальных, поскольку не имеет Alarm
+            // Только создать дискретную часть Точки, значения заполняются автоматными функциями
+            rc = point.di_read(di);
+            if (rc) { LOG(ERROR) << info->tag() << " assign discrete information, rc="<<rc; break; }
+        break;
+
+        // Группа точек, имеющих и тревоги, и аналоговые атрибуты значения
+        // ===============================================================
+        case TM:  /* 1 */
+        case ICM: /* 8 */
+            rc = point.alarm_read(alarm);
+            if (rc) { LOG(ERROR) << info->tag() << " assign alarm information, rc="<<rc; break; }
+        // Группа точек, имеющих только аналоговые атрибуты значения
+        // =========================================================
+        case TR:  /* 2 */ // Вынесен ниже остальных, поскольку не имеет Alarm
+            // Только создать аналоговую часть Точки, значения заполняются автоматными функциями
+            rc = point.ai_read(ai);
+            if (rc) { LOG(ERROR) << info->tag() << " assign analog information, rc="<<rc; break; }
+        break;
+
+        // Группа точек, не имеющих атрибутов значений VAL|VALACQ
+        // ======================================================
+        case TC:  /* 5 */
+        case PIPE:/* 11 */
+        case PIPELINE:/* 15 */
+        case TL:  /* 16 */
+        case VA:  /* 19 */
+        case SC:  /* 20 */
+        case ATC: /* 21 */
+        case GRC: /* 22 */
+        case SV:  /* 23 */
+        case SDG: /* 24 */
+        case RGA: /* 25 */
+        case SSDG:/* 26 */
+        case BRG: /* 27 */
+        case SCP: /* 28 */
+        case STG: /* 29 */
+        case METLINE: /* 32 */
+        case ESDG:/* 33 */
+        case SVLINE:  /* 34 */
+        case SCPLINE: /* 35 */
+        case TLLINE:  /* 36 */
+        case DIR: /* 30 */
+        case DIPL:/* 31 */
+        case INVT:/* 37 */
+        case AUX1:/* 38 */
+        case AUX2:/* 39 */
+        case SA:  /* 50 */
+        case SITE:/* 45 */
+        case FIXEDPOINT:  /* 79 */
+        case HIST: /* 80 */
+        // Хватит паспорта и общей части атрибутов Точки
+        break;
+
+        default:
+        LOG(ERROR) << "Unsupported objclass " << info->objclass() << " for point " << info->tag();
+    }
+
+  } while (false);
+#endif
+  return rc;
 }
 
 // ====================================================
@@ -672,6 +1217,8 @@ const Error& DatabaseRtapImpl::create(mco_db_h& handler, rtap_db::Point& info)
   MCO_RET     rc = MCO_S_OK;
   mco_trans_h t;
   PointInDatabase *point;
+
+  setError(rtE_RUNTIME_ERROR);
 
   do
   {
@@ -717,6 +1264,8 @@ const Error& DatabaseRtapImpl::create(mco_db_h& handler, rtap_db::Point& info)
 
     rc = mco_trans_commit(t);
     if (rc) { LOG(ERROR) << "Commitment '" << info.tag() << "' transaction, rc=" << rc; }
+
+    clearError();
   }
   while(false);
 
@@ -725,7 +1274,7 @@ const Error& DatabaseRtapImpl::create(mco_db_h& handler, rtap_db::Point& info)
 
   delete point;
 
-  return m_impl->getLastError();
+  return getLastError();
 }
 
 // =================================================================================
@@ -793,13 +1342,23 @@ const Error& DatabaseRtapImpl::Config(mco_db_h& handler, rtDbCq& info)
 {
   MCO_RET rc;
 
-  m_impl->clearError();
+  clearError();
 
   switch(info.action.config)
   {
     case rtCONFIG_ADD_TABLE:
         rc = createTable(handler, info);
-        if (rc) { LOG(ERROR) << "Table creation facility"; }
+        if (rc) { LOG(ERROR) << "Subscription group creation facility"; }
+        break;
+
+    case rtCONFIG_ADD_GROUP_SBS:
+        rc = createGroup(handler, info);
+        if (rc) { LOG(ERROR) << "Subscription group creation facility"; }
+        break;
+
+    case rtCONFIG_DEL_GROUP_SBS:
+        rc = deleteGroup(handler, info);
+        if (rc) { LOG(ERROR) << "Subscription group deletion facility"; }
         break;
 
     default:
@@ -808,6 +1367,248 @@ const Error& DatabaseRtapImpl::Config(mco_db_h& handler, rtDbCq& info)
 
   return getLastError();
 }
+
+// =================================================================================
+// Интерфейс создания группы атрибутов под заданным именем
+MCO_RET DatabaseRtapImpl::createGroup(mco_db_h& handler, rtDbCq& info)
+{
+  MCO_RET rc = MCO_S_NOTFOUND;
+  // Экземпляр точки, попавшей в данную группу
+  rtap_db::XDBPoint point_instance;
+  // Элементарная запись о связи идентификатора группы и точки
+  rtap_db::SBS_GROUPS_ITEM sbs_item_instance;
+  // Элементарная запись о состоянии данной группы подписки
+  rtap_db::SBS_GROUPS_STAT sbs_stat_instance;
+  std::string* sbs_name = static_cast<std::string*>(info.buffer);
+  mco_trans_h t;
+  int idx = 0;
+  HistoryState state = SUSPEND;
+  autoid_t  point_aid;
+  autoid_t  sbs_aid;
+
+  assert(info.action.config == rtCONFIG_ADD_GROUP_SBS);
+//  assert(info.addrCnt);
+  assert(info.tags);
+
+  LOG(INFO) << "Create SBS GROUP '"<<*sbs_name<<"' with "<<info.tags->size()<<" elements";
+
+  setError(rtE_RUNTIME_ERROR);
+  do
+  {
+    rc = mco_trans_start(handler, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+    if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
+
+    // Проверить, существует ли уже группа с таким названием?
+    rc = rtap_db::SBS_GROUPS_STAT::PK_by_name::find(t, sbs_name->c_str(), sbs_name->size(), sbs_stat_instance);
+    if (rc && rc != MCO_S_NOTFOUND)
+       { LOG(ERROR) << "Locating SBS '" << *sbs_name << "', rc="<<rc; break; }
+    if (rc == MCO_S_NOTFOUND)
+    {
+        // Не было группы с заданным именем
+        // 1. Создать запись в SBS_GROUPS_STAT
+        rc = sbs_stat_instance.create(t);
+        if (rc) { LOG(ERROR) << "Creating SBS_STAT '" << *sbs_name << "', rc="<<rc; break; }
+        rc = sbs_stat_instance.name_put(sbs_name->c_str(), static_cast<uint2>(sbs_name->size()));
+        if (rc) { LOG(ERROR) << "Set name '" << *sbs_name << "' in SBS_STAT, rc="<<rc; break; }
+        rc = sbs_stat_instance.state_put(state);
+        if (rc) { LOG(ERROR) << "Set name '" << *sbs_name << "' in SBS_STAT, rc="<<rc; break; }
+        // Проверить возможность создания - страховка от обнаружения ошибки на более поздней стадии
+        rc = sbs_stat_instance.checkpoint();
+        if (rc) { LOG(ERROR) << "Checkout of SBS_STAT '" << *sbs_name << "', rc="<<rc; break; }
+
+        // Получить ее идентификатор
+        rc = sbs_stat_instance.autoid_get(sbs_aid);
+        if (rc) { LOG(ERROR) << "Get autoid for SBS '" << *sbs_name << "', rc="<<rc; break; }
+
+        LOG(INFO) << "Insert item with group_id="<<sbs_aid<<" in SBS_GROUPS_STAT as '"<<*sbs_name<<"'";
+
+        // Найти и запомнить идентификаторы тегов элементов группы
+        for (std::vector<std::string>::iterator it = info.tags->begin();
+             it < info.tags->end();
+             it++)
+        {
+          // 2. Создать запись в таблице SBS_GROUPS_ITEM
+          rc = sbs_item_instance.create(t);
+          if (rc) { LOG(ERROR) << "Creating SBS_INFO for '" << *sbs_name << "', rc="<<rc; break; }
+
+          // Заполнить идентификатор подписки
+          rc = sbs_item_instance.group_id_put(sbs_aid);
+          if (rc) { LOG(ERROR) << "Set group id for SBS '" << *sbs_name << "', rc="<<rc; break; }
+
+          // Найти точку по заданному тегу
+          LOG(INFO) << ++idx << ": " << *it;
+
+          rc = rtap_db::XDBPoint::SK_by_tag::find(t, (*it).c_str(), (*it).size(), point_instance);
+          if (rc) { LOG(ERROR) << "Locating point '" << *it << "', rc=" << rc; setError(rtE_POINT_NOT_FOUND); break; }
+
+          rc = point_instance.autoid_get(point_aid);
+          if (rc) { LOG(ERROR) << "Can't get autoid for " << (*it); break; }
+
+          rc = sbs_item_instance.tag_id_put(point_aid);
+          if (rc) { LOG(ERROR) << "Set tag id for SBS '" << *sbs_name << "', rc="<<rc; break; }
+
+          // Проверить возможность создания записи
+          rc = sbs_item_instance.checkpoint();
+          if (rc) { LOG(ERROR) << "Checkout of SBS_ITEM '" << *sbs_name << "', rc="<<rc; break; }
+          LOG(INFO) << "Insert item with point_id=" <<point_aid << " in SBS_GROUPS_ITEM with group_id="<<sbs_aid;
+        }
+    }
+    else
+    {
+        // Группа с заданным именем уже содержится в БДРВ
+        // Получить ее идентификатор
+        rc = sbs_stat_instance.autoid_get(sbs_aid);
+        if (rc) { LOG(ERROR) << "Get autoid for SBS '" << *sbs_name << "', rc="<<rc; break; }
+
+        // Запрещено создавать группы подписки с одинаковыми именами
+        LOG(ERROR) << "Creating clone of existing SBS '" << *sbs_name << "' with id=" << sbs_aid;
+        break;
+    }
+
+    rc = mco_trans_commit(t);
+    if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; break; }
+
+    // Все ОК
+    clearError();
+
+  } while(false);
+
+  if (rc)
+    mco_trans_rollback(t);
+
+  return rc;
+}
+
+// =================================================================================
+// Интерфейс удаления группы атрибутов под заданным именем
+MCO_RET DatabaseRtapImpl::deleteGroup(mco_db_h& handler, rtDbCq& info)
+{
+  mco_trans_h t;
+  MCO_RET rc, rc_del;
+  // Элементарная запись о связи идентификатора группы и точки
+  rtap_db::SBS_GROUPS_ITEM sbs_item_instance;
+  SBS_GROUPS_ITEM sbs_item_handle;
+  // Элементарная запись о состоянии данной группы подписки
+  rtap_db::SBS_GROUPS_STAT sbs_stat_instance;
+  autoid_t  point_aid;
+  autoid_t  sbs_aid;
+  int       compare_result = 0;
+  mco_cursor_t csr;
+  std::string* sbs_name = static_cast<std::string*>(info.buffer);
+
+  assert(info.action.config == rtCONFIG_DEL_GROUP_SBS);
+
+  LOG(INFO) << "Delete SBS GROUP '" << *sbs_name << "'";
+
+  setError(rtE_RUNTIME_ERROR);
+  do
+  {
+    rc = mco_trans_start(handler, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+    if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
+
+    // Проверить, существует ли уже группа с таким названием?
+    rc = rtap_db::SBS_GROUPS_STAT::PK_by_name::find(t, sbs_name->c_str(), sbs_name->size(), sbs_stat_instance);
+    if (rc && rc != MCO_S_NOTFOUND)
+       { LOG(ERROR) << "Locating SBS " << *sbs_name << ", rc="<<rc; break; }
+
+    if (rc != MCO_S_NOTFOUND)
+    {
+      // Группа найдена, получить ее идентификатор
+      rc = sbs_stat_instance.autoid_get(sbs_aid);
+      if (rc) { LOG(ERROR) << "Get autoid for SBS " << *sbs_name << ", rc="<<rc; break; }
+
+      // 1. Удалить из SBS_GROUPS_ITEM
+      rc = SBS_GROUPS_ITEM_PK_by_group_id_index_cursor(t, &csr);
+      if (MCO_S_OK == rc)
+      {
+        rc = SBS_GROUPS_ITEM_PK_by_group_id_search(t, &csr, MCO_EQ, sbs_aid);
+        if (rc && (rc != MCO_S_NOTFOUND)) { LOG(ERROR) << "Can't find items in SBS_GROUPS_ITEM with id="<<sbs_aid<<", rc="<<rc; break; }
+
+        // После сбоев озможна ситуация, когда таблицы SBS_GROUPS_STAT и SBS_GROUPS_ITEM рассинхронизированы.
+        // В этом случае в SBS_GROUPS_ITEM ссылок на SBS_GROUPS_STAT может не быть, но удалить запись в
+        // SBS_GROUPS_STAT необходимо.
+        if (rc != MCO_S_NOTFOUND)
+        {
+            // Прочитать очередной экземпляр SBS_GROUPS_ITEM перед его удалением
+            rc = mco_cursor_first(t, &csr);
+            if (rc) { LOG(ERROR) << "Unable to get first item from SBS_GROUPS_ITEM with id="<<sbs_aid<<", rc=" << rc; break; }
+
+            while (MCO_S_OK == rc)
+            {
+              rc = SBS_GROUPS_ITEM_PK_by_group_id_compare(t, &csr, sbs_aid, &compare_result);
+              if (rc) { LOG(ERROR) << "Unable to compare current item from SBS_GROUPS_ITEM with id="<<sbs_aid<<", rc=" << rc; break; }
+
+              if (0 == compare_result) // Найден элемент с удаляемым id
+              {
+                  rc = SBS_GROUPS_ITEM_from_cursor(t, &csr, &sbs_item_handle);
+                  if (rc) { LOG(ERROR) << "Unable to get current item from SBS_GROUPS_ITEM with id="<<sbs_aid<<", rc=" << rc; break; }
+
+                  rc = SBS_GROUPS_ITEM_tag_id_get(&sbs_item_handle, &point_aid);
+                  if (rc) { LOG(ERROR) << "Unable to get point id in SBS_GROUPS_ITEM, rc=" << rc; break; }
+
+#if 0
+                  LOG(INFO) << "Delete item with point_id=" <<point_aid << " in SBS_GROUPS_ITEM with group_id="<<sbs_aid;
+                  // Перед удалением текущего экземпляра передвинуть курсор на следующую запись.
+                  // Необходимо для того, чтобы после удаления не разрушился курсор.
+                  rc = mco_cursor_next(t, &csr);
+#endif
+
+                  rc_del = SBS_GROUPS_ITEM_delete(&sbs_item_handle);
+                  if (rc_del)
+                  {
+                      LOG(ERROR) << "Unable to delete SBS_GROUPS_ITEM with sbs_aid="<<sbs_aid
+                                 <<" point_aid=" << point_aid
+                                 << ", rc=" << rc_del;
+                      break;
+                  } // если удаление прошло успешно
+#if 1
+                  rc = mco_cursor_next(t, &csr);
+#endif
+              } // конец проверки, является ли очередной элемент курсора удаляемым
+              else
+              {
+                // Пропустим этот элемент
+                rc = mco_cursor_next(t, &csr);
+              }
+            } // конец цикла удаления всех элементов в SBS_GROUPS_ITEM
+        }
+
+        rc = mco_cursor_close(t, &csr);
+        if (rc) { LOG(ERROR) << "Unable to close SBS_GROUPS_ITEM cursor, rc=" << rc; break; }
+      }
+
+      // 2. Удалить из SBS_GROUPS_STAT
+      rc = rtap_db::SBS_GROUPS_STAT::autoid::find(t, sbs_aid, sbs_stat_instance);
+      if (rc) { LOG(ERROR) << "Locating SBS_STAT " << *sbs_name << ", rc="<<rc; break; }
+
+      rc = sbs_stat_instance.remove();
+      if (rc)
+      {
+        LOG(ERROR) << "Unable to delete group '"<<*sbs_name
+                   << "' in SBS_GROUPS_STAT with sbs_id=" <<sbs_aid<< ", rc=" << rc;
+        break;
+      }
+      LOG(INFO) << "Delete group '"<<*sbs_name<< "' in SBS_GROUPS_STAT with id="<<sbs_aid;
+
+      rc = mco_trans_commit(t);
+      if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; break; }
+
+      // Все ОК
+      clearError();
+    }
+    else
+    {
+      LOG(WARNING) << "Try to delete unexistant subscription group: " << *sbs_name;
+    }
+
+  } while (false);
+
+  if (rc)
+    mco_trans_rollback(t);
+
+  return rc;
+}
+
 
 // =================================================================================
 MCO_RET DatabaseRtapImpl::createTable(mco_db_h& handler, rtDbCq& info)
@@ -900,6 +1701,7 @@ MCO_RET DatabaseRtapImpl::createTableDICT_UNITY_ID(mco_db_h& handler, rtap_db_di
   mco_trans_h t;
   
   assert(dict);
+  setError(rtE_RUNTIME_ERROR);
 
   do
   {
@@ -947,6 +1749,8 @@ MCO_RET DatabaseRtapImpl::createTableDICT_UNITY_ID(mco_db_h& handler, rtap_db_di
     rc = mco_trans_commit(t);
     if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; break; }
 
+    clearError();
+
   } while(false);
 
   if (rc)
@@ -966,6 +1770,7 @@ MCO_RET DatabaseRtapImpl::createTableXDB_CE(mco_db_h& handler, rtap_db_dict::mac
   mco_trans_h t;
   
   assert(dict);
+  setError(rtE_RUNTIME_ERROR);
 
   do
   {
@@ -998,6 +1803,8 @@ MCO_RET DatabaseRtapImpl::createTableXDB_CE(mco_db_h& handler, rtap_db_dict::mac
 
     rc = mco_trans_commit(t);
     if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; break; }
+
+    clearError();
 
   } while (false);
 
@@ -1271,6 +2078,53 @@ MCO_RET DatabaseRtapImpl::createPassport(PointInDatabase* point)
   return rc;
 }
 
+// Функция корректировки переданного пользователем типа данных атрибута
+// а) Устанавливает новый тип данных, если пользователь передал тип DB_TYPE_UNDEF
+// б) Корректирует полученный тип данных в соответствием со значениями из словаря
+// в) Для строковых типов устанавливает размер данных
+void DatabaseRtapImpl::check_user_defined_type(int given_type, AttributeInfo_t* attr_info)
+{
+  // Пользователь указал неверный тип данных?
+  if (attr_info->type != AttrTypeDescription[given_type].type)
+  {
+    // Да
+    // Указанный ошибочно тип относится к фиксированной строке?
+    if ((DB_TYPE_BYTES4 <= attr_info->type) && (attr_info->type <= DB_TYPE_BYTES256))
+    {
+      // Да
+      // Был ошибочно указан строковый тип другого размера,
+      delete [] attr_info->value.dynamic.varchar;
+    }
+    else if (attr_info->type == DB_TYPE_BYTES) // Ошибочно указан std::string
+    {
+      delete attr_info->value.dynamic.val_string;
+    }
+    else
+    {
+    // Был неверно указан тип целого или вещественного числа, не требующих динамического выделения памяти
+    }
+
+    // Правильный тип является строкой фиксированного размера?
+    if ((DB_TYPE_BYTES4 <= AttrTypeDescription[given_type].type)
+    && (attr_info->type <= AttrTypeDescription[given_type].type))
+    {
+      attr_info->value.dynamic.size = AttrTypeDescription[given_type].size;
+      attr_info->value.dynamic.varchar = new char[attr_info->value.dynamic.size + 1];
+    }
+    else if (attr_info->type == DB_TYPE_BYTES) // Правильным типом является std::string
+    {
+      attr_info->value.dynamic.val_string = new std::string();
+      //attr_info->value.dynamic.val_string->resize(attr_info->value.dynamic.size + 1);
+    }
+    else
+    {
+    // Правильный тип является числом, память не выделяется.
+    }
+  } // конец действий при неверном указании типа параметра
+
+  attr_info->type = AttrTypeDescription[given_type].type;
+}
+
 // =================================================================================
 // Найти точку с указанным тегом.
 // В имени тега не может быть указан атрибут. 
@@ -1282,42 +2136,43 @@ rtap_db::Point* DatabaseRtapImpl::locate(mco_db_h& handle, const char* _tag)
   MCO_RET rc = MCO_S_OK;
   rtap_db::XDBPoint instance;
   uint2 tag_size;
-  uint4 timer_value;
-  timer_mark_t now_time = {0, 0};
-  timer_mark_t prev_time = {0, 0};
+//  uint4 timer_value;
+//  timer_mark_t now_time = {0, 0};
+//  timer_mark_t prev_time = {0, 0};
   rtap_db::timestamp datehourm;
 
   assert(_tag);
 
-  LOG(INFO) << "Locating point " << _tag;
+//  LOG(INFO) << "Locating point " << _tag;
   tag_size = strlen(_tag);
       
   do
   {
     // NB: транзакция сделана на обновление специально с целью измерения производительности
     // TODO: нахождение точки в БД не должно менять значение ее DATEHOURM
-    rc = mco_trans_start(handle, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+//    rc = mco_trans_start(handle, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
+    rc = mco_trans_start(handle, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
     if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
 
     rc = rtap_db::XDBPoint::SK_by_tag::find(t, _tag, tag_size, instance);
     if (rc) { LOG(ERROR) << "Locating point '" << _tag << "', rc=" << rc; break; }
 
-    rc = instance.DATEHOURM_read(datehourm);
-    if (rc) { LOG(ERROR) << "Reading DATEHOURM, point '" << _tag << "', rc=" << rc; break; }
+//    rc = instance.DATEHOURM_read(datehourm);
+//    if (rc) { LOG(ERROR) << "Reading DATEHOURM, point '" << _tag << "', rc=" << rc; break; }
 
-    datehourm.sec_get(timer_value);  prev_time.tv_sec  = timer_value;
-    datehourm.nsec_get(timer_value); prev_time.tv_nsec = timer_value;
+//    datehourm.sec_get(timer_value);  //prev_time.tv_sec  = timer_value;
+//    datehourm.nsec_get(timer_value); //prev_time.tv_nsec = timer_value;
 
-    GetTimerValue(now_time);
+//    GetTimerValue(now_time);
 
-    LOG(INFO) << "Difference between DATEHOURM : " << now_time.tv_sec - prev_time.tv_sec
-              << "." << (now_time.tv_nsec - prev_time.tv_nsec) / 1000;
+//    LOG(INFO) << "Difference between DATEHOURM : " << now_time.tv_sec - prev_time.tv_sec
+//              << "." << (now_time.tv_nsec - prev_time.tv_nsec) / 1000;
 
-    datehourm.sec_put(now_time.tv_sec);
-    datehourm.nsec_put(now_time.tv_nsec);
+//    datehourm.sec_put(now_time.tv_sec);
+//    datehourm.nsec_put(now_time.tv_nsec);
 
-    rc = instance.DATEHOURM_write(datehourm);
-    if (rc) { LOG(ERROR) << "Writing DATEHOURM, point '" << _tag << "', rc=" << rc; break; }
+//    rc = instance.DATEHOURM_write(datehourm);
+//    if (rc) { LOG(ERROR) << "Writing DATEHOURM, point '" << _tag << "', rc=" << rc; break; }
 
     rc = mco_trans_commit(t);
 
@@ -1340,17 +2195,18 @@ const Error& DatabaseRtapImpl::write(mco_db_h& handle, AttributeInfo_t* info)
   MCO_RET rc = MCO_S_OK;
 
   assert(info);
-  m_impl->clearError();
+  setError(rtE_RUNTIME_ERROR);
 
   std::string::size_type point_pos = info->name.find(".");
   if (point_pos != std::string::npos)
   {
-
     // Есть точка в составе тега
     std::string point_name = info->name.substr(0, point_pos);
     std::string attr_name = info->name.substr(point_pos + 1, info->name.size());
 
+#if defined VERBOSE
     LOG(INFO) << "Write atribute \"" << attr_name << "\" for point \"" << point_name << "\"";
+#endif
 
     do
     {
@@ -1359,24 +2215,23 @@ const Error& DatabaseRtapImpl::write(mco_db_h& handle, AttributeInfo_t* info)
       if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
 
       rc = rtap_db::XDBPoint::SK_by_tag::find(t, point_name.c_str(), point_name.size(), instance);
-      if (rc) { LOG(ERROR) << "Locating point '" << point_name << "', rc=" << rc; break; }
+      if (rc) { LOG(ERROR) << "Locating point '" << point_name << "', rc=" << rc; setError(rtE_POINT_NOT_FOUND); break; }
 
-      LOG(INFO) << "We found point \"" << point_name;
-      
+      //LOG(INFO) << "We found point \"" << point_name;
       func_found = false;
       it = m_attr_writing_func_map.find(attr_name);
       if (it != m_attr_writing_func_map.end())
       {
           func_found = true;
-          // NB: Часть атрибутов уже прописана в ходе создания паспорта
-          //
-          // Вызвать функцию создания атрибута
+          // Вызвать функцию создания атрибута.
+          // Атрибуты хранения значений (VALACQ, VALMANUAL, VAL)
+          // существуют в двух вариантах, для ТС и ТИ. Для них производится
+          // определение типа рабочего объекта (атрибут OBJCLASS).
           rc = (this->*(it->second))(t, instance, info);
           if (rc)
           {
-            LOG(ERROR) << "Writing attribute '" << attr_name
-                       << "' for point '" << point_name << "'";
-             m_impl->setError(rtE_ILLEGAL_PARAMETER_VALUE);
+            LOG(ERROR) << "Updating value of " << point_name << "." << attr_name;
+            setError(rtE_ILLEGAL_PARAMETER_VALUE);
             break;
           }
       }
@@ -1387,29 +2242,34 @@ const Error& DatabaseRtapImpl::write(mco_db_h& handle, AttributeInfo_t* info)
           // NB: поведение по умолчанию - пропустить атрибут, выдав предупреждение
           LOG(WARNING) << "Function for writing attribute '" << attr_name 
                        << "' doesn't found";
+          setError(rtE_ATTR_NOT_FOUND);
       }
       else if (rc)
       {
           // Функция найдена, но вернула ошибку
           LOG(ERROR) << "Function for writing '" << "' failed, rc=" << rc;
+          setError(rtE_ILLEGAL_PARAMETER_VALUE);
           break;
       }
 
       rc = mco_trans_commit(t);
       if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; break; }
 
+      // Значение успешно занесено в БДРВ
+      clearError();
+
     } while(false);
 
     if (rc)
       mco_trans_rollback(t);
-
   }
   else
   {
-      LOG(ERROR) << "Tag name doesn't contain attribute: " << info->name;
+    LOG(ERROR) << "Tag name doesn't contain attribute: " << info->name;
+    setError(rtE_ATTR_NOT_FOUND);
   }
 
-  return m_impl->getLastError();
+  return getLastError();
 }
 
 // создать указанную точку со всеми ее атрибутами
@@ -1425,6 +2285,8 @@ MCO_RET DatabaseRtapImpl::createPoint(PointInDatabase* instance)
   bool func_found;
   unsigned int attr_idx;
   AttrCreatingFuncMapIterator_t it;
+
+  setError(rtE_RUNTIME_ERROR);
 
   do
   {
@@ -1479,6 +2341,7 @@ MCO_RET DatabaseRtapImpl::createPoint(PointInDatabase* instance)
         // NB: поведение по умолчанию - пропустить атрибут, выдав предупреждение
         LOG(WARNING) << "Function creating '" << instance->attribute(attr_idx).name() 
                      << "' is not found";
+        setError(rtE_ATTR_NOT_FOUND);
       }
       else if (rc)
       {
@@ -1506,6 +2369,8 @@ MCO_RET DatabaseRtapImpl::createPoint(PointInDatabase* instance)
 
     rc = instance->xdbpoint().checkpoint();
     if (rc) { LOG(ERROR) << "Checkpoint, rc=" << rc; break; }
+
+    clearError();
   }
   while(false);
 
@@ -1521,15 +2386,61 @@ MCO_RET DatabaseRtapImpl::createTAG(PointInDatabase* instance, rtap_db::Attrib&)
   return rc;
 }
 
+// Прочесть значение штатными средствами
+MCO_RET DatabaseRtapImpl::readTAG(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  MCO_RET rc;
+
+  assert(attr_info);
+
+  check_user_defined_type(RTDB_ATT_IDX_UNIVNAME, attr_info);
+
+  rc = instance.TAG_get(attr_info->value.dynamic.varchar, attr_info->value.dynamic.size);
+#if defined VERBOSE
+  LOG(INFO) << attr_info->name << " = " << attr_info->value.dynamic.varchar;
+#endif
+
+  return rc;
+}
+// NB: Изменение TAG уже созданной точки запрещено
+
+// ======================== OBJCLASS ============================
 MCO_RET DatabaseRtapImpl::createOBJCLASS(PointInDatabase* instance, rtap_db::Attrib&)
 {
   MCO_RET rc = instance->xdbpoint().OBJCLASS_put(instance->objclass());
   return rc;
 }
 
+// Прочесть значение штатными средствами
+MCO_RET DatabaseRtapImpl::readOBJCLASS(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  objclass_t objclass;
+  MCO_RET rc = instance.OBJCLASS_get(objclass);
+
+  if ((GOF_D_BDR_OBJCLASS_TS <= objclass) && (objclass <= GOF_D_BDR_OBJCLASS_LASTUSED))
+  {
+    // TODO: задать перекодировочный массив rtap_db::objclass <=> константы GOF_D_BDR_OBJCLASS_*
+    attr_info->value.fixed.val_int8 = static_cast<int8_t>(objclass);
+    attr_info->type = AttrTypeDescription[RTDB_ATT_IDX_OBJCLASS].type;
+#if defined VERBOSE
+    LOG(INFO) << attr_info->name << " = " << (unsigned int)attr_info->value.fixed.val_int8; //1
+#endif
+  }
+  else
+  {
+    LOG(ERROR) << "Unable to get " << attr_info->name;
+    attr_info->value.fixed.val_int8 = GOF_D_BDR_OBJCLASS_UNUSED;
+    attr_info->type = DB_TYPE_UNDEF;
+  }
+
+  return rc;
+}
+// NB: Изменение OBJCLASS уже созданной точки запрещено
+
 // ======================== STATUS ============================
 MCO_RET DatabaseRtapImpl::readSTATUS(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
 {
+  static const char *attr_name = RTDB_ATT_STATUS;
   MCO_RET rc = MCO_S_OK;
   PointStatus status;
 
@@ -1539,30 +2450,36 @@ MCO_RET DatabaseRtapImpl::readSTATUS(mco_trans_h& t, rtap_db::XDBPoint& instance
 
   if (rc)
   {
-      LOG(ERROR) << "Reading STATUS failure (will be assigned to DISABLED), rc=" << rc;
+      LOG(ERROR) << "Reading " << attr_name << " failure (will be assigned to DISABLED), rc=" << rc;
       status = DISABLED;
   }
-  attr_info->value.val_uint8 = static_cast<uint8_t>(status);
-  attr_info->type = DB_TYPE_UINT8;
+  attr_info->value.fixed.val_uint8 = static_cast<uint8_t>(status);
+  attr_info->type = AttrTypeDescription[RTDB_ATT_IDX_STATUS].type;
+
+#if defined VERBOSE
+  LOG(INFO) << attr_info->name << " = " << (unsigned int)attr_info->value.fixed.val_int8; //1
+#endif
 
   return rc;
 }
 
 MCO_RET DatabaseRtapImpl::writeSTATUS(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
 {
+  static const char *attr_name = RTDB_ATT_STATUS;
   MCO_RET rc = MCO_S_OK;
   PointStatus status;
 
   assert(attr_info);
 
-  switch(attr_info->value.val_uint8)
+  switch(attr_info->value.fixed.val_uint8)
   {
       case 0: status = PLANNED;  break;
       case 1: status = WORKED;   break;
       case 2: status = DISABLED; break;
 
       default:
-        LOG(WARNING) << "Unsupported STATUS value: " << (unsigned int)attr_info->value.val_uint8;
+        LOG(WARNING) << "Unsupported " << attr_name << " value: "
+                     << (unsigned int)attr_info->value.fixed.val_uint8;
         rc = MCO_E_ILLEGAL_PARAM; // запретить занесение неверного значения
       break;
   }
@@ -1575,6 +2492,7 @@ MCO_RET DatabaseRtapImpl::writeSTATUS(mco_trans_h& t, rtap_db::XDBPoint& instanc
 
 MCO_RET DatabaseRtapImpl::createSTATUS(PointInDatabase* instance, rtap_db::Attrib& attr)
 {
+  static const char *attr_name = RTDB_ATT_STATUS;
   MCO_RET rc;
   PointStatus status = WORKED;
   int val = atoi(attr.value().c_str());
@@ -1585,12 +2503,11 @@ MCO_RET DatabaseRtapImpl::createSTATUS(PointInDatabase* instance, rtap_db::Attri
     case 1: status = WORKED;   break;
     case 2: status = DISABLED; break;
     default:
-      LOG(WARNING) << "Point doesn't have STATUS attribute, use 'DISABLED'";
+      LOG(WARNING) << "Unsupported " << attr_name << " value " << val << ", will use 'DISABLED'";
       status = DISABLED;
   }
 
   rc = instance->xdbpoint().STATUS_put(status);
-
   return rc;
 }
 
@@ -1601,29 +2518,27 @@ MCO_RET DatabaseRtapImpl::readSHORTLABEL(mco_trans_h& t, rtap_db::XDBPoint& inst
 
   assert(attr_info);
 
-  attr_info->type = DB_TYPE_BYTES32;
-  attr_info->value.val_bytes.size = DbTypeDescription[DB_TYPE_BYTES32].size;
-  if (attr_info->value.val_bytes.data)
-    attr_info->value.val_bytes.data = new char[attr_info->value.val_bytes.size + 1];
+  check_user_defined_type(RTDB_ATT_IDX_SHORTLABEL, attr_info);
 
-  rc = instance.SHORTLABEL_get(attr_info->value.val_bytes.data, attr_info->value.val_bytes.size);
+  rc = instance.SHORTLABEL_get(attr_info->value.dynamic.varchar, attr_info->value.dynamic.size);
 
-  if (rc) LOG(ERROR) << "Reading SHORTLABEL failure, rc=" << rc;
-
+#if defined VERBOSE
+  LOG(INFO) << attr_info->name << " = " << attr_info->value.dynamic.varchar;
+#endif
   return rc;
 }
 
 MCO_RET DatabaseRtapImpl::writeSHORTLABEL(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
 {
+//  static const char *attr_name = RTDB_ATT_SHORTLABEL;
   MCO_RET rc = MCO_S_OK;
 
   assert(attr_info);
-  assert(attr_info->value.val_bytes.data);
-  assert(attr_info->type = DB_TYPE_BYTES32);
+  assert(attr_info->value.dynamic.varchar);
+//  assert(attr_info->type = DB_TYPE_BYTES32);
+//  DbType_t type = AttrTypeDescription[RTDB_ATT_IDX_SHORTLABEL].type;
 
-  rc = instance.SHORTLABEL_put(attr_info->value.val_bytes.data, DbTypeDescription[DB_TYPE_BYTES32].size);
-
-  if (rc) LOG(ERROR) << "Writing SHORTLABEL failure, rc=" << rc;
+  rc = instance.SHORTLABEL_put(attr_info->value.dynamic.varchar, AttrTypeDescription[RTDB_ATT_IDX_SHORTLABEL].size /*DbTypeDescription[type].size*/);
   return rc;
 }
 
@@ -1680,6 +2595,7 @@ MCO_RET DatabaseRtapImpl::createL_SA(PointInDatabase* /* instance */, rtap_db::A
   return rc;
 }
 
+// ======================== VALIDITY ============================
 // Соответствует атрибуту БДРВ - VALIDITY
 MCO_RET DatabaseRtapImpl::createVALID(PointInDatabase* instance, rtap_db::Attrib& attr)
 {
@@ -1694,7 +2610,8 @@ MCO_RET DatabaseRtapImpl::createVALID(PointInDatabase* instance, rtap_db::Attrib
     case 2: value = MANUAL;     break;
     case 3: value = DUBIOUS;    break;
     case 4: value = INHIBITED;  break;
-    case 5: // NB: break пропущен специально
+    case 5: /* FAULT */
+            // NB: break пропущен специально
     default:
       value = FAULT;
   }
@@ -1703,6 +2620,62 @@ MCO_RET DatabaseRtapImpl::createVALID(PointInDatabase* instance, rtap_db::Attrib
   return rc;
 }
 
+MCO_RET DatabaseRtapImpl::readVALID(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  MCO_RET rc;
+  Validity value;
+
+  attr_info->type = AttrTypeDescription[RTDB_ATT_IDX_VALID].type;
+
+  rc = instance.VALIDITY_get(value);
+
+  switch(value)
+  {
+    case INVALID:
+    case VALID:
+    case MANUAL:
+    case DUBIOUS:
+    case INHIBITED:
+      attr_info->value.fixed.val_uint8 = static_cast<uint8_t>(value);
+#if defined VERBOSE
+      LOG(INFO) << attr_info->name << " = " << (unsigned int)attr_info->value.fixed.val_uint8; //1
+#endif
+    break;
+
+    case FAULT: // NB: break пропущен специально
+    default:
+      attr_info->value.fixed.val_uint8 = static_cast<uint8_t>(FAULT);
+  }
+
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeVALID(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  MCO_RET rc;
+  Validity value;
+
+  switch(attr_info->value.fixed.val_uint8)
+  {
+    case 0 /* INVALID */:
+    case 1 /* VALID */:
+    case 2 /* MANUAL */:
+    case 3 /* DUBIOUS */:
+    case 4 /* INHIBITED */:
+      value = static_cast<Validity>(attr_info->value.fixed.val_uint8);
+    break;
+
+    case 5 /* FAULT */: // NB: break пропущен специально
+    default:
+      value = static_cast<Validity>(FAULT);
+  }
+
+  rc = instance.VALIDITY_put(value);
+
+  return rc;
+}
+
+// ======================== VALIDITY_ACQ ============================
 // Соответствует атрибуту БДРВ - VALIDITY_ACQ
 MCO_RET DatabaseRtapImpl::createVALIDACQ(PointInDatabase* instance, rtap_db::Attrib& attr)
 {
@@ -1723,6 +2696,139 @@ MCO_RET DatabaseRtapImpl::createVALIDACQ(PointInDatabase* instance, rtap_db::Att
   }
 
   rc = instance->xdbpoint().VALIDITY_ACQ_put(value);
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readVALIDACQ(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  MCO_RET rc;
+  Validity value;
+
+  attr_info->type = AttrTypeDescription[RTDB_ATT_IDX_VALIDACQ].type;
+
+  rc = instance.VALIDITY_ACQ_get(value);
+
+  switch(value)
+  {
+    case INVALID:
+    case VALID:
+    case MANUAL:
+    case DUBIOUS:
+    case INHIBITED:
+      attr_info->value.fixed.val_uint8 = static_cast<uint8_t>(value);
+    break;
+
+    case FAULT: // NB: break пропущен специально
+    default:
+      attr_info->value.fixed.val_uint8 = static_cast<uint8_t>(FAULT);
+  }
+
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeVALIDACQ(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  MCO_RET rc;
+  Validity value;
+
+  switch(attr_info->value.fixed.val_uint8)
+  {
+    case 0 /* INVALID */:
+    case 1 /* VALID */:
+    case 2 /* MANUAL */:
+    case 3 /* DUBIOUS */:
+    case 4 /* INHIBITED */:
+      value = static_cast<Validity>(attr_info->value.fixed.val_uint8);
+    break;
+
+    case 5 /* FAULT */: // NB: break пропущен специально
+    default:
+      value = static_cast<Validity>(FAULT);
+  }
+
+  rc = instance.VALIDITY_ACQ_put(value);
+
+  return rc;
+}
+
+// ======================== CURRENT_SHIFT_TIME ============================
+MCO_RET DatabaseRtapImpl::readCURRENT_SHIFT_TIME(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  static const char *attr_name = RTDB_ATT_CURRENT_SHIFT_TIME;
+  MCO_RET rc = MCO_S_NOTFOUND;
+  rtap_db::timestamp datehourm;
+  datetime_t datetime;
+  rtap_db::SITE_passport passport_instance;
+  autoid_t passport_id;
+  objclass_t objclass;
+
+  do
+  {
+    rc = instance.OBJCLASS_get(objclass);
+    if (rc) { LOG(ERROR) << "Can't get objclass for " << attr_info->name; break; }
+
+    if (objclass != GOF_D_BDR_OBJCLASS_SITE)
+    {
+      LOG(ERROR) << "Point " <<  attr_info->name << " with objclass "
+                 << objclass << " shouldn't contain " << attr_name;
+      break;
+    }
+
+    rc = instance.passport_ref_get(passport_id);
+    if (rc) { LOG(ERROR) << "Can't get passport id for " << attr_info->name; break; }
+
+    rc = rtap_db::SITE_passport::autoid::find(t, passport_id, passport_instance);
+    if (rc) { LOG(ERROR) << "Can't find SITE passport for " << attr_info->name; break; }
+
+    rc = passport_instance.CURRENT_SHIFT_TIME_read(datehourm);
+    if (rc) { LOG(ERROR) << "Can't read " << attr_name << " for " << attr_info->name; break; }
+
+    rc = datehourm.sec_get(datetime.part[0]);
+    rc = datehourm.nsec_get(datetime.part[1]);
+    if (rc) { LOG(ERROR) << "Can't read " << attr_name << " value for " << attr_info->name; break; }
+
+    attr_info->value.fixed.val_time.tv_sec = datetime.part[0];
+    attr_info->value.fixed.val_time.tv_usec = datetime.part[1];
+
+    attr_info->type = AttrTypeDescription[RTDB_ATT_IDX_CURRENT_SHIFT_TIME].type;
+
+  } while(false);
+
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeCURRENT_SHIFT_TIME(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+//  static const char *attr_name = RTDB_ATT_CURRENT_SHIFT_TIME;
+  MCO_RET rc = MCO_S_NOTFOUND;
+  rtap_db::timestamp datehourm;
+  datetime_t datetime;
+  rtap_db::SITE_passport passport_instance;
+  autoid_t passport_id;
+
+  //assert(attr_info->type = DB_TYPE_ABSTIME);
+
+  do
+  {
+    rc = instance.passport_ref_get(passport_id);
+    if (rc) { LOG(ERROR) << "Can't get passport id for " << attr_info->name; break; }
+
+    rc = rtap_db::SITE_passport::autoid::find(t, passport_id, passport_instance);
+    if (rc) { LOG(ERROR) << "Can't find SITE passport for " << attr_info->name; break; }
+
+    rc = passport_instance.CURRENT_SHIFT_TIME_write(datehourm);
+    if (rc) { LOG(ERROR) << "Can't write attribute " << attr_info->name; break; }
+
+    datetime.part[0] = attr_info->value.fixed.val_time.tv_sec;
+    datetime.part[1] = attr_info->value.fixed.val_time.tv_usec;
+
+    rc = datehourm.sec_put(datetime.part[0]);
+    rc = datehourm.nsec_put(datetime.part[1]);
+
+    if (rc) { LOG(ERROR) << "Can't write value for " << attr_info->name; break; }
+
+  } while(false);
+
   return rc;
 }
 
@@ -1756,6 +2862,7 @@ MCO_RET DatabaseRtapImpl::createCURRENT_SHIFT_TIME(PointInDatabase* instance, rt
   return rc;
 }
 
+// ======================== PREV_DISPATCHER ============================
 MCO_RET DatabaseRtapImpl::createPREV_DISPATCHER(PointInDatabase* instance, rtap_db::Attrib& attr)
 {
   static const char *attr_name = RTDB_ATT_PREV_DISPATCHER;
@@ -1777,6 +2884,7 @@ MCO_RET DatabaseRtapImpl::createPREV_DISPATCHER(PointInDatabase* instance, rtap_
   return rc;
 }
 
+// ======================== PREV_SHIFT_TIME ============================
 MCO_RET DatabaseRtapImpl::createPREV_SHIFT_TIME(PointInDatabase* instance, rtap_db::Attrib& attr)
 {
   static const char *attr_name = RTDB_ATT_PREV_SHIFT_TIME;
@@ -1798,7 +2906,7 @@ MCO_RET DatabaseRtapImpl::createPREV_SHIFT_TIME(PointInDatabase* instance, rtap_
         }
         else
         {
-            LOG(ERROR) << "Create PREV_SHIFT_TIME";
+            LOG(ERROR) << "Create " << attr_name << ", rc=" << rc;
         }
         break;
 
@@ -1811,6 +2919,7 @@ MCO_RET DatabaseRtapImpl::createPREV_SHIFT_TIME(PointInDatabase* instance, rtap_
   return rc;
 }
 
+// ======================== DATEAINS ============================
 /*
  * Дата введения оборудования в эксплуатацию.
  * Использовать для подсчета наработки времени на отказ и т.п.
@@ -1821,6 +2930,8 @@ MCO_RET DatabaseRtapImpl::createDATEAINS(PointInDatabase* instance, rtap_db::Att
   rtap_db::timestamp datehourm;
   MCO_RET rc = MCO_S_NOTFOUND;
   datetime_t datetime;
+  struct tm given_time;
+  std::string::size_type point_pos;
 
   switch(instance->objclass())
   {
@@ -1840,58 +2951,167 @@ MCO_RET DatabaseRtapImpl::createDATEAINS(PointInDatabase* instance, rtap_db::Att
   {
     // Конвертировать дату из 8 байт XML-файла в формат rtap_db::timestamp
     // (секунды и наносекунды по 4 байта)
-    datetime.common = atoll(attr.value().c_str());
+    strptime(attr.value().c_str(), D_DATE_FORMAT_STR, &given_time);
+    datetime.part[0] = given_time.tm_sec;
+    point_pos = attr.value().find_last_of('.');
+
+    // Если точка найдена, и она не последняя в строке
+    if ((point_pos != std::string::npos) && point_pos != attr.value().size())
+      datetime.part[1] = atoi(attr.value().substr(point_pos + 1).c_str());
+    else
+      datetime.part[1] = 0;
+
     datehourm.sec_put(datetime.part[0]);
     datehourm.nsec_put(datetime.part[1]);
+ //   LOG(INFO) << "DATETIME '" << attr.value().c_str() << "' " << datetime.part[0] << ":" << datetime.part[1];
   }
 
   return rc;
 }
 
+// ======================== DATEHOURM ============================
 MCO_RET DatabaseRtapImpl::createDATEHOURM(PointInDatabase* instance, rtap_db::Attrib& attr)
 {
+//  static const char *attr_name = RTDB_ATT_DATEHOURM;
   rtap_db::timestamp datehourm;
   datetime_t datetime;
+  struct tm given_time;
+  std::string::size_type point_pos;
   MCO_RET rc = instance->xdbpoint().DATEHOURM_write(datehourm);
 
-  if (!rc) 
+  if (MCO_S_OK == rc) 
   {
     // Конвертировать дату из 8 байт XML-файла в формат rtap_db::timestamp
     // (секунды и наносекунды по 4 байта)
-    datetime.common = atoll(attr.value().c_str());
+    strptime(attr.value().c_str(), D_DATE_FORMAT_STR, &given_time);
+    datetime.part[0] = given_time.tm_sec;
+    point_pos = attr.value().find_last_of('.');
+
+    // Если точка найдена, и она не последняя в строке
+    if ((point_pos != std::string::npos) && point_pos != attr.value().size())
+      datetime.part[1] = atoi(attr.value().substr(point_pos + 1).c_str());
+    else
+      datetime.part[1] = 0;
+
     datehourm.sec_put(datetime.part[0]);
     datehourm.nsec_put(datetime.part[1]);
-  }
-  else
-  {
-    LOG(ERROR) << "Create DATEHOURM";
+ //   LOG(INFO) << "DATETIME '" << attr.value().c_str() << "' " << datetime.part[0] << ":" << datetime.part[1];
   }
 
   return rc;
 }
 
+MCO_RET DatabaseRtapImpl::readDATEHOURM(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  MCO_RET rc = MCO_S_OK;
+  datetime_t datetime;
+  rtap_db::timestamp ts;
+
+  attr_info->type = AttrTypeDescription[RTDB_ATT_IDX_DATEHOURM].type;
+
+  datetime.part[0] = attr_info->value.fixed.val_time.tv_sec;
+  datetime.part[1] = attr_info->value.fixed.val_time.tv_usec;
+
+  rc = instance.DATEHOURM_read(ts);
+  if (MCO_S_OK == rc) {
+    rc = ts.sec_get(datetime.part[0]);
+    rc = ts.nsec_get(datetime.part[1]);
+#if defined VERBOSE
+    LOG(INFO) << attr_info->name << " = " << datetime.part[0] << ":" << datetime.part[1]; //1
+#endif
+  }
+  else
+  {
+    attr_info->value.fixed.val_time.tv_sec = 0;
+    attr_info->value.fixed.val_time.tv_usec = 0;
+  }
+
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeDATEHOURM(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  MCO_RET rc;
+  datetime_t datetime;
+  rtap_db::timestamp ts;
+
+  datetime.part[0] = attr_info->value.fixed.val_time.tv_sec;
+  datetime.part[1] = attr_info->value.fixed.val_time.tv_usec;
+
+  do {
+    rc = ts.sec_put(datetime.part[0]);
+    if (rc) { LOG(ERROR) << attr_info->name << ", put " << attr_info->value.fixed.val_time.tv_sec << " seconds"; break; }
+    ts.nsec_put(datetime.part[1]);
+    if (rc) { LOG(ERROR) << attr_info->name << ", put " << attr_info->value.fixed.val_time.tv_sec << " nseconds"; break; }
+    rc = instance.DATEHOURM_write(ts);
+  } while (false);
+
+  return rc;
+}
+
+// ======================== DATERTU ============================
 MCO_RET DatabaseRtapImpl::createDATERTU(PointInDatabase* instance, rtap_db::Attrib& attr)
 {
   rtap_db::timestamp datertu;
   datetime_t datetime;
+  struct tm given_time;
+  std::string::size_type point_pos;
   MCO_RET rc = instance->xdbpoint().DATERTU_write(datertu);
 
-  if (!rc) 
+  if (MCO_S_OK == rc)
   {
     // Конвертировать дату из 8 байт XML-файла в формат rtap_db::timestamp
     // (секунды и наносекунды по 4 байта)
-    datetime.common = atoll(attr.value().c_str());
+    strptime(attr.value().c_str(), D_DATE_FORMAT_STR, &given_time);
+    datetime.part[0] = given_time.tm_sec;
+    point_pos = attr.value().find_last_of('.');
+
+    // Если точка найдена, и она не последняя в строке
+    if ((point_pos != std::string::npos) && point_pos != attr.value().size())
+      datetime.part[1] = atoi(attr.value().substr(point_pos + 1).c_str());
+    else
+      datetime.part[1] = 0;
+
     datertu.sec_put(datetime.part[0]);
     datertu.nsec_put(datetime.part[1]);
-  }
-  else
-  {
-    LOG(ERROR) << "Create DATERTU";
+ //   LOG(INFO) << "DATETIME '" << attr.value().c_str() << "' " << datetime.part[0] << ":" << datetime.part[1];
   }
 
   return rc;
 }
 
+
+// ======================== VALIDCHANGE ============================
+MCO_RET DatabaseRtapImpl::createVALIDCHANGE(PointInDatabase* instance, rtap_db::Attrib& attr)
+{
+  uint1 value = atoi(attr.value().c_str());
+  ValidChange vc;
+
+  switch (value)
+  {
+    case 1:  vc = VALIDCHANGE_VALID;     break;
+    case 2:  vc = VALIDCHANGE_FORCED;    break;
+    case 3:  vc = VALIDCHANGE_INHIB;     break;
+    case 4:  vc = VALIDCHANGE_MANUAL;    break;
+    case 5:  vc = VALIDCHANGE_END_INHIB; break;
+    case 6:  vc = VALIDCHANGE_END_FORCED;break;
+    case 7:  vc = VALIDCHANGE_INHIB_GBL; break;
+    case 8:  vc = VALIDCHANGE_END_INHIB_GBL; break;
+    case 9:  vc = VALIDCHANGE_NULL;      break;
+    case 10: vc = VALIDCHANGE_FAULT_GBL; break;
+    case 11: vc = VALIDCHANGE_INHIB_SA;  break;
+    case 12: vc = VALIDCHANGE_END_INHIB_SA; break;
+    default: vc = VALIDCHANGE_NULL;
+  }
+
+  MCO_RET rc = instance->xdbpoint().VALIDCHANGE_put(vc);
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readVALIDCHANGE(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  ValidChange vc;
+  MCO_RET rc = instance.VALIDCHANGE_get(vc);
 
   switch (vc)
   {
@@ -1920,11 +3140,32 @@ MCO_RET DatabaseRtapImpl::createDATERTU(PointInDatabase* instance, rtap_db::Attr
 
 MCO_RET DatabaseRtapImpl::writeVALIDCHANGE(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
 {
-  uint1 value = atoi(attr.value().c_str());
-  MCO_RET rc = instance->xdbpoint().VALIDCHANGE_put(value);
+  MCO_RET rc = MCO_S_NOTFOUND;
+  ValidChange vc;
+
+  switch (attr_info->value.fixed.val_int8)
+  {
+    case 1:  vc = VALIDCHANGE_VALID;     break;
+    case 2:  vc = VALIDCHANGE_FORCED;    break;
+    case 3:  vc = VALIDCHANGE_INHIB;     break;
+    case 4:  vc = VALIDCHANGE_MANUAL;    break;
+    case 5:  vc = VALIDCHANGE_END_INHIB; break;
+    case 6:  vc = VALIDCHANGE_END_FORCED;break;
+    case 7:  vc = VALIDCHANGE_INHIB_GBL; break;
+    case 8:  vc = VALIDCHANGE_END_INHIB_GBL; break;
+    case 9:  vc = VALIDCHANGE_NULL;      break;
+    case 10: vc = VALIDCHANGE_FAULT_GBL; break;
+    case 11: vc = VALIDCHANGE_INHIB_SA;  break;
+    case 12: vc = VALIDCHANGE_END_INHIB_SA; break;
+    default: vc = VALIDCHANGE_NULL;
+  }
+
+  rc = instance.VALIDCHANGE_put(vc);
+
   return rc;
 }
 
+// ======================== LABEL ============================
 MCO_RET DatabaseRtapImpl::createLABEL (PointInDatabase* /* instance */, rtap_db::Attrib& /* attr */)
 {
 //  LOG(INFO) << "CALL createLABEL on " << attr.name();
@@ -1932,6 +3173,7 @@ MCO_RET DatabaseRtapImpl::createLABEL (PointInDatabase* /* instance */, rtap_db:
   return MCO_S_OK;
 }
 
+// ======================== TYPE ============================
 MCO_RET DatabaseRtapImpl::createTYPE(PointInDatabase* instance, rtap_db::Attrib& attr)
 {
   static const char *attr_name = RTDB_ATT_TYPE;
@@ -2003,7 +3245,8 @@ MCO_RET DatabaseRtapImpl::createLOCALFLAG(PointInDatabase* instance, rtap_db::At
     case 0: resp = LOCAL;   break;
     case 1: resp = DISTANT; break;
     default:
-        LOG(ERROR) <<"Unsupported value="<<value<<" for LOCALFLAG, use LOCAL as default";
+        LOG(ERROR) <<"Unsupported value=" << value
+                   << " for " << attr_name << ", use LOCAL as default";
         resp = LOCAL;
   }
 
@@ -2077,6 +3320,7 @@ MCO_RET DatabaseRtapImpl::createMAXVAL(PointInDatabase* instance, rtap_db::Attri
   return rc;
 }
 
+// ======================== VAL ============================
 // Значение VAL м.б. для аналогового или дискретного инфотипов.
 // Соотвествующая своему OBJCLASS структура инфотипа инициируются в create().
 MCO_RET DatabaseRtapImpl::createVAL(PointInDatabase* instance, rtap_db::Attrib& attr)
@@ -2097,7 +3341,14 @@ MCO_RET DatabaseRtapImpl::createVAL(PointInDatabase* instance, rtap_db::Attrib& 
 
     case TS:
     case TSA:
-    case TSC:
+
+#warning "Идет перенос атрибутов из TSC в классы с дискр. состоянием непосредственно"
+    //1 case TSC:
+    case VA:
+    case ATC:
+    case AUX1:
+    case AUX2:
+
     case AL:
     case ICS:
         integer64_value = atoll(attr.value().c_str());
@@ -2112,6 +3363,132 @@ MCO_RET DatabaseRtapImpl::createVAL(PointInDatabase* instance, rtap_db::Attrib& 
   return rc;
 }
 
+MCO_RET DatabaseRtapImpl::readVAL(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  static const char *attr_name = RTDB_ATT_VAL;
+  MCO_RET rc = MCO_S_NOTFOUND;
+  rtap_db::DiscreteInfoType di;
+  rtap_db::AnalogInfoType   ai;
+  objclass_t objclass;
+
+  do
+  {
+    rc = instance.OBJCLASS_get(objclass);
+    if (rc) { LOG(ERROR) << "Can't get objclass for " << attr_info->name; break; }
+
+    switch(objclass)
+    {
+        case TM:
+        case TR:
+        case ICM:
+            rc = instance.ai_read(ai);
+            if (rc) { LOG(ERROR) << "Can't read analog part of " << attr_info->name; break; }
+
+            rc = ai.VAL_get(attr_info->value.fixed.val_double);
+            if (rc) { LOG(ERROR) << "Can't read " << attr_info->name; break; }
+
+            // NB: не использовать таблицу свойств атрибутов AttrTypeDescription, поскольку
+            // VAL - это особый случай, он может быть целочисленным или с плав. точкой
+            attr_info->type = DB_TYPE_DOUBLE;
+#if !defined VERBOSE
+            LOG(INFO) << attr_info->name << " = " << attr_info->value.fixed.val_double; //1
+#endif
+            break;
+
+        case TS:
+        case TSA:
+        //1 case TSC:
+        case VA:
+        case ATC:
+        case AUX1:
+        case AUX2:
+        case AL:
+        case ICS:
+            rc = instance.di_read(di);
+            if (rc) { LOG(ERROR) << "Can't read discrete part of " << attr_info->name; break; }
+
+            rc = di.VAL_get(attr_info->value.fixed.val_uint64);
+            if (rc) { LOG(ERROR) << "Can't read " << attr_info->name; break; }
+
+            // NB: не использовать таблицу свойств атрибутов AttrTypeDescription, поскольку
+            // VAL - это особый случай, он может быть целочисленным или с плав. точкой
+            attr_info->type = DB_TYPE_UINT64;
+#if defined VERBOSE
+            LOG(INFO) << attr_info->name << " = " << attr_info->value.fixed.val_uint64; //1
+#endif
+            break;
+
+        default:
+            LOG(ERROR) << "'" << attr_name
+                       << "' for objclass " << objclass
+                       << " is not supported, point " << attr_info->name;
+            attr_info->type = DB_TYPE_UNDEF;
+            break;
+    }
+    // Если внутри switch(objclass) была ошибка, дальнейшая обработка сразу прекращается
+    if (rc) break;
+
+  } while(false);
+
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeVAL(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  static const char *attr_name = RTDB_ATT_VALACQ;
+  MCO_RET rc = MCO_S_NOTFOUND;
+  rtap_db::DiscreteInfoType di;
+  rtap_db::AnalogInfoType   ai;
+  objclass_t objclass;
+
+  do
+  {
+    rc = instance.OBJCLASS_get(objclass);
+    if (rc) { LOG(ERROR) << "Can't get objclass for " << attr_info->name; break; }
+
+    switch(objclass)
+    {
+        case TM:
+        case TR:
+        case ICM:
+            rc = instance.ai_read(ai);
+            if (rc) { LOG(ERROR) << "Can't read analog part of " << attr_info->name; break; }
+
+            rc = ai.VAL_put(attr_info->value.fixed.val_double);
+            if (rc) { LOG(ERROR) << "Can't write " << attr_info->name; break; }
+            break;
+
+        case TS:
+        case TSA:
+        //1 case TSC:
+        case VA:
+        case ATC:
+        case AUX1:
+        case AUX2:
+        case AL:
+        case ICS:
+            rc = instance.di_read(di);
+            if (rc) { LOG(ERROR) << "Can't read discrete part of " << attr_info->name; break; }
+
+            rc = di.VAL_put(attr_info->value.fixed.val_uint64);
+            if (rc) { LOG(ERROR) << "Can't read " << attr_info->name; break; }
+            break;
+
+        default:
+            LOG(ERROR) << "'" << attr_name
+                       << "' for objclass " << objclass
+                       << " is not supported, point " << attr_info->name;
+            break;
+    }
+    // Если внутри switch(objclass) была ошибка, дальнейшая обработка сразу прекращается
+    if (rc) break;
+
+  } while(false);
+
+  return rc;
+}
+
+// ======================== VALACQ ============================
 MCO_RET DatabaseRtapImpl::createVALACQ(PointInDatabase* instance, rtap_db::Attrib& attr)
 {
   static const char *attr_name = RTDB_ATT_VALACQ;
@@ -2128,7 +3505,11 @@ MCO_RET DatabaseRtapImpl::createVALACQ(PointInDatabase* instance, rtap_db::Attri
 
     case TS:
     case TSA:
-    case TSC:
+    //1 case TSC:
+    case VA:
+    case ATC:
+    case AUX1:
+    case AUX2:
     case AL:
         integer64_value = atoll(attr.value().c_str());
         rc = instance->DIT().VALACQ_put(integer64_value);
@@ -2142,6 +3523,126 @@ MCO_RET DatabaseRtapImpl::createVALACQ(PointInDatabase* instance, rtap_db::Attri
   return rc;
 }
 
+MCO_RET DatabaseRtapImpl::readVALACQ(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  static const char *attr_name = RTDB_ATT_VALACQ;
+  MCO_RET rc = MCO_S_NOTFOUND;
+  rtap_db::DiscreteInfoType di;
+  rtap_db::AnalogInfoType   ai;
+  objclass_t objclass;
+
+  do
+  {
+    rc = instance.OBJCLASS_get(objclass);
+    if (rc) { LOG(ERROR) << "Can't get objclass for " << attr_info->name; break; }
+
+    switch(objclass)
+    {
+        case TM:
+        case TR:
+        case ICM:
+            rc = instance.ai_read(ai);
+            if (rc) { LOG(ERROR) << "Can't read analog part of " << attr_info->name; break; }
+
+            rc = ai.VALACQ_get(attr_info->value.fixed.val_double);
+            if (rc) { LOG(ERROR) << "Can't read " << attr_info->name; break; }
+
+            // NB: не использовать таблицу свойств атрибутов AttrTypeDescription, поскольку
+            // VAL - это особый случай, он может быть целочисленным или с плав. точкой
+            attr_info->type = DB_TYPE_DOUBLE;
+            break;
+
+        case TS:
+        case TSA:
+    //1    case TSC:
+        case VA:
+        case ATC:
+        case AUX1:
+        case AUX2:
+        case AL:
+        case ICS:
+            rc = instance.di_read(di);
+            if (rc) { LOG(ERROR) << "Can't read discrete part of " << attr_info->name; break; }
+
+            rc = di.VALACQ_get(attr_info->value.fixed.val_uint64);
+            if (rc) { LOG(ERROR) << "Can't read " << attr_info->name; break; }
+
+            // NB: не использовать таблицу свойств атрибутов AttrTypeDescription, поскольку
+            // VAL - это особый случай, он может быть целочисленным или с плав. точкой
+            attr_info->type = DB_TYPE_UINT64;
+            break;
+
+        default:
+            LOG(ERROR) << "'" << attr_name
+                       << "' for objclass " << objclass
+                       << " is not supported, point " << attr_info->name;
+            attr_info->type = DB_TYPE_UNDEF;
+            break;
+    }
+    // Если внутри switch(objclass) была ошибка, дальнейшая обработка сразу прекращается
+    if (rc) break;
+
+  } while(false);
+
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeVALACQ(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  static const char *attr_name = RTDB_ATT_VALACQ;
+  MCO_RET rc = MCO_S_NOTFOUND;
+  rtap_db::DiscreteInfoType di;
+  rtap_db::AnalogInfoType   ai;
+  objclass_t objclass;
+
+  do
+  {
+    rc = instance.OBJCLASS_get(objclass);
+    if (rc) { LOG(ERROR) << "Can't get objclass for " << attr_info->name; break; }
+
+    switch(objclass)
+    {
+        case TM:
+        case TR:
+        case ICM:
+            rc = instance.ai_read(ai);
+            if (rc) { LOG(ERROR) << "Can't read analog part of " << attr_info->name; break; }
+
+            rc = ai.VALACQ_put(attr_info->value.fixed.val_double);
+            if (rc) { LOG(ERROR) << "Can't write " << attr_info->name; break; }
+            break;
+
+        case TS:
+        case TSA:
+        //1 case TSC:
+        case VA:
+        case ATC:
+        case AUX1:
+        case AUX2:
+        case AL:
+        case ICS:
+            rc = instance.di_read(di);
+            if (rc) { LOG(ERROR) << "Can't read discrete part of " << attr_info->name; break; }
+
+            rc = di.VALACQ_put(attr_info->value.fixed.val_uint64);
+            if (rc) { LOG(ERROR) << "Can't read " << attr_info->name; break; }
+            break;
+
+        default:
+            LOG(ERROR) << "'" << attr_name
+                       << "' for objclass " << objclass
+                       << " is not supported, point " << attr_info->name;
+            break;
+    }
+    // Если внутри switch(objclass) была ошибка, дальнейшая обработка сразу прекращается
+    if (rc) break;
+
+  } while(false);
+
+  return rc;
+}
+
+// ======================== VALMANUAL ============================
 MCO_RET DatabaseRtapImpl::createVALMANUAL(PointInDatabase* instance, rtap_db::Attrib& attr)
 {
   static const char *attr_name = RTDB_ATT_VALMANUAL;
@@ -2158,7 +3659,11 @@ MCO_RET DatabaseRtapImpl::createVALMANUAL(PointInDatabase* instance, rtap_db::At
 
     case TS:
     case TSA:
-    case TSC:
+    //1 case TSC:
+        case VA:
+        case ATC:
+        case AUX1:
+        case AUX2:
         integer64_value = atoll(attr.value().c_str());
         rc = instance->DIT().VALMANUAL_put(integer64_value);
         break;
@@ -2171,6 +3676,127 @@ MCO_RET DatabaseRtapImpl::createVALMANUAL(PointInDatabase* instance, rtap_db::At
   return rc;
 }
 
+MCO_RET DatabaseRtapImpl::readVALMANUAL(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  static const char *attr_name = RTDB_ATT_VALMANUAL;
+  MCO_RET rc = MCO_S_NOTFOUND;
+  rtap_db::DiscreteInfoType di;
+  rtap_db::AnalogInfoType   ai;
+  objclass_t objclass;
+
+  do
+  {
+    rc = instance.OBJCLASS_get(objclass);
+    if (rc) { LOG(ERROR) << "Can't get objclass for " << attr_info->name; break; }
+
+    switch(objclass)
+    {
+        case TM:
+        case TR:
+        case ICM:
+            rc = instance.ai_read(ai);
+            if (rc) { LOG(ERROR) << "Can't read analog part of " << attr_info->name; break; }
+
+            rc = ai.VALMANUAL_get(attr_info->value.fixed.val_double);
+            if (rc) { LOG(ERROR) << "Can't read " << attr_info->name; break; }
+
+            // NB: не использовать таблицу свойств атрибутов AttrTypeDescription, поскольку
+            // VAL - это особый случай, он может быть целочисленным или с плав. точкой
+            attr_info->type = DB_TYPE_DOUBLE;
+            break;
+
+        case TS:
+        case TSA:
+        //1 case TSC:
+        case VA:
+        case ATC:
+        case AUX1:
+        case AUX2:
+        case AL:
+        case ICS:
+            rc = instance.di_read(di);
+            if (rc) { LOG(ERROR) << "Can't read discrete part of " << attr_info->name; break; }
+
+            rc = di.VALMANUAL_get(attr_info->value.fixed.val_uint64);
+            if (rc) { LOG(ERROR) << "Can't read " << attr_info->name; break; }
+
+            // NB: не использовать таблицу свойств атрибутов AttrTypeDescription, поскольку
+            // VAL - это особый случай, он может быть целочисленным или с плав. точкой
+            attr_info->type = DB_TYPE_UINT64;
+            break;
+
+        default:
+            LOG(ERROR) << "'" << attr_name
+                       << "' for objclass " << objclass
+                       << " is not supported, point " << attr_info->name;
+            attr_info->type = DB_TYPE_UNDEF;
+            break;
+    }
+    // Если внутри switch(objclass) была ошибка, дальнейшая обработка сразу прекращается
+    if (rc) break;
+
+  } while(false);
+
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeVALMANUAL(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  static const char *attr_name = RTDB_ATT_VALMANUAL;
+  MCO_RET rc = MCO_S_NOTFOUND;
+  rtap_db::DiscreteInfoType di;
+  rtap_db::AnalogInfoType   ai;
+  objclass_t objclass;
+
+  do
+  {
+    rc = instance.OBJCLASS_get(objclass);
+    if (rc) { LOG(ERROR) << "Can't get objclass for " << attr_info->name; break; }
+
+    switch(objclass)
+    {
+        case TM:
+        case TR:
+        case ICM:
+            rc = instance.ai_read(ai);
+            if (rc) { LOG(ERROR) << "Can't read analog part of " << attr_info->name; break; }
+
+            rc = ai.VALMANUAL_put(attr_info->value.fixed.val_double);
+            if (rc) { LOG(ERROR) << "Can't write " << attr_info->name; break; }
+            break;
+
+        case TS:
+        case TSA:
+//1        case TSC:
+        case VA:
+        case ATC:
+        case AUX1:
+        case AUX2:
+        case AL:
+        case ICS:
+            rc = instance.di_read(di);
+            if (rc) { LOG(ERROR) << "Can't read discrete part of " << attr_info->name; break; }
+
+            rc = di.VALMANUAL_put(attr_info->value.fixed.val_uint64);
+            if (rc) { LOG(ERROR) << "Can't read " << attr_info->name; break; }
+            break;
+
+        default:
+            LOG(ERROR) << "'" << attr_name
+                       << "' for objclass " << objclass
+                       << " is not supported, point " << attr_info->name;
+            attr_info->type = DB_TYPE_UNDEF;
+            break;
+    }
+    // Если внутри switch(objclass) была ошибка, дальнейшая обработка сразу прекращается
+    if (rc) break;
+
+  } while(false);
+
+  return rc;
+}
+
+// ======================== VALEX ============================
 MCO_RET DatabaseRtapImpl::createVALEX(PointInDatabase* instance, rtap_db::Attrib& attr)
 {
   static const char *attr_name = RTDB_ATT_VALEX;
@@ -2700,6 +4326,7 @@ MCO_RET DatabaseRtapImpl::createPLANPRESSURE(PointInDatabase* instance, rtap_db:
 }
 
 
+// ======================== FUNCTION ============================
 MCO_RET DatabaseRtapImpl::createFUNCTION(PointInDatabase* instance, rtap_db::Attrib& attr)
 {
   static const char *attr_name = RTDB_ATT_FUNCTION;
@@ -2725,6 +4352,139 @@ MCO_RET DatabaseRtapImpl::createFUNCTION(PointInDatabase* instance, rtap_db::Att
   return rc;
 }
 
+MCO_RET DatabaseRtapImpl::readFUNCTION(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  static const char *attr_name = RTDB_ATT_FUNCTION;
+  MCO_RET rc = MCO_S_NOTFOUND;
+  rtap_db::PIPELINE_passport pipeline_pass;
+  rtap_db::VA_passport va_pass;
+  objclass_t objclass;
+  autoid_t aid;
+
+  check_user_defined_type(RTDB_ATT_IDX_FUNCTION, attr_info);
+
+  // Выделить память, если этого не было сделано ранее
+  if (!attr_info->value.dynamic.varchar)
+    attr_info->value.dynamic.varchar = new char[attr_info->value.dynamic.size + 1];
+
+  do
+  {
+    attr_info->value.dynamic.size = var_size[attr_info->type];
+
+    rc = instance.passport_ref_get(aid);
+    if (rc) { LOG(ERROR) << "Can't get passport id for " << attr_info->name; break; }
+
+    rc = instance.OBJCLASS_get(objclass);
+    if (rc) { LOG(ERROR) << "Can't get objclass for " << attr_info->name; break; }
+
+    switch(objclass)
+    {
+      case PIPELINE:
+        rc = rtap_db::PIPELINE_passport::autoid::find(t, aid, pipeline_pass);
+        if (rc) { LOG(ERROR) << "Can't get passport for " << attr_info->name << ", rc=" << rc; break; }
+
+        rc = pipeline_pass.FUNCTION_get(attr_info->value.dynamic.varchar, attr_info->value.dynamic.size);
+      break;
+
+      case VA:
+        rc = rtap_db::VA_passport::autoid::find(t, aid, va_pass);
+        if (rc) { LOG(ERROR) << "Can't get passport for " << attr_info->name << ", rc=" << rc; break; }
+
+        rc = va_pass.FUNCTION_get(attr_info->value.dynamic.varchar, attr_info->value.dynamic.size);
+
+      LOG(INFO) << attr_info->name
+                 << " objclass:" << objclass
+                 << " pass_id:" << aid
+                 << " size:" << attr_info->value.dynamic.size
+//                 << " data:" << attr_info->value.dynamic.varchar
+                 << " type:" << attr_info->type
+                 << ", rc=" << rc;
+      break;
+
+      default:
+        LOG(ERROR) << "'" << attr_name << "' for objclass " << objclass << " is not supported";
+    }
+
+    // Ошибки чтения паспорта
+    if (rc)
+    {
+      LOG(ERROR) << attr_info->name
+                 << " objclass:" << objclass
+                 << " pass_id:" << aid
+                 << " size:" << attr_info->value.dynamic.size
+                 << " data:" << attr_info->value.dynamic.varchar
+                 << " type:" << attr_info->type
+                 << ", rc=" << rc;
+      break;
+    }
+
+    attr_info->type = AttrTypeDescription[RTDB_ATT_IDX_FUNCTION].type;
+#if defined VERBOSE
+    LOG(INFO) << attr_info->name << " = "<< attr_info->value.dynamic.varchar; //1
+#endif
+
+  } while (false);
+
+  return rc;
+}
+
+
+MCO_RET DatabaseRtapImpl::writeFUNCTION(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  static const char *attr_name = RTDB_ATT_FUNCTION;
+  MCO_RET rc = MCO_S_NOTFOUND;
+  rtap_db::PIPELINE_passport pipeline_pass;
+  rtap_db::VA_passport va_pass;
+  objclass_t objclass;
+  autoid_t aid;
+  uint2 size;
+
+  do
+  {
+    attr_info->type = AttrTypeDescription[RTDB_ATT_IDX_FUNCTION].type;
+
+    // Проверим, не выходит ли данный размер поля за допустимые границы
+    if (attr_info->value.dynamic.size > var_size[attr_info->type])
+      size = var_size[attr_info->type];
+    else
+      size = attr_info->value.dynamic.size;
+
+    rc = instance.autoid_get(aid);
+    if (rc) { LOG(ERROR) << "Can't get autoid for " << attr_info->name; break; }
+
+    rc = instance.OBJCLASS_get(objclass);
+    if (rc) { LOG(ERROR) << "Can't get objclass for " << attr_info->name; break; }
+
+    switch(objclass)
+    {
+      case PIPELINE:
+        rc = rtap_db::PIPELINE_passport::autoid::find(t, aid, pipeline_pass);
+        if (rc) { LOG(ERROR) << "Can't get passport for " << attr_info->name; break; }
+
+        rc = pipeline_pass.FUNCTION_put(attr_info->value.dynamic.varchar, size);
+      break;
+
+      case VA:
+        rc = rtap_db::VA_passport::autoid::find(t, aid, va_pass);
+        if (rc) { LOG(ERROR) << "Can't get passport for " << attr_info->name; break; }
+
+        rc = va_pass.FUNCTION_put(attr_info->value.dynamic.varchar, size);
+      break;
+
+      default:
+        LOG(ERROR) << "'" << attr_name << "' for objclass " << objclass << " is not supported";
+    }
+
+    // Ошибки чтения паспорта
+    if (rc)
+      break;
+
+  } while (false);
+
+  return rc;
+}
+
+// ======================== CONVERTCOEFF ============================
 MCO_RET DatabaseRtapImpl::createCONVERTCOEFF(PointInDatabase* instance, rtap_db::Attrib& attr)
 {
   static const char *attr_name = RTDB_ATT_CONVERTCOEFF;
@@ -3004,7 +4764,11 @@ MCO_RET DatabaseRtapImpl::createALARMBEGIN(PointInDatabase* instance, rtap_db::A
   {
     case TS:
     case TM:
-    case TSC:
+    //1 case TSC:
+        case VA:
+        case ATC:
+        case AUX1:
+        case AUX2:
     case AL:
     case ICS:
     case ICM:
@@ -3029,7 +4793,11 @@ MCO_RET DatabaseRtapImpl::createALARMBEGINACK(PointInDatabase* instance, rtap_db
   {
     case TS:
     case TM:
-    case TSC:
+    //1 case TSC:
+        case VA:
+        case ATC:
+        case AUX1:
+        case AUX2:
     case AL:
     case ICS:
     case ICM:
@@ -3054,7 +4822,11 @@ MCO_RET DatabaseRtapImpl::createALARMENDACK(PointInDatabase* instance, rtap_db::
   {
     case TS:
     case TM:
-    case TSC:
+    //1 case TSC:
+        case VA:
+        case ATC:
+        case AUX1:
+        case AUX2:
     case AL:
     case ICS:
     case ICM:
@@ -3092,7 +4864,11 @@ MCO_RET DatabaseRtapImpl::createALARMSYNTH(PointInDatabase* instance, rtap_db::A
   {
     case TS:
     case TM:
-    case TSC:
+    //1 case TSC:
+        case VA:
+        case ATC:
+        case AUX1:
+        case AUX2:
     case AL:
     case ICS:
     case ICM:
@@ -3119,9 +4895,13 @@ MCO_RET DatabaseRtapImpl::createL_TYPINFO(PointInDatabase* instance, rtap_db::At
     case TM:  rc = instance->passport().tm->L_TYPINFO_put(attr.value().c_str(), sz);  break;
     case TR:  rc = instance->passport().tr->L_TYPINFO_put(attr.value().c_str(), sz);  break;
     case TSA: rc = instance->passport().tsa->L_TYPINFO_put(attr.value().c_str(), sz); break;
-    case TSC: rc = instance->passport().tsc->L_TYPINFO_put(attr.value().c_str(), sz); break;
-    case TC:  rc = instance->passport().tc->L_TYPINFO_put(attr.value().c_str(), sz);  break;
-    case AL:  rc = instance->passport().al->L_TYPINFO_put(attr.value().c_str(), sz);  break;
+//1    case TSC: rc = instance->passport().tsc->L_TYPINFO_put(attr.value().c_str(), sz); break;
+    case VA:  rc = instance->passport().valve->L_TYPINFO_put(attr.value().c_str(),  sz); break;
+    case ATC: rc = instance->passport().atc->L_TYPINFO_put(attr.value().c_str(), sz); break;
+    case AUX1:rc = instance->passport().aux1->L_TYPINFO_put(attr.value().c_str(),sz); break;
+    case AUX2:rc = instance->passport().aux2->L_TYPINFO_put(attr.value().c_str(),sz); break;
+    case TC:  rc = instance->passport().tc->L_TYPINFO_put(attr.value().c_str(),  sz); break;
+    case AL:  rc = instance->passport().al->L_TYPINFO_put(attr.value().c_str(),  sz); break;
     case ICS: rc = instance->passport().ics->L_TYPINFO_put(attr.value().c_str(), sz); break;
     case ICM: rc = instance->passport().icm->L_TYPINFO_put(attr.value().c_str(), sz); break;
 
@@ -3145,7 +4925,11 @@ MCO_RET DatabaseRtapImpl::createL_EQT(PointInDatabase* instance, rtap_db::Attrib
     case TM:      rc = instance->passport().tm->L_EQT_put(attr.value().c_str(), sz);      break;
     case TR:      rc = instance->passport().tr->L_EQT_put(attr.value().c_str(), sz);      break;
     case TSA:     rc = instance->passport().tsa->L_EQT_put(attr.value().c_str(), sz);     break;
-    case TSC:     rc = instance->passport().tsc->L_EQT_put(attr.value().c_str(), sz);     break;
+    //1 case TSC:     rc = instance->passport().tsc->L_EQT_put(attr.value().c_str(), sz);     break;
+//    case VA:  rc = instance->passport().valve->L_EQT_put(attr.value().c_str(), sz); break;
+//    case ATC: rc = instance->passport().atc->L_EQT_put(attr.value().c_str(), sz); break;
+//    case AUX1:rc = instance->passport().aux1->L_EQT_put(attr.value().c_str(),sz); break;
+//    case AUX2:rc = instance->passport().aux2->L_EQT_put(attr.value().c_str(),sz); break;
     case TC:      rc = instance->passport().tc->L_EQT_put(attr.value().c_str(), sz);      break;
     case AL:      rc = instance->passport().al->L_EQT_put(attr.value().c_str(), sz);      break;
     case ICS:     rc = instance->passport().ics->L_EQT_put(attr.value().c_str(), sz);     break;
@@ -3280,19 +5064,34 @@ MCO_RET DatabaseRtapImpl::createL_DIPL(PointInDatabase* instance, rtap_db::Attri
 
   switch(instance->objclass())
   {
-    case TS: rc = instance->passport().ts->L_DIPL_put(attr.value().c_str(),
+    case TS:  rc = instance->passport().ts->L_DIPL_put(attr.value().c_str(),
                                                       attr.value().size());
     break;
-    case TM: rc = instance->passport().tm->L_DIPL_put(attr.value().c_str(),
+    case TM:  rc = instance->passport().tm->L_DIPL_put(attr.value().c_str(),
                                                       attr.value().size());
     break;
     case TSA: rc = instance->passport().tsa->L_DIPL_put(attr.value().c_str(),
                                                       attr.value().size());
     break;
+    /*
+    //1
     case TSC: rc = instance->passport().tsc->L_DIPL_put(attr.value().c_str(),
                                                       attr.value().size());
     break;
-    case AL: rc = instance->passport().al->L_DIPL_put(attr.value().c_str(),
+    */
+    case VA:  rc = instance->passport().valve->L_DIPL_put(attr.value().c_str(),
+                                                      attr.value().size());
+    break;
+    case ATC: rc = instance->passport().atc->L_DIPL_put(attr.value().c_str(),
+                                                      attr.value().size());
+    break;
+    case AUX1:rc = instance->passport().aux1->L_DIPL_put(attr.value().c_str(),
+                                                      attr.value().size());
+    break;
+    case AUX2:rc = instance->passport().aux2->L_DIPL_put(attr.value().c_str(),
+                                                      attr.value().size());
+    break;
+    case AL:  rc = instance->passport().al->L_DIPL_put(attr.value().c_str(),
                                                       attr.value().size());
     break;
     case ICS: rc = instance->passport().ics->L_DIPL_put(attr.value().c_str(),
@@ -3331,7 +5130,11 @@ MCO_RET DatabaseRtapImpl::createALDEST(PointInDatabase* instance, rtap_db::Attri
   {
     case TS: rc = instance->passport().ts->ALDEST_put(result);  break;
     case TM: rc = instance->passport().tm->ALDEST_put(result);  break;
-    case TSC:rc = instance->passport().tsc->ALDEST_put(result); break;
+    //1 case TSC:rc = instance->passport().tsc->ALDEST_put(result); break;
+    case VA: rc = instance->passport().valve->ALDEST_put(result);  break;
+    case ATC:rc = instance->passport().atc->ALDEST_put(result); break;
+    case AUX1: rc= instance->passport().aux1->ALDEST_put(result); break;
+    case AUX2: rc= instance->passport().aux2->ALDEST_put(result); break;
     case AL: rc = instance->passport().al->ALDEST_put(result);  break;
     case ICM:rc = instance->passport().icm->ALDEST_put(result); break;
     case SA: rc = instance->passport().sa->ALDEST_put(result);  break;
@@ -3444,6 +5247,7 @@ bool DatabaseRtapImpl::AttrFuncMapInit()
 #include "dat/impl_attr_creating_map.gen"
   // Функции чтения
 #include "dat/impl_attr_reading_map.gen"
+  m_attr_reading_func_map.insert(AttrProcessingFuncPair_t("OBJCLASS", &xdb::DatabaseRtapImpl::readOBJCLASS));
   // Функции записи
 #include "dat/impl_attr_writing_map.gen"
 

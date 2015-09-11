@@ -27,12 +27,12 @@ class ConnectionImpl
     ConnectionImpl(DatabaseRtapImpl*);
    ~ConnectionImpl();
 
-    mco_db_h handle();
-
     // Найти точку с указанным тегом
     rtap_db::Point* locate(const char*);
     // Прочитать значение конкретного атрибута
     const Error& read(AttributeInfo_t*);
+    // Прочитать значения атрибутов указанной группы подписки
+    const Error& read(std::string&, int*, SubscriptionPoints_t*);
     // Записать значение конкретного атрибута
     const Error& write(const AttributeInfo_t*);
     // Изменить значения атрибутов указанной точки
@@ -52,6 +52,12 @@ class ConnectionImpl
     DatabaseRtapImpl *m_rtap_db_impl;
     // Хендл экземпляра подключения
     mco_db_h m_database_handle;
+    // Состояние подключения.
+    // NB: Состояния объектов базы и подключения могут не совпадать,
+    // поскольку база имеет ограничения на количество подключений. В этом
+    // случае старые подключения могут работать, а новые подключения - нет.
+    ConnectionState_t m_state;
+    Error m_last_error;
 };
 
 } // namespace xdb

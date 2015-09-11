@@ -1349,6 +1349,12 @@ bool DatabaseBrokerImpl::ClearServices()
    *      Для каждого вызвать ClearWorkersForService()
    *      Удалить Сервис
    */
+  if (!m_service_list)
+  {
+    // Список Служб еще не инициализирован
+    return true;
+  }
+
   srv = m_service_list->first();
   while (srv)
   {

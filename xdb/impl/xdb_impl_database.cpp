@@ -785,7 +785,7 @@ const Error& DatabaseImpl::StoreSnapshot(const char* given_file_name)
       rc = mco_db_save(static_cast<void*>(fbak), file_writer, m_db);
       if (rc)
       {
-        LOG(ERROR) << "Unable to save "<<m_name<<" snapshot into "<<fname;
+        LOG(ERROR) << "Unable to save "<<m_name<<" snapshot into "<<fname<<", rc="<<rc;
       }
       fclose(fbak);
     }

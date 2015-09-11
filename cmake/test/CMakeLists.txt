@@ -78,6 +78,7 @@ set (TEST_DEV_INTERNAL_SOURCES
         ${MSG_DIR}/msg_common.h
         ${MSG_DIR}/msg_message.hpp
         ${MSG_DIR}/msg_adm.hpp
+        ${MSG_DIR}/msg_sinf.hpp
         ${MSG_DIR}/proto/common.proto
         ${MSG_DIR}/proto/rtdbus.proto
         ${MSG_DIR}/proto/sinf.proto
@@ -157,6 +158,7 @@ set (TEST_MSG_SOURCES
         ${MSG_DIR}/msg_common.h
         ${MSG_DIR}/msg_message.hpp
         ${MSG_DIR}/msg_adm.hpp
+        ${MSG_DIR}/msg_sinf.hpp
         ${TEST_RTDBUS_DIR}/message_unittest.cpp)
 
 if (CMAKE_COMPILER_IS_GNUCC)

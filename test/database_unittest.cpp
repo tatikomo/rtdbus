@@ -9,6 +9,8 @@
 #include "glog/logging.h"
 #include "gtest/gtest.h"
 
+#include "xdb_common.hpp"
+
 #include "xdb_impl_db_broker.hpp"
 #include "xdb_broker.hpp"
 #include "xdb_broker_service.hpp"
@@ -26,8 +28,8 @@
 #include "proto/common.pb.h"
 #include "msg/msg_common.h"
 
-#include "xdb_rtap_const.hpp"
 #include "xdb_rtap_application.hpp"
+#include "xdb_rtap_database.hpp"
 #include "xdb_rtap_environment.hpp"
 #include "xdb_rtap_connection.hpp"
 #include "xdb_rtap_snap.hpp"
@@ -40,6 +42,9 @@ const char *unbelievable_service_name = "unbelievable_service";
 const char *worker_identity_1 = "SN1_AAAAAAA";
 const char *worker_identity_2 = "SN1_WRK2";
 const char *worker_identity_3 = "WRK3";
+std::string group_name_1 = "Группа подписки #1";
+std::string group_name_2 = "Группа подписки #2";
+std::string group_name_unexistant = "Несуществующая";
 xdb::DatabaseBroker *database = NULL;
 xdb::Service *service1 = NULL;
 xdb::Service *service2 = NULL;
@@ -258,7 +263,7 @@ TEST(TestBrokerDATABASE, REMOVE_WORKER)
     // может не совпадать с порядком их помещения в базу
     //EXPECT_STREQ(worker->GetIDENTITY(), worker_identity_2);
     expiration_time_mark = worker->GetEXPIRATION();
-#if 0
+#if defined VERBOSE
     std::cout << "worker: '" << worker->GetIDENTITY() << "' "
               << "state: " << worker->GetSTATE() << " "
               << "expiration: " 
@@ -283,7 +288,7 @@ TEST(TestBrokerDATABASE, REMOVE_WORKER)
     EXPECT_EQ(worker->GetSTATE(), xdb::Worker::ARMED);
     //EXPECT_STREQ(worker->GetIDENTITY(), worker_identity_1);
     expiration_time_mark = worker->GetEXPIRATION();
-#if 0
+#if defined VERBOSE
     std::cout << "worker: '" << worker->GetIDENTITY() << "' "
               << "state: " << worker->GetSTATE() << " "
               << "expiration: " 
@@ -576,7 +581,7 @@ TEST(TestDiggerDATABASE, READ_WRITE)
   Error status;
 
   memset((void*)&info.value, '\0', sizeof(info.value));
-  // Проверка чтения
+  // Проверка чтения дискретного параметра
   // ================================
   info.name = "/KD4001/GOV022.STATUS";
   info.type = DB_TYPE_UNDEF;
@@ -586,20 +591,274 @@ TEST(TestDiggerDATABASE, READ_WRITE)
   EXPECT_EQ(status.code(), rtE_NONE);
   // После чтения атрибута должен определиться его тип
   EXPECT_EQ(info.type, DB_TYPE_UINT8);
+  // Значение по-умолчанию = DISABLED
+  // EXPECT_EQ(info.value.fixed.val_int8, /* DISABLED */ 2);
+  if (info.value.fixed.val_int8 == /* DISABLED */ 2)
+  {
+    // Сохраненный снимок БДРВ имеет первоначальные значения
+  }
 
-  // Проверка записи
+  // Проверка записи - неуспешно
   // ================================
   info.type = DB_TYPE_UINT8; // не обязательно
   // Попытка записать запрещенное значение, допустимы только 0,1,2
-  info.value.val_int32 = 101;
+  info.value.fixed.val_int32 = 101;
   status = connection->write(&info);
   // Недопустимое значение не должно писаться в БДРВ
   EXPECT_EQ(status.code(), rtE_ILLEGAL_PARAMETER_VALUE);
 
-  info.value.val_int32 = 2;
-  status = connection->write(&info);
-  // Успешность записи корректного значения
+  // 0 = PLANNED
+  // 1 = WORKED
+  // 2 = DISABLED
+  for (int stat = 0; stat < 3; stat++)
+  {
+      // Проверка записи - успешно
+      // ================================
+      info.value.fixed.val_int32 = stat;
+      status = connection->write(&info);
+      // Успешность записи корректного значения
+      EXPECT_EQ(status.code(), rtE_NONE);
+
+      // Проверка чтения - успешно
+      // ================================
+      status = connection->read(&info);
+      // Проверка успешности чтения данных
+      EXPECT_EQ(status.code(), rtE_NONE);
+      // После чтения атрибута должен определиться его тип
+      EXPECT_EQ(info.type, DB_TYPE_UINT8);
+      EXPECT_EQ(info.value.fixed.val_int8, stat);
+  }
+
+  // Проверка чтения строкового параметра
+  // ================================
+  info.name = "/KD4001/GOV022.SHORTLABEL";
+  info.type = DB_TYPE_UNDEF;
+  info.value.dynamic.varchar = NULL;
+  status = connection->read(&info);
+  // Проверка успешности чтения данных
   EXPECT_EQ(status.code(), rtE_NONE);
+  // После чтения атрибута должен определиться его тип
+  EXPECT_EQ(info.type, DB_TYPE_BYTES16);
+  std::cout << info.name << " = [" << info.value.dynamic.size << "] '"
+            << info.value.dynamic.varchar << "'" << std::endl;
+  delete [] info.value.dynamic.varchar;
+}
+
+// Удаление ранее созданной группы
+TEST(TestDiggerDATABASE, INIT_SBS)
+{
+  rtDbCq operation;
+
+//  env->MakeSnapshot("BEFORE_INIT_SBS");
+  // Тип операции - конфигурирование
+  operation.act_type = CONFIG;
+  // Название группы подписки
+  operation.buffer = static_cast<void*>(&group_name_1);
+  // Сначала удалить возможно ранее созданную группу.
+  // Код удаления групп group_name_1 и group_name_2 может быть ошибочным,
+  // это допустимо для свежих снимков БДРВ.
+  operation.action.config = rtCONFIG_DEL_GROUP_SBS;
+  const Error& err_1 = connection->ConfigDatabase(operation);
+  std::cout << "Delete subscription group " << group_name_1 << " was: " << err_1.what() << std::endl;
+
+  operation.buffer = static_cast<void*>(&group_name_2);
+  const Error& err_2 = connection->ConfigDatabase(operation);
+  std::cout << "Delete subscription group " << group_name_2 << " was: " << err_2.what() << std::endl;
+
+  // Попытка удаления группы group_name_unexistant должна быть ошибочной
+  operation.buffer = static_cast<void*>(&group_name_unexistant);
+  const Error& err_3 = connection->ConfigDatabase(operation);
+  std::cout << "Delete subscription group " << group_name_unexistant << " was: " << err_3.what() << std::endl;
+  EXPECT_EQ(err_3.code(), rtE_RUNTIME_ERROR);
+}
+
+// Тест создания группы подписки с заданными элементами
+TEST(TestDiggerDATABASE, CREATE_SBS)
+{
+  rtDbCq operation;
+  std::vector<std::string> tags_list;
+
+//  env->MakeSnapshot("BEFORE_CREATE_SBS");
+  // Тип операции - конфигурирование
+  operation.act_type = CONFIG;
+  // Название группы подписки
+  operation.buffer = static_cast<void*>(&group_name_1);
+  // Тип конфигурирования - создание группы подписки
+  operation.action.config = rtCONFIG_ADD_GROUP_SBS;
+
+  tags_list.push_back("/KD4001/GOV022");
+  tags_list.push_back("/KD4001/GOV023");
+  tags_list.push_back("/KD4001/GOV024");
+  tags_list.push_back("/KD4001/GOV025");
+  tags_list.push_back("/KD4001/GOV026");
+  tags_list.push_back("/KD4001/GOV027");
+  tags_list.push_back("/KD4001/GOV028");
+  tags_list.push_back("/KD4001/GOV029");
+  tags_list.push_back("/KD4001/GOV030");
+  tags_list.push_back("/KD4001/GOV031");
+  tags_list.push_back("/KD4001/GOV033");
+  // Название точек, входящих в набор создаваемой группы
+  operation.tags = &tags_list;
+  operation.addrCnt = tags_list.size();
+  
+  const Error& status_1 = connection->ConfigDatabase(operation);
+  EXPECT_EQ(status_1.code(), rtE_NONE);
+  std::cout << "Create subscription group was: " << status_1.what() << std::endl;
+
+  tags_list.clear();
+  tags_list.push_back("/KD4001/GOV035");
+  tags_list.push_back("/KD4001/GOV036");
+  operation.addrCnt = tags_list.size();
+  operation.buffer = static_cast<void*>(&group_name_2);
+  const Error& status_2 = connection->ConfigDatabase(operation);
+  EXPECT_EQ(status_2.code(), rtE_NONE);
+  std::cout << "Create subscription group was: " << status_2.what() << std::endl;
+}
+
+// Тест чтения всех значений точек из заданной группы подписки
+TEST(TestDiggerDATABASE, READ_SBS)
+{
+  AttributeInfo_t info;
+  rtDbCq operation;
+  xdb::SubscriptionPoints_t points_list;
+  int list_size = 0;
+  char s_date [D_DATE_FORMAT_LEN + 1];
+  time_t given_time;
+  char s_val[100];
+  uint16_t  update_val = 0;
+  unsigned int iteration, item;
+  AttributeMapIterator_t it;
+  Error status;
+
+  status = connection->read(group_name_2, &list_size, NULL);
+  EXPECT_EQ(status.code(), rtE_NONE);
+  EXPECT_EQ(list_size, 2); // кол-во строк из group_name_2
+
+  for (iteration = 0; iteration < 3; iteration++)
+  {
+      // Проверка чтения группы после изменения значения дискретного параметра
+      // ================================
+      memset((void*)&info.value, '\0', sizeof(info.value));
+      info.name = "/KD4001/GOV035.VAL";
+      info.type = DB_TYPE_UINT16;
+      info.value.fixed.val_uint16 = ++update_val;
+      status = connection->write(&info);
+      EXPECT_EQ(status.code(), rtE_NONE);
+
+      points_list.clear();
+
+      list_size = 2;
+      status = connection->read(group_name_2, &list_size, &points_list);
+      EXPECT_EQ(status.code(), rtE_NONE);
+
+      for(item=0; item < points_list.size(); item++)
+      {
+        std::cout << "#" << iteration << " read sbs tag:" << points_list.at(item)->tag
+            << " objclass:" << points_list.at(item)->objclass
+            << " attr#:" << points_list.at(item)->attributes.size()
+            << std::endl;
+        for(it = points_list.at(item)->attributes.begin();
+            it != points_list.at(item)->attributes.end();
+            it++ )
+        {
+          switch((*it).second.type)
+          {
+            case DB_TYPE_LOGICAL:   /* 1 */
+              sprintf(s_val, "%d", (*it).second.value.fixed.val_bool);
+            break;
+            case DB_TYPE_INT8:      /* 2 */
+              sprintf(s_val, "%+02d", (signed int)(*it).second.value.fixed.val_int8);
+            break;
+            case DB_TYPE_UINT8:     /* 3 */
+              sprintf(s_val, "%02d", (unsigned int)(*it).second.value.fixed.val_uint8);
+            break;
+            case DB_TYPE_INT16:     /* 4 */
+              sprintf(s_val, "%+05d", (*it).second.value.fixed.val_int16);
+            break;
+            case DB_TYPE_UINT16:    /* 5 */
+              sprintf(s_val, "%05d", (*it).second.value.fixed.val_uint16);
+            break;
+            case DB_TYPE_INT32:     /* 6 */
+              sprintf(s_val, "%+d", (*it).second.value.fixed.val_int32);
+            break;
+            case DB_TYPE_UINT32:    /* 7 */
+              sprintf(s_val, "%d", (*it).second.value.fixed.val_uint32);
+            break;
+            case DB_TYPE_INT64:     /* 8 */
+              sprintf(s_val, "%+lld", (*it).second.value.fixed.val_int64);
+            break;
+            case DB_TYPE_UINT64:    /* 9 */
+              sprintf(s_val, "%lld", (*it).second.value.fixed.val_uint64);
+            break;
+            case DB_TYPE_FLOAT:     /* 10 */
+              sprintf(s_val, "%f", (*it).second.value.fixed.val_float);
+            break;
+            case DB_TYPE_DOUBLE:    /* 11 */
+              sprintf(s_val, "%g", (*it).second.value.fixed.val_double);
+            break;
+            case DB_TYPE_BYTES:     /* 12 */ // переменная длина строки
+              sprintf(s_val, "%s", (*it).second.value.dynamic.val_string->c_str());
+              delete (*it).second.value.dynamic.val_string;
+            break;
+            case DB_TYPE_BYTES4:    /* 13 */
+            case DB_TYPE_BYTES8:    /* 14 */
+            case DB_TYPE_BYTES12:   /* 15 */
+            case DB_TYPE_BYTES16:   /* 16 */
+            case DB_TYPE_BYTES20:   /* 17 */
+            case DB_TYPE_BYTES32:   /* 18 */
+            case DB_TYPE_BYTES48:   /* 19 */
+            case DB_TYPE_BYTES64:   /* 20 */
+            case DB_TYPE_BYTES80:   /* 21 */
+            case DB_TYPE_BYTES128:  /* 22 */
+            case DB_TYPE_BYTES256:  /* 23 */
+              sprintf(s_val, "%s", (*it).second.value.dynamic.varchar);
+              delete [] (*it).second.value.dynamic.varchar;
+            break;
+            case DB_TYPE_ABSTIME:   /* 24 */
+              given_time = (*it).second.value.fixed.val_time.tv_sec;
+              strftime(s_date, D_DATE_FORMAT_LEN, D_DATE_FORMAT_STR, localtime(&given_time));
+              snprintf(s_val, D_DATE_FORMAT_W_MSEC_LEN, "%s.%06ld", s_date, (*it).second.value.fixed.val_time.tv_usec);
+            break;
+            case DB_TYPE_UNDEF:
+              sprintf(s_val, "<undefined type: %d>", (*it).second.type);
+            break;
+            default:
+              sprintf(s_val, "<unsupported type: %d>", (*it).second.type);
+          }
+          std::cout << "\t[t:" << (*it).second.type << "] " << (*it).first << ":\t" << s_val << std::endl;
+        }
+
+       delete points_list.at(item);
+      }
+  }
+}
+
+// Тест чтения всех значений точек из заданной группы подписки
+TEST(TestDiggerDATABASE, DELETE_SBS)
+{
+  rtDbCq operation;
+
+//  env->MakeSnapshot("BEFORE_DELETE_SBS");
+  // Проверить удаление действительно существующей группы
+  // ====================================================
+  operation.act_type = CONFIG;
+  // Удалить ранее созданную группу
+  operation.action.config = rtCONFIG_DEL_GROUP_SBS;
+  // Название группы подписки
+  operation.buffer = static_cast<void*>(&group_name_2);
+
+  const Error& status_correct = connection->ConfigDatabase(operation);
+  // Успешность записи корректного значения
+  EXPECT_EQ(status_correct.code(), rtE_NONE);
+
+  // Проверить удаление несуществующей группы подписки
+  // ====================================================
+  operation.buffer = static_cast<void*>(&group_name_unexistant);
+
+  const Error& status_fail = connection->ConfigDatabase(operation);
+  EXPECT_EQ(status_fail.code(), rtE_RUNTIME_ERROR);
+
+//  env->MakeSnapshot("AFTER_DELETE_SBS");
 }
 
 TEST(TestDiggerDATABASE, DESTROY)
@@ -750,7 +1009,7 @@ TEST(TestTools, LOAD_DATA_XML)
     doc_p.parse (argv[1]);
     RTDB_STRUCT_p.post_RTDB_STRUCT ();
 
-#if VERBOSE
+#if defined VERBOSE
     std::cout << "Parsing XML is over, processed " << point_list.size() << " element(s)" << std::endl;
 #endif
     /* В cmake/classes.xml есть 3 точки */
@@ -758,7 +1017,7 @@ TEST(TestTools, LOAD_DATA_XML)
 
     for (class_item=0; class_item<point_list.size(); class_item++)
     {
-#if VERBOSE
+#if defined VERBOSE
       std::cout << "\tOBJCLASS:  " << point_list[class_item].objclass() << std::endl;
       std::cout << "\tTAG:  '" << point_list[class_item].tag() << "'" << std::endl;
       std::cout << "\t#ATTR: " << point_list[class_item].m_attributes.size() << std::endl;
@@ -796,7 +1055,7 @@ TEST(TestTools, LOAD_DATA_XML)
             break;
       }
 
-#if VERBOSE
+#if defined VERBOSE
       std::cout << std::endl;
 #endif
     }
@@ -821,6 +1080,8 @@ TEST(TestTools, LOAD_CLASSES)
   char fpath[255];
   char msg_info[255];
   char msg_val[255];
+  char s_date [D_DATE_FORMAT_LEN + 1];
+  time_t given_time;
   xdb::AttributeMap_t *pool;
 
   LOG(INFO) << "BEGIN LOAD_CLASSES TestTools";
@@ -841,7 +1102,7 @@ TEST(TestTools, LOAD_CLASSES)
 
     if (pool)
     {
-#if VERBOSE
+#if defined VERBOSE
         std::cout << "#" << objclass_idx << " : " 
             << xdb::ClassDescriptionTable[objclass_idx].name 
             << "(" << pool->size() << ")" << std::endl;
@@ -854,40 +1115,38 @@ TEST(TestTools, LOAD_CLASSES)
 
             switch(it->second.type)
             {
+              case xdb::DB_TYPE_LOGICAL:
+                  sprintf(msg_val, "%d", it->second.value.fixed.val_bool);
+                  break;
               case xdb::DB_TYPE_INT8:
-                  sprintf(msg_val, "%02X", it->second.value.val_int8);
+                  sprintf(msg_val, "%02X", it->second.value.fixed.val_int8);
                   break;
               case xdb::DB_TYPE_UINT8:
-                  sprintf(msg_val, "%02X", it->second.value.val_uint8);
+                  sprintf(msg_val, "%02X", it->second.value.fixed.val_uint8);
                   break;
-
               case xdb::DB_TYPE_INT16:
-                  sprintf(msg_val, "%04X", it->second.value.val_int16);
+                  sprintf(msg_val, "%04X", it->second.value.fixed.val_int16);
                   break;
               case xdb::DB_TYPE_UINT16:
-                  sprintf(msg_val, "%04X", it->second.value.val_uint16);
+                  sprintf(msg_val, "%04X", it->second.value.fixed.val_uint16);
                   break;
-
               case xdb::DB_TYPE_INT32:
-                  sprintf(msg_val, "%08X", it->second.value.val_int32);
+                  sprintf(msg_val, "%08X", it->second.value.fixed.val_int32);
                   break;
               case xdb::DB_TYPE_UINT32:
-                  sprintf(msg_val, "%08X", it->second.value.val_uint32);
+                  sprintf(msg_val, "%08X", it->second.value.fixed.val_uint32);
                   break;
-
               case xdb::DB_TYPE_INT64:
-                  sprintf(msg_val, "%lld", it->second.value.val_int64);
+                  sprintf(msg_val, "%lld", it->second.value.fixed.val_int64);
                   break;
               case xdb::DB_TYPE_UINT64:
-                  sprintf(msg_val, "%llu", it->second.value.val_uint64);
+                  sprintf(msg_val, "%llu", it->second.value.fixed.val_uint64);
                   break;
-
               case xdb::DB_TYPE_FLOAT:
-                  sprintf(msg_val, "%f", it->second.value.val_float);
+                  sprintf(msg_val, "%f", it->second.value.fixed.val_float);
                   break;
-
               case xdb::DB_TYPE_DOUBLE:
-                  sprintf(msg_val, "%g", it->second.value.val_double);
+                  sprintf(msg_val, "%g", it->second.value.fixed.val_double);
                   break;
 
               case xdb::DB_TYPE_BYTES:
@@ -903,18 +1162,24 @@ TEST(TestTools, LOAD_CLASSES)
               case xdb::DB_TYPE_BYTES128:
               case xdb::DB_TYPE_BYTES256:
                   sprintf(msg_val, "[%02X] \"%s\"", 
-                    it->second.value.val_bytes.size,
-                    it->second.value.val_bytes.data);
+                    it->second.value.dynamic.size,
+                    it->second.value.dynamic.varchar);
                   break;
 
               case xdb::DB_TYPE_UNDEF:
                   sprintf(msg_val, ": undef %02d", xdb::DB_TYPE_UNDEF);
                   break;
 
+              case xdb::DB_TYPE_ABSTIME:
+                  given_time = it->second.value.fixed.val_time.tv_sec;
+                  strftime(s_date, D_DATE_FORMAT_LEN, D_DATE_FORMAT_STR, localtime(&given_time));
+                  snprintf(msg_val, D_DATE_FORMAT_W_MSEC_LEN, "%s.%06ld", s_date, it->second.value.fixed.val_time.tv_usec);
+                  break;
+
               default:
                   LOG(ERROR) << ": <error>=" << it->second.type;
             }
-#if VERBOSE
+#if defined VERBOSE
             std::cout << msg_info << " | " << msg_val << std::endl;
 #endif
         }

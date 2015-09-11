@@ -141,6 +141,7 @@ set (MDP_SOURCES
 
 set (BROKER_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
+        ${XDB_COMMON_DIR}/xdb_common.cpp
         ${XDB_COMMON_DIR}/xdb_common.hpp
         ${XDB_IMPL_DIR}/xdb_impl_common.h
         ${XDB_IMPL_DIR}/xdb_impl_common.c

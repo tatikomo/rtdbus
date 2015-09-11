@@ -13,7 +13,7 @@
 #if defined HAVE_CONFIG_H
 #include "config.h"
 #endif
-#include "xdb_rtap_const.hpp"
+#include "xdb_common.hpp"
 #include "xdb_rtap_snap.hpp"
 
 using namespace xdb;
@@ -147,32 +147,31 @@ recordType xdb::getRecordType(std::string& typeEnreg)
 void LoadDbTypesDictionary()
 {
    /* TODO: release dbTypesHash memory */
-   dbTypesHash.insert(DbTypesHashPair_t("rtUNDEFINED",  DB_TYPE_UNDEF));
-   dbTypesHash.insert(DbTypesHashPair_t("rtLOGICAL",    DB_TYPE_INT8));
-   dbTypesHash.insert(DbTypesHashPair_t("rtINT8",       DB_TYPE_INT8));
-   dbTypesHash.insert(DbTypesHashPair_t("rtUINT8",      DB_TYPE_UINT8));
-   dbTypesHash.insert(DbTypesHashPair_t("rtINT16",      DB_TYPE_INT16));
-   dbTypesHash.insert(DbTypesHashPair_t("rtUINT16",     DB_TYPE_UINT16));
-   dbTypesHash.insert(DbTypesHashPair_t("rtINT32",      DB_TYPE_INT32));
-   dbTypesHash.insert(DbTypesHashPair_t("rtUINT32",     DB_TYPE_UINT32));
-   dbTypesHash.insert(DbTypesHashPair_t("rtFLOAT",      DB_TYPE_FLOAT));
-   dbTypesHash.insert(DbTypesHashPair_t("rtDOUBLE",     DB_TYPE_DOUBLE));
-   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES",      DB_TYPE_BYTES)); // NB: в RTAP отсутствует
-   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES4",     DB_TYPE_BYTES4));
-   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES8",     DB_TYPE_BYTES8));
-   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES12",    DB_TYPE_BYTES12));
-   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES16",    DB_TYPE_BYTES16));
-   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES20",    DB_TYPE_BYTES20));
-   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES32",    DB_TYPE_BYTES32));
-   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES48",    DB_TYPE_BYTES48));
-   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES64",    DB_TYPE_BYTES64));
-   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES80",    DB_TYPE_BYTES80));
-   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES128",   DB_TYPE_BYTES128));
-   dbTypesHash.insert(DbTypesHashPair_t("rtBYTES256",   DB_TYPE_BYTES256));
-   dbTypesHash.insert(DbTypesHashPair_t("rtDB_XREF",    DB_TYPE_INT64)); // autoid_t eXtremeDB
-   dbTypesHash.insert(DbTypesHashPair_t("rtDATE",       DB_TYPE_INT64));
-   dbTypesHash.insert(DbTypesHashPair_t("rtTIME_OF_DAY",DB_TYPE_INT64));
-   dbTypesHash.insert(DbTypesHashPair_t("rtABS_TIME",   DB_TYPE_INT64));
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtLOGICAL].name,    DB_TYPE_LOGICAL));
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtINT8].name,       DB_TYPE_INT8));
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtUINT8].name,      DB_TYPE_UINT8));
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtINT16].name,      DB_TYPE_INT16));
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtUINT16].name,     DB_TYPE_UINT16));
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtINT32].name,      DB_TYPE_INT32));
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtUINT32].name,     DB_TYPE_UINT32));
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtFLOAT].name,      DB_TYPE_FLOAT));
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtDOUBLE].name,     DB_TYPE_DOUBLE));
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtBYTES4].name,     DB_TYPE_BYTES4));
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtBYTES8].name,     DB_TYPE_BYTES8));
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtBYTES12].name,    DB_TYPE_BYTES12));
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtBYTES16].name,    DB_TYPE_BYTES16));
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtBYTES20].name,    DB_TYPE_BYTES20));
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtBYTES32].name,    DB_TYPE_BYTES32));
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtBYTES48].name,    DB_TYPE_BYTES48));
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtBYTES64].name,    DB_TYPE_BYTES64));
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtBYTES80].name,    DB_TYPE_BYTES80));
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtBYTES128].name,   DB_TYPE_BYTES128));
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtBYTES256].name,   DB_TYPE_BYTES256));
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtDB_XREF].name,    DB_TYPE_INT64)); // autoid_t eXtremeDB
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtDATE].name,       DB_TYPE_ABSTIME));
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtTIME_OF_DAY].name,DB_TYPE_ABSTIME));
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtABS_TIME].name,   DB_TYPE_ABSTIME));
+   dbTypesHash.insert(DbTypesHashPair_t(rtDataElem[rtUNDEFINED].name,  DB_TYPE_UNDEF));
 
    // TODO: release memory
    // NB: не используется, удалить?
@@ -321,6 +320,11 @@ int xdb::processClassFile(const char* fpath)
         p_attr_info->name.assign(s_univname);
         // Присвоить значение атрибуту в соответствии с полученным типом
         getAttrValue(db_type, p_attr_info, s_default_value);
+#if defined VERBOSE
+        std::cout << "objclass: " << objclass << " attr_name: "
+                  << s_univname << " type: " << s_type
+                  << " type_code: " << db_type << std::endl;
+#endif
 
         // Поместить новый атрибут в список атрибутов класса
         ClassDescriptionTable[objclass].attributes_pool->insert(
@@ -350,6 +354,8 @@ bool getAttrValue(DbType_t db_type,
     const std::string& given_value)
 {
     bool status = true;
+    struct tm given_time;
+    std::string::size_type point_pos;
 
     assert(p_attr_info);
 
@@ -361,6 +367,13 @@ bool getAttrValue(DbType_t db_type,
       // фактическая поданная длина
       // TODO: проверить работу с UTF-8
       case DB_TYPE_BYTES:
+        if (!given_value.empty())
+        {
+          p_attr_info->value.dynamic.val_string = new std::string(given_value);
+        }
+        else p_attr_info->value.dynamic.val_string = NULL;
+      break;
+
       case DB_TYPE_BYTES4:
       case DB_TYPE_BYTES8:
       case DB_TYPE_BYTES12:
@@ -372,48 +385,69 @@ bool getAttrValue(DbType_t db_type,
       case DB_TYPE_BYTES80:
       case DB_TYPE_BYTES128:
       case DB_TYPE_BYTES256:
-        p_attr_info->value.val_bytes.size = given_value.size();
+        p_attr_info->value.dynamic.size = given_value.size();
         // для непустого значения
-        if (p_attr_info->value.val_bytes.size)
+        if (p_attr_info->value.dynamic.size)
         {
-           p_attr_info->value.val_bytes.data = new char[p_attr_info->value.val_bytes.size + 1];
-           memcpy(p_attr_info->value.val_bytes.data,
+           p_attr_info->value.dynamic.varchar = new char[p_attr_info->value.dynamic.size + 1];
+           memcpy(p_attr_info->value.dynamic.varchar,
                given_value.data(),
                given_value.length());
-           p_attr_info->value.val_bytes.data[p_attr_info->value.val_bytes.size] = '\0';
+           p_attr_info->value.dynamic.varchar[p_attr_info->value.dynamic.size] = '\0';
         }
-        else p_attr_info->value.val_bytes.data = NULL;
+        else
+        {
+/*          LOG(ERROR) << "LEAK?:" << p_attr_info->name
+                     << " type:" << p_attr_info->type
+                     << " size:" << p_attr_info->value.dynamic.size
+                     << " data:" << (void*)p_attr_info->value.dynamic.varchar;*/
+          p_attr_info->value.dynamic.varchar = NULL;
+        }
         break;
 
+      case DB_TYPE_LOGICAL:
+              p_attr_info->value.fixed.val_bool = (atoi(given_value.c_str()) > 0);
+              break;
       case DB_TYPE_INT8:
-              p_attr_info->value.val_int8 = atoi(given_value.c_str());
+              p_attr_info->value.fixed.val_int8 = atoi(given_value.c_str());
               break;
       case DB_TYPE_UINT8:
-              p_attr_info->value.val_uint8 = atoi(given_value.c_str());
+              p_attr_info->value.fixed.val_uint8 = atoi(given_value.c_str());
               break;
       case DB_TYPE_INT16:
-              p_attr_info->value.val_int16 = atoi(given_value.c_str());
+              p_attr_info->value.fixed.val_int16 = atoi(given_value.c_str());
               break;
       case DB_TYPE_UINT16:
-              p_attr_info->value.val_uint16 = atoi(given_value.c_str());
+              p_attr_info->value.fixed.val_uint16 = atoi(given_value.c_str());
               break;
       case DB_TYPE_INT32:
-              p_attr_info->value.val_int32 = atoi(given_value.c_str());
+              p_attr_info->value.fixed.val_int32 = atoi(given_value.c_str());
               break;
       case DB_TYPE_UINT32:
-              p_attr_info->value.val_uint32 = atoi(given_value.c_str());
+              p_attr_info->value.fixed.val_uint32 = atoi(given_value.c_str());
               break;
       case DB_TYPE_INT64:
-              p_attr_info->value.val_int64 = atoi(given_value.c_str());
+              p_attr_info->value.fixed.val_int64 = atoll(given_value.c_str());
               break;
       case DB_TYPE_UINT64:
-              p_attr_info->value.val_uint64 = atoi(given_value.c_str());
+              p_attr_info->value.fixed.val_uint64 = atoll(given_value.c_str());
               break;
       case DB_TYPE_FLOAT:
-              p_attr_info->value.val_float = atof(given_value.c_str());
+              p_attr_info->value.fixed.val_float = atof(given_value.c_str());
               break;
       case DB_TYPE_DOUBLE:
-              p_attr_info->value.val_double = atof(given_value.c_str());
+              p_attr_info->value.fixed.val_double = atof(given_value.c_str());
+              break;
+      case DB_TYPE_ABSTIME:
+              strptime(given_value.c_str(), D_DATE_FORMAT_STR, &given_time);
+              p_attr_info->value.fixed.val_time.tv_sec = given_time.tm_sec;
+//              std::cout << "snap date:" << given_value.c_str()
+//                        << " sec=" << given_time.tm_sec
+//                        << std::endl; //1
+              point_pos = given_value.find_last_of('.');
+              // Если точка найдена, и она не последняя в строке
+              if ((point_pos != std::string::npos) && point_pos != given_value.size())
+                 p_attr_info->value.fixed.val_time.tv_usec = atoi(given_value.substr(point_pos + 1).c_str());
               break;
 
       default:
@@ -430,11 +464,15 @@ std::string getValueAsString(AttributeInfo_t* attr_info, bool masquerade)
   std::string s_val;
   std::stringstream ss;
   std::string::size_type found;
+  time_t given_time;
+  static char s_date[D_DATE_FORMAT_LEN + 1];
 
   assert(attr_info);
   switch(attr_info->type)
   {
       case DB_TYPE_BYTES:
+        s_val.assign(*attr_info->value.dynamic.val_string);
+      break;
       case DB_TYPE_BYTES4:
       case DB_TYPE_BYTES8:
       case DB_TYPE_BYTES12:
@@ -445,54 +483,68 @@ std::string getValueAsString(AttributeInfo_t* attr_info, bool masquerade)
       case DB_TYPE_BYTES80:
       case DB_TYPE_BYTES128:
       case DB_TYPE_BYTES256:
-        s_val.assign(attr_info->value.val_bytes.data, attr_info->value.val_bytes.size);
+        s_val.assign(attr_info->value.dynamic.varchar, attr_info->value.dynamic.size);
         break;
 
+      case DB_TYPE_LOGICAL:
+        ss << static_cast<unsigned int>(attr_info->value.fixed.val_bool);
+        s_val.assign(ss.str());
+        break;
       case DB_TYPE_INT8:
         // NB: простой вывод int8 значением < '0' в поток проводит к
         // занесению туда непечатных символов, нужно приводить int8 к int16
-        ss << static_cast<int>(attr_info->value.val_int8);
+        ss << static_cast<signed int>(attr_info->value.fixed.val_int8);
         s_val.assign(ss.str());
         break;
       case DB_TYPE_UINT8:
-        ss << static_cast<int>(attr_info->value.val_uint8);
+        ss << static_cast<unsigned int>(attr_info->value.fixed.val_uint8);
         s_val.assign(ss.str());
         break;
 
       case DB_TYPE_INT16:
-        ss << attr_info->value.val_int16;
+        ss << attr_info->value.fixed.val_int16;
         s_val.assign(ss.str());
         break;
       case DB_TYPE_UINT16:
-        ss << attr_info->value.val_uint16;
+        ss << attr_info->value.fixed.val_uint16;
         s_val.assign(ss.str());
         break;
 
       case DB_TYPE_INT32:
-        ss << attr_info->value.val_int32;
+        ss << attr_info->value.fixed.val_int32;
         s_val.assign(ss.str());
         break;
       case DB_TYPE_UINT32:
-        ss << attr_info->value.val_uint32;
+        ss << attr_info->value.fixed.val_uint32;
         s_val.assign(ss.str());
         break;
 
       case DB_TYPE_INT64:
-        ss << attr_info->value.val_int64;
+        ss << attr_info->value.fixed.val_int64;
         s_val.assign(ss.str());
         break;
       case DB_TYPE_UINT64:
-        ss << attr_info->value.val_uint64;
+        ss << attr_info->value.fixed.val_uint64;
         s_val.assign(ss.str());
         break;
 
       case DB_TYPE_FLOAT:
-        ss << attr_info->value.val_float;
+        ss << attr_info->value.fixed.val_float;
         s_val.assign(ss.str());
         break;
 
       case DB_TYPE_DOUBLE:
-        ss << attr_info->value.val_double;
+        ss << attr_info->value.fixed.val_double;
+        s_val.assign(ss.str());
+        break;
+
+      case DB_TYPE_ABSTIME:
+        given_time = attr_info->value.fixed.val_time.tv_sec;
+        strftime(s_date, D_DATE_FORMAT_LEN, D_DATE_FORMAT_STR, localtime(&given_time));
+//              std::cout << "snap sec:" << given_time
+//                        << " date:" << s_date
+//                        << std::endl; //1
+        ss << s_date << "." << attr_info->value.fixed.val_time.tv_usec;
         s_val.assign(ss.str());
         break;
 
@@ -559,8 +611,8 @@ std::string& xdb::dump_point(
         it_given = attributes_given.find(UNIVNAME_STRING);
         if (it_given != attributes_given.end())
         {
-          univname.assign(it_given->second.value.val_bytes.data,
-                          it_given->second.value.val_bytes.size);
+          univname.assign(it_given->second.value.dynamic.varchar,
+                          it_given->second.value.dynamic.size);
         }
         else
         {
@@ -580,7 +632,7 @@ std::string& xdb::dump_point(
           if (!it->second.name.compare(UNIVNAME_STRING))
             continue;
 
-          // Атрибут БДРВ OBJCLASS пропустить, он уже сохранен как атрибут XML Тег
+          // Атрибут БДРВ OBJCLASS пропустить, он уже сохранен как атрибут XML
           if (!it->second.name.compare(OBJCLASS_STRING))
             continue;
 
@@ -632,7 +684,20 @@ std::string& xdb::dump_point(
       switch(it_attr_pool->second.type)
       {
         case DB_TYPE_BYTES:
-          delete[] it_attr_pool->second.value.val_bytes.data;
+          delete it_attr_pool->second.value.dynamic.val_string;
+        break;
+        case DB_TYPE_BYTES4:
+        case DB_TYPE_BYTES8:
+        case DB_TYPE_BYTES12:
+        case DB_TYPE_BYTES16:
+        case DB_TYPE_BYTES20:
+        case DB_TYPE_BYTES32:
+        case DB_TYPE_BYTES48:
+        case DB_TYPE_BYTES64:
+        case DB_TYPE_BYTES80:
+        case DB_TYPE_BYTES128:
+        case DB_TYPE_BYTES256:
+          delete[] it_attr_pool->second.value.dynamic.varchar;
           break;
         default:
           // nothing to do here
@@ -870,7 +935,8 @@ bool xdb::processInstanceFile(const char* fpath)
                     value = buffer.substr(VALUE_POSITION);
                   }
                }
-               
+
+               //memset(&attr_info.value, '\0', sizeof(attr_info.value));
                // Присвоить значение атрибуту в соответствии с полученным типом
                if (!getAttrValue(db_type, &attr_info, value))
                {
@@ -1220,10 +1286,8 @@ bool xdb::GetDbTypeFromString(std::string& s_t, DbType_t& db_t)
   if (it != dbTypesHash.end())
   {
     db_t= it->second;
-  }
-
-  if (db_t != DB_TYPE_UNDEF)
     status = true;
+  }
 
   return status;
 }

@@ -244,6 +244,7 @@ void DiggerWorker::work()
    delete m_message_factory; m_message_factory = NULL;
 
    LOG(INFO) << "DiggerWorker thread is done";
+   pthread_exit(NULL);
 }
 
 
@@ -254,8 +255,11 @@ int DiggerWorker::processing(mdp::zmsg* request, std::string &identity)
 {
   rtdbMsgType msgType;
 
-  LOG(INFO) << "Process new request with " << request->parts() 
-            << " parts and reply to " << identity;
+//  LOG(INFO) << "Process new request with " << request->parts() 
+//            << " parts and reply to " << identity;
+
+  // Получить отметку времени начала обработки запроса
+  m_metric_center->before();
 
   // Получить отметку времени начала обработки запроса
   m_metric_center->before();
@@ -296,7 +300,6 @@ int DiggerWorker::processing(mdp::zmsg* request, std::string &identity)
 int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
 {
   msg::ReadMulti *read_msg = dynamic_cast<msg::ReadMulti*>(letter);
-  xdb::RtPoint   *point = NULL;
   mdp::zmsg      *response = new mdp::zmsg();
   xdb::DbType_t  given_xdb_type;
   // удалить
@@ -311,20 +314,46 @@ int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
             << " dest:" << read_msg->header()->proc_dest()
             << " origin:" << read_msg->header()->proc_origin();
 
-  for (int idx = 0; idx < read_msg->num_items(); idx++)
+  for (std::size_t idx = 0; idx < read_msg->num_items(); idx++)
   {
-    const msg::Value& todo = read_msg->item(idx);
+    // todo содержит заново проинициализированный экземпляр типа msg::Value,
+    // основываясь на данном пользователе типе данных. Если пользователь
+    // ошибся, инициализация будет некорректной.
+    //
+    // Это критично для строковых типов атрибутов - память под данные
+    // выделена не будет, при этом указатель на строковые данные будет
+    // ненулевым из-за слитного размещения всех типов данных (union AttrVal_t).
+    // Для них функция чтения правильно определит тип данных (строковое),
+    // и посчитает, что память для строки уже была выделена.
+    // В результате будет попытка записи в неправильную область памяти.
+    msg::Value& todo = read_msg->item(idx);
 
-    point = m_db_connection->locate(todo.tag().c_str());
+    // Запомнить данный пользователем тип данных, он может отличаться от фактического
+    given_xdb_type = todo.type();
 
-    if (!point) {
+    // Получить значение и фактический тип атрибута
+    const xdb::Error& err = m_db_connection->read(&todo.instance());
+
+    if (!err.Ok()) {
       // Нет такой точки в БДРВ
       LOG(ERROR) << "Request unexistent point \"" << todo.tag() << "\"";
     }
-    delete point;
-  }
+    else
+    {
+      // Обновить значение под контролем protobuf
+      // Перенос прочитанных из БДРВ значений (AttrVal) в RTDBM::UpdateValue
+      todo.flush();
+    
+#if defined VERBOSE
+        LOG(INFO) << "Read [" << todo.type() << "] " << todo.tag() << " = " << todo.as_string();
+#endif
 
-
+      if ((given_xdb_type == xdb::DB_TYPE_UNDEF) && (todo.type() != xdb::DB_TYPE_UNDEF))
+      {
+        // Обновить значение типа атрибута, т.к. он неизвестен вызывающей стороне
+        read_msg->set_type(idx, todo.type());
+      }
+    }
 
     if (true == read_msg->get(idx, delme_name, delme_type, delme_quality, delme_val))
     {
@@ -452,25 +481,74 @@ int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
 int DiggerWorker::handle_write(msg::Letter* letter, std::string& identity)
 {
   msg::WriteMulti *write_msg = dynamic_cast<msg::WriteMulti*>(letter);
-  LOG(INFO) << "Processing WriteMulti request to " << identity;
+  int status_code = 0;
 
-  send_exec_result(0, identity);
-  return 0;
+  LOG(INFO) << "Processing WriteMulti ("<<write_msg->num_items()<<") request to " << identity;
+
+  for (std::size_t idx = 0; idx < write_msg->num_items(); idx++)
+  {
+    msg::Value& todo = write_msg->item(idx);
+
+    LOG(INFO) << "write #"<<idx<<":"<<todo.tag()<< ":"<<(unsigned int)todo.type()<<":"<<todo.raw().fixed.val_int32;
+    // Получить значение и фактический тип атрибута
+    const xdb::Error& err = m_db_connection->write(&todo.instance());
+    // Накапливающийся код ошибки
+    status_code |= err.code();
+
+    switch(err.code())
+    {
+      case xdb::rtE_NONE: // Все в порядке
+        status_code = 0;
+#if defined VERBOSE
+        std::cout << "[  OK  ] #" << idx << " name:" << todo.tag()
+                  << " type:" << todo.type()
+                  << " val:" << todo.as_string()
+                  << std::endl;
+#endif
+      break;
+
+      case xdb::rtE_ILLEGAL_PARAMETER_VALUE:
+        LOG(ERROR) << "Writing \"" << todo.tag() << "\": " << err.what();
+      break;
+
+      case xdb::rtE_ATTR_NOT_FOUND: // Нет такой точки в БДРВ
+        LOG(ERROR) << "Writing \"" << todo.tag() << "\": " << err.what();
+      break;
+
+      default:
+        LOG(ERROR) << "Writing \"" << todo.tag()
+                   << "\": Unsupported error code: " << err.what();
+    }
+  }
+
+  send_exec_result(status_code, identity);
+  return status_code;
 }
 
 // отправить адресату сообщение о статусе исполнения команды
 // --------------------------------------------------------------------------------
 void DiggerWorker::send_exec_result(int exec_val, std::string& identity)
 {
-  std::string OK = "хорошо";
-  std::string FAIL = "плохо";
+  static std::string message_OK = "успешно";
+  std::string message_FAIL;
   msg::ExecResult *msg_exec_result = 
         dynamic_cast<msg::ExecResult*>(m_message_factory->create(ADG_D_MSG_EXECRESULT));
   mdp::zmsg       *response = new mdp::zmsg();
 
   msg_exec_result->set_destination(identity);
   msg_exec_result->set_exec_result(exec_val);
-  msg_exec_result->set_failure_cause(0, OK);
+
+  switch(exec_val)
+  {
+    case 0:
+      msg_exec_result->set_failure_cause(0, message_OK);
+    break;
+
+    default:
+      message_FAIL = xdb::Error::what(exec_val);
+      msg_exec_result->set_failure_cause(exec_val, message_FAIL);
+    break;
+  }
 
   response->push_front(const_cast<std::string&>(msg_exec_result->data()->get_serialized()));
   response->push_front(const_cast<std::string&>(msg_exec_result->header()->get_serialized()));
@@ -690,7 +768,7 @@ DiggerProxy::DiggerProxy(zmq::context_t &ctx, xdb::RtEnvironment* env) :
  m_backend(m_context, ZMQ_DEALER),
  m_environment(env)
 {
-  LOG(INFO) << "DiggerProxy start, new context " << m_context;
+  LOG(INFO) << "DiggerProxy start, new context " << &m_context;
 }
 
 // --------------------------------------------------------------------------------
@@ -762,7 +840,8 @@ void DiggerProxy::run()
       LOG(INFO) << "DiggerProxy (" << ENDPOINT_SINF_FRONTEND
                 << ", " << ENDPOINT_SINF_DATA_BACKEND << ")";
 
-      int rc = zmq_proxy_steerable (m_frontend, m_backend, nullptr, m_control);
+      // NB: необходимо использовать оператор (void*) для доступа к внутреннему ptr
+      int rc = zmq_proxy_steerable ((void*)m_frontend, (void*)m_backend, nullptr, (void*)m_control);
       if (0 == rc)
       {
         LOG(INFO) << "DiggerProxy zmq::proxy finish successfuly";
@@ -857,7 +936,8 @@ Digger::Digger(std::string broker_endpoint, std::string service, int verbose)
    m_message_factory(new msg::MessageFactory(DIGGER_NAME)),
    m_appli(NULL),
    m_environment(NULL),
-   m_db_connection(NULL)
+   m_db_connection(NULL),
+   m_verbose(verbose)
 {
   m_appli = new xdb::RtApplication("DIGGER");
   m_appli->setOption("OF_CREATE",   1);    // Создать если БД не было ранее
@@ -922,7 +1002,7 @@ void Digger::run()
     LOG(INFO) << "DiggerProxy creating, interrupt_worker=" << &interrupt_worker;
     m_digger_proxy = new DiggerProxy(m_context, m_environment);
 
-    LOG(INFO) << "DiggerProxy starting thread";
+    LOG(INFO) << "DiggerProxy starting Main thread";
     m_proxy_thread = new std::thread(std::bind(&DiggerProxy::run, m_digger_proxy));
 
     LOG(INFO) << "Wait 1 second to DiggerProxy became start";
@@ -960,6 +1040,8 @@ void Digger::run()
     }
 
     cleanup();
+
+    LOG(INFO) << "Digger's message processing cycle is finished";
   }
   catch(zmq::error_t error)
   {
@@ -1146,13 +1228,6 @@ void Digger::send_exec_result(int exec_val, std::string* reply_to)
   response->push_front(const_cast<std::string&>(msg_exec_result->header()->get_serialized()));
   response->wrap(reply_to->c_str(), "");
 
-  std::cout << "Send ExecResult to " << *reply_to
-            << " with status:" << msg_exec_result->exec_result()
-            << " sid:" << msg_exec_result->header()->exchange_id()
-            << " iid:" << msg_exec_result->header()->interest_id()
-            << " dest:" << msg_exec_result->header()->proc_dest()
-            << " origin:" << msg_exec_result->header()->proc_origin() << std::endl;
-
   LOG(INFO) << "Send ExecResult to " << *reply_to
             << " with status:" << msg_exec_result->exec_result()
             << " sid:" << msg_exec_result->header()->exchange_id()
@@ -1181,15 +1256,6 @@ int Digger::handle_asklife(msg::Letter* letter, std::string* reply_to)
   response->push_front(const_cast<std::string&>(msg_ask_life->data()->get_serialized()));
   response->push_front(const_cast<std::string&>(msg_ask_life->header()->get_serialized()));
   response->wrap(reply_to->c_str(), "");
-
-#if 0
-  std::cout << "Processing asklife from " << *reply_to
-            << " has status:" << msg_ask_life->exec_result(exec_val)
-            << " sid:" << msg_ask_life->header()->exchange_id()
-            << " iid:" << msg_ask_life->header()->interest_id()
-            << " dest:" << msg_ask_life->header()->proc_dest()
-            << " origin:" << msg_ask_life->header()->proc_origin() << std::endl;
-#endif
 
   LOG(INFO) << "Processing asklife from " << *reply_to
             << " has status:" << msg_ask_life->exec_result(exec_val)
@@ -1226,7 +1292,7 @@ int Digger::handle_asklife(msg::Letter* letter, std::string* reply_to)
 #if !defined _FUNCTIONAL_TEST
 int main(int argc, char **argv)
 {
-  int  verbose = (argc > 1 && (0 == strcmp (argv [1], "-v")));
+  int  verbose;
   char service_name[SERVICE_NAME_MAXLEN + 1];
   bool is_service_name_given = false;
   int  opt;

@@ -76,6 +76,8 @@ class PointInDatabase
    ~PointInDatabase();
     objclass_t objclass() { return m_objclass; };
     MCO_RET create(mco_trans_h);
+    // Прочитать значения атрибутов Точки из БДРВ во внутреннее представление
+    MCO_RET load(mco_trans_h);
     // Установить Дискретную часть
     MCO_RET assign(rtap_db::DiscreteInfoType& di) { return m_point.di_write(di); }; 
     // Установить Аналоговую часть
@@ -210,6 +212,8 @@ class DatabaseRtapImpl
     // Чтение данных Точки
     const Error& read(mco_db_h&, rtap_db::Point&);
     const Error& read(mco_db_h&, AttributeInfo_t*);
+    // Чтение данных группы Точек
+    const Error& read(mco_db_h&, std::string&, int*, xdb::SubscriptionPoints_t*);
     // Изменение данных Точки
     const Error& write(mco_db_h&, rtap_db::Point&);
     // Запись значения атрибута для заданной точки
@@ -246,9 +250,17 @@ class DatabaseRtapImpl
     static MCO_RET new_Point(mco_trans_h, XDBPoint*, MCO_EVENT_TYPE, void*);
     static MCO_RET del_Point(mco_trans_h, XDBPoint*, MCO_EVENT_TYPE, void*);
 
+    // По заданному идентификатору прочитать из БДРВ значения атрибутов точки XDBPoint
+    MCO_RET LoadPointInfo(mco_db_h&, mco_trans_h, autoid_t, xdb::PointDescription_t*);
+
     // Подключиться к БД, а при ее отсутствии - создать
     bool AttachToInstance();
 
+    // Актуализация типа параметра в соответствии с внутреннем словарем
+    // и коррекция выделенного ранее буфера для содержимого параметра,
+    // поскольку функция выделения буфера не знала на тот момент о
+    // фактическом типе параметра.
+    void check_user_defined_type(int, AttributeInfo_t*);
     // ------------------------------------------------------------
     // Сохранить XML Scheme БДРВ
     void GenerateXSD();
@@ -267,11 +279,23 @@ class DatabaseRtapImpl
     MCO_RET createTableDICT_UNITY_ID(mco_db_h&, rtap_db_dict::unity_labels_t*);
     MCO_RET createTableXDB_CE(mco_db_h&, rtap_db_dict::macros_def_t*);
 
+    // ====================================================
+    // Работа с группами подписки через интерфейс Config()
+    // ====================================================
+    // Создать группу атрибутов под заданным именем
+    MCO_RET createGroup(mco_db_h&, rtDbCq&);
+    // Удалить группу атрибутов с заданным именем
+    MCO_RET deleteGroup(mco_db_h&, rtDbCq&);
+
     // Главный источник переченя атрибутов - rtap_db.xsd
     // Но поскольку скриптом мне проще обрабатывать плоский текстовый
     // файл вместо XSD-файла, то названия прототипов берутся из файла attr_list.txt
     // Прототипы функций чтения/записи значений атрибутов генерируются автоматически
 #include "dat/proto_attr_reading.gen"
+    // TAG не является полноценным атрибутом, потому обрабатывается спец. образом
+    MCO_RET readTAG(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*);
+    // OBJCLASS не является полноценным атрибутом, потому обрабатывается спец. образом
+    MCO_RET readOBJCLASS(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*);
 #include "dat/proto_attr_writing.gen"
     // Функции записи значений атрибутов
     // Два этих атрибута создаются особым образом, т.к. фактически не являются атрибутами

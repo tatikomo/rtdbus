@@ -126,11 +126,21 @@ namespace rtap_db
       return m_tag;
     }
 
+    uint64_t tag_id() const
+    {
+      return m_tag_id;
+    }
+
     void clear()
     {
       m_tag.clear();
       m_objclass = OBJCLASS_UNUSED;
       m_attributes.clear();
+    }
+
+    int attrib_qty()
+    {
+      return m_attributes.size();
     }
 
     rtap_db::Attrib* attrib(const char* _attr_name)
@@ -175,6 +185,7 @@ namespace rtap_db
 
     Objclass     m_objclass;
     Tag          m_tag;
+    uint64_t     m_tag_id;
     AttributeList m_attributes;
   };
 

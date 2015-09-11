@@ -29,6 +29,8 @@ class RtConnection
     RtPoint* locate(const char*);
     // Прочитать значение заданного атрибута точки
     const Error& read(AttributeInfo_t*);
+    // Прочитать значения заданной группы точек
+    const Error& read(std::string&, int*, SubscriptionPoints_t*);
     // Записать значение заданного атрибута точки
     const Error& write(const AttributeInfo_t*);
     // Вернуть ссылку на экземпляр текущей среды

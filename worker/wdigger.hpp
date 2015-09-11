@@ -127,9 +127,10 @@ class DiggerProxy
 {
   public:
     DiggerProxy(zmq::context_t&, xdb::RtEnvironment*);
-    ~DiggerProxy();
+   ~DiggerProxy();
 
     // Запуск прокси-треда обмена между DiggerProxy и DiggerWorker
+    // Также инициирует запуск нити Probe
     void run();
 
   private:
@@ -144,6 +145,12 @@ class DiggerProxy
     zmq::socket_t    m_backend;
     // Передача доступа в БДРВ
     xdb::RtEnvironment *m_environment;
+    // Объект проверки состояния (Пробник)
+    DiggerProbe     *m_probe;
+    // Нить проверки состояния нитей DiggerWorker
+    std::thread     *m_probe_thread;
+    // Останов Пробника
+    void wait_probe_stop();
 };
 
 
@@ -154,7 +161,7 @@ class Digger : public mdp::mdwrk
     // Зарезервированный размер памяти для БДРВ
     static const int DatabaseSizeBytes;
     Digger(std::string, std::string, int);
-    ~Digger();
+   ~Digger();
 
     // Запуск DiggerProxy и цикла получения сообщений
     void run();
@@ -189,6 +196,7 @@ class Digger : public mdp::mdwrk
     xdb::RtApplication *m_appli;
     xdb::RtEnvironment *m_environment;
     xdb::RtConnection  *m_db_connection;
+    bool                m_verbose;
 };
 
 } // namespace mdp
