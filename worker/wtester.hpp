@@ -13,7 +13,7 @@ class Tester : public mdp::mdwrk
 {
   public:
     Tester(const std::string&, const std::string&, int);
-    ~Tester();
+    virtual ~Tester();
 
     int handle_rtdbus_message(msg::Letter*, std::string*);
     int handle_request(mdp::zmsg*, std::string *&);

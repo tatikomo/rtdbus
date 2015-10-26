@@ -30,6 +30,7 @@ include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${LIBGLOG_LIBRARIES_DIR})
+link_directories(${LIBZMQ_LIBRARIES_DIR})
 
 add_custom_command(
         OUTPUT 
@@ -143,9 +144,10 @@ target_link_libraries(${XDB_RTAP_LIBRARY_NAME}
 
 add_executable (${XDB_RTAP_SNAP_NAME} ${XDB_RTAP_SNAP_SOURCES})
 target_link_libraries(${XDB_RTAP_SNAP_NAME}
+    ${LIBGLOG_LIBRARIES}
     ${XDB_RTAP_LIBRARY_NAME}
     ${XDB_RTAP_IMPL_LIBRARY_NAME}
-    ${LIBGLOG_LIBRARIES}
+    ${LIBZMQ_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${SYSTEM_EXTERNAL_LIBS})
 

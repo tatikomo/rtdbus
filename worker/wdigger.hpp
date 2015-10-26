@@ -13,6 +13,7 @@
 // класс измерения производительности
 #include "tool_metrics.hpp"
 
+#include "xdb_common.hpp"
 #include "mdp_worker_api.hpp"
 #include "mdp_zmsg.hpp"
 #include "msg_message.hpp"
@@ -43,7 +44,7 @@ class DiggerWorker
     static const int PollingTimeout;
 
     DiggerWorker(zmq::context_t&, int, xdb::RtEnvironment*);
-    ~DiggerWorker();
+   ~DiggerWorker();
     // Бесконечный цикл обработки запросов
     void work();
     // Обработка запроса статистики
@@ -54,6 +55,8 @@ class DiggerWorker
     int handle_read(msg::Letter*, std::string&);
     // Обработка запроса на изменение данных
     int handle_write(msg::Letter*, std::string&);
+    // Управление Группами подписок
+    int handle_sbs_ctrl(msg::Letter*, std::string&);
     // Отправка квитанции о выполнении запроса
     // TODO: Устранить дублирование с такой же функцией в классе Digger
     void send_exec_result(int, std::string&);
@@ -64,10 +67,9 @@ class DiggerWorker
     zmq::context_t &m_context;
     zmq::socket_t   m_worker;
     zmq::socket_t   m_commands;
-    // Сигнал к завершению работы
-    bool            m_interrupt;
     pid_t           m_thread_id;
-
+    // Локальный флаг завершения работы, чтобы разные экземпляры не зависели друг от друга
+    bool m_interrupt;
     // Объекты доступа к БДРВ
     // TODO: поведение БДРВ при одномоментном исполнении нескольких конкурирующих экземпляров?
     xdb::RtEnvironment *m_environment;
@@ -79,35 +81,81 @@ class DiggerWorker
     tool::Metrics *m_metric_center;
 };
 
+// Класс Управляющего группами подписки
+class DiggerPoller
+{
+  public:
+    DiggerPoller(zmq::context_t&, xdb::RtEnvironment*);
+   ~DiggerPoller(); 
+    void work();
+    void stop();
+
+  private:
+    bool clear_modification_flag(std::string&, xdb::SubscriptionPoints_t&);
+    // Публикация (название группы, перечень тегов со значениями)
+    //bool publish_sbs(std::string&, xdb::SubscriptionPoints_t&);
+    // Освободить динамические части из кучи
+    void release_attribute_info(xdb::AttributeInfo_t*);
+    void release_point_info(xdb::PointDescription_t*);
+
+    // Сигнал к завершению работы
+    static bool m_interrupt;
+
+    // Копия контекста основной нити Digger
+    // требуется для работы транспорта inproc
+    zmq::context_t &m_context;
+    // Публикация данных по подписке
+    zmq::socket_t   m_publisher;
+
+    // Передача доступа в БДРВ
+    xdb::RtEnvironment *m_environment;
+    // Фабрика сообщений на обновления групп подписки
+    msg::MessageFactory *m_message_factory;
+};
+
+// Класс управляющего над экземплярами DiggerPoller и DiggerWorker
+// Следит за их работоспособностью и при необходимости корректирует их работу (как?)
 class DiggerProbe
 {
   public:
-    static const int kMaxThread;
+    // Максимальное количество нитей DiggerWorker-ов.
+    // Общее количество нитей +1 (добавится DiggerPoller)
+    static const int kMaxWorkerThreads;
 
     DiggerProbe(zmq::context_t&, xdb::RtEnvironment*);
    ~DiggerProbe();
     // Нить проверки состояния нитей DiggerWorker
     void work();
+    // Запуск нитей DiggerWorker и DiggerPoller
+    bool start();
     void stop();
-    int  start_workers();
 
   private:
-    // Останов Обработчиков, вызывается неявно
+    // Признак продолжения работы нити Probe
+    static bool m_interrupt;
+
+    int  start_workers();
+    bool start_sbs_poller();
+    // Останов Обработчиков
     void shutdown_workers();
+    // Останов Управляющего Группами Подписки
+    void shutdown_sbs_poller();
 
     // Копия контекста основной нити Digger
     // требуется для работы транспорта inproc
     zmq::context_t  &m_context;
     // Сокет для связи с экземплярами DiggerWorker
     zmq::socket_t    m_worker_command_socket;
-    // Признак продолжения работы нити Probe
-    static bool      m_probe_continue;
     // Передача доступа в БДРВ
     xdb::RtEnvironment *m_environment;
     // Локальный список экземпляров класса DiggerWorker
     std::vector<DiggerWorker*> m_worker_list;
     // Локальный список экземпляров нитей DiggerWorker::work()
     std::vector<std::thread*>  m_worker_thread;
+    // Экземпляр управляющего группами подписки
+    DiggerPoller *m_sbs_checker;
+    // Нить управляющего группами подписки
+    std::thread  *m_sbs_thread;
 };
 
 //  ---------------------------------------------------------------------
@@ -134,6 +182,8 @@ class DiggerProxy
     void run();
 
   private:
+    // Сигнал к завершению работы
+    static bool m_interrupt;
     // Копия контекста основной нити Digger
     // требуется для работы транспорта inproc
     zmq::context_t  &m_context;
@@ -161,7 +211,7 @@ class Digger : public mdp::mdwrk
     // Зарезервированный размер памяти для БДРВ
     static const int DatabaseSizeBytes;
     Digger(std::string, std::string, int);
-   ~Digger();
+    virtual ~Digger();
 
     // Запуск DiggerProxy и цикла получения сообщений
     void run();
@@ -196,7 +246,7 @@ class Digger : public mdp::mdwrk
     xdb::RtApplication *m_appli;
     xdb::RtEnvironment *m_environment;
     xdb::RtConnection  *m_db_connection;
-    bool                m_verbose;
+    int                 m_verbose_digg;
 };
 
 } // namespace mdp

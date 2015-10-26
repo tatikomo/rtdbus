@@ -25,45 +25,45 @@ namespace xdb {
 
 class DatabaseRtapImpl;
 
-      typedef union {
-        void                    *root_pointer;
-        rtap_db::TS_passport    *ts;
-        rtap_db::TM_passport    *tm;
-        rtap_db::TR_passport    *tr;
-        rtap_db::TSA_passport   *tsa;
-        rtap_db::TSC_passport   *tsc;
-        rtap_db::TC_passport    *tc;
-        rtap_db::AL_passport    *al;
-        rtap_db::ICS_passport   *ics;
-        rtap_db::ICM_passport   *icm;
-        rtap_db::PIPE_passport  *pipe;
-        rtap_db::PIPELINE_passport  *pipeline;
-        rtap_db::TL_passport    *tl;
-        rtap_db::SC_passport    *sc;
-        rtap_db::ATC_passport   *atc;
-        rtap_db::GRC_passport   *grc;
-        rtap_db::SV_passport    *sv;
-        rtap_db::SDG_passport   *sdg;
-        rtap_db::RGA_passport   *rga;
-        rtap_db::SSDG_passport  *ssdg;
-        rtap_db::BRG_passport   *brg;
-        rtap_db::SCP_passport   *scp;
-        rtap_db::STG_passport   *stg;
-        rtap_db::METLINE_passport   *metline;
-        rtap_db::ESDG_passport      *esdg;
-        rtap_db::SVLINE_passport    *svline;
-        rtap_db::SCPLINE_passport   *scpline;
-        rtap_db::TLLINE_passport    *tlline;
-        rtap_db::DIR_passport       *dir;
-        rtap_db::DIPL_passport      *dipl;
-        rtap_db::INVT_passport      *invt;
-        rtap_db::AUX1_passport      *aux1;
-        rtap_db::AUX2_passport      *aux2;
-        rtap_db::SA_passport        *sa;
-        rtap_db::SITE_passport      *site;
-        rtap_db::VA_passport        *valve;
-        rtap_db::FIXEDPOINT_passport    *fixed;
-    } any_passport_t;
+typedef union {
+    void                    *root_pointer;
+    rtap_db::TS_passport    *ts;
+    rtap_db::TM_passport    *tm;
+    rtap_db::TR_passport    *tr;
+    rtap_db::TSA_passport   *tsa;
+    rtap_db::TSC_passport   *tsc;
+    rtap_db::TC_passport    *tc;
+    rtap_db::AL_passport    *al;
+    rtap_db::ICS_passport   *ics;
+    rtap_db::ICM_passport   *icm;
+    rtap_db::PIPE_passport  *pipe;
+    rtap_db::PIPELINE_passport  *pipeline;
+    rtap_db::TL_passport    *tl;
+    rtap_db::SC_passport    *sc;
+    rtap_db::ATC_passport   *atc;
+    rtap_db::GRC_passport   *grc;
+    rtap_db::SV_passport    *sv;
+    rtap_db::SDG_passport   *sdg;
+    rtap_db::RGA_passport   *rga;
+    rtap_db::SSDG_passport  *ssdg;
+    rtap_db::BRG_passport   *brg;
+    rtap_db::SCP_passport   *scp;
+    rtap_db::STG_passport   *stg;
+    rtap_db::METLINE_passport   *metline;
+    rtap_db::ESDG_passport      *esdg;
+    rtap_db::SVLINE_passport    *svline;
+    rtap_db::SCPLINE_passport   *scpline;
+    rtap_db::TLLINE_passport    *tlline;
+    rtap_db::DIR_passport       *dir;
+    rtap_db::DIPL_passport      *dipl;
+    rtap_db::INVT_passport      *invt;
+    rtap_db::AUX1_passport      *aux1;
+    rtap_db::AUX2_passport      *aux2;
+    rtap_db::SA_passport        *sa;
+    rtap_db::SITE_passport      *site;
+    rtap_db::VA_passport        *valve;
+    rtap_db::FIXEDPOINT_passport    *fixed;
+} any_passport_t;
 
 // Представление набора данных и объектов XDB
 // Используется для унификации функций-создателей атрибутов
@@ -94,9 +94,9 @@ class PointInDatabase
     MCO_RET  update_references();
     mco_trans_h current_transaction() { return m_transaction_handler; };
     any_passport_t& passport() { return m_passport; };
-    rtap_db::AnalogInfoType& AIT()   { return m_ai; };
-    rtap_db::DiscreteInfoType& DIT() { return m_di; };
-    rtap_db::AlarmItem& alarm()      { return m_alarm; };
+    rtap_db::AnalogInfoType& AIT();
+    rtap_db::DiscreteInfoType& DIT();
+    rtap_db::AlarmItem& alarm();
 
   private:
     DISALLOW_COPY_AND_ASSIGN(PointInDatabase);
@@ -124,6 +124,10 @@ class PointInDatabase
     rtap_db::AlarmItem         m_alarm;
     // различные виды паспортов, специализация по objclass
     any_passport_t m_passport;
+    // Признаки создания соответствующих необязательных полей XDBPoint
+    bool m_is_AI_assigned;  // AnalogInformation
+    bool m_is_DI_assigned;  // DiscreteInformation
+    bool m_is_AL_assigned;  // AlarmInformation
 };
 
 class DatabaseImpl;
@@ -238,7 +242,8 @@ class DatabaseRtapImpl
     DatabaseImpl *m_impl;
 
     // Зарегистрировать все обработчики событий, заявленные в БД
-    MCO_RET RegisterEvents(mco_db_h&);
+    MCO_RET RegisterEvents();
+    bool m_register_events;
 
     // Создать общую часть Точки в БД, вернуть идентификатор
     MCO_RET createPoint(PointInDatabase*);
@@ -249,6 +254,8 @@ class DatabaseRtapImpl
     // Автоматически вызываемые события при работе с экземплярами Point
     static MCO_RET new_Point(mco_trans_h, XDBPoint*, MCO_EVENT_TYPE, void*);
     static MCO_RET del_Point(mco_trans_h, XDBPoint*, MCO_EVENT_TYPE, void*);
+    // Событие изменения VALIDCHANGE
+    static MCO_RET on_update_VALIDCHANGE(mco_trans_h, XDBPoint*, MCO_EVENT_TYPE, void*);
 
     // По заданному идентификатору прочитать из БДРВ значения атрибутов точки XDBPoint
     MCO_RET LoadPointInfo(mco_db_h&, mco_trans_h, autoid_t, xdb::PointDescription_t*);
@@ -264,6 +271,54 @@ class DatabaseRtapImpl
     // ------------------------------------------------------------
     // Сохранить XML Scheme БДРВ
     void GenerateXSD();
+
+    // Код СЕ для VALIDCHANGE аналоговых телеизмерений
+    MCO_RET GOFVALTI(mco_trans_h,
+        XDBPoint*,
+        AnalogInfoType&,
+        const char*,
+        objclass_t,
+        ValidChange,
+        double&,
+        timestamp&,
+        double&,
+        Validity,
+        double&,
+        Validity,
+        SystemState,
+        SystemState,
+        bool,
+        bool);
+    // Код СЕ для VALIDCHANGE Тревог
+    MCO_RET GOFVALAL(mco_trans_h,
+        XDBPoint*,
+        DiscreteInfoType&,
+        const char*,
+        objclass_t,
+        ValidChange,
+        uint64_t&,
+        timestamp&,
+        uint64_t&,
+        Validity,
+        uint64_t&,
+        Validity,
+        SystemState,
+        SystemState);
+    // Код СЕ для VALIDCHANGE Оборудования
+    MCO_RET GOFVALTSC(mco_trans_h,
+        XDBPoint*,
+        DiscreteInfoType&,
+        const char*,
+        objclass_t,
+        ValidChange,
+        uint64_t&,
+        timestamp&,
+        uint64_t&,
+        Validity,
+        uint64_t&,
+        Validity,
+        SystemState,
+        SystemState);
 
     // Связь между названием атрибута и функцией его создания
     AttrCreatingFuncMap_t     m_attr_creating_func_map;
@@ -282,11 +337,29 @@ class DatabaseRtapImpl
     // ====================================================
     // Работа с группами подписки через интерфейс Config()
     // ====================================================
+    // Активировать подписку
+    // NB: пока (2015-10-01) нет механизма контроля за списком подписчиков на конкретную группу,
+    // поэтому Клиентам нельзя управлять включением/выключением групп.
+    MCO_RET enableGroup(mco_db_h&, rtDbCq&);
+    // Приостановить подписку
+    MCO_RET suspendGroup(mco_db_h&, rtDbCq&);
     // Создать группу атрибутов под заданным именем
     MCO_RET createGroup(mco_db_h&, rtDbCq&);
     // Удалить группу атрибутов с заданным именем
     MCO_RET deleteGroup(mco_db_h&, rtDbCq&);
-
+    // ====================================================
+    // Работа с группами подписки через интерфейс Query()
+    // ====================================================
+    // Получить список групп подписки с активными (модифицированными элементами)
+    MCO_RET querySbsArmedGroup(mco_db_h&, rtDbCq&);
+    // Сбросить флаг модифицикации атрибутов всех групп из указанного списка
+    MCO_RET querySbsDisarmSelectedPoints(mco_db_h&, rtDbCq&);
+    // Многофункциональная процедура, тип работы зависит от значения последнего аргумента
+    // rtQUERY_SBS_POINTS_ARMED: Получить перечень активированных точек для указанной группы 
+    // rtQUERY_SBS_POINTS_DISARM: Для указанной группы Точек сбросить признак модификации
+    // rtQUERY_SBS_READ_POINTS_ARMED: Прочитать значения всех атрибутов указанной группы
+    MCO_RET querySbsPoints(mco_db_h&, rtDbCq&, TypeOfQuery);
+     
     // Главный источник переченя атрибутов - rtap_db.xsd
     // Но поскольку скриптом мне проще обрабатывать плоский текстовый
     // файл вместо XSD-файла, то названия прототипов берутся из файла attr_list.txt

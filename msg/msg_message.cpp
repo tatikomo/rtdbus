@@ -505,33 +505,39 @@ Letter* MessageFactory::create(rtdbMsgType type)
   {
     case ADG_D_MSG_EXECRESULT:
         created = new ExecResult();
-    break;
+        break;
     case ADG_D_MSG_ENDINITACK:
-    break;
+        break;
     case ADG_D_MSG_INIT:
-    break;
+        break;
     case ADG_D_MSG_STOP:
-    break;
+        break;
     case ADG_D_MSG_ENDALLINIT:
-    break;
+        break;
     case ADG_D_MSG_ASKLIFE:
         created = new AskLife();
-    break;
+        break;
     case ADG_D_MSG_LIVING:
-    break;
+        break;
     case ADG_D_MSG_STARTAPPLI:
-    break;
+        break;
     case ADG_D_MSG_STOPAPPLI:
-    break;
+        break;
     case ADG_D_MSG_ADJTIME:
-    break;
+        break;
 
     case SIG_D_MSG_READ_MULTI:
         created = new ReadMulti();
-    break;
+        break;
     case SIG_D_MSG_WRITE_MULTI:
         created = new WriteMulti();
-    break;
+        break;
+    case SIG_D_MSG_GRPSBS:
+        created = new SubscriptionEvent();
+        break;
+    case SIG_D_MSG_GRPSBS_CTRL:
+        created = new SubscriptionControl();
+        break;
 
     default:
       LOG(ERROR) << "Unsupported message type " << type; 
@@ -653,8 +659,8 @@ Letter* MessageFactory::unserialize(const std::string& pb_header, const std::str
   switch (user_type)
   {
     case ADG_D_MSG_EXECRESULT:
-        created = new ExecResult(fresh_header, pb_data);
-    break;
+      created = new ExecResult(fresh_header, pb_data);
+      break;
 //    case ADG_D_MSG_ENDINITACK:
 //    break;
 //    case ADG_D_MSG_INIT:
@@ -664,8 +670,8 @@ Letter* MessageFactory::unserialize(const std::string& pb_header, const std::str
 //    case ADG_D_MSG_ENDALLINIT:
 //    break;
     case ADG_D_MSG_ASKLIFE:
-        created = new AskLife(fresh_header, pb_data);
-    break;
+      created = new AskLife(fresh_header, pb_data);
+      break;
 //    case ADG_D_MSG_LIVING:
 //    break;
 //    case ADG_D_MSG_STARTAPPLI:
@@ -676,13 +682,20 @@ Letter* MessageFactory::unserialize(const std::string& pb_header, const std::str
 //    break;
 
     case SIG_D_MSG_READ_MULTI:
-        created = new ReadMulti(fresh_header, pb_data);
-    break;
+      created = new ReadMulti(fresh_header, pb_data);
+      break;
  
     case SIG_D_MSG_WRITE_MULTI:
-        created = new WriteMulti(fresh_header, pb_data);
-    break;
+      created = new WriteMulti(fresh_header, pb_data);
+      break;
  
+    case SIG_D_MSG_GRPSBS_CTRL:
+      created = new SubscriptionControl(fresh_header, pb_data);
+      break;
+
+    case SIG_D_MSG_GRPSBS:
+      created = new SubscriptionEvent(fresh_header, pb_data);
+      break;
     default:
       LOG(ERROR) << "Unsupported message type " << user_type; 
   }

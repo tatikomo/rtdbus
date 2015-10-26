@@ -27,6 +27,8 @@ class ConnectionImpl
     ConnectionImpl(DatabaseRtapImpl*);
    ~ConnectionImpl();
 
+    // Состояние подключения
+    ConnectionState_t state() { return m_state; };
     // Найти точку с указанным тегом
     rtap_db::Point* locate(const char*);
     // Прочитать значение конкретного атрибута

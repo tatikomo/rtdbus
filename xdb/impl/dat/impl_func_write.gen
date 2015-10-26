@@ -94,18 +94,6 @@ MCO_RET DatabaseRtapImpl::writeGRADLEVEL(mco_trans_h&, rtap_db::XDBPoint&, Attri
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::writeINHIB(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
-MCO_RET DatabaseRtapImpl::writeINHIBLOCAL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
 MCO_RET DatabaseRtapImpl::writeKMREFDWN(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
 {
   MCO_RET rc = MCO_S_OK;
@@ -202,13 +190,13 @@ MCO_RET DatabaseRtapImpl::writeL_PIPELINE(mco_trans_h&, rtap_db::XDBPoint&, Attr
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::writeL_SA(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+MCO_RET DatabaseRtapImpl::writeL_TL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
 {
   MCO_RET rc = MCO_S_OK;
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::writeL_TL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+MCO_RET DatabaseRtapImpl::writeL_TM(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
 {
   MCO_RET rc = MCO_S_OK;
   return rc;
@@ -286,12 +274,6 @@ MCO_RET DatabaseRtapImpl::writePLANPRESSURE(mco_trans_h&, rtap_db::XDBPoint&, At
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::writePREV_DISPATCHER(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
 MCO_RET DatabaseRtapImpl::writePREV_SHIFT_TIME(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
 {
   MCO_RET rc = MCO_S_OK;
@@ -340,7 +322,7 @@ MCO_RET DatabaseRtapImpl::writeTYPE(mco_trans_h&, rtap_db::XDBPoint&, AttributeI
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::writeUNITY(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+MCO_RET DatabaseRtapImpl::writeUNITYCATEG(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
 {
   MCO_RET rc = MCO_S_OK;
   return rc;

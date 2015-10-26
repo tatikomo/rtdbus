@@ -30,3 +30,13 @@ S L_EQT              PUB        rtBYTES32
 #F value              rtUINT16
 #F valid              rtUINT16
 #F dispatcher         rtBYTES20
+## TSC part
+S VALID              PUB        rtUINT16       0    
+S VALIDACQ           PUB        rtLOGICAL      1    
+S VAL                PUB        rtUINT16       1    
+S VALMANUAL          PUB        rtUINT16       0    
+S DATEHOURM          PUB        rtABS_TIME     
+S VALACQ             PUB        rtUINT16       0    
+S VALIDCHANGE        PUB        rtUINT16       9    
+S L_DIPL             PUB        rtBYTES32
+S L_TYPINFO          PUB        rtBYTES32

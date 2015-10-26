@@ -40,6 +40,7 @@ mdcli::mdcli (std::string broker, int verbose) :
    m_broker(broker),
    m_context(NULL),
    m_client(NULL),
+   m_subscriber(NULL),
    m_peer(NULL),
    m_verbose(verbose),
    m_timeout(2500)       //  msecs
@@ -67,12 +68,20 @@ mdcli::~mdcli ()
   
   try
   {
+    if (m_subscriber)
+      m_subscriber->close();
+
     if (m_peer)
       m_peer->close();
+
     m_client->close();
 
+    delete m_subscriber;
     delete m_peer;
     delete m_client;
+
+    // [08.10.2015] Проверить - проблема решена путем установки таймаута на передачу данных
+    //
     // ISSUE 25.05.2015: если Клиент попытался отправить сообщение несуществующему Сервису,
     // а затем завершает свою работу, то он "зависает" на удалении контекста:
     // #0  0xb7fdd424 in __kernel_vsyscall ()
@@ -115,21 +124,22 @@ void mdcli::connect_to_broker ()
    m_client->setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
 
    // Заполним структуру для работы recv с помощью zmq::poll
-   m_socket_items[BROKER_ITEM].socket = (void*)*m_client;
+   m_socket_items[BROKER_ITEM].socket = (void*)*m_client; // NB: оператор (void*) обязателен!
+   // zmq::socket_t::operator (void*) предоставляет доступ к внутреннему представлению zmq_socket_t
    m_socket_items[BROKER_ITEM].fd = 0;
    m_socket_items[BROKER_ITEM].events = ZMQ_POLLIN;
    m_socket_items[BROKER_ITEM].revents = 0;
 
    if (m_verbose)
-        LOG(INFO) << "Connecting to broker at " << m_broker;
+     LOG(INFO) << "Connecting to broker at " << m_broker;
 }
 
 //  ---------------------------------------------------------------------
 //  Connect or reconnect to Services
 void mdcli::connect_to_services ()
 {
-   if (m_verbose)
-        LOG(INFO) << "Connecting to services (?)";
+  if (m_verbose)
+    LOG(INFO) << "Connecting to services and publishers";
 }
 
 //  ---------------------------------------------------------------------
@@ -167,7 +177,7 @@ bool mdcli::insert_service_info(const char* serv_name, ServiceInfo *&serv_info)
   {
     // Ранее такой Службы не было известно
     m_services_info.insert(ServicesHashPair_t(serv_name, serv_info));
-    LOG(INFO) << "Store endpoint '" << serv_info->endpoint
+    LOG(INFO) << "Store endpoint '" << serv_info->endpoint_external
               << "' for service '" << serv_name << "'";
     status = true;
   }
@@ -235,20 +245,20 @@ int mdcli::ask_service_info(const char* service_name, char* service_endpoint, in
         // Служба неизвестна, запомнить информацию
         service_info = new ServiceInfo; // Удаление в деструкторе
         memset(service_info, '\0', sizeof(ServiceInfo));
-        strncpy(service_info->endpoint, service_endpoint, ENDPOINT_MAXLEN);
+        strncpy(service_info->endpoint_external, service_endpoint, ENDPOINT_MAXLEN);
         service_info->connected = false;
         insert_service_info(service_name, service_info);
       }
       else
       {
         // Служба известна => проверить, обновился ли endpoint?
-        if (strncmp(service_info->endpoint, service_endpoint, ENDPOINT_MAXLEN))
+        if (strncmp(service_info->endpoint_external, service_endpoint, ENDPOINT_MAXLEN))
         {
           // Есть изменения
           // TODO: что делать со значением точки подключения к Службе?
           // Нормальная ли это ситуация?
           LOG(WARNING) << "Endpoint for service '" << service_name
-                       << "' was changed from " << service_info->endpoint
+                       << "' was changed from " << service_info->endpoint_external
                        << " to " << service_endpoint;
         }
       }
@@ -262,6 +272,46 @@ int mdcli::ask_service_info(const char* service_name, char* service_endpoint, in
   delete report;
 
   return service_status_code;
+}
+
+//  ---------------------------------------------------------------------
+//  Активация подписки с указанным названием для указанной Службы
+int mdcli::subscript(const std::string& service_name, const std::string& group_name)
+{
+  int status_code = 0;
+  int linger = 0;
+  int hwm = 100;
+  int send_timeout_msec = 1000000; // 1 sec
+  int recv_timeout_msec = 3000000; // 3 sec
+
+  m_subscriber = new zmq::socket_t (*m_context, ZMQ_SUB);
+
+  // TODO: Получить точку подключения для подписок этой Службы
+#warning "Создать механизм получения Клиентом от Сервиса адреса публикации поддерживаемых ей Групп подписок"
+  // NB: пока считается, что есть только одна Служба с единственным адресом публикации
+  m_subscriber->connect(ENDPOINT_SBS_PUBLISHER);
+
+  // Первым фреймом должно идти название группы
+  m_subscriber->setsockopt(ZMQ_SUBSCRIBE, group_name.c_str(), group_name.size());
+
+  m_subscriber->setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
+  m_subscriber->setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
+  m_subscriber->setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
+  m_subscriber->setsockopt(ZMQ_RCVHWM, &hwm, sizeof(hwm));
+  m_subscriber->setsockopt(ZMQ_SNDHWM, &hwm, sizeof(hwm));
+
+#if 0 // теперь заполняется динамически в subscribe()
+  // Заполним структуру для работы recv с помощью zmq::poll
+  m_socket_items[SUBSCRIBER_ITEM].socket = (void*)*m_subscriber; // NB: оператор (void*) обязателен!
+  // zmq::socket_t::operator (void*) предоставляет доступ к внутреннему представлению zmq_socket_t
+  m_socket_items[SUBSCRIBER_ITEM].fd = 0;
+  m_socket_items[SUBSCRIBER_ITEM].events = ZMQ_POLLIN;
+  m_socket_items[SUBSCRIBER_ITEM].revents = 0;
+#endif
+ 
+  LOG(INFO) << "Subscript to ["<<service_name<<":"<<group_name<<"]";
+
+  return status_code;
 }
 
 //  ---------------------------------------------------------------------
@@ -306,7 +356,7 @@ mdcli::send (std::string service, zmsg *&request_p)
 int
 mdcli::send (std::string& service, zmsg *&request_p, ChannelType chan)
 {
-   bool status = false;
+   bool status = true;
 
    assert (request_p);
    zmsg *request = request_p;
@@ -322,11 +372,10 @@ mdcli::send (std::string& service, zmsg *&request_p, ChannelType chan)
        request->push_front (const_cast<char*>(MDPC_CLIENT));     // frame 1
        request->push_front (const_cast<char*>(""));              // frame 0
 
-    LOG(INFO) << "client-api: before calling send";
+       LOG(INFO) << "client-api: before calling send";
        request->send (*m_client);
-    LOG(INFO) << "client-api: after calling send";
-       status = true;
-     break;
+       LOG(INFO) << "client-api: after calling send";
+       break;
 
      case DIRECT:
        // Если Служба известна, и у нее есть точка подключения, проверить -
@@ -334,13 +383,14 @@ mdcli::send (std::string& service, zmsg *&request_p, ChannelType chan)
        //   Если было - отправить сообщение на ранее сохраненный прямой сокет.
        //   Если нет - подключить клиентский сокет к точке подключения данной Службы
        request->push_front (const_cast<char*>(""));
-    LOG(INFO) << "client-api: before calling direct send";
+       LOG(INFO) << "client-api: before calling direct send";
        status = send_direct (service, request);
-    LOG(INFO) << "client-api: after calling direct send";
-     break;
+       LOG(INFO) << "client-api: after calling direct send";
+       break;
 
      default:
        LOG(ERROR) << "Unsupported sending type: " << chan;
+       status = false;
    }
 
    // TODO: что возвращать после отправки сообщения?
@@ -355,10 +405,42 @@ mdcli::send (std::string& service, zmsg *&request_p, ChannelType chan)
 zmsg *
 mdcli::recv ()
 {
-   int mdpc_command;
+  int mdpc_command;
+  int active_socket_num = 1; // т.к. сокет Брокера есть всегда
+  int subscriber_socket_index = 0; // 0 = null, т.к. после инициализации не м.б. равен 0
+  int peer_socket_index = 0; // 0 = null, т.к. после инициализации не м.б. равен 0
 
-   // Если m_peer не создан - читаем только из одного сокета Брокера
-   zmq::poll (m_socket_items, ((NULL == m_peer)? 1 : 2), m_timeout); // 2500 msec => 2.5 sec
+#warning "mdcli::recv должен иметь возможность подписки на PUB-SUB сокет ENDPOINT_SBS_PUBLISHER"
+
+  // Настроить 
+  if (m_subscriber)
+  {
+    // читать сокет обновлений групп подписки
+    m_socket_items[active_socket_num].socket = (void*)*m_subscriber; // NB: оператор (void*) обязателен!
+    // zmq::socket_t::operator (void*) предоставляет доступ к внутреннему представлению zmq_socket_t
+    m_socket_items[active_socket_num].fd = 0;
+    m_socket_items[active_socket_num].events = ZMQ_POLLIN;
+    m_socket_items[active_socket_num].revents = 0;
+    subscriber_socket_index = active_socket_num++;
+  }
+  if (m_peer)
+  {
+    // читать еще сокет direct-сообщений
+    m_socket_items[active_socket_num].socket = (void*)*m_peer; // NB: оператор (void*) обязателен!
+    // zmq::socket_t::operator (void*) предоставляет доступ к внутреннему представлению zmq_socket_t
+    m_socket_items[active_socket_num].fd = 0;
+    m_socket_items[active_socket_num].events = ZMQ_POLLIN;
+    m_socket_items[active_socket_num].revents = 0;
+    peer_socket_index = active_socket_num++;
+  }
+
+  // Если m_peer не создан - читаем только из одного сокета Брокера
+//1  LOG(INFO) << "GEV: mdcli::recv active_socket_num="<<active_socket_num
+//1            << ", m_subscriber="<<m_subscriber
+//1            << ", m_peer="<<m_peer;
+  // TODO: заполнять m_socket_items плотно, без нулевых сокетов. То есть если m_subscriber нет,
+  // а m_peer есть, m_peer должен занимать следующее за m_client место.
+  zmq::poll (m_socket_items, active_socket_num, m_timeout); // 2500 msec => 2.5 sec
 
    try
    {
@@ -392,8 +474,19 @@ mdcli::recv ()
 
         return msg;     //  Success
      }
+
+     // Проверить получение сообщения от публикатора подписки
+     if (m_subscriber && (m_socket_items [subscriber_socket_index].revents & ZMQ_POLLIN)) {
+        zmsg *msg = new zmsg (*m_subscriber);
+        if (m_verbose) {
+            LOG(INFO) << "received subscriber message:";
+            msg->dump ();
+        }
+        return msg;     //  Success
+     }
+
      // Проверить получение DIRECT-сообщения
-     if (m_peer && (m_socket_items [SERVICE_ITEM].revents & ZMQ_POLLIN)) {
+     if (m_peer && (m_socket_items [peer_socket_index].revents & ZMQ_POLLIN)) {
         zmsg *msg = new zmsg (*m_peer);
         if (m_verbose) {
             LOG(INFO) << "received direct reply:";
@@ -401,6 +494,7 @@ mdcli::recv ()
         }
         return msg;     //  Success
      }
+
    }
    catch(zmq::error_t err)
    {
@@ -434,7 +528,7 @@ int mdcli::send_direct(std::string& service_name, zmsg *&request)
   // Информация по Службе найдена
   LOG(INFO) << "Service " << service_name
             << " located, connected: " << info->connected
-            << ", endpoint: " << info->endpoint;
+            << ", endpoint: " << info->endpoint_external;
 
   try
   {
@@ -450,6 +544,7 @@ int mdcli::send_direct(std::string& service_name, zmsg *&request)
         m_peer = new zmq::socket_t(*m_context, ZMQ_DEALER);
 
         // generate random identity
+        srandom((unsigned) time(0));
         char identity[10] = {};
         sprintf(identity, "%04X-%04X", within(0x10000), within(0x10000));
         LOG(INFO) << "Created DIRECT messaging socket with identity " << identity;
@@ -461,7 +556,7 @@ int mdcli::send_direct(std::string& service_name, zmsg *&request)
         m_peer->setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
         m_peer->setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
       }
-      m_peer->connect(info->endpoint);
+      m_peer->connect(info->endpoint_external);
 
       m_socket_items[SERVICE_ITEM].socket = (void*)*m_peer;
       m_socket_items[SERVICE_ITEM].fd = 0;

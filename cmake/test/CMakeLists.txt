@@ -5,8 +5,7 @@ SET(UNITTEST_DEV_RUN  dev_run_test)
 SET(UNITTEST_DATABASE db_test)
 SET(UNITTEST_MESSAGE  msg_test)
 SET(UNITTEST_METRICS  metric_test)
-
-SET (GTEST_VERSION "1.7.0")
+SET(UNITTEST_CE       ce_test)
 
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # SOLARIS
@@ -14,8 +13,7 @@ if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
         socket
         nsl
         rt
-        glog
-        gtest
+        pthread
         uuid)
   # XSD Synthethis
   include_directories(/usr/local/include)
@@ -23,13 +21,13 @@ else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # LINUX
   set (SYSTEM_EXTERNAL_LIBS
         nsl
-        glog
-        gtest)
+        pthread)
 endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
-SET(GTEST_DIR ${CMAKE_SOURCE_DIR}/../../gtest-${GTEST_VERSION})
+SET(GTEST_DIR ${CMAKE_SOURCE_DIR}/../../googletest/googletest)
+SET(GTEST_INC_DIR ${GTEST_DIR}/include)
 
-include_directories(${GTEST_DIR}/include)
+include_directories(${GTEST_INC_DIR})
 include_directories(${TOOLS_DIR})
 include_directories(${MDP_DIR})
 include_directories(${MSG_DIR})
@@ -54,13 +52,13 @@ link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 
 set (TEST_METRICS_SOURCES
-        ${GTEST_DIR}/include/gtest/gtest.h
+        ${GTEST_INC_DIR}/gtest/gtest.h
         ${TOOLS_DIR}/tool_metrics.cpp
         ${TOOLS_DIR}/tool_metrics.hpp
         ${TEST_RTDBUS_DIR}/metrics_unittest.cpp)
 
 set (TEST_DEV_INTERNAL_SOURCES
-        ${GTEST_DIR}/include/gtest/gtest.h
+        ${GTEST_INC_DIR}/gtest/gtest.h
         ${XDB_IMPL_DIR}/dat/broker_db.hpp
         ${XDB_IMPL_DIR}/dat/broker_db.h
         ${XDB_IMPL_DIR}/dat/broker_db.c
@@ -87,7 +85,7 @@ set (TEST_DEV_INTERNAL_SOURCES
         ${TEST_RTDBUS_DIR}/dev_int_unittest.cpp)
 
 set (TEST_DEV_RUNTIME_SOURCES
-        ${GTEST_DIR}/include/gtest/gtest.h
+        ${GTEST_INC_DIR}/gtest/gtest.h
         ${XDB_IMPL_DIR}/dat/broker_db.hpp
         ${XDB_IMPL_DIR}/dat/broker_db.h
         ${XDB_IMPL_DIR}/dat/broker_db.c
@@ -114,7 +112,7 @@ set (TEST_DEV_RUNTIME_SOURCES
         ${TEST_RTDBUS_DIR}/dev_runt_unittest.cpp)
 
 set (TEST_DATABASE_SOURCES
-        ${GTEST_DIR}/include/gtest/gtest.h
+        ${GTEST_INC_DIR}/gtest/gtest.h
         ${XDB_IMPL_DIR}/dat/broker_db.hpp
         ${XDB_IMPL_DIR}/dat/broker_db.h
         ${XDB_IMPL_DIR}/dat/broker_db.c
@@ -133,7 +131,7 @@ set (TEST_DATABASE_SOURCES
         ${TEST_RTDBUS_DIR}/database_unittest.cpp)
 
 set (TEST_MSG_SOURCES
-        ${GTEST_DIR}/include/gtest/gtest.h
+        ${GTEST_INC_DIR}/gtest/gtest.h
         ${MDP_DIR}/mdp_zmsg.hpp
         ${MDP_DIR}/mdp_helpers.cpp
         ${XDB_IMPL_DIR}/dat/broker_db.hpp
@@ -160,6 +158,10 @@ set (TEST_MSG_SOURCES
         ${MSG_DIR}/msg_adm.hpp
         ${MSG_DIR}/msg_sinf.hpp
         ${TEST_RTDBUS_DIR}/message_unittest.cpp)
+
+set (TEST_CE_SOURCES
+        ${TEST_RTDBUS_DIR}/ce_unittest.hpp
+        ${TEST_RTDBUS_DIR}/ce_unittest.cpp)
 
 if (CMAKE_COMPILER_IS_GNUCC)
 #add_definitions (-Wno-missing-field-initializers)
@@ -237,6 +239,8 @@ set_source_files_properties(${XDB_IMPL_DIR}/dat/rtap_db-pskel.hxx
 add_executable (${UNITTEST_METRICS} ${TEST_METRICS_SOURCES})
 add_definitions (-D_FUNCTIONAL_TEST)
 target_link_libraries(${UNITTEST_METRICS}
+    ${LIBGLOG_LIBRARIES}
+    ${GTEST_DIR}/cmake/libgtest.a
     ${TOOLS_LIBRARY_NAME}
     ${SYSTEM_EXTERNAL_LIBS})
 
@@ -244,12 +248,13 @@ add_executable (${UNITTEST_DEV_INT} ${TEST_DEV_INTERNAL_SOURCES})
 add_definitions (-D_FUNCTIONAL_TEST)
 #add_definitions(-fpermissive)
 target_link_libraries(${UNITTEST_DEV_INT}
+    ${LIBGLOG_LIBRARIES}
+    ${GTEST_DIR}/cmake/libgtest.a
     ${XDB_BROKER_LIBRARY_NAME}
     ${XDB_BROKER_INTERFACE_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
     ${MSG_LIBRARY_NAME}
     ${TOOLS_LIBRARY_NAME}
-    ${LIBGLOG_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${SYSTEM_EXTERNAL_LIBS})
 
@@ -257,6 +262,8 @@ add_executable (${UNITTEST_DEV_RUN} ${TEST_DEV_RUNTIME_SOURCES})
 add_definitions (-D_FUNCTIONAL_TEST)
 #add_definitions(-fpermissive)
 target_link_libraries(${UNITTEST_DEV_RUN}
+    ${LIBGLOG_LIBRARIES}
+    ${GTEST_DIR}/cmake/libgtest.a
     ${XDB_BROKER_LIBRARY_NAME}
     ${XDB_RTAP_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
@@ -265,6 +272,8 @@ target_link_libraries(${UNITTEST_DEV_RUN}
 
 add_executable (${UNITTEST_DATABASE} ${TEST_DATABASE_SOURCES})
 target_link_libraries(${UNITTEST_DATABASE}
+    ${LIBGLOG_LIBRARIES}
+    ${GTEST_DIR}/cmake/libgtest.a
     ${XDB_BROKER_LIBRARY_NAME}
     ${XDB_RTAP_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
@@ -273,6 +282,8 @@ target_link_libraries(${UNITTEST_DATABASE}
 
 add_executable (${UNITTEST_MESSAGE} ${TEST_MSG_SOURCES})
 target_link_libraries(${UNITTEST_MESSAGE}
+    ${LIBGLOG_LIBRARIES}
+    ${GTEST_DIR}/cmake/libgtest.a
     ${MDP_LIBRARY_NAME}
     ${MSG_LIBRARY_NAME}
     ${LIBPROTOBUF_LIBRARIES}
@@ -280,8 +291,15 @@ target_link_libraries(${UNITTEST_MESSAGE}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${SYSTEM_EXTERNAL_LIBS})
 
+add_executable (${UNITTEST_CE} ${TEST_CE_SOURCES})
+target_link_libraries(${UNITTEST_CE}
+    ${LIBGLOG_LIBRARIES}
+    ${GTEST_DIR}/cmake/libgtest.a
+    ${SYSTEM_EXTERNAL_LIBS})
+
 add_test(NAME DATABASE_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_DATABASE})
 add_test(NAME DEV_INT_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_DEV_INT})
 add_test(NAME DEV_RUN_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_DEV_RUN})
 add_test(NAME MESSAGE_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_MESSAGE})
 add_test(NAME METRICS_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_METRICS})
+add_test(NAME CE_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_CE})

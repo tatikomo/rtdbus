@@ -16,7 +16,8 @@ OPTION (RTDBUS_USE_EXTREMEDB_HTTP_SERVER "enable internal http server"  OFF)
 OPTION (RTDBUS_USE_MSEC_IN_EXPIRATION    "enable nanoseconds comparing" OFF)
  
 STRING(TOUPPER ${CMAKE_SYSTEM_NAME} sysname)
-if("${sysname}" MATCHES "SUNOS")
+
+if ("${sysname}" MATCHES "SUNOS")
     SET (COMPILER_PLATFORM "SunOS")
     OPTION(HAVE_CONSOLE_OWNER_FILE "enable console owner file (solaris only)" ON)
 
@@ -37,9 +38,50 @@ if("${sysname}" MATCHES "SUNOS")
     if(HAVE_CONSOLE_OWNER_FILE)
         SET(DBUS_CONSOLE_OWNER_FILE "/dev/console" CACHE STRING "Directory to check for console ownerhip")
     endif(HAVE_CONSOLE_OWNER_FILE)
+
 else ("${sysname}" MATCHES "SUNOS")
+
     SET (COMPILER_PLATFORM "Linux")
     add_definitions(-DTYPE_OS=LINUX)
+
+    if (CMAKE_COMPILER_IS_GNUCC)
+      # Проверить тип ОС {Ubuntu | CentOS} и версию GCC
+      # GEV: CentOS строит по умолчанию 64-битные версии, а нам нужны 32-битные
+      set (CMAKE_C_FLAGS "-m32")
+      set (CMAKE_CXX_FLAGS "-m32")
+
+      if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.8.3")
+        # Старая версия не поддерживает расширения С++11
+        add_definitions(-std=c++0x)
+
+      else (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.8.3")
+        # Расширенные директивы компилятора
+        add_definitions(-std=c++11)
+      endif (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.8.3")
+
+      add_definitions(-m32)
+      add_definitions(-Wall)
+      add_definitions(-Wextra)
+      add_definitions(-Wno-unused-parameter)
+
+#  add_definitions(-pedantic)
+#  add_definitions(-Weffc++)
+
+#  add_definitions(-O2)
+#  add_definitions(-fno-strict-overflow)
+#  add_definitions(-fstrict-aliasing)
+#  add_definitions(-Wcast-qual)
+#  add_definitions(-Wcast-align)
+#  add_definitions(-Wwrite-strings)
+#  add_definitions(-Wconversion)
+#  add_definitions(-Waggregate-return)
+#  add_definitions(-Wstrict-null-sentinel)
+#  add_definitions(-Wold-style-cast)
+#  add_definitions(-Woverloaded-virtual)
+#  add_definitions(-Wsign-promo)
+
+    endif (CMAKE_COMPILER_IS_GNUCC)
+
 endif("${sysname}" MATCHES "SUNOS")
 
 set (BUILD_SHARED_LIBS ON)
@@ -137,12 +179,15 @@ set(MSG_LIBRARY_NAME             ${RTDBUS_PROJECT_PREFIX}_zmsg_${RTDBUS_VERSION}
 set(TOOLS_LIBRARY_NAME           ${RTDBUS_PROJECT_PREFIX}_hlpr_${RTDBUS_VERSION})
 
 OPTION(RTDBUS_BUILD_TESTS "enable unit test code" ON)
-# ограничение размера полей данных из схемы MCO
+OPTION(RTDBUS_ENABLE_VERBOSE_MODE "Enable additional debug trace" ON)
+
+# ограничение размера полей данных из схемы MCO (Примечание: в БАЙТАХ!)
 set (MAX_SERVICES_ENTRY      400)
 set (MAX_WORKERS_ENTRY       800) # WORKERS_SPOOL_SIZE * MAX_SERVICES_ENTRY
 set (ENDPOINT_MAXLEN         100)
 set (SERVICE_NAME_MAXLEN      32)
 set (TAG_NAME_MAXLEN          32)
+set (LABEL_MAXLEN            100)
 set (IDENTITY_MAXLEN          11)
 set (DBNAME_MAXLEN            10)
 # TODO Объединить все подобные интервалы (HEARTBEAT) в единую структуру. 
@@ -171,6 +216,7 @@ set (ENDPOINT_SINF_DATA_BACKEND    "inproc://rtdb_digger_data")
 set (ENDPOINT_SINF_COMMAND_BACKEND    "inproc://rtdb_digger_command")
 set (ENDPOINT_IHM_FRONTEND    "tcp://localhost:5558")
 set (ENDPOINT_EXCH_FRONTEND   "tcp://localhost:5559")
+set (ENDPOINT_SBS_PUBLISHER   "tcp://localhost:5560")
 
 # Максимальное количество одновременно допустимых подключений
 set (DEFAULT_MAX_DB_CONNECTIONS_ALLOWED  4)
@@ -183,33 +229,6 @@ endif(RTDBUS_BUILD_TESTS)
 
 add_definitions(-DMCO_STRICT_ALIGNMENT)
 add_definitions(-g)
-if (CMAKE_COMPILER_IS_GNUCC)
-  add_definitions(-std=c++11)
-  add_definitions(-m32)
-  add_definitions(-Wall)
-  add_definitions(-Wextra)
-  add_definitions(-Wno-unused-parameter)
-
-#  add_definitions(-pedantic)
-#  add_definitions(-Weffc++)
-
-#  add_definitions(-O2)
-#  add_definitions(-fno-strict-overflow)
-#  add_definitions(-fstrict-aliasing)
-#  add_definitions(-Wcast-qual)
-#  add_definitions(-Wcast-align)
-#  add_definitions(-Wwrite-strings)
-#  add_definitions(-Wconversion)
-#  add_definitions(-Waggregate-return)
-#  add_definitions(-Wstrict-null-sentinel)
-#  add_definitions(-Wold-style-cast)
-#  add_definitions(-Woverloaded-virtual)
-#  add_definitions(-Wsign-promo)
-
-else (CMAKE_COMPILER_IS_GNUCC)
-  add_definitions(-xarch=v9)
-  add_definitions(+w2)
-endif (CMAKE_COMPILER_IS_GNUCC)
 
 ########### create config.h ###############
 add_definitions(-DHAVE_CONFIG_H)
@@ -254,6 +273,7 @@ message(STATUS "cflags:                   ${CMAKE_C_FLAGS}                    ")
 message(STATUS "cflags debug:             ${CMAKE_C_FLAGS_DEBUG}              ")
 message(STATUS "cflags release:           ${CMAKE_C_FLAGS_RELEASE}            ")
 message(STATUS "cxx compiler:             ${CXX_COMPILER}                     ")
+message(STATUS "cxx compiler version:     ${CMAKE_CXX_COMPILER_VERSION}       ")
 message(STATUS "cxxflags:                 ${CMAKE_CXX_FLAGS}                  ")
 message(STATUS "cxxflags debug:           ${CMAKE_CXX_FLAGS_DEBUG}            ")
 message(STATUS "cxxflags release:         ${CMAKE_CXX_FLAGS_RELEASE}          ")
@@ -297,6 +317,6 @@ if(NOT RTDBUS_DISABLE_ASSERTS)
 endif(NOT RTDBUS_DISABLE_ASSERTS)
 
 if (RTDBUS_DISABLE_CHECKS)
-    message("NOTE: building without checks for arguments passed to public API makes it harder to debug apps using D-BUS, but will slightly decrease D-BUS library size and _very_ slightly improve performance.")
+    message("NOTE: building without checks for arguments passed to public API makes it harder to debug apps using RTDBUS, but will slightly decrease RTDBUS library size and _very_ slightly improve performance.")
 endif(RTDBUS_DISABLE_CHECKS)
 MESSAGE(" ")

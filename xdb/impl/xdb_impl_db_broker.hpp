@@ -214,7 +214,7 @@ class DatabaseBrokerImpl
     /* 
      * Вернуть Service, построенный на основе прочитанных из БД данных
      */
-    Service* LoadService(autoid_t&,
+    Service* LoadService(autoid_t,
                          broker_db::XDBService&);
 
     /* 
@@ -235,7 +235,7 @@ class DatabaseBrokerImpl
      * Поиск Обработчика, находящегося в заданном состоянии. 
      * Возвращает статус поиска и экземпляр найденного Обработчика
      */
-    Worker* GetWorkerByState(autoid_t& service_id,
+    Worker* GetWorkerByState(autoid_t,
                        WorkerState);
 
     /*

@@ -21,6 +21,8 @@ class RtConnection
   public:
     RtConnection(RtDatabase*);
    ~RtConnection();
+    // Состояние подключения
+    ConnectionState_t state();
     // Создать точку со всеми её атрибутами
     const Error& create(RtPoint*);
     // Изменить значения атрибутов указанной точки

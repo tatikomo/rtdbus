@@ -755,8 +755,11 @@ bool xdb::processInstanceFile(const char* fpath)
   /*------------------------------------*/
   /* opens the file of the Rtap classes */
   /*------------------------------------*/
-  instance_file_name += "/instances_total.dat";
-  xml_file_name += "/instances_total.xml";
+  instance_file_name += "/";
+  instance_file_name += INSTANCES_FILE_DAT;
+  xml_file_name += "/";
+  xml_file_name += INSTANCES_FILE_XML;
+
   std::ifstream ifs(instance_file_name.c_str());
   std::ofstream ofs(xml_file_name.c_str());
 
@@ -1175,12 +1178,19 @@ bool setInfoTable(char *buffer, formatType leFormat, attrCategory* category)
 }
 #endif
 
-bool xdb::translateInstance(const char* fpath)
+bool xdb::translateInstance(const char* env_path)
 {
   bool status = false;
 
-  status = processClassFile(fpath);
-  status = processInstanceFile(fpath);
+  status = processClassFile(env_path);
+  if (!status)
+    LOG(ERROR) << "Processing Classes";
+  else
+  {
+    status = processInstanceFile(env_path);
+    if (!status)
+      LOG(ERROR) << "Processing Instances";
+  }
 
   return status;
 }

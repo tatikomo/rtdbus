@@ -86,8 +86,8 @@ const rtdbMsgType ACU_D_MSG_INT_REPLY                   = GOF_D_BASE_MSG_ECH + 2
 /*==============================*/
 /* Exchanged messages with SINF */
 /*==============================*/
-
-const rtdbMsgType SIG_D_MSG_EXECRESULT              = GOF_D_BASE_MSG_SINF + 1;
+// символом '+' отмечены используемые в RTDBUS
+const rtdbMsgType SIG_D_MSG_EXECRESULT              = GOF_D_BASE_MSG_SINF + 1; // +
 const rtdbMsgType SIG_D_MSG_INTERMRESULT            = GOF_D_BASE_MSG_SINF + 2;
 const rtdbMsgType SIG_D_MSG_CMDACK                  = GOF_D_BASE_MSG_SINF + 3;
 const rtdbMsgType SIG_D_MSG_ACQNOACK                = GOF_D_BASE_MSG_SINF + 4;
@@ -95,7 +95,7 @@ const rtdbMsgType SIG_D_MSG_DIAGACK                 = GOF_D_BASE_MSG_SINF + 5;
 const rtdbMsgType SIG_D_MSG_RESP_CREATE             = GOF_D_BASE_MSG_SINF + 6;
 const rtdbMsgType SIG_D_MSG_RESP_MODSUP             = GOF_D_BASE_MSG_SINF + 7;
 const rtdbMsgType SIG_D_MSG_ACQUIREDDATA            = GOF_D_BASE_MSG_SINF + 8;
-const rtdbMsgType SIG_D_MSG_GRPSBS                  = GOF_D_BASE_MSG_SINF + 9;
+const rtdbMsgType SIG_D_MSG_GRPSBS                  = GOF_D_BASE_MSG_SINF + 9;  // +
 const rtdbMsgType SIG_D_MSG_LSTSBS                  = GOF_D_BASE_MSG_SINF + 10;
 const rtdbMsgType SIG_D_MSG_RESPENDHISTO            = GOF_D_BASE_MSG_SINF + 11;
 const rtdbMsgType SIG_D_MSG_ACKREFALA               = GOF_D_BASE_MSG_SINF + 12;
@@ -241,8 +241,9 @@ const rtdbMsgType SIG_D_MSG_ACDQUERY            = GOF_D_BASE_MSG_SINF + 125;
  * одного/многих атрибутов
  * Данные константы отсутствуют в ГОФО
  */
-const rtdbMsgType SIG_D_MSG_READ_MULTI          = GOF_D_BASE_MSG_SINF + 200;
-const rtdbMsgType SIG_D_MSG_WRITE_MULTI         = GOF_D_BASE_MSG_SINF + 201;
+const rtdbMsgType SIG_D_MSG_READ_MULTI          = GOF_D_BASE_MSG_SINF + 200; // +
+const rtdbMsgType SIG_D_MSG_WRITE_MULTI         = GOF_D_BASE_MSG_SINF + 201; // +
+const rtdbMsgType SIG_D_MSG_GRPSBS_CTRL         = GOF_D_BASE_MSG_SINF + 202; // +
 
 /*
  * NB: Есть дополнительные константы типов, расположенные в sig/ext/dat: 

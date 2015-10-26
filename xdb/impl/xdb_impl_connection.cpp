@@ -90,6 +90,8 @@ const Error& ConnectionImpl::read(AttributeInfo_t* info)
 {
   if (CONNECTION_VALID == m_state)
     m_last_error = m_rtap_db_impl->read(m_database_handle, info);
+  else
+    m_last_error = rtE_CONNECTION_INVALID;
 
   return m_last_error;
 }
@@ -100,6 +102,8 @@ const Error& ConnectionImpl::read(std::string& _group_name, int* _size, Subscrip
 {
   if (CONNECTION_VALID == m_state)
     m_last_error = m_rtap_db_impl->read(m_database_handle, _group_name, _size, _points);
+  else
+    m_last_error = rtE_CONNECTION_INVALID;
 
   return m_last_error;
 }
@@ -111,6 +115,8 @@ const Error& ConnectionImpl::write(const AttributeInfo_t* info)
 {
   if (CONNECTION_VALID == m_state)
     m_last_error = m_rtap_db_impl->write(m_database_handle, const_cast<AttributeInfo_t*>(info));
+  else
+    m_last_error = rtE_CONNECTION_INVALID;
 
   return m_last_error;
 }
@@ -120,6 +126,8 @@ const Error& ConnectionImpl::write(rtap_db::Point& point)
 {
   if (CONNECTION_VALID == m_state)
     m_last_error = m_rtap_db_impl->write(m_database_handle, point);
+  else
+    m_last_error = rtE_CONNECTION_INVALID;
 
   return m_last_error;
 }
@@ -128,6 +136,8 @@ const Error& ConnectionImpl::Control(rtDbCq& info)
 {
   if (CONNECTION_VALID == m_state)
     m_last_error = m_rtap_db_impl->Control(m_database_handle, info);
+  else
+    m_last_error = rtE_CONNECTION_INVALID;
 
   return m_last_error;
 }
@@ -136,6 +146,8 @@ const Error& ConnectionImpl::Query(rtDbCq& info)
 {
   if (CONNECTION_VALID == m_state)
     m_last_error = m_rtap_db_impl->Query(m_database_handle, info);
+  else
+    m_last_error = rtE_CONNECTION_INVALID;
 
   return m_last_error;
 }
@@ -144,6 +156,8 @@ const Error& ConnectionImpl::Config(rtDbCq& info)
 {
   if (CONNECTION_VALID == m_state)
     m_last_error = m_rtap_db_impl->Config(m_database_handle, info);
+  else
+    m_last_error = rtE_CONNECTION_INVALID;
 
   return m_last_error;
 }
@@ -153,6 +167,8 @@ const Error& ConnectionImpl::create(rtap_db::Point* point)
 {
   if (CONNECTION_VALID == m_state)
     m_last_error = m_rtap_db_impl->create(m_database_handle, *point);
+  else
+    m_last_error = rtE_CONNECTION_INVALID;
 
   return m_last_error;
 }
@@ -162,6 +178,8 @@ const Error& ConnectionImpl::erase(rtap_db::Point* point)
 {
   if (CONNECTION_VALID == m_state)
     m_last_error = m_rtap_db_impl->erase(m_database_handle, *point);
+  else
+    m_last_error = rtE_CONNECTION_INVALID;
 
   return m_last_error;
 }

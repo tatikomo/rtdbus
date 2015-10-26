@@ -13,6 +13,9 @@ namespace xdb {
 
 class RtEnvironment;
 
+#define INSTANCES_FILE_XML "instances_total.xml"
+#define INSTANCES_FILE_DAT "instances_total.dat"
+
 /*--------------------------*/
 /* buffer sizes             */
 /*--------------------------*/
@@ -115,7 +118,7 @@ class RtEnvironment;
 #define VALUE_POSITION      36
 
 #define NAME_LENGTH         19
-#define TYPE_ENREG_SIZE     2
+#define TYPE_ENREG_SIZE      2
 
 /*-------------------------------------------------*/
 /* type of formats (class file or instance file)   */

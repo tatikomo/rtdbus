@@ -42,6 +42,12 @@ RtConnection::~RtConnection()
   delete m_impl;
 }
 
+// Состояние подключения
+ConnectionState_t RtConnection::state()
+{
+  return (m_impl)? m_impl->state() : CONNECTION_INVALID;
+}
+
 const Error& RtConnection::create(RtPoint* _point)
 {
   assert(_point);

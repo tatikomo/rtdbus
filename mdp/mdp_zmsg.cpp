@@ -358,35 +358,47 @@ char * zmsg::unwrap()
 
 // Вывод содержимого zmq
 // TODO: содержит опасные трюки с указателями, необходимо переделать
+#define BUF_SZ_MAX 4000
 void zmsg::dump()
 {
-   char buf[4000];
+   char buf[BUF_SZ_MAX + 10];
    int offset;
    int is_text;
    unsigned int char_nbr;
+   unsigned int buffer_size = BUF_SZ_MAX;
    unsigned int part_nbr;
 
    LOG(INFO) << "--------------------------------------";
 
-   for (part_nbr = 0; part_nbr < m_part_data.size(); part_nbr++) 
+   for (part_nbr = 0; part_nbr < m_part_data.size(); part_nbr++)
    {
        std::string data = m_part_data [part_nbr];
+
+       buffer_size = data.size();
+
+       // обрежем максимально допустимый размер буфера до фактического размера
+       if (buffer_size > (BUF_SZ_MAX/2))
+       {
+         buffer_size = (BUF_SZ_MAX/2);
+         data.resize(BUF_SZ_MAX);
+       }
+
        // Dump the message as text or binary
        is_text = 1;
-       for (char_nbr = 0; char_nbr < data.size(); char_nbr++)
+       for (char_nbr = 0; char_nbr < buffer_size; char_nbr++)
            if (static_cast<unsigned char>(data[char_nbr]) < 32 
             || static_cast<unsigned char>(data[char_nbr]) > 127)
                is_text = 0;
 
-       offset = sprintf(buf, "[%03d] ", data.size());
-       for (char_nbr = 0; char_nbr < data.size(); char_nbr++)
+       offset = sprintf(buf, "[%03d] ", buffer_size);
+       for (char_nbr = 0; char_nbr < buffer_size; char_nbr++)
        {
-           if (is_text) 
+           if (is_text)
            {
                strcpy(static_cast<char*>(&buf[0] + offset++),
                       static_cast<const char*>(&data [char_nbr]));
            }
-           else 
+           else
            {
                snprintf(&buf[offset], 3, "%02X",
                         static_cast<unsigned char>(data[char_nbr]));

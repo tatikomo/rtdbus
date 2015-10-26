@@ -735,6 +735,8 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
 
   assert(wrk);
   const char* wrk_identity = wrk->GetIDENTITY();
+  size_t wrk_identity_len = strlen(wrk_identity);
+  assert(wrk_identity_len <= IDENTITY_MAXLEN);
 
   do
   {
@@ -767,7 +769,7 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
       // в случае успеха получив его worker_instance
       rc = broker_db::XDBWorker::SK_by_ident::find(t,
                 wrk_identity,
-                strlen(wrk_identity),
+                wrk_identity_len,
                 worker_instance);
 
       if (MCO_S_OK == rc) // Экземпляр найден - обновить данные
@@ -804,7 +806,7 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
         rc = worker_instance.create(t);
         if (rc) { LOG(ERROR) << "Creating worker's instance " << wrk->GetIDENTITY() << ", rc="<<rc; break; }
 
-        rc = worker_instance.identity_put(wrk_identity, strlen(wrk_identity));
+        rc = worker_instance.identity_put(wrk_identity, wrk_identity_len);
         if (rc) { LOG(ERROR) << "Put worker's identity " << wrk->GetIDENTITY() << ", rc="<<rc; break; }
 
         // Первоначальное состояние Обработчика - "ГОТОВ"
@@ -995,13 +997,13 @@ ServiceState DatabaseBrokerImpl::StateConvert(Service::State s)
 }
 
 Service *DatabaseBrokerImpl::LoadService(
-        autoid_t &aid,
+        autoid_t aid,
         broker_db::XDBService& instance)
 {
   Service      *service = NULL;
   MCO_RET       rc = MCO_S_OK;
-  char          name[Service::NameMaxLen + 1];
-  char          endpoint[Service::EndpointMaxLen + 1];
+  char          name[Service::NameMaxLen + 1] = "";
+  char          endpoint[Service::EndpointMaxLen + 1] = "";
   ServiceState  state;
   Service::State update_state;
 
@@ -1014,7 +1016,7 @@ Service *DatabaseBrokerImpl::LoadService(
     name[Service::NameMaxLen] = '\0';
     if (rc) { LOG(ERROR)<<"Unable to get service's name, rc="<<rc; break; }
     rc = instance.endpoint_get(endpoint, Service::EndpointMaxLen);
-    name[Service::EndpointMaxLen] = '\0';
+    endpoint[Service::EndpointMaxLen] = '\0';
     if (rc) { LOG(ERROR)<<"Unable to get service's endpoint, rc="<<rc; break; }
     rc = instance.state_get(state);
     if (rc) { LOG(ERROR)<<"Unable to get service id for "<<name; break; }
@@ -1238,7 +1240,7 @@ bool DatabaseBrokerImpl::IsServiceExist(const char *name)
  * самую раннюю отметку времени из всех остальных конкурентов.
  * Это необходимо для более равномерного распределения нагрузки.
  */
-Worker* DatabaseBrokerImpl::GetWorkerByState(autoid_t& service_id,
+Worker* DatabaseBrokerImpl::GetWorkerByState(autoid_t service_id,
                        WorkerState searched_worker_state)
 {
   MCO_RET      rc = MCO_S_OK;

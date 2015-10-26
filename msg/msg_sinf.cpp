@@ -83,7 +83,7 @@ Value::Value(std::string& _name, xdb::DbType_t _type, void* val)
       //memcpy(i&m_instance.value.fixed.val_time, static_cast<timeval*>(val), sizeof(timeval));
     break;
     default:
-      std::cout << "E: " << __FILE__ << ":" << __LINE__
+      std::cerr << "E: " << __FILE__ << ":" << __LINE__
                 << ": Value::Value() unsupported attr '" << m_instance.name
                 << "' type: " << m_instance.type << std::endl;
     break;
@@ -167,7 +167,7 @@ Value::Value(/*RTDBM::ValueUpdate* */ void* vu)
 
       // Странно - размер данных не нулевой, но не совпадает с ожидаемым
       if (temp->s_value().size() && (temp->s_value().size() != xdb::var_size[m_instance.type]))
-        std::cout << "E: " << __FILE__ << ":" << __LINE__
+        std::cerr << "E: " << __FILE__ << ":" << __LINE__
                   << ": Value::Value(void*) " << m_instance.name
                   << ": size doesn't equal (" 
                   << temp->s_value().size() << ", "
@@ -197,7 +197,7 @@ Value::Value(/*RTDBM::ValueUpdate* */ void* vu)
     break;
 
     default:
-      std::cout << "E: " << __FILE__ << ":" << __LINE__
+      std::cerr << "E: " << __FILE__ << ":" << __LINE__
                 << ": unsupported type " << m_instance.type
                 << " for " << m_instance.name << std::endl;
     break;
@@ -547,7 +547,7 @@ const std::string Value::as_string() const
     break;
 
     default:
-      std::cout << "E: " << __FILE__ << ":" << __LINE__
+      std::cerr << "E: " << __FILE__ << ":" << __LINE__
                 << ": unsupported data type: " << m_instance.type
                 << " for " << m_instance.name << std::endl;
     break;
@@ -640,7 +640,7 @@ void Value::flush()
     break;
 
     default:
-      std::cout << "E: " << __FILE__ << ":" << __LINE__
+      std::cerr << "E: " << __FILE__ << ":" << __LINE__
                 << ": unsupported type " << m_instance.type << std::endl;
     break;
   }
@@ -772,7 +772,7 @@ void ReadMulti::add(std::string& tag, xdb::DbType_t type, void* val)
     break;
 
     default:
-      std::cout << "E: " << __FILE__ << ":" << __LINE__
+      std::cerr << "E: " << __FILE__ << ":" << __LINE__
                 << ": unsupported type " << type << std::endl;
     break;
   }
@@ -792,7 +792,7 @@ std::size_t ReadMulti::num_items()
 //  Входной/выходной аргумент
 //   val - указатель на аллоцированный вызывающей стороной буфер, принимающий значение параметра
 bool ReadMulti::get(std::size_t idx, std::string& tag, xdb::DbType_t& type, xdb::Quality_t& qual, void* val)
- {
+{
    bool status = true;
    xdb::datetime_t datetime;
    const RTDBM::ValueUpdate& item =
@@ -867,7 +867,7 @@ bool ReadMulti::get(std::size_t idx, std::string& tag, xdb::DbType_t& type, xdb:
      break;
 
      default:
-       std::cout << "E: " << __FILE__ << ":" << __LINE__
+       std::cerr << "E: " << __FILE__ << ":" << __LINE__
                  << ": ReadMulti::get() unsupported type: " << type << std::endl;
        // Неизвестный тип
        status = false;
@@ -966,7 +966,7 @@ bool ReadMulti::get(std::size_t idx, std::string& tag, xdb::DbType_t& type, xdb:
     default:
        // Неизвестный тип
        status = false;
-       std::cout << "E: " << __FILE__ << ":" << __LINE__
+       std::cerr << "E: " << __FILE__ << ":" << __LINE__
                  << ": unsupported '" << tag << "' type " << type << std::endl; //1
     break;  
   }
@@ -1123,7 +1123,7 @@ void WriteMulti::add(std::string& tag, xdb::DbType_t type, void* val)
     break;
 
     default:
-       std::cout << "E: " << __FILE__ << ":" << __LINE__
+       std::cerr << "E: " << __FILE__ << ":" << __LINE__
                  << ": Unsupported type " << type << std::endl;
     break;
   }
@@ -1145,7 +1145,285 @@ std::size_t WriteMulti::num_items()
 {
   return static_cast<RTDBM::WriteMulti*>(data()->impl()->instance())->update_item_size();
 }
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
  
+SubscriptionControl::SubscriptionControl()
+ : Letter(SIG_D_MSG_GRPSBS_CTRL, 0), m_updater(NULL)
+{
+  std::cerr << "On SubscriptionControl()" << std::endl;
+}
+
+SubscriptionControl::SubscriptionControl(const std::string& _head, const std::string& _body)
+ : Letter(_head, _body), m_updater(NULL)
+{
+  assert(header()->usr_msg_type() == SIG_D_MSG_GRPSBS_CTRL);
+  std::cerr << "On SubscriptionControl(head, body)" << std::endl;
+}
+
+SubscriptionControl::SubscriptionControl(Header* _head, const std::string& _body)
+ : Letter(_head, _body), m_updater(NULL)
+{
+  assert(header()->usr_msg_type() == SIG_D_MSG_GRPSBS_CTRL);
+  std::cerr << "On SubscriptionControl(header, body)" << std::endl;
+}
+
+SubscriptionControl::~SubscriptionControl()
+{
+  std::cerr << "On ~SubscriptionControl()" << std::endl;
+  delete m_updater;
+}
+
+// Установить состояние Группе
+void SubscriptionControl::set_ctrl(int _code)
+{
+  static_cast<RTDBM::SubscriptionControl*>(data()->impl()->instance())->set_ctrl(_code);
+}
+
+// Вернуть код текущего состояния Группы
+int SubscriptionControl::ctrl()
+{
+  return static_cast<RTDBM::SubscriptionControl*>(data()->impl()->instance())->ctrl();
+}
+
+// Установить имя Группы
+void SubscriptionControl::set_name(std::string& _name)
+{
+  static_cast<RTDBM::SubscriptionControl*>(data()->impl()->instance())->set_name(_name);
+}
+
+const std::string& SubscriptionControl::name()
+{
+  return static_cast<RTDBM::SubscriptionControl*>(data()->impl()->instance())->name();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+SubscriptionEvent::SubscriptionEvent()
+ : Letter(SIG_D_MSG_GRPSBS, 0), m_updater(NULL)
+{
+//  std::cerr << "On SubscriptionEvent()" << std::endl;
+}
+
+SubscriptionEvent::SubscriptionEvent(const std::string& _head, const std::string& _body)
+ : Letter(_head, _body), m_updater(NULL)
+{
+  assert(header()->usr_msg_type() == SIG_D_MSG_GRPSBS);
+//  std::cerr << "On SubscriptionEvent(head, body)" << std::endl;
+}
+
+SubscriptionEvent::SubscriptionEvent(Header* _head, const std::string& _body)
+ : Letter(_head, _body), m_updater(NULL)
+{
+  assert(header()->usr_msg_type() == SIG_D_MSG_GRPSBS);
+//  std::cerr << "On SubscriptionEvent(header, body)" << std::endl;
+}
+
+SubscriptionEvent::~SubscriptionEvent()
+{
+//  std::cerr << "On ~SubscriptionEvent()" << std::endl;
+  delete m_updater;
+}
+
+// Добавить в пул еще один тег
+void SubscriptionEvent::add(std::string& tag, xdb::DbType_t type, void* val)
+{
+  RTDBM::ValueUpdate *updater = static_cast<RTDBM::SubscriptionEvent*>(data()->impl()->instance())->add_update_item();
+  RTDBM::DbType pb_type;
+
+  assert(val);
+//1  std::cerr << "On SubscriptionEvent::add()" << std::endl;
+
+  // NB: Требуется поддерживать синхронность между xdb::DbType_t и RTDBM::DbType (!)
+  if (RTDBM::DbType_IsValid(type))
+    pb_type = static_cast<RTDBM::DbType>(type);
+  else
+    pb_type = RTDBM::DB_TYPE_UNDEF;
+
+  updater->set_tag(tag);
+  updater->set_type(pb_type);
+  updater->set_quality(RTDBM::ATTR_ERROR);
+
+  switch(type)
+  {
+    case xdb::DB_TYPE_LOGICAL:
+        updater->set_b_value(*(static_cast<bool*>(val)));
+    break;
+    case xdb::DB_TYPE_INT8:
+        updater->set_i32_value(*(static_cast<int8_t*>(val)));
+    break;
+    case xdb::DB_TYPE_UINT8:
+        updater->set_i32_value(*(static_cast<uint8_t*>(val)));
+    break;
+    case xdb::DB_TYPE_INT16:
+        updater->set_i32_value(*(static_cast<int16_t*>(val)));
+    break;
+    case xdb::DB_TYPE_UINT16:
+        updater->set_i32_value(*(static_cast<uint16_t*>(val)));
+    break;
+    case xdb::DB_TYPE_INT32:
+        updater->set_i32_value(*(static_cast<int32_t*>(val)));
+    break;
+    case xdb::DB_TYPE_UINT32:
+        updater->set_i32_value(*(static_cast<uint32_t*>(val)));
+    break;
+    case xdb::DB_TYPE_INT64:
+        updater->set_i64_value(*(static_cast<int64_t*>(val)));
+    break;
+    case xdb::DB_TYPE_UINT64:
+        updater->set_i64_value(*(static_cast<uint64_t*>(val)));
+    break;
+    case xdb::DB_TYPE_FLOAT:
+        updater->set_f_value(*(static_cast<float*>(val)));
+    break;
+    case xdb::DB_TYPE_DOUBLE:
+        updater->set_g_value(*(static_cast<double*>(val)));
+    break;
+    case xdb::DB_TYPE_BYTES:
+        updater->set_s_value(*static_cast<std::string*>(val));
+    break;
+
+    case xdb::DB_TYPE_BYTES4:
+    case xdb::DB_TYPE_BYTES8:
+    case xdb::DB_TYPE_BYTES12:
+    case xdb::DB_TYPE_BYTES16:
+    case xdb::DB_TYPE_BYTES20:
+    case xdb::DB_TYPE_BYTES32:
+    case xdb::DB_TYPE_BYTES48:
+    case xdb::DB_TYPE_BYTES64:
+    case xdb::DB_TYPE_BYTES80:
+    case xdb::DB_TYPE_BYTES128:
+    case xdb::DB_TYPE_BYTES256:
+        updater->set_s_value(static_cast<char*>(val), xdb::var_size[type]);
+    break;
+
+    case xdb::DB_TYPE_LAST:
+    case xdb::DB_TYPE_UNDEF:
+        // TODO: что делать при попытке сохранения данных неопределенного типа? 
+    break;
+
+    default:
+       std::cerr << "E: " << __FILE__ << ":" << __LINE__
+                 << ": Unsupported type " << type << std::endl;
+    break;
+  }
+}
+
+// Получить значения параметра по заданному индексу
+bool SubscriptionEvent::get(std::size_t idx, std::string& tag, xdb::DbType_t& type, xdb::Quality_t& qual, xdb::AttrVal_t& param)
+{
+  bool status = false;
+  xdb::datetime_t datetime;
+  const RTDBM::ValueUpdate& item =
+        static_cast<RTDBM::SubscriptionEvent*>(data()->impl()->instance())->update_item(idx);
+
+  type = static_cast<xdb::DbType_t>(item.type());
+  qual = static_cast<xdb::Quality_t>(item.quality());
+  tag = item.tag();
+
+  switch (type)
+  {
+    case RTDBM::DB_TYPE_LOGICAL:
+        param.fixed.val_bool   = static_cast<bool>(item.b_value());
+    break;
+    case RTDBM::DB_TYPE_INT8:
+        param.fixed.val_int8   = static_cast<int8_t>(item.i32_value());
+    break;
+    case RTDBM::DB_TYPE_UINT8:
+        param.fixed.val_uint8  = static_cast<uint8_t>(item.i32_value());
+    break;
+    case RTDBM::DB_TYPE_INT16:
+        param.fixed.val_int16  = static_cast<int16_t>(item.i32_value());
+    break;
+    case RTDBM::DB_TYPE_UINT16:
+        param.fixed.val_uint16 = static_cast<uint16_t>(item.i32_value());
+    break;
+    case RTDBM::DB_TYPE_INT32:
+        param.fixed.val_int32  = static_cast<int32_t>(item.i32_value());
+    break;
+    case RTDBM::DB_TYPE_UINT32:
+        param.fixed.val_uint32 = static_cast<uint32_t>(item.i32_value());
+    break;
+    case RTDBM::DB_TYPE_INT64:
+        param.fixed.val_int64  = static_cast<int64_t>(item.i64_value());
+    break;
+    case RTDBM::DB_TYPE_UINT64:
+        param.fixed.val_uint64 = static_cast<uint64_t>(item.i64_value());
+    break;
+    case RTDBM::DB_TYPE_FLOAT:
+        param.fixed.val_float  = static_cast<float>(item.f_value());
+    break;
+    case RTDBM::DB_TYPE_DOUBLE:
+        param.fixed.val_double = static_cast<double>(item.g_value());
+    break;
+    case RTDBM::DB_TYPE_BYTES:
+        param.dynamic.val_string = new std::string(item.s_value());
+    break;
+    case RTDBM::DB_TYPE_BYTES4:
+    case RTDBM::DB_TYPE_BYTES8:
+    case RTDBM::DB_TYPE_BYTES12:
+    case RTDBM::DB_TYPE_BYTES16:
+    case RTDBM::DB_TYPE_BYTES20:
+    case RTDBM::DB_TYPE_BYTES32:
+    case RTDBM::DB_TYPE_BYTES48:
+    case RTDBM::DB_TYPE_BYTES64:
+    case RTDBM::DB_TYPE_BYTES80:
+    case RTDBM::DB_TYPE_BYTES128:
+    case RTDBM::DB_TYPE_BYTES256:
+        // TODO: источник путаницы - вызывающая сторона может передать указатель на char
+        // но может передать и указатель на string
+#warning "определись с типом буфера для char* в SubscriptionEvent::get"
+         param.dynamic.varchar = new char[xdb::var_size[type] + 1];
+         strncpy(param.dynamic.varchar, item.s_value().c_str(), xdb::var_size[type]);
+    break;
+
+    case RTDBM::DB_TYPE_ABSTIME:
+        datetime.common = static_cast<uint64_t>(item.i64_value());
+        param.fixed.val_time.tv_sec  = datetime.part[0];
+        param.fixed.val_time.tv_usec = datetime.part[1];
+//        std::cout << "msg_sinf: i64=" << datetime.common
+//                << " sec=" << datetime.part[0] << " usec=" << datetime.part[1]
+//                << std::endl; //1
+    break;
+
+    case RTDBM::DB_TYPE_UNDEF:
+      // Не определен тип атрибута - допустимо при ошибке нахождения точки в БДРВ
+    break;
+
+    default:
+       // Неизвестный тип
+       status = false;
+       std::cerr << "E: " << __FILE__ << ":" << __LINE__
+                 << ": unsupported '" << tag << "' type " << type << std::endl; //1
+    break;  
+  }
+
+  return status;
+}
+
+// Получить структуру со значениями параметра с заданным индексом
+Value& SubscriptionEvent::item(std::size_t idx)
+{
+  RTDBM::ValueUpdate* pb_updater = 
+        static_cast<RTDBM::SubscriptionEvent*>(data()->impl()->instance())->mutable_update_item(idx);
+
+  // Создать новый
+  delete m_updater;
+  m_updater = new Value(static_cast<void*>(pb_updater));
+
+  return *m_updater; 
+}
+
+// Получить количество элементов в пуле
+std::size_t SubscriptionEvent::num_items()
+{
+  return static_cast<RTDBM::SubscriptionEvent*>(data()->impl()->instance())->update_item_size();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////////////////////////

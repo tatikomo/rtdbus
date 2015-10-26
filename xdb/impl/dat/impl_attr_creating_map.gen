@@ -37,6 +37,7 @@
   m_attr_creating_func_map.insert(AttrCreatingFuncPair_t("L_PIPELINE", &xdb::DatabaseRtapImpl::createL_PIPELINE));
   m_attr_creating_func_map.insert(AttrCreatingFuncPair_t("L_SA", &xdb::DatabaseRtapImpl::createL_SA));
   m_attr_creating_func_map.insert(AttrCreatingFuncPair_t("L_TL", &xdb::DatabaseRtapImpl::createL_TL));
+  m_attr_creating_func_map.insert(AttrCreatingFuncPair_t("L_TM", &xdb::DatabaseRtapImpl::createL_TM));
   m_attr_creating_func_map.insert(AttrCreatingFuncPair_t("L_TYPINFO", &xdb::DatabaseRtapImpl::createL_TYPINFO));
   m_attr_creating_func_map.insert(AttrCreatingFuncPair_t("MAXVAL", &xdb::DatabaseRtapImpl::createMAXVAL));
   m_attr_creating_func_map.insert(AttrCreatingFuncPair_t("MINVAL", &xdb::DatabaseRtapImpl::createMINVAL));
@@ -61,6 +62,7 @@
   m_attr_creating_func_map.insert(AttrCreatingFuncPair_t("TSSYNTHETICAL", &xdb::DatabaseRtapImpl::createTSSYNTHETICAL));
   m_attr_creating_func_map.insert(AttrCreatingFuncPair_t("TYPE", &xdb::DatabaseRtapImpl::createTYPE));
   m_attr_creating_func_map.insert(AttrCreatingFuncPair_t("UNITY", &xdb::DatabaseRtapImpl::createUNITY));
+  m_attr_creating_func_map.insert(AttrCreatingFuncPair_t("UNITYCATEG", &xdb::DatabaseRtapImpl::createUNITYCATEG));
   m_attr_creating_func_map.insert(AttrCreatingFuncPair_t("VAL", &xdb::DatabaseRtapImpl::createVAL));
   m_attr_creating_func_map.insert(AttrCreatingFuncPair_t("VALACQ", &xdb::DatabaseRtapImpl::createVALACQ));
   m_attr_creating_func_map.insert(AttrCreatingFuncPair_t("VALEX", &xdb::DatabaseRtapImpl::createVALEX));
