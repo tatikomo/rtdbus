@@ -1,0 +1,42 @@
+#Типы сообщений
+Используемые коды задаются в заголовочном файле msg/msg_common.h с помощью директивы #define.
+##Применяемые сейчас типы сообщений
+###Сервис БДРВ
+<table>
+<tr>
+<td>SIG_D_MSG_EXECRESULT</td><td>5001</td><td>Возврат статуса операции</td>
+</tr>
+<tr>
+<td>SIG_D_MSG_GRPSBS</td><td>5009</td><td>Возврат статуса операции</td>
+</tr>
+<tr>
+<td>SIG_D_MSG_READ_MULTI</td><td>5200</td><td>Чтение набора данных</td>
+</tr>
+<tr>
+<td>SIG_D_MSG_WRITE_MULTI</td><td>5201</td><td>Запись набора данных</td>
+</tr>
+<tr>
+<td>SIG_D_MSG_GRPSBS_CTRL</td><td>5202</td><td>Управление группами подписки</td>
+</tr>
+</table>
+
+###Сервис Трендов
+<table>
+<tr>
+<td>не реализовано</td><td></td><td></td>
+</tr>
+</table>
+
+###Сервис обменов
+<table>
+<tr>
+<td>Не реализовано</td><td></td><td></td>
+</tr>
+</table>
+
+###Сервис Видуализации
+<table>
+<tr>
+<td>Не реализовано</td><td></td><td></td>
+</tr>
+</table>
