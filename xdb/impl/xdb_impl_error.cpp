@@ -17,11 +17,11 @@ static __attribute__((constructor)) void my_errortable_init()
   g_error_descriptions[rtE_DB_NOT_FOUND]     = (const char*)"Database is not found";
   g_error_descriptions[rtE_DB_NOT_OPENED]    = (const char*)"Database is not opened";
   g_error_descriptions[rtE_DB_NOT_DISCONNECTED] = (const char*)"Database is not disconnected";
-  g_error_descriptions[rtE_XML_OPEN]         = (const char*)"Error opening XML snap";
-  g_error_descriptions[rtE_INCORRECT_DB_STATE] = (const char*)"New DB state is incorrect";
+  g_error_descriptions[rtE_XML_OPEN]            = (const char*)"Error opening XML snap";
+  g_error_descriptions[rtE_INCORRECT_DB_STATE]  = (const char*)"New DB state is incorrect";
   g_error_descriptions[rtE_SNAPSHOT_WRITE]   = (const char*)"Snapshot writing failure";
   g_error_descriptions[rtE_SNAPSHOT_READ]    = (const char*)"Snapshot reading failure";
-  g_error_descriptions[rtE_SNAPSHOT_NOT_EXIST] = (const char*)"Snapshot not exist";
+  g_error_descriptions[rtE_SNAPSHOT_NOT_EXIST]  = (const char*)"Snapshot not exist";
   g_error_descriptions[rtE_RUNTIME_FATAL]    = (const char*)"Fatal runtime failure";
   g_error_descriptions[rtE_RUNTIME_ERROR]    = (const char*)"Runtime error";
   g_error_descriptions[rtE_RUNTIME_WARNING]  = (const char*)"Recoverable runtime failure";
@@ -37,6 +37,8 @@ static __attribute__((constructor)) void my_errortable_init()
   g_error_descriptions[rtE_POINT_NOT_FOUND]  = (const char*)"Specific point is not found";
   g_error_descriptions[rtE_ATTR_NOT_FOUND]   = (const char*)"Specific attribute is not found";
   g_error_descriptions[rtE_ILLEGAL_TAG_NAME] = (const char*)"Illegal point's tag";
+  g_error_descriptions[rtE_ALREADY_EXIST]    = (const char*)"Object already exist";
+  g_error_descriptions[rtE_CONNECTION_INVALID]  = (const char*)"Connection not valid";
 }
 
 Error::Error() :

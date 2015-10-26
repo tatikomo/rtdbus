@@ -88,6 +88,7 @@ set (MSG_SOURCES
         ${XDB_COMMON_DIR}/xdb_common.cpp
         ${XDB_COMMON_DIR}/xdb_common.hpp
         ${MDP_DIR}/mdp_zmsg.hpp
+        ${MDP_DIR}/mdp_zmsg.cpp
         ${MSG_DIR}/proto/common.pb.cc
         ${MSG_DIR}/proto/common.pb.h
         ${MSG_DIR}/msg_common.h

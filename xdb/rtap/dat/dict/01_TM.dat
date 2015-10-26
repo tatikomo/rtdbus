@@ -30,7 +30,7 @@ S DATEHOURM          PUB        rtABS_TIME
 #S VAL_ACQ_PREC       PUB        rtDOUBLE       0    
 #S DATE_ACQ_PREC      PUB        rtABS_TIME     
 #S OLDSASTATE         PUB        rtUINT8        0    
-#S UNITYCATEG         PUB        rtUINT8        0    
+S UNITYCATEG         PUB        rtUINT8        0    
 #S ALARMBEGIN         PUB        rtUINT32       0    
 #S ALARMBEGINACK      PUB        rtUINT32       0    
 #S ALARMENDACK        PUB        rtUINT32       0    

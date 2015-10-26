@@ -367,6 +367,13 @@ bool getAttrValue(DbType_t db_type,
       // фактическая поданная длина
       // TODO: проверить работу с UTF-8
       case DB_TYPE_BYTES:
+        if (!given_value.empty())
+        {
+          p_attr_info->value.dynamic.val_string = new std::string(given_value);
+        }
+        else p_attr_info->value.dynamic.val_string = NULL;
+      break;
+
       case DB_TYPE_BYTES4:
       case DB_TYPE_BYTES8:
       case DB_TYPE_BYTES12:
@@ -388,7 +395,14 @@ bool getAttrValue(DbType_t db_type,
                given_value.length());
            p_attr_info->value.dynamic.varchar[p_attr_info->value.dynamic.size] = '\0';
         }
-        else p_attr_info->value.dynamic.varchar = NULL;
+        else
+        {
+/*          LOG(ERROR) << "LEAK?:" << p_attr_info->name
+                     << " type:" << p_attr_info->type
+                     << " size:" << p_attr_info->value.dynamic.size
+                     << " data:" << (void*)p_attr_info->value.dynamic.varchar;*/
+          p_attr_info->value.dynamic.varchar = NULL;
+        }
         break;
 
       case DB_TYPE_LOGICAL:
@@ -457,6 +471,8 @@ std::string getValueAsString(AttributeInfo_t* attr_info, bool masquerade)
   switch(attr_info->type)
   {
       case DB_TYPE_BYTES:
+        s_val.assign(*attr_info->value.dynamic.val_string);
+      break;
       case DB_TYPE_BYTES4:
       case DB_TYPE_BYTES8:
       case DB_TYPE_BYTES12:
@@ -471,17 +487,17 @@ std::string getValueAsString(AttributeInfo_t* attr_info, bool masquerade)
         break;
 
       case DB_TYPE_LOGICAL:
-        ss << static_cast<int>(attr_info->value.fixed.val_bool);
+        ss << static_cast<unsigned int>(attr_info->value.fixed.val_bool);
         s_val.assign(ss.str());
         break;
       case DB_TYPE_INT8:
         // NB: простой вывод int8 значением < '0' в поток проводит к
         // занесению туда непечатных символов, нужно приводить int8 к int16
-        ss << static_cast<int>(attr_info->value.fixed.val_int8);
+        ss << static_cast<signed int>(attr_info->value.fixed.val_int8);
         s_val.assign(ss.str());
         break;
       case DB_TYPE_UINT8:
-        ss << static_cast<int>(attr_info->value.fixed.val_uint8);
+        ss << static_cast<unsigned int>(attr_info->value.fixed.val_uint8);
         s_val.assign(ss.str());
         break;
 
@@ -616,7 +632,7 @@ std::string& xdb::dump_point(
           if (!it->second.name.compare(UNIVNAME_STRING))
             continue;
 
-          // Атрибут БДРВ OBJCLASS пропустить, он уже сохранен как атрибут XML Тег
+          // Атрибут БДРВ OBJCLASS пропустить, он уже сохранен как атрибут XML
           if (!it->second.name.compare(OBJCLASS_STRING))
             continue;
 
@@ -668,6 +684,8 @@ std::string& xdb::dump_point(
       switch(it_attr_pool->second.type)
       {
         case DB_TYPE_BYTES:
+          delete it_attr_pool->second.value.dynamic.val_string;
+        break;
         case DB_TYPE_BYTES4:
         case DB_TYPE_BYTES8:
         case DB_TYPE_BYTES12:
@@ -737,8 +755,11 @@ bool xdb::processInstanceFile(const char* fpath)
   /*------------------------------------*/
   /* opens the file of the Rtap classes */
   /*------------------------------------*/
-  instance_file_name += "/instances_total.dat";
-  xml_file_name += "/instances_total.xml";
+  instance_file_name += "/";
+  instance_file_name += INSTANCES_FILE_DAT;
+  xml_file_name += "/";
+  xml_file_name += INSTANCES_FILE_XML;
+
   std::ifstream ifs(instance_file_name.c_str());
   std::ofstream ofs(xml_file_name.c_str());
 
@@ -917,7 +938,8 @@ bool xdb::processInstanceFile(const char* fpath)
                     value = buffer.substr(VALUE_POSITION);
                   }
                }
-               
+
+               //memset(&attr_info.value, '\0', sizeof(attr_info.value));
                // Присвоить значение атрибуту в соответствии с полученным типом
                if (!getAttrValue(db_type, &attr_info, value))
                {
@@ -1156,12 +1178,19 @@ bool setInfoTable(char *buffer, formatType leFormat, attrCategory* category)
 }
 #endif
 
-bool xdb::translateInstance(const char* fpath)
+bool xdb::translateInstance(const char* env_path)
 {
   bool status = false;
 
-  status = processClassFile(fpath);
-  status = processInstanceFile(fpath);
+  status = processClassFile(env_path);
+  if (!status)
+    LOG(ERROR) << "Processing Classes";
+  else
+  {
+    status = processInstanceFile(env_path);
+    if (!status)
+      LOG(ERROR) << "Processing Instances";
+  }
 
   return status;
 }

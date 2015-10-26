@@ -42,6 +42,12 @@ RtConnection::~RtConnection()
   delete m_impl;
 }
 
+// Состояние подключения
+ConnectionState_t RtConnection::state()
+{
+  return (m_impl)? m_impl->state() : CONNECTION_INVALID;
+}
+
 const Error& RtConnection::create(RtPoint* _point)
 {
   assert(_point);
@@ -94,6 +100,11 @@ RtPoint* RtConnection::locate(const char* _tag)
 const Error& RtConnection::read(AttributeInfo_t* output)
 {
   return m_impl->read(output);
+}
+
+const Error& RtConnection::read(std::string& _group_name, int* _size, SubscriptionPoints_t* _output)
+{
+  return m_impl->read(_group_name, _size, _output);
 }
 
 // Прочитать значение заданного атрибута точки

@@ -20,7 +20,7 @@ class Pulsar: public mdp::mdcli
 {
   public:
     Pulsar(const char* broker, int verbose);
-    ~Pulsar();
+    virtual ~Pulsar();
     // Отправить сообщения
     void fire_messages();
     // вернуть тип сообщения по его названию

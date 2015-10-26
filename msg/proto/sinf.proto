@@ -57,12 +57,29 @@ message ValueUpdate {
 }
 
 // Чтение одного или более значения из БДРВ
+// #SIG_D_MSG_READ_MULTI
 message ReadMulti {
   repeated ValueUpdate  update_item = 1;
 }
 
 // Запись одного или более значений в БДРВ
+// #SIG_D_MSG_WRITE_MULTI
 message WriteMulti {
+  repeated ValueUpdate  update_item = 1;
+}
+
+// Управление подписками
+// #SIG_D_MSG_GRPSBS_CTRL
+message SubscriptionControl {
+  // Название группы
+  required string   name    = 1;
+  // Код управления {ENABLE|SUSPEND}
+  required int32    ctrl    = 2;
+}
+
+// Обновление от сервера при изменении одного из атрибутов Группы Подписки
+// #SIG_D_MSG_GRPSBS
+message SubscriptionEvent {
   repeated ValueUpdate  update_item = 1;
 }
 

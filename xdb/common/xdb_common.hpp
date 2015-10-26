@@ -17,6 +17,8 @@
 #include <map>
 
 #include <unistd.h>
+#include <stdint.h>
+#include <sys/time.h>
 
 namespace xdb {
 
@@ -111,6 +113,8 @@ namespace xdb {
 // При изменении перечня синхронизировать его с rtad_db.xsd
 //
 // ====================================================================
+#define RTDB_ATT_TAG        "TAG"       // Атрибуты TAG и OBJCLASS - специальный случай,
+#define RTDB_ATT_OBJCLASS   "OBJCLASS"  // Они не в виде атрибутов, а в виде полей XDBpoint
 #define RTDB_ATT_LABEL      "LABEL"
 #define RTDB_ATT_SHORTLABEL "SHORTLABEL"
 #define RTDB_ATT_VALID      "VALID"
@@ -146,6 +150,7 @@ namespace xdb {
 #define RTDB_ATT_L_NETTYPE      "L_NETTYPE"
 #define RTDB_ATT_L_NET          "L_NET"
 #define RTDB_ATT_L_TL           "L_TL"
+#define RTDB_ATT_L_TM           "L_TM"
 #define RTDB_ATT_L_EQTORBORUPS  "L_EQTORBORUPS"
 #define RTDB_ATT_L_EQTORBORDWN  "L_EQTORBORDWN"
 #define RTDB_ATT_L_TYPINFO      "L_TYPINFO"
@@ -183,6 +188,7 @@ namespace xdb {
 #define RTDB_ATT_ALDEST         "ALDEST"
 #define RTDB_ATT_INHIBLOCAL     "INHIBLOCAL"
 #define RTDB_ATT_UNITY          "UNITY"
+#define RTDB_ATT_UNITYCATEG     "UNITYCATEG"
 
 // Индексы атрибутов в массиве соответствия "Атрибут => Размер атрибута"
 // Алгоритм получения:
@@ -365,6 +371,11 @@ typedef enum {
     DB_STATE_CLOSED        = 6  // вызван mco_db_close
 } DBState_t;
 
+typedef enum {
+    CONNECTION_INVALID = 0,
+    CONNECTION_VALID   = 1
+} ConnectionState_t;
+
 typedef enum
 {
   APP_MODE_UNKNOWN    =-1,
@@ -530,6 +541,12 @@ typedef enum
     rtQUERY_SYM_ALIAS       = 62,      /* get alias equiv of given addr */
     rtQUERY_SYM_REL         = 63,      /* get rel-path equiv of given addr */
     rtQUERY_DIRECT_ATTR     = 64,      /* get fully-specified direct addr */
+    // Нет аналогов в ГОФО
+    rtQUERY_SBS_LIST_ARMED      = 65,  // Получить список активных SBS групп с измененными элементами
+    rtQUERY_SBS_POINTS_ARMED    = 66,  // Получить список измененных точек для указанной группы
+    rtQUERY_SBS_POINTS_DISARM   = 67,  // Сбросить для всех измененных точек признак модификации
+    rtQUERY_SBS_POINTS_DISARM_BY_LIST = 68,  // Сбросить флаг модификации для измененных точек из списка
+    rtQUERY_SBS_READ_POINTS_ARMED = 69,// Прочитать список модифицированных атрибутов указанной группы
 } TypeOfQuery;
 
 /*
@@ -562,7 +579,12 @@ typedef enum
     rtCONFIG_FIELD_NAME     = 26,      /* rename a field in a table */
     rtCONFIG_ADD_FIELD      = 27,      /* add a field to a table */
     rtCONFIG_DEL_FIELD      = 28,      /* delete a field from a table */
-    rtCONFIG_ATTR_AIN       = 29       /* change the AIN of an attribute */
+    rtCONFIG_ATTR_AIN       = 29,      /* change the AIN of an attribute */
+    // У следующих кодов нет аналогов в RTAP
+    rtCONFIG_ADD_GROUP_SBS  = 30,      /* Создать группу подписки */
+    rtCONFIG_DEL_GROUP_SBS  = 31,      /* Удалить группу подписки */
+    rtCONFIG_ENABLE_GROUP_SBS  = 32,   /* Активировать группу подписки */
+    rtCONFIG_SUSPEND_GROUP_SBS = 33    /* Приостановить группу подписки */
 } TypeOfConfig;
 
 // Вид используемого структурой rtDbCq действия
@@ -595,6 +617,9 @@ typedef struct
     rtDbCqAction    action;    /* action to perform */
 } rtDbCq;
 
+// Тип для хранения связи "идентификатор <-> название"
+typedef std::map <uint64_t/*autoid_t*/, std::string> map_id_name_t;
+
 // TODO: проверить, можно ли изолировать связанные с этой константой данные в xdb_rtap_snap.hpp
 #define ELEMENT_DESCRIPTION_MAXLEN  15
 
@@ -603,7 +628,8 @@ typedef struct
 // VALACQ, VALMANUAL, VAL - они есть в двух вариантах - с плав. точкой или целое число.
 typedef struct
 {
-  int       index;  // RTDB_ADD_IDX_...
+  int       index;  // RTDB_ATT_IDX_...
+  const char* name; // указатель на строку с названием атрибута RTDB_ATT_
   DbType_t  type;   // DB_TYPE_...
   // размер типа данных
   uint16_t  size;   // размер атрибута в байтах, макс. 32кБ
@@ -659,11 +685,10 @@ typedef AttributeMap_t::iterator AttributeMapIterator_t;
 typedef struct
 {
   int16_t        objclass;
-  univname_t     alias;
+  univname_t     tag;
+  int            status;
   AttributeMap_t attributes;
-  univname_t     parent_alias;
-  univname_t     code;
-// NB: Данные типы определены в MCO
+// NB: типы autoid_t определены в MCO
 //  autoid_t       id_SA;
   uint64_t       id_SA;
 //  autoid_t       id_unity;
@@ -673,13 +698,18 @@ typedef struct
 /* Хранилище набора атрибутов, их типов, кода и описания для каждого objclass */
 typedef struct
 {
-  char    name[TAG_NAME_MAXLEN + 1]; // название класса
+  char    name[sizeof(wchar_t)*TAG_NAME_MAXLEN + 1]; // название класса
   int8_t  code;                      // код класса
+  DbType_t val_type;                 // тип атрибутов {VAL|VALMANUAL|VALACQ} данного класса
   // NB: Используется указатель AttributeMap_t* для облегчения 
   // статической инициализации массива
   AttributeMap_t   *attributes_pool; // набор атрибутов с доступом по имени
 } ClassDescription_t;
 
+// Тип для хранения списка точек группы подписки вместе со атрибутами, входящими
+// в набор "триггеров", при изменении которых происходит детектирование события
+// групп подписки для данной точки.
+typedef std::vector<PointDescription_t*> SubscriptionPoints_t;
 
 // ------------------------------------------------------------
 

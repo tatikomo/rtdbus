@@ -73,17 +73,18 @@ static void catch_signals ()
 }
 
 // Базовый экземпляр Службы
-mdwrk::mdwrk (std::string broker_endpoint, std::string service, int verbose, int num_threads) :
+mdwrk::mdwrk (std::string broker_endpoint, std::string service, int _verbose, int num_threads) :
   m_context(num_threads),
   m_broker_endpoint(broker_endpoint),
   m_service(service),
   m_welcome_endpoint(NULL),
   m_worker(NULL),
   m_welcome(NULL),
-  m_verbose(verbose),
+  m_verbose(_verbose),
+  m_heartbeat_at_msec(0),
   m_liveness(HEARTBEAT_LIVENESS),
-  m_heartbeat(HeartbeatInterval), //  msecs
-  m_reconnect(HeartbeatInterval), //  msecs
+  m_heartbeat_msec(HeartbeatInterval), //  msecs
+  m_reconnect_msec(HeartbeatInterval), //  msecs
   m_expect_reply(false)
 {
     s_version_assert (3, 2);
@@ -108,7 +109,7 @@ mdwrk::mdwrk (std::string broker_endpoint, std::string service, int verbose, int
 //  Destructor
 mdwrk::~mdwrk ()
 {
-    LOG(INFO) << "mdwrk destructor";
+    LOG(INFO) << "start mdwrk destructor";
 
     send_to_broker (MDPW_DISCONNECT, NULL, NULL);
 
@@ -138,6 +139,7 @@ mdwrk::~mdwrk ()
 
     // Или == NULL, или память выделялась в getEndpoint()
     delete []m_welcome_endpoint;
+    LOG(INFO) << "finish mdwrk destructor";
 }
 
 //  ---------------------------------------------------------------------
@@ -159,7 +161,13 @@ void mdwrk::send_to_broker(const char *command, const char* option, zmsg *_msg)
         LOG(INFO) << "Sending " << mdpw_commands [(int) *command] << " to broker";
         msg->dump ();
     }
-    msg->send (*m_worker);
+
+    if (m_worker)
+    {
+      msg->send (*m_worker);
+    }
+    else LOG(ERROR) << "send_to_broker() to uninitialized socket";
+
     delete msg;
 }
 
@@ -208,7 +216,8 @@ void mdwrk::connect_to_broker ()
 
     // If liveness hits zero, queue is considered disconnected
     update_heartbeat_sign();
-    LOG(INFO) << "Next HEARTBEAT will be in " << m_heartbeat << " msec, m_liveness=" << m_liveness;
+    LOG(INFO) << "Next HEARTBEAT will be in " << m_heartbeat_msec
+              << " msec, m_liveness=" << m_liveness;
 }
 
 void mdwrk::ask_endpoint ()
@@ -268,7 +277,7 @@ void mdwrk::connect_to_world ()
 void
 mdwrk::set_heartbeat (int heartbeat)
 {
-    m_heartbeat = heartbeat;
+    m_heartbeat_msec = heartbeat;
 }
 
 
@@ -277,7 +286,7 @@ mdwrk::set_heartbeat (int heartbeat)
 void
 mdwrk::set_reconnect (int reconnect)
 {
-    m_reconnect = reconnect;
+    m_reconnect_msec = reconnect;
 }
 
 //  ---------------------------------------------------------------------
@@ -296,7 +305,7 @@ mdwrk::recv (std::string *&reply)
     {
         // GEV: отключим пока m_welcome, т.к. он также создается и в DiggerProxy,
         // что приводит к ошибке 'Address already in use'
-        zmq::poll (m_socket_items, 1/*SOCKET_COUNT*/, m_heartbeat);
+        zmq::poll (m_socket_items, 1/*SOCKET_COUNT*/, m_heartbeat_msec);
 
         if (m_socket_items[BROKER_ITEM].revents & ZMQ_POLLIN) {
             zmsg *msg = new zmsg(*m_worker);
@@ -362,22 +371,21 @@ mdwrk::recv (std::string *&reply)
         else // Ожидание нового запроса завершено по таймауту
         if (--m_liveness == 0) {
             LOG(INFO) << "timeout, last HEARTBEAT was planned "
-                      << s_clock() - m_heartbeat_at << " sec ago, m_liveness=" << m_liveness;
+                      << s_clock() - m_heartbeat_at_msec << " msec ago, m_liveness=" << m_liveness;
             if (m_verbose) {
                 LOG(WARNING) << "Disconnected from broker - retrying...";
             }
             // TODO: в этот период Служба недоступна. Уточнить таймауты!
             // см. запись в README от 05.02.2015
-            s_sleep (m_reconnect);
+            s_sleep (m_reconnect_msec);
             // После подключения к Брокеру сокет связи с ним был пересоздан
             connect_to_broker ();
         }
 
-        if (s_clock () > m_heartbeat_at) {
+        if (s_clock () > m_heartbeat_at_msec) {
             send_to_broker ((char*)MDPW_HEARTBEAT, NULL, NULL);
-            LOG(INFO) << "update m_heartbeat_at, new HEARTBEAT will be in  "
-                      << s_clock () - m_heartbeat_at << ", m_liveness = " << m_liveness;
             update_heartbeat_sign();
+            LOG(INFO) << "update next HEARTBEAT event time, m_liveness=" << m_liveness;
         }
     }
   }
@@ -404,7 +412,7 @@ mdwrk::recv (std::string *&reply)
 void mdwrk::update_heartbeat_sign()
 {
   // Назначить время следующей подачи HEARTBEAT
-  m_heartbeat_at = s_clock () + m_heartbeat;
+  m_heartbeat_at_msec = s_clock () + m_heartbeat_msec;
   // Сбросить счетчик таймаутов
   // При достижении им 0 соединение с Брокером пересоздается
   m_liveness = HEARTBEAT_LIVENESS;

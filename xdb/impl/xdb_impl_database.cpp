@@ -1266,6 +1266,7 @@ const Error& DatabaseImpl::RegisterEvents()
   mco_trans_h t;
 
   clearError();
+#if 0
 
   do
   {
@@ -1280,13 +1281,9 @@ const Error& DatabaseImpl::RegisterEvents()
       break;
     }
 
-#if 0
     rc = mco_register_newService_handler(t, 
             &DatabaseBrokerImpl::new_Service, 
             (void*)this
-//#if (EXTREMEDB_VERSION >= 41) && USE_EXTREMEDB_HTTP_SERVER
-//            , MCO_AFTER_UPDATE
-//#endif
             );
 
     if (rc) LOG(ERROR) << "Registering event on XDBService creation, rc=" << rc;
@@ -1295,7 +1292,6 @@ const Error& DatabaseImpl::RegisterEvents()
             &DatabaseBrokerImpl::del_Service, 
             (void*)this);
     if (rc) LOG(ERROR) << "Registering event on XDBService deletion, rc=" << rc;
-#endif
 
     rc = mco_trans_commit(t);
     if (rc)
@@ -1309,6 +1305,7 @@ const Error& DatabaseImpl::RegisterEvents()
   if (rc)
     mco_trans_rollback(t);
 
+#endif
   return getLastError();
 }
 

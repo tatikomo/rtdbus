@@ -19,10 +19,10 @@ S VALACQ             PUB        rtUINT16       0
 S VALMANUAL          PUB        rtUINT16       0    
 #S DISPATCH           PUB        rtBYTES20      
 #S VAL_ALINHIB        PUB        rtUINT16       0    
-#S ALARMBEGIN         PUB        rtUINT32       0    
-#S ALARMBEGINACK      PUB        rtUINT32       0    
-#S ALARMENDACK        PUB        rtUINT32       0    
-#S ALARMSYNTH         PUB        rtUINT8        0    
+S ALARMBEGIN         PUB        rtUINT32       0    
+S ALARMBEGINACK      PUB        rtUINT32       0    
+S ALARMENDACK        PUB        rtUINT32       0    
+S ALARMSYNTH         PUB        rtUINT8        0    
 S DATERTU            PUB        rtABS_TIME     
 #S SASTATE            PUB        rtUINT8        0    
 S VALIDCHANGE        PUB        rtUINT16       9    

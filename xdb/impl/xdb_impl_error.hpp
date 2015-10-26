@@ -40,7 +40,9 @@ typedef enum
   rtE_POINT_NOT_FOUND   = 27,
   rtE_ATTR_NOT_FOUND    = 28,
   rtE_ILLEGAL_TAG_NAME  = 29,
-  rtE_LAST              = 30
+  rtE_ALREADY_EXIST     = 30,
+  rtE_CONNECTION_INVALID= 31,
+  rtE_LAST              = 32
 } ErrorCode_t;
 
 class Error

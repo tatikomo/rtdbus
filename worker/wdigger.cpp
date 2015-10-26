@@ -11,6 +11,7 @@
 #include <sys/resource.h>
 
 #include <vector>
+#include <unordered_set>
 #include <thread>
 #include <memory>
 #include <functional>
@@ -28,6 +29,7 @@
 #include "mdp_zmsg.hpp"
 
 // общий интерфейс сообщений
+#include "msg_common.h"
 #include "msg_message.hpp"
 // сообщения общего порядка
 #include "msg_adm.hpp"
@@ -42,20 +44,123 @@ extern int interrupt_worker;
 
 // Таймаут (мсек) ожидания получения данных в экземпляре DiggerWorker
 const int DiggerWorker::PollingTimeout = 1000;
-const int DiggerProbe::kMaxThread = 8;
-bool      DiggerProbe::m_probe_continue = true;
+const int DiggerProbe::kMaxWorkerThreads = 3;
 const int Digger::DatabaseSizeBytes = 1024 * 1024 * DIGGER_DB_SIZE_MB;
+// Статические флаги завершения работы
+// NB: Каждый экземпляр DiggerWorker имеет локальный флаг останова
+bool DiggerProbe::m_interrupt = false;
+bool DiggerProxy::m_interrupt = false;
+bool DiggerPoller::m_interrupt = false;
+
+// Общая часть реализации отправки SBS сообщения для классов DiggerPoller и DiggerWorker
+// --------------------------------------------------------------------------------
+bool publish_sbs_impl(std::string& dest_name,
+                      xdb::SubscriptionPoints_t &info_all,
+                      rtdbMsgType msg_type,
+                      msg::MessageFactory *message_factory,
+                      zmq::socket_t& pub_socket)
+{
+  bool status = false;
+  mdp::zmsg sbs_message;
+  xdb::AttributeMap_t::iterator it_attr;
+  msg::SubscriptionEvent *bundle_se = NULL;
+  msg::ReadMulti *bundle_rm = NULL;
+  msg::Letter *letter = message_factory->create(msg_type);
+  xdb::SubscriptionPoints_t::iterator it_point;
+  std::string tag_with_attr;
+
+  switch(msg_type)
+  {
+    case SIG_D_MSG_GRPSBS:
+      // Пустое первоначально сообщение об изменениях в группе подписки
+      bundle_se = dynamic_cast<msg::SubscriptionEvent*>(letter);
+      break;
+
+    case SIG_D_MSG_READ_MULTI:
+      // Пустое первоначально сообщение о всех атрибутах группы подписки
+      bundle_rm = dynamic_cast<msg::ReadMulti*>(letter);
+      break;
+
+    default:
+      LOG(ERROR) << "Unsupported message type: " << msg_type;
+      assert(0 == 1);
+  }
+
+  letter->set_destination(dest_name);
+
+  try
+  {
+    LOG(INFO) << "SBS publish_sbs: "<<info_all.size()<<" tags for '" << dest_name << "' msg_type: "<<msg_type;
+    for(it_point = info_all.begin(); it_point != info_all.end(); it_point++)
+    {
+      for(it_attr = (*it_point)->attributes.begin();
+          it_attr != (*it_point)->attributes.end();
+          it_attr++)
+      {
+        tag_with_attr.assign((*it_point)->tag);
+        tag_with_attr += ".";
+        tag_with_attr += (*it_attr).first;
+
+        if (SIG_D_MSG_GRPSBS == msg_type)
+          bundle_se->add(tag_with_attr, (*it_attr).second.type, static_cast<void*>(&(*it_attr).second.value));
+        else if (SIG_D_MSG_READ_MULTI == msg_type)
+          bundle_rm->add(tag_with_attr, (*it_attr).second.type, static_cast<void*>(&(*it_attr).second.value));
+      }
+    }
+
+    if (SIG_D_MSG_GRPSBS == msg_type)
+    {
+      // второй фрейм - изменившиеся данные в формате ValueUpdate
+      sbs_message.push_front(const_cast<std::string&>(bundle_se->data()->get_serialized()));
+      // первый фрейм - заголовок сообщения
+      sbs_message.push_front(const_cast<std::string&>(bundle_se->header()->get_serialized()));
+      // нулевой фрейм - название Группы Подписки
+      LOG(INFO) << "GEV: SIG_D_MSG_GRPSBS, dest_name=" << dest_name;
+    }
+    else if (SIG_D_MSG_READ_MULTI == msg_type)
+    {
+      // второй фрейм - изменившиеся данные в формате ValueUpdate
+      sbs_message.push_front(const_cast<std::string&>(bundle_rm->data()->get_serialized()));
+      // первый фрейм - заголовок сообщения
+      sbs_message.push_front(const_cast<std::string&>(bundle_rm->header()->get_serialized()));
+      // ???
+      LOG(INFO) << "GEV: SIG_D_MSG_READ_MULTI, dest_name=" << dest_name;
+    }
+
+    sbs_message.wrap(dest_name.c_str(), EMPTY_FRAME);
+
+    //1 sbs_message.dump();
+    // публикация набора
+    sbs_message.send(pub_socket);
+
+    // исключений не было - считаем, что все хорошо
+    status = true;
+  }
+  catch(zmq::error_t error)
+  {
+    LOG(ERROR) << "SBS processing catch: " << error.what();
+  }
+  catch (std::exception &e)
+  {
+    LOG(ERROR) << "SBS processing catch the signal: " << e.what();
+  }
+
+  delete letter;
+
+  return status;
+}
 
 // --------------------------------------------------------------------------------
 DiggerWorker::DiggerWorker(zmq::context_t &ctx, int sock_type, xdb::RtEnvironment* env) :
  m_context(ctx),
  m_worker(m_context, sock_type), // клиентский сокет для приема от фронтенда
  m_commands(m_context, ZMQ_SUB), // серверный сокет приема команд от DiggerProxy
+ m_thread_id(0),
  m_interrupt(false),
  m_environment(env),
  m_db_connection(NULL),
  m_message_factory(NULL),
- m_thread_id(0)
+ m_metric_center(NULL)
 {
   LOG(INFO) << "DiggerWorker created";
   m_metric_center = new tool::Metrics();
@@ -87,7 +192,7 @@ int DiggerWorker::probe(mdp::zmsg* request)
 
   LOG(INFO) << "STAT MIN " << str_buffer;
 */
-  sprintf(str_buffer, "tid:%d rss:%ld b2r:%g pd:%g u%:%g u#:%g s%:%g s#:%g",
+  sprintf(str_buffer, "tid(%d) rss(%ld) b2r(%g) pd(%g) u%%(%g) u#(%g) s%%(%g) s#(%g)",
           m_thread_id,
           m_metric_center->min().ru_rss,
           m_metric_center->min().between_2_requests,
@@ -111,6 +216,7 @@ int DiggerWorker::probe(mdp::zmsg* request)
 
   LOG(INFO) << "STAT MAX " << str_buffer; */
 //1  request->push_back();
+  return 0;
 }
 
 // Нитевой обработчик запросов
@@ -228,12 +334,12 @@ void DiggerWorker::work()
         }
      }
    }
-   catch (std::exception &e) {
-     LOG(ERROR) << "DiggerWorker catch: " << e.what();
-     m_interrupt = true;
-   }
    catch(zmq::error_t error) {
      LOG(ERROR) << "DiggerWorker catch: " << error.what();
+     m_interrupt = true;
+   }
+   catch (std::exception &e) {
+     LOG(ERROR) << "DiggerWorker catch: " << e.what();
      m_interrupt = true;
    }
 
@@ -261,6 +367,9 @@ int DiggerWorker::processing(mdp::zmsg* request, std::string &identity)
   // Получить отметку времени начала обработки запроса
   m_metric_center->before();
 
+  // Получить отметку времени начала обработки запроса
+  m_metric_center->before();
+
   msg::Letter *letter = m_message_factory->create(request);
   if (letter->valid())
   {
@@ -268,16 +377,21 @@ int DiggerWorker::processing(mdp::zmsg* request, std::string &identity)
 
     switch(msgType)
     {
+      // Множественное чтение
       case SIG_D_MSG_READ_MULTI:
-       handle_read(letter, identity);
-      break;
-
+        handle_read(letter, identity);
+        break;
+      // Множественная запись
       case SIG_D_MSG_WRITE_MULTI:
-       handle_write(letter, identity);
-      break;
+        handle_write(letter, identity);
+        break;
+      // Управление подписками
+      case SIG_D_MSG_GRPSBS_CTRL:
+        handle_sbs_ctrl(letter, identity);
+        break;
 
       default:
-       LOG(ERROR) << "Unsupported request type: " << msgType;
+        LOG(ERROR) << "Unsupported request type: " << msgType;
     }
   }
   else
@@ -338,7 +452,7 @@ int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
     else
     {
       // Обновить значение под контролем protobuf
-      // Перенос прочитанных из БДРВ значений (AttrVal) в RTDBM::UpdateValue
+      // Перенос прочитанных из БДРВ значений (AttrVal) в RTDBM::ValueUpdate
       todo.flush();
     
 #if defined VERBOSE
@@ -449,6 +563,8 @@ int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
 
             default:
               std::cout << "<unknown type>" << delme_type;
+#else
+            default: ; // nothing to do
 #endif
         }
 #if defined VERBOSE
@@ -486,7 +602,7 @@ int DiggerWorker::handle_write(msg::Letter* letter, std::string& identity)
   {
     msg::Value& todo = write_msg->item(idx);
 
-    LOG(INFO) << "write #"<<idx<<":"<<todo.tag()<< ":"<<(unsigned int)todo.type()<<":"<<todo.raw().fixed.val_int32;
+    LOG(INFO) << "write #"<<idx<<":"<<todo.tag()<< ":"<<(unsigned int)todo.type()<<":"<<todo.as_string();
     // Получить значение и фактический тип атрибута
     const xdb::Error& err = m_db_connection->write(&todo.instance());
     // Накапливающийся код ошибки
@@ -519,6 +635,87 @@ int DiggerWorker::handle_write(msg::Letter* letter, std::string& identity)
   }
 
   send_exec_result(status_code, identity);
+  return status_code;
+}
+
+// --------------------------------------------------------------------------------
+int DiggerWorker::handle_sbs_ctrl(msg::Letter* letter, std::string& identity)
+{
+  xdb::rtDbCq operation;
+  xdb::Error result;
+  xdb::SubscriptionPoints_t points_list;
+  xdb::SubscriptionPoints_t::iterator it_points;
+  xdb::AttributeMap_t::iterator it_attr;
+  int list_size = 1;
+  std::string sbs_name;
+  // Полученное сообщение
+  msg::SubscriptionControl *sbs_ctrl_msg = dynamic_cast<msg::SubscriptionControl*>(letter);
+  int status_code = 0;
+  bool do_continue = true;
+
+  LOG(INFO) << "Processing SubscriptionControl('"<<sbs_ctrl_msg->name()
+            << "', " <<sbs_ctrl_msg->ctrl()
+            << ") request to " << identity;
+
+  // 1. Активировать подписку с указанным именем, если она в состоянии SUSPEND
+  // TODO: определить, если ли еще подписчики данной группы? Скорее всего,
+  // запуск/останов подписки должен/может осуществляться только сервером Групп
+  // подписки, Клиенты этого делать не должны.
+  //
+  // 2. Прочитать текущие значения атрибутов из группы подписки
+  //
+  // 3. Отправить сообщение SIG_D_MSG_READ_MULTI, содержащее набор значений
+  // всех атрибутов данной группы.
+  //
+  // NB: В качестве первого сообщения от сервера групп подписок используется SIG_D_MSG_READ_MULTI,
+  // для различения двух стадий - однократной инициализации (1) от DiggerWorker (SIG_D_MSG_READ_MULTI
+  // по тому же каналу, что и полученный запрос), и периодических обновлений (2) от DiggerPoller
+  // (SIG_D_MSG_SBSGRP по каналу PUB-SUB).
+
+  // 1 ======================================
+  sbs_name.assign(sbs_ctrl_msg->name());
+
+  switch(sbs_ctrl_msg->ctrl())
+  {
+    case 0:
+      operation.action.config = xdb::rtCONFIG_SUSPEND_GROUP_SBS;
+      break;
+
+    case 1:
+      operation.action.config = xdb::rtCONFIG_ENABLE_GROUP_SBS;
+      break;
+
+    default:
+      LOG(ERROR) << "Unsupported CONTROL ("<<sbs_ctrl_msg->ctrl()<<") for "<< sbs_name;
+      do_continue = false;
+  }
+
+  if (do_continue)
+  {
+      operation.buffer = static_cast<void*>(&sbs_name);
+      // NB: 2015-10-08 команды SUSPEND и ENABLE не реализованы, возвращают ошибку 
+      result = m_db_connection->ConfigDatabase(operation);
+
+      // 2 ======================================
+      // Передаем в качестве размера массива 1, поскольку хотя мы еще не знаем
+      // точного количества точек в этой группе, массив точек points_list будет
+      // расширяться динамически.
+      result = m_db_connection->read(sbs_name, &list_size, &points_list);
+      if (result.Ok())
+      {
+        // Отправить подписчикам все значения атрибутов
+        if (false == publish_sbs_impl(identity, // название адресата
+                points_list,                    // перечень всех атрибутов со значениями
+                SIG_D_MSG_READ_MULTI,           // тип отправляемого сообщения
+                m_message_factory,
+                m_worker))
+        {
+          LOG(ERROR) << "Publish initial SBS update to '"<<identity<<"'";
+          status_code = result.code();
+        }
+      }
+  }
+
   return status_code;
 }
 
@@ -565,6 +762,7 @@ void DiggerWorker::send_exec_result(int exec_val, std::string& identity)
             << " dest:" << msg_exec_result->header()->proc_dest()
             << " origin:" << msg_exec_result->header()->proc_origin();
 
+  delete msg_exec_result;
 #warning "replace send_to_broker(msg::zmsg*) to send(msg::Letter*)"
   // TODO: Для упрощения обработки сообщения не следует создавать zmsg и заполнять его
   // данными из Letter, а сразу напрямую отправлять Letter потребителю.
@@ -575,12 +773,307 @@ void DiggerWorker::send_exec_result(int exec_val, std::string& identity)
   delete response;
 }
 
+DiggerPoller::DiggerPoller(zmq::context_t &ctx, xdb::RtEnvironment* env) :
+ m_context(ctx),
+ m_publisher(m_context, ZMQ_PUB),
+ m_environment(env),
+ m_message_factory(new msg::MessageFactory(DIGGER_NAME))
+{
+  LOG(INFO) << "Create DiggerPoller";
+}
+
+DiggerPoller::~DiggerPoller()
+{
+  LOG(INFO) << "Destroy DiggerPoller";
+  delete m_message_factory;
+}
+
+void DiggerPoller::work()
+{
+  xdb::RtConnection *db_connection = NULL;
+  // Запрос на конфигурирование БДРВ
+  xdb::rtDbCq operation;
+  // Итератор групп подписки
+  xdb::map_id_name_t sbs_map;
+  // Итератор модифицированных точек
+  xdb::map_id_name_t points_map;
+  // Список модифицированных точек проверяемой группы
+  std::vector<std::string> tags;
+  // Итератор названий групп подписки
+  xdb::map_id_name_t::iterator it_sbs;
+  // Итератор модифицированных тегов атрибутов, участвующих в подписке
+  xdb::map_id_name_t::iterator it_points;
+  // Список элементарных записей чтения
+  xdb::SubscriptionPoints_t points_list;
+  // Набор опубликованных точек, для которых после нужно было скинуть флаг модификации 
+  std::unordered_set <std::string> sbs_points_ready_to_clear_modif_flags;
+  //1 std::vector<xdb::AttributeInfo_t*> info_all;
+  bool result = false;
+  // Код выполнения последнего запроса к БДРВ
+  xdb::Error status;
+
+#warning "Когда сбрасывать флаг модификации для точки, входящей в неск. SBS?"
+// NB: Попробовать сбрасывать флаг модификации сразу для всех подобных точек,
+// сразу после их успешной публикации подписчикам.
+
+  try
+  {
+    LOG(INFO) << "DiggerPoller is ready to connect to subscriber's point '"
+              << ENDPOINT_SBS_PUBLISHER << "'";
+    m_publisher.bind("tcp://lo:5560" /* server form of ENDPOINT_SBS_PUBLISHER */);
+    LOG(INFO) << "DiggerPoller connects to subscriber's point: " << ENDPOINT_SBS_PUBLISHER;
+
+    db_connection = m_environment->getConnection();
+
+    LOG(INFO) << "Start DiggerPoller::work, connection state="<<db_connection->state();
+    while (!m_interrupt)
+    {
+      LOG(INFO) << "DiggerPoller ping";
+
+      // Найти все группы, в которых изменились точки
+      // ====================================================
+      operation.action.query = xdb::rtQUERY_SBS_LIST_ARMED;
+      operation.buffer = &sbs_map;
+      status = db_connection->QueryDatabase(operation);
+      if (status.Ok())
+      {
+        sbs_points_ready_to_clear_modif_flags.clear();
+
+        // Пройтись по всем модифицированным Группам
+        // ====================================================
+        for (it_sbs = sbs_map.begin(); it_sbs != sbs_map.end(); it_sbs++)
+        {
+          LOG(INFO) << "Detect modified SBS " << it_sbs->first << ":'" << it_sbs->second << "'";
+
+#if 0
+          // Получить id и теги всех изменившихся точек указанной группы
+          // ====================================================
+          operation.action.query = xdb::rtQUERY_SBS_POINTS_ARMED;
+          // Название искомой группы подписки хранится в it->second
+          tags.clear();
+          tags.push_back(it_sbs->second);
+          operation.tags = &tags;
+          operation.buffer = &points_map;
+          status = db_connection->QueryDatabase(operation);
+          if (status.Ok())
+          {
+            // Опубликовать изменения текущей Группы всем подписчикам через PUB-SUB,
+            // с фильтром на клиенте в виде имени группы.
+            // Сервер сериализует поток атрибутов из it_points в сообщение, обертывая
+            // его названием группы подписки.
+            tags.clear();       // Будем заполнять его тегами атрибутов, чтобы потом прочитать
+            for (it_points = points_map.begin(); it_points != points_map.end(); it_points++)
+            {
+              info = new xdb::AttributeInfo_t;
+              memset(&info->value, '\0', sizeof(info->value));
+              info->name.assign(it_points->second);
+              // Прочитаем значение атрибута
+              status = db_connection->read(info);
+              if (status.Ok())
+              {
+                // Если чтение удалось, добавим этот тег в список готовых к публикации
+                info_all.push_back(info);
+                LOG(INFO) << "Publish tag '" << it_points->second
+                          << "' to channel '" << it_sbs->second << "'";
+              }
+              else
+              {
+                // освободить память под этот info сразу же здесь, т.к. он не попал
+                // в список на передачу, а значит не будет освобожден после передачи 
+                release_attribute_info(info);
+              }
+            } // Конец цикла рассылки для текущей группы
+
+            // Публикация (название группы, перечень тегов со значениями
+            publish_sbs(it_sbs->second, info_all);
+
+            // После публикации сбросить признак модификации успешно переданных точек
+            // для указанной группы списка tags.
+
+            // NB: Одна и та же точка может участвовать в нескольких группах.
+            // TODO: как в таком случае сбрасывать флаг?
+            clear_modification_flag(it_sbs->second, info_all);
+
+            // Освободить ресурсы info_all
+            for (std::vector<xdb::AttributeInfo_t*>::iterator it_info = info_all.begin();
+                 it_info != info_all.end();
+                 it_info++)
+            {
+                release_attribute_info(*it_info);
+            }
+            info_all.clear();
+
+          } // Конец запроса БДРВ на перечень модифицированных точек текущей группы
+#else
+          // Читать все значения модифицированных атрибутов точек для указанной группы 
+          operation.action.query = xdb::rtQUERY_SBS_READ_POINTS_ARMED;
+          tags.clear();
+          tags.push_back(it_sbs->second);
+          operation.tags = &tags;
+          // После выхода в points_list будут значения всех модифицированных
+          // атрибутов точки с их именами.
+          operation.buffer = &points_list;
+          status = db_connection->QueryDatabase(operation);
+          if (status.Ok())
+          {
+            LOG(INFO) << "rtQUERY_SBS_READ_POINTS_ARMED success";
+
+            // Очередная публикация (название группы, перечень тегов со значениями)
+            result = publish_sbs_impl(it_sbs->second,
+                                 points_list,
+                                 SIG_D_MSG_GRPSBS,
+                                 m_message_factory,
+                                 m_publisher);
+
+            if (result)
+            {
+              // После публикации сбросить признак модификации успешно переданных точек
+              // для указанной группы списка tags.
+              // А пока собираем общий список переданных точек, чтобы всем им разом
+              // снять признак модификации.
+              for(xdb::SubscriptionPoints_t::iterator it = points_list.begin();
+                  it != points_list.end();
+                  it++)
+              {
+                sbs_points_ready_to_clear_modif_flags.insert((*it)->tag);
+              }
+            }
+
+            // Освободить ресурсы info_all
+            for (xdb::SubscriptionPoints_t::iterator it_info = points_list.begin();
+                 it_info != points_list.end();
+                 it_info++)
+            {
+              release_point_info(*it_info);
+            }
+            points_list.clear();
+          }
+#endif
+        } // Конец цикла сбора информации о модифицированных точках
+
+        // TODO: Сбросить признак модификации для успешно переданных точек
+#warning "Сбросить признак модификации для всех успешно переданных точек"
+        operation.action.query = xdb::rtQUERY_SBS_POINTS_DISARM_BY_LIST;
+        operation.buffer = &sbs_points_ready_to_clear_modif_flags;
+        status = db_connection->QueryDatabase(operation);
+        if (!status.Ok())
+        {
+          LOG(ERROR) << "Clear modification flags for published points, code="
+                     << status.code() << " : " << status.what();
+        }
+
+      } // Конец успешного запроса списка активных групп с модифицированными точками
+
+      sleep(1);
+    }
+
+    m_publisher.close();
+
+    delete db_connection;
+  }
+  catch(zmq::error_t error)
+  {
+      LOG(ERROR) << "DiggerPoller catch: " << error.what();
+  }
+  catch (std::exception &e)
+  {
+      LOG(ERROR) << "DiggerPoller catch the signal: " << e.what();
+  }
+
+  LOG(INFO) << "Stop DiggerPoller::work";
+  pthread_exit(NULL);
+}
+
+void DiggerPoller::stop()
+{
+  m_interrupt = true;
+}
+
+// После публикации сбросить признак модификации успешно переданных точек
+// для указанной группы списка tags.
+// NB: Одна и та же точка может участвовать в нескольких группах.
+// TODO: как в таком случае сбрасывать флаг? Как определить, что эта группа
+// обновления последняя?
+bool DiggerPoller::clear_modification_flag(std::string& sbs_name, xdb::SubscriptionPoints_t& info_all)
+{
+  bool status = false;
+  LOG(INFO) << "SBS clear_modification_flag: "<<info_all.size()<<" tags for '" << sbs_name << "'";
+  return status;
+}
+
+// Освободить занятые ресурсы
+void DiggerPoller::release_point_info(xdb::PointDescription_t* info)
+{
+  assert(info);
+
+  // Почистить память, выделенную для атрибутов
+  for(xdb::AttributeMapIterator_t it = info->attributes.begin();
+      it != info->attributes.end();
+      it++)
+  {
+#warning "проверить вероятность двойного удаления value.dynamic"
+      switch((*it).second.type)
+      {
+        case xdb::DB_TYPE_BYTES:     /* 12 */
+          delete (*it).second.value.dynamic.val_string;
+          break;
+
+        case xdb::DB_TYPE_BYTES4:    /* 13 */
+        case xdb::DB_TYPE_BYTES8:    /* 14 */
+        case xdb::DB_TYPE_BYTES12:   /* 15 */
+        case xdb::DB_TYPE_BYTES16:   /* 16 */
+        case xdb::DB_TYPE_BYTES20:   /* 17 */
+        case xdb::DB_TYPE_BYTES32:   /* 18 */
+        case xdb::DB_TYPE_BYTES48:   /* 19 */
+        case xdb::DB_TYPE_BYTES64:   /* 20 */
+        case xdb::DB_TYPE_BYTES80:   /* 21 */
+        case xdb::DB_TYPE_BYTES128:  /* 22 */
+        case xdb::DB_TYPE_BYTES256:  /* 23 */
+          delete [] (*it).second.value.dynamic.varchar;
+          break;
+
+        default: ; // другие типы - статическое выделение памяти
+      }
+  }
+
+  delete info;
+}
+
+void DiggerPoller::release_attribute_info(xdb::AttributeInfo_t* info)
+{
+  assert(info);
+
+  switch(info->type)
+  {
+    case xdb::DB_TYPE_BYTES:
+      delete info->value.dynamic.val_string;
+    break;
+    case xdb::DB_TYPE_BYTES4:
+    case xdb::DB_TYPE_BYTES8:
+    case xdb::DB_TYPE_BYTES12:
+    case xdb::DB_TYPE_BYTES16:
+    case xdb::DB_TYPE_BYTES20:
+    case xdb::DB_TYPE_BYTES32:
+    case xdb::DB_TYPE_BYTES48:
+    case xdb::DB_TYPE_BYTES64:
+    case xdb::DB_TYPE_BYTES80:
+    case xdb::DB_TYPE_BYTES128:
+    case xdb::DB_TYPE_BYTES256:
+      delete [] info->value.dynamic.varchar;
+    break;
+    default:
+    // Остальные элементы структуры не являются динамически выделяемыми, пропустить
+    ;
+  }
+}
 
 // --------------------------------------------------------------------------------
 DiggerProbe::DiggerProbe(zmq::context_t &ctx, xdb::RtEnvironment* env) :
  m_context(ctx),
  m_worker_command_socket(m_context, ZMQ_PUB),
- m_environment(env)
+ m_environment(env),
+ m_sbs_checker(NULL),
+ m_sbs_thread(NULL)
 {
   LOG(INFO) << "DiggerProbe start, new context " << &m_context;
 }
@@ -588,6 +1081,19 @@ DiggerProbe::DiggerProbe(zmq::context_t &ctx, xdb::RtEnvironment* env) :
 DiggerProbe::~DiggerProbe()
 {
   LOG(INFO) << "DiggerProbe stop";
+}
+
+bool DiggerProbe::start()
+{
+  bool status = false;
+
+  if (kMaxWorkerThreads == start_workers())
+  {
+    // Запуск нити обработчика групп подписки
+    status = start_sbs_poller();
+  }
+
+  return status;
 }
 
 // Создать экземпляры Обработчиков и запустить их нити
@@ -606,7 +1112,7 @@ int DiggerProbe::start_workers()
     m_worker_command_socket.setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
     m_worker_command_socket.setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
 
-    for (int i = 0; i < kMaxThread; ++i)
+    for (int i = 0; i < kMaxWorkerThreads; ++i)
     {
       DiggerWorker *p_dw = new DiggerWorker(m_context, ZMQ_DEALER, m_environment);
       std::thread *p_dwt = new std::thread(std::bind(&DiggerWorker::work, p_dw));
@@ -628,19 +1134,54 @@ int DiggerProbe::start_workers()
   return m_worker_list.size();
 }
 
+// Создать экземпляр Управляющего группами подписки и запустить его нить
+bool DiggerProbe::start_sbs_poller()
+{
+  // Создать объект DiggerPoller для управления Группами подписки
+  LOG(INFO) << "DiggerProxy starting DiggerPoller thread";
+  m_sbs_checker = new DiggerPoller(m_context, m_environment);
+  m_sbs_thread = new std::thread(std::bind(&DiggerPoller::work, m_sbs_checker));
+  return true;
+}
+
+void DiggerProbe::shutdown_sbs_poller()
+{
+  try
+  {
+    LOG(INFO) << "DiggerProbe start shuttingdown SBS poller";
+    // Оповестить управляющего группами подписки о необходимости останова
+    m_sbs_checker->stop();
+    // TODO: корректно завершить работу
+    usleep(100000);
+    m_sbs_thread->join();
+    delete m_sbs_checker;
+    delete m_sbs_thread;
+    LOG(INFO) << "DiggerProbe finish shuttingdown SBS poller";
+  }
+  catch(zmq::error_t error)
+  {
+      LOG(ERROR) << "DiggerProbe catch: " << error.what();
+  }
+  catch (std::exception &e)
+  {
+      LOG(ERROR) << "DiggerProbe catch the signal: " << e.what();
+  }
+}
+
 // Остановить нити Обработчиков.
-// Вызывается из DiggerProbe::work при значении false переменной m_probe_continue.
-// Значение m_probe_continue меняется из DiggerProxy::work() при возврате из zmq_proxy
+// Вызывается из DiggerProbe::work при значении true переменной m_interrupt.
+// Значение m_interrupt меняется из DiggerProxy::work() при возврате из zmq_proxy
 // при получении ей сигнала TERMINATE.
 void DiggerProbe::shutdown_workers()
 {
-  // Количество оставшихся в работе нитей DiggerWorker, уменьшается от kMaxThread до 0
+  // Количество оставшихся в работе нитей DiggerWorker, уменьшается от kMaxWorkerThreads до 0
   int threads_to_join;
 
   try
   {
+    LOG(INFO) << "DiggerProbe start shuttingdown workers";
       // Вызвать останов функции DiggerWorker::work() для завершения треда
-      for (int i = 0; i < kMaxThread; ++i)
+      for (int i = 0; i < kMaxWorkerThreads; ++i)
       {
         LOG(INFO) << "Send TERMINATE to DiggerWorker " << i;
         m_worker_command_socket.send("TERMINATE", 9, 0);
@@ -668,7 +1209,7 @@ void DiggerProbe::shutdown_workers()
           else
           {
             // TODO: оформить время таймаута в нормальном виде (конфиг?)
-            if (time(0) > (when_joining_starts + 5))
+            if (time(0) > (when_joining_starts + 3))
             {
               LOG(ERROR) << "Timeout exceeds to joint DiggerProxy threads!";
             }
@@ -678,11 +1219,15 @@ void DiggerProbe::shutdown_workers()
         }
       }
       
+    LOG(INFO) << "DiggerProbe all workers joined";
+
       for(unsigned int i = 0; i < m_worker_list.size(); ++i)
       {
         LOG(INFO) << "delete DiggerWorker["<<i+1<<"/"<<m_worker_list.size()<<"] " << m_worker_list[i];
         delete m_worker_list[i];
       }
+
+    LOG(INFO) << "DiggerProbe finish shuttingdown workers";
   }
   catch(zmq::error_t error)
   {
@@ -698,7 +1243,7 @@ void DiggerProbe::shutdown_workers()
 // Отдельная нить бесконечной проверки состояния и метрик нитей DiggerWorker
 //  Условия завершения работы:
 //  1. Исключение zmq::error
-//  2. Установка флага m_probe_continue в false
+//  2. Установка флага m_interrupt в true
 //
 //  Необходимо опрашивать экземпляры DiggerWorker для:
 //  1. Определения их работоспособности
@@ -713,11 +1258,17 @@ void DiggerProbe::work()
   {
     db_connection = m_environment->getConnection();
 
-    while (m_probe_continue)
+    // TODO: получить перечень групп подписки и отслеживать их
+
+    while (!m_interrupt)
     {
 //      LOG(INFO) << "Probe!";
       // Отправить сообщение PROBE всем экземплярам DiggerWorker
+#if 1
       m_worker_command_socket.send("PROBE", 5, 0);
+#else
+#warning "DiggerProbe::PROBE disabled"
+#endif
 
 #if 0
       // И дождаться ответа от каждого
@@ -732,8 +1283,15 @@ void DiggerProbe::work()
       sleep(POLLING_PROBE_PERIOD);
     }
 
+    LOG(INFO) << "DiggerProbe::work ready to shutdown";
+
+    // Остановить Управляющего группами подписки
+    shutdown_sbs_poller();
+
     // Послать сигнал TERMINATE Обработчикам и дождаться их завершения
     shutdown_workers();
+
+    usleep(500000);
   }
   catch(zmq::error_t error)
   {
@@ -754,7 +1312,7 @@ void DiggerProbe::work()
 void DiggerProbe::stop()
 {
   LOG(INFO) << "Probe got signal to stop";
-  m_probe_continue = false;
+  m_interrupt = true;
 }
 
 // --------------------------------------------------------------------------------
@@ -786,7 +1344,6 @@ DiggerProxy::~DiggerProxy()
 // --------------------------------------------------------------------------------
 void DiggerProxy::run()
 {
-  int num_running_threads;
   int mandatory = 1;
   int linger = 0;
   int hwm = 100;
@@ -827,8 +1384,8 @@ void DiggerProxy::run()
     LOG(INFO) << "DiggerProxy starting DiggerProbe thread";
     m_probe = new DiggerProbe(m_context, m_environment);
 
-    // Создать пул Обработчиков Службы в DiggerProbe
-    if (DiggerProbe::kMaxThread == (num_running_threads = m_probe->start_workers()))
+    // Создать пул Обработчиков Службы и Управляющего группами подписки в DiggerProbe
+    if (true == m_probe->start())
     {
       // Количество запущенных процессов совпадает с заданным.
       // Запустить нить управления DiggerProbe.
@@ -838,7 +1395,7 @@ void DiggerProxy::run()
                 << ", " << ENDPOINT_SINF_DATA_BACKEND << ")";
 
       // NB: необходимо использовать оператор (void*) для доступа к внутреннему ptr
-      int rc = zmq_proxy_steerable ((void*)m_frontend, (void*)m_backend, nullptr, (void*)m_control);
+      int rc = zmq_proxy_steerable ((void*)m_frontend, (void*)m_backend, NULL /* C++11: nullptr */, (void*)m_control);
       if (0 == rc)
       {
         LOG(INFO) << "DiggerProxy zmq::proxy finish successfuly";
@@ -855,8 +1412,7 @@ void DiggerProxy::run()
     }
     else
     {
-      LOG(ERROR) << "Start less DiggerWorker's threads than needed: "
-                 << m_probe_thread << " of " << DiggerProbe::kMaxThread;
+      LOG(ERROR) << "Starting DiggerProbe: " << m_probe_thread;
     }
   }
   catch(zmq::error_t error)
@@ -877,35 +1433,34 @@ void DiggerProxy::run()
   pthread_exit(NULL);
 }
 
-
 // Контекст вызова - DiggerProxy::run()
 void DiggerProxy::wait_probe_stop()
 {
-  // Ипфнормировать Пробник о необходимости завершения его работы
+  // Информировать Пробник о необходимости завершения его работы
   m_probe->stop();
 
   try
   {
     time_t when_joining_starts = time(0);
     // Дождаться останова
-    LOG(INFO) << "Waiting joinable Digger Probe thread";
+    LOG(INFO) << "Waiting joinable DiggerProbe thread";
     while (true)
     {
       if (m_probe_thread->joinable())
       {
         m_probe_thread->join();
-        LOG(INFO) << "thread Digger Probe joined";
+        LOG(INFO) << "thread DiggerProbe joined";
         break;
       }
       else
       {
         // TODO: оформить время таймаута в нормальном виде (конфиг?)
-        if (time(0) > (when_joining_starts + 5))
+        if (time(0) > (when_joining_starts + 3))
         {
           LOG(ERROR) << "Timeout exceeds to joint DiggerProxy Probe thread!";
         }
         usleep(500000);
-        LOG(INFO) << "tick join Digger Probe waiting thread";
+        LOG(INFO) << "tick join DiggerProbe waiting thread";
       }
     }
   }
@@ -934,17 +1489,19 @@ Digger::Digger(std::string broker_endpoint, std::string service, int verbose)
    m_appli(NULL),
    m_environment(NULL),
    m_db_connection(NULL),
-   m_verbose(verbose)
+   m_verbose_digg(verbose)
 {
   m_appli = new xdb::RtApplication("DIGGER");
   m_appli->setOption("OF_CREATE",   1);    // Создать если БД не было ранее
   m_appli->setOption("OF_LOAD_SNAP",1);
   m_appli->setOption("OF_SAVE_SNAP",1);
+  m_appli->setOption("OF_REGISTER_EVENT",1); // Регистрировать обработчики БДРВ
   // Максимальное число подключений к БД:
-  // a) по одному на каждый экземпляр DiggerWorker
-  // b) один для Digger
-  // c) один для мониторинга
-  m_appli->setOption("OF_MAX_CONNECTIONS",  DiggerProbe::kMaxThread + 4);
+  // a) по одному на каждый экземпляр DiggerWorker (kMaxWorkerThreads)
+  // b) один Управляющий Группами
+  // c) один для Digger
+  // d) один для мониторинга
+  m_appli->setOption("OF_MAX_CONNECTIONS",  DiggerProbe::kMaxWorkerThreads + 1 + 1 + 1 + 1);
   m_appli->setOption("OF_RDWR",1);      // Открыть БД для чтения/записи
   m_appli->setOption("OF_DATABASE_SIZE",    Digger::DatabaseSizeBytes);
   m_appli->setOption("OF_MEMORYPAGE_SIZE",  1024);
@@ -961,7 +1518,7 @@ Digger::Digger(std::string broker_endpoint, std::string service, int verbose)
 // --------------------------------------------------------------------------------
 Digger::~Digger()
 {
-  LOG(INFO) << "Digger destructor";
+  LOG(INFO) << "start Digger destructor";
 
   delete m_message_factory;
 
@@ -980,6 +1537,7 @@ Digger::~Digger()
   {
     LOG(ERROR) << "Digger destructor: " << error.what();
   }
+  LOG(INFO) << "finish Digger destructor";
 }
 
 // Запуск DiggerProxy и цикла получения сообщений
@@ -1002,7 +1560,7 @@ void Digger::run()
     LOG(INFO) << "DiggerProxy starting Main thread";
     m_proxy_thread = new std::thread(std::bind(&DiggerProxy::run, m_digger_proxy));
 
-    LOG(INFO) << "Wait 1 second to DiggerProxy became start";
+    LOG(INFO) << "Wait 1 second to DiggerProxy became hot";
     sleep(1);
 
     LOG(INFO) << "DiggerProxy control connecting";
@@ -1079,7 +1637,7 @@ void Digger::cleanup()
       }
       else
       {
-        sleep(1);
+        usleep(500000);
         LOG(INFO) << "tick join DiggerProxy waiting thread";
       }
     }
@@ -1232,6 +1790,7 @@ void Digger::send_exec_result(int exec_val, std::string* reply_to)
             << " dest:" << msg_exec_result->header()->proc_dest()
             << " origin:" << msg_exec_result->header()->proc_origin();
 
+  delete msg_exec_result;
 #warning "replace send_to_broker(msg::zmsg*) to send(msg::Letter*)"
   // TODO: Для упрощения обработки сообщения не следует создавать zmsg и заполнять его
   // данными из Letter, а сразу напрямую отправлять Letter потребителю.

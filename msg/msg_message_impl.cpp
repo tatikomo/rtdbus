@@ -24,7 +24,7 @@ HeaderImpl::HeaderImpl()
 HeaderImpl::HeaderImpl(const std::string& frame)
   : m_modified(true)
 {
-  m_pb_serialized.resize(32);
+//  m_pb_serialized.resize(40);
   if (false == (m_validity = m_instance.ParseFromString(frame)))
   {
     LOG(ERROR) << "Unable to unserialize header";
@@ -103,9 +103,9 @@ DataImpl::DataImpl(rtdbMsgType type)
     m_validity(false),
     m_modified(true)
 {
-  m_data.resize(130);
+//  m_data.resize(130);
   m_data.clear();
-  m_pb_serialized.resize(130);
+//  m_pb_serialized.resize(130);
 //  LOG(INFO) << "DataImpl(" << type << ") [" << this << "]";
   // создать объект с данными, соответствующими переданному типу
   syncronize();
@@ -176,6 +176,14 @@ void DataImpl::set_initial_values()
 
       case SIG_D_MSG_WRITE_MULTI:
         m_protobuf_instance = new RTDBM::WriteMulti();
+      break;
+
+      case SIG_D_MSG_GRPSBS:
+        m_protobuf_instance = new RTDBM::SubscriptionEvent();
+      break;
+
+      case SIG_D_MSG_GRPSBS_CTRL:
+        m_protobuf_instance = new RTDBM::SubscriptionControl();
       break;
 
       default:

@@ -29,6 +29,7 @@
 #include "msg/msg_common.h"
 
 #include "xdb_rtap_application.hpp"
+#include "xdb_rtap_database.hpp"
 #include "xdb_rtap_environment.hpp"
 #include "xdb_rtap_connection.hpp"
 #include "xdb_rtap_snap.hpp"
@@ -41,6 +42,14 @@ const char *unbelievable_service_name = "unbelievable_service";
 const char *worker_identity_1 = "SN1_AAAAAAA";
 const char *worker_identity_2 = "SN1_WRK2";
 const char *worker_identity_3 = "WRK3";
+std::string group_name_1 = "Группа подписки #1";
+std::string group_name_2 = "Группа подписки #2";
+std::string group_name_unexistant = "Несуществующая";
+const char *sbs_points[] = {
+    "/KD4001/GOV022",       // GOFVALTSC
+    "/KO4016/GOV171/PT01",  // GOFVALTI
+    "/KA4003/XA01"          // GOFVALAL
+};
 xdb::DatabaseBroker *database = NULL;
 xdb::Service *service1 = NULL;
 xdb::Service *service2 = NULL;
@@ -513,6 +522,7 @@ TEST(TestDiggerDATABASE, CREATION)
   app->setOption("OF_CREATE", 0);
   app->setOption("OF_LOAD_SNAP", 1);
   app->setOption("OF_RDWR",   1);
+  app->setOption("OF_REGISTER_EVENT", 1); // Взвести CE
   app->setOption("OF_DATABASE_SIZE", 1024 * 1024 * 10);
   app->setOption("OF_MEMORYPAGE_SIZE", 1024); // 0..65535
   app->setOption("OF_MAP_ADDRESS",   0x30000000);
@@ -637,6 +647,427 @@ TEST(TestDiggerDATABASE, READ_WRITE)
   EXPECT_EQ(info.type, DB_TYPE_BYTES16);
   std::cout << info.name << " = [" << info.value.dynamic.size << "] '"
             << info.value.dynamic.varchar << "'" << std::endl;
+  delete [] info.value.dynamic.varchar;
+}
+
+TEST(TestDiggerDATABASE, UPDATE_EVENTS)
+{
+  AttributeInfo_t info_write;
+  AttributeInfo_t info_read;
+  Error status;
+
+  memset((void*)&info_read.value, '\0', sizeof(info_read.value));
+  memset((void*)&info_write.value, '\0', sizeof(info_write.value));
+  info_write.type = DB_TYPE_UINT8;
+
+  for (int att_idx=1; att_idx<2; att_idx++)
+  {
+    // Проверка срабатывания события при изменении VALIDCHANGE
+    for(int /*ValidChange*/ code = 0/*VALIDCHANGE_FAULT*/; code <= 12/*VALIDCHANGE_END_INHIB_SA*/; code++)
+    {
+      std::cout << std::endl << "Iteration VALIDCHANGE=" << code << std::endl;
+      // Изменить значения атрибутов VAL, VALACQ, VALMANUAL, VALID, VALIDACQ
+      info_write.name = std::string(sbs_points[att_idx]) + "." + RTDB_ATT_VAL;
+      info_write.value.fixed.val_double = 4321.5678;
+      status = connection->write(&info_write);
+      if (status.code() == rtE_NONE)
+        std::cout << "Set "<< info_write.name <<"="<< info_write.value.fixed.val_double << std::endl;
+
+      info_write.name = std::string(sbs_points[att_idx]) + "." + RTDB_ATT_VALACQ;
+      info_write.value.fixed.val_double = 1234.5678;
+      status = connection->write(&info_write);
+      if (status.code() == rtE_NONE)
+        std::cout << "Set "<< info_write.name <<"="<< info_write.value.fixed.val_double << std::endl;
+
+      info_write.name = std::string(sbs_points[att_idx]) + "." + RTDB_ATT_VALMANUAL;
+      info_write.value.fixed.val_double = 5678.1234;
+      status = connection->write(&info_write);
+      if (status.code() == rtE_NONE)
+        std::cout << "Set "<< info_write.name <<"="<< info_write.value.fixed.val_double << std::endl;
+
+      info_write.name = std::string(sbs_points[att_idx]) + "." + RTDB_ATT_VALID;
+      info_write.value.fixed.val_uint8 = 1;
+      status = connection->write(&info_write);
+      if (status.code() == rtE_NONE)
+        std::cout << "Set "<<info_write.name <<"="<< (unsigned int)info_write.value.fixed.val_uint8 << std::endl;
+
+      info_write.name = std::string(sbs_points[att_idx]) + "." + RTDB_ATT_VALIDACQ;
+      info_write.value.fixed.val_uint8 = 1;
+      status = connection->write(&info_write);
+      if (status.code() == rtE_NONE)
+        std::cout << "Set "<<info_write.name <<"="<< (unsigned int)info_write.value.fixed.val_uint8 << std::endl;
+
+      // Изменив значение VALIDCHANGE, инициировать выполнение CE
+      info_write.name = std::string(sbs_points[att_idx]) + "." + RTDB_ATT_VALIDCHANGE;
+      info_write.value.fixed.val_uint8 = code;
+      status = connection->write(&info_write);
+      // Проверка успешности записи данных
+      EXPECT_EQ(status.code(), rtE_NONE);
+      if (status.code() != rtE_NONE)
+        std::cout << "Error '" << info_write.name << "' update: " << status.what() << std::endl;
+      else
+        std::cout << "Set "<<info_write.name << "=" << (unsigned int)info_write.value.fixed.val_uint8 << std::endl;
+
+      // Прочесть рассчитанные CE значения атрибутов VAL, VALACQ, VALID, VALIDACQ
+      info_read.name = std::string(sbs_points[att_idx]) + "." + RTDB_ATT_VAL;
+      status = connection->read(&info_read);
+      if (status.code() == rtE_NONE)
+        std::cout << "Get "<< info_read.name <<"="<< info_read.value.fixed.val_double << std::endl;
+
+      info_read.name = std::string(sbs_points[att_idx]) + "." + RTDB_ATT_VALACQ;
+      status = connection->read(&info_read);
+      if (status.code() == rtE_NONE)
+        std::cout << "Get "<< info_read.name <<"="<< info_read.value.fixed.val_double << std::endl;
+
+      info_read.name = std::string(sbs_points[att_idx]) + "." + RTDB_ATT_VALID;
+      status = connection->read(&info_read);
+      if (status.code() == rtE_NONE)
+        std::cout << "Get "<<info_read.name <<"="<< (unsigned int)info_read.value.fixed.val_uint8 << std::endl;
+
+      info_read.name = std::string(sbs_points[att_idx]) + "." + RTDB_ATT_VALIDACQ;
+      status = connection->read(&info_read);
+      if (status.code() == rtE_NONE)
+        std::cout << "Get "<<info_read.name <<"="<< (unsigned int)info_read.value.fixed.val_uint8 << std::endl;
+
+      info_read.name = std::string(sbs_points[att_idx]) + "." + RTDB_ATT_VALIDCHANGE;
+      status = connection->read(&info_read);
+      if (status.code() == rtE_NONE)
+        std::cout << "Get "<<info_read.name <<"="<< (unsigned int)info_read.value.fixed.val_uint8 << std::endl;
+
+    }
+  }
+}
+
+// Удаление ранее созданной группы
+TEST(TestDiggerDATABASE, INIT_SBS)
+{
+  rtDbCq operation;
+
+//  env->MakeSnapshot("BEFORE_INIT_SBS");
+  // Название группы подписки
+  operation.buffer = static_cast<void*>(&group_name_1);
+  // Сначала удалить возможно ранее созданную группу.
+  // Код удаления групп group_name_1 и group_name_2 может быть ошибочным,
+  // это допустимо для свежих снимков БДРВ.
+  operation.action.config = rtCONFIG_DEL_GROUP_SBS;
+  const Error& err_1 = connection->ConfigDatabase(operation);
+  std::cout << "Delete subscription group " << group_name_1 << " was: " << err_1.what() << std::endl;
+
+  operation.buffer = static_cast<void*>(&group_name_2);
+  const Error& err_2 = connection->ConfigDatabase(operation);
+  std::cout << "Delete subscription group " << group_name_2 << " was: " << err_2.what() << std::endl;
+
+  // Попытка удаления группы group_name_unexistant должна быть ошибочной
+  operation.buffer = static_cast<void*>(&group_name_unexistant);
+  const Error& err_3 = connection->ConfigDatabase(operation);
+  std::cout << "Delete subscription group " << group_name_unexistant << " was: " << err_3.what() << std::endl;
+  EXPECT_EQ(err_3.code(), rtE_RUNTIME_ERROR);
+}
+
+// Тест создания группы подписки с заданными элементами
+// Одна и та же точка может входить в несколько разных групп
+TEST(TestDiggerDATABASE, CREATE_SBS)
+{
+  rtDbCq operation;
+  std::vector<std::string> tags_list;
+
+//  env->MakeSnapshot("BEFORE_CREATE_SBS");
+  // Название группы подписки
+  operation.buffer = static_cast<void*>(&group_name_1);
+  // Тип конфигурирования - создание группы подписки
+  operation.action.config = rtCONFIG_ADD_GROUP_SBS;
+
+  tags_list.push_back("/KD4001/GOV022"); // Эта точка участвует в двух группах
+  tags_list.push_back("/KD4001/GOV023");
+  tags_list.push_back("/KD4001/GOV024");
+  tags_list.push_back("/KD4001/GOV025");
+  tags_list.push_back("/KD4001/GOV026");
+  tags_list.push_back("/KD4001/GOV027");
+  tags_list.push_back("/KD4001/GOV028");
+  tags_list.push_back("/KD4001/GOV029");
+  tags_list.push_back("/KD4001/GOV030");
+  tags_list.push_back("/KD4001/GOV031");
+  tags_list.push_back("/KD4001/GOV033");
+  // Название точек, входящих в набор создаваемой группы
+  operation.tags = &tags_list;
+  operation.addrCnt = tags_list.size();
+  
+  const Error& status_1 = connection->ConfigDatabase(operation);
+  EXPECT_EQ(status_1.code(), rtE_NONE);
+  std::cout << "Create subscription group was: " << status_1.what() << std::endl;
+
+  tags_list.clear();
+  tags_list.push_back("/KD4001/GOV022");       // GOFVALTSC
+  tags_list.push_back("/KO4016/GOV171/PT01");  // GOFVALTI
+  tags_list.push_back("/KA4003/XA01");         // GOFVALAL
+  operation.addrCnt = tags_list.size();
+  operation.buffer = static_cast<void*>(&group_name_2);
+  const Error& status_2 = connection->ConfigDatabase(operation);
+  EXPECT_EQ(status_2.code(), rtE_NONE);
+  std::cout << "Create subscription group was: " << status_2.what() << std::endl;
+//  env->MakeSnapshot("AFTER_CREATE_SBS");
+}
+
+// Тест чтения всех значений точек из заданной группы подписки
+TEST(TestDiggerDATABASE, READ_SBS)
+{
+  AttributeInfo_t info;
+//  rtDbCq operation;
+  xdb::SubscriptionPoints_t points_list;
+  int list_size = 0;
+  char s_date [D_DATE_FORMAT_LEN + 1];
+  time_t given_time;
+  char s_val[100];
+  uint16_t  update_val = 0;
+  unsigned int iteration, item;
+  AttributeMapIterator_t it;
+  Error status;
+  std::string kd4005="KD4005_SS";
+
+  status = connection->read(group_name_2, &list_size, NULL);
+  EXPECT_EQ(status.code(), rtE_NONE);
+  EXPECT_EQ(list_size, 3); // кол-во строк из group_name_2
+
+  for (iteration = 0; iteration < 3; iteration++)
+  {
+      // Проверка чтения группы после изменения значения дискретного параметра
+      // ================================
+      memset((void*)&info.value, '\0', sizeof(info.value));
+      info.name = "/KD4001/GOV035.VAL";
+      info.type = DB_TYPE_UINT16;
+      info.value.fixed.val_uint16 = ++update_val;
+      status = connection->write(&info);
+      EXPECT_EQ(status.code(), rtE_NONE);
+
+      points_list.clear();
+
+      list_size = 2;
+      status = connection->read(kd4005/*group_name_2*/, &list_size, &points_list);
+      EXPECT_EQ(status.code(), rtE_NONE);
+
+      for(item=0; item < points_list.size(); item++)
+      {
+        std::cout << "#" << iteration << " read sbs tag:" << points_list.at(item)->tag
+            << " objclass:" << points_list.at(item)->objclass
+            << " attr#:" << points_list.at(item)->attributes.size()
+            << std::endl;
+        for(it = points_list.at(item)->attributes.begin();
+            it != points_list.at(item)->attributes.end();
+            it++ )
+        {
+          switch((*it).second.type)
+          {
+            case DB_TYPE_LOGICAL:   /* 1 */
+              sprintf(s_val, "%d", (*it).second.value.fixed.val_bool);
+            break;
+            case DB_TYPE_INT8:      /* 2 */
+              sprintf(s_val, "%+02d", (signed int)(*it).second.value.fixed.val_int8);
+            break;
+            case DB_TYPE_UINT8:     /* 3 */
+              sprintf(s_val, "%02d", (unsigned int)(*it).second.value.fixed.val_uint8);
+            break;
+            case DB_TYPE_INT16:     /* 4 */
+              sprintf(s_val, "%+05d", (*it).second.value.fixed.val_int16);
+            break;
+            case DB_TYPE_UINT16:    /* 5 */
+              sprintf(s_val, "%05d", (*it).second.value.fixed.val_uint16);
+            break;
+            case DB_TYPE_INT32:     /* 6 */
+              sprintf(s_val, "%+d", (*it).second.value.fixed.val_int32);
+            break;
+            case DB_TYPE_UINT32:    /* 7 */
+              sprintf(s_val, "%d", (*it).second.value.fixed.val_uint32);
+            break;
+            case DB_TYPE_INT64:     /* 8 */
+              sprintf(s_val, "%+lld", (*it).second.value.fixed.val_int64);
+            break;
+            case DB_TYPE_UINT64:    /* 9 */
+              sprintf(s_val, "%lld", (*it).second.value.fixed.val_uint64);
+            break;
+            case DB_TYPE_FLOAT:     /* 10 */
+              sprintf(s_val, "%f", (*it).second.value.fixed.val_float);
+            break;
+            case DB_TYPE_DOUBLE:    /* 11 */
+              sprintf(s_val, "%g", (*it).second.value.fixed.val_double);
+            break;
+            case DB_TYPE_BYTES:     /* 12 */ // переменная длина строки
+              sprintf(s_val, "%s", (*it).second.value.dynamic.val_string->c_str());
+              delete (*it).second.value.dynamic.val_string;
+            break;
+            case DB_TYPE_BYTES4:    /* 13 */
+            case DB_TYPE_BYTES8:    /* 14 */
+            case DB_TYPE_BYTES12:   /* 15 */
+            case DB_TYPE_BYTES16:   /* 16 */
+            case DB_TYPE_BYTES20:   /* 17 */
+            case DB_TYPE_BYTES32:   /* 18 */
+            case DB_TYPE_BYTES48:   /* 19 */
+            case DB_TYPE_BYTES64:   /* 20 */
+            case DB_TYPE_BYTES80:   /* 21 */
+            case DB_TYPE_BYTES128:  /* 22 */
+            case DB_TYPE_BYTES256:  /* 23 */
+              sprintf(s_val, "%s", (*it).second.value.dynamic.varchar);
+              delete [] (*it).second.value.dynamic.varchar;
+            break;
+            case DB_TYPE_ABSTIME:   /* 24 */
+              given_time = (*it).second.value.fixed.val_time.tv_sec;
+              strftime(s_date, D_DATE_FORMAT_LEN, D_DATE_FORMAT_STR, localtime(&given_time));
+              snprintf(s_val, D_DATE_FORMAT_W_MSEC_LEN, "%s.%06ld", s_date, (*it).second.value.fixed.val_time.tv_usec);
+            break;
+            case DB_TYPE_UNDEF:
+              sprintf(s_val, "<undefined type: %d>", (*it).second.type);
+            break;
+            default:
+              sprintf(s_val, "<unsupported type: %d>", (*it).second.type);
+          }
+          std::cout << "\t[t:" << (*it).second.type << "] " << (*it).first << ":\t" << s_val << std::endl;
+        }
+
+       delete points_list.at(item);
+      }
+  }
+//  env->MakeSnapshot("AFTER_READ_SBS");
+}
+
+// Тест обнаружения изменений значений атрибутов точек из заданной группы подписки
+// К этому тесту (если в группу 1 был включен "/KD4001/GOV022") изменения коснулись трех точек:
+// /KD4001/GOV022       [aid:0x34A] [sbs_item aid:0x109D] [sbs_stat aid:0x109C "Группа подписки #1"]
+// /KD4001/GOV035       [aid:0x362] [нет группы]
+// /KO4016/GOV171/PT01  [aid:0xC30] [sbs_item aid:0x10AA] [sbs_stat aid:0x10A8 "Группа подписки #2"]
+//
+// План теста:
+// 1. Изменить неск. атрибутов только одной точки из группы подписки
+// 2. Найти группу, в которой произошло изменение значений одной из точек
+// 3. Найти точку в этой группе, для которой произошли изменения
+TEST(TestDiggerDATABASE, CATCH_SBS)
+{
+  AttributeInfo_t info_write;
+  AttributeInfo_t info_read;
+  // Запрос на изменившиеся SBS группы
+  rtDbCq operation;
+  std::vector<std::string> tags;
+  map_id_name_t sbs_map;
+  map_id_name_t points_map;
+  Error status;
+
+  // 1) Занести в /KO4016/GOV171/PT01.VALACQ = 3.1415
+  // ====================================================
+  info_write.name = std::string(sbs_points[1]) + "." + RTDB_ATT_VALACQ;
+  info_write.value.fixed.val_double = 3.1415;
+  status = connection->write(&info_write);
+  EXPECT_EQ(status.code(), rtE_NONE);
+
+//  env->MakeSnapshot("BEFORE_CATCH_SBS");
+  // 2) Найти все группы, в которых изменились точки
+  // ====================================================
+  // Тип конфигурирования - получение информации о группах подписки,
+  // имеющих модифицированные Точки
+  operation.action.query = rtQUERY_SBS_LIST_ARMED;
+  operation.buffer = &sbs_map;
+  status = connection->QueryDatabase(operation);
+  EXPECT_EQ(status.code(), rtE_NONE);
+  // Изменились элементы в двух группах, т.к. одна из модифицированных
+  // точек (/KD4001/GOV022) входит в две группы сразу
+  EXPECT_EQ(sbs_map.size(), 2);
+
+  for (map_id_name_t::iterator it = sbs_map.begin();
+       it != sbs_map.end();
+       it++)
+  {
+    LOG(INFO) << it->first << ":'" << it->second << "'";
+
+    // 3) Получить id и теги всех изменившихся точек указанной группы
+    // ====================================================
+    operation.action.query = rtQUERY_SBS_POINTS_ARMED;
+    // Название искомой группы подписки хранится в it->second
+    tags.clear();
+    tags.push_back(it->second);
+    operation.tags = &tags;
+    operation.buffer = &points_map;
+    status = connection->QueryDatabase(operation);
+    EXPECT_EQ(status.code(), rtE_NONE);
+    //EXPECT_EQ(points_map.size(), 2);
+  }
+
+#if 0
+  // 4) Получить id и теги всех изменившихся точек всех групп, вместе с id групп
+  // ====================================================
+  operation.action.query = rtQUERY_SBS_ALL_POINTS_ARMED;
+  operation.buffer = &sbs_map;
+  status = connection->QueryDatabase(operation);
+  EXPECT_EQ(status.code(), rtE_NONE);
+#endif
+
+//  env->MakeSnapshot("AFTER_CATCH_SBS");
+}
+
+// Тест на сброс флага модификации для одной из групп
+TEST(TestDiggerDATABASE, DISARM_SBS)
+{
+  rtDbCq operation;
+  std::vector<std::string> tags;
+  map_id_name_t points_map;
+  Error status;
+  int sbs_items_old_count = 0;
+  int sbs_items_new_count = 0;
+ 
+  // Получим список модифицированных точек этой группы
+  tags.push_back(group_name_2);
+  operation.action.query = rtQUERY_SBS_POINTS_ARMED;
+  operation.tags = &tags;
+  operation.buffer = &points_map;
+  status = connection->QueryDatabase(operation);
+  EXPECT_EQ(status.code(), rtE_NONE);
+
+  // Должно быть ненулевое количество Точек
+  sbs_items_old_count = points_map.size();
+  LOG(INFO) << "SBS '"<<group_name_2<<"' size="<<sbs_items_old_count;
+  EXPECT_TRUE(sbs_items_old_count > 0);
+
+  LOG(INFO) << "Clear SBS '"<<group_name_2<<"' modifications";
+  // Запрос на сброс модификации группы group_name_2
+  operation.action.query = rtQUERY_SBS_POINTS_DISARM;
+  operation.buffer = NULL;
+  status = connection->QueryDatabase(operation);
+  EXPECT_EQ(status.code(), rtE_NONE);
+
+  LOG(INFO) << "Get new SBS '"<<group_name_2<<"' size";
+  operation.action.query = rtQUERY_SBS_POINTS_ARMED;
+  operation.buffer = &points_map;
+  // Ожидается, что список модифицированных точек этой группы будет пустым
+  status = connection->QueryDatabase(operation);
+  EXPECT_EQ(status.code(), rtE_NONE);
+
+  // Должно быть нулевое количество Точек
+  sbs_items_new_count = points_map.size();
+  EXPECT_TRUE(sbs_items_new_count == 0);
+}
+
+// Тест чтения всех значений точек из заданной группы подписки
+TEST(TestDiggerDATABASE, DELETE_SBS)
+{
+  Error status;
+  rtDbCq operation;
+
+//  env->MakeSnapshot("BEFORE_DELETE_SBS");
+  // Проверить удаление действительно существующей группы
+  // ====================================================
+  // Удалить ранее созданную группу
+  operation.action.config = rtCONFIG_DEL_GROUP_SBS;
+  // Название группы подписки
+  operation.buffer = static_cast<void*>(&group_name_2);
+
+  status = connection->ConfigDatabase(operation);
+  // Успешность записи корректного значения
+  EXPECT_EQ(status.code(), rtE_NONE);
+
+  // Проверить удаление несуществующей группы подписки
+  // ====================================================
+  operation.buffer = static_cast<void*>(&group_name_unexistant);
+
+  status = connection->ConfigDatabase(operation);
+  EXPECT_EQ(status.code(), rtE_RUNTIME_ERROR);
+
+//  env->MakeSnapshot("AFTER_DELETE_SBS");
 }
 
 TEST(TestDiggerDATABASE, DESTROY)

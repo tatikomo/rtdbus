@@ -48,7 +48,7 @@ class Value
     xdb::AttributeInfo_t& instance() { return m_instance; };
     // вернуть значение в строковом виде
     const std::string as_string() const;
-    // Сбросить значения из БДРВ в RTDBM::UpdateValue
+    // Сбросить значения из БДРВ в RTDBM::ValueUpdate
     void flush();
     // Инициализация на основе RTDBM::ValueUpdate
     //void CopyFrom(const void*);
@@ -73,7 +73,7 @@ class ReadMulti : public Letter
     ReadMulti(rtdbExchangeId);
     ReadMulti(Header*, const std::string& body);
     ReadMulti(const std::string& head, const std::string& body);
-   ~ReadMulti();
+    virtual ~ReadMulti();
 
     // Добавить в пул еще один тег
     void add(std::string&, xdb::DbType_t, void*);
@@ -97,6 +97,7 @@ class ReadMulti : public Letter
     Value   *m_updater;
 };
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
 class WriteMulti : public Letter
 {
   public:
@@ -104,9 +105,9 @@ class WriteMulti : public Letter
     // значения по умолчанию, иначе protobuf не сериализует пустые поля
     WriteMulti();
     WriteMulti(rtdbExchangeId);
-    WriteMulti(Header*, const std::string& body);
-    WriteMulti(const std::string& head, const std::string& body);
-   ~WriteMulti();
+    WriteMulti(Header*, const std::string&);
+    WriteMulti(const std::string&, const std::string&);
+    virtual ~WriteMulti();
 
     // Добавить в пул еще один тег
     void add(std::string&, xdb::DbType_t, void*);
@@ -122,8 +123,55 @@ class WriteMulti : public Letter
   private:
     Value   *m_updater;
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+class SubscriptionControl : public Letter
+{
+  public:
+    SubscriptionControl();
+    SubscriptionControl(const std::string&, const std::string&);
+    SubscriptionControl(Header*, const std::string&);
+    virtual ~SubscriptionControl();
+    // Установить состояние Группе
+    void set_ctrl(int);
+    // Вернуть код текущего состояния Группы
+    int ctrl();
+    // Установить имя Группы
+    void set_name(std::string&);
+    const std::string& name();
+
+  private:
+    Value   *m_updater;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+class SubscriptionEvent : public Letter
+{
+  public:
+    // Фактические значения не получены, значит нужно присвоить
+    // значения по умолчанию, иначе protobuf не сериализует пустые поля
+    SubscriptionEvent();
+    SubscriptionEvent(const std::string&, const std::string&);
+    SubscriptionEvent(Header*, const std::string&);
+    virtual ~SubscriptionEvent();
+
+    // Добавить в пул еще один тег
+    void add(std::string&, xdb::DbType_t, void*);
+    // Получить значения параметра по заданному индексу
+    bool get(std::size_t, std::string&, xdb::DbType_t&, xdb::Quality_t&, xdb::AttrVal_t&);
+    // Получить структуру со значениями параметра с заданным индексом
+    Value& item(std::size_t idx);
+
+    // Получить количество элементов в пуле
+    std::size_t num_items();
+
+  private:
+    Value   *m_updater;
+};
  
+////////////////////////////////////////////////////////////////////////////////////////////////////
 } // namespace msg
+
 
 #endif
 

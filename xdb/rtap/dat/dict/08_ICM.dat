@@ -19,7 +19,7 @@ S GRADLEVEL          PUB        rtDOUBLE       0
 #DV000031
 #DV000041
 #DV000051
-#S UNITYCATEG         PUB        rtUINT8        0    
+S UNITYCATEG         PUB        rtUINT8        0    
 #S ALARMBEGIN         PUB        rtUINT32       0    
 #S ALARMBEGINACK      PUB        rtUINT32       0    
 #S ALARMENDACK        PUB        rtUINT32       0    

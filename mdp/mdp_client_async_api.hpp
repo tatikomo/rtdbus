@@ -26,8 +26,10 @@ typedef enum {
 typedef char ServiceName[SERVICE_NAME_MAXLEN + 1];
 
 typedef struct {
-  // Строка подключения в формате connect 
-  char endpoint[ENDPOINT_MAXLEN + 1];
+  // Строка подключения к Сервису в формате connect
+  char endpoint_external[ENDPOINT_MAXLEN + 1];
+  // Строка подключения Публикатору Сервиса в формате connect
+  char endpoint_publisher[ENDPOINT_MAXLEN + 1];
   // Было ли подключение к данной Службе?
   bool  connected;
 } ServiceInfo;
@@ -43,8 +45,10 @@ typedef ServicesHash_t::iterator ServicesHashIterator_t;
 //  We access these properties only via class methods
 class mdcli {
   public:
-   enum { BROKER_ITEM = 0, SERVICE_ITEM = 1};
-   enum { SOCKET_COUNT = 2 };
+   // Индексы сокетов:
+   // 0 = Брокера, 1 = Получателя обновления подписок, 2 = Прямого сообщения
+   enum { BROKER_ITEM = 0, SUBSCRIBER_ITEM = 1, SERVICE_ITEM = 2};
+   enum { SOCKET_COUNT = 3 };
 
    //  ---------------------------------------------------------------------
    //  Constructor
@@ -68,7 +72,13 @@ class mdcli {
 
    //  ---------------------------------------------------------------------
    //  Get the endpoint connecton string for specified service name
-   int ask_service_info(const char* service_name, char* service_endpoint, int size);
+   int ask_service_info(const char* service_name,   // in: имя Службы
+                        char* service_endpoint,     // out: значение точки подключения
+                        int buf_size /* размер буфера service_endpoint */);
+
+   //  ---------------------------------------------------------------------
+   //  Активация подписки с указанным названием для указанной Службы
+   int subscript(const std::string&, const std::string&);
 
    //  ---------------------------------------------------------------------
    //  Send request to broker
@@ -92,10 +102,12 @@ class mdcli {
    std::string     m_broker;
    zmq::context_t *m_context;
    zmq::socket_t  *m_client;    //  Socket to broker
+   // Сокет обновлений подписки
+   zmq::socket_t  *m_subscriber;
    // Сокет для прямого взаимодействия со Службами
    zmq::socket_t  *m_peer;
-   // Опрос двух сокетов - от Брокера и прямой от Служб
-   zmq::pollitem_t m_socket_items[2];
+   // Опрос входных сокетов - от Брокера, Подписки, и прямой от Служб
+   zmq::pollitem_t m_socket_items[SOCKET_COUNT];
    int m_verbose;               //  Print activity to stdout
    int m_timeout;               //  Request timeout
 

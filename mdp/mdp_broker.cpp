@@ -480,7 +480,7 @@ Broker::worker_process_READY(xdb::Worker*& worker,
       // NB: Service creation is only possible on first workers call
       service = service_require(service_name);
       assert (service);
-      LOG(INFO) << "Get endpoint '" << endpoint << "' from worker";
+      LOG(INFO) << "Get endpoint '" << endpoint << "' for service " << service_name;
       service->SetENDPOINT(endpoint.c_str());
       m_database->Update(service);
 
