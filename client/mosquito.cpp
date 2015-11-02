@@ -30,18 +30,23 @@ Mosquito::~Mosquito()
 }
 
 // ----------------------------------------------------------
-msg::Letter* Mosquito::recv()
+int Mosquito::recv(msg::Letter* &result)
 {
-  msg::Letter* result = NULL;
-  mdp::zmsg* req = mdcli::recv();
+  int status;
+  mdp::zmsg* req = NULL;
 
-  if (req)
+  assert(&result);
+  result = NULL;
+
+  status = mdcli::recv(req);
+
+  if (RECEIVE_OK == status)
   {
     result = m_factory->create(req);
     delete req;
   }
 
-  return result;
+  return status;
 }
 
 // ----------------------------------------------------------
@@ -235,8 +240,9 @@ int main (int argc, char *argv [])
   std::string group_name;
   bool is_group_name_given = false;
   //msg::ProbeMsg   *probe_msg = NULL; Не реализовано
-  int        opt;
-  int        verbose;
+  int opt;
+  int verbose;
+  int status; // код завершения функции чтения сообщения
   // прямые сообщения в адрес Сервиса
   mdp::ChannelType channel = mdp::ChannelType::DIRECT;
   char one_argument[SERVICE_NAME_MAXLEN + 1] = "";
@@ -413,7 +419,9 @@ int main (int argc, char *argv [])
     {
       // запросим состояние интересующей Службы
       std::cout << "Checking '" << service_name << "' status " << std::endl;
-      service_status = mosquito->ask_service_info(service_name.c_str(), service_endpoint, ENDPOINT_MAXLEN);
+      strncpy(one_argument, service_name.c_str(), SERVICE_NAME_MAXLEN);
+      one_argument[SERVICE_NAME_MAXLEN] = '\0';
+      service_status = mosquito->ask_service_info(one_argument/*service_name.c_str()*/, service_endpoint, ENDPOINT_MAXLEN);
 
       switch(service_status)
       {
@@ -463,11 +471,73 @@ int main (int argc, char *argv [])
     stop_receiving = false;
 
     //  Wait for report
-    while (!stop_receiving) {
+    while (!stop_receiving)
+    {
+      status = mosquito->recv (report);
+//      LOG(INFO) << "GEV: mosquito->recv("<<report<<") return code: " << status;
 
-        report = mosquito->recv ();
-        if (report == NULL)
-        {
+      switch (status)
+      {
+        case Mosquito::RECEIVE_FATAL:
+          stop_receiving = true;
+          break;
+
+        case Mosquito::RECEIVE_OK:
+          assert(report);
+
+            switch(report->header()->usr_msg_type())
+            {
+              case ADG_D_MSG_EXECRESULT:
+                resp = dynamic_cast<msg::ExecResult*>(report);
+
+                resp->failure_cause(cause_code, cause_text);
+                std::cout << "Got ADG_D_MSG_EXECRESULT response: "
+                          << resp->header()->usr_msg_type() 
+                          << " status=" << resp->exec_result()
+                          << " code=" << cause_code
+                          << " text=\"" << cause_text << "\"" << std::endl;
+
+                stop_receiving = true;
+                break;
+
+              case SIG_D_MSG_READ_MULTI:
+                std::cout << "Got SIG_D_MSG_READ_MULTI response: "
+                          << report->header()->usr_msg_type() << std::endl;
+                mosquito->process_read_response(report);
+                if (Mosquito::MODE_SUBSCRIBE == mode)
+                {
+                  // Для режима подписки это сообщение приходят однократно,
+                  // для инициализации начальных значений атрибутов из группы
+                  stop_receiving = false;
+                }
+                else
+                {
+                  stop_receiving = true;
+                }
+                break;
+
+              // NB: не должно быть такого ответа, должен быть ExecResult 
+              case SIG_D_MSG_WRITE_MULTI:
+                std::cerr << "Error: expect ExecResult but received SIG_D_MSG_WRITE_MULTI response: "
+                          << report->header()->usr_msg_type() << std::endl;
+                stop_receiving = true;
+                break;
+
+              // Очередная порция обновленных данных. Поступают циклически, без запроса.
+              case SIG_D_MSG_GRPSBS:
+                mosquito->process_sbs_update_response(report);
+                stop_receiving = false;
+                break;
+
+              default:
+                std::cerr << "Got unsupported response type: "
+                          << report->header()->usr_msg_type() << std::endl;
+            }
+
+            delete report;
+          break;
+
+        case Mosquito::RECEIVE_ERROR:
           if (Mosquito::MODE_SUBSCRIBE == mode)
           {
             // Превышен таймаут получения данных, можно подождать еще
@@ -478,73 +548,16 @@ int main (int argc, char *argv [])
             stop_receiving = true;
             break;
           }
-        }
 
-        switch(report->header()->usr_msg_type())
-        {
-          case ADG_D_MSG_EXECRESULT:
-            resp = dynamic_cast<msg::ExecResult*>(report);
-
-            resp->failure_cause(cause_code, cause_text);
-            std::cout << "Got ADG_D_MSG_EXECRESULT response: "
-                      << resp->header()->usr_msg_type() 
-                      << " status=" << resp->exec_result()
-                      << " code=" << cause_code
-                      << " text=\"" << cause_text << "\"" << std::endl;
-
-            stop_receiving = true;
-            break;
-
-          case SIG_D_MSG_READ_MULTI:
-            std::cout << "Got SIG_D_MSG_READ_MULTI response: "
-                      << report->header()->usr_msg_type() << std::endl;
-            mosquito->process_read_response(report);
-            if (Mosquito::MODE_SUBSCRIBE == mode)
-            {
-              // Для режима подписки это сообщение приходят однократно,
-              // для инициализации начальных значений атрибутов из группы
-              stop_receiving = false;
-            }
-            else
-            {
-              stop_receiving = true;
-            }
-            break;
-
-          // NB: не должно быть такого ответа, должен быть ExecResult 
-          case SIG_D_MSG_WRITE_MULTI:
-            std::cerr << "Error: expect ExecResult but received SIG_D_MSG_WRITE_MULTI response: "
-                      << report->header()->usr_msg_type() << std::endl;
-            stop_receiving = true;
-            break;
-
-          // Очередная порция обновленных данных.
-          // Поступают циклически, без запроса.
-          case SIG_D_MSG_GRPSBS:
-//1            std::cout << "Bulk SBS update: "
-//1                      << report->header()->usr_msg_type()
-//1                      << std::endl;
-            mosquito->process_sbs_update_response(report);
-            stop_receiving = false;
-            break;
-
-          default:
-            std::cerr << "Got unsupported response type: "
-                      << report->header()->usr_msg_type() << std::endl;
-        }
-
-        delete report;
-    }
-  }
+        default:
+          LOG(ERROR) << "Unexpected recv() return code: " << status;
+      } // конец switch-проверки статуса recv()
+    }  // конец цикла ожидания нового сообщения
+  } // конец блока try{}
   catch (zmq::error_t err)
   {
       std::cerr << "E: " << err.what() << std::endl;
   }
-
-#if 0
-  // for valgrind joy!
-  release_TestSINF_parameters();
-#endif
 
   delete mosquito;
   return 0;

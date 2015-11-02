@@ -490,6 +490,7 @@ DatabaseRtapImpl::DatabaseRtapImpl(const char* _name, const Options* _options)
 {
   int val;
 
+  LOG(INFO) << "constructor DatabaseRtapImpl";
   assert(_name);
 
   mco_dictionary_h rtap_dict = rtap_db_get_dictionary();
@@ -514,7 +515,9 @@ DatabaseRtapImpl::DatabaseRtapImpl(const char* _name, const Options* _options)
 // =================================================================================
 DatabaseRtapImpl::~DatabaseRtapImpl()
 {
+  LOG(INFO) << "Start destructor DatabaseRtapImpl";
   delete m_impl;
+  LOG(INFO) << "Finish destructor DatabaseRtapImpl";
 }
 
 // Получить название БДРВ

@@ -91,6 +91,7 @@ static __attribute__((constructor)) void my_hashtable_init()
 static __attribute__((destructor)) void my_hashtable_fini()
 {
   delete g_dbTypesHash;
+  g_dbTypesHash = NULL;
 }
 
 // TODO: Создать набор классов, создающих готовое к передаче сообщение типа zmsg

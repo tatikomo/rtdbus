@@ -85,6 +85,7 @@ class DiggerWorker
 class DiggerPoller
 {
   public:
+    static const int PollingPeriod;
     DiggerPoller(zmq::context_t&, xdb::RtEnvironment*);
    ~DiggerPoller(); 
     void work();
@@ -210,7 +211,7 @@ class Digger : public mdp::mdwrk
   public:
     // Зарезервированный размер памяти для БДРВ
     static const int DatabaseSizeBytes;
-    Digger(std::string, std::string, int);
+    Digger(std::string, std::string/*, int*/);
     virtual ~Digger();
 
     // Запуск DiggerProxy и цикла получения сообщений
@@ -246,7 +247,7 @@ class Digger : public mdp::mdwrk
     xdb::RtApplication *m_appli;
     xdb::RtEnvironment *m_environment;
     xdb::RtConnection  *m_db_connection;
-    int                 m_verbose_digg;
+//    int                 m_verbose_digg;
 };
 
 } // namespace mdp

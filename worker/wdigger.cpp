@@ -42,8 +42,10 @@ using namespace mdp;
 
 extern int interrupt_worker;
 
-// Таймаут (мсек) ожидания получения данных в экземпляре DiggerWorker
+// Таймаут в миллисекундах (мсек) ожидания получения данных в экземпляре DiggerWorker
 const int DiggerWorker::PollingTimeout = 1000;
+// Период в миллисекундах между опросами изменений в Группах подписки
+const int DiggerPoller::PollingPeriod = 500;
 const int DiggerProbe::kMaxWorkerThreads = 3;
 const int Digger::DatabaseSizeBytes = 1024 * 1024 * DIGGER_DB_SIZE_MB;
 // Статические флаги завершения работы
@@ -964,7 +966,7 @@ void DiggerPoller::work()
 
       } // Конец успешного запроса списка активных групп с модифицированными точками
 
-      sleep(1);
+      usleep(PollingPeriod * 1000);
     }
 
     m_publisher.close();
@@ -1344,6 +1346,8 @@ DiggerProxy::~DiggerProxy()
 // --------------------------------------------------------------------------------
 void DiggerProxy::run()
 {
+  // Код ошибки zmq_proxy_steerable
+  int rc = 1;
   int mandatory = 1;
   int linger = 0;
   int hwm = 100;
@@ -1357,7 +1361,6 @@ void DiggerProxy::run()
     //ZMQ_ROUTER_MANDATORY может привести zmq_proxy_steerable к аномальному завершению: rc=-1, errno=113
     //Наблюдалось в случаях интенсивного обмена брокера с клиентом, если последний аномально завершался.
     m_frontend.setsockopt(ZMQ_ROUTER_MANDATORY, &mandatory, sizeof (mandatory));
-#warning "Проверь связь между ZMQ_ROUTER_MANDATORY и завершением zmq_proxy_steerable с errno=113"
     m_frontend.bind("tcp://lo:5556" /*ENDPOINT_SINF_FRONTEND*/);
     m_frontend.setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
     m_frontend.setsockopt(ZMQ_RCVHWM, &hwm, sizeof(hwm));
@@ -1395,7 +1398,16 @@ void DiggerProxy::run()
                 << ", " << ENDPOINT_SINF_DATA_BACKEND << ")";
 
       // NB: необходимо использовать оператор (void*) для доступа к внутреннему ptr
-      int rc = zmq_proxy_steerable ((void*)m_frontend, (void*)m_backend, NULL /* C++11: nullptr */, (void*)m_control);
+      // Перезапустить работу при завершении zmq_proxy_steerable с кодом EHOSTUNREACH=113,
+      // это обычно связано с аварийным завершением Клиента в процессе обмена
+      while (rc || (rc == EHOSTUNREACH))
+      {
+       rc = zmq_proxy_steerable ((void*)m_frontend,
+                                 (void*)m_backend,
+                                 NULL /* C++11: nullptr */,
+                                 (void*)m_control);
+      }
+
       if (0 == rc)
       {
         LOG(INFO) << "DiggerProxy zmq::proxy finish successfuly";
@@ -1479,17 +1491,17 @@ void DiggerProxy::wait_probe_stop()
 
 // Класс-расширение штатной Службы для обработки запросов к БДРВ
 // --------------------------------------------------------------------------------
-Digger::Digger(std::string broker_endpoint, std::string service, int verbose)
+Digger::Digger(std::string broker_endpoint, std::string service/*, int verbose*/)
    :
-   mdp::mdwrk(broker_endpoint, service, verbose, 2/* num zmq io threads (default = 1) */),
+   mdp::mdwrk(broker_endpoint, service, /*verbose,*/ 1/* num zmq io threads (default = 1) */),
    m_helpers_control(m_context, ZMQ_PUB),
    m_digger_proxy(NULL),
    m_proxy_thread(NULL),
    m_message_factory(new msg::MessageFactory(DIGGER_NAME)),
    m_appli(NULL),
    m_environment(NULL),
-   m_db_connection(NULL),
-   m_verbose_digg(verbose)
+   m_db_connection(NULL)//,
+//   m_verbose_digg(verbose)
 {
   m_appli = new xdb::RtApplication("DIGGER");
   m_appli->setOption("OF_CREATE",   1);    // Создать если БД не было ранее
@@ -1848,7 +1860,6 @@ int Digger::handle_asklife(msg::Letter* letter, std::string* reply_to)
 #if !defined _FUNCTIONAL_TEST
 int main(int argc, char **argv)
 {
-  int  verbose;
   char service_name[SERVICE_NAME_MAXLEN + 1];
   bool is_service_name_given = false;
   int  opt;
@@ -1857,14 +1868,10 @@ int main(int argc, char **argv)
   ::google::InitGoogleLogging(argv[0]);
   ::google::InstallFailureSignalHandler();
 
-  while ((opt = getopt (argc, argv, "vs:")) != -1)
+  while ((opt = getopt (argc, argv, "s:")) != -1)
   {
      switch (opt)
      {
-       case 'v':
-         verbose = 1;
-         break;
-
        case 's':
          strncpy(service_name, optarg, SERVICE_NAME_MAXLEN);
          service_name[SERVICE_NAME_MAXLEN] = '\0';
@@ -1895,7 +1902,7 @@ int main(int argc, char **argv)
 
   try
   {
-    engine = new Digger("tcp://localhost:5555", service_name, verbose);
+    engine = new Digger("tcp://localhost:5555", service_name /*, verbose*/);
 
     LOG(INFO) << "Start service " << service_name;
 

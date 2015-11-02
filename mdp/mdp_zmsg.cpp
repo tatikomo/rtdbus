@@ -1,10 +1,7 @@
 /*  =========================================================================
  zmsg.hpp
 
- Multipart message class for example applications.
-
- Follows the ZFL class conventions and is further developed as the ZFL
- zfl_msg class.  See http://zfl.zeromq.org for more details.
+ Multipart message class
 
  -------------------------------------------------------------------------
  =========================================================================

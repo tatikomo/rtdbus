@@ -263,6 +263,7 @@ DatabaseImpl::~DatabaseImpl()
 {
   MCO_RET rc;
 
+  LOG(INFO) << "Start destructor DatabaseImpl " << m_name; //1
   LOG(INFO) << m_name << ": Current state " << State();
   switch (State())
   {
@@ -323,7 +324,7 @@ DatabaseImpl::~DatabaseImpl()
   delete []m_logFileName;
 #endif
 
-  LOG(INFO) << "Destructor database " << m_name;
+  LOG(INFO) << "Finish destructor DatabaseImpl " << m_name; //1
 }
 
 mco_db_h DatabaseImpl::getDbHandler()
@@ -759,7 +760,7 @@ const Error& DatabaseImpl::StoreSnapshot(const char* given_file_name)
 {
   FILE* fbak = NULL;
   MCO_RET rc = MCO_S_OK;
-  char fname[40];
+  char fname[150];
 
   clearError();
 #if EXTREMEDB_VERSION >= 40

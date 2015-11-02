@@ -1,4 +1,5 @@
 #include <glog/logging.h>
+#include "google/protobuf/stubs/common.h"
 
 #include "mdp_common.h"
 #include "mdp_broker.hpp"
@@ -192,7 +193,7 @@ int main (int argc, char *argv [])
 
     delete broker;
 
-//    ::google::protobuf::ShutdownProtobufLibrary();
+    ::google::protobuf::ShutdownProtobufLibrary();
     ::google::ShutdownGoogleLogging();
     return 0;
 }

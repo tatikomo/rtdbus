@@ -134,6 +134,7 @@ int main (int argc, char *argv [])
 {
   mdp::zmsg *request   = NULL;
   mdp::zmsg *report    = NULL;
+  int status;
   Pulsar    *client    = NULL;
   msg::Letter *letter = NULL;
   msg::MessageFactory *message_factory = NULL;
@@ -285,8 +286,8 @@ int main (int argc, char *argv [])
 
     //  Wait for all trading reports
     while (1) {
-        report = client->recv();
-        if (report == NULL)
+        status = client->recv(report);
+        if (Pulsar::RECEIVE_OK != status)
             break;
         
         letter = message_factory->create(report);
@@ -339,8 +340,8 @@ int main (int argc, char *argv [])
 #else
         // Синхронный обмен
         //-------------------------------------------------------------
-        report = client->recv();
-        if (report == NULL)
+        status = client->recv(report);
+        if (Pulsar::RECEIVE_OK != status)
             break;
 
         letter = message_factory->create(report);

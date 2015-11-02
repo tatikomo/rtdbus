@@ -47,8 +47,8 @@ class mdcli {
   public:
    // Индексы сокетов:
    // 0 = Брокера, 1 = Получателя обновления подписок, 2 = Прямого сообщения
-   enum { BROKER_ITEM = 0, SUBSCRIBER_ITEM = 1, SERVICE_ITEM = 2};
-   enum { SOCKET_COUNT = 3 };
+   enum { BROKER_ITEM = 0, SUBSCRIBER_ITEM = 1, SERVICE_ITEM = 2, SOCKET_MAX_COUNT = SERVICE_ITEM + 1 };
+   enum { RECEIVE_FATAL = -1, RECEIVE_OK = 0, RECEIVE_ERROR = 1 };
 
    //  ---------------------------------------------------------------------
    //  Constructor
@@ -92,10 +92,10 @@ class mdcli {
    int send (std::string& service, zmsg *&request_p, ChannelType);
 
    //  ---------------------------------------------------------------------
-   //  Returns the reply message or NULL if there was no reply. Does not
+   //  Fill the reply message or NULL if there was no reply. Does not
    //  attempt to recover from a broker failure, this is not possible
    //  without storing all unanswered requests and resending them all...
-   zmsg * recv ();
+   int recv (zmsg*&);
 
   private:
    DISALLOW_COPY_AND_ASSIGN(mdcli);
@@ -107,7 +107,11 @@ class mdcli {
    // Сокет для прямого взаимодействия со Службами
    zmq::socket_t  *m_peer;
    // Опрос входных сокетов - от Брокера, Подписки, и прямой от Служб
-   zmq::pollitem_t m_socket_items[SOCKET_COUNT];
+   zmq::pollitem_t m_socket_items[SOCKET_MAX_COUNT];
+   int m_active_socket_num;         // количество зарегистрированных в пуле сокетов
+   int m_subscriber_socket_index;   // индекс сокета подписки
+   int m_peer_socket_index;         // индекс сокета обмена сообщениями с Клиентами
+
    int m_verbose;               //  Print activity to stdout
    int m_timeout;               //  Request timeout
 
@@ -119,6 +123,8 @@ class mdcli {
    bool insert_service_info(const char*, ServiceInfo*&);
    // Передать DIRECT-сообщение
    int  send_direct(std::string&, zmsg *&);
+   // Добавить в пул сокетов m_socket_items для опроса zmq::pool новый сокет
+   void add_socket_to_pool(zmq::socket_t*, int);
 };
 
 } //namespace mdp

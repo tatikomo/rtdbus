@@ -73,14 +73,13 @@ static void catch_signals ()
 }
 
 // Базовый экземпляр Службы
-mdwrk::mdwrk (std::string broker_endpoint, std::string service, int _verbose, int num_threads) :
+mdwrk::mdwrk (std::string broker_endpoint, std::string service, int num_threads) :
   m_context(num_threads),
   m_broker_endpoint(broker_endpoint),
   m_service(service),
   m_welcome_endpoint(NULL),
   m_worker(NULL),
   m_welcome(NULL),
-  m_verbose(_verbose),
   m_heartbeat_at_msec(0),
   m_liveness(HEARTBEAT_LIVENESS),
   m_heartbeat_msec(HeartbeatInterval), //  msecs
@@ -157,10 +156,8 @@ void mdwrk::send_to_broker(const char *command, const char* option, zmsg *_msg)
     msg->push_front ((char*)MDPW_WORKER);
     msg->push_front ((char*)"");
 
-    if (m_verbose) {
-        LOG(INFO) << "Sending " << mdpw_commands [(int) *command] << " to broker";
-        msg->dump ();
-    }
+    LOG(INFO) << "Sending " << mdpw_commands [(int) *command] << " to broker";
+    msg->dump ();
 
     if (m_worker)
     {
@@ -201,8 +198,7 @@ void mdwrk::connect_to_broker ()
     m_socket_items[BROKER_ITEM].events = ZMQ_POLLIN;
     m_socket_items[BROKER_ITEM].revents = 0;
 
-    if (m_verbose)
-        LOG(INFO) << "Connecting to broker " << m_broker_endpoint;
+    LOG(INFO) << "Connecting to broker " << m_broker_endpoint;
 
     // Register service with broker
     // Внесены изменения из-за необходимости передачи значения точки подключения 
@@ -309,10 +305,10 @@ mdwrk::recv (std::string *&reply)
 
         if (m_socket_items[BROKER_ITEM].revents & ZMQ_POLLIN) {
             zmsg *msg = new zmsg(*m_worker);
-            if (m_verbose) {
-                LOG(INFO) << "New message from broker:";
-                msg->dump ();
-            }
+
+            LOG(INFO) << "New message from broker:";
+            msg->dump ();
+
             update_heartbeat_sign();
 
             //  Don't try to handle errors, just assert noisily
@@ -361,10 +357,10 @@ mdwrk::recv (std::string *&reply)
         else if (m_socket_items[WORLD_ITEM].revents & ZMQ_POLLIN) // Событие на общем сокете
         {
             zmsg *msg = new zmsg(*m_welcome);
-            if (m_verbose) {
-                LOG(INFO) << "New message from world:";
-                msg->dump ();
-            }
+
+            LOG(INFO) << "New message from world:";
+            msg->dump ();
+
             return msg;
         }
 #endif
@@ -372,9 +368,9 @@ mdwrk::recv (std::string *&reply)
         if (--m_liveness == 0) {
             LOG(INFO) << "timeout, last HEARTBEAT was planned "
                       << s_clock() - m_heartbeat_at_msec << " msec ago, m_liveness=" << m_liveness;
-            if (m_verbose) {
-                LOG(WARNING) << "Disconnected from broker - retrying...";
-            }
+
+            LOG(WARNING) << "Disconnected from broker - retrying...";
+
             // TODO: в этот период Служба недоступна. Уточнить таймауты!
             // см. запись в README от 05.02.2015
             s_sleep (m_reconnect_msec);

@@ -13,8 +13,6 @@
 #define OPTION_MODE_WRITE "write"
 #define OPTION_MODE_PROBE "probe"
 #define OPTION_MODE_SUBSCRIBE "sub"
-// Максимально допустимая длина пути к файлу с входными параметрами
-#define MAX_INPUT_FILENAME_LEN 1000
 
 class Mosquito: public mdp::mdcli
 {
@@ -30,7 +28,7 @@ class Mosquito: public mdp::mdcli
    ~Mosquito();
 
     // Вернуть прочитанное из сокета сообщение
-    msg::Letter* recv();
+    int recv(msg::Letter*&);
     // Подписаться на рассылку Группы для заданного Сервиса
     int subscript(const std::string&, const std::string&);
     // Создать новое сообщение заданного типа

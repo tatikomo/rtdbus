@@ -42,7 +42,10 @@ mdcli::mdcli (std::string broker, int verbose) :
    m_client(NULL),
    m_subscriber(NULL),
    m_peer(NULL),
-   m_verbose(verbose),
+   m_active_socket_num(0),
+   m_subscriber_socket_index(0),
+   m_peer_socket_index(0),
+//   m_verbose(verbose),
    m_timeout(2500)       //  msecs
 {
    s_version_assert (3, 2);
@@ -109,37 +112,47 @@ mdcli::~mdcli ()
 //  Connect or reconnect to broker
 void mdcli::connect_to_broker ()
 {
-   int linger = 0;
-   int send_timeout_msec = 1000000; // 1 sec
-   int recv_timeout_msec = 3000000; // 3 sec
+  int linger = 0;
+  int send_timeout_msec = 1000000; // 1 sec
+  int recv_timeout_msec = 3000000; // 3 sec
 
-   if (m_client) {
-     delete m_client;
-   }
+  try
+  {
+    if (m_client) {
+      delete m_client;
+    }
+  
+    m_client = new zmq::socket_t (*m_context, ZMQ_DEALER);
 
-   m_client = new zmq::socket_t (*m_context, ZMQ_DEALER);
-   m_client->connect (m_broker.c_str());
-   m_client->setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
-   m_client->setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
-   m_client->setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
+    m_client->setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
+    m_client->setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
+    m_client->setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
 
-   // Заполним структуру для работы recv с помощью zmq::poll
-   m_socket_items[BROKER_ITEM].socket = (void*)*m_client; // NB: оператор (void*) обязателен!
-   // zmq::socket_t::operator (void*) предоставляет доступ к внутреннему представлению zmq_socket_t
-   m_socket_items[BROKER_ITEM].fd = 0;
-   m_socket_items[BROKER_ITEM].events = ZMQ_POLLIN;
-   m_socket_items[BROKER_ITEM].revents = 0;
+    m_client->connect (m_broker.c_str());
 
-   if (m_verbose)
-     LOG(INFO) << "Connecting to broker at " << m_broker;
+    // Заполним структуру для работы recv с помощью zmq::poll
+    m_socket_items[BROKER_ITEM].socket = (void*)*m_client; // NB: оператор (void*) обязателен!
+    // zmq::socket_t::operator (void*) предоставляет доступ к внутреннему представлению zmq_socket_t
+    m_socket_items[BROKER_ITEM].fd = 0;
+    m_socket_items[BROKER_ITEM].events = ZMQ_POLLIN;
+    m_socket_items[BROKER_ITEM].revents = 0;
+
+    // Есть пока одно подключение, к Брокеру
+    m_active_socket_num = 1;
+
+    LOG(INFO) << "Connecting to broker at " << m_broker;
+  }
+  catch(zmq::error_t err)
+  {
+    LOG(ERROR) << err.what();
+  }
 }
 
 //  ---------------------------------------------------------------------
 //  Connect or reconnect to Services
 void mdcli::connect_to_services ()
 {
-  if (m_verbose)
-    LOG(INFO) << "Connecting to services and publishers";
+  LOG(INFO) << "Connecting to services and publishers";
 }
 
 //  ---------------------------------------------------------------------
@@ -196,6 +209,7 @@ int mdcli::ask_service_info(const char* service_name, char* service_endpoint, in
   mdp::zmsg *request = new mdp::zmsg ();
   const char *mmi_service_get_name = "mmi.service";
   int service_status_code;
+  int status;
   ServiceInfo *service_info;
 
   // Хеш соответствий:
@@ -213,7 +227,9 @@ int mdcli::ask_service_info(const char* service_name, char* service_endpoint, in
   // второй фрейм запроса - идентификатор ображения к внутренней службе Брокера
   send (mmi_service_get_name, request);
 
-  if (NULL == (report = recv()))
+  status = recv(report);
+
+  if (RECEIVE_OK != status)
   {
     LOG(ERROR) << "Receiving enpoint failure";
     // Возможно, Брокер не запущен
@@ -281,33 +297,22 @@ int mdcli::subscript(const std::string& service_name, const std::string& group_n
   int status_code = 0;
   int linger = 0;
   int hwm = 100;
-  int send_timeout_msec = 1000000; // 1 sec
-  int recv_timeout_msec = 3000000; // 3 sec
 
   m_subscriber = new zmq::socket_t (*m_context, ZMQ_SUB);
 
   // TODO: Получить точку подключения для подписок этой Службы
-#warning "Создать механизм получения Клиентом от Сервиса адреса публикации поддерживаемых ей Групп подписок"
   // NB: пока считается, что есть только одна Служба с единственным адресом публикации
+
+  m_subscriber->setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
+  m_subscriber->setsockopt(ZMQ_RCVHWM, &hwm, sizeof(hwm));
+
+#warning "Создать механизм получения Клиентом от Сервиса адреса публикации поддерживаемых ей Групп подписок"
   m_subscriber->connect(ENDPOINT_SBS_PUBLISHER);
 
   // Первым фреймом должно идти название группы
   m_subscriber->setsockopt(ZMQ_SUBSCRIBE, group_name.c_str(), group_name.size());
 
-  m_subscriber->setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
-  m_subscriber->setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
-  m_subscriber->setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
-  m_subscriber->setsockopt(ZMQ_RCVHWM, &hwm, sizeof(hwm));
-  m_subscriber->setsockopt(ZMQ_SNDHWM, &hwm, sizeof(hwm));
-
-#if 0 // теперь заполняется динамически в subscribe()
-  // Заполним структуру для работы recv с помощью zmq::poll
-  m_socket_items[SUBSCRIBER_ITEM].socket = (void*)*m_subscriber; // NB: оператор (void*) обязателен!
-  // zmq::socket_t::operator (void*) предоставляет доступ к внутреннему представлению zmq_socket_t
-  m_socket_items[SUBSCRIBER_ITEM].fd = 0;
-  m_socket_items[SUBSCRIBER_ITEM].events = ZMQ_POLLIN;
-  m_socket_items[SUBSCRIBER_ITEM].revents = 0;
-#endif
+  add_socket_to_pool(m_subscriber, SUBSCRIBER_ITEM);
  
   LOG(INFO) << "Subscript to ["<<service_name<<":"<<group_name<<"]";
 
@@ -325,24 +330,36 @@ int mdcli::subscript(const std::string& service_name, const std::string& group_n
 int
 mdcli::send (std::string service, zmsg *&request_p)
 {
-   assert (request_p);
-   zmsg *request = request_p;
+  int stat = 0;
+  assert (request_p);
+  zmsg *request = request_p;
 
-   //  Prefix request with protocol frames
-   //  Frame 0: empty (REQ emulation)
-   //  Frame 1: "MDPCxy" (six bytes, MDP/Client x.y)
-   //  Frame 2: Service name (printable string)
-   request->push_front (const_cast<char*>(service.c_str()));
-   request->push_front (const_cast<char*>(MDPC_CLIENT));
-   request->push_front (const_cast<char*>(""));
+  try
+  {
+    //  Prefix request with protocol frames
+    //  Frame 0: empty (REQ emulation)
+    //  Frame 1: "MDPCxy" (six bytes, MDP/Client x.y)
+    //  Frame 2: Service name (printable string)
+    request->push_front (const_cast<char*>(service.c_str()));
+    request->push_front (const_cast<char*>(MDPC_CLIENT));
+    request->push_front (const_cast<char*>(""));
 
-   if (m_verbose) {
+#ifdef VERBOSE
+    if (m_verbose) {
         LOG(INFO) << "Send request to service " << service;
         request->dump ();
-   }
+    }
+#endif
 
-   request->send (*m_client);
-   return 0;
+    request->send (*m_client);
+  }
+  catch(zmq::error_t err)
+  {
+    LOG(ERROR) << err.what();
+    stat = err.num();
+  }
+
+  return stat;
 }
 
 
@@ -399,58 +416,43 @@ mdcli::send (std::string& service, zmsg *&request_p, ChannelType chan)
 
 
 //  ---------------------------------------------------------------------
-//  Returns the reply message or NULL if there was no reply. Does not
+//  Fill the reply message or NULL if there was no reply. Does not
 //  attempt to recover from a broker failure, this is not possible
 //  without storing all unanswered requests and resending them all...
-zmsg *
-mdcli::recv ()
+//  Возвращает код ошибки - завершение по таймауту, фатальная ошибка, или т.п.
+//   0 - ничего не получено за время таймаута
+//   1 - получено сообщение
+//  -1 - завершить работу
+int 
+mdcli::recv (zmsg* &msg)
 {
+  int status = RECEIVE_OK; // все в порядке
   int mdpc_command;
-  int active_socket_num = 1; // т.к. сокет Брокера есть всегда
-  int subscriber_socket_index = 0; // 0 = null, т.к. после инициализации не м.б. равен 0
-  int peer_socket_index = 0; // 0 = null, т.к. после инициализации не м.б. равен 0
 
-#warning "mdcli::recv должен иметь возможность подписки на PUB-SUB сокет ENDPOINT_SBS_PUBLISHER"
+  assert(&msg);
+  msg = NULL;
 
-  // Настроить 
-  if (m_subscriber)
+  try
   {
-    // читать сокет обновлений групп подписки
-    m_socket_items[active_socket_num].socket = (void*)*m_subscriber; // NB: оператор (void*) обязателен!
-    // zmq::socket_t::operator (void*) предоставляет доступ к внутреннему представлению zmq_socket_t
-    m_socket_items[active_socket_num].fd = 0;
-    m_socket_items[active_socket_num].events = ZMQ_POLLIN;
-    m_socket_items[active_socket_num].revents = 0;
-    subscriber_socket_index = active_socket_num++;
-  }
-  if (m_peer)
-  {
-    // читать еще сокет direct-сообщений
-    m_socket_items[active_socket_num].socket = (void*)*m_peer; // NB: оператор (void*) обязателен!
-    // zmq::socket_t::operator (void*) предоставляет доступ к внутреннему представлению zmq_socket_t
-    m_socket_items[active_socket_num].fd = 0;
-    m_socket_items[active_socket_num].events = ZMQ_POLLIN;
-    m_socket_items[active_socket_num].revents = 0;
-    peer_socket_index = active_socket_num++;
-  }
+    zmq::poll (m_socket_items, m_active_socket_num, m_timeout); // 2500 msec => 2.5 sec
 
-  // Если m_peer не создан - читаем только из одного сокета Брокера
-//1  LOG(INFO) << "GEV: mdcli::recv active_socket_num="<<active_socket_num
-//1            << ", m_subscriber="<<m_subscriber
-//1            << ", m_peer="<<m_peer;
-  // TODO: заполнять m_socket_items плотно, без нулевых сокетов. То есть если m_subscriber нет,
-  // а m_peer есть, m_peer должен занимать следующее за m_client место.
-  zmq::poll (m_socket_items, active_socket_num, m_timeout); // 2500 msec => 2.5 sec
+/*    LOG(INFO) << "GEV: mdcli::recv #"<<m_active_socket_num
+              << ": brok[0]=" <<m_client     << ": " << m_socket_items [BROKER_ITEM].revents
+                                                  << " " << m_socket_items [BROKER_ITEM].fd
+              << ", subs["<<m_subscriber_socket_index<<"]=" <<m_subscriber << ": " << m_socket_items [m_subscriber_socket_index].revents
+                                                  << " " << m_socket_items [m_subscriber_socket_index].fd
+              << ", peer["<<m_peer_socket_index<<"]="       <<m_peer       << ": " << m_socket_items [m_peer_socket_index].revents
+                                                  << " " << m_socket_items [m_peer_socket_index].fd;*/
 
-   try
-   {
-     // PERSISTENT-сообщение (через Брокер)
-     if (m_socket_items [BROKER_ITEM].revents & ZMQ_POLLIN) {
-        zmsg *msg = new zmsg (*m_client);
+    // PERSISTENT-сообщение (через Брокер)
+    if (m_socket_items[BROKER_ITEM].revents & ZMQ_POLLIN) {
+        msg = new zmsg (*m_client);
+#ifdef VERBOSE
         if (m_verbose) {
             LOG(INFO) << "received broker reply:";
             msg->dump ();
         }
+#endif
         //  Don't try to handle errors, just assert noisily
         assert (msg->parts () >= 4);
         std::string empty = msg->pop_front ();
@@ -464,7 +466,7 @@ mdcli::recv ()
         mdpc_command = *command.c_str();
         if (mdpc_command && (mdpc_command <= (int)*MDPC_NAK))
         {
-          if (m_verbose) LOG(INFO) << "Receive " << mdpc_commands[(int)*command.c_str()];
+          LOG(INFO) << "Receive " << mdpc_commands[(int)*command.c_str()];
         }
         else
         {
@@ -472,41 +474,55 @@ mdcli::recv ()
         }
         // TODO: добавить фрейм КОМАНДА
 
-        return msg;     //  Success
-     }
+        return status;     //  Success
+    }
 
-     // Проверить получение сообщения от публикатора подписки
-     if (m_subscriber && (m_socket_items [subscriber_socket_index].revents & ZMQ_POLLIN)) {
-        zmsg *msg = new zmsg (*m_subscriber);
-        if (m_verbose) {
-            LOG(INFO) << "received subscriber message:";
-            msg->dump ();
-        }
-        return msg;     //  Success
-     }
+    // Проверить получение сообщения от публикатора подписки
+    if (m_subscriber && (m_socket_items[m_subscriber_socket_index].revents & ZMQ_POLLIN)) {
+        msg = new zmsg (*m_subscriber);
+//#ifdef VERBOSE
+//        if (m_verbose) {
+//            LOG(INFO) << "received subscriber message:";
+//            msg->dump ();
+//        }
+//#endif
+        return status;     //  Success
+    }
 
-     // Проверить получение DIRECT-сообщения
-     if (m_peer && (m_socket_items [peer_socket_index].revents & ZMQ_POLLIN)) {
-        zmsg *msg = new zmsg (*m_peer);
+    // Проверить получение DIRECT-сообщения
+    if (m_peer && (m_socket_items[m_peer_socket_index].revents & ZMQ_POLLIN)) {
+        msg = new zmsg (*m_peer);
+#ifdef VERBOSE
         if (m_verbose) {
             LOG(INFO) << "received direct reply:";
             msg->dump ();
         }
-        return msg;     //  Success
-     }
+#endif
+        return status;     //  Success
+    }
 
-   }
-   catch(zmq::error_t err)
-   {
-     LOG(ERROR) << err.what();
-   }
+  }
+  catch(zmq::error_t err)
+  {
+    LOG(ERROR) << err.what();
+    status = err.num(); // коды ошибок от 1 и далее, повторяют errno
+  }
 
-   if (interrupt_client)
-     LOG(WARNING) << "Interrupt received, killing client...";
-   else if (m_verbose)
-     LOG(WARNING) << "Permanent error, abandoning request";
+  if (interrupt_client)
+  {
+    LOG(WARNING) << "Interrupt received, killing client...";
+    status = RECEIVE_FATAL;
+  }
+  else
+  {
+#ifdef VERBOSE
+    if (m_verbose)
+      LOG(WARNING) << "Permanent error, abandoning request";
+#endif
+    status = RECEIVE_ERROR;
+  }
 
-   return 0;
+  return status;
 }
 
 int mdcli::send_direct(std::string& service_name, zmsg *&request)
@@ -558,20 +574,20 @@ int mdcli::send_direct(std::string& service_name, zmsg *&request)
       }
       m_peer->connect(info->endpoint_external);
 
-      m_socket_items[SERVICE_ITEM].socket = (void*)*m_peer;
-      m_socket_items[SERVICE_ITEM].fd = 0;
-      m_socket_items[SERVICE_ITEM].events = ZMQ_POLLIN;
-      m_socket_items[SERVICE_ITEM].revents = 0;
+      // Добавить в пул сокетов для опроса zmq::pool новый direct-сокет
+      add_socket_to_pool(m_peer, SERVICE_ITEM);
 
       // все в порядке => выставим признак "сокет подключен"
       info->connected = 1;
       LOG(INFO) << "Associating with service " << service_name << " is successful";
     }
 
+#ifdef VERBOSE
     if (m_verbose) {
         LOG(INFO) << "Send direct request to service " << service_name;
         request->dump ();
     }
+#endif
     request->send (*m_peer);
 
     status = 1;
@@ -584,3 +600,59 @@ int mdcli::send_direct(std::string& service_name, zmsg *&request)
   return status;
 }
 
+void mdcli::add_socket_to_pool(zmq::socket_t* socket, int socket_type)
+{
+  // по умолчанию ссылаться на первую свободную ячейку в пуле
+  int use_index = m_active_socket_num;
+  // Корректен ли переданный в функцию тип сокета
+  bool type_is_correct = true;
+
+  switch(socket_type)
+  {
+    case SUBSCRIBER_ITEM:
+      // Был ли уже создан сокет подписки?
+      if (m_subscriber_socket_index)
+      { // Да, его индекс не нулевой, используем ранее определенный индекс
+        use_index = m_subscriber_socket_index;
+        LOG(INFO) << "Update SUBSCRIBER "<<socket<<" at " << m_subscriber_socket_index;
+      }
+      else
+      {
+        m_subscriber_socket_index = m_active_socket_num++;
+        LOG(INFO) << "Register new SUBSCRIBER "<<socket<<" at " << m_subscriber_socket_index;
+      }
+      break;
+
+    case SERVICE_ITEM:
+      // Был ли уже создан сокет связи с Клиентами?
+      if (m_peer_socket_index)
+      { // Да, его индекс не нулевой, используем ранее определенный индекс
+        use_index = m_peer_socket_index;
+        LOG(INFO) << "Update SERVICE "<<socket<<" at " << m_peer_socket_index;
+      }
+      else
+      {
+        m_peer_socket_index = m_active_socket_num++; // Запомним новый индекс
+        LOG(INFO) << "Register new SERVICE "<<socket<<" at " << m_peer_socket_index;
+      }
+      break;
+
+    default:
+      LOG(ERROR) << "Unsupported socket type: " << socket_type;
+      type_is_correct = false;
+  }
+
+  if (type_is_correct)
+  {
+    // заполним ячейку пула сокетов
+    m_socket_items[use_index].socket = (void*)*socket;// NB: оператор (void*) обязателен!
+    // zmq::socket_t::operator (void*) предоставляет доступ к внутреннему представлению zmq_socket_t
+    m_socket_items[use_index].fd = 0;
+    m_socket_items[use_index].events = ZMQ_POLLIN;
+    m_socket_items[use_index].revents = 0;
+  }
+
+  if (m_active_socket_num > SOCKET_MAX_COUNT)
+    LOG(ERROR) << "Socket pool is too small: " << m_active_socket_num
+               << ">" << SOCKET_MAX_COUNT;
+}

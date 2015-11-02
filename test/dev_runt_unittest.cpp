@@ -179,6 +179,7 @@ client_task (void* /*args*/)
   char service_endpoint[ENDPOINT_MAXLEN + 1];
   static int        user_exchange_id = 0;
   int               service_status;
+  int               status;
   msg::MessageFactory *message_factory = NULL;
   char str_thread_id[ENDPOINT_MAXLEN + 1];
   int               sid; // LWP id
@@ -305,8 +306,8 @@ for (iteration = 0; iteration < 2; iteration++)
 
     //  Wait for all trading reports
     while (wait_response) {
-        report = client->recv ();
-        if (report == NULL)
+        status = client->recv (report);
+        if (Pulsar::RECEIVE_OK != status)
             break;
         ++count;
         LOG(INFO) << "Receive message id="<<count<<" from worker";
@@ -350,16 +351,13 @@ for (iteration = 0; iteration < 2; iteration++)
 static void *
 worker_task (void* /*args*/)
 {
-  int verbose = 1;
-
   LOG(INFO) << "Start worker thread";
   worker_ready_sign = false;
 
   try
   {
     mdp::Digger *engine = new mdp::Digger(attributes_connection_to_broker,
-                                service_name,
-                                verbose);
+                                service_name);
 
     // Обозначить завершение своей инициализации
     worker_ready_sign = true;

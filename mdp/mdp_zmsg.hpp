@@ -1,10 +1,7 @@
 /*  =========================================================================
     zmsg.hpp
 
-    Multipart message class for example applications.
-
-    Follows the ZFL class conventions and is further developed as the ZFL
-    zfl_msg class.  See http://zfl.zeromq.org for more details.
+    Multipart message class
 
     =========================================================================
 */
@@ -50,7 +47,7 @@ class zmsg
    void clear();
 
    void set_part(size_t part_nbr, unsigned char *data);
-   // GEV вернуть нужный фрейм но его номеру
+   // вернуть нужный фрейм по его номеру
    const std::string* get_part(size_t);
 
    bool recv(zmq::socket_t & socket);
@@ -108,4 +105,4 @@ class zmsg
 
 } //namespace mdp
 
-#endif /* ZMSG_HPP_ */
+#endif /* __ZMSG_HPP_INCLUDED__ */
