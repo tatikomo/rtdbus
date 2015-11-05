@@ -27,21 +27,21 @@ UsageRow::UsageRow() :
   m_ucpu_usage_pct(0),
   m_ucpu_usage(0),
   m_scpu_usage_pct(0),
-  m_scpu_usage(0)
-{
-  memset(&m_cpu_usage, '\0', sizeof(thread_stat_t) * MAX_NUM_SAMPLES);
-
+  m_scpu_usage(0),
   // Заполнить неоправданно большими значениями для того, чтобы первое
   // добавляемое измерение стало новым минимумом вместо нулей по умолчанию.
-  m_pstat_min = { BILLION,
-            std::numeric_limits<double>::max(),
-            std::numeric_limits<double>::max(),
-            std::numeric_limits<double>::max(),
-            std::numeric_limits<double>::max(),
-            std::numeric_limits<double>::max(),
-            std::numeric_limits<double>::max() };
-  m_pstat_avg = { 0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
-  m_pstat_max = { 0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+  m_pstat_min ({ BILLION,
+                std::numeric_limits<double>::max(),
+                std::numeric_limits<double>::max(),
+                std::numeric_limits<double>::max(),
+                std::numeric_limits<double>::max(),
+                std::numeric_limits<double>::max(),
+                std::numeric_limits<double>::max()
+               }),
+  m_pstat_avg ({ 0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 }),
+  m_pstat_max ({ 0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 })
+{
+  memset(&m_cpu_usage, '\0', sizeof(thread_stat_t) * MAX_NUM_SAMPLES);
 }
 
 UsageRow::~UsageRow()
@@ -233,16 +233,18 @@ const thread_stat_t& UsageRow::max() const
   return m_pstat_max;
 }
 
-Metrics::Metrics()
+Metrics::Metrics() :
+  m_pid(getpid()),
+  m_time_before({0, 0}),
+  m_time_after({0, 0}),
+  m_usage_metric(new UsageRow()),
+  m_pstat_before(),
+  m_pstat_after(),
+  m_thread_stat({ 0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 })
 {
-  m_pid = getpid();
-  m_usage_metric = new UsageRow();
-  m_time_after.tv_sec = 0;
-  m_time_after.tv_nsec = 0;
-  m_time_before.tv_sec = 0;
-  m_time_before.tv_nsec = 0;
   memset(&m_pstat_before, '\0', sizeof(m_pstat_before));
   memset(&m_pstat_after, '\0', sizeof(m_pstat_after));
+//  m_thread_stat = { 0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 }
 
 Metrics::~Metrics()

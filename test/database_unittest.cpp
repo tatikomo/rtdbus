@@ -535,7 +535,7 @@ TEST(TestDiggerDATABASE, CREATION)
 
   // Загрузить данные сохраненной среды RTAP
   // Экземпляр env принадлежит app и будет им удален
-  env = app->loadEnvironment("SINF");
+  env = app->loadEnvironment(RTDB_NAME);
   // Проверим успешность создания экземпляра Среды БДРВ
   ASSERT_TRUE(env != NULL);
   // Проверим успешность восстановления данных БДРВ из снимка
@@ -558,7 +558,7 @@ TEST(TestDiggerDATABASE, CREATION)
 
   // Проверка корректности получения экземпляра Среды с одним 
   // названием и невозможности появления её дубликата
-  env1 = app->loadEnvironment("SINF");
+  env1 = app->loadEnvironment(RTDB_NAME);
   ASSERT_TRUE(env1 != NULL);
 
   if (env && env1)
@@ -574,7 +574,8 @@ TEST(TestDiggerDATABASE, CREATION)
   }
   else
   {
-    LOG(INFO) << "There is no existing environment 'SINF' for application "
+    LOG(INFO) << "There is no existing environment '"
+              << RTDB_NAME << "' for application "
               << app->getAppName();
   }
 

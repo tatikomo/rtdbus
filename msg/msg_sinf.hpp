@@ -2,6 +2,10 @@
 #ifndef MSG_SINF_HPP
 #define MSG_SINF_HPP
 
+#if defined HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <string>
 #include <cstdint>
 
@@ -54,6 +58,7 @@ class Value
     //void CopyFrom(const void*);
 
   private:
+    DISALLOW_COPY_AND_ASSIGN(Value);
     // void * RTDBM::ValueUpdate; // NB: напрямую использовать внутри вместо AttrVal_t?
     xdb::AttributeInfo_t m_instance;
     // Ссылка на RTDBM::ValueUpdate для синхронизации изменений данных
@@ -94,6 +99,7 @@ class ReadMulti : public Letter
     std::size_t num_items();
 
   private:
+    DISALLOW_COPY_AND_ASSIGN(ReadMulti);
     Value   *m_updater;
 };
 
@@ -121,6 +127,7 @@ class WriteMulti : public Letter
     std::size_t num_items();
 
   private:
+    DISALLOW_COPY_AND_ASSIGN(WriteMulti);
     Value   *m_updater;
 };
 
@@ -141,6 +148,7 @@ class SubscriptionControl : public Letter
     const std::string& name();
 
   private:
+    DISALLOW_COPY_AND_ASSIGN(SubscriptionControl);
     Value   *m_updater;
 };
 
@@ -166,6 +174,7 @@ class SubscriptionEvent : public Letter
     std::size_t num_items();
 
   private:
+    DISALLOW_COPY_AND_ASSIGN(SubscriptionEvent);
     Value   *m_updater;
 };
  

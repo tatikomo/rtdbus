@@ -8,8 +8,6 @@
 #include "msg_common.h"
 #include "xdb_common.hpp"
 
-#include "mdp_zmsg.hpp"
-
 namespace msg {
 
 class Header;
@@ -169,7 +167,7 @@ class MessageFactory
     // Вернуть новое сообщение указанного типа
     Letter* create(rtdbMsgType);
     // Вернуть новое сообщение на основе прочитанных из сокета zmq фреймов
-    Letter* create(mdp::zmsg*);
+    Letter* create(void* /* mdp::zmsg* */);
 
     // Создание сообщения на основе его пользовательского типа и сериализованного буфера.
     //Letter* unserialize(rtdbMsgType, const std::string&);

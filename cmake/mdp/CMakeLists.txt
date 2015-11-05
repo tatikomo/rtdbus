@@ -197,11 +197,11 @@ target_link_libraries(${MDP_LIBRARY_NAME}
 add_executable (${MDP_BROKER} ${BROKER_SOURCES})
 # каталог генерации libmdp.so
 target_link_libraries(${MDP_BROKER}
+    ${LIBPROTOBUF_LIBRARIES}
     ${LIBZMQ_LIBRARIES}
     ${TOOLS_LIBRARY_NAME}
     ${XDB_BROKER_LIBRARY_NAME}
     ${LIBGLOG_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
-    ${LIBPROTOBUF_LIBRARIES}
     ${SYSTEM_EXTERNAL_LIBS})
 

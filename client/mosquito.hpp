@@ -41,6 +41,7 @@ class Mosquito: public mdp::mdcli
 
     const msg::MessageFactory* message_factory() { return m_factory; };
   private:
+    DISALLOW_COPY_AND_ASSIGN(Mosquito);
     msg::MessageFactory *m_factory;
     WorkMode_t           m_mode;
 };

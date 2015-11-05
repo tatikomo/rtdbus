@@ -14,7 +14,6 @@ endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 include_directories(${TOOLS_DIR})
 include_directories(${MDP_DIR})
 include_directories(${MSG_DIR})
-include_directories(${MDP_DIR})
 include_directories(${XDB_COMMON_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})
@@ -135,15 +134,14 @@ set_source_files_properties(${MSG_DIR}/proto/ech.pb.h
 if (CMAKE_COMPILER_IS_GNUCC)
 #add_definitions(-fpermissive)
 else (CMAKE_COMPILER_IS_GNUCC)
-add_definitions (-library=stlport4)
+  add_definitions (-library=stlport4)
 endif (CMAKE_COMPILER_IS_GNUCC)
-add_definitions (-library=stlport4)
+#add_definitions (-library=stlport4)
 
 # Сборка библиотеки
 ##########################################################
 add_library (${MSG_LIBRARY_NAME} ${MSG_SOURCES})
 target_link_libraries(${MSG_LIBRARY_NAME}
     ${LIBPROTOBUF_LIBRARIES}
-    ${TOOLS_LIBRARY_NAME}
     ${SYSTEM_EXTERNAL_LIBS})
 

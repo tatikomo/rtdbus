@@ -35,23 +35,31 @@ const msg::Data     *data = NULL;
 static const char   *my_name = (const char*)"message_test";
 msg::MessageFactory *message_factory = NULL;
 
-xdb::AttributeInfo_t array_of_parameters[10] = {
-  { "/K40001/SITE.VAL", xdb::DB_TYPE_INT32,   xdb::ATTR_NOT_FOUND, 0, { 0, NULL, NULL } },
-  { "/K41001/SITE.VAL", xdb::DB_TYPE_UINT32,  xdb::ATTR_NOT_FOUND, 0, { 0, NULL, NULL } },
-  { "/K42001/SITE.VAL", xdb::DB_TYPE_INT64,   xdb::ATTR_NOT_FOUND, 0, { 0, NULL, NULL } },
-  { "/K43001/SITE.VAL", xdb::DB_TYPE_UINT64,  xdb::ATTR_NOT_FOUND, 0, { 0, NULL, NULL } },
-  { "/K44001/SITE.VAL", xdb::DB_TYPE_FLOAT,   xdb::ATTR_NOT_FOUND, 0, { 0, NULL, NULL } },
-  { "/K45001/SITE.VAL", xdb::DB_TYPE_DOUBLE,  xdb::ATTR_NOT_FOUND, 0, { 0, NULL, NULL } },
-  { "/K46001/SITE.VAL", xdb::DB_TYPE_BYTES,   xdb::ATTR_NOT_FOUND, 0, { 0, NULL, NULL } },
-  { "/K47001/SITE.VAL", xdb::DB_TYPE_BYTES4,  xdb::ATTR_NOT_FOUND, 0, { 0, NULL, NULL } },
-  { "/K48001/SITE.VAL", xdb::DB_TYPE_BYTES48, xdb::ATTR_NOT_FOUND, 0, { 0, NULL, NULL } },
-  { "/K49001/SITE.VAL", xdb::DB_TYPE_BYTES256,xdb::ATTR_NOT_FOUND, 0, { 0, NULL, NULL } }
-};
+xdb::AttributeInfo_t array_of_parameters[10];
 
 void allocate_TestSINF_parameters()
 {
+  char uname[60];
+  xdb::DbType_t current_type[10] = {
+   xdb::DB_TYPE_INT32,
+   xdb::DB_TYPE_UINT32,
+   xdb::DB_TYPE_INT64,
+   xdb::DB_TYPE_UINT64,
+   xdb::DB_TYPE_FLOAT,
+   xdb::DB_TYPE_DOUBLE,
+   xdb::DB_TYPE_BYTES,
+   xdb::DB_TYPE_BYTES4,
+   xdb::DB_TYPE_BYTES48,
+   xdb::DB_TYPE_BYTES256 };
+
   for (int i=0; i<=9; i++)
   {
+    sprintf(uname, "/K4%d001/SITE.VAL", i);
+    array_of_parameters[i].name.assign(uname);
+    array_of_parameters[i].type = current_type[i];
+    array_of_parameters[i].quality = xdb::ATTR_NOT_FOUND;
+    memset((void*)&array_of_parameters[i].value, '\0', sizeof(xdb::AttrVal_t));
+
     switch(array_of_parameters[i].type)
     {
       case xdb::DB_TYPE_INT32:

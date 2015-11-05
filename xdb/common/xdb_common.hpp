@@ -449,10 +449,17 @@ typedef enum
 /* перечень значимых атрибутов и их типов */
 typedef struct
 {
+#if CMAKE_COMPILER_IS_GNUCC && (CMAKE_CXX_COMPILER_VERSION >= 483)
+  univname_t name = "";    /* имя атрибута */
+  DbType_t   type = DB_TYPE_UNDEF;    /* его тип - целое, дробь, строка */
+  Quality_t  quality = ATTR_ERROR; /* качество атрибута (из БДРВ) */
+  AttrVal_t  value = { {0}, {0, NULL, NULL} };   /* значение атрибута */
+#else
   univname_t name;    /* имя атрибута */
   DbType_t   type;    /* его тип - целое, дробь, строка */
   Quality_t  quality; /* качество атрибута (из БДРВ) */
   AttrVal_t  value;   /* значение атрибута */
+#endif
 } AttributeInfo_t;
 
 // Позиции бит в флагах, передаваемых конструктору
@@ -684,15 +691,22 @@ typedef AttributeMap_t::iterator AttributeMapIterator_t;
 /* общие сведения по точке базы данных */
 typedef struct
 {
+#if CMAKE_COMPILER_IS_GNUCC && (CMAKE_CXX_COMPILER_VERSION >= 483)
+  int16_t        objclass = GOF_D_BDR_OBJCLASS_UNUSED;
+  univname_t     tag = "";
+  int            status = 0;
+  AttributeMap_t attributes;
+// NB: типы autoid_t определены в MCO
+  uint64_t       id_SA = 0;
+  uint64_t       id_unity = 0;
+#else
   int16_t        objclass;
   univname_t     tag;
   int            status;
   AttributeMap_t attributes;
-// NB: типы autoid_t определены в MCO
-//  autoid_t       id_SA;
   uint64_t       id_SA;
-//  autoid_t       id_unity;
   uint64_t       id_unity;
+#endif
 } PointDescription_t;
 
 /* Хранилище набора атрибутов, их типов, кода и описания для каждого objclass */
@@ -728,7 +742,7 @@ extern const uint16_t var_size[];
 // ------------------------------------------------------------
 
 
-}; // namespace xdb
+} // namespace xdb
 
 #endif
 

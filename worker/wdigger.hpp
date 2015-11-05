@@ -8,7 +8,9 @@
 #include <memory>
 #include <functional>
 
+#if defined HAVE_CONFIG_H
 #include "config.h"
+#endif
 #include "helper.hpp"
 // класс измерения производительности
 #include "tool_metrics.hpp"
@@ -62,6 +64,7 @@ class DiggerWorker
     void send_exec_result(int, std::string&);
 
   private:
+    DISALLOW_COPY_AND_ASSIGN(DiggerWorker);
     // Копия контекста основной нити Digger
     // требуется для работы транспорта inproc
     zmq::context_t &m_context;
@@ -92,6 +95,7 @@ class DiggerPoller
     void stop();
 
   private:
+    DISALLOW_COPY_AND_ASSIGN(DiggerPoller);
     bool clear_modification_flag(std::string&, xdb::SubscriptionPoints_t&);
     // Публикация (название группы, перечень тегов со значениями)
     //bool publish_sbs(std::string&, xdb::SubscriptionPoints_t&);
@@ -132,6 +136,7 @@ class DiggerProbe
     void stop();
 
   private:
+    DISALLOW_COPY_AND_ASSIGN(DiggerProbe);
     // Признак продолжения работы нити Probe
     static bool m_interrupt;
 
@@ -183,6 +188,7 @@ class DiggerProxy
     void run();
 
   private:
+    DISALLOW_COPY_AND_ASSIGN(DiggerProxy);
     // Сигнал к завершению работы
     static bool m_interrupt;
     // Копия контекста основной нити Digger
@@ -234,6 +240,7 @@ class Digger : public mdp::mdwrk
     void proxy_terminate();
 
   private:
+    DISALLOW_COPY_AND_ASSIGN(Digger);
     // отправить адресату сообщение о статусе исполнения команды
     void send_exec_result(int, std::string*);
 
@@ -247,7 +254,6 @@ class Digger : public mdp::mdwrk
     xdb::RtApplication *m_appli;
     xdb::RtEnvironment *m_environment;
     xdb::RtConnection  *m_db_connection;
-//    int                 m_verbose_digg;
 };
 
 } // namespace mdp

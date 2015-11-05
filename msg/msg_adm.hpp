@@ -25,7 +25,7 @@ class AskLife : public Letter
      AskLife(rtdbExchangeId);
      AskLife(Header*, const std::string& body);
      AskLife(const std::string& head, const std::string& body);
-    ~AskLife();
+     virtual ~AskLife();
 
      // Получить значения Состояния из сообщения.
      // Вернет true, если поле "Состояние" в сообщении есть.
@@ -42,7 +42,7 @@ class ExecResult : public Letter
      ExecResult(rtdbExchangeId);
      ExecResult(Header*, const std::string& body);
      ExecResult(const std::string& head, const std::string& body);
-    ~ExecResult();
+     virtual ~ExecResult();
 
      int  exec_result();
      void set_exec_result(int);

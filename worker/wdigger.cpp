@@ -237,20 +237,20 @@ void DiggerWorker::work()
 
    m_thread_id = static_cast<long int>(syscall(SYS_gettid));
 
-   m_worker.connect(ENDPOINT_SINF_DATA_BACKEND);
+   m_worker.connect(ENDPOINT_RTDB_DATA_BACKEND);
    m_worker.setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
    m_worker.setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
    m_worker.setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
 
-   m_commands.connect(ENDPOINT_SINF_COMMAND_BACKEND);
+   m_commands.connect(ENDPOINT_RTDB_COMMAND_BACKEND);
    m_commands.setsockopt(ZMQ_SUBSCRIBE, "", 0);
    m_commands.setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
    m_commands.setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
    m_commands.setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
 
    LOG(INFO) << "DiggerWorker thread connects to "
-             << ENDPOINT_SINF_DATA_BACKEND
-             << ", " << ENDPOINT_SINF_COMMAND_BACKEND;
+             << ENDPOINT_RTDB_DATA_BACKEND
+             << ", " << ENDPOINT_RTDB_COMMAND_BACKEND;
 
 
    // Сокет для получения запросов на данные
@@ -605,7 +605,7 @@ int DiggerWorker::handle_write(msg::Letter* letter, std::string& identity)
     msg::Value& todo = write_msg->item(idx);
 
     LOG(INFO) << "write #"<<idx<<":"<<todo.tag()<< ":"<<(unsigned int)todo.type()<<":"<<todo.as_string();
-    // Получить значение и фактический тип атрибута
+    // Изменить значение атрибута
     const xdb::Error& err = m_db_connection->write(&todo.instance());
     // Накапливающийся код ошибки
     status_code |= err.code();
@@ -1074,6 +1074,8 @@ DiggerProbe::DiggerProbe(zmq::context_t &ctx, xdb::RtEnvironment* env) :
  m_context(ctx),
  m_worker_command_socket(m_context, ZMQ_PUB),
  m_environment(env),
+ m_worker_list(),
+ m_worker_thread(),
  m_sbs_checker(NULL),
  m_sbs_thread(NULL)
 {
@@ -1109,7 +1111,7 @@ int DiggerProbe::start_workers()
   try
   {
     // Для inproc создать точку подключения к нитям Обработчиков ДО вызова connect в Клиентах
-    m_worker_command_socket.bind(ENDPOINT_SINF_COMMAND_BACKEND);
+    m_worker_command_socket.bind(ENDPOINT_RTDB_COMMAND_BACKEND);
     m_worker_command_socket.setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
     m_worker_command_socket.setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
     m_worker_command_socket.setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
@@ -1323,7 +1325,9 @@ DiggerProxy::DiggerProxy(zmq::context_t &ctx, xdb::RtEnvironment* env) :
  m_control(m_context, ZMQ_SUB),
  m_frontend(m_context, ZMQ_ROUTER),
  m_backend(m_context, ZMQ_DEALER),
- m_environment(env)
+ m_environment(env),
+ m_probe(NULL),
+ m_probe_thread(NULL)
 {
   LOG(INFO) << "DiggerProxy start, new context " << &m_context;
 }
@@ -1361,23 +1365,23 @@ void DiggerProxy::run()
     //ZMQ_ROUTER_MANDATORY может привести zmq_proxy_steerable к аномальному завершению: rc=-1, errno=113
     //Наблюдалось в случаях интенсивного обмена брокера с клиентом, если последний аномально завершался.
     m_frontend.setsockopt(ZMQ_ROUTER_MANDATORY, &mandatory, sizeof (mandatory));
-    m_frontend.bind("tcp://lo:5556" /*ENDPOINT_SINF_FRONTEND*/);
+    m_frontend.bind("tcp://lo:5556" /*ENDPOINT_RTDB_FRONTEND*/);
     m_frontend.setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
     m_frontend.setsockopt(ZMQ_RCVHWM, &hwm, sizeof(hwm));
     m_frontend.setsockopt(ZMQ_SNDHWM, &hwm, sizeof(hwm));
     m_frontend.setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
     m_frontend.setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
-    LOG(INFO) << "DiggerProxy binds to DiggerWorkers frontend " << ENDPOINT_SINF_FRONTEND;
-    m_backend.bind(ENDPOINT_SINF_DATA_BACKEND);
+    LOG(INFO) << "DiggerProxy binds to DiggerWorkers frontend " << ENDPOINT_RTDB_FRONTEND;
+    m_backend.bind(ENDPOINT_RTDB_DATA_BACKEND);
     m_backend.setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
     m_backend.setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
     m_backend.setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
-    LOG(INFO) << "DiggerProxy binds to DiggerWorkers backend " << ENDPOINT_SINF_DATA_BACKEND;
+    LOG(INFO) << "DiggerProxy binds to DiggerWorkers backend " << ENDPOINT_RTDB_DATA_BACKEND;
 
     // Настройка управляющего сокета
     LOG(INFO) << "DiggerProxy is ready to connect with DiggerWorkers control";
-    m_control.connect(ENDPOINT_SINF_PROXY_CTRL);
-    LOG(INFO) << "DiggerProxy connects to DiggerWorkers control " << ENDPOINT_SINF_PROXY_CTRL;
+    m_control.connect(ENDPOINT_RTDB_PROXY_CTRL);
+    LOG(INFO) << "DiggerProxy connects to DiggerWorkers control " << ENDPOINT_RTDB_PROXY_CTRL;
     m_control.setsockopt(ZMQ_SUBSCRIBE, "", 0);
     m_control.setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
     m_control.setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
@@ -1394,18 +1398,20 @@ void DiggerProxy::run()
       // Запустить нить управления DiggerProbe.
       m_probe_thread = new std::thread(std::bind(&DiggerProbe::work, m_probe));
 
-      LOG(INFO) << "DiggerProxy (" << ENDPOINT_SINF_FRONTEND
-                << ", " << ENDPOINT_SINF_DATA_BACKEND << ")";
+      LOG(INFO) << "DiggerProxy (" << ENDPOINT_RTDB_FRONTEND
+                << ", " << ENDPOINT_RTDB_DATA_BACKEND << ")";
 
       // NB: необходимо использовать оператор (void*) для доступа к внутреннему ptr
       // Перезапустить работу при завершении zmq_proxy_steerable с кодом EHOSTUNREACH=113,
       // это обычно связано с аварийным завершением Клиента в процессе обмена
       while (rc || (rc == EHOSTUNREACH))
       {
-       rc = zmq_proxy_steerable ((void*)m_frontend,
-                                 (void*)m_backend,
-                                 NULL /* C++11: nullptr */,
-                                 (void*)m_control);
+        rc = zmq_proxy_steerable ((void*)m_frontend,
+                                  (void*)m_backend,
+                                  NULL /* C++11: nullptr */,
+                                  (void*)m_control);
+	    if (rc == EHOSTUNREACH)
+ 		  LOG(WARNING) << "Restart DiggerProxy after EHOSTUNREACH";
       }
 
       if (0 == rc)
@@ -1491,17 +1497,16 @@ void DiggerProxy::wait_probe_stop()
 
 // Класс-расширение штатной Службы для обработки запросов к БДРВ
 // --------------------------------------------------------------------------------
-Digger::Digger(std::string broker_endpoint, std::string service/*, int verbose*/)
+Digger::Digger(std::string broker_endpoint, std::string service)
    :
-   mdp::mdwrk(broker_endpoint, service, /*verbose,*/ 1/* num zmq io threads (default = 1) */),
+   mdp::mdwrk(broker_endpoint, service, 1 /* num zmq io threads (default = 1) */),
    m_helpers_control(m_context, ZMQ_PUB),
    m_digger_proxy(NULL),
    m_proxy_thread(NULL),
    m_message_factory(new msg::MessageFactory(DIGGER_NAME)),
    m_appli(NULL),
    m_environment(NULL),
-   m_db_connection(NULL)//,
-//   m_verbose_digg(verbose)
+   m_db_connection(NULL)
 {
   m_appli = new xdb::RtApplication("DIGGER");
   m_appli->setOption("OF_CREATE",   1);    // Создать если БД не было ранее
@@ -1560,7 +1565,7 @@ void Digger::run()
 
   try
   {
-    m_environment = m_appli->loadEnvironment("SINF");
+    m_environment = m_appli->loadEnvironment(RTDB_NAME);
     // Каждая нить процесса, желающая работать с БДРВ, должна получить свой экземпляр
     m_db_connection = m_environment->getConnection();
 
@@ -1576,7 +1581,7 @@ void Digger::run()
     sleep(1);
 
     LOG(INFO) << "DiggerProxy control connecting";
-    m_helpers_control.bind("tcp://lo:5557" /*ENDPOINT_SINF_PROXY_CTRL*/);
+    m_helpers_control.bind("tcp://lo:5557" /*ENDPOINT_RTDB_PROXY_CTRL*/);
 
     // Ожидание завершения работы Прокси
     while (!interrupt_worker)
@@ -1861,6 +1866,7 @@ int Digger::handle_asklife(msg::Letter* letter, std::string* reply_to)
 int main(int argc, char **argv)
 {
   char service_name[SERVICE_NAME_MAXLEN + 1];
+  char broker_endpoint[ENDPOINT_MAXLEN + 1];
   bool is_service_name_given = false;
   int  opt;
   Digger *engine = NULL;
@@ -1868,10 +1874,18 @@ int main(int argc, char **argv)
   ::google::InitGoogleLogging(argv[0]);
   ::google::InstallFailureSignalHandler();
 
-  while ((opt = getopt (argc, argv, "s:")) != -1)
+  // Значения по-умолчанию
+  strcpy(broker_endpoint, ENDPOINT_BROKER);
+
+  while ((opt = getopt (argc, argv, "b:s:")) != -1)
   {
      switch (opt)
      {
+       case 'b': // точка подключения к Брокеру
+         strncpy(broker_endpoint, optarg, ENDPOINT_MAXLEN);
+         broker_endpoint[ENDPOINT_MAXLEN] = '\0';
+         break;
+
        case 's':
          strncpy(service_name, optarg, SERVICE_NAME_MAXLEN);
          service_name[SERVICE_NAME_MAXLEN] = '\0';
@@ -1896,13 +1910,14 @@ int main(int argc, char **argv)
 
   if (!is_service_name_given)
   {
-    std::cout << "Service name not given.\nUse '-s <service>' option.\n";
+    std::cout << "Service name not given.\nUse '-s <service>' [-b <broker endpoint>] options.\n";
     return(1);
   }
 
   try
   {
-    engine = new Digger("tcp://localhost:5555", service_name /*, verbose*/);
+    std::string bro_endpoint(broker_endpoint);
+    engine = new Digger(broker_endpoint, service_name);
 
     LOG(INFO) << "Start service " << service_name;
 

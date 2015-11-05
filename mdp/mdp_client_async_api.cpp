@@ -45,7 +45,7 @@ mdcli::mdcli (std::string broker, int verbose) :
    m_active_socket_num(0),
    m_subscriber_socket_index(0),
    m_peer_socket_index(0),
-//   m_verbose(verbose),
+   m_verbose(verbose),
    m_timeout(2500)       //  msecs
 {
    s_version_assert (3, 2);
@@ -480,12 +480,12 @@ mdcli::recv (zmsg* &msg)
     // Проверить получение сообщения от публикатора подписки
     if (m_subscriber && (m_socket_items[m_subscriber_socket_index].revents & ZMQ_POLLIN)) {
         msg = new zmsg (*m_subscriber);
-//#ifdef VERBOSE
-//        if (m_verbose) {
-//            LOG(INFO) << "received subscriber message:";
-//            msg->dump ();
-//        }
-//#endif
+#ifdef VERBOSE
+        if (m_verbose) {
+            LOG(INFO) << "received subscriber message:";
+            msg->dump ();
+        }
+#endif
         return status;     //  Success
     }
 

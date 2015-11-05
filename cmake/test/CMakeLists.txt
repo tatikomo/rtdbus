@@ -239,56 +239,58 @@ set_source_files_properties(${XDB_IMPL_DIR}/dat/rtap_db-pskel.hxx
 add_executable (${UNITTEST_METRICS} ${TEST_METRICS_SOURCES})
 add_definitions (-D_FUNCTIONAL_TEST)
 target_link_libraries(${UNITTEST_METRICS}
+    ${TOOLS_LIBRARY_NAME}
     ${LIBGLOG_LIBRARIES}
     ${GTEST_DIR}/cmake/libgtest.a
-    ${TOOLS_LIBRARY_NAME}
     ${SYSTEM_EXTERNAL_LIBS})
 
 add_executable (${UNITTEST_DEV_INT} ${TEST_DEV_INTERNAL_SOURCES})
 add_definitions (-D_FUNCTIONAL_TEST)
 #add_definitions(-fpermissive)
 target_link_libraries(${UNITTEST_DEV_INT}
-    ${LIBGLOG_LIBRARIES}
-    ${GTEST_DIR}/cmake/libgtest.a
     ${XDB_BROKER_LIBRARY_NAME}
     ${XDB_BROKER_INTERFACE_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
     ${MSG_LIBRARY_NAME}
     ${TOOLS_LIBRARY_NAME}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
+    ${LIBGLOG_LIBRARIES}
+    ${GTEST_DIR}/cmake/libgtest.a
     ${SYSTEM_EXTERNAL_LIBS})
 
 add_executable (${UNITTEST_DEV_RUN} ${TEST_DEV_RUNTIME_SOURCES})
 add_definitions (-D_FUNCTIONAL_TEST)
 #add_definitions(-fpermissive)
 target_link_libraries(${UNITTEST_DEV_RUN}
-    ${LIBGLOG_LIBRARIES}
-    ${GTEST_DIR}/cmake/libgtest.a
     ${XDB_BROKER_LIBRARY_NAME}
     ${XDB_RTAP_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
     ${MSG_LIBRARY_NAME}
+    ${LIBPROTOBUF_LIBRARIES}
+    ${LIBGLOG_LIBRARIES}
+    ${GTEST_DIR}/cmake/libgtest.a
     ${SYSTEM_EXTERNAL_LIBS})
 
 add_executable (${UNITTEST_DATABASE} ${TEST_DATABASE_SOURCES})
 target_link_libraries(${UNITTEST_DATABASE}
-    ${LIBGLOG_LIBRARIES}
-    ${GTEST_DIR}/cmake/libgtest.a
     ${XDB_BROKER_LIBRARY_NAME}
     ${XDB_RTAP_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
     ${MSG_LIBRARY_NAME}
+    ${LIBPROTOBUF_LIBRARIES}
+    ${LIBGLOG_LIBRARIES}
+    ${GTEST_DIR}/cmake/libgtest.a
     ${SYSTEM_EXTERNAL_LIBS})
 
 add_executable (${UNITTEST_MESSAGE} ${TEST_MSG_SOURCES})
 target_link_libraries(${UNITTEST_MESSAGE}
-    ${LIBGLOG_LIBRARIES}
-    ${GTEST_DIR}/cmake/libgtest.a
     ${MDP_LIBRARY_NAME}
     ${MSG_LIBRARY_NAME}
-    ${LIBPROTOBUF_LIBRARIES}
     ${XDB_BROKER_LIBRARY_NAME}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
+    ${LIBPROTOBUF_LIBRARIES}
+    ${LIBGLOG_LIBRARIES}
+    ${GTEST_DIR}/cmake/libgtest.a
     ${SYSTEM_EXTERNAL_LIBS})
 
 add_executable (${UNITTEST_CE} ${TEST_CE_SOURCES})

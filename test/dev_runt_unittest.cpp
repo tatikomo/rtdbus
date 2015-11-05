@@ -5,8 +5,11 @@
 #include "glog/logging.h"
 #include "google/protobuf/stubs/common.h"
 
-#include "helper.hpp"
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
+#include "helper.hpp"
 
 #include "mdp_zmsg.hpp"
 #include "mdp_common.h"
@@ -34,10 +37,9 @@ using namespace xdb;
 
 mdp::Digger *digger = NULL;
 mdp::Broker *broker = NULL;
-const char *service_name = "SINF";
+const char *service_name = RTDB_NAME;
 const char *attributes_connection_to_broker = (const char*) "tcp://localhost:5555";
 const char *BROKER_SNAP_FILE = (const char*) "broker_db.snap";
-const char *RTAP_SNAP_FILE = (const char*) "SINF.snap";
 
 //  Раздельные признаки останова Брокера, Клиента, Обработчика
 //  для возможности их совместного тестирования в одной программе,
@@ -162,7 +164,7 @@ void Dump(msg::Letter* letter)
 /*
  * Рабочий цикл клиентской программы PULSAR
  * Тестируется класс: mdcli
- * Используемая служба: SINF (service_name)
+ * Используемая служба: RTDB (service_name)
  */
 static void *
 client_task (void* /*args*/)
@@ -433,7 +435,6 @@ TEST(TestProxy, BROKER_RUNTIME)
   time_t    time_now;
 
   unlink(BROKER_SNAP_FILE);
-  unlink(RTAP_SNAP_FILE);
 
   LOG(INFO) << "TestProxy BROKER_RUNTIME start";
 

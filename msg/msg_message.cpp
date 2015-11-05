@@ -553,9 +553,10 @@ Letter* MessageFactory::create(rtdbMsgType type)
   return created;
 }
 
-Letter* MessageFactory::create(mdp::zmsg* request)
+Letter* MessageFactory::create(void* void_request)
 {
   Letter *created = NULL;
+  mdp::zmsg* request = static_cast<mdp::zmsg*>(void_request);
 
   assert(request);
 

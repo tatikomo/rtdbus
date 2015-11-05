@@ -18,10 +18,11 @@ Letter::Letter() :
   m_service_id(0),
   m_worker_id(0),
   m_state(EMPTY),
+  m_frame_header(),
+  m_frame_data(),
+  m_expiration({0, 0}),
   m_modified(false)
 {
-  timer_mark_t tictac = {0, 0};
-  SetEXPIRATION(tictac);
 }
 
 Letter::Letter(const int64_t _self_id, const int64_t _srv_id, const int64_t _wrk_id) :
@@ -29,10 +30,11 @@ Letter::Letter(const int64_t _self_id, const int64_t _srv_id, const int64_t _wrk
   m_service_id(_srv_id),
   m_worker_id(_wrk_id),
   m_state(UNASSIGNED),
+  m_frame_header(),
+  m_frame_data(),
+  m_expiration({0, 0}),
   m_modified(true)
 {
-  timer_mark_t tictac = {0, 0};
-  SetEXPIRATION(tictac);
 }
 
 Letter::~Letter()
@@ -45,11 +47,12 @@ Letter::Letter(void* data) :
   m_service_id(0),
   m_worker_id(0),
   m_state(UNASSIGNED),
+  m_frame_header(),
+  m_frame_data(),
+  m_expiration({0, 0}),
   m_modified(true)
 {
   mdp::zmsg *msg = static_cast<mdp::zmsg*> (data);
-  timer_mark_t tictac = {0, 0};
-  SetEXPIRATION(tictac);
 
   assert(msg);
   // Прочитать служебные поля транспортного сообщения zmsg
@@ -80,12 +83,11 @@ Letter::Letter(const char* _reply_to, const std::string& _head, const std::strin
   m_state(UNASSIGNED),
   m_frame_header(_head),
   m_frame_data(_data),
+  m_expiration({0, 0}),
   m_modified(true)
 {
-  timer_mark_t tictac = {0, 0};
   strncpy(m_reply_to, _reply_to, IDENTITY_MAXLEN);
   m_reply_to[IDENTITY_MAXLEN] = '\0';
-  SetEXPIRATION(tictac);
 }
 
 void Letter::SetID(int64_t self_id)

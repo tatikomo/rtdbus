@@ -121,10 +121,21 @@ schema_f ALL_TYPES_LIST[] = {
 };
 
 // =================================================================================
-PointInDatabase::PointInDatabase(rtap_db::Point* info)
-  : m_rc(MCO_S_OK),
+PointInDatabase::PointInDatabase(rtap_db::Point* info) :
+    m_point_aid(0),
+    m_passport_aid(0),
+    m_CE_aid(0),
+    m_SA_aid(0),
+    m_hist_aid(0),
+    m_rc(MCO_S_OK),
+    m_point(),
     m_info(info),
+    m_transaction_handler(0),
     m_objclass(static_cast<objclass_t>(m_info->objclass())),
+    m_ai(),
+    m_di(),
+    m_alarm(),
+    m_passport(),
     m_is_AI_assigned(false),
     m_is_DI_assigned(false),
     m_is_AL_assigned(false)
@@ -181,6 +192,7 @@ PointInDatabase::~PointInDatabase()
 
     default:
       LOG(ERROR) << "Memory leak here!";
+      assert(true == false);
   }
 #else
   // TODO: У этих структур нет общего предка, как можно удалить их проще?
@@ -486,7 +498,12 @@ MCO_RET PointInDatabase::update_references()
 
 // =================================================================================
 // Опции по умолчанию устанавливаются в через setOption() в RtApplication
-DatabaseRtapImpl::DatabaseRtapImpl(const char* _name, const Options* _options)
+DatabaseRtapImpl::DatabaseRtapImpl(const char* _name, const Options* _options) :
+  m_impl(NULL),
+  m_register_events(false),
+  m_attr_creating_func_map(),
+  m_attr_writing_func_map(),
+  m_attr_reading_func_map()
 {
   int val;
 
@@ -650,7 +667,7 @@ MCO_RET DatabaseRtapImpl::on_update_VALIDCHANGE(mco_trans_h t,
          manual_val_i,      // INT TS Forced value     : VALMANUAL
          current_val_i;     // INT Current value       : VAL
   ValidChange validchange_val; // Acquired validity    : VALIDCHANGE
-  DbType_t type;
+//  DbType_t type;
   SystemState sa_state;     // Состояние СС            : SASTATE
   SystemState old_sa_state; // Предыдущее состояние СС : OLDSASTATE
   Boolean inhiblocal;       // Локальный запрет        : INHIBLOCAL
@@ -732,7 +749,7 @@ MCO_RET DatabaseRtapImpl::on_update_VALIDCHANGE(mco_trans_h t,
       case TR:
       case ICM:
 
-        type = ClassDescriptionTable[objclass].val_type;
+        //type = ClassDescriptionTable[objclass].val_type;
 
         rc = XDBPoint_ai_read_handle(obj, &ai);
         if (rc) { LOG(ERROR) << "Read analog part of '"<<tag<<"', rc="<<rc; break; }
@@ -774,7 +791,7 @@ MCO_RET DatabaseRtapImpl::on_update_VALIDCHANGE(mco_trans_h t,
       case AUX2:
       case ICS:
 
-        type = ClassDescriptionTable[objclass].val_type;
+//        type = ClassDescriptionTable[objclass].val_type;
 
         rc = XDBPoint_di_read_handle(obj, &di);
         if (rc) { LOG(ERROR) << "Read discrete part of '"<<tag<<"', rc="<<rc; break; }
@@ -3240,211 +3257,211 @@ MCO_RET DatabaseRtapImpl::createPassport(PointInDatabase* point)
   switch(point->objclass())
   {
     case TS:  /* 00 */
-    point->passport().ts = new rtap_db::TS_passport();
+    point->passport().ts = new rtap_db::TS_passport;
     rc = point->passport().ts->create(point->current_transaction());
     rc = point->passport().ts->autoid_get(passport_id);
     break;
 
     case TM:  /* 01 */
-    point->passport().tm = new rtap_db::TM_passport();
+    point->passport().tm = new rtap_db::TM_passport;
     rc = point->passport().tm->create(point->current_transaction());
     rc = point->passport().tm->autoid_get(passport_id);
     break;
 
     case TR:  /* 02 */
-    point->passport().tr = new rtap_db::TR_passport();
+    point->passport().tr = new rtap_db::TR_passport;
     rc = point->passport().tr->create(point->current_transaction());
     rc = point->passport().tr->autoid_get(passport_id);
     break;
 
     case TSA: /* 03 */
-    point->passport().tsa = new rtap_db::TSA_passport();
+    point->passport().tsa = new rtap_db::TSA_passport;
     rc = point->passport().tsa->create(point->current_transaction());
     rc = point->passport().tsa->autoid_get(passport_id);
     break;
 
     case TSC: /* 04 */
-    point->passport().tsc = new rtap_db::TSC_passport();
+    point->passport().tsc = new rtap_db::TSC_passport;
     rc = point->passport().tsc->create(point->current_transaction());
     rc = point->passport().tsc->autoid_get(passport_id);
     break;
 
     case TC:  /* 05 */
-    point->passport().tc = new rtap_db::TC_passport();
+    point->passport().tc = new rtap_db::TC_passport;
     rc = point->passport().tc->create(point->current_transaction());
     rc = point->passport().tc->autoid_get(passport_id);
     break;
 
     case AL:  /* 06 */
-    point->passport().al = new rtap_db::AL_passport();
+    point->passport().al = new rtap_db::AL_passport;
     rc = point->passport().al->create(point->current_transaction());
     rc = point->passport().al->autoid_get(passport_id);
     break;
 
     case ICS: /* 07 */
-    point->passport().ics = new rtap_db::ICS_passport();
+    point->passport().ics = new rtap_db::ICS_passport;
     rc = point->passport().ics->create(point->current_transaction());
     rc = point->passport().ics->autoid_get(passport_id);
     break;
 
     case ICM: /* 08 */
-    point->passport().icm = new rtap_db::ICM_passport();
+    point->passport().icm = new rtap_db::ICM_passport;
     rc = point->passport().icm->create(point->current_transaction());
     rc = point->passport().icm->autoid_get(passport_id);
     break;
 
     case TL:  /* 16 */
-    point->passport().tl = new rtap_db::TL_passport();
+    point->passport().tl = new rtap_db::TL_passport;
     rc = point->passport().tl->create(point->current_transaction());
     rc = point->passport().tl->autoid_get(passport_id);
     break;
 
     case VA:  /* 19 */
-    point->passport().valve = new rtap_db::VA_passport();
+    point->passport().valve = new rtap_db::VA_passport;
     rc = point->passport().valve->create(point->current_transaction());
     rc = point->passport().valve->autoid_get(passport_id);
     break;
 
     case SC:  /* 20 */
-    point->passport().sc = new rtap_db::SC_passport();
+    point->passport().sc = new rtap_db::SC_passport;
     rc = point->passport().sc->create(point->current_transaction());
     rc = point->passport().sc->autoid_get(passport_id);
     break;
 
     case ATC: /* 21 */
-    point->passport().atc = new rtap_db::ATC_passport();
+    point->passport().atc = new rtap_db::ATC_passport;
     rc = point->passport().atc->create(point->current_transaction());
     rc = point->passport().atc->autoid_get(passport_id);
     break;
 
     case GRC: /* 22 */
-    point->passport().grc = new rtap_db::GRC_passport();
+    point->passport().grc = new rtap_db::GRC_passport;
     rc = point->passport().grc->create(point->current_transaction());
     rc = point->passport().grc->autoid_get(passport_id);
     break;
 
     case SV:  /* 23 */
-    point->passport().sv = new rtap_db::SV_passport();
+    point->passport().sv = new rtap_db::SV_passport;
     rc = point->passport().sv->create(point->current_transaction());
     rc = point->passport().sv->autoid_get(passport_id);
     break;
 
     case SDG: /* 24 */
-    point->passport().sdg = new rtap_db::SDG_passport();
+    point->passport().sdg = new rtap_db::SDG_passport;
     rc = point->passport().sdg->create(point->current_transaction());
     rc = point->passport().sdg->autoid_get(passport_id);
     break;
 
     case SSDG:/* 26 */
-    point->passport().ssdg = new rtap_db::SSDG_passport();
+    point->passport().ssdg = new rtap_db::SSDG_passport;
     rc = point->passport().ssdg->create(point->current_transaction());
     rc = point->passport().ssdg->autoid_get(passport_id);
     break;
 
     case SCP: /* 28 */
-    point->passport().scp = new rtap_db::SCP_passport();
+    point->passport().scp = new rtap_db::SCP_passport;
     rc = point->passport().scp->create(point->current_transaction());
     rc = point->passport().scp->autoid_get(passport_id);
     break;
 
     case DIR: /* 30 */
-    point->passport().dir = new rtap_db::DIR_passport();
+    point->passport().dir = new rtap_db::DIR_passport;
     rc = point->passport().dir->create(point->current_transaction());
     rc = point->passport().dir->autoid_get(passport_id);
     break;
 
     case DIPL:/* 31 */
-    point->passport().dipl = new rtap_db::DIPL_passport();
+    point->passport().dipl = new rtap_db::DIPL_passport;
     rc = point->passport().dipl->create(point->current_transaction());
     rc = point->passport().dipl->autoid_get(passport_id);
     break;
 
     case METLINE: /* 32 */
-    point->passport().metline = new rtap_db::METLINE_passport();
+    point->passport().metline = new rtap_db::METLINE_passport;
     rc = point->passport().metline->create(point->current_transaction());
     rc = point->passport().metline->autoid_get(passport_id);
     break;
 
     case ESDG:/* 33 */
-    point->passport().esdg = new rtap_db::ESDG_passport();
+    point->passport().esdg = new rtap_db::ESDG_passport;
     rc = point->passport().esdg->create(point->current_transaction());
     rc = point->passport().esdg->autoid_get(passport_id);
     break;
 
     case SCPLINE: /* 35 */
-    point->passport().scpline = new rtap_db::SCPLINE_passport();
+    point->passport().scpline = new rtap_db::SCPLINE_passport;
     rc = point->passport().scpline->create(point->current_transaction());
     rc = point->passport().scpline->autoid_get(passport_id);
     break;
 
     case TLLINE:  /* 36 */
-    point->passport().tlline = new rtap_db::TLLINE_passport();
+    point->passport().tlline = new rtap_db::TLLINE_passport;
     rc = point->passport().tlline->create(point->current_transaction());
     rc = point->passport().tlline->autoid_get(passport_id);
     break;
 
     case AUX1:/* 38 */
-    point->passport().aux1 = new rtap_db::AUX1_passport();
+    point->passport().aux1 = new rtap_db::AUX1_passport;
     rc = point->passport().aux1->create(point->current_transaction());
     rc = point->passport().aux1->autoid_get(passport_id);
     break;
 
     case AUX2:/* 39 */
-    point->passport().aux2 = new rtap_db::AUX2_passport();
+    point->passport().aux2 = new rtap_db::AUX2_passport;
     rc = point->passport().aux2->create(point->current_transaction());
     rc = point->passport().aux2->autoid_get(passport_id);
     break;
 
     case SITE:/* 45 */
-    point->passport().site = new rtap_db::SITE_passport();
+    point->passport().site = new rtap_db::SITE_passport;
     rc = point->passport().site->create(point->current_transaction());
     rc = point->passport().site->autoid_get(passport_id);
     break;
 
     case SA:  /* 50 */
-    point->passport().sa = new rtap_db::SA_passport();
+    point->passport().sa = new rtap_db::SA_passport;
     rc = point->passport().sa->create(point->current_transaction());
     rc = point->passport().sa->autoid_get(passport_id);
     break;
 
     case PIPE:/* 11 */
-    point->passport().pipe = new rtap_db::PIPE_passport();
+    point->passport().pipe = new rtap_db::PIPE_passport;
     rc = point->passport().pipe->create(point->current_transaction());
     rc = point->passport().pipe->autoid_get(passport_id);
     break;
 
     case PIPELINE:/* 15 */
-    point->passport().pipeline = new rtap_db::PIPELINE_passport();
+    point->passport().pipeline = new rtap_db::PIPELINE_passport;
     rc = point->passport().pipeline->create(point->current_transaction());
     rc = point->passport().pipeline->autoid_get(passport_id);
     break;
 
     case RGA: /* 25 */
-    point->passport().rga = new rtap_db::RGA_passport();
+    point->passport().rga = new rtap_db::RGA_passport;
     rc = point->passport().rga->create(point->current_transaction());
     rc = point->passport().rga->autoid_get(passport_id);
     break;
 
     case BRG: /* 27 */
-    point->passport().brg = new rtap_db::BRG_passport();
+    point->passport().brg = new rtap_db::BRG_passport;
     rc = point->passport().brg->create(point->current_transaction());
     rc = point->passport().brg->autoid_get(passport_id);
     break;
 
     case STG: /* 29 */
-    point->passport().stg = new rtap_db::STG_passport();
+    point->passport().stg = new rtap_db::STG_passport;
     rc = point->passport().stg->create(point->current_transaction());
     rc = point->passport().stg->autoid_get(passport_id);
     break;
 
     case SVLINE:  /* 34 */
-    point->passport().svline = new rtap_db::SVLINE_passport();
+    point->passport().svline = new rtap_db::SVLINE_passport;
     rc = point->passport().svline->create(point->current_transaction());
     rc = point->passport().svline->autoid_get(passport_id);
     break;
 
     case INVT:/* 37 */
-    point->passport().invt = new rtap_db::INVT_passport();
+    point->passport().invt = new rtap_db::INVT_passport;
     rc = point->passport().invt->create(point->current_transaction());
     rc = point->passport().invt->autoid_get(passport_id);
     break;

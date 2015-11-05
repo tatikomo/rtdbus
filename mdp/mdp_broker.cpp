@@ -40,15 +40,14 @@ Broker::Broker (bool verbose) :
   m_context(NULL),
   m_socket(NULL),
   m_verbose(verbose),
-  m_database(NULL)
+  m_endpoint(),
+  m_heartbeat_at(s_clock () + Broker::HeartbeatInterval),
+  m_database(new xdb::DatabaseBroker())
 {
     //  Initialize broker state
     m_context = new zmq::context_t(1);
     m_socket = new zmq::socket_t(*m_context, ZMQ_ROUTER);
     LOG(INFO) << "broker new socket_t " << m_socket;
-
-    m_heartbeat_at = s_clock () + Broker::HeartbeatInterval;
-    m_database = new xdb::DatabaseBroker();
 }
 
 bool Broker::Init()
@@ -112,7 +111,9 @@ Broker::Bind ()
       }
       else
       {
-        LOG(WARNING) << "Given Broker's endpoint '" << m_endpoint
+        // NB: Если транспорт не сетевой, то такая ситуация допускается.
+        // К примеру, ipc://special_file_name.ipc
+        LOG(INFO) << "Given Broker's endpoint '" << m_endpoint
             << "' doesn't contain 'localhost', will use it as is";
       }
 

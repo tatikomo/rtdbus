@@ -50,12 +50,13 @@ using namespace xdb;
 #include "dat/broker_db.h"
 #include "dat/broker_db.hpp"
 
-ServiceEndpoint_t Endpoints[] = {
-    {"BROKER", ENDPOINT_BROKER, ""}, // Сам Брокер (BROKER_ENDPOINT_IDX)
-    {"SINF"  , ENDPOINT_SINF_FRONTEND, ""}, // Информационный сервер БДРВ
-    {"IHM"   , ENDPOINT_IHM_FRONTEND , ""}, // Сервер отображения
-    {"EXCH"  , ENDPOINT_EXCH_FRONTEND, ""}, // Сервер обменов
-    {"", "", ""}  // Последняя запись
+ServiceEndpoint_t Endpoints[] = { // NB: Копия структуры в файле mdp_worker_api.cpp
+  {BROKER_NAME, ENDPOINT_BROKER /* tcp://localhost:5555 */, ""}, // Сам Брокер (BROKER_ENDPOINT_IDX)
+  {RTDB_NAME,   ENDPOINT_RTDB_FRONTEND  /* tcp://localhost:5556 */, ""}, // Информационный сервер БДРВ
+  {HMI_NAME,    ENDPOINT_HMI_FRONTEND   /* tcp://localhost:5557 */, ""}, // Сервер отображения
+  {EXCHANGE_NAME,  ENDPOINT_EXCHG_FRONTEND /* tcp://localhost:5558 */, ""}, // Сервер обменов
+  {ARCHIVIST_NAME, ENDPOINT_ARCH_FRONTEND  /* tcp://localhost:5561 */, ""}, // Сервер архивирования
+  {"", "", ""}  // Последняя запись
 };
 // Запись о точке подключения к Брокеру д.б. первой
 #define BROKER_ENDPOINT_IDX 0

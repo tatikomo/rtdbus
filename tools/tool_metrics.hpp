@@ -8,6 +8,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#if defined HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include "timer.hpp"
 
 // Количество рядов хранения
@@ -88,6 +91,7 @@ class Metrics
     const thread_stat_t& max() const { return m_usage_metric->max(); };
 
   private:
+    DISALLOW_COPY_AND_ASSIGN(Metrics);
     // Идентификатор процесса
     pid_t   m_pid;
     // Идентификатор нити

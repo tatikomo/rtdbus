@@ -8,7 +8,11 @@
 
 using namespace xdb;
 
-RtData::RtData() : m_modified(false)
+RtData::RtData() :
+  m_last_error(rtE_NONE),
+  m_attr_type(DB_TYPE_UNDEF),
+  m_attr_value({ {0}, {0, NULL, NULL} }),
+  m_modified(false)
 {
 }
 

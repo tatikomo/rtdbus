@@ -177,11 +177,11 @@ static const read_attribs_on_sbs_event_t g_attribs_on_event[] = {
 
 AttributesHolder::AttributesHolder()
 {
-};
+}
 
 AttributesHolder::~AttributesHolder()
 {
-};
+}
 
 const read_attribs_on_sbs_event_t& AttributesHolder::info(int objclass)
 {
@@ -189,5 +189,5 @@ const read_attribs_on_sbs_event_t& AttributesHolder::info(int objclass)
   assert(objclass <= GOF_D_BDR_OBJCLASS_LASTUSED);
 
   return g_attribs_on_event[objclass];
-};
+}
 

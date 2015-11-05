@@ -544,6 +544,7 @@ int main (int argc, char *argv [])
             std::cout << ".";
             continue;
           }
+          else
           {
             stop_receiving = true;
             break;

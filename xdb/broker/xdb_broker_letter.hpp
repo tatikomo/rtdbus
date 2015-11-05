@@ -41,7 +41,7 @@ class Letter
     // Создать экземпляр на основе обратного адреса, заголовка и тела сообщения
     Letter(const char*, const std::string&, const std::string&);
 
-    ~Letter();
+    virtual ~Letter();
     void SetID(int64_t);
     void SetSERVICE(Service*);
     void SetSERVICE_ID(int64_t);

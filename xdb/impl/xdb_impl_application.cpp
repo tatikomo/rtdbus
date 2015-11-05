@@ -18,7 +18,8 @@ using namespace xdb;
 ApplicationImpl::ApplicationImpl(const char* _name) :
   m_mode(APP_MODE_UNKNOWN),
   m_state(APP_STATE_UNKNOWN),
-  m_last_error(rtE_NONE)
+  m_last_error(rtE_NONE),
+  m_map_options()
 {
   strncpy(m_appli_name, _name, IDENTITY_MAXLEN);
   m_appli_name[IDENTITY_MAXLEN] = '\0';

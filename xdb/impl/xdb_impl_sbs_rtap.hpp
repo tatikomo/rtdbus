@@ -34,7 +34,7 @@ class AttributesHolder
   private:
 };
 
-}; // end namespace xdb
+} // end namespace xdb
 
 #endif
 

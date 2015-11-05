@@ -115,6 +115,9 @@ DatabaseImpl::DatabaseImpl(const char* _name, const Options* _options, mco_dicti
   m_flags(0),
   m_max_connections(DEFAULT_MAX_DB_CONNECTIONS_ALLOWED),
   m_snapshot_loaded(false)
+#if EXTREMEDB_VERSION >= 40
+  , m_dev_num(1)
+#endif
 {
   int val;
 #if EXTREMEDB_VERSION >= 40 && USE_EXTREMEDB_HTTP_SERVER
@@ -345,7 +348,6 @@ const Error& DatabaseImpl::Init()
 
     clearError();
 
-    m_dev_num = 1;
     if (DB_STATE_UNINITIALIZED != m_state)
     {
       LOG(WARNING) << "Try to re-init database " << m_name;
@@ -1263,8 +1265,8 @@ const Error& DatabaseImpl::Open()
 
 const Error& DatabaseImpl::RegisterEvents()
 {
-  MCO_RET rc;
-  mco_trans_h t;
+//  MCO_RET rc;
+//  mco_trans_h t;
 
   clearError();
 #if 0

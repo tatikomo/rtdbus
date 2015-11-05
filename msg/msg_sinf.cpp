@@ -2,6 +2,8 @@
 #include "config.h"
 #endif
 
+#include <iostream> // std::cerr
+
 #include "google/protobuf/stubs/common.h"
 #include "proto/common.pb.h"
 #include "proto/sinf.pb.h"
@@ -923,13 +925,8 @@ bool ReadMulti::get(std::size_t idx, std::string& tag, xdb::DbType_t& type, xdb:
     break;
     case RTDBM::DB_TYPE_DOUBLE:
         param.fixed.val_double = static_cast<double>(item.g_value());
-        //param.fixed.val_double = static_cast<double>(item.g_value());
     break;
     case RTDBM::DB_TYPE_BYTES:
-#warning "Разделить параметры с фиксированной длиной enum, и поместить их в одну структуру AttrVal_t всесте со строковыми параметрами"
-        // TODO : пример
-        //param.variable.val_string.assign(item.s_value());
-        //strncpy(param.variable.dynamic, item.s_value(), 255);
         param.dynamic.val_string = new std::string(item.s_value());
     break;
     case RTDBM::DB_TYPE_BYTES4:
@@ -944,7 +941,8 @@ bool ReadMulti::get(std::size_t idx, std::string& tag, xdb::DbType_t& type, xdb:
     case RTDBM::DB_TYPE_BYTES128:
     case RTDBM::DB_TYPE_BYTES256:
         // TODO: источник путаницы - вызывающая сторона может передать указатель на char
-        // но может передать и указатель на string
+        // но может передать и указатель на string, поскольку она не знает, каким типом
+        // является значение.
 #warning "определись с типом буфера для char* в ReadMulti::get"
          param.dynamic.varchar = new char[xdb::var_size[type] + 1];
          strncpy(param.dynamic.varchar, item.s_value().c_str(), xdb::var_size[type]);

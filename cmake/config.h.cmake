@@ -50,14 +50,21 @@
 
 /* Endpoint names for Services with direct connection possibilities */
 #cmakedefine ENDPOINT_BROKER          "@ENDPOINT_BROKER@"
-#cmakedefine ENDPOINT_SINF_FRONTEND   "@ENDPOINT_SINF_FRONTEND@"
-#cmakedefine ENDPOINT_SINF_PROXY_CTRL "@ENDPOINT_SINF_PROXY_CTRL@"
-#cmakedefine ENDPOINT_SINF_DATA_BACKEND    "@ENDPOINT_SINF_DATA_BACKEND@"
-#cmakedefine ENDPOINT_SINF_COMMAND_BACKEND    "@ENDPOINT_SINF_COMMAND_BACKEND@"
-#cmakedefine ENDPOINT_IHM_FRONTEND    "@ENDPOINT_IHM_FRONTEND@"
-#cmakedefine ENDPOINT_EXCH_FRONTEND   "@ENDPOINT_EXCH_FRONTEND@"
+#cmakedefine ENDPOINT_RTDB_FRONTEND   "@ENDPOINT_RTDB_FRONTEND@"
+#cmakedefine ENDPOINT_RTDB_PROXY_CTRL "@ENDPOINT_RTDB_PROXY_CTRL@"
+#cmakedefine ENDPOINT_RTDB_DATA_BACKEND    "@ENDPOINT_RTDB_DATA_BACKEND@"
+#cmakedefine ENDPOINT_RTDB_COMMAND_BACKEND    "@ENDPOINT_RTDB_COMMAND_BACKEND@"
+#cmakedefine ENDPOINT_HMI_FRONTEND    "@ENDPOINT_HMI_FRONTEND@"
+#cmakedefine ENDPOINT_EXCHG_FRONTEND  "@ENDPOINT_EXCHG_FRONTEND@"
 #cmakedefine ENDPOINT_SBS_PUBLISHER   "@ENDPOINT_SBS_PUBLISHER@"
+#cmakedefine ENDPOINT_ARCH_FRONTEND   "@ENDPOINT_ARCH_FRONTEND@"
 
+/* Predefined service names */
+#cmakedefine BROKER_NAME        "@BROKER_NAME@"
+#cmakedefine RTDB_NAME          "@RTDB_NAME@"
+#cmakedefine HMI_NAME           "@HMI_NAME@"
+#cmakedefine EXCHANGE_NAME      "@EXCHANGE_NAME@"
+#cmakedefine ARCHIVIST_NAME     "@ARCHIVIST_NAME@"
 
 // test binaries
 /* Full path to test file test/test-exit in builddir */

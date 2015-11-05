@@ -59,14 +59,13 @@ else ("${sysname}" MATCHES "SUNOS")
         add_definitions(-std=c++11)
       endif (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.8.3")
 
-      add_definitions(-m32)
-      add_definitions(-Wall)
-      add_definitions(-Wextra)
-      add_definitions(-Wno-unused-parameter)
+	  add_definitions(-m32)
+	  add_definitions(-Wall)
+	  add_definitions(-Wextra)
+	  add_definitions(-Wno-unused-parameter)
 
 #  add_definitions(-pedantic)
 #  add_definitions(-Weffc++)
-
 #  add_definitions(-O2)
 #  add_definitions(-fno-strict-overflow)
 #  add_definitions(-fstrict-aliasing)
@@ -80,6 +79,9 @@ else ("${sysname}" MATCHES "SUNOS")
 #  add_definitions(-Woverloaded-virtual)
 #  add_definitions(-Wsign-promo)
 
+    else (CMAKE_COMPILER_IS_GNUCC)
+      add_definitions(-xarch=v9)
+      add_definitions(+w2)
     endif (CMAKE_COMPILER_IS_GNUCC)
 
 endif("${sysname}" MATCHES "SUNOS")
@@ -205,18 +207,26 @@ set (DIGGER_DB_SIZE_MB  10)
 # Для использования точек подключения в серверах следует подстроку
 # от последнего символа '/' до символа ':' 
 # Значение по-умолчанию точки подключения к Брокеру
-set (ENDPOINT_BROKER "tcp://localhost:5555")
+set (ENDPOINT_BROKER                "tcp://localhost:5555")
 # Значения по-умолчанию точек подключения к Службе БДРВ
-set (ENDPOINT_SINF_FRONTEND   "tcp://localhost:5556")
+set (ENDPOINT_RTDB_FRONTEND         "tcp://localhost:5556")
 # Управляющий сокет DiggerProxy
-set (ENDPOINT_SINF_PROXY_CTRL "tcp://localhost:5557")
+set (ENDPOINT_RTDB_PROXY_CTRL       "tcp://localhost:5557")
 # Теневой сокет DiggerProxy <=> DiggerWorker
 # NB: транспорт inproc работает между нитями только в пределах единого контекста zmq
-set (ENDPOINT_SINF_DATA_BACKEND    "inproc://rtdb_digger_data")
-set (ENDPOINT_SINF_COMMAND_BACKEND    "inproc://rtdb_digger_command")
-set (ENDPOINT_IHM_FRONTEND    "tcp://localhost:5558")
-set (ENDPOINT_EXCH_FRONTEND   "tcp://localhost:5559")
-set (ENDPOINT_SBS_PUBLISHER   "tcp://localhost:5560")
+set (ENDPOINT_RTDB_DATA_BACKEND     "inproc://rtdb_digger_data")
+set (ENDPOINT_RTDB_COMMAND_BACKEND  "inproc://rtdb_digger_command")
+set (ENDPOINT_HMI_FRONTEND          "tcp://localhost:5558")
+set (ENDPOINT_EXCHG_FRONTEND        "tcp://localhost:5559")
+set (ENDPOINT_SBS_PUBLISHER         "tcp://localhost:5560")
+set (ENDPOINT_ARCH_FRONTEND         "tcp://localhost:5561")
+
+# Предопределенные названия Служб
+set (BROKER_NAME        "BROKER")
+set (RTDB_NAME          "SINF")
+set (HMI_NAME           "HMI")
+set (EXCHANGE_NAME      "ECH")
+set (ARCHIVIST_NAME     "ARCH")
 
 # Максимальное количество одновременно допустимых подключений
 set (DEFAULT_MAX_DB_CONNECTIONS_ALLOWED  4)

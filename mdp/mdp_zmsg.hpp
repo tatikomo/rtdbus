@@ -10,6 +10,9 @@
 #ifndef __ZMSG_HPP_INCLUDED__
 #define __ZMSG_HPP_INCLUDED__
 
+#if defined HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include "mdp_helpers.hpp"
 
 #include <vector>
@@ -100,6 +103,7 @@ class zmsg
    void dump();
 
  private:
+   DISALLOW_COPY_AND_ASSIGN(zmsg);
    std::vector<std::string> m_part_data;
 };
 

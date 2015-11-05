@@ -13,16 +13,21 @@
 using namespace msg;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
-HeaderImpl::HeaderImpl()
-  : m_validity(false),
-    m_modified(true)
+HeaderImpl::HeaderImpl() :
+  m_instance(),
+  m_validity(false),
+  m_modified(true),
+  m_pb_serialized()
 {
 //  LOG(INFO) << "HeaderImpl() [" << this << "]";
   set_initial_values();
 }
 
-HeaderImpl::HeaderImpl(const std::string& frame)
-  : m_modified(true)
+HeaderImpl::HeaderImpl(const std::string& frame) :
+  m_instance(),
+  m_validity(false),
+  m_modified(true),
+  m_pb_serialized()
 {
 //  m_pb_serialized.resize(40);
   if (false == (m_validity = m_instance.ParseFromString(frame)))
@@ -100,11 +105,12 @@ void HeaderImpl::set_initial_values()
 DataImpl::DataImpl(rtdbMsgType type)
   : m_protobuf_instance(NULL),
     m_type(type),
+    m_data(),
     m_validity(false),
-    m_modified(true)
+    m_modified(true),
+    m_pb_serialized()
 {
 //  m_data.resize(130);
-  m_data.clear();
 //  m_pb_serialized.resize(130);
 //  LOG(INFO) << "DataImpl(" << type << ") [" << this << "]";
   // создать объект с данными, соответствующими переданному типу
@@ -116,7 +122,8 @@ DataImpl::DataImpl(rtdbMsgType type, const std::string& frame)
     m_type(type),
     m_data(frame),
     m_validity(false),
-    m_modified(true)
+    m_modified(true),
+    m_pb_serialized()
 {
 //  LOG(INFO) << "DataImpl(" << type << ", " << frame << ") [" << this << "]";
   // создать объект с данными, соответствующими переданному типу

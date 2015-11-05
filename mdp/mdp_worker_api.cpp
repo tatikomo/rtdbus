@@ -38,11 +38,12 @@ typedef struct {
 //
 // TODO: вывести соответствия между Службой и её точкой входа в общую конфигурацию
 //
-ServiceEndpoint_t Endpoints[] = {
-  {"BROKER",ENDPOINT_BROKER /* tcp://localhost:5555 */, ""}, // Сам Брокер (BROKER_ENDPOINT_IDX)
-  {"SINF",  ENDPOINT_SINF_FRONTEND  /* tcp://localhost:5556 */, ""}, // Информационный сервер БДРВ
-  {"IHM",   ENDPOINT_IHM_FRONTEND   /* tcp://localhost:5557 */, ""}, // Сервер отображения
-  {"ECH",   ENDPOINT_EXCH_FRONTEND  /* tcp://localhost:5558 */, ""}, // Сервер обменов
+ServiceEndpoint_t Endpoints[] = { // NB: Копия структуры в файле xdb_impl_db_broker.cpp
+  {BROKER_NAME, ENDPOINT_BROKER /* tcp://localhost:5555 */, ""}, // Сам Брокер (BROKER_ENDPOINT_IDX)
+  {RTDB_NAME,   ENDPOINT_RTDB_FRONTEND  /* tcp://localhost:5556 */, ""}, // Информационный сервер БДРВ
+  {HMI_NAME,    ENDPOINT_HMI_FRONTEND   /* tcp://localhost:5557 */, ""}, // Сервер отображения
+  {EXCHANGE_NAME,  ENDPOINT_EXCHG_FRONTEND /* tcp://localhost:5558 */, ""}, // Сервер обменов
+  {ARCHIVIST_NAME, ENDPOINT_ARCH_FRONTEND  /* tcp://localhost:5561 */, ""}, // Сервер архивирования
   {"", "", ""}  // Последняя запись
 };
 
@@ -204,7 +205,16 @@ void mdwrk::connect_to_broker ()
     // Внесены изменения из-за необходимости передачи значения точки подключения 
     zmsg *msg = new zmsg ();
     const char* endp = getEndpoint(false);
-    msg->push_front (const_cast<char*>(endp));
+    if (endp)
+    {
+      msg->push_front (const_cast<char*>(endp));
+    }
+    else
+    {
+      LOG(WARNING) << "Service '" << m_service << "' has no information about external endpoint";
+      msg->push_front (const_cast<char*>(EMPTY_FRAME));
+    }
+
     msg->push_front (const_cast<char*>(m_service.c_str()));
     send_to_broker((char*)MDPW_READY, NULL, msg);
 
