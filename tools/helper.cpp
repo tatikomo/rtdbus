@@ -210,7 +210,6 @@ bool setOption(Options* _options, const std::string& key, int val)
   if (p != _options->end())
   {
     val = p->second;
-    status = true;
 //    std::cout << "Replace '" << key
 //              << "' old value " << p->second
 //              << " with " << val << std::endl;
@@ -224,4 +223,5 @@ bool setOption(Options* _options, const std::string& key, int val)
   }
   return status;
 }
+
 

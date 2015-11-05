@@ -17,8 +17,17 @@
 #include <map>
 
 #include <unistd.h>
+#include <stdint.h>
+#include <sys/time.h>
 
 namespace xdb {
+
+#define D_DATE_FORMAT_STR           "%d-%m-%Y %T"
+#define D_DATE_FORMAT_LEN           20
+#define D_DATE_FORMAT_W_MSEC_ST     D_DATE_FORMAT ## ".%06ld"
+#define D_DATE_FORMAT_W_MSEC_LEN    (D_DATE_FORMAT_LEN + 7)
+
+#define D_MISSING_OBJCODE   "MISSING"
 
 /* NB: GOF_D_BDR_OBJCLASS... definitions are copied from $GOF/inc/gof_bdr_d.h file */
 /* values of the OBJCLASS attributes */
@@ -104,6 +113,8 @@ namespace xdb {
 // При изменении перечня синхронизировать его с rtad_db.xsd
 //
 // ====================================================================
+#define RTDB_ATT_TAG        "TAG"       // Атрибуты TAG и OBJCLASS - специальный случай,
+#define RTDB_ATT_OBJCLASS   "OBJCLASS"  // Они не в виде атрибутов, а в виде полей XDBpoint
 #define RTDB_ATT_LABEL      "LABEL"
 #define RTDB_ATT_SHORTLABEL "SHORTLABEL"
 #define RTDB_ATT_VALID      "VALID"
@@ -139,6 +150,7 @@ namespace xdb {
 #define RTDB_ATT_L_NETTYPE      "L_NETTYPE"
 #define RTDB_ATT_L_NET          "L_NET"
 #define RTDB_ATT_L_TL           "L_TL"
+#define RTDB_ATT_L_TM           "L_TM"
 #define RTDB_ATT_L_EQTORBORUPS  "L_EQTORBORUPS"
 #define RTDB_ATT_L_EQTORBORDWN  "L_EQTORBORDWN"
 #define RTDB_ATT_L_TYPINFO      "L_TYPINFO"
@@ -176,6 +188,90 @@ namespace xdb {
 #define RTDB_ATT_ALDEST         "ALDEST"
 #define RTDB_ATT_INHIBLOCAL     "INHIBLOCAL"
 #define RTDB_ATT_UNITY          "UNITY"
+#define RTDB_ATT_UNITYCATEG     "UNITYCATEG"
+
+// Индексы атрибутов в массиве соответствия "Атрибут => Размер атрибута"
+// Алгоритм получения:
+//   1) bin/xdb_snap -g > types_tmp.out
+//   2) grep "objclass:" types_tmp.out | while read x1 class x2 name x3 stype x4 itype; do echo $class" "$name" "$stype" "$itype; done > types.out
+//   3) i=0; cat types.out| awk '{print $2}' | sort | uniq | while read a; do echo "#define RTDB_ATT_IDX_$a  $i"; i=$((i+1)); done
+
+#define RTDB_ATT_IDX_ACTIONTYP      0
+#define RTDB_ATT_IDX_ALARMBEGIN     1
+#define RTDB_ATT_IDX_ALARMBEGINACK  2
+#define RTDB_ATT_IDX_ALARMENDACK    3
+#define RTDB_ATT_IDX_ALARMSYNTH     4
+#define RTDB_ATT_IDX_ALDEST         5
+#define RTDB_ATT_IDX_ALINHIB        6
+#define RTDB_ATT_IDX_CONFREMOTECMD  7
+#define RTDB_ATT_IDX_CONVERTCOEFF   8
+#define RTDB_ATT_IDX_CURRENT_SHIFT_TIME  9
+#define RTDB_ATT_IDX_DATEAINS       10
+#define RTDB_ATT_IDX_DATEHOURM      11
+#define RTDB_ATT_IDX_DATERTU        12
+#define RTDB_ATT_IDX_DELEGABLE      13
+#define RTDB_ATT_IDX_DISPP          14
+#define RTDB_ATT_IDX_FLGMAINTENANCE 15
+#define RTDB_ATT_IDX_FLGREMOTECMD   16
+#define RTDB_ATT_IDX_FUNCTION       17
+#define RTDB_ATT_IDX_GRADLEVEL      18
+#define RTDB_ATT_IDX_INHIB          19
+#define RTDB_ATT_IDX_INHIBLOCAL     20
+#define RTDB_ATT_IDX_KMREFDWN       21
+#define RTDB_ATT_IDX_KMREFUPS       22
+#define RTDB_ATT_IDX_LABEL          23
+#define RTDB_ATT_IDX_L_CONSUMER     24
+#define RTDB_ATT_IDX_L_CORRIDOR     25
+#define RTDB_ATT_IDX_L_DIPL         26
+#define RTDB_ATT_IDX_L_EQT          27
+#define RTDB_ATT_IDX_L_EQTORBORDWN  28
+#define RTDB_ATT_IDX_L_EQTORBORUPS  29
+#define RTDB_ATT_IDX_L_EQTTYP       30
+#define RTDB_ATT_IDX_LINK_HIST      31
+#define RTDB_ATT_IDX_L_NET          32
+#define RTDB_ATT_IDX_L_NETTYPE      33
+#define RTDB_ATT_IDX_LOCALFLAG      34
+#define RTDB_ATT_IDX_L_PIPE         35
+#define RTDB_ATT_IDX_L_PIPELINE     36
+#define RTDB_ATT_IDX_L_SA           37
+#define RTDB_ATT_IDX_L_TL           38
+#define RTDB_ATT_IDX_L_TM           39
+#define RTDB_ATT_IDX_L_TYPINFO      40
+#define RTDB_ATT_IDX_MAXVAL         41
+#define RTDB_ATT_IDX_MINVAL         42
+#define RTDB_ATT_IDX_MNVALPHY       43
+#define RTDB_ATT_IDX_MXFLOW         44
+#define RTDB_ATT_IDX_MXPRESSURE     45
+#define RTDB_ATT_IDX_MXVALPHY       46
+#define RTDB_ATT_IDX_NAMEMAINTENANCE  47
+#define RTDB_ATT_IDX_NMFLOW         48
+#define RTDB_ATT_IDX_NMPRESSURE     49
+#define RTDB_ATT_IDX_OBJCLASS       50
+#define RTDB_ATT_IDX_PLANFLOW       51
+#define RTDB_ATT_IDX_PLANPRESSURE   52
+#define RTDB_ATT_IDX_PREV_DISPATCHER  53
+#define RTDB_ATT_IDX_PREV_SHIFT_TIME  54
+#define RTDB_ATT_IDX_REMOTECONTROL  55
+#define RTDB_ATT_IDX_SHORTLABEL     56
+#define RTDB_ATT_IDX_STATUS         57
+#define RTDB_ATT_IDX_SUPPLIER       58
+#define RTDB_ATT_IDX_SUPPLIERMODE   59
+#define RTDB_ATT_IDX_SUPPLIERSTATE  60
+#define RTDB_ATT_IDX_SYNTHSTATE     61
+#define RTDB_ATT_IDX_TSSYNTHETICAL  62
+#define RTDB_ATT_IDX_TYPE           63
+#define RTDB_ATT_IDX_UNITY          64
+#define RTDB_ATT_IDX_UNITYCATEG     65
+#define RTDB_ATT_IDX_UNIVNAME       66
+#define RTDB_ATT_IDX_VAL            67
+#define RTDB_ATT_IDX_VALACQ         68
+#define RTDB_ATT_IDX_VALEX          69
+#define RTDB_ATT_IDX_VALID          70
+#define RTDB_ATT_IDX_VALIDACQ       71
+#define RTDB_ATT_IDX_VALIDCHANGE    72
+#define RTDB_ATT_IDX_VALMANUAL      73
+// Последнее значение, индекс несуществующего атрибута
+#define RTDB_ATT_IDX_UNEXIST        74
 
 // ====================================================================
 //
@@ -184,16 +280,36 @@ typedef std::string   longlabel_t;
 typedef std::string   univname_t;
 typedef std::string   code_t;
 
+typedef enum
+{
+  ATTR_OK        = 0, /* no known error on data */
+  ATTR_SUSPECT   = 1, /* depends on a suspect, error or disabled value */
+  ATTR_ERROR     = 2, /* calc. engine got math error */
+  ATTR_DISABLED  = 3, /* calc. engine operation indicator disabled */
+  ATTR_NOT_FOUND = 4  /* attribute is not found in database */
+} Quality_t;
+
+typedef union
+{
+  //uint8 common;
+  uint64_t common;
+  //uint4 part[2];
+  uint32_t part[2];
+  struct timeval tv; // uint32 sec, uint32 usec
+} datetime_t;
+
 // NB: формат хранения строк UTF-8
 typedef struct
 {
-  uint16_t size; // 16384
-  char *data;
-} variable_t;
+  uint16_t     size; // 16384
+  char        *varchar; // ссылка на данные типа [BYTES4..BYTES256]
+  std::string *val_string;  // ссылка на данные типа DB_TYPE_BYTES
+} dynamic_part;
 
 // Одно элементарное значение из БДРВ
 typedef union
 {
+  bool     val_bool;
   int8_t   val_int8;
   uint8_t  val_uint8;
   int16_t  val_int16;
@@ -204,8 +320,13 @@ typedef union
   uint64_t val_uint64;
   float    val_float;
   double   val_double;
-  variable_t    val_bytes; // NB: максимальное значение строки =16384(uint2)
-  std::string*  val_string;
+  struct   timeval val_time;
+} fixed_part;
+
+typedef struct
+{
+  fixed_part   fixed;
+  dynamic_part dynamic;
 } AttrVal_t;
 
 // Коды элементарных типов данных eXtremeDB, которые мы используем
@@ -213,29 +334,31 @@ typedef union
 typedef enum
 {
   DB_TYPE_UNDEF     = 0,
-  DB_TYPE_INT8      = 1,
-  DB_TYPE_UINT8     = 2,
-  DB_TYPE_INT16     = 3,
-  DB_TYPE_UINT16    = 4,
-  DB_TYPE_INT32     = 5,
-  DB_TYPE_UINT32    = 6,
-  DB_TYPE_INT64     = 7,
-  DB_TYPE_UINT64    = 8,
-  DB_TYPE_FLOAT     = 9,
-  DB_TYPE_DOUBLE    = 10,
-  DB_TYPE_BYTES     = 11, // переменная длина строки
-  DB_TYPE_BYTES4    = 12,
-  DB_TYPE_BYTES8    = 13,
-  DB_TYPE_BYTES12   = 14,
-  DB_TYPE_BYTES16   = 15,
-  DB_TYPE_BYTES20   = 16,
-  DB_TYPE_BYTES32   = 17,
-  DB_TYPE_BYTES48   = 18,
-  DB_TYPE_BYTES64   = 19,
-  DB_TYPE_BYTES80   = 20,
-  DB_TYPE_BYTES128  = 21,
-  DB_TYPE_BYTES256  = 22,
-  DB_TYPE_LAST      = 23 // fake type, used for limit array types
+  DB_TYPE_LOGICAL   = 1,
+  DB_TYPE_INT8      = 2,
+  DB_TYPE_UINT8     = 3,
+  DB_TYPE_INT16     = 4,
+  DB_TYPE_UINT16    = 5,
+  DB_TYPE_INT32     = 6,
+  DB_TYPE_UINT32    = 7,
+  DB_TYPE_INT64     = 8,
+  DB_TYPE_UINT64    = 9,
+  DB_TYPE_FLOAT     = 10,
+  DB_TYPE_DOUBLE    = 11,
+  DB_TYPE_BYTES     = 12, // переменная длина строки
+  DB_TYPE_BYTES4    = 13,
+  DB_TYPE_BYTES8    = 14,
+  DB_TYPE_BYTES12   = 15,
+  DB_TYPE_BYTES16   = 16,
+  DB_TYPE_BYTES20   = 17,
+  DB_TYPE_BYTES32   = 18,
+  DB_TYPE_BYTES48   = 19,
+  DB_TYPE_BYTES64   = 20,
+  DB_TYPE_BYTES80   = 21,
+  DB_TYPE_BYTES128  = 22,
+  DB_TYPE_BYTES256  = 23,
+  DB_TYPE_ABSTIME   = 24,
+  DB_TYPE_LAST      = 25 // fake type, used for limit array types
 } DbType_t;
 
 // Внутренние состояния базы данных
@@ -247,6 +370,11 @@ typedef enum {
     DB_STATE_DISCONNECTED  = 5, // вызван mco_db_disconnect
     DB_STATE_CLOSED        = 6  // вызван mco_db_close
 } DBState_t;
+
+typedef enum {
+    CONNECTION_INVALID = 0,
+    CONNECTION_VALID   = 1
+} ConnectionState_t;
 
 typedef enum
 {
@@ -277,7 +405,6 @@ typedef enum
   ENV_SHUTDOWN_SOFT = 0,
   ENV_SHUTDOWN_HARD = 1
 } EnvShutdownOrder_t;
-
 
 // Коды элементарных типов данных старой БДРВ RTAP
 typedef enum
@@ -313,7 +440,7 @@ typedef enum
     rtDB_XREF    = 28,
     rtDATE       = 29,
     rtTIME_OF_DAY= 30,
-    rtASB_TIME   = 31,
+    rtABS_TIME   = 31,
     rtUNDEFINED  = 32
 } rtDeType;
 
@@ -324,9 +451,9 @@ typedef struct
 {
   univname_t name;    /* имя атрибута */
   DbType_t   type;    /* его тип - целое, дробь, строка */
+  Quality_t  quality; /* качество атрибута (из БДРВ) */
   AttrVal_t  value;   /* значение атрибута */
 } AttributeInfo_t;
-
 
 // Позиции бит в флагах, передаваемых конструктору
 typedef enum
@@ -414,6 +541,12 @@ typedef enum
     rtQUERY_SYM_ALIAS       = 62,      /* get alias equiv of given addr */
     rtQUERY_SYM_REL         = 63,      /* get rel-path equiv of given addr */
     rtQUERY_DIRECT_ATTR     = 64,      /* get fully-specified direct addr */
+    // Нет аналогов в ГОФО
+    rtQUERY_SBS_LIST_ARMED      = 65,  // Получить список активных SBS групп с измененными элементами
+    rtQUERY_SBS_POINTS_ARMED    = 66,  // Получить список измененных точек для указанной группы
+    rtQUERY_SBS_POINTS_DISARM   = 67,  // Сбросить для всех измененных точек признак модификации
+    rtQUERY_SBS_POINTS_DISARM_BY_LIST = 68,  // Сбросить флаг модификации для измененных точек из списка
+    rtQUERY_SBS_READ_POINTS_ARMED = 69,// Прочитать список модифицированных атрибутов указанной группы
 } TypeOfQuery;
 
 /*
@@ -446,7 +579,12 @@ typedef enum
     rtCONFIG_FIELD_NAME     = 26,      /* rename a field in a table */
     rtCONFIG_ADD_FIELD      = 27,      /* add a field to a table */
     rtCONFIG_DEL_FIELD      = 28,      /* delete a field from a table */
-    rtCONFIG_ATTR_AIN       = 29       /* change the AIN of an attribute */
+    rtCONFIG_ATTR_AIN       = 29,      /* change the AIN of an attribute */
+    // У следующих кодов нет аналогов в RTAP
+    rtCONFIG_ADD_GROUP_SBS  = 30,      /* Создать группу подписки */
+    rtCONFIG_DEL_GROUP_SBS  = 31,      /* Удалить группу подписки */
+    rtCONFIG_ENABLE_GROUP_SBS  = 32,   /* Активировать группу подписки */
+    rtCONFIG_SUSPEND_GROUP_SBS = 33    /* Приостановить группу подписки */
 } TypeOfConfig;
 
 // Вид используемого структурой rtDbCq действия
@@ -479,8 +617,23 @@ typedef struct
     rtDbCqAction    action;    /* action to perform */
 } rtDbCq;
 
+// Тип для хранения связи "идентификатор <-> название"
+typedef std::map <uint64_t/*autoid_t*/, std::string> map_id_name_t;
+
 // TODO: проверить, можно ли изолировать связанные с этой константой данные в xdb_rtap_snap.hpp
 #define ELEMENT_DESCRIPTION_MAXLEN  15
+
+// Таблица типов данных Атрибутов.
+// NB: типы атрибутов одинаковы для всех точек различных OBJCLASS, за исключением трех:
+// VALACQ, VALMANUAL, VAL - они есть в двух вариантах - с плав. точкой или целое число.
+typedef struct
+{
+  int       index;  // RTDB_ATT_IDX_...
+  const char* name; // указатель на строку с названием атрибута RTDB_ATT_
+  DbType_t  type;   // DB_TYPE_...
+  // размер типа данных
+  uint16_t  size;   // размер атрибута в байтах, макс. 32кБ
+} AttrTypeDescription_t;
 
 // Таблица описателей типов данных БДРВ
 typedef struct
@@ -489,7 +642,7 @@ typedef struct
   DbType_t   code;
   const char name[ELEMENT_DESCRIPTION_MAXLEN+1];
   // размер типа данных
-  size_t     size;
+  uint16_t   size;
 } DbTypeDescription_t;
 
 // Элемент соответствия между кодом типа RTAP и БДРВ
@@ -532,11 +685,10 @@ typedef AttributeMap_t::iterator AttributeMapIterator_t;
 typedef struct
 {
   int16_t        objclass;
-  univname_t     alias;
+  univname_t     tag;
+  int            status;
   AttributeMap_t attributes;
-  univname_t     parent_alias;
-  univname_t     code;
-// NB: Данные типы определены в MCO
+// NB: типы autoid_t определены в MCO
 //  autoid_t       id_SA;
   uint64_t       id_SA;
 //  autoid_t       id_unity;
@@ -546,13 +698,18 @@ typedef struct
 /* Хранилище набора атрибутов, их типов, кода и описания для каждого objclass */
 typedef struct
 {
-  char    name[TAG_NAME_MAXLEN + 1]; // название класса
+  char    name[sizeof(wchar_t)*TAG_NAME_MAXLEN + 1]; // название класса
   int8_t  code;                      // код класса
+  DbType_t val_type;                 // тип атрибутов {VAL|VALMANUAL|VALACQ} данного класса
   // NB: Используется указатель AttributeMap_t* для облегчения 
   // статической инициализации массива
   AttributeMap_t   *attributes_pool; // набор атрибутов с доступом по имени
 } ClassDescription_t;
 
+// Тип для хранения списка точек группы подписки вместе со атрибутами, входящими
+// в набор "триггеров", при изменении которых происходит детектирование события
+// групп подписки для данной точки.
+typedef std::vector<PointDescription_t*> SubscriptionPoints_t;
 
 // ------------------------------------------------------------
 
@@ -562,7 +719,11 @@ extern const xdb::DeTypeDescription_t rtDataElem[];
 extern int GetPointNameByAlias(univname_t&, univname_t&);
 // Хранилище описаний типов данных БДРВ
 extern const xdb::DbTypeDescription_t DbTypeDescription[];
+// Хранилище описаний типов в xdb_rtap_const.cpp
+extern const xdb::AttrTypeDescription_t AttrTypeDescription[];
 extern const xdb::DeTypeToDbTypeLink  DeTypeToDbType[];
+// Таблица соответствий размера данных атрибута его типу
+extern const uint16_t var_size[];
 
 // ------------------------------------------------------------
 

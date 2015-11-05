@@ -43,7 +43,7 @@ class RtData
      void setValue(float);
      void setValue(double);
      void setValue(char*);
-     void setValue(variable_t);
+     void setValue(dynamic_part);
 
      const Error& getLastError() const { return m_last_error; }
 

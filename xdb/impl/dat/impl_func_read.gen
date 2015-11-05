@@ -52,19 +52,7 @@ MCO_RET DatabaseRtapImpl::readCONVERTCOEFF(mco_trans_h&, rtap_db::XDBPoint&, Att
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::readCURRENT_SHIFT_TIME(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
 MCO_RET DatabaseRtapImpl::readDATEAINS(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
-MCO_RET DatabaseRtapImpl::readDATEHOURM(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
 {
   MCO_RET rc = MCO_S_OK;
   return rc;
@@ -82,12 +70,6 @@ MCO_RET DatabaseRtapImpl::readDELEGABLE(mco_trans_h&, rtap_db::XDBPoint&, Attrib
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::readDISPP(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
 MCO_RET DatabaseRtapImpl::readFLGMAINTENANCE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
 {
   MCO_RET rc = MCO_S_OK;
@@ -100,25 +82,7 @@ MCO_RET DatabaseRtapImpl::readFLGREMOTECMD(mco_trans_h&, rtap_db::XDBPoint&, Att
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::readFUNCTION(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
 MCO_RET DatabaseRtapImpl::readGRADLEVEL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
-MCO_RET DatabaseRtapImpl::readINHIB(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
-MCO_RET DatabaseRtapImpl::readINHIBLOCAL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
 {
   MCO_RET rc = MCO_S_OK;
   return rc;
@@ -220,13 +184,13 @@ MCO_RET DatabaseRtapImpl::readL_PIPELINE(mco_trans_h&, rtap_db::XDBPoint&, Attri
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::readL_SA(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+MCO_RET DatabaseRtapImpl::readL_TL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
 {
   MCO_RET rc = MCO_S_OK;
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::readL_TL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+MCO_RET DatabaseRtapImpl::readL_TM(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
 {
   MCO_RET rc = MCO_S_OK;
   return rc;
@@ -304,18 +268,6 @@ MCO_RET DatabaseRtapImpl::readPLANPRESSURE(mco_trans_h&, rtap_db::XDBPoint&, Att
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::readPREV_DISPATCHER(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
-MCO_RET DatabaseRtapImpl::readPREV_SHIFT_TIME(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
 MCO_RET DatabaseRtapImpl::readREMOTECONTROL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
 {
   MCO_RET rc = MCO_S_OK;
@@ -358,19 +310,7 @@ MCO_RET DatabaseRtapImpl::readTYPE(mco_trans_h&, rtap_db::XDBPoint&, AttributeIn
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::readUNITY(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
-MCO_RET DatabaseRtapImpl::readVAL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
-MCO_RET DatabaseRtapImpl::readVALACQ(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
+MCO_RET DatabaseRtapImpl::readUNITYCATEG(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
 {
   MCO_RET rc = MCO_S_OK;
   return rc;
@@ -382,31 +322,7 @@ MCO_RET DatabaseRtapImpl::readVALEX(mco_trans_h&, rtap_db::XDBPoint&, AttributeI
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::readVALID(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
-MCO_RET DatabaseRtapImpl::readVALIDACQ(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
-MCO_RET DatabaseRtapImpl::readVALIDCHANGE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
 MCO_RET DatabaseRtapImpl::readVAL_LABEL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
-MCO_RET DatabaseRtapImpl::readVALMANUAL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
 {
   MCO_RET rc = MCO_S_OK;
   return rc;

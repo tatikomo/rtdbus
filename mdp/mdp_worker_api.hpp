@@ -26,7 +26,7 @@ class mdwrk
     static const int HeartbeatInterval = HEARTBEAT_PERIOD_MSEC;
     //  ---------------------------------------------------------------------
     //  Constructor
-    mdwrk (std::string, std::string, int);
+    mdwrk (std::string, std::string, int=0, int=1);
 
     //  ---------------------------------------------------------------------
     //  Destructor
@@ -80,10 +80,10 @@ class mdwrk
     zmq::socket_t  * m_welcome;     //  Socket to subscribe on brokerless messages
     int              m_verbose;     //  Print activity to stdout
     //  Heartbeat management
-    int64_t          m_heartbeat_at;//  When to send HEARTBEAT
+    int64_t          m_heartbeat_at_msec;//  When to send HEARTBEAT
     size_t           m_liveness;    //  How many attempts left
-    int              m_heartbeat;   //  Heartbeat delay, msecs
-    int              m_reconnect;   //  Reconnect delay, msecs
+    int              m_heartbeat_msec;   //  Heartbeat delay, msecs
+    int              m_reconnect_msec;   //  Reconnect delay, msecs
     //  Internal state
     bool             m_expect_reply;//  Zero only at start
 

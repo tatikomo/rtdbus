@@ -6,14 +6,14 @@ if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   set (SYSTEM_EXTERNAL_LIBS
         socket
         rt
-        glog
+        pthread
         uuid)
   # XSD Synthethis
   include_directories("/usr/local/include")
 else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # LINUX
   set (SYSTEM_EXTERNAL_LIBS
-        glog)
+        pthread)
 endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
 include_directories(${LIBGLOG_INCLUDE_DIR})
@@ -56,6 +56,8 @@ set (WORKER_ECHO_SOURCES
 
 set (WORKER_DIGGER_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
+        ${TOOLS_DIR}/helper.hpp
+        ${TOOLS_DIR}/helper.cpp
         ${MDP_DIR}/mdp_zmsg.hpp
         ${MDP_DIR}/mdp_common.h
         ${MDP_DIR}/mdp_client_async_api.hpp
@@ -123,6 +125,7 @@ set_source_files_properties(${XDB_IMPL_DIR}/dat/rtap_db-pskel.hxx
 ##########################################################
 add_executable (${WORKER_TESTER} ${WORKER_TESTER_SOURCES})
 target_link_libraries(${WORKER_TESTER}
+    ${LIBGLOG_LIBRARIES}
     ${MDP_LIBRARY_NAME}
     ${MSG_LIBRARY_NAME}
     ${TOOLS_LIBRARY_NAME}
@@ -134,6 +137,7 @@ target_link_libraries(${WORKER_TESTER}
 ##########################################################
 add_executable (${WORKER_ECHO} ${WORKER_ECHO_SOURCES})
 target_link_libraries(${WORKER_ECHO}
+    ${LIBGLOG_LIBRARIES}
     ${MDP_LIBRARY_NAME}
     ${TOOLS_LIBRARY_NAME}
     ${SYSTEM_EXTERNAL_LIBS}
@@ -144,6 +148,7 @@ target_link_libraries(${WORKER_ECHO}
 ##########################################################
 add_executable (${WORKER_DIGGER} ${WORKER_DIGGER_SOURCES})
 target_link_libraries(${WORKER_DIGGER}
+    ${LIBGLOG_LIBRARIES}
     ${XDB_RTAP_IMPL_LIBRARY_NAME}
     ${XDB_RTAP_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
@@ -152,5 +157,4 @@ target_link_libraries(${WORKER_DIGGER}
     ${LIBPROTOBUF_LIBRARIES}
     ${SYSTEM_EXTERNAL_LIBS}
     ${LIBZMQ_LIBRARIES})
-#    ${LIBGLOG_LIBRARIES}
 

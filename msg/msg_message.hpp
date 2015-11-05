@@ -6,6 +6,7 @@
 
 #include "config.h"
 #include "msg_common.h"
+#include "xdb_common.hpp"
 
 #include "mdp_zmsg.hpp"
 
@@ -159,6 +160,7 @@ class Data
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 class MessageFactory
 {
+
   public:
     // Инициализация фабрики создания сообщений названием своего процесса
     MessageFactory(const char*);
@@ -174,6 +176,10 @@ class MessageFactory
 
     // Создание сообщения на основе фреймов заголовка и сериализованных данных.
     Letter* unserialize(const std::string&, const std::string&);
+
+    // Статичные методы для работы с конвертацией для атрибутов "Символьный тип" <=> "числовой тип"
+    static const char* GetDbNameFromType(xdb::DbType_t& db_t);
+    static bool GetDbTypeFromString(/* IN */ std::string& s_t, /* OUT */ xdb::DbType_t& db_t);
 
   private:
     DISALLOW_COPY_AND_ASSIGN(MessageFactory);

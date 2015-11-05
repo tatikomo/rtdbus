@@ -26,3 +26,6 @@ S STATUS             PUB        rtLOGICAL      0
 #F value              rtUINT16
 #F valid              rtUINT16
 #F dispatcher         rtBYTES20
+## TSC part
+S VAL                PUB        rtUINT16       1    
+S DATEHOURM          PUB        rtABS_TIME     

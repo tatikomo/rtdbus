@@ -1,5 +1,5 @@
 // Утилита для множественного чтения/записи данных в БДРВ
-// GEV 2013/01/01
+// GEV 2015/01/01
 ///////////////////////////////////////////////////////////////////////////
 
 #include <glog/logging.h>
@@ -15,6 +15,7 @@
 
 #include "mosquito.hpp"
 
+// ----------------------------------------------------------
 Mosquito::Mosquito(std::string broker, int verbose, WorkMode_t given_mode)
   : mdp::mdcli(broker, verbose),
     m_factory(new msg::MessageFactory("db_mosquito")),
@@ -22,205 +23,235 @@ Mosquito::Mosquito(std::string broker, int verbose, WorkMode_t given_mode)
 {
 }
 
+// ----------------------------------------------------------
 Mosquito::~Mosquito()
 {
   delete m_factory;
 }
 
+// ----------------------------------------------------------
 msg::Letter* Mosquito::recv()
 {
   msg::Letter* result = NULL;
   mdp::zmsg* req = mdcli::recv();
 
   if (req)
-     m_factory->create(req);
+  {
+    result = m_factory->create(req);
+    delete req;
+  }
 
   return result;
 }
 
+// ----------------------------------------------------------
 msg::Letter* Mosquito::create_message(rtdbMsgType type)
 {
   return m_factory->create(type);
 }
 
-// NB: этот массив содержит полные названия тегов, с атрибутом.
-xdb::AttributeInfo_t array_of_parameters[10] = {
-  { "/KD4001/GOV022.OBJCLASS", xdb::DB_TYPE_INT32,  0 },
-  { "/KD4001/GOV023.STATUS", xdb::DB_TYPE_UINT32, 0 },
-  { "/KD4001/GOV024.SA_ref", xdb::DB_TYPE_INT64,  0 },
-  { "/KD4001/GOV025.DATEHOURM", xdb::DB_TYPE_UINT64, 0 },
-  { "/KD4001/GOV026.VAL", xdb::DB_TYPE_FLOAT,  0 },
-  { "/KD4001/GOV027.VAL", xdb::DB_TYPE_DOUBLE, 0 },
-  { "/KD4001/GOV028.VAL", xdb::DB_TYPE_BYTES,  0 },
-  { "/KD4001/GOV029.VAL", xdb::DB_TYPE_BYTES4, 0 },
-  { "/KD4001/GOV030.VAL", xdb::DB_TYPE_BYTES48, 0 },
-  { "/KD4001/GOV031.SHORTLABEL", xdb::DB_TYPE_BYTES256, 0 }
-};
-
-void allocate_TestSINF_parameters()
+// ----------------------------------------------------------
+bool Mosquito::process_read_response(msg::Letter* report)
 {
-  for (int i=0; i<=9; i++)
+  bool status = false;
+  msg::ReadMulti* response = dynamic_cast<msg::ReadMulti*>(report);
+
+  for (std::size_t idx = 0; idx < response->num_items(); idx++)
   {
-    switch(array_of_parameters[i].type)
-    {
-      case xdb::DB_TYPE_INT32:
-        array_of_parameters[i].value.val_int32 = 1;
-#ifdef PRINT
-        printf("test[%d]=%s %d %d\n", i,
-                array_of_parameters[i].name.c_str(),
-                array_of_parameters[i].type,
-                array_of_parameters[i].value.val_int32);
-#endif
-      break;
-      case xdb::DB_TYPE_UINT32:
-        array_of_parameters[i].value.val_uint32 = 2;
-#ifdef PRINT
-        printf("test[%d]=%s %d %d\n", i,
-                array_of_parameters[i].name.c_str(),
-                array_of_parameters[i].type,
-                array_of_parameters[i].value.val_int32);
-#endif
-      break;
-      case xdb::DB_TYPE_INT64:
-        array_of_parameters[i].value.val_int64 = 3;
-#ifdef PRINT
-        printf("test[%d]=%s %d %lld\n", i,
-                array_of_parameters[i].name.c_str(),
-                array_of_parameters[i].type,
-                array_of_parameters[i].value.val_int64);
-#endif
-      break;
-      case xdb::DB_TYPE_UINT64:
-        array_of_parameters[i].value.val_uint64 = 4;
-#ifdef PRINT
-        printf("test[%d]=%s %d %lld\n", i,
-                array_of_parameters[i].name.c_str(),
-                array_of_parameters[i].type,
-                array_of_parameters[i].value.val_int64);
-#endif
-      break;
-      case xdb::DB_TYPE_FLOAT:
-        array_of_parameters[i].value.val_float = 5.678;
-#ifdef PRINT
-        printf("test[%d]=%s %d %f\n", i,
-                array_of_parameters[i].name.c_str(),
-                array_of_parameters[i].type,
-                array_of_parameters[i].value.val_float);
-#endif
-      break;
-      case xdb::DB_TYPE_DOUBLE:
-        array_of_parameters[i].value.val_double = 6.789;
-#ifdef PRINT
-        printf("test[%d]=%s %d %g\n", i,
-                array_of_parameters[i].name.c_str(),
-                array_of_parameters[i].type,
-                array_of_parameters[i].value.val_double);
-#endif
-      break;
-      case xdb::DB_TYPE_BYTES:
-        array_of_parameters[i].value.val_string = new std::string("Строка с русским текстом, цифрами 1 2 3, и точкой.");
-#ifdef PRINT
-        printf("test[%d]=%s %d \"%s\"\n", i,
-                array_of_parameters[i].name.c_str(),
-                array_of_parameters[i].type,
-                array_of_parameters[i].value.val_string->c_str());
-#endif
-      break;
-      case xdb::DB_TYPE_BYTES4:
-        array_of_parameters[i].value.val_bytes.size = 4;
-        array_of_parameters[i].value.val_bytes.data = new char[4 + 1];
-        strncpy(array_of_parameters[i].value.val_bytes.data, "русс", 4);
-        array_of_parameters[i].value.val_bytes.data[4] = '\0';
-#ifdef PRINT
-        printf("test[%d]=%s %d \"%s\"\n", i,
-                array_of_parameters[i].name.c_str(),
-                array_of_parameters[i].type,
-                array_of_parameters[i].val_bytes.data);
-#endif
-      break;
-      case xdb::DB_TYPE_BYTES48:
-        array_of_parameters[i].value.val_bytes.size = 48;
-        array_of_parameters[i].value.val_bytes.data = new char[48 + 1];
-        strncpy(array_of_parameters[i].value.val_bytes.data, "48:РУССКИЙ йцукен фывапрол", 48);
-        array_of_parameters[i].value.val_bytes.data[48] = '\0';
-#ifdef PRINT
-        printf("test[%d]=%s %d \"%s\"\n", i,
-                array_of_parameters[i].name.c_str(),
-                array_of_parameters[i].type,
-                array_of_parameters[i].value.val_bytes.data);
-#endif
-      break;
-      case xdb::DB_TYPE_BYTES256:
-        array_of_parameters[i].value.val_bytes.size = 256;
-        array_of_parameters[i].value.val_bytes.data = new char[256 + 1];
-        strncpy(array_of_parameters[i].value.val_bytes.data, "BYTES256:1234567890ABCDEFGHIJKLOMNOPQRSTUWXYZ", 256);
-        array_of_parameters[i].value.val_bytes.data[256] = '\0';
-#ifdef PRINT
-        printf("test[%d]=%s %d \"%s\"\n", i,
-                array_of_parameters[i].name.c_str(),
-                array_of_parameters[i].type,
-                array_of_parameters[i].value.val_bytes.data);
-#endif
-      break;
-      default:
-        std::cout << "бебе" << std::endl;
-      break;
-    }
+    const msg::Value& attr_val = response->item(idx);
+    std::cout << "type=" << attr_val.type() << "\t"
+              << attr_val.tag() << " = " << attr_val.as_string() << std::endl;
   }
+ 
+  return status;
 }
 
-void release_TestSINF_parameters()
+// ----------------------------------------------------------
+bool Mosquito::process_sbs_update_response(msg::Letter* report)
 {
-  for (int i=0; i<=9; i++)
+  bool status = false;
+  msg::SubscriptionEvent* response = dynamic_cast<msg::SubscriptionEvent*>(report);
+
+  std::cout << std::endl
+            << "exchg#" << response->header()->exchange_id()
+            << " intr#" << response->header()->interest_id()
+            << " orig:" << response->header()->proc_origin()
+            << " dest:" << response->header()->proc_dest()
+            << " tm:"   << response->header()->time_mark()
+            << std::endl;
+  for (std::size_t idx = 0; idx < response->num_items(); idx++)
   {
-    switch(array_of_parameters[i].type)
-    {
-      case xdb::DB_TYPE_BYTES:
-        delete array_of_parameters[i].value.val_bytes.data;
-      break;
-      case xdb::DB_TYPE_BYTES4:
-      case xdb::DB_TYPE_BYTES8:
-      case xdb::DB_TYPE_BYTES12:
-      case xdb::DB_TYPE_BYTES16:
-      case xdb::DB_TYPE_BYTES20:
-      case xdb::DB_TYPE_BYTES32:
-      case xdb::DB_TYPE_BYTES48:
-      case xdb::DB_TYPE_BYTES64:
-      case xdb::DB_TYPE_BYTES80:
-      case xdb::DB_TYPE_BYTES128:
-      case xdb::DB_TYPE_BYTES256:
-        delete [] array_of_parameters[i].value.val_bytes.data;
-      break;
-      default:
-        // do nothing
-      break;
-    }
+    const msg::Value& attr_val = response->item(idx);
+    std::cout << "type=" << attr_val.type() << "\t"
+              << attr_val.tag() << " = " << attr_val.as_string() << std::endl;
   }
+ 
+  return status;
+}
+
+// ----------------------------------------------------------
+// Подписаться на рассылку Группы для заданного Сервиса
+int Mosquito::subscript(const std::string& service_name, const std::string& group_name)
+{
+  int ret;
+
+  // 1. Проверить доступность Сервиса service_name, получив для него строку подключения
+  // 2. Подключиться к заданному Сервису
+  // 3. Послать Сервису сообщение об активации подписки
+  ret = mdcli::subscript(service_name, group_name);
+  return ret;
+}
+
+// ----------------------------------------------------------
+void* fillValueByType(xdb::AttributeInfo_t& attr_info, std::string& input_val)
+{
+//  std::cout << "check val: " << input_val << std::endl;
+  void* ret_val = NULL;
+  struct tm given_time;
+  std::string::size_type point_pos;
+
+  switch(attr_info.type)
+  {
+    case xdb::DB_TYPE_LOGICAL:
+        attr_info.value.fixed.val_bool = (atoi(input_val.c_str()) > 0);
+        ret_val = static_cast<void*>(&attr_info.value.fixed.val_bool);
+    break;
+    case xdb::DB_TYPE_INT8:
+        attr_info.value.fixed.val_int8 = atoi(input_val.c_str());
+        ret_val = static_cast<void*>(&attr_info.value.fixed.val_int8);
+    break;
+    case xdb::DB_TYPE_UINT8:
+        attr_info.value.fixed.val_uint8 = atoi(input_val.c_str());
+        ret_val = static_cast<void*>(&attr_info.value.fixed.val_uint8);
+    break;
+    case xdb::DB_TYPE_INT16:
+        attr_info.value.fixed.val_int16 = atoi(input_val.c_str());
+        ret_val = static_cast<void*>(&attr_info.value.fixed.val_int16);
+    break;
+    case xdb::DB_TYPE_UINT16:
+        attr_info.value.fixed.val_uint16 = atoi(input_val.c_str());
+        ret_val = static_cast<void*>(&attr_info.value.fixed.val_uint16);
+    break;
+    case xdb::DB_TYPE_INT32:
+        attr_info.value.fixed.val_int32 = atol(input_val.c_str());
+        ret_val = static_cast<void*>(&attr_info.value.fixed.val_int32);
+    break;
+    case xdb::DB_TYPE_UINT32:
+        attr_info.value.fixed.val_uint32 = atol(input_val.c_str());
+        ret_val = static_cast<void*>(&attr_info.value.fixed.val_uint32);
+    break;
+    case xdb::DB_TYPE_INT64:
+        attr_info.value.fixed.val_int64 = atoll(input_val.c_str());
+        ret_val = static_cast<void*>(&attr_info.value.fixed.val_int64);
+    break;
+    case xdb::DB_TYPE_UINT64:
+        attr_info.value.fixed.val_uint64 = atoll(input_val.c_str());
+        ret_val = static_cast<void*>(&attr_info.value.fixed.val_uint64);
+    break;
+    case xdb::DB_TYPE_FLOAT:
+        attr_info.value.fixed.val_float = atof(input_val.c_str());
+        ret_val = static_cast<void*>(&attr_info.value.fixed.val_float);
+    break;
+    case xdb::DB_TYPE_DOUBLE:
+        attr_info.value.fixed.val_double = atof(input_val.c_str());
+        ret_val = static_cast<void*>(&attr_info.value.fixed.val_double);
+    break;
+    case xdb::DB_TYPE_BYTES:
+        assert(attr_info.value.dynamic.val_string);
+        attr_info.value.dynamic.val_string->assign(input_val);
+        ret_val = static_cast<void*>(attr_info.value.dynamic.val_string);
+    break;
+
+    case xdb::DB_TYPE_BYTES4:
+    case xdb::DB_TYPE_BYTES8:
+    case xdb::DB_TYPE_BYTES12:
+    case xdb::DB_TYPE_BYTES16:
+    case xdb::DB_TYPE_BYTES20:
+    case xdb::DB_TYPE_BYTES32:
+    case xdb::DB_TYPE_BYTES48:
+    case xdb::DB_TYPE_BYTES64:
+    case xdb::DB_TYPE_BYTES80:
+    case xdb::DB_TYPE_BYTES128:
+    case xdb::DB_TYPE_BYTES256:
+        assert(attr_info.value.dynamic.varchar);
+        if (attr_info.value.dynamic.size <= xdb::var_size[attr_info.type])
+        {
+          strncpy(attr_info.value.dynamic.varchar,
+                  input_val.c_str(),
+                  attr_info.value.dynamic.size);
+        }
+        else
+        {
+          LOG(ERROR) << "Allocated buffer (" << attr_info.value.dynamic.size
+                     << " less then needed (" << xdb::var_size[attr_info.type];
+        }
+        ret_val = static_cast<void*>(attr_info.value.dynamic.val_string);
+    break;
+
+    case xdb::DB_TYPE_ABSTIME:
+        strptime(input_val.c_str(), D_DATE_FORMAT_STR, &given_time);
+        attr_info.value.fixed.val_time.tv_sec = given_time.tm_sec;
+        point_pos = input_val.find_last_of('.');
+
+       // Если точка найдена, и она не последняя в строке
+        if ((point_pos != std::string::npos) && point_pos != input_val.size())
+          attr_info.value.fixed.val_time.tv_usec = atoi(input_val.substr(point_pos + 1).c_str());
+        else
+          attr_info.value.fixed.val_time.tv_usec = 0;
+
+        ret_val = static_cast<void*>(&attr_info.value.fixed.val_time);
+    break;
+
+    case xdb::DB_TYPE_UNDEF:
+        // TODO: что делать при попытке сохранения данных неопределенного типа?
+      std::cerr << "E: Undefined type " << attr_info.type << std::endl;
+    break;
+
+    default:
+      std::cerr << "E: Unsupported type " << attr_info.type << std::endl;
+    break;
+  }
+
+  return ret_val;
 }
 
 #if !defined _FUNCTIONAL_TEST
 
+// ----------------------------------------------------------
 int main (int argc, char *argv [])
 {
   Mosquito  *mosquito  = NULL;
   mdp::zmsg         *transport_cell = NULL;
   msg::Letter       *request   = NULL;
   msg::Letter       *report    = NULL;
+  // Множественное чтение
   msg::ReadMulti    *read_msg  = NULL;
+  // Множественная запись
   msg::WriteMulti   *write_msg = NULL;
+  // Управление Группами Подписки
+  msg::SubscriptionControl *sbs_ctrl_msg = NULL;
+  // Событие Группы Подписки
+  //msg::SubscriptionEvent *sbs_event_msg = NULL;
+  std::string group_name;
+  bool is_group_name_given = false;
   //msg::ProbeMsg   *probe_msg = NULL; Не реализовано
   int        opt;
   int        verbose;
-  mdp::ChannelType channel = mdp::ChannelType::PERSISTENT;
-  char one_argument[SERVICE_NAME_MAXLEN + 1];
-  char service_endpoint[ENDPOINT_MAXLEN + 1];
+  // прямые сообщения в адрес Сервиса
+  mdp::ChannelType channel = mdp::ChannelType::DIRECT;
+  char one_argument[SERVICE_NAME_MAXLEN + 1] = "";
+  char service_endpoint[ENDPOINT_MAXLEN + 1] = "";
   int service_status;   // 200|400|404|501
   // название Сервиса
   std::string service_name;
   bool is_service_name_given = false;
   Mosquito::WorkMode_t mode;
+  bool stop_receiving = false;
+  std::string input_tag, input_type, input_val;
+  int num = 0;
+  xdb::AttributeInfo_t attr_info;
 
-  while ((opt = getopt (argc, argv, "vds:m:")) != -1)
+  while ((opt = getopt (argc, argv, "vs:m:g:")) != -1)
   {
     switch (opt)
     {
@@ -228,17 +259,13 @@ int main (int argc, char *argv [])
           verbose = 1;
           break;
 
-        case 'd': // Direct - прямые сообщения в адрес Сервиса
-          channel = mdp::ChannelType::DIRECT;
-        break;
-
         case 's':
           strncpy(one_argument, optarg, SERVICE_NAME_MAXLEN);
           one_argument[SERVICE_NAME_MAXLEN] = '\0';
           service_name.assign(one_argument);
           is_service_name_given = true;
           std::cout << "Destination service is \"" << service_name << "\"" << std::endl;
-        break;
+          break;
 
         case 'm': // mode - режим работы, запись или чтение в БДРВ
           strncpy(one_argument, optarg, SERVICE_NAME_MAXLEN);
@@ -250,11 +277,21 @@ int main (int argc, char *argv [])
             mode = Mosquito::MODE_WRITE;
           else if (0 == strncmp(one_argument, OPTION_MODE_PROBE, SERVICE_NAME_MAXLEN))
             mode = Mosquito::MODE_PROBE;
+          else if (0 == strncmp(one_argument, OPTION_MODE_SUBSCRIBE, SERVICE_NAME_MAXLEN))
+            mode = Mosquito::MODE_SUBSCRIBE;
           else {
             std::cout << "Unknown work mode, will use PROBE" << std::endl;
             mode = Mosquito::MODE_PROBE;
           }
-        break;
+          break;
+
+        case 'g': // название группы
+          strncpy(one_argument, optarg, SERVICE_NAME_MAXLEN);
+          one_argument[SERVICE_NAME_MAXLEN] = '\0';
+          group_name.assign(one_argument);
+          std::cout << "Group name is \"" << group_name << "\"" << std::endl;
+          is_group_name_given = true;
+          break;
 
         case '?':
           if ((optopt == 's') || (optopt == 'm'))
@@ -274,7 +311,11 @@ int main (int argc, char *argv [])
 
   if (!is_service_name_given)
   {
-    std::cout << "Service name not given.\nUse -s <name> [-v] [-d] [-m <mode>] option.\n";
+    std::cout << "Service name not given.\n"
+              << "Use -s <service_name> [-v] "
+              << "[-g <sbs_name>] "
+              << "[-m <read|write|probe|sup>] "
+              << "option.\n";
     return(1);
   }
   std::cout << "Will use work mode " << mode << std::endl;
@@ -283,72 +324,88 @@ int main (int argc, char *argv [])
 
   try
   {
-    allocate_TestSINF_parameters();
-
     // Подготовить сообщение, заполнив названия интересующих тегов
     switch(mode)
     {
       case Mosquito::MODE_READ:
+      //----------------------------
         request = mosquito->create_message(SIG_D_MSG_READ_MULTI);
         read_msg = dynamic_cast<msg::ReadMulti*>(request);
         assert(read_msg);
+        num = 0;
 
-        for (int idx = 0; idx < 10; idx++)
+        while (std::cin >> input_tag)
         {
-            if (array_of_parameters[idx].type == xdb::DB_TYPE_BYTES)
-            {
-            read_msg->add(array_of_parameters[idx].name,
-                              array_of_parameters[idx].type,
-                              static_cast<void*>(array_of_parameters[idx].value.val_string));
-            }
-            else if ((xdb::DB_TYPE_BYTES4 <= array_of_parameters[idx].type)
-                  && (array_of_parameters[idx].type <= xdb::DB_TYPE_BYTES256))
-            {
-            read_msg->add(array_of_parameters[idx].name,
-                              array_of_parameters[idx].type,
-                              static_cast<void*>(array_of_parameters[idx].value.val_bytes.data));
-            }
-            else
-            {
-            read_msg->add(array_of_parameters[idx].name,
-                              array_of_parameters[idx].type,
-                              static_cast<void*>(&array_of_parameters[idx].value.val_uint64));
-            }
+            read_msg->add(input_tag, xdb::DB_TYPE_UNDEF, 0);
+            num++;
         }
-      break;
+        LOG(INFO) << "Ready to read " << num << " parameters";
+        break;
 
       case Mosquito::MODE_WRITE:
+      //----------------------------
         request = mosquito->create_message(SIG_D_MSG_WRITE_MULTI);
         write_msg = dynamic_cast<msg::WriteMulti*>(request);
         assert(write_msg);
+        num = 0;
 
-        for (int idx = 0; idx < 10; idx++)
+        while (std::cin >> input_tag >> input_type >> input_val)
         {
-            if (array_of_parameters[idx].type == xdb::DB_TYPE_BYTES)
+          // Получить числовое значение типа по его символьному представлению
+          if ((true == mosquito->message_factory()->GetDbTypeFromString(input_type, attr_info.type))
+           && (xdb::DB_TYPE_UNDEF != attr_info.type))
+          {
+            // Попытаться прочитать значение в соответствии с прочитанным ранее типом
+            if (fillValueByType(attr_info, input_val))
             {
-            write_msg->add(array_of_parameters[idx].name,
-                              array_of_parameters[idx].type,
-                              static_cast<void*>(array_of_parameters[idx].value.val_string));
+              attr_info.name.assign(input_tag);
+              write_msg->add(attr_info.name, attr_info.type, static_cast<void*>(&attr_info.value));
+              num++;
             }
-            else if ((xdb::DB_TYPE_BYTES4 <= array_of_parameters[idx].type)
-                  && (array_of_parameters[idx].type <= xdb::DB_TYPE_BYTES256))
-            {
-            write_msg->add(array_of_parameters[idx].name,
-                              array_of_parameters[idx].type,
-                              static_cast<void*>(array_of_parameters[idx].value.val_bytes.data));
-            }
-            else
-            {
-            write_msg->add(array_of_parameters[idx].name,
-                              array_of_parameters[idx].type,
-                              static_cast<void*>(&array_of_parameters[idx].value.val_uint64));
-            }
+          }
         }
-      break;
+
+        if (!num)
+        {
+          delete request;
+          request = NULL;
+        }
+        LOG(INFO) << "Ready to write " << num << " parameters";
+        break;
 
       case Mosquito::MODE_PROBE:
+      //----------------------------
         request = NULL; // TODO: 2015/06/30 не реализовано
-      break;
+        break;
+
+      case Mosquito::MODE_SUBSCRIBE:
+      //----------------------------
+        // 1. Инициировать активацию подписки (NB: по умолчанию они все
+        //    активны при создании). При этом сервер отвечает сообщением
+        //    SIG_D_MSG_GRPSBS, содержащим ВСЕ значения группы (без учета
+        //    признака модификации).
+        // 2. Прочитать мгновенный срез всех значений атрибутов Группы
+        // 3. Ожидать обновления сообщения или сигнала о завершении работы
+        if (is_group_name_given)
+        {
+          // Активируем сокет подписки
+          if (0 == mosquito->subscript(service_name, group_name))
+          {
+            // Сообщим Службе о готовности к приему данных
+            request = mosquito->create_message(SIG_D_MSG_GRPSBS_CTRL);
+            assert(request);
+            sbs_ctrl_msg = dynamic_cast<msg::SubscriptionControl*>(request);
+            sbs_ctrl_msg->set_name(group_name);
+            // TODO: ввести перечисление возможных кодов
+            // Сейчас (2015-10-01) 0 = SUSPEND, 1 = ENABLE 
+            sbs_ctrl_msg->set_ctrl(1); // TODO: ввести перечисление возможных кодов
+          }
+        }
+        else
+        {
+          std::cerr << "SBS group name not supported, use '-g <name>'" << std::endl;
+        }
+        break;
     }
 
     // Есть чего сказать миру?
@@ -366,24 +423,24 @@ int main (int argc, char *argv [])
           break;
 
           case 400:
-          std::cout << service_name << " status BAD_REQUEST : " << service_status << std::endl;
+          std::cerr << service_name << " status BAD_REQUEST : " << service_status << std::endl;
           break;
 
           case 404:
-          std::cout << service_name << " status NOT_FOUND : " << service_status << std::endl;
+          std::cerr << service_name << " status NOT_FOUND : " << service_status << std::endl;
           break;
 
           case 501:
-          std::cout << service_name << " status NOT_SUPPORTED : " << service_status << std::endl;
+          std::cerr << service_name << " status NOT_SUPPORTED : " << service_status << std::endl;
           break;
 
           default:
-          std::cout << service_name << " status UNKNOWN : " << service_status << std::endl;
+          std::cerr << service_name << " status UNKNOWN : " << service_status << std::endl;
       }
 
       if (200 != service_status)
       {
-          std::cout << "Service '" << service_name << "' is not running, exiting" << std::endl;
+          std::cerr << "Service '" << service_name << "' is not running, exiting" << std::endl;
           exit(service_status);
       }
 
@@ -403,11 +460,25 @@ int main (int argc, char *argv [])
     std::string cause_text = "";
     msg::ExecResult *resp = NULL;
 
+    stop_receiving = false;
+
     //  Wait for report
-    while (1) {
+    while (!stop_receiving) {
+
         report = mosquito->recv ();
         if (report == NULL)
+        {
+          if (Mosquito::MODE_SUBSCRIBE == mode)
+          {
+            // Превышен таймаут получения данных, можно подождать еще
+            std::cout << ".";
+            continue;
+          }
+          {
+            stop_receiving = true;
             break;
+          }
+        }
 
         switch(report->header()->usr_msg_type())
         {
@@ -420,21 +491,45 @@ int main (int argc, char *argv [])
                       << " status=" << resp->exec_result()
                       << " code=" << cause_code
                       << " text=\"" << cause_text << "\"" << std::endl;
-          break;
+
+            stop_receiving = true;
+            break;
 
           case SIG_D_MSG_READ_MULTI:
             std::cout << "Got SIG_D_MSG_READ_MULTI response: "
                       << report->header()->usr_msg_type() << std::endl;
-          break;
+            mosquito->process_read_response(report);
+            if (Mosquito::MODE_SUBSCRIBE == mode)
+            {
+              // Для режима подписки это сообщение приходят однократно,
+              // для инициализации начальных значений атрибутов из группы
+              stop_receiving = false;
+            }
+            else
+            {
+              stop_receiving = true;
+            }
+            break;
 
           // NB: не должно быть такого ответа, должен быть ExecResult 
           case SIG_D_MSG_WRITE_MULTI:
-            std::cout << "Error: expect ExecResult but received SIG_D_MSG_WRITE_MULTI response: "
+            std::cerr << "Error: expect ExecResult but received SIG_D_MSG_WRITE_MULTI response: "
                       << report->header()->usr_msg_type() << std::endl;
-          break;
+            stop_receiving = true;
+            break;
+
+          // Очередная порция обновленных данных.
+          // Поступают циклически, без запроса.
+          case SIG_D_MSG_GRPSBS:
+//1            std::cout << "Bulk SBS update: "
+//1                      << report->header()->usr_msg_type()
+//1                      << std::endl;
+            mosquito->process_sbs_update_response(report);
+            stop_receiving = false;
+            break;
 
           default:
-            std::cout << "Got unsupported response type: "
+            std::cerr << "Got unsupported response type: "
                       << report->header()->usr_msg_type() << std::endl;
         }
 
@@ -443,10 +538,14 @@ int main (int argc, char *argv [])
   }
   catch (zmq::error_t err)
   {
-      std::cout << "E: " << err.what() << std::endl;
+      std::cerr << "E: " << err.what() << std::endl;
   }
 
+#if 0
+  // for valgrind joy!
   release_TestSINF_parameters();
+#endif
+
   delete mosquito;
   return 0;
 }

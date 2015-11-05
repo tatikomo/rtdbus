@@ -75,6 +75,7 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     <xs:enumeration value="L_EQTORBORUPS"/>
     <xs:enumeration value="L_EQTORBORDWN"/>
     <xs:enumeration value="L_TL"/>
+    <xs:enumeration value="L_TM"/>
     <xs:enumeration value="L_CONSUMER"/>
     <xs:enumeration value="L_CORRIDOR"/>
     <xs:enumeration value="REMOTECONTROL"/>
@@ -88,6 +89,7 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     <xs:enumeration value="KMREFUPS"/>
     <xs:enumeration value="KMREFDWN"/>
     <xs:enumeration value="UNITY"/>
+    <xs:enumeration value="UNITYCATEG"/>
   </xs:restriction>
 </xs:simpleType>
 
@@ -196,7 +198,7 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     <xs:enumeration value="DB_XREF"/>
     <xs:enumeration value="DATE"/>
     <xs:enumeration value="TIME_OF_DAY"/>
-    <xs:enumeration value="ASB_TIME"/>
+    <xs:enumeration value="ABS_TIME"/>
   </xs:restriction>
 </xs:simpleType>
 

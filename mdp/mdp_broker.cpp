@@ -45,6 +45,8 @@ Broker::Broker (bool verbose) :
     //  Initialize broker state
     m_context = new zmq::context_t(1);
     m_socket = new zmq::socket_t(*m_context, ZMQ_ROUTER);
+    LOG(INFO) << "broker new socket_t " << m_socket;
+
     m_heartbeat_at = s_clock () + Broker::HeartbeatInterval;
     m_database = new xdb::DatabaseBroker();
 }
@@ -58,7 +60,8 @@ bool Broker::Init()
   status = m_database->Connect();
   if (status)
   {
-    status = bind();
+    status = Bind();
+    LOG(INFO) << "Init Bind m_socket " << m_socket;
   }
 
   if (true == status)
@@ -93,7 +96,7 @@ Broker::~Broker ()
 //  Bind broker to endpoint, can call this multiple times
 //  We use a single socket for both clients and workers.
 bool
-Broker::bind ()
+Broker::Bind ()
 {
     bool status = false;
     size_t pos;
@@ -116,6 +119,7 @@ Broker::bind ()
       m_socket->bind(m_endpoint.c_str());
       LOG(INFO) << "MDP Broker/0.2.0 is active at " << m_endpoint;
       status = true;
+      LOG(INFO) << "Bind bind() m_socket " << m_socket;
     }
     catch(zmq::error_t err)
     {
@@ -377,7 +381,8 @@ Broker::service_internal (const std::string& service_name, zmsg *msg)
   msg->push_front(const_cast<char*>(MDPC_REPORT));
   msg->push_front(const_cast<char*>(MDPC_CLIENT));
   msg->wrap (client, EMPTY_FRAME);
-  msg->dump();
+  if (m_verbose)
+    msg->dump();
   msg->send (*m_socket);
 
   delete [] client;
@@ -411,6 +416,13 @@ Broker::release (xdb::Worker *&wrk, int disconnect)
   bool status;
 
   assert (wrk);
+  if (!wrk)
+  {
+    // Возможно получен HEARTBEAT от незарегистрированной Службы.
+    // Может быть после перезапуска Брокера без перезапуска Служб.
+    return false;
+  }
+
   if (disconnect) 
   {
     worker_send (wrk->GetIDENTITY(), MDPW_DISCONNECT, EMPTY_FRAME);
@@ -468,7 +480,7 @@ Broker::worker_process_READY(xdb::Worker*& worker,
       // NB: Service creation is only possible on first workers call
       service = service_require(service_name);
       assert (service);
-      LOG(INFO) << "Get endpoint '" << endpoint << "' from worker";
+      LOG(INFO) << "Get endpoint '" << endpoint << "' for service " << service_name;
       service->SetENDPOINT(endpoint.c_str());
       m_database->Update(service);
 
@@ -860,11 +872,13 @@ Broker::start_brokering()
 {
    // Если инициализация не прошла, завершить работу
    interrupt_broker = (Init() == true)? 0 : 1;
+   LOG(INFO) << "start_brokering use m_socket " << m_socket;
 
    while (!interrupt_broker)
    {
-       zmq::pollitem_t items [] = {
-           { *m_socket,  0, ZMQ_POLLIN, 0 } };
+       zmq::pollitem_t items[] = { { (void*)*m_socket, 0, ZMQ_POLLIN, 0 } };
+
+//       LOG(INFO) << "wait polling use m_socket " << m_socket;
        zmq::poll (items, 1, Broker::PollInterval);
 
        // Можно не посылать HEARTBEAT если от службы

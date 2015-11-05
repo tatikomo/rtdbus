@@ -30,6 +30,7 @@ include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${LIBGLOG_LIBRARIES_DIR})
+link_directories(${LIBZMQ_LIBRARIES_DIR})
 
 add_custom_command(
         OUTPUT 
@@ -86,9 +87,9 @@ set (XDB_RTAP_SNAP_SOURCES
         ${XDB_IMPL_DIR}/dat/rtap_db.h
         ${XDB_IMPL_DIR}/dat/rtap_db.hpp
         ${XDB_IMPL_DIR}/dat/rtap_db.c
+        ${XDB_COMMON_DIR}/xdb_common.cpp
+        ${XDB_COMMON_DIR}/xdb_common.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_common.h
-        ${XDB_RTAP_DIR}/xdb_rtap_const.cpp
-        ${XDB_RTAP_DIR}/xdb_rtap_const.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_snap.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_snap_main.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_snap_trans.cpp
@@ -101,8 +102,8 @@ set (XDB_RTAP_SOURCES
         ${TOOLS_DIR}/helper.hpp
         ${TOOLS_DIR}/helper.cpp
         ${MSG_DIR}/msg_message.hpp
-        ${XDB_RTAP_DIR}/xdb_rtap_const.cpp
-        ${XDB_RTAP_DIR}/xdb_rtap_const.hpp
+        ${XDB_COMMON_DIR}/xdb_common.cpp
+        ${XDB_COMMON_DIR}/xdb_common.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_common.h
         ${XDB_RTAP_DIR}/xdb_rtap_database.cpp
         ${XDB_RTAP_DIR}/xdb_rtap_database.hpp
@@ -143,9 +144,10 @@ target_link_libraries(${XDB_RTAP_LIBRARY_NAME}
 
 add_executable (${XDB_RTAP_SNAP_NAME} ${XDB_RTAP_SNAP_SOURCES})
 target_link_libraries(${XDB_RTAP_SNAP_NAME}
+    ${LIBGLOG_LIBRARIES}
     ${XDB_RTAP_LIBRARY_NAME}
     ${XDB_RTAP_IMPL_LIBRARY_NAME}
-    ${LIBGLOG_LIBRARIES}
+    ${LIBZMQ_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${SYSTEM_EXTERNAL_LIBS})
 

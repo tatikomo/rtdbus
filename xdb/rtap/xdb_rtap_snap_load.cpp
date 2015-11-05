@@ -1,14 +1,17 @@
 #include <assert.h>
 #include <xercesc/util/PlatformUtils.hpp>
 
+#include <unordered_set>
+
 #include "glog/logging.h"
 
 #if defined HAVE_CONFIG_H
 #include "config.h"
 #endif
 
+#include "xdb_common.hpp"
+
 #include "xdb_rtap_snap.hpp"
-#include "xdb_rtap_const.hpp"
 #include "xdb_rtap_database.hpp"
 #include "xdb_rtap_environment.hpp"
 #include "xdb_rtap_connection.hpp"
@@ -20,13 +23,18 @@
 #include "dat/rtap_db_dict-pskel.hxx"
 
 // Загрузка контента из XML файла формата rtap_db.xsd
-#include "dat/rtap_db.hpp"
+//#include "dat/rtap_db.hpp" // конфликт DIR между rtap_db.hpp и dirent.h
 #include "dat/rtap_db.hxx"
 #include "dat/rtap_db-pimpl.hxx"
 #include "dat/rtap_db-pskel.hxx"
 
+#include <sys/types.h> // работа с каталогами
+#include <dirent.h>    // работа с каталогами
+
 using namespace xdb;
 using namespace xercesc;
+
+const char *GROUP_CATALOG_NAME = "GROUP_CATALOG.";
 
 // ------------------------------------------------------------
 // Загрузить в БДРВ свежепрочитанные из XML таблицы НСИ
@@ -48,30 +56,47 @@ bool loadXmlContent(RtEnvironment* env,
                     const char* filename,
                     rtap_db::Points&);
 // ------------------------------------------------------------
+// Загрузить Группы подписки
+bool loadSubscriptionGroups(RtEnvironment* env, const char* env_path);
+// ------------------------------------------------------------
+bool process_group(RtConnection*, const char*, const char*);
+int filter(const struct dirent*);
+// ------------------------------------------------------------
 
+
+// ==================================================================
 // Прочитать все содержимое БД, расположенное в виде набора XML-файлов
 // формата XScheme (rtap_db.xsd и rtap_db_dict.xsd)
-bool xdb::loadFromXML(RtEnvironment* env, const char* filename)
+bool xdb::loadFromXML(RtEnvironment* env, const char* env_path)
 {
+  char file_path[400+1];
   rtap_db::Points point_list;
   rtap_db_dict::Dictionaries_t dictionary;
   bool status = false;
 
-  status = loadXmlDictionaries(env, filename, dictionary);
+  snprintf(file_path, sizeof(file_path), "%s/%s", env_path, INSTANCES_FILE_XML);
+
+  status = loadXmlDictionaries(env, file_path, dictionary);
   if (!status)
   {
-    LOG(ERROR) << "Dictionary '" << env->getName() << "' doesn't load";
+    LOG(ERROR) << "Load '" << env->getName() << "' dictionaries";
     return false;
   }
 
-  status = loadXmlContent(env, filename, point_list);
+  status = loadXmlContent(env, file_path, point_list);
   if (!status)
   {
-    LOG(ERROR) << "Content '" << env->getName() << "' doesn't load";
+    LOG(ERROR) << "Load '" << env->getName() << "' content";
     return false;
   }
 
   applyClassListToDB(env, dictionary, point_list);
+
+  status = loadSubscriptionGroups(env, env_path);
+  if (!status)
+  {
+    LOG(WARNING) << "Load '" << env->getName() << "' subscription groups";
+  }
 
 #ifdef USE_EXTREMEDB_HTTP_SERVER
   // При использовании встроенного в БДРВ HTTP-сервера можно
@@ -83,6 +108,7 @@ bool xdb::loadFromXML(RtEnvironment* env, const char* filename)
   return status;
 }
 
+// ==================================================================
 bool loadXmlDictionaries(RtEnvironment* env,
                          const char* filename,
                          rtap_db_dict::Dictionaries_t& dict)
@@ -166,6 +192,7 @@ bool loadXmlDictionaries(RtEnvironment* env,
   return true;
 }
 
+// ==================================================================
 bool loadXmlContent(RtEnvironment* env, const char* filename, rtap_db::Points& pl)
 {
   bool status = false;
@@ -234,7 +261,135 @@ bool loadXmlContent(RtEnvironment* env, const char* filename, rtap_db::Points& p
   return status;
 }
 
+// Загрузить Группы Подписки
+// ==================================================================
+// Алгоритм:
+// 1. Ищем в рабочем каталоге файлы GROUP_CATALOG.{название группы}
+// 2. Цикл по списку найденных групп подписки
+// 2.1. Читать файлы {название группы} с перечнем динамических атрибутов
+// 2.2. 
+bool loadSubscriptionGroups(RtEnvironment* env, const char *work_env)
+{
+  bool status = false;
+  struct dirent **namelist;
+  int n;
+
+  n = scandir(work_env, &namelist, filter, alphasort);
+  if (n < 0)
+  {
+    perror("scandir");
+  }
+  else
+  {
+    while (n--)
+    {
+      status = process_group(env->getConnection(), work_env, namelist[n]->d_name);
+      free(namelist[n]);
+    }
+    free(namelist);
+  }
+
+  return status;
+}
+
+int filter(const struct dirent *entry)
+{
+  int ret = 0;
+
+  if (0 == (strncmp(entry->d_name, GROUP_CATALOG_NAME, strlen(GROUP_CATALOG_NAME))))
+    ret = 1;
+
+  return ret;
+}
+
+// work_env - рабочий каталог
+// file_name - название файла с описанием группы (e.x. GROUP_CATALOG.KD2022_SS)
+bool process_group(RtConnection *conn, const char* work_env, const char* file_name)
+{
+  rtDbCq operation;
+  std::vector<std::string> tags_list;
+  xdb::Error result;
+  bool stat = false;
+  std::string group_file_name;
+  char one_line[200+1];
+  std::string point_name;
+  std::string sbs_group_name;
+  std::unordered_set <std::string> sbs_points_set;
+  const char *group_name = NULL;
+  const char *last_point = NULL;
+  FILE *group_file = NULL;
+
+  // Вырезать из названия файла GROUP_CATALOG.KD2022_SS
+  group_name = strrchr(file_name, '.');
+  if (group_name)
+  {
+    // Пропустить символ '.'
+    group_name++;
+
+    sbs_group_name.assign(group_name);
+    // Собрать имя файла группы
+    group_file_name.assign(work_env);
+    group_file_name += "/";
+    group_file_name += sbs_group_name;
+    // Удалось открыть файл группы?
+    if (NULL != (group_file = fopen(group_file_name.c_str(), "rw")))
+    {
+      LOG(INFO) << "Read group name: " << sbs_group_name;
+    
+      while(fgets(one_line, 200, group_file))
+      {
+        last_point = strrchr(one_line, '.');
+        if (last_point)
+        {
+          point_name.assign(one_line, last_point - one_line);
+          sbs_points_set.insert(point_name);
+        }
+      }
+
+      fclose(group_file);
+
+      // У данной Группы непустое множество Точек
+      if (sbs_points_set.size())
+      {
+#if 0
+        // Допустимо только в c++11
+        for (const std::string& x: sbs_points_set)
+        {
+          tags_list.push_back(x);
+        }
+#else
+        for (std::unordered_set <std::string>::iterator it=sbs_points_set.begin();
+             it != sbs_points_set.end();
+             it++)
+        {
+          tags_list.push_back(*it);
+        }
+#endif
+
+        operation.buffer = static_cast<void*>(&sbs_group_name);
+        // Тип конфигурирования - создание группы подписки
+        operation.action.config = rtCONFIG_ADD_GROUP_SBS;
+        // Название точек, входящих в набор создаваемой группы
+        operation.tags = &tags_list;
+        operation.addrCnt = tags_list.size();
+        result = conn->ConfigDatabase(operation);
+        if (!result.Ok())
+        {
+          LOG(ERROR) << "Configure SBS '" << sbs_group_name << "': " << result.what();
+        }
+        else
+        {
+          stat = true;
+        }
+      }
+    }
+  }
+
+  return stat;
+}
+
 // Загрузить в БДРВ свежепрочитанные из XML таблицы НСИ
+// ==================================================================
 void applyDictionariesToDB(RtEnvironment* env, rtap_db_dict::Dictionaries_t& dict)
 {
   rtDbCq command;
@@ -279,6 +434,7 @@ void applyDictionariesToDB(RtEnvironment* env, rtap_db_dict::Dictionaries_t& dic
   // DICT_INFOTYPES     (элемент XML: INFO_TYPES)
 }
 
+// ==================================================================
 void applyClassListToDB(RtEnvironment* env, rtap_db_dict::Dictionaries_t& dict, rtap_db::Points &pl)
 {
   unsigned int index;

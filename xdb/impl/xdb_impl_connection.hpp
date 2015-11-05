@@ -19,21 +19,22 @@ extern "C" {
 
 namespace xdb {
 
-//class EnvironmentImpl;
 class DatabaseRtapImpl;
 
 class ConnectionImpl
 {
   public:
-    ConnectionImpl(DatabaseRtapImpl* /*EnvironmentImpl *env*/);
+    ConnectionImpl(DatabaseRtapImpl*);
    ~ConnectionImpl();
 
-    mco_db_h handle();
-
+    // Состояние подключения
+    ConnectionState_t state() { return m_state; };
     // Найти точку с указанным тегом
     rtap_db::Point* locate(const char*);
     // Прочитать значение конкретного атрибута
     const Error& read(AttributeInfo_t*);
+    // Прочитать значения атрибутов указанной группы подписки
+    const Error& read(std::string&, int*, SubscriptionPoints_t*);
     // Записать значение конкретного атрибута
     const Error& write(const AttributeInfo_t*);
     // Изменить значения атрибутов указанной точки
@@ -49,12 +50,16 @@ class ConnectionImpl
 
   private:
     DISALLOW_COPY_AND_ASSIGN(ConnectionImpl);
-    // Среда подключения
-    // EnvironmentImpl *m_env_impl;
     // Имплементация Базы данных
     DatabaseRtapImpl *m_rtap_db_impl;
     // Хендл экземпляра подключения
     mco_db_h m_database_handle;
+    // Состояние подключения.
+    // NB: Состояния объектов базы и подключения могут не совпадать,
+    // поскольку база имеет ограничения на количество подключений. В этом
+    // случае старые подключения могут работать, а новые подключения - нет.
+    ConnectionState_t m_state;
+    Error m_last_error;
 };
 
 } // namespace xdb

@@ -57,7 +57,7 @@ int interrupt_worker = 0;
 static void signal_handler (int signal_value)
 {
     interrupt_worker = 1;
-    LOG(INFO) << "Got signal "<<signal_value;
+    LOG(INFO) << "Got signal "<<signal_value<<", interrupt_worker="<<&interrupt_worker;
     // TODO: активировать нить-сторожа для принудительного удаления "зависших" процессов и ресурсов
 }
 
@@ -73,28 +73,29 @@ static void catch_signals ()
 }
 
 // Базовый экземпляр Службы
-mdwrk::mdwrk (std::string broker_endpoint, std::string service, int verbose) :
-  m_context(1),
+mdwrk::mdwrk (std::string broker_endpoint, std::string service, int _verbose, int num_threads) :
+  m_context(num_threads),
   m_broker_endpoint(broker_endpoint),
   m_service(service),
   m_welcome_endpoint(NULL),
   m_worker(NULL),
   m_welcome(NULL),
-  m_verbose(verbose),
+  m_verbose(_verbose),
+  m_heartbeat_at_msec(0),
   m_liveness(HEARTBEAT_LIVENESS),
-  m_heartbeat(HeartbeatInterval), //  msecs
-  m_reconnect(HeartbeatInterval), //  msecs
+  m_heartbeat_msec(HeartbeatInterval), //  msecs
+  m_reconnect_msec(HeartbeatInterval), //  msecs
   m_expect_reply(false)
 {
     s_version_assert (3, 2);
 
     catch_signals ();
 
-    LOG(INFO) << "mdwrk new context " << m_context;
+    LOG(INFO) << "mdwrk new context"; // << m_context;
 
     // Обнулим хранище данных сокетов для zmq::poll
     // Заполняется хранилище в функциях connect_to_*
-    memset (static_cast<void*>(m_socket_items), '\0', sizeof(zmq::pollitem_t) * SOCKET_COUNT);
+//1    memset (static_cast<void*>(m_socket_items), '\0', sizeof(zmq::pollitem_t) * SOCKET_COUNT);
 
     // Получить ссылку на динамически выделенную строку с параметрами подключения для bind
     m_welcome_endpoint = getEndpoint(true);
@@ -108,7 +109,7 @@ mdwrk::mdwrk (std::string broker_endpoint, std::string service, int verbose) :
 //  Destructor
 mdwrk::~mdwrk ()
 {
-    LOG(INFO) << "mdwrk destructor";
+    LOG(INFO) << "start mdwrk destructor";
 
     send_to_broker (MDPW_DISCONNECT, NULL, NULL);
 
@@ -128,7 +129,7 @@ mdwrk::~mdwrk ()
         delete m_welcome;
       }
 
-      LOG(INFO) << "mdwrk destroy context " << m_context;
+      LOG(INFO) << "mdwrk destroy context"; // << m_context;
       m_context.close();
     }
     catch(zmq::error_t error)
@@ -138,6 +139,7 @@ mdwrk::~mdwrk ()
 
     // Или == NULL, или память выделялась в getEndpoint()
     delete []m_welcome_endpoint;
+    LOG(INFO) << "finish mdwrk destructor";
 }
 
 //  ---------------------------------------------------------------------
@@ -159,7 +161,13 @@ void mdwrk::send_to_broker(const char *command, const char* option, zmsg *_msg)
         LOG(INFO) << "Sending " << mdpw_commands [(int) *command] << " to broker";
         msg->dump ();
     }
-    msg->send (*m_worker);
+
+    if (m_worker)
+    {
+      msg->send (*m_worker);
+    }
+    else LOG(ERROR) << "send_to_broker() to uninitialized socket";
+
     delete msg;
 }
 
@@ -168,6 +176,8 @@ void mdwrk::send_to_broker(const char *command, const char* option, zmsg *_msg)
 void mdwrk::connect_to_broker ()
 {
     int linger = 0;
+    int send_timeout_msec = 1000000;
+    int recv_timeout_msec = 3000000;
 
     if (m_worker) {
         // Пересоздание сокета без обновления таблицы m_socket_items
@@ -177,12 +187,16 @@ void mdwrk::connect_to_broker ()
         delete m_worker;
     }
     m_worker = new zmq::socket_t (m_context, ZMQ_DEALER);
-    m_worker->setsockopt (ZMQ_LINGER, &linger, sizeof (linger));
+    m_worker->setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
+    m_worker->setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
+    m_worker->setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
     // GEV 22/01/2015: ZMQ_IDENTITY добавлено для теста
     m_worker->setsockopt (ZMQ_IDENTITY, m_service.c_str(), m_service.size());
     m_worker->connect (m_broker_endpoint.c_str());
     // Инициализация записей для zmq::poll для Брокера
-    m_socket_items[BROKER_ITEM].socket = *m_worker;
+    // NB: необходимо использовать оператор void* для получения доступа
+    // к внутреннему представлению ptr сокета
+    m_socket_items[BROKER_ITEM].socket = (void*)*m_worker;
     m_socket_items[BROKER_ITEM].fd = 0;
     m_socket_items[BROKER_ITEM].events = ZMQ_POLLIN;
     m_socket_items[BROKER_ITEM].revents = 0;
@@ -202,7 +216,8 @@ void mdwrk::connect_to_broker ()
 
     // If liveness hits zero, queue is considered disconnected
     update_heartbeat_sign();
-    LOG(INFO) << "Next HEARTBEAT will be in " << m_heartbeat << " msec, m_liveness=" << m_liveness;
+    LOG(INFO) << "Next HEARTBEAT will be in " << m_heartbeat_msec
+              << " msec, m_liveness=" << m_liveness;
 }
 
 void mdwrk::ask_endpoint ()
@@ -238,7 +253,7 @@ void mdwrk::connect_to_world ()
     {
       m_welcome->bind (m_welcome_endpoint);
       // Инициализация записей для zmq::poll для общей точки входа
-      m_socket_items[WORLD_ITEM].socket = *m_welcome;
+      m_socket_items[WORLD_ITEM].socket = (void*)*m_welcome;
       m_socket_items[WORLD_ITEM].fd = 0;
       m_socket_items[WORLD_ITEM].events = ZMQ_POLLIN;
       m_socket_items[WORLD_ITEM].revents = 0;
@@ -262,7 +277,7 @@ void mdwrk::connect_to_world ()
 void
 mdwrk::set_heartbeat (int heartbeat)
 {
-    m_heartbeat = heartbeat;
+    m_heartbeat_msec = heartbeat;
 }
 
 
@@ -271,7 +286,7 @@ mdwrk::set_heartbeat (int heartbeat)
 void
 mdwrk::set_reconnect (int reconnect)
 {
-    m_reconnect = reconnect;
+    m_reconnect_msec = reconnect;
 }
 
 //  ---------------------------------------------------------------------
@@ -290,7 +305,7 @@ mdwrk::recv (std::string *&reply)
     {
         // GEV: отключим пока m_welcome, т.к. он также создается и в DiggerProxy,
         // что приводит к ошибке 'Address already in use'
-        zmq::poll (m_socket_items, 1/*SOCKET_COUNT*/, m_heartbeat);
+        zmq::poll (m_socket_items, 1/*SOCKET_COUNT*/, m_heartbeat_msec);
 
         if (m_socket_items[BROKER_ITEM].revents & ZMQ_POLLIN) {
             zmsg *msg = new zmsg(*m_worker);
@@ -342,6 +357,7 @@ mdwrk::recv (std::string *&reply)
             }
             delete msg;
         }
+#if 0
         else if (m_socket_items[WORLD_ITEM].revents & ZMQ_POLLIN) // Событие на общем сокете
         {
             zmsg *msg = new zmsg(*m_welcome);
@@ -351,25 +367,25 @@ mdwrk::recv (std::string *&reply)
             }
             return msg;
         }
+#endif
         else // Ожидание нового запроса завершено по таймауту
         if (--m_liveness == 0) {
             LOG(INFO) << "timeout, last HEARTBEAT was planned "
-                      << s_clock() - m_heartbeat_at << " sec ago, m_liveness=" << m_liveness;
+                      << s_clock() - m_heartbeat_at_msec << " msec ago, m_liveness=" << m_liveness;
             if (m_verbose) {
                 LOG(WARNING) << "Disconnected from broker - retrying...";
             }
             // TODO: в этот период Служба недоступна. Уточнить таймауты!
             // см. запись в README от 05.02.2015
-            s_sleep (m_reconnect);
+            s_sleep (m_reconnect_msec);
             // После подключения к Брокеру сокет связи с ним был пересоздан
             connect_to_broker ();
         }
 
-        if (s_clock () > m_heartbeat_at) {
+        if (s_clock () > m_heartbeat_at_msec) {
             send_to_broker ((char*)MDPW_HEARTBEAT, NULL, NULL);
-            LOG(INFO) << "update m_heartbeat_at, new HEARTBEAT will be in  "
-                      << s_clock () - m_heartbeat_at << ", m_liveness = " << m_liveness;
             update_heartbeat_sign();
+            LOG(INFO) << "update next HEARTBEAT event time, m_liveness=" << m_liveness;
         }
     }
   }
@@ -396,7 +412,7 @@ mdwrk::recv (std::string *&reply)
 void mdwrk::update_heartbeat_sign()
 {
   // Назначить время следующей подачи HEARTBEAT
-  m_heartbeat_at = s_clock () + m_heartbeat;
+  m_heartbeat_at_msec = s_clock () + m_heartbeat_msec;
   // Сбросить счетчик таймаутов
   // При достижении им 0 соединение с Брокером пересоздается
   m_liveness = HEARTBEAT_LIVENESS;

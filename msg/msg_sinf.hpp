@@ -22,10 +22,17 @@ class Value
     // Универсальная установка первоначальных значений
     Value(std::string&, xdb::DbType_t, void*);
     // Инициализация на основе RTDBM::ValueUpdate
-    Value(const void*);
+    Value(void*);
     // Установка начальных значений с неявным указанием типа
+    Value(std::string&, bool);
+    Value(std::string&, int8_t);
+    Value(std::string&, uint8_t);
+    Value(std::string&, int16_t);
+    Value(std::string&, uint16_t);
     Value(std::string&, int32_t);
+    Value(std::string&, uint32_t);
     Value(std::string&, int64_t);
+    Value(std::string&, uint64_t);
     Value(std::string&, float);
     Value(std::string&, double);
     Value(std::string&, std::string&);
@@ -34,18 +41,23 @@ class Value
    ~Value();
 
     // Получить название параметра
-    const std::string& tag() const { return m_tag; };
+    const std::string& tag() const { return m_instance.name; };
     // Получить тип параметра, хранимый в БДРВ
-    xdb::DbType_t type() const { return m_type; };
-    const xdb::AttrVal_t& raw() const { return m_value; };
+    xdb::DbType_t type() const { return m_instance.type; };
+    const xdb::AttrVal_t& raw() const { return m_instance.value; };
+    xdb::AttributeInfo_t& instance() { return m_instance; };
+    // вернуть значение в строковом виде
+    const std::string as_string() const;
+    // Сбросить значения из БДРВ в RTDBM::ValueUpdate
+    void flush();
     // Инициализация на основе RTDBM::ValueUpdate
     //void CopyFrom(const void*);
 
   private:
     // void * RTDBM::ValueUpdate; // NB: напрямую использовать внутри вместо AttrVal_t?
-    std::string     m_tag;
-    xdb::DbType_t   m_type;
-    xdb::AttrVal_t  m_value;
+    xdb::AttributeInfo_t m_instance;
+    // Ссылка на RTDBM::ValueUpdate для синхронизации изменений данных
+    void* m_rtdbm_valueupdate_instance;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -61,23 +73,31 @@ class ReadMulti : public Letter
     ReadMulti(rtdbExchangeId);
     ReadMulti(Header*, const std::string& body);
     ReadMulti(const std::string& head, const std::string& body);
-   ~ReadMulti();
+    virtual ~ReadMulti();
 
     // Добавить в пул еще один тег
     void add(std::string&, xdb::DbType_t, void*);
-//    void add(std::string&, xdb::DbType_t, std::string&);
+    //void add(std::string&, xdb::DbType_t, std::string&);
+
     // Получить прямые значения параметра с заданным индексом
-    bool get(std::size_t, std::string&, xdb::DbType_t&, void*);
+    bool get(std::size_t, std::string&, xdb::DbType_t&, xdb::Quality_t&, void*);
+    bool get(std::size_t, std::string&, xdb::DbType_t&, xdb::Quality_t&, xdb::AttrVal_t&);
+
     //const Value& operator[](std::size_t idx);
     // Получить структуру со значениями параметра с заданным индексом
-    const Value& item(std::size_t idx);
+    Value& item(std::size_t idx);
+
+    // Явно установить заданный тип атрибута
+    void set_type(std::size_t idx, xdb::DbType_t);
+
     // Получить количество элементов в пуле
-    int num_items();
+    std::size_t num_items();
 
   private:
     Value   *m_updater;
 };
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
 class WriteMulti : public Letter
 {
   public:
@@ -85,9 +105,9 @@ class WriteMulti : public Letter
     // значения по умолчанию, иначе protobuf не сериализует пустые поля
     WriteMulti();
     WriteMulti(rtdbExchangeId);
-    WriteMulti(Header*, const std::string& body);
-    WriteMulti(const std::string& head, const std::string& body);
-   ~WriteMulti();
+    WriteMulti(Header*, const std::string&);
+    WriteMulti(const std::string&, const std::string&);
+    virtual ~WriteMulti();
 
     // Добавить в пул еще один тег
     void add(std::string&, xdb::DbType_t, void*);
@@ -95,16 +115,63 @@ class WriteMulti : public Letter
     // Получить значения параметра по заданному индексу
     bool get(std::size_t, std::string&, xdb::DbType_t&, void*);
     // Получить структуру со значениями параметра с заданным индексом
-    const Value& item(std::size_t idx);
+    Value& item(std::size_t idx);
 
     // Получить количество элементов в пуле
-    int num_items();
+    std::size_t num_items();
+
+  private:
+    Value   *m_updater;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+class SubscriptionControl : public Letter
+{
+  public:
+    SubscriptionControl();
+    SubscriptionControl(const std::string&, const std::string&);
+    SubscriptionControl(Header*, const std::string&);
+    virtual ~SubscriptionControl();
+    // Установить состояние Группе
+    void set_ctrl(int);
+    // Вернуть код текущего состояния Группы
+    int ctrl();
+    // Установить имя Группы
+    void set_name(std::string&);
+    const std::string& name();
+
+  private:
+    Value   *m_updater;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+class SubscriptionEvent : public Letter
+{
+  public:
+    // Фактические значения не получены, значит нужно присвоить
+    // значения по умолчанию, иначе protobuf не сериализует пустые поля
+    SubscriptionEvent();
+    SubscriptionEvent(const std::string&, const std::string&);
+    SubscriptionEvent(Header*, const std::string&);
+    virtual ~SubscriptionEvent();
+
+    // Добавить в пул еще один тег
+    void add(std::string&, xdb::DbType_t, void*);
+    // Получить значения параметра по заданному индексу
+    bool get(std::size_t, std::string&, xdb::DbType_t&, xdb::Quality_t&, xdb::AttrVal_t&);
+    // Получить структуру со значениями параметра с заданным индексом
+    Value& item(std::size_t idx);
+
+    // Получить количество элементов в пуле
+    std::size_t num_items();
 
   private:
     Value   *m_updater;
 };
  
+////////////////////////////////////////////////////////////////////////////////////////////////////
 } // namespace msg
+
 
 #endif
 

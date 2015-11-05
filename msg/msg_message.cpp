@@ -4,6 +4,7 @@
 
 #include <limits>
 #include <string>
+#include <map>
 
 #include "glog/logging.h"
 
@@ -16,6 +17,81 @@
 using namespace msg;
 
 rtdbExchangeId MessageFactory::m_exchange_id = 0;
+
+// Инициализация хеш-таблицы
+//#pragma init my_hashtable_init
+
+#ifdef __SUNPRO_CC
+typedef std::pair <std::string, xdb::DbType_t> DbTypesHashPair_t;
+typedef std::map  <std::string, xdb::DbType_t> DbTypesHash_t;
+#else
+typedef std::pair <const std::string, xdb::DbType_t> DbTypesHashPair_t;
+typedef std::map  <const std::string, xdb::DbType_t> DbTypesHash_t;
+#endif
+typedef DbTypesHash_t::iterator DbTypesHashIterator_t;
+
+// Соответствие между симв. названием и числовым кодом атрибута
+static DbTypesHash_t *g_dbTypesHash = NULL;
+
+static __attribute__((constructor)) void my_hashtable_init()
+{
+  if (!g_dbTypesHash)
+  {
+      g_dbTypesHash = new DbTypesHash_t;
+
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_UNDEF].name,
+                                              xdb::DbTypeDescription[xdb::DB_TYPE_UNDEF].code));
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_LOGICAL].name,
+                                              xdb::DbTypeDescription[xdb::DB_TYPE_LOGICAL].code));
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_INT8].name, 
+                                              xdb::DbTypeDescription[xdb::DB_TYPE_INT8].code));
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_UINT8].name, 
+                                              xdb::DbTypeDescription[xdb::DB_TYPE_UINT8].code));
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_INT16].name, 
+                                              xdb::DbTypeDescription[xdb::DB_TYPE_INT16].code));
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_UINT16].name, 
+                                              xdb::DbTypeDescription[xdb::DB_TYPE_UINT16].code));
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_INT32].name, 
+                                              xdb::DbTypeDescription[xdb::DB_TYPE_INT32].code));
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_UINT32].name, 
+                                              xdb::DbTypeDescription[xdb::DB_TYPE_UINT32].code));
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_FLOAT].name, 
+                                              xdb::DbTypeDescription[xdb::DB_TYPE_FLOAT].code));
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_DOUBLE].name, 
+                                              xdb::DbTypeDescription[xdb::DB_TYPE_DOUBLE].code));
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES].name, 
+                                              xdb::DbTypeDescription[xdb::DB_TYPE_BYTES].code));
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES4].name, 
+                                              xdb::DbTypeDescription[xdb::DB_TYPE_BYTES4].code));
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES8].name, 
+                                              xdb::DbTypeDescription[xdb::DB_TYPE_BYTES8].code));
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES12].name, 
+                                              xdb::DbTypeDescription[xdb::DB_TYPE_BYTES12].code));
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES16].name, 
+                                              xdb::DbTypeDescription[xdb::DB_TYPE_BYTES16].code));
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES20].name, 
+                                              xdb::DbTypeDescription[xdb::DB_TYPE_BYTES20].code));
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES32].name, 
+                                              xdb::DbTypeDescription[xdb::DB_TYPE_BYTES32].code));
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES48].name, 
+                                              xdb::DbTypeDescription[xdb::DB_TYPE_BYTES48].code));
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES64].name, 
+                                              xdb::DbTypeDescription[xdb::DB_TYPE_BYTES64].code));
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES80].name, 
+                                              xdb::DbTypeDescription[xdb::DB_TYPE_BYTES80].code));
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES128].name, 
+                                              xdb::DbTypeDescription[xdb::DB_TYPE_BYTES128].code));
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES256].name, 
+                                              xdb::DbTypeDescription[xdb::DB_TYPE_BYTES256].code));
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_ABSTIME].name, 
+                                              xdb::DbTypeDescription[xdb::DB_TYPE_ABSTIME].code));
+  }
+}
+
+static __attribute__((destructor)) void my_hashtable_fini()
+{
+  delete g_dbTypesHash;
+}
 
 // TODO: Создать набор классов, создающих готовое к передаче сообщение типа zmsg
 //
@@ -429,33 +505,39 @@ Letter* MessageFactory::create(rtdbMsgType type)
   {
     case ADG_D_MSG_EXECRESULT:
         created = new ExecResult();
-    break;
+        break;
     case ADG_D_MSG_ENDINITACK:
-    break;
+        break;
     case ADG_D_MSG_INIT:
-    break;
+        break;
     case ADG_D_MSG_STOP:
-    break;
+        break;
     case ADG_D_MSG_ENDALLINIT:
-    break;
+        break;
     case ADG_D_MSG_ASKLIFE:
         created = new AskLife();
-    break;
+        break;
     case ADG_D_MSG_LIVING:
-    break;
+        break;
     case ADG_D_MSG_STARTAPPLI:
-    break;
+        break;
     case ADG_D_MSG_STOPAPPLI:
-    break;
+        break;
     case ADG_D_MSG_ADJTIME:
-    break;
+        break;
 
     case SIG_D_MSG_READ_MULTI:
         created = new ReadMulti();
-    break;
+        break;
     case SIG_D_MSG_WRITE_MULTI:
         created = new WriteMulti();
-    break;
+        break;
+    case SIG_D_MSG_GRPSBS:
+        created = new SubscriptionEvent();
+        break;
+    case SIG_D_MSG_GRPSBS_CTRL:
+        created = new SubscriptionControl();
+        break;
 
     default:
       LOG(ERROR) << "Unsupported message type " << type; 
@@ -577,8 +659,8 @@ Letter* MessageFactory::unserialize(const std::string& pb_header, const std::str
   switch (user_type)
   {
     case ADG_D_MSG_EXECRESULT:
-        created = new ExecResult(fresh_header, pb_data);
-    break;
+      created = new ExecResult(fresh_header, pb_data);
+      break;
 //    case ADG_D_MSG_ENDINITACK:
 //    break;
 //    case ADG_D_MSG_INIT:
@@ -588,8 +670,8 @@ Letter* MessageFactory::unserialize(const std::string& pb_header, const std::str
 //    case ADG_D_MSG_ENDALLINIT:
 //    break;
     case ADG_D_MSG_ASKLIFE:
-        created = new AskLife(fresh_header, pb_data);
-    break;
+      created = new AskLife(fresh_header, pb_data);
+      break;
 //    case ADG_D_MSG_LIVING:
 //    break;
 //    case ADG_D_MSG_STARTAPPLI:
@@ -600,18 +682,65 @@ Letter* MessageFactory::unserialize(const std::string& pb_header, const std::str
 //    break;
 
     case SIG_D_MSG_READ_MULTI:
-        created = new ReadMulti(fresh_header, pb_data);
-    break;
+      created = new ReadMulti(fresh_header, pb_data);
+      break;
  
     case SIG_D_MSG_WRITE_MULTI:
-        created = new WriteMulti(fresh_header, pb_data);
-    break;
+      created = new WriteMulti(fresh_header, pb_data);
+      break;
  
+    case SIG_D_MSG_GRPSBS_CTRL:
+      created = new SubscriptionControl(fresh_header, pb_data);
+      break;
+
+    case SIG_D_MSG_GRPSBS:
+      created = new SubscriptionEvent(fresh_header, pb_data);
+      break;
     default:
       LOG(ERROR) << "Unsupported message type " << user_type; 
   }
 
   return created;
+}
+
+/*
+  Получить числовое представление типа данных в словаре на основе строки
+  типа rtBYTES...
+
+  Все типы данных в виде строк находятся в хеше в качестве ключей, значениями
+  для них являются соответствующие значения типа DbType_t.
+  Заполняется хеш при загрузке библиотеки с помощью my_hashtable_init().
+
+  Возвращаемое значение перечисляемого типа, может принимать значения:
+    - целое
+    - с плав. точкой
+    - строковое
+ */
+bool MessageFactory::GetDbTypeFromString(std::string& s_t, xdb::DbType_t& db_t)
+{
+  bool status = false;
+  DbTypesHashIterator_t it;
+
+  db_t = xdb::DB_TYPE_UNDEF;
+
+  it = g_dbTypesHash->find(s_t);
+  if (it != g_dbTypesHash->end())
+  {
+    db_t= it->second;
+    status = true;
+  }
+
+  return status;
+}
+
+// На входе код типа БДРВ, на выходе строковое представление типа, 
+// согласно шаблону AttributeType файла rtap_db.xsd
+const char* MessageFactory::GetDbNameFromType(xdb::DbType_t& db_t)
+{
+  assert((xdb::DB_TYPE_UNDEF < db_t) && (db_t < xdb::DB_TYPE_LAST));
+  assert(xdb::DbTypeDescription[db_t].code == db_t);
+
+  return xdb::DbTypeDescription[db_t].name;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

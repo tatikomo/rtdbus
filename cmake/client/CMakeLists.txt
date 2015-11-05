@@ -5,12 +5,12 @@ if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   set (SYSTEM_EXTERNAL_LIBS
         socket
         rt
-        glog
+        pthread
         uuid)
 else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # LINUX
   set (SYSTEM_EXTERNAL_LIBS
-        glog)
+        pthread)
 endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
 include_directories(${LIBGLOG_INCLUDE_DIR})
@@ -56,6 +56,7 @@ endif (CMAKE_COMPILER_IS_GNUCC)
 ##########################################################
 add_executable (${CLIENT_DB_MOSQUITO} ${CLIENT_DB_MOSQUITO_SOURCES})
 target_link_libraries(${CLIENT_DB_MOSQUITO}
+    ${LIBGLOG_LIBRARIES}
     ${MDP_LIBRARY_NAME}
     ${SYSTEM_EXTERNAL_LIBS}
     ${LIBZMQ_LIBRARIES})
@@ -64,6 +65,7 @@ target_link_libraries(${CLIENT_DB_MOSQUITO}
 ##########################################################
 add_executable (${CLIENT_PULSAR} ${CLIENT_PULSAR_SOURCES})
 target_link_libraries(${CLIENT_PULSAR}
+    ${LIBGLOG_LIBRARIES}
     ${MDP_LIBRARY_NAME}
     ${MSG_LIBRARY_NAME}
     ${SYSTEM_EXTERNAL_LIBS}

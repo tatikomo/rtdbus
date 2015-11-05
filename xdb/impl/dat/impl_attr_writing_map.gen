@@ -37,6 +37,7 @@
   m_attr_writing_func_map.insert(AttrProcessingFuncPair_t("L_PIPELINE", &xdb::DatabaseRtapImpl::writeL_PIPELINE));
   m_attr_writing_func_map.insert(AttrProcessingFuncPair_t("L_SA", &xdb::DatabaseRtapImpl::writeL_SA));
   m_attr_writing_func_map.insert(AttrProcessingFuncPair_t("L_TL", &xdb::DatabaseRtapImpl::writeL_TL));
+  m_attr_writing_func_map.insert(AttrProcessingFuncPair_t("L_TM", &xdb::DatabaseRtapImpl::writeL_TM));
   m_attr_writing_func_map.insert(AttrProcessingFuncPair_t("L_TYPINFO", &xdb::DatabaseRtapImpl::writeL_TYPINFO));
   m_attr_writing_func_map.insert(AttrProcessingFuncPair_t("MAXVAL", &xdb::DatabaseRtapImpl::writeMAXVAL));
   m_attr_writing_func_map.insert(AttrProcessingFuncPair_t("MINVAL", &xdb::DatabaseRtapImpl::writeMINVAL));
@@ -61,6 +62,7 @@
   m_attr_writing_func_map.insert(AttrProcessingFuncPair_t("TSSYNTHETICAL", &xdb::DatabaseRtapImpl::writeTSSYNTHETICAL));
   m_attr_writing_func_map.insert(AttrProcessingFuncPair_t("TYPE", &xdb::DatabaseRtapImpl::writeTYPE));
   m_attr_writing_func_map.insert(AttrProcessingFuncPair_t("UNITY", &xdb::DatabaseRtapImpl::writeUNITY));
+  m_attr_writing_func_map.insert(AttrProcessingFuncPair_t("UNITYCATEG", &xdb::DatabaseRtapImpl::writeUNITYCATEG));
   m_attr_writing_func_map.insert(AttrProcessingFuncPair_t("VAL", &xdb::DatabaseRtapImpl::writeVAL));
   m_attr_writing_func_map.insert(AttrProcessingFuncPair_t("VALACQ", &xdb::DatabaseRtapImpl::writeVALACQ));
   m_attr_writing_func_map.insert(AttrProcessingFuncPair_t("VALEX", &xdb::DatabaseRtapImpl::writeVALEX));

@@ -19,6 +19,7 @@ using namespace xercesc;
 
 static char database_name[SERVICE_NAME_MAXLEN + 1];
 static char file_path[400+1];
+static char env_path[400+1];
 static const char* command_name_LOAD_FROM_XML = "load";
 static const char* command_name_SAVE_TO_XML = "save";
 static bool verbose = false;
@@ -28,18 +29,19 @@ int main(int argc, char** argv)
 {
   bool is_database_name_given = false;
   bool is_command_name_given = false;
-  bool is_file_path_given = false;
+  bool is_env_path_given = false;
   bool is_translation_given = false;
   char command_name[SERVICE_NAME_MAXLEN + 1];
   int  opt;
   RtConnection *connection = NULL;
   RtApplication *app = NULL;
 
+  env_path[0] = '\0';
   file_path[0] = '\0';
   command_name[0] = '\0';
   database_name[0] = '\0';
 
-  while ((opt = getopt (argc, argv, "vc:p:e:g")) != -1)
+  while ((opt = getopt (argc, argv, "vc:p:s:g")) != -1)
   {
      switch (opt)
      {
@@ -52,12 +54,12 @@ int main(int argc, char** argv)
           is_translation_given = true;
         break;
 
-        // Задание имени файла
+        // Задание пути к каталогу с конфигурацие БД
         // -p <путь>
         case 'p':
-          strncpy(file_path, optarg, 400);
-          file_path[400] = '\0';
-          is_file_path_given = true;
+          strncpy(env_path, optarg, 400);
+          env_path[400] = '\0';
+          is_env_path_given = true;
         break;
 
         // -c <имя команды>
@@ -88,7 +90,7 @@ int main(int argc, char** argv)
           }
         break;
 
-        case 'e':
+        case 's':
           strncpy(database_name, optarg, SERVICE_NAME_MAXLEN);
           database_name[SERVICE_NAME_MAXLEN] = '\0';
           is_database_name_given = true;
@@ -111,15 +113,17 @@ int main(int argc, char** argv)
 //  if (false == is_command_name_given)
 //    LOG(ERROR) << "Command '-c <name>' not given";
 //  if (false == is_database_name_given)
-//    LOG(ERROR) << "Database '-e <name>' not given";
+//    LOG(ERROR) << "Database '-s <name>' not given";
+
+  if (!is_env_path_given)
+  {
+    getcwd(env_path, sizeof(env_path));
+  }
+
   if (is_translation_given)
   {
-    if (!is_file_path_given)
-    {
-     getcwd(file_path, sizeof(file_path));
-    }
     // взять входной файл и выдать его в поток выхода
-    if (false == translateInstance(file_path))
+    if (false == translateInstance(env_path))
     {
       LOG(ERROR) << "Can't translating " << file_path;
     }
@@ -137,8 +141,6 @@ int main(int argc, char** argv)
         XMLPlatformUtils::Initialize("UTF-8");
 
         // Все в порядке, начинаем работу
-        // TODO: Указанные здесь опции не влияют на результат, все равно 
-        // используются внутренние значения по умолчанию.
         app = new RtApplication("xdb_snap");
         app->setOption("OF_TRUNCATE", 1);
         app->setOption("OF_RDWR", 1);
@@ -147,19 +149,16 @@ int main(int argc, char** argv)
       
         switch (command)
         {
-        case LOAD_FROM_XML:
-          if (true == loadFromXML(env, file_path))
-          {
-            LOG(INFO) << "XML data was successfuly loaded";
-          }
-        break;
+          case LOAD_FROM_XML:
+            if (true == loadFromXML(env, env_path))
+              LOG(INFO) << "XML data was successfuly loaded for " << database_name;
+          break;
 
-        case SAVE_TO_XML:
-          if (true == saveToXML(env, file_path))
-          {
-            LOG(INFO) << "XML data was successfuly saved";
-          }
-        break;
+          case SAVE_TO_XML:
+            snprintf(file_path, sizeof(file_path), "%s/%s.dump.xml", env_path, database_name);
+            if (true == saveToXML(env, file_path))
+              LOG(INFO) << "XML data was successfuly saved for " << database_name;
+          break;
         }
 
         XMLPlatformUtils::Terminate();

@@ -31,8 +31,7 @@ class Broker {
 
    //  ---------------------------------------------------------------------
    //  Destructor for broker object
-   virtual
-   ~Broker ();
+   virtual ~Broker ();
 
 /* 
  * Ненормальное состояние, вызывается из напрямую тестов, 
@@ -141,7 +140,7 @@ class Broker {
     //  ---------------------------------------------------------------------
     //  Bind broker to endpoint, can call this multiple times
     //  We use a single socket for both clients and workers.
-    bool bind ();
+    bool Bind ();
 
     /* Обработка соответствующих команд, полученных от Обработчиков */
     bool worker_process_READY(xdb::Worker*&, const std::string&, zmsg*);
