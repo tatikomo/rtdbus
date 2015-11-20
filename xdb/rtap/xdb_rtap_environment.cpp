@@ -95,7 +95,12 @@ const Error& RtEnvironment::LoadSnapshot(const char *filename)
     m_database->LoadSnapshot(filename);
   }
 
-  return m_impl->getLastError();
+  return m_database->getLastError();
+}
+
+void RtEnvironment::clearError()
+{
+  if (m_impl) m_impl->clearError();
 }
 
 const Error& RtEnvironment::MakeSnapshot(const char *filename)

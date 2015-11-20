@@ -2,6 +2,7 @@ set(WORKER_TESTER wtester)
 set(WORKER_ECHO   wecho)
 set(WORKER_DIGGER wdigger)
 set(WORKER_ARCHIVIST warchivist)
+set(WORKER_HIST_SAMPLER wsampler)
 
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   set (SYSTEM_EXTERNAL_LIBS
@@ -78,6 +79,16 @@ set (WORKER_ARCHIVIST_SOURCES
         ${MSG_DIR}/msg_message.hpp
         ${WORKER_DIR}/warchivist.cpp
         ${WORKER_DIR}/warchivist.hpp)
+
+set (WORKER_HIST_SAMPLER_SOURCES
+        ${CMAKE_SOURCE_DIR}/config.h
+        ${MDP_DIR}/mdp_zmsg.hpp
+        ${MDP_DIR}/mdp_common.h
+        ${MDP_DIR}/mdp_worker_api.hpp
+        ${MSG_DIR}/msg_message.hpp
+        ${WORKER_DIR}/wrk_hist_sampler.cpp
+        ${WORKER_DIR}/wrk_hist_sampler.hpp)
+
 
 add_custom_command(
         OUTPUT 
@@ -165,7 +176,7 @@ target_link_libraries(${WORKER_DIGGER}
     ${LIBZMQ_LIBRARIES})
 
 #add_definitions(-fpermissive)
-# Сборка ARCHIVIST - сервера накопления архивных данных
+# Сборка ARCHIVIST - сервера выдачи архивных данных
 ##########################################################
 add_executable (${WORKER_ARCHIVIST} ${WORKER_ARCHIVIST_SOURCES})
 target_link_libraries(${WORKER_ARCHIVIST}
@@ -181,3 +192,13 @@ target_link_libraries(${WORKER_ARCHIVIST}
 #    ${LIBZMQ_LIBRARIES}
     )
 
+# Сборка HIST_SAMPLER - сервера накопления архивных данных
+##########################################################
+add_executable (${WORKER_HIST_SAMPLER} ${WORKER_HIST_SAMPLER_SOURCES})
+target_link_libraries(${WORKER_HIST_SAMPLER}
+    ${LIBGLOG_LIBRARIES}
+    ${MDP_LIBRARY_NAME}
+#    ${XDB_RTAP_IMPL_LIBRARY_NAME}
+    ${XDB_RTAP_LIBRARY_NAME}
+    ${LIBPROTOBUF_LIBRARIES}
+    )

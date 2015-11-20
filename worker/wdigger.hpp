@@ -101,7 +101,6 @@ class DiggerPoller
     //bool publish_sbs(std::string&, xdb::SubscriptionPoints_t&);
     // Освободить динамические части из кучи
     void release_attribute_info(xdb::AttributeInfo_t*);
-    void release_point_info(xdb::PointDescription_t*);
 
     // Сигнал к завершению работы
     static bool m_interrupt;
@@ -193,6 +192,8 @@ class DiggerProxy
     static bool m_interrupt;
     // Копия контекста основной нити Digger
     // требуется для работы транспорта inproc
+    // TODO: проверить, нужен ли общий контекст Digger и DiggerProxy. Можно ли их разделить для ускорения работы?
+#warning "Проверить, нужен ли общий контекст Digger и DiggerProxy. Можно ли их разделить для ускорения работы?"
     zmq::context_t  &m_context;
     // Управляющий сокет Прокси - для паузы, продолжения или завершения работы
     zmq::socket_t    m_control;

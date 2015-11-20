@@ -131,16 +131,20 @@ enum AlarmType {
   TC_DIR      = 27  /* TC DIR */
 };
 
+// Достоверность
+// Достоверное - (1) VALIDITY_FAULT
+// Сомнительное - (0, 3, 4, 8)
+// Введенное вручную - (2, 5, 7)
 enum Validity {
-  VALIDITY_FAULT        = 0,
-  VALIDITY_VALID        = 1,
-  VALIDITY_MANUAL       = 2,    // или FORCED
-  VALIDITY_INHIBITION   = 3,
-  VALIDITY_FAULT_INHIB  = 4,
-  VALIDITY_FAULT_FORCED = 5,
-  VALIDITY_INQUIRED     = 6,
-  VALIDITY_NO_INSTRUM   = 7,
-  VALIDITY_GLOBAL_FAULT = 8
+  VALIDITY_FAULT        = 0,    // недостоверное полученное значение
+  VALIDITY_VALID        = 1,    // достоверное полученное значение
+  VALIDITY_MANUAL       = 2,    // или FORCED - введенное вручную значение
+  VALIDITY_INHIBITION   = 3,    // запрещенное значение
+  VALIDITY_FAULT_INHIB  = 4,    // недостоверное и отбракованное значение
+  VALIDITY_FAULT_FORCED = 5,    // недостоверное и введенное вручную значение
+  VALIDITY_INQUIRED     = 6,    //
+  VALIDITY_NO_INSTRUM   = 7,    // неинструментированные значения
+  VALIDITY_GLOBAL_FAULT = 8     // глобальное недостоверное значение
 };
 
 // Уровень полномочий управления
@@ -244,21 +248,24 @@ enum objclass_t {
     HIST = 80
 };
 
+// ==========================================================================
+// Переходные процессы
 // Константы значений атрибута VALIDCHANGE
+// ==========================================================================
 enum ValidChange {
-    VALIDCHANGE_FAULT          = 0,
-    VALIDCHANGE_VALID          = 1,
-    VALIDCHANGE_FORCED         = 2,
-    VALIDCHANGE_INHIB          = 3,
-    VALIDCHANGE_MANUAL         = 4,
-    VALIDCHANGE_END_INHIB      = 5,
-    VALIDCHANGE_END_FORCED     = 6,
-    VALIDCHANGE_INHIB_GBL      = 7,
-    VALIDCHANGE_END_INHIB_GBL  = 8,
-    VALIDCHANGE_NULL           = 9 /* VIDE */,
-    VALIDCHANGE_FAULT_GBL      = 10,
-    VALIDCHANGE_INHIB_SA       = 11,
-    VALIDCHANGE_END_INHIB_SA   = 12
+    VALIDCHANGE_FAULT          = 0,  // получение недостоверного значения
+    VALIDCHANGE_VALID          = 1,  // получение достоверного значения
+    VALIDCHANGE_FORCED         = 2,  // ручной ввод значения
+    VALIDCHANGE_INHIB          = 3,  // запрещение значения
+    VALIDCHANGE_MANUAL         = 4,  // ручной ввод значения
+    VALIDCHANGE_END_INHIB      = 5,  // конец запрещения
+    VALIDCHANGE_END_FORCED     = 6,  // конец ручного ввода
+    VALIDCHANGE_INHIB_GBL      = 7,  // глобальное запрещение
+    VALIDCHANGE_END_INHIB_GBL  = 8,  // конец глобального запрещения
+    VALIDCHANGE_NULL           = 9   /* VIDE */, // не делать ничего
+    VALIDCHANGE_FAULT_GBL      = 10, // глобальная ошибка (система сбора данных недоступна)
+    VALIDCHANGE_INHIB_SA       = 11, // запрещение системы сбора данных
+    VALIDCHANGE_END_INHIB_SA   = 12  // конец запрещения системы сбора данных
 };
 
 /* ===================================================================== */
@@ -362,6 +369,8 @@ class EQV // Аналог таблицы T_EQV в TSC для RTAP
   s_dispatch    dispatcher;
   // Индекс по оборудованию
   tree <tag_id>   SK_by_tag_id;
+  // Индекс по дате изменения состояния
+  tree <datetime.sec> SK_by_modif_time;
 };
 
 /* ===================================================================== */
@@ -558,10 +567,13 @@ class XDBPoint
   unique tree <passport_ref> SK_by_passport; /* point to passport relationship is '1-to-1' */
   /* locating point instance by tag */
   unique tree <TAG> SK_by_tag; //[MAX_POINTS_QUANTITY];
-  // Поиск всех эеземпляров, атрибуты которых изменились с момента последней проверки
+  // Поиск всех экземпляров, атрибуты которых изменились с момента последней проверки
   tree <is_modified>   SK_by_modified;
 //  Тип "Patricia Trie" появился только в версии старше 4
 //  patricia <TAG> SK_by_tag; //[MAX_POINTS_QUANTITY];
+  // Поиск по типу объекта
+  tree <OBJCLASS>   SK_by_objclass;
+  list;
 
   /* Events */
   event <new> new_point_evnt;

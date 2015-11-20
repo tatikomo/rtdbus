@@ -58,6 +58,7 @@
 #cmakedefine ENDPOINT_EXCHG_FRONTEND  "@ENDPOINT_EXCHG_FRONTEND@"
 #cmakedefine ENDPOINT_SBS_PUBLISHER   "@ENDPOINT_SBS_PUBLISHER@"
 #cmakedefine ENDPOINT_ARCH_FRONTEND   "@ENDPOINT_ARCH_FRONTEND@"
+#cmakedefine ENDPOINT_HIST_FRONTEND   "@ENDPOINT_HIST_FRONTEND@"
 
 /* Predefined service names */
 #cmakedefine BROKER_NAME        "@BROKER_NAME@"
@@ -65,8 +66,16 @@
 #cmakedefine HMI_NAME           "@HMI_NAME@"
 #cmakedefine EXCHANGE_NAME      "@EXCHANGE_NAME@"
 #cmakedefine ARCHIVIST_NAME     "@ARCHIVIST_NAME@"
+#cmakedefine HIST_SAMPLER_NAME  "@HIST_SAMPLER_NAME@"
 
-// test binaries
+/* Timeouts for ZMQ-throw operations */
+#cmakedefine RECV_TIMEOUT_MSEC        @RECV_TIMEOUT_MSEC@
+#cmakedefine SEND_TIMEOUT_MSEC        @SEND_TIMEOUT_MSEC@
+
+/* Maximum number of active database instances per single server */
+#cmakedefine MAX_DATABASE_INSTANCES_PER_SYSTEM @MAX_DATABASE_INSTANCES_PER_SYSTEM@
+
+/* test binaries    */
 /* Full path to test file test/test-exit in builddir */
 #define TEST_BUS_BINARY          "@TEST_BUS_BINARY@"
 /* Full path to test file test/test-exit in builddir */
@@ -134,7 +143,7 @@
 
 #cmakedefine RTDBUS_VA_COPY_AS_ARRAY @RTDBUS_VA_COPY_AS_ARRAY@
 
-// headers
+/* headers  */
 /* Define to 1 if you have dirent.h */
 #cmakedefine   HAVE_DIRENT_H 1
 
@@ -186,7 +195,7 @@
 /* Define to 1 if you have stdint.h */
 #cmakedefine   HAVE_STDINT_H 1
 
-// symbols
+/* symbols */
 /* Define to 1 if you have backtrace */
 #cmakedefine   HAVE_BACKTRACE 1
 
@@ -232,21 +241,21 @@
 /* Define to 1 if you have strtoull */
 #cmakedefine   HAVE_STRTOULL 1
 
-// structs
+/* structs */
 /* Define to 1 if you have struct cmsgred */
 #cmakedefine    HAVE_CMSGCRED 1
 
-// A macro to disallow the copy constructor and operator= functions
-// This should be used in the private: declarations for a class
+/* A macro to disallow the copy constructor and operator= functions */
+/* This should be used in the private: declarations for a class */
 #define DISALLOW_COPY_AND_ASSIGN(TypeName) \
   TypeName(const TypeName&);               \
    void operator=(const TypeName&)
 
-// system type defines
+/* system type defines */
 #if defined(_WIN32) || defined(_WIN64) || defined (_WIN32_WCE)
 # define RTDBUS_WIN
 # define RTDBUS_WIN_FIXME 1
-// Монотонно увеличивающийся таймер
+/* Монотонно увеличивающийся таймер */
 # define CLOCK_TYPE CLOCK_MONOTONIC 
 # ifdef _WIN32_WCE
 #  define RTDBUS_WINCE
@@ -254,16 +263,16 @@
 #  define RTDBUS_WIN32
 # endif
 #elif defined(sun)
-// Реалтаймовский таймер в Solaris
+/* Реалтаймовский таймер в Solaris */
 # define CLOCK_TYPE CLOCK_REALTIME 
 #else
 # define RTDBUS_UNIX
-// Тип таймера, не подверженного NTP - специфично для Linux
+/* Тип таймера, не подверженного NTP - специфично для Linux */
 # define CLOCK_TYPE CLOCK_MONOTONIC_RAW
 #endif
 
 #if defined(_WIN32) || defined(_WIN64)
-// mingw mode_t
+/* mingw mode_t */
 # ifdef HAVE_STDIO_H
 #  include <stdio.h>
 # endif

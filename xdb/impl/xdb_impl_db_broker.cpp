@@ -56,6 +56,7 @@ ServiceEndpoint_t Endpoints[] = { // NB: Копия структуры в фай
   {HMI_NAME,    ENDPOINT_HMI_FRONTEND   /* tcp://localhost:5557 */, ""}, // Сервер отображения
   {EXCHANGE_NAME,  ENDPOINT_EXCHG_FRONTEND /* tcp://localhost:5558 */, ""}, // Сервер обменов
   {ARCHIVIST_NAME, ENDPOINT_ARCH_FRONTEND  /* tcp://localhost:5561 */, ""}, // Сервер архивирования
+  {HIST_SAMPLER_NAME, ENDPOINT_HIST_FRONTEND  /* tcp://localhost:5562 */, ""}, // Сервер накопления предыстории
   {"", "", ""}  // Последняя запись
 };
 // Запись о точке подключения к Брокеру д.б. первой
@@ -520,7 +521,7 @@ Service *DatabaseBrokerImpl::AddService(const char *name/*, const char *endpoint
     rc = service_instance.create(t);
     if (rc) { LOG(ERROR) << "Creating instance, rc=" << rc; break; }
 
-    rc = service_instance.name_put(name, static_cast<uint2>(strlen(name)));
+    rc = service_instance.name_put(name, (uint2)strlen(name));
     if (rc) { LOG(ERROR) << "Setting '" << name << "' name"; break; }
 
     // Если пишется известная нам Служба => присвоить точке подключения значение "по умолчанию"
@@ -736,7 +737,7 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
 
   assert(wrk);
   const char* wrk_identity = wrk->GetIDENTITY();
-  size_t wrk_identity_len = strlen(wrk_identity);
+  uint2 wrk_identity_len = strlen(wrk_identity);
   assert(wrk_identity_len <= IDENTITY_MAXLEN);
 
   do

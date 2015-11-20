@@ -290,6 +290,11 @@ const DeTypeDescription_t xdb::rtDataElem[] =
 //  XX = номер класса
 //  YYY = название класса
 ClassDescription_t xdb::ClassDescriptionTable[] =  {
+//        Имя (name)
+//        |         Objclass (code) 
+//        |         |                       тип атрибутов {VAL|VALMANUAL|VALACQ} (val_type)
+//        |         |                       |               ссылка на набор атрибутов (attributes_pool)
+//        |         |                       |               |
 /*  0*/ {"TS",      GOF_D_BDR_OBJCLASS_TS,  DB_TYPE_UINT16, 0},           /* Телесигнализация */
 /*  1*/ {"TM",      GOF_D_BDR_OBJCLASS_TM,  DB_TYPE_DOUBLE, 0},           /* Телеизмерение */
 /*  2*/ {"TR",      GOF_D_BDR_OBJCLASS_TR,  DB_TYPE_DOUBLE, 0},           /* Телерегулировка */

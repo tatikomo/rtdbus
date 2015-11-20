@@ -420,6 +420,7 @@ TEST(TestMessage, USE_SINF)
   std::string tag_out = "incorrect initial value";
   char buffer [50];
   char s_date [D_DATE_FORMAT_LEN + 1];
+  struct tm result_time;
   time_t given_time;
   xdb::DbType_t type_out = xdb::DB_TYPE_UNDEF;
   xdb::Quality_t quality_out;
@@ -538,7 +539,8 @@ TEST(TestMessage, USE_SINF)
 
         case xdb::DB_TYPE_ABSTIME:
           given_time = todo1.raw().fixed.val_time.tv_sec;
-          strftime(s_date, D_DATE_FORMAT_LEN, D_DATE_FORMAT_STR, localtime(&given_time));
+          localtime_r(&given_time, &result_time);
+          strftime(s_date, D_DATE_FORMAT_LEN, D_DATE_FORMAT_STR, &result_time);
           snprintf(buffer, D_DATE_FORMAT_W_MSEC_LEN, "%s.%06ld", s_date, todo1.raw().fixed.val_time.tv_usec);
           std::cout << "time: " << buffer << std::endl; //1
         break;

@@ -23,6 +23,7 @@ extern "C" {
 
 namespace xdb {
 
+class DatabaseImpl;
 class DatabaseRtapImpl;
 
 typedef union {
@@ -129,9 +130,6 @@ class PointInDatabase
     bool m_is_DI_assigned;  // DiscreteInformation
     bool m_is_AL_assigned;  // AlarmInformation
 };
-
-class DatabaseImpl;
-class DatabaseRtapImpl;
 
 // Тип функции, создающей известный атрибут
 // NB: полный их перечень приведен в словаре 'rtap_db.xsd'
@@ -320,6 +318,15 @@ class DatabaseRtapImpl
         SystemState,
         SystemState);
 
+    // Контроль Кранов
+    MCO_RET GOFTSCVA(mco_trans_h,
+        XDBPoint*,
+        DiscreteInfoType&,
+        const char*,
+        objclass_t,
+        ValidChange,
+        Validity);
+
     // Связь между названием атрибута и функцией его создания
     AttrCreatingFuncMap_t     m_attr_creating_func_map;
     // Связь между названием атрибута и функцией его записи
@@ -334,6 +341,10 @@ class DatabaseRtapImpl
     MCO_RET createTableDICT_UNITY_ID(mco_db_h&, rtap_db_dict::unity_labels_t*);
     MCO_RET createTableXDB_CE(mco_db_h&, rtap_db_dict::macros_def_t*);
 
+    // ====================================================
+    // Работа с группами подписки через интерфейс Control()
+    // ====================================================
+    MCO_RET controlConnections(mco_db_h&, rtDbCq&);
     // ====================================================
     // Работа с группами подписки через интерфейс Config()
     // ====================================================
@@ -350,6 +361,8 @@ class DatabaseRtapImpl
     // ====================================================
     // Работа с группами подписки через интерфейс Query()
     // ====================================================
+    // Прочитать список точек указанного класса
+    MCO_RET queryPointsOfSpecifiedClass (mco_db_h&, rtDbCq&);
     // Получить список групп подписки с активными (модифицированными элементами)
     MCO_RET querySbsArmedGroup(mco_db_h&, rtDbCq&);
     // Сбросить флаг модифицикации атрибутов всех групп из указанного списка

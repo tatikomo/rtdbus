@@ -198,11 +198,16 @@ set (HEARTBEAT_PERIOD_MSEC  2500)
 # Разумный интервал 3..5
 set (HEARTBEAT_LIVENESS 3)
 
-set (WORKERS_SPOOL_SIZE        2)
+# таймауты
+set (RECV_TIMEOUT_MSEC   3000000)
+set (SEND_TIMEOUT_MSEC   1000000)
 set (MESSAGE_EXPIRATION_PERIOD_MSEC  500)
 
 # Зарезервированный размер памяти под БДРВ [Мб]
 set (DIGGER_DB_SIZE_MB  10)
+
+# максимальное количество экземпляров различных БД в одной системе одновременно
+set (MAX_DATABASE_INSTANCES_PER_SYSTEM 10)
 
 # Для использования точек подключения в серверах следует подстроку
 # от последнего символа '/' до символа ':' 
@@ -220,6 +225,7 @@ set (ENDPOINT_HMI_FRONTEND          "tcp://localhost:5558")
 set (ENDPOINT_EXCHG_FRONTEND        "tcp://localhost:5559")
 set (ENDPOINT_SBS_PUBLISHER         "tcp://localhost:5560")
 set (ENDPOINT_ARCH_FRONTEND         "tcp://localhost:5561")
+set (ENDPOINT_HIST_FRONTEND         "tcp://localhost:5562")
 
 # Предопределенные названия Служб
 set (BROKER_NAME        "BROKER")
@@ -227,6 +233,7 @@ set (RTDB_NAME          "SINF")
 set (HMI_NAME           "HMI")
 set (EXCHANGE_NAME      "ECH")
 set (ARCHIVIST_NAME     "ARCH")
+set (HIST_SAMPLER_NAME  "HIST")
 
 # Максимальное количество одновременно допустимых подключений
 set (DEFAULT_MAX_DB_CONNECTIONS_ALLOWED  4)

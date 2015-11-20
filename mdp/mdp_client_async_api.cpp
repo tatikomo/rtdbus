@@ -113,8 +113,8 @@ mdcli::~mdcli ()
 void mdcli::connect_to_broker ()
 {
   int linger = 0;
-  int send_timeout_msec = 1000000; // 1 sec
-  int recv_timeout_msec = 3000000; // 3 sec
+  int send_timeout_msec = SEND_TIMEOUT_MSEC; // def: 1 sec
+  int recv_timeout_msec = RECV_TIMEOUT_MSEC; // def: 3 sec
 
   try
   {
@@ -529,8 +529,8 @@ int mdcli::send_direct(std::string& service_name, zmsg *&request)
 {
   int status = 0;
   int hwm = 100;
-  int send_timeout_msec = 1000000; // 1 sec
-  int recv_timeout_msec = 3000000; // 3 sec
+  int send_timeout_msec = SEND_TIMEOUT_MSEC; // 1 sec
+  int recv_timeout_msec = RECV_TIMEOUT_MSEC; // 3 sec
   ServiceInfo* info;
 
   if (!service_info_by_name(service_name.c_str(), info))

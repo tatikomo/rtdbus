@@ -12,6 +12,8 @@
 #include <stdlib.h> // exit
 #include <stdarg.h>
 #include <string.h>
+#include <sys/types.h>  // kill
+#include <signal.h>     // kill
 
 #include "glog/logging.h"
 
@@ -55,6 +57,26 @@ mco_size_sig_t file_writer(void* stream_handle, const void* from, mco_size_t nby
 # endif
 {
   return (mco_size_t) fwrite(from, 1, nbytes, (FILE*) stream_handle);
+}
+
+// --------------------------------------------------------------------------------
+// Проверка доступности указанного идентификатора
+int os_task_id_check( pid_t tid )
+{
+  return kill(tid, 0) == 0 ? 0 : 1;
+}
+
+// Процедура внутренней проверки имеющихся подключений
+MCO_RET sniffer_callback(mco_db_h db, void* context, mco_trans_counter_t trans_no)
+{
+    pid_t pid = *(pid_t*)context;
+
+    if ( os_task_id_check( pid ) == 0 ) {
+      return MCO_S_OK;
+    }
+
+    LOG(WARNING) << "Control database: process " << pid << " is crashed";
+    return MCO_S_DEAD_CONNECTION;
 }
 
 // Класс для получения атрибутов в зависимости от OBJCLASS Точки для формирования
@@ -636,7 +658,10 @@ MCO_RET DatabaseRtapImpl::new_Point(mco_trans_h /* t */,
 //  GOFVALTI
 //  GOFVALAL
 //
-//  TODO: включить в список аргументов атрибуты .INHIBLOCAL и .INHIB,
+// Изменения атрибутов VAL и VALID накапливаются с помощью службы HIST.
+// Хранится история как аналоговых, так и для дискретных параметров.
+//
+// TODO: включить в список аргументов атрибуты .INHIBLOCAL и .INHIB,
 //  переместив их из паспортов в XDBPoint.
 // =================================================================================
 MCO_RET DatabaseRtapImpl::on_update_VALIDCHANGE(mco_trans_h t,
@@ -742,6 +767,8 @@ MCO_RET DatabaseRtapImpl::on_update_VALIDCHANGE(mco_trans_h t,
       if (rc) { LOG(ERROR) << "Get '"<<tag<<"' SA old state, rc="<<rc; break; }
     }
  
+    // TODO: набор применимых СЕ зависит в первую очередь от типа объекта управления, ГТП или ЛПУ
+    //
     // В зависимости от типа Точки вызывается соответствующая фунция GOFVAL{TI|AL|TSC}
     switch(objclass)
     {
@@ -852,757 +879,6 @@ MCO_RET DatabaseRtapImpl::on_update_VALIDCHANGE(mco_trans_h t,
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::GOFVALTI(mco_trans_h t,
-        XDBPoint*   obj,
-        AnalogInfoType& ai,
-        const char* tag,
-        objclass_t  objclass,
-        ValidChange h_Validchange,  // 00 VALIDCHANGE
-        double&     g_Valacq,       // 01 VALACQ
-        timestamp&  d_Dathourm,     // 02 DATEHOURM
-        double&     g_ValManual,    // 03 VALMANUAL
-        Validity    b_Validacq,     // 04 VALIDACQ
-        double&     g_Val,          // 05 VAL
-        Validity    h_Valid,        // 06 VALID
-        SystemState o_SaState,      // 07 SASTATE
-        SystemState o_OldSaSt,      // 08 OLDSASTATE
-        bool        b_InhibLocal,   // 09 INHIBLOCAL
-        bool        b_Inhib         // 10 INHIB
-        )
-{
-  static const char *fname = "GOFVALTI";
-  MCO_RET rc = MCO_S_NOTFOUND;
-  // Признак того, был ли модифицирован один из атрибутов данной точки,
-  // подлежащий проверке в группах подписки
-  bool point_was_modified = false;
-  Validity h_Valid_Out = h_Valid;
-//  Boolean logic;
-
-  do
-  {
-    // Выбор алгоритма действия в зависимости от нового значения VALIDCHANGE
-    switch (h_Validchange)
-    {
-      // ------------------------------------------------------------
-      case VALIDCHANGE_FAULT:   /* 0 */
-        if (o_SaState == SS_WORK)
-        {
-          switch(h_Valid)
-          {
-            case VALIDITY_VALID:
-            case VALIDITY_NO_INSTRUM:
-              h_Valid_Out = VALIDITY_FAULT;
-              rc = XDBPoint_VALIDITY_put(obj, h_Valid_Out);
-              if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VALID<<"', rc="<<rc; break; }
-              // TODO: update the information list SIL_TRT_D_MSG_FAULT_INF_LIS_PUT
-            break;
-
-            case VALIDITY_FAULT:
-            case VALIDITY_INQUIRED:
-              if (b_Validacq == VALIDITY_VALID)
-              {
-                // TODO: Add message into the invalid information list SIL_TRT_D_MSG_FAULT_INF_LIS_PUT
-
-                // the acquired value is the first after a SA unaccessibility
-                b_Validacq = VALIDITY_FAULT;
-                rc = XDBPoint_VALIDITY_ACQ_put(obj, b_Validacq);
-                if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VALIDACQ<<"', rc="<<rc; break; }
-              }
-            break;
-
-            default:
-                b_Validacq = VALIDITY_FAULT;
-                rc = XDBPoint_VALIDITY_ACQ_put(obj, b_Validacq);
-                if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VALIDACQ<<"', rc="<<rc; break; }
-          } // конец switch разбора достоверности
-
-          point_was_modified = true;
-
-        } // конец обработки СС в рабочем состоянии
-      break;
-
-      // ------------------------------------------------------------
-      case VALIDCHANGE_VALID:   /* 1 */
-        if (o_SaState == SS_WORK /*GOF_D_BDR_SASTATE_OP*/)
-        {
-          switch(h_Valid)
-          {
-            case VALIDITY_INHIBITION:
-            case VALIDITY_MANUAL: 
-            case VALIDITY_FAULT_INHIB: 
-            case VALIDITY_FAULT_FORCED:
-                b_Validacq = VALIDITY_VALID;
-                rc = XDBPoint_VALIDITY_ACQ_put(obj, b_Validacq);
-                if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VALIDACQ<<"', rc="<<rc; break; }
-                point_was_modified = true;
-            break;
-
-            case VALIDITY_INQUIRED:
-            case VALIDITY_NO_INSTRUM:
-                g_Val = g_Valacq;
-                rc = AnalogInfoType_VAL_put(&ai, g_Val);
-                if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VAL<<"', rc="<<rc; break; }
-
-                h_Valid_Out = VALIDITY_VALID;
-                rc = XDBPoint_VALIDITY_put(obj, h_Valid_Out);
-                if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VALID<<"', rc="<<rc; break; }
-
-                // If the fault was on the SA, remove the individual fault
-                if (b_Validacq == VALIDITY_FAULT)
-	            {
-                  // TODO: был сбой в СС, удалить ТИ из списка сбойных
-                  // Remove message from the invalid information list
-
-                  // Обновить
-                  b_Validacq = VALIDITY_VALID;
-                  rc = XDBPoint_VALIDITY_ACQ_put(obj, b_Validacq);
-                  if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VALIDACQ<<"', rc="<<rc; break; }
-                }
-                point_was_modified = true;
-            break;
-
-            case VALIDITY_FAULT:
-              g_Val = g_Valacq;
-              rc = AnalogInfoType_VAL_put(&ai, g_Val);
-              if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VAL<<"', rc="<<rc; break; }
-
-              h_Valid_Out = VALIDITY_VALID;
-              rc = XDBPoint_VALIDITY_put(obj, h_Valid_Out);
-              if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VALID<<"', rc="<<rc; break; }
-
-              // If the fault was on the SA, remove the individual fault
-              if (b_Validacq == VALIDITY_FAULT)
-	          {
-                  // TODO: был сбой в СС, удалить ТИ из списка сбойных
-
-                  // Обновить
-                  b_Validacq = VALIDITY_VALID;
-                  rc = XDBPoint_VALIDITY_ACQ_put(obj, b_Validacq);
-                  if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VALIDACQ<<"', rc="<<rc; break; }
-              }
-              point_was_modified = true;
-            break;
-
-            case VALIDITY_VALID:
-              g_Val = g_Valacq;
-              rc = AnalogInfoType_VAL_put(&ai, g_Val);
-              if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VAL<<"', rc="<<rc; break; }
-              point_was_modified = true;
-            break;
-
-            default:
-              LOG(ERROR) << fname << ": Unhandled "<<tag<<"." << RTDB_ATT_VALID << "=" << h_Valid;
-          }
-        } // Конец действий если СС в рабочем режиме
-      break;
-
-      // ------------------------------------------------------------
-      case VALIDCHANGE_FORCED:  /* 2 */
-        g_Val = g_ValManual;
-
-        rc = AnalogInfoType_VAL_put(&ai, g_Val);
-        if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VAL<<"', rc="<<rc; break; }
-
-        switch(h_Valid)
-        {
-          case VALIDITY_VALID:
-            h_Valid_Out = VALIDITY_MANUAL;
-            // TODO: Send message to update the information list SIL_TRT_D_MSG_FORCED_INF_LIS_PUT
-
-            // Set the local inhibition into Database
-            b_InhibLocal = true;
-            rc = XDBPoint_INHIBLOCAL_put(obj, TRUE);
-            if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_INHIBLOCAL<<"', rc="<<rc; break; }
-          break;
-        
-          case VALIDITY_INHIBITION:
-            h_Valid_Out = VALIDITY_MANUAL;
-
-            // TODO: Send message to update the information list SIL_TRT_D_MSG_FORCED_INF_LIS_PUT
-
-            if (b_InhibLocal == true)
-            {
-              // TODO: Send message to update the information list SIL_TRT_D_MSG_INHIB_INF_LIS_SUP
-            }
-            else
-            {
-              // Set the local inhibition into Database
-              b_InhibLocal = true;
-              rc = XDBPoint_INHIBLOCAL_put(obj, TRUE);
-              if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_INHIBLOCAL<<"', rc="<<rc; break; }
-            }
-          break;
-
-          case VALIDITY_FAULT:
-          case VALIDITY_INQUIRED:
-            if ( b_Validacq == true )
-            {
-              h_Valid_Out = VALIDITY_MANUAL;
-            }
-            else
-            {
-              h_Valid_Out = VALIDITY_FAULT_FORCED;
-            }
-
-            // TODO: Send message to update the information list SIL_TRT_D_MSG_FORCED_INF_LIS_PUT
-            
-            // Set the local inhibition into Database
-            b_InhibLocal = true;
-            rc = XDBPoint_INHIBLOCAL_put(obj, TRUE);
-            if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_INHIBLOCAL<<"', rc="<<rc; break; }
-          break;
-  
-          case VALIDITY_FAULT_INHIB:
-            h_Valid_Out = VALIDITY_FAULT_FORCED;
-            // TODO: Send message to update the information list SIL_TRT_D_MSG_FORCED_INF_LIS_PUT
-
-            if (b_InhibLocal == true)
-            {
-              // TODO: Send message to update the information list SIL_TRT_D_MSG_INHIB_INF_LIS_SUP
-            }
-            else
-            {
-              // Set the local inhibition into Database
-              b_InhibLocal = true;
-              rc = XDBPoint_INHIBLOCAL_put(obj, TRUE);
-              if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_INHIBLOCAL<<"', rc="<<rc; break; }
-
-            }
-          break;
-
-          case VALIDITY_MANUAL:
-          case VALIDITY_FAULT_FORCED:
-            if (b_InhibLocal == true)
-            {
-              // TODO: Send message to update the information list SIL_TRT_D_MSG_FORCED_INF_LIS_MOD
-            }
-          break;
-
-          case VALIDITY_NO_INSTRUM:
-             // TODO: Send message to update the information list SIL_TRT_D_MSG_MANUAL_INF_LIS_MOD
-          break;
-
-          case VALIDITY_GLOBAL_FAULT:
-            // ???
-          break;
-        }
-
-        point_was_modified = true;
-
-      break;
-
-      // ------------------------------------------------------------
-      case VALIDCHANGE_INHIB:   /* 3 */
-        switch(h_Valid)
-        {
-          case VALIDITY_VALID:
-          case VALIDITY_FAULT:
-          case VALIDITY_INQUIRED:
-            if (h_Valid == VALIDITY_VALID)
-            {
-              h_Valid_Out = VALIDITY_INHIBITION;
-              // TODO: Send message to update the information list SIL_TRT_D_MSG_INHIB_INF_LIS_PUT
-            }
-            else if (h_Valid == VALIDITY_FAULT)
-            {
-              if (b_Validacq == VALIDITY_VALID)
-              {
-                h_Valid_Out = VALIDITY_INHIBITION;
-              }
-              else
-              {
-                h_Valid_Out = VALIDITY_FAULT_INHIB;
-              }
-              // TODO: Send message to update the information list SIL_TRT_D_MSG_INHIB_INF_LIS_PUT
-            }
-            else if (h_Valid == VALIDITY_INQUIRED)
-            {
-              if (b_Validacq == VALIDITY_VALID)
-              {
-                h_Valid_Out = VALIDITY_MANUAL;
-              }
-              else
-              {
-                h_Valid_Out = VALIDITY_FAULT_FORCED;
-              }
-              
-              // TODO: Send message to update the information list SIL_TRT_D_MSG_FORCED_INF_LIS_PUT
-
-              rc = XDBPoint_VALIDITY_put(obj, h_Valid_Out);
-              if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VALID<<"', rc="<<rc; break; }
-              point_was_modified = true;
-
-              // TODO: Set the local inhibition into Database
-              b_InhibLocal = true;
-              //1LOG(INFO) << fname << ": set " <<tag<< "."<<RTDB_ATT_INHIBLOCAL << " = " << (int) b_InhibLocal;
-              rc = XDBPoint_INHIBLOCAL_put(obj, TRUE);
-              if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_INHIBLOCAL<<"', rc="<<rc; break; }
-            }
-          break;
-
-          default:
-            LOG(ERROR) << fname << ": Unhandled "<<tag<<"." << RTDB_ATT_VALID << "=" << h_Valid;
-        }
-        rc = MCO_S_OK;
-      break;
-
-      // ------------------------------------------------------------
-      case VALIDCHANGE_MANUAL:  /* 4 */
-        switch (h_Valid)
-        {
-          case VALIDITY_INQUIRED:
-          case VALIDITY_MANUAL:
-          case VALIDITY_FAULT_FORCED:
-          case VALIDITY_NO_INSTRUM:
-          case VALIDITY_FAULT:
-          case VALIDITY_INHIBITION:
-          case VALIDITY_FAULT_INHIB:
-
-            g_Val = g_ValManual;
-
-            rc = AnalogInfoType_VAL_put(&ai, g_Val);
-            if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VAL<<"', rc="<<rc; break; }
-
-            if (h_Valid == VALIDITY_NO_INSTRUM)
-            {
-              // TODO: Send message to update the information list SIL_TRT_D_MSG_MANUAL_INF_LIS_MOD
-            }
-            else if ((h_Valid == VALIDITY_MANUAL) || (h_Valid == VALIDITY_FAULT_FORCED))
-            {
-              if (b_InhibLocal == true)
-              {
-                // TODO: Send message to update the information list SIL_TRT_D_MSG_FORCED_INF_LIS_MOD
-              }
-            }
-            else if (h_Valid == VALIDITY_FAULT)
-            {
-              h_Valid_Out = VALIDITY_INQUIRED;
-              rc = XDBPoint_VALIDITY_put(obj, h_Valid_Out);
-              if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VALID<<"', rc="<<rc; break; }
-            }
-            else if (h_Valid == VALIDITY_INHIBITION)
-            {
-              h_Valid_Out = VALIDITY_MANUAL;
-              rc = XDBPoint_VALIDITY_put(obj, h_Valid_Out);
-              if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VALID<<"', rc="<<rc; break; }
-
-              if (b_InhibLocal == true)
-              {
-                // TODO: Send message to update the information list SIL_TRT_D_MSG_INHIB_INF_LIS_SUP
-                // TODO: Send message to update the information list SIL_TRT_D_MSG_FORCED_INF_LIS_PUT
-              }
-            }
-            else if (h_Valid == VALIDITY_FAULT_INHIB)
-            {
-              h_Valid_Out = VALIDITY_FAULT_FORCED;
-              rc = XDBPoint_VALIDITY_put(obj, h_Valid_Out);
-              if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VALID<<"', rc="<<rc; break; }
-              // TODO: Send message to update the information list SIL_TRT_D_MSG_INHIB_INF_LIS_SUP
-              // TODO: Send message to update the information list SIL_TRT_D_MSG_FORCED_INF_LIS_PUT
-            }
-
-            point_was_modified = true;
-          break;
-
-          default:
-            LOG(ERROR) << fname << ": Unhandled "<<tag<<"." << RTDB_ATT_VALID << "=" << h_Valid;
-        }
-      break;
-
-      // ------------------------------------------------------------
-      case VALIDCHANGE_END_INHIB:   /* 5 */
-      case VALIDCHANGE_END_FORCED:  /* 6 */
-        switch (h_Valid)
-        {
-          case VALIDITY_FAULT_INHIB:
-		  case VALIDITY_FAULT_FORCED:
-		  case VALIDITY_MANUAL:
-		  case VALIDITY_INHIBITION:
-
-            // Inhibition is over if both the SA and the upper level equipment
-            // are no more inhibited
-  
-            if ((o_SaState != SS_INHIB) && (b_Inhib == false))
-            {
-              //  Last acquisition was valid
-              if (b_Validacq == true)
-              {
-                if ((h_Valid == VALIDITY_FAULT_INHIB) || (h_Valid == VALIDITY_FAULT_FORCED))
-                {
-                  // Acquistion before inhibition was in fault
-                  // TODO: Send message to update the fault information list SIL_TRT_D_MSG_FAULT_INF_LIS_SUP
-                }
-
-                if (o_SaState == SS_WORK) 
-                {
-                  h_Valid_Out = VALIDITY_VALID;
-                }
-                else
-                {
-                  // TODO: проверить корректность присваивания h_Valid_Out в VALIDITY_FAULT
-                  if ((h_Valid == VALIDITY_FAULT_INHIB)
-                   || (h_Valid == VALIDITY_INHIBITION)
-                   || (h_Valid == VALIDITY_FAULT_FORCED)
-                   || (h_Valid == VALIDITY_MANUAL))
-                  {
-                    h_Valid_Out = VALIDITY_FAULT;
-                  }
-                }
-
-                // Write the current validity into Database
-                rc = XDBPoint_VALIDITY_put(obj, h_Valid_Out);
-                if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VALID<<"', rc="<<rc; break; }
-              }
-              else // b_Validacq == false
-              {
-                if ((h_Valid == VALIDITY_INHIBITION) || (h_Valid == VALIDITY_MANUAL))
-                {
-                  // Acquistion before inhibition was valid
-                  // TODO: Send message to update the information list SIL_TRT_D_MSG_FAULT_INF_LIS_PUT
-                }
-
-                // TODO: проверить корректность присваивания h_Valid_Out в VALIDITY_FAULT
-                if ((h_Valid == VALIDITY_FAULT_INHIB)
-                 || (h_Valid == VALIDITY_INHIBITION)
-                 || (h_Valid == VALIDITY_FAULT_FORCED)
-                 || (h_Valid == VALIDITY_MANUAL))
-                 {
-                   h_Valid_Out = VALIDITY_FAULT;
-                 }
-
-                 rc = XDBPoint_VALIDITY_put(obj, h_Valid_Out);
-                 if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VALID<<"', rc="<<rc; break; }
-              } // end if b_Validacq == false
-
-            } // end if SA inhib
-
-            g_Val = g_Valacq;
-            rc = AnalogInfoType_VAL_put(&ai, g_Val);
-            if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VAL<<"', rc="<<rc; break; }
-
-            if (b_InhibLocal == true)
-            {
-              if (h_Valid == VALIDITY_FAULT_INHIB || h_Valid == VALIDITY_INHIBITION)
-              {
-                // TODO: Send message to update the information list SIL_TRT_D_MSG_INHIB_INF_LIS_SUP
-              }
-              else
-              {
-                // TODO: Send message to update the information list SIL_TRT_D_MSG_FORCED_INF_LIS_SUP
-              }
-
-              // Reset the local inhibition into Database
-              b_InhibLocal = false;
-              //1LOG(INFO) << fname << ": set " <<tag<< "."<<RTDB_ATT_INHIBLOCAL << " = " << (int) b_InhibLocal;
-              rc = XDBPoint_INHIBLOCAL_put(obj, FALSE);
-              if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_INHIBLOCAL<<"', rc="<<rc; break; }
-            }
-
-            point_was_modified = true;
-          break;
-
-          default:
-            LOG(WARNING) << fname << ": Unhandled "<<tag<<"." << RTDB_ATT_VALID << "=" << h_Valid;
-        }
-
-      break;
-
-      // ------------------------------------------------------------
-      case VALIDCHANGE_INHIB_GBL:   /* 7 */
-
-        switch(h_Valid)
-        {
-          case VALIDITY_FAULT_INHIB:
-          case VALIDITY_FAULT_FORCED:
-          case VALIDITY_MANUAL:
-          case VALIDITY_INHIBITION:
-
-          // No other inhibition (SA, eqt on another level, local) must remain
-          if ((o_SaState != SS_INHIB) && (b_Inhib == false) && (b_InhibLocal == false))
-          {
-            if (b_Validacq == true)
-            {
-              h_Valid_Out = VALIDITY_VALID;
-              rc = XDBPoint_VALIDITY_put(obj, h_Valid_Out);
-              if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VALID<<"', rc="<<rc; break; }
-
-              if (h_Valid == VALIDITY_FAULT_INHIB || h_Valid == VALIDITY_FAULT_FORCED)
-              {
-                // Acquistion before inhibition was in fault
-                // TODO: Send message to update the fault information list SIL_TRT_D_MSG_FAULT_INF_LIS_SUP
-              }
-            }
-            else if (b_Validacq == false)
-            {
-              if ((h_Valid == VALIDITY_INHIBITION)
-		       || (h_Valid == VALIDITY_FAULT_INHIB)
-		       || (h_Valid == VALIDITY_MANUAL)
-		       || (h_Valid == VALIDITY_FAULT_FORCED))
-              {
-                h_Valid_Out = VALIDITY_FAULT;
-              }
-
-              rc = XDBPoint_VALIDITY_put(obj, h_Valid_Out);
-              if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VALID<<"', rc="<<rc; break; }
-  
-              if (h_Valid == VALIDITY_INHIBITION || h_Valid == VALIDITY_MANUAL)
-              {
-                // Acquistion before inhibition was not in fault
-                // TODO: Send message to update the fault information list SIL_TRT_D_MSG_FAULT_INF_LIS_PUT
-              }
-            }
-          }
-
-          // Write the current value into Database
-          g_Val = g_Valacq;
-          rc = AnalogInfoType_VAL_put(&ai, g_Val);
-          if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VAL<<"', rc="<<rc; break; }
-
-          point_was_modified = true;
-
-          break;
-
-          default:
-            LOG(WARNING) << fname << ": Unhandled "<<tag<<"." << RTDB_ATT_VALID << "=" << h_Valid;
-        } // end switch
-      break;
-
-      // ------------------------------------------------------------
-      case VALIDCHANGE_END_INHIB_GBL:   /* 8 */
-
-        if (h_Valid == VALIDITY_VALID)
-        {
-          h_Valid_Out = VALIDITY_INHIBITION;
-        }
-        else if (h_Valid == VALIDITY_FAULT)
-        {
-          h_Valid_Out = VALIDITY_FAULT_INHIB;
-        }
-        else if (h_Valid == VALIDITY_INQUIRED)
-        {
-          h_Valid_Out = VALIDITY_FAULT_FORCED;
-        }
-
-        rc = XDBPoint_VALIDITY_put(obj, h_Valid_Out);
-        if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VALID<<"', rc="<<rc; break; }
-
-        point_was_modified = true;
-      break;
-
-      // ------------------------------------------------------------
-      case VALIDCHANGE_NULL:    /* 9 */
-        // Ничего не делать
-        rc = MCO_S_OK;
-        point_was_modified = false;
-      break;
-
-      // ------------------------------------------------------------
-      case VALIDCHANGE_FAULT_GBL:   /* 10 */
-        if (h_Valid == VALIDITY_VALID)
-        {
-          h_Valid_Out = VALIDITY_FAULT;
-          rc = XDBPoint_VALIDITY_put(obj, h_Valid_Out);
-          if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VALID<<"', rc="<<rc; break; }
-
-          point_was_modified = true;
-        }
-        // NB: VALIDACQ is not updated and no lines are added into the fault invalid information list
-      break;
-
-      // ------------------------------------------------------------
-      case VALIDCHANGE_INHIB_SA:    /* 11 */
-        if (h_Valid == VALIDITY_VALID)
-        {
-          h_Valid_Out = VALIDITY_INHIBITION;
-        }
-        else if (h_Valid == VALIDITY_FAULT)
-        {
-          if (b_Validacq == VALIDITY_VALID)
-          {
-            h_Valid_Out = VALIDITY_INHIBITION;
-          }
-          else
-          {
-            h_Valid_Out = VALIDITY_FAULT_INHIB;
-          }
-        }
-        else if (h_Valid_Out == VALIDITY_INQUIRED)
-        {
-          if (b_Validacq == VALIDITY_VALID)
-          {
-            h_Valid_Out = VALIDITY_MANUAL;
-          }
-          else
-          {
-            h_Valid_Out = VALIDITY_FAULT_FORCED;
-          }
-        }
-
-        rc = XDBPoint_VALIDITY_put(obj, h_Valid_Out);
-        if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VALID<<"', rc="<<rc; break; }
-
-        point_was_modified = true;
-      break;
-
-      // ------------------------------------------------------------
-      case VALIDCHANGE_END_INHIB_SA:    /* 12 */
-        switch(h_Valid)
-        {
-          case VALIDITY_FAULT_INHIB:
-          case VALIDITY_FAULT_FORCED:
-          case VALIDITY_MANUAL:
-          case VALIDITY_INHIBITION:
-
-            if (b_Inhib == false && b_InhibLocal == false)
-            {
-              if (b_Validacq == true && o_SaState == SS_WORK)
-              {
-                if (h_Valid == VALIDITY_FAULT_INHIB || h_Valid == VALIDITY_FAULT_FORCED)
-                {
-                  // Acquistion before inhibition was in fault
-                  // TODO: Send message to update the fault information list SIL_TRT_D_MSG_FAULT_INF_LIS_SUP
-                }
-                h_Valid_Out = VALIDITY_VALID;
-
-                rc = XDBPoint_VALIDITY_put(obj, h_Valid_Out);
-                if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VALID<<"', rc="<<rc; break; }
-
-                g_Val = g_Valacq;
-                rc = AnalogInfoType_VAL_put(&ai, g_Val);
-                if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VAL<<"', rc="<<rc; break; }
-
-                point_was_modified = true;
-              }
-              else 
-              {
-                if ((h_Valid == VALIDITY_INHIBITION || h_Valid == VALIDITY_MANUAL)
-                 && (b_Validacq == false))
-                {
-                  // TODO: Send message to update the information list SIL_TRT_D_MSG_FAULT_INF_LIS_PUT
-                }
-
-                if ((h_Valid == VALIDITY_INHIBITION)
-                 || (h_Valid == VALIDITY_FAULT_INHIB)
-                 || (h_Valid == VALIDITY_MANUAL)
-                 || (h_Valid == VALIDITY_FAULT_FORCED))
-                {
-                  h_Valid_Out = VALIDITY_FAULT;
-                }
-
-                rc = XDBPoint_VALIDITY_put(obj, h_Valid_Out);
-                if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VALID<<"', rc="<<rc; break; }
-
-                point_was_modified = true;
-              }
-           } /* end if SA inhib ou Eqt inhib */
-
-          break;
-
-          default:
-            LOG(ERROR) << fname << ": Unhandled "<<tag<<"." << RTDB_ATT_VALID << "=" << h_Valid;
-        }
-
-      break;
-
-      default:
-        LOG(ERROR) << fname << ": Unhandled "<<tag<<"." << RTDB_ATT_VALIDCHANGE << "=" << h_Validchange;
-    }
-
-  } while(false);
-
-  // TODO: Если код завершения операции с БДРВ успешный, и один из атрибутов данной
-  // точки был модифицирован, то взвести флаг наличия изменений в тех группах
-  // подписки, где встречается данная точка
-
-  // Если была ошибка, но обработка VALIDCHANGE не проводилась - сбросить ошибку.
-  // Это произошло из-за значения rc по-умолчанию (MCO_S_NOTFOUND)
-  if ((rc) && (false == point_was_modified))
-  {
-    rc = MCO_S_OK;
-  }
-  else
-  {
-    // Взведем признак модификации атрибутов для последующей проверки группой подписки
-    rc = XDBPoint_is_modified_put(obj, TRUE);
-    if (rc) 
-    {
-      LOG(ERROR) << "Set '"<<tag<<"' modified flag, rc="<<rc;
-    }
-    else LOG(INFO) << "Set modify flag for '"<<tag<<"'"; //1
-  }
-
-
-  return rc;
-}
-
-MCO_RET DatabaseRtapImpl::GOFVALAL(mco_trans_h t,
-        XDBPoint *obj,
-        DiscreteInfoType&,
-        const char*,
-        objclass_t,
-        ValidChange,
-        uint64_t&,
-        timestamp&,
-        uint64_t&,
-        Validity,
-        uint64_t&,
-        Validity,
-        SystemState,
-        SystemState)
-{
-//  static const char *fname = "GOFVALAL";
-  MCO_RET rc = MCO_S_NOTFOUND;
-  return rc;
-}
-
-// Поместить факт изменения состояния объекта в таблицу EQV
-MCO_RET DatabaseRtapImpl::GOFVALTSC(mco_trans_h t,
-        XDBPoint *obj,
-        DiscreteInfoType&,
-        const char*,
-        objclass_t,
-        ValidChange,
-        uint64_t&,
-        timestamp&,
-        uint64_t&,
-        Validity,
-        uint64_t&,
-        Validity,
-        SystemState,
-        SystemState)
-{
-//  static const char *fname = "GOFVALTSC";
-  MCO_RET rc = MCO_S_NOTFOUND;
-#if 0
-    switch(objclass)
-    {
-        case TM:
-        case TR:
-        case ICM:
-
-
-            break;
-
-        case TS:
-        case TSA:
-        case VA:
-        case ATC:
-        case AUX1:
-        case AUX2:
-        case AL:
-        case ICS:
-            break;
-
-        default:
-            LOG(ERROR) << "'" << tag
-                       << "' for objclass " << objclass
-                       << " is not supported";
-            break;
-    }
-
-#endif
-  return rc;
-}
 
 // =================================================================================
 // Статический метод, вызываемый из runtime базы данных 
@@ -1639,6 +915,7 @@ MCO_RET DatabaseRtapImpl::RegisterEvents()
 
   assert(m_impl);
 
+  LOG(INFO) << "This thread is arm VALIDCHANGE";
   do
   {
     rc = mco_trans_start(m_impl->getDbHandler(), MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
@@ -1940,20 +1217,18 @@ const Error& DatabaseRtapImpl::read(mco_db_h& handle, std::string& sbs_name, int
                   point_info = new xdb::PointDescription_t;
                   // По заданному id Точки прочитать значения её значимых для группы подписки атрибутов
                   rc = LoadPointInfo(handle, t, point_aid, point_info);
-
-                  // TODO: что делать в случае единичной ошибки чтения? продолжить или прервать работу?
                   if (rc)
                   {
                     LOG(ERROR) << "Unable to load attributes for point id="<<point_aid<<", rc=" << rc;
                     delete point_info;
-                    break;
                   }
-
-                  points_list->push_back(point_info);
-
-                  // С этим атрибутом закончили, переходим к следующему
-                  num_points++;
-//1                  LOG(INFO) << "GEV: points_list #"<<num_points<<" add point id=" << point_aid;
+                  else // В случае единичной ошибки чтения продолжить работу
+                  {
+                    points_list->push_back(point_info);
+                    // С этим атрибутом закончили, переходим к следующему
+                    num_points++;
+                    //1 LOG(INFO) << "GEV: points_list #"<<num_points<<" add point id=" << point_aid;//1
+                  }
                 }
 
               } // конец проверки, принадлежит ли нужной группе очередной элемент курсора
@@ -2015,6 +1290,7 @@ MCO_RET DatabaseRtapImpl::LoadPointInfo(mco_db_h& handle, mco_trans_h t, autoid_
 
   rc = MCO_S_OK;
 
+  LOG(INFO) << "LoadPointInfo: point id=" << point_aid;//1
   do
   {
     // 1. По заданному идентификатору найти экземпляр XDBpoint
@@ -2196,10 +1472,48 @@ const Error& DatabaseRtapImpl::Config(rtDbCq& /* info */)
 
 // =================================================================================
 // Группа функций управления
-const Error& DatabaseRtapImpl::Control(mco_db_h&, rtDbCq& /* info */)
+const Error& DatabaseRtapImpl::Control(mco_db_h& handler, rtDbCq& info)
 {
+  MCO_RET rc;
+
   setError(rtE_NOT_IMPLEMENTED);
+
+  switch(info.action.control)
+  {
+    case rtCONTROL_SAVE_XSD:
+      break;
+
+    case rtCONTROL_CHECK_CONN:
+      clearError();
+      rc = controlConnections(handler, info);
+      if (rc)
+      {
+        LOG(ERROR) << "Connection check, rc=" << rc;
+        setError(rtE_RUNTIME_ERROR); // TODO: уточни в зависимости от rc
+      }
+      break;
+
+    default:
+      setError(rtE_NOT_IMPLEMENTED);
+  }
+
   return getLastError();
+}
+
+// =================================================================================
+// Проверка состояния подключений
+MCO_RET DatabaseRtapImpl::controlConnections (mco_db_h& handler, rtDbCq& info)
+{
+  MCO_RET rc;
+
+  // Проверка статуса активных соединений.
+  // Если процесс недоступен, но информация о соединении сохранилась, это подключение
+  // считается аварийно завершенным.
+  // NB: данная проверка возможна, если подключение происходит функцией mco_db_connect_ctx()
+  rc = mco_db_sniffer(handler, sniffer_callback, MCO_SNIFFER_INSPECT_ACTIVE_CONNECTIONS);
+  LOG(INFO) << "Control database connections, rc=" << rc;
+
+  return rc;
 }
 
 // =================================================================================
@@ -2212,6 +1526,12 @@ const Error& DatabaseRtapImpl::Query(mco_db_h& handler, rtDbCq& info)
 
   switch(info.action.query)
   {
+    // Прочитать список точек указанного класса
+    case rtQUERY_PTS_IN_CLASS:
+        rc = queryPointsOfSpecifiedClass(handler, info);
+        if (rc) { LOG(ERROR) << "Get points list of specified class"; }
+        break;
+
     // Вернуть список групп подписки, содержашие точки с модифицированными атрибутами
     case rtQUERY_SBS_LIST_ARMED:
         rc = querySbsArmedGroup(handler, info);
@@ -2241,7 +1561,6 @@ const Error& DatabaseRtapImpl::Query(mco_db_h& handler, rtDbCq& info)
         rc = querySbsDisarmSelectedPoints(handler, info);
         if (rc) { LOG(ERROR) << "Deactivating selected modified points for all subscription groups"; }
         break;
-
 
     default:
         setError(rtE_NOT_IMPLEMENTED);
@@ -2336,8 +1655,8 @@ MCO_RET DatabaseRtapImpl::createGroup(mco_db_h& handler, rtDbCq& info)
   mco_trans_h t;
   int idx = 0;
   InternalState state = ENABLE;
-  autoid_t  point_aid;
-  autoid_t  sbs_aid;
+  autoid_t  point_aid = 0;
+  autoid_t  sbs_aid = 0;
 
   assert(info.action.config == rtCONFIG_ADD_GROUP_SBS);
 //  assert(info.addrCnt);
@@ -2361,7 +1680,7 @@ MCO_RET DatabaseRtapImpl::createGroup(mco_db_h& handler, rtDbCq& info)
         // 1. Создать запись в SBS_GROUPS_STAT
         rc = sbs_stat_instance.create(t);
         if (rc) { LOG(ERROR) << "Creating SBS_STAT '" << *sbs_name << "', rc="<<rc; break; }
-        rc = sbs_stat_instance.name_put(sbs_name->c_str(), static_cast<uint2>(sbs_name->size()));
+        rc = sbs_stat_instance.name_put(sbs_name->c_str(), (uint2)sbs_name->size());
         if (rc) { LOG(ERROR) << "Set name '" << *sbs_name << "' in SBS_STAT, rc="<<rc; break; }
         rc = sbs_stat_instance.state_put(state);
         if (rc) { LOG(ERROR) << "Set name '" << *sbs_name << "' in SBS_STAT, rc="<<rc; break; }
@@ -2444,8 +1763,8 @@ MCO_RET DatabaseRtapImpl::deleteGroup(mco_db_h& handler, rtDbCq& info)
   SBS_GROUPS_ITEM sbs_item_handle;
   // Элементарная запись о состоянии данной группы подписки
   rtap_db::SBS_GROUPS_STAT sbs_stat_instance;
-  autoid_t  point_aid;
-  autoid_t  sbs_aid;
+  autoid_t  point_aid = 0;
+  autoid_t  sbs_aid = 0;
   int       compare_result = 0;
   mco_cursor_t csr;
   std::string* sbs_name = static_cast<std::string*>(info.buffer);
@@ -2564,6 +1883,104 @@ MCO_RET DatabaseRtapImpl::deleteGroup(mco_db_h& handler, rtDbCq& info)
 }
 
 // =================================================================================
+// Прочитать список точек указанного класса
+// Входные данные:
+// 1) buffer - ссылка на map_id_name_t, содержащего карту autoid_t и имени тега
+// 2) addrCnt - objclass искомых точек
+MCO_RET DatabaseRtapImpl::queryPointsOfSpecifiedClass (mco_db_h& handler, rtDbCq& info)
+{
+  MCO_RET rc = MCO_E_UNSUPPORTED;
+  mco_cursor_t csr;
+  mco_trans_h t;
+  autoid_t point_aid = 0;
+  // Текущий экземпляр Точки
+  XDBPoint point_instance;
+  // Значение OBJCLASS текущего экземпляра
+  objclass_t objclass_instance;
+  // Результат сравнения с атрибутом objclass_needed
+  int compare_result = 0;
+  // Входной параметр - адрес хеша с выходными данными
+  map_id_name_t *points_map = static_cast<map_id_name_t*>(info.buffer);
+  map_id_name_t::iterator points_map_iterator;
+  // Ай-яй-яй! Стыдно должно быть передавать тип объекта через значение несоответствующего аргумента!
+  objclass_t objclass_needed = static_cast<objclass_t>(info.addrCnt);
+  // Буфер для чтения значения тега Точки
+  const uint2 tag_size = sizeof(wchar_t)*TAG_NAME_MAXLEN;
+  char tag[tag_size + 1];
+
+  assert(info.buffer);
+  points_map->clear();
+
+  do
+  {
+    rc = mco_trans_start(handler, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
+    if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
+
+    rc = XDBPoint_SK_by_objclass_index_cursor(t, &csr);
+    if (MCO_S_OK == rc)
+    {
+      rc = XDBPoint_SK_by_objclass_search(t, &csr, MCO_EQ, objclass_needed);
+      if (rc && (rc != MCO_S_NOTFOUND)) { LOG(ERROR) << "Search in point's tree by OBJCLASS cursor, rc=" << rc; break; }
+
+      if (rc != MCO_S_NOTFOUND)
+      {
+        // Прочитать очередной экземпляр XDBPoint
+        rc = mco_cursor_first(t, &csr);
+        if (rc) { LOG(ERROR) << "Get first XDBPoint item, rc=" << rc; break; }
+
+        // Цикл по всем Точкам
+        while (MCO_S_OK == rc)
+        {
+          compare_result = 0;
+          rc = XDBPoint_SK_by_objclass_compare(t, &csr, objclass_needed, &compare_result);
+          if (rc) { LOG(ERROR) << "Compare OBJCLASS in tree index cursor, rc=" << rc; break; }
+
+          if (0 == compare_result) // Найден объект соответствующего класса
+          {
+            rc = XDBPoint_from_cursor(t, &csr, &point_instance);
+            if (rc) { LOG(ERROR) << "Get instance from tree index cursor, rc=" << rc; break; }
+
+            rc = XDBPoint_OBJCLASS_get(&point_instance, &objclass_instance);
+            if (rc) { LOG(ERROR) << "Get point's id=" <<point_aid<<" OBJCLASS, rc=" << rc; break; }
+
+            rc = XDBPoint_autoid_get(&point_instance, &point_aid);
+            if (rc) { LOG(ERROR) << "Get point's id, rc=" << rc; break; }
+
+            rc = XDBPoint_TAG_get(&point_instance, tag, tag_size);
+            if (rc) { LOG(ERROR) << "Get point's id="<<point_aid<<" TAG, rc=" << rc; break; }
+
+            // Занесем реквизиты текущей точки в список
+            points_map->insert(std::pair<autoid_t, std::string>(point_aid, tag));
+//1            LOG(INFO) << "queryPointsOfSpecifiedClass insert " << objclass_needed << ":" << point_aid << ":" << tag;
+          }
+
+          rc = mco_cursor_next(t, &csr);
+          if (rc && (rc != MCO_S_CURSOR_END)) { LOG(ERROR) << "Next XDBPoint cursor, rc=" << rc; break; }
+
+        } // Конец проверки, что первый элемент курсора установлен
+ 
+      } // Конец проверки, есть ли точки такого класса?
+
+      rc = mco_cursor_close(t, &csr);
+      if (rc) { LOG(ERROR) << "Close XDBPoint cursor, rc=" << rc; break; }
+
+    } // Конец успешного создания курсора по индексу модификации 
+
+    rc = mco_trans_commit(t);
+    if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; break; }
+
+  } while (false);
+
+  if (rc)
+  {
+    mco_trans_rollback(t);
+    setError(rtE_RUNTIME_ERROR);
+  }
+
+  return rc;
+}
+
+// =================================================================================
 // Интерфейс получения списка групп с активированными (измененными) атрибутами точек
 // Каждая точка может находиться в нескольких группах. Необходимо для каждой точки
 // определить этот набор групп, и каждая последующая точка должна его расширять.
@@ -2576,8 +1993,8 @@ MCO_RET DatabaseRtapImpl::querySbsArmedGroup (mco_db_h& handler, rtDbCq& info)
   mco_cursor_t csr_point;
   mco_cursor_t csr_sbs;
   mco_trans_h t;
-  autoid_t point_aid;
-  autoid_t sbs_aid;
+  autoid_t point_aid = 0;
+  autoid_t sbs_aid = 0;
   XDBPoint point_instance;
   SBS_GROUPS_ITEM sbs_item_instance;
   SBS_GROUPS_STAT sbs_stat_instance;
@@ -2605,7 +2022,6 @@ MCO_RET DatabaseRtapImpl::querySbsArmedGroup (mco_db_h& handler, rtDbCq& info)
 
     // Найти все изменившиеся точки
     rc = XDBPoint_SK_by_modified_index_cursor(t, &csr_point);
-
     if (MCO_S_OK == rc)
     {
       // У изменившихся взведен флаг is_modified
@@ -2811,9 +2227,9 @@ MCO_RET DatabaseRtapImpl::querySbsPoints(mco_db_h& handler, rtDbCq& info, TypeOf
   mco_cursor_t csr_point;
   mco_cursor_t csr_sbs;
   mco_trans_h t;
-  autoid_t point_aid;
-  autoid_t sbs_aid_looked;
-  autoid_t sbs_aid_current;
+  autoid_t point_aid = 0;
+  autoid_t sbs_aid_looked = 0;
+  autoid_t sbs_aid_current = 0;
   XDBPoint point_instance;
   SBS_GROUPS_ITEM sbs_item_instance;
   SBS_GROUPS_STAT sbs_stat_instance;

@@ -34,6 +34,8 @@ class ApplicationImpl
     const Error& getLastError() const;
     void  setLastError(const Error&);
     void  clearError();
+    // Проверка присутствия в системе зарегистрированного экземпляра указанной БД
+    bool  database_instance_presence(const char*);
 
   private:
     DISALLOW_COPY_AND_ASSIGN(ApplicationImpl);

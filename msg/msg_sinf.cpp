@@ -467,6 +467,7 @@ const std::string Value::as_string() const
   std::string value;
   char buffer [50];
   char s_date [D_DATE_FORMAT_LEN + 1];
+  struct tm result_time;
   time_t given_time;
 
   switch(m_instance.type)
@@ -537,7 +538,8 @@ const std::string Value::as_string() const
 
     case xdb::DB_TYPE_ABSTIME:
       given_time = m_instance.value.fixed.val_time.tv_sec;
-      strftime(s_date, D_DATE_FORMAT_LEN, D_DATE_FORMAT_STR, localtime(&given_time));
+      localtime_r(&given_time, &result_time);
+      strftime(s_date, D_DATE_FORMAT_LEN, D_DATE_FORMAT_STR, &result_time);
       snprintf(buffer, D_DATE_FORMAT_W_MSEC_LEN, "%s.%06ld", s_date, m_instance.value.fixed.val_time.tv_usec);
       value.assign(buffer);
 //      std::cout << "msg_sinf: sec=" << m_instance.value.fixed.val_time.tv_sec

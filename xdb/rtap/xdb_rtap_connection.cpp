@@ -38,7 +38,7 @@ RtConnection::RtConnection(RtDatabase* _rtap_db) :
 
 RtConnection::~RtConnection()
 {
-  LOG(INFO) << "Destroy RtConnection for database " << m_database->getName();
+  LOG(INFO) << "Destroy RtConnection for database '" << m_database->getName() << "'";
   delete m_impl;
 }
 

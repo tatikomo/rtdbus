@@ -151,10 +151,12 @@ s_version_assert (int want_major, int want_minor)
 void
 zclock_log (const char *format, ...)
 {
+    struct tm result_time;
     time_t curtime = time (NULL);
-    struct tm *loctime = localtime (&curtime);
     char formatted [20];
-    strftime (formatted, 20, "%y-%m-%d %H:%M:%S ", loctime);
+
+    localtime_r (&curtime, &result_time);
+    strftime (formatted, 20, "%y-%m-%d %H:%M:%S ", &result_time);
     printf ("%s", formatted);
 
     va_list argptr;

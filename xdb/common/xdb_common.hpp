@@ -470,7 +470,8 @@ typedef enum
   OF_POS_RDWR     = 3, // открыть в режиме "чтение|запись" (по умолчанию)
   OF_POS_TRUNCATE = 4, // открыть пустую базу, удалив данные в существующем экземпляре
   OF_POS_LOAD_SNAP= 5, // открыть базу, заполнив ее данными из последнего снапшота
-  OF_POS_SAVE_SNAP= 6  // сохранить дамп базы после завершения работы
+  OF_POS_SAVE_SNAP= 6, // сохранить дамп базы после завершения работы
+  OF_POS_REGISTER_EVENT = 7 // активировать обработчики событий БДРВ
 } FlagPos_t;
 
 /*
@@ -495,7 +496,9 @@ typedef enum
     //    rtCONTROL_REUSE_PLINS   14, /* allow reuse of PLINs */
     rtCONTROL_RDR_CFI       = 15, /* obtain a multi-reader CFI */
     rtCONTROL_CLR_CFI       = 16, /* clear a dead process's zombie CFI */
-    rtCONTROL_SAVE_XSD      = 17  /* Сохранить XML Schema базы */
+    // Далее - специфичные для XDB
+    rtCONTROL_SAVE_XSD      = 17, /* Сохранить XML Schema базы */
+    rtCONTROL_CHECK_CONN    = 18  // Проверить статус имеющихся подключений
 } TypeOfControl;
 
 /*
@@ -529,7 +532,7 @@ typedef enum
     rtQUERY_ATTR_IDS        = 24,      /* get Attribute ID numbers (AINs) */
     //    rtQUERY_ALPHA_ATTRS     = 25,      /* get sorted attribute names */
     rtQUERY_PT_CLASS        = 26,      /* get point class */
-    rtQUERY_PTS_IN_CLASS    = 27,      /* get points matching a class */
+    rtQUERY_PTS_IN_CLASS    = 27,      /* get points matching a class */ // есть в RTDB
     rtQUERY_PTS_IN_CATEG    = 28,      /* get points matching categories */
     rtQUERY_CE_DEP_REF      = 29,      /* get pts with CE ref's to a pt */
     rtQUERY_CE_DEP_UPD      = 30,      /* get pts CE would update for a pt */

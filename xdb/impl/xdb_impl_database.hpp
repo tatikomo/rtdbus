@@ -117,6 +117,10 @@ class DatabaseImpl
 
     // Успешность загрузки снимка БД (приоритет: двоичный, xml)
     bool m_snapshot_loaded;
+    // Признак того, что текущий процесс создал БД, а не подключился к ней.
+    // Базу может создать только процесс digger, остальные лишь подключаются.
+    // Используется при отключении от БД.
+    bool m_database_was_created;
 
 #if EXTREMEDB_VERSION >= 40
     mco_db_params_t    m_db_params;

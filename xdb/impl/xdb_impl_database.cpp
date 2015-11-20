@@ -35,6 +35,10 @@ mco_size_sig_t file_reader(void*, void*, mco_size_t);
 
 void impl_errhandler(MCO_RET);
 void extended_impl_errhandler(MCO_RET, const char*, int);
+// Проверка доступности процесса, заданного своим pid
+int os_task_id_check(pid_t);
+// Метод, вызываемый при подключении/отключении процессов к БДРВ
+MCO_RET sniffer_callback(mco_db_h, void*, mco_trans_counter_t);
 
 #ifdef __cplusplus
 }
@@ -114,7 +118,8 @@ DatabaseImpl::DatabaseImpl(const char* _name, const Options* _options, mco_dicti
   m_save_to_xml_feature(false),
   m_flags(0),
   m_max_connections(DEFAULT_MAX_DB_CONNECTIONS_ALLOWED),
-  m_snapshot_loaded(false)
+  m_snapshot_loaded(false),
+  m_database_was_created(false)
 #if EXTREMEDB_VERSION >= 40
   , m_dev_num(1)
 #endif
@@ -538,6 +543,7 @@ const Error& DatabaseImpl::ConnectToInstance()
   MCO_RET rc = MCO_S_OK;
   int opt_val;
   char fname[150];
+  int pid = getpid();
 
   clearError();
 
@@ -549,7 +555,7 @@ const Error& DatabaseImpl::ConnectToInstance()
   }
 
   // База в состоянии ATTACHED, можно подключаться
-  rc = mco_db_connect(m_name, &m_db);
+  rc = mco_db_connect_ctx(m_name, &pid, &m_db);
   LOG(INFO) << "mco_db_connect '" << m_name
             << "', state=" << m_state
             << ", rc=" << rc;
@@ -570,7 +576,7 @@ const Error& DatabaseImpl::ConnectToInstance()
         }
         else
         {
-          m_snapshot_loaded = true;
+          m_snapshot_loaded = m_database_was_created = true;
         }
       }
   }
@@ -590,6 +596,13 @@ const Error& DatabaseImpl::ConnectToInstance()
         LOG(INFO) << "mco_db_kill '" << m_name << "', rc=" << rc;
         return getLastError();
       }
+      // База данных была создана, значит ее можно удалять с помощью mco_db_close
+      //
+      // Если БД не была создана, а произошло лишь подключение к ней
+      // (для второстепенных процессов это нормальное состояние), при завершении работы
+      // достаточно вызвать mco_db_disconnect()
+      LOG(INFO) << "Database instance was initially created";
+      m_database_was_created = true;
     }
     else
     {
@@ -857,17 +870,39 @@ const Error& DatabaseImpl::Disconnect()
 
       // NB: break пропущен специально
     case DB_STATE_ATTACHED:  // база подключена
-#if (EXTREMEDB_VERSION >= 40) && USE_EXTREMEDB_HTTP_SERVER
-      rc = mco_uda_db_close(m_metadict, 0);
-#else      
-      rc = mco_db_close(m_name);
-#endif
-      LOG(INFO)<<"mco_db_close '"<<m_name<<"', rc="<<rc;
-      if (rc)
+      if (m_database_was_created)
       {
-        LOG(ERROR)<<"Unable to close "<<m_name<<", rc="<<rc;
+        // Закрывать БД допустимо только тому процессу, который за неё отвечает.
+        // Остальные подключившиеся процессы должны только отключаться от БД.
+#if (EXTREMEDB_VERSION >= 40) && USE_EXTREMEDB_HTTP_SERVER
+        rc = mco_uda_db_close(m_metadict, 0);
+#else      
+        rc = mco_db_close(m_name);
+#endif
+        LOG(INFO)<<"mco_db_close '"<<m_name<<"', rc="<<rc;
+        if (rc)
+        {
+          LOG(ERROR)<<"Unable to close "<<m_name<<", rc="<<rc;
+
+          // TODO: попробовать принудительно завершить работу БД,
+          // т.к. мы ее основной создатель (m_database_was_created == true)
+          // NB: при этом зависают процессы, подключенные к этой БД
+          rc = mco_db_kill(m_name);
+          if (rc)
+          {
+            LOG(ERROR) << "Unable to kill '"<<m_name<<"', rc="<<rc;
+          }
+          else {
+            TransitionToState(DB_STATE_CLOSED);
+            TransitionToState(DB_STATE_UNINITIALIZED);
+          }
+        }
+        else TransitionToState(DB_STATE_CLOSED);
       }
-      else TransitionToState(DB_STATE_CLOSED);
+      else
+      {
+        LOG(INFO) << "Closing database '"<<m_name<<"' was skipped as I'm not created it";
+      }
     break;
 
     default:
@@ -904,6 +939,7 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
   FILE* fbak;
   Error restoring_state = rtE_SNAPSHOT_READ;
   char fname[150];
+  int pid = getpid();
 
   clearError();
   fname[0] = '\0';
@@ -966,12 +1002,21 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
                      << "' binary snapshot file '" <<fname
                      << "', rc="<<rc;
           m_snapshot_loaded = false;
-          setError(rtE_SNAPSHOT_READ);
+
+          switch(rc)
+          {
+            case MCO_E_INSTANCE_DUPLICATE:
+              setError(rtE_DATABASE_INSTANCE_DUPLICATE);
+              break;
+            default:
+              setError(rtE_SNAPSHOT_READ);
+          }
         }
         else
         {
           // Успешно прочитали бинарный дамп
           m_snapshot_loaded = true;
+          m_database_was_created = true;
           LOG(INFO) << "Binary dump '" << fname << "' succesfully loaded";
         }
         fclose(fbak);
@@ -1001,8 +1046,9 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
         // Состояние ATTACHED - подключение m_db не инициализировано
         TransitionToState(DB_STATE_ATTACHED);
         m_snapshot_loaded = false;
+        m_database_was_created = true;
 
-        rc = mco_db_connect(m_name, &m_db);
+        rc = mco_db_connect_ctx(m_name, &pid, &m_db);
         LOG(INFO) << "mco_db_connect '" << m_name << "', rc=" << rc;
         if ( MCO_S_OK == rc )
         {
@@ -1064,8 +1110,6 @@ const Error& DatabaseImpl::LoadFromXML(const char* given_file_name)
   MCO_RET           rc = MCO_S_OK;
   mco_trans_h       t;
   mco_xml_policy_t  policy;
-//  static char       calc_file_name[150];
-//  char             *fname = &calc_file_name[0];
   FILE             *f = NULL;
 
   m_last_error.clear();
@@ -1142,6 +1186,8 @@ const Error& DatabaseImpl::LoadFromXML(const char* given_file_name)
 const Error& DatabaseImpl::Open()
 {
   MCO_RET rc = MCO_S_OK;
+  int val;
+  int pid = getpid();
 
   clearError();
 
@@ -1198,8 +1244,34 @@ const Error& DatabaseImpl::Open()
                          m_dev_num,
                          &m_db_params);
     LOG(INFO) << "mco_db_open_dev '" << m_name << "', rc=" << rc;
-    // Состояние ATTACHED - подключение m_db не инициализировано
-    TransitionToState(DB_STATE_ATTACHED);
+    if (rc && (MCO_E_INSTANCE_DUPLICATE == rc))
+    {
+      // Такая БД уже открыта, возможно в другом процессе
+      LOG(INFO) << "Database '" << m_name << "' already opened";
+
+      // Если есть флаг OF_CREATE, то считаем, что мы создали эту БД,
+      // поскольку она могла остаться в памяти после аварийного завершения
+      // нашего процесса.
+      if (m_flags[OF_POS_CREATE])
+      {
+        m_database_was_created = true;
+      }
+      else
+      {
+        m_database_was_created = false;
+      }
+
+      rc = mco_db_connect_ctx(m_name, &pid, &m_db);
+      if (!rc)
+      {
+        TransitionToState(DB_STATE_CONNECTED);
+      }
+    }
+    else
+    {
+      // Состояние ATTACHED - подключение m_db не инициализировано
+      TransitionToState(DB_STATE_ATTACHED);
+    }
   }
 
 #endif /* USE_EXTREMEDB_HTTP_SERVER */
@@ -1483,3 +1555,4 @@ const Error& DatabaseImpl::Config(rtDbCq& info)
   m_last_error = rtE_NOT_IMPLEMENTED;
   return m_last_error;
 }
+

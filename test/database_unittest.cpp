@@ -651,6 +651,96 @@ TEST(TestDiggerDATABASE, READ_WRITE)
   delete [] info.value.dynamic.varchar;
 }
 
+TEST(TestDiggerDATABASE, QUERY_PTS_IN_CLASS)
+{
+  enum ProcessingType_t { NONE = 0, ANALOG = 1, DISCRETE = 2 };
+  xdb::rtDbCq operation;
+  xdb::Error result;
+  int idx;
+  // Наборы Точек с заданным objclass
+  // Все наборы точек аналогового и дискретного типов
+  xdb::map_id_name_t all_analog_points;
+  xdb::map_id_name_t all_discrete_points;
+  // Используются для накопления результата в общих списках
+  // аналоговых и дискретных параметров.
+  xdb::map_id_name_t analog_points_per_object_type;
+  xdb::map_id_name_t discrete_points_per_object_type;
+  ProcessingType_t processing_type;
+
+  // Получить список имдентификаторов Точек с заданным в addrCnt значением objclass
+  operation.action.query = xdb::rtQUERY_PTS_IN_CLASS;
+
+  for (idx = GOF_D_BDR_OBJCLASS_TS;
+       idx < GOF_D_BDR_OBJCLASS_FIXEDPOINT;
+       idx++)
+  {
+    discrete_points_per_object_type.clear();
+    analog_points_per_object_type.clear();
+    processing_type = NONE;
+
+    switch(xdb::ClassDescriptionTable[idx].val_type)
+    {
+      case xdb::DB_TYPE_LOGICAL: // 1
+      case xdb::DB_TYPE_INT8:    // 2
+      case xdb::DB_TYPE_UINT8:   // 3
+      case xdb::DB_TYPE_INT16:   // 4
+      case xdb::DB_TYPE_UINT16:  // 5
+      case xdb::DB_TYPE_INT32:   // 6
+      case xdb::DB_TYPE_UINT32:  // 7
+      case xdb::DB_TYPE_INT64:   // 8
+      case xdb::DB_TYPE_UINT64:  // 9
+        // Дискретное состояние данного типа Точки
+        processing_type = DISCRETE;
+        operation.buffer = &discrete_points_per_object_type;
+        operation.addrCnt = xdb::ClassDescriptionTable[idx].code;
+        result = connection->QueryDatabase(operation);
+        EXPECT_EQ(result.code(), rtE_NONE);
+        break;
+
+      case xdb::DB_TYPE_FLOAT:   // 10
+      case xdb::DB_TYPE_DOUBLE:  // 11
+        // Аналоговое состояние данного типа Точки
+        processing_type = ANALOG;
+        operation.buffer = &analog_points_per_object_type;
+        operation.addrCnt = xdb::ClassDescriptionTable[idx].code;
+        result = connection->QueryDatabase(operation);
+        EXPECT_EQ(result.code(), rtE_NONE);
+        break;
+
+      default:
+        processing_type = NONE; // Ничего не делать
+    }
+
+    // Чтение набора точек выполено успешно?
+    if (result.Ok())
+    {
+      switch(processing_type)
+      {
+        case ANALOG:
+          all_analog_points.insert(analog_points_per_object_type.begin(),
+                                   analog_points_per_object_type.end());
+          break;
+
+        case DISCRETE:
+          all_discrete_points.insert(discrete_points_per_object_type.begin(),
+                                     discrete_points_per_object_type.end());
+          break;
+
+        case NONE: ; // nothing to do
+      }
+    }
+    else
+    {
+      LOG(ERROR) << "Reading points with objclass "
+                 << (unsigned int) xdb::ClassDescriptionTable[idx].code
+                 << " : " << result.what();
+    }
+  }
+
+  std::cout << "size of all_analog_points=" << all_analog_points.size() << std::endl;
+  std::cout << "size of all_discrete_points=" << all_discrete_points.size() << std::endl;
+}
+
 TEST(TestDiggerDATABASE, UPDATE_EVENTS)
 {
   AttributeInfo_t info_write;
@@ -817,6 +907,7 @@ TEST(TestDiggerDATABASE, READ_SBS)
   xdb::SubscriptionPoints_t points_list;
   int list_size = 0;
   char s_date [D_DATE_FORMAT_LEN + 1];
+  struct tm result_time;
   time_t given_time;
   char s_val[100];
   uint16_t  update_val = 0;
@@ -911,7 +1002,8 @@ TEST(TestDiggerDATABASE, READ_SBS)
             break;
             case DB_TYPE_ABSTIME:   /* 24 */
               given_time = (*it).second.value.fixed.val_time.tv_sec;
-              strftime(s_date, D_DATE_FORMAT_LEN, D_DATE_FORMAT_STR, localtime(&given_time));
+              localtime_r(&given_time, &result_time);
+              strftime(s_date, D_DATE_FORMAT_LEN, D_DATE_FORMAT_STR, &result_time);
               snprintf(s_val, D_DATE_FORMAT_W_MSEC_LEN, "%s.%06ld", s_date, (*it).second.value.fixed.val_time.tv_usec);
             break;
             case DB_TYPE_UNDEF:
@@ -1291,6 +1383,7 @@ TEST(TestTools, LOAD_CLASSES)
   char msg_info[255];
   char msg_val[255];
   char s_date [D_DATE_FORMAT_LEN + 1];
+  struct tm result_time;
   time_t given_time;
   xdb::AttributeMap_t *pool;
 
@@ -1382,7 +1475,8 @@ TEST(TestTools, LOAD_CLASSES)
 
               case xdb::DB_TYPE_ABSTIME:
                   given_time = it->second.value.fixed.val_time.tv_sec;
-                  strftime(s_date, D_DATE_FORMAT_LEN, D_DATE_FORMAT_STR, localtime(&given_time));
+                  localtime_r(&given_time, &result_time);
+                  strftime(s_date, D_DATE_FORMAT_LEN, D_DATE_FORMAT_STR, &result_time);
                   snprintf(msg_val, D_DATE_FORMAT_W_MSEC_LEN, "%s.%06ld", s_date, it->second.value.fixed.val_time.tv_usec);
                   break;
 
@@ -1408,6 +1502,14 @@ TEST(TestTools, LOAD_INSTANCE)
   status = xdb::processInstanceFile(fpath);
   EXPECT_TRUE(status);
   LOG(INFO) << "END LOAD_INSTANCE TestTools";
+}
+
+TEST(TestTools, RELEASE_MEMORY)
+{
+  for (int objclass=0; objclass <= GOF_D_BDR_OBJCLASS_LASTUSED; objclass++)
+  {
+    delete ClassDescriptionTable[objclass].attributes_pool;
+  }
 }
 
 int main(int argc, char** argv)

@@ -49,6 +49,8 @@ class RtApplication
     RtEnvironment* isEnvironmentRegistered(const char* _env_name);
     // Загрузить среду с заданным именем, или среду по умолчанию
     RtEnvironment* loadEnvironment(const char* = NULL);
+    // Подключиться к среде с заданным именем
+    RtEnvironment* attach_to_env(const char*);
 
     const Error& getLastError() const;
     AppMode_t    getOperationMode() const;
@@ -67,7 +69,7 @@ class RtApplication
     // Зарегистрировать в Приложении среду
     void         registerEnvironment(RtEnvironment*);
     // Вернуть экземпляр объекта, или создать новый для заданного имени
-    // Если имя не задано явно, исполдьзуется название Приложения
+    // Если имя не задано явно, используется название Приложения
     // Необходимо удалить возвращенный экземпляр
     RtEnvironment* getEnvironment(const char* = NULL);
 };
