@@ -42,6 +42,7 @@ include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})
 include_directories(${LIBCPPZMQ_INCLUDE_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})
+include_directories(${LIBHIREDIS_INCLUDE_DIR})
 
 link_directories(${GTEST_DIR}/lib/.libs)
 link_directories(${LIBGLOG_LIBRARIES_DIR})
@@ -50,6 +51,7 @@ link_directories(${XDB_BROKER_DIR})
 link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
+link_directories(${LIBHIREDIS_LIBRARIES_DIR})
 
 set (TEST_METRICS_SOURCES
         ${GTEST_INC_DIR}/gtest/gtest.h
@@ -128,6 +130,7 @@ set (TEST_DATABASE_SOURCES
         ${XDB_RTAP_DIR}/xdb_rtap_snap.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_snap_trans.cpp
         ${MDP_DIR}/mdp_zmsg.hpp
+        ${LIBHIREDIS_INCLUDE_DIR}/hiredis.h
         ${TEST_RTDBUS_DIR}/database_unittest.cpp)
 
 set (TEST_MSG_SOURCES
@@ -279,6 +282,7 @@ target_link_libraries(${UNITTEST_DATABASE}
     ${MSG_LIBRARY_NAME}
     ${LIBPROTOBUF_LIBRARIES}
     ${LIBGLOG_LIBRARIES}
+    ${LIBHIREDIS_LIBRARIES}
     ${GTEST_DIR}/cmake/libgtest.a
     ${SYSTEM_EXTERNAL_LIBS})
 

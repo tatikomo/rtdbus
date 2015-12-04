@@ -52,6 +52,12 @@ typedef struct {
   int duration;
 } state_pair_t;
 
+// Единое хранилище значений семплов - как для аналогов, так и для дискретов
+typedef union {
+  uint64_t  val_int;
+  double    val_double;
+} common_value_t;
+
 // ---------------------------------------------------------------------
 // Собиратель архивов
 // Выполняется несколько экземпляров, каждый из которых занимается обработкой
@@ -71,7 +77,12 @@ typedef struct {
 class SamplerWorker
 {
   public:
-    SamplerWorker(zmq::context_t&, sampler_type_t, xdb::RtEnvironment*);
+    SamplerWorker(zmq::context_t&,      /* Ссылка на общий ZMQ контекст         */
+                  sampler_type_t,       /* Тип семпла - минутный, часовой,...   */
+                  xdb::RtEnvironment*,  /* Ссылка на экземпляр БД               */
+                  const char*,          /* адрес сервера хранения предыстории   */
+                  int                   /* Номер порта сервера хранения предыстории */
+                  );
    ~SamplerWorker();
 
     // Бесконечный цикл обработки запросов
@@ -87,19 +98,32 @@ class SamplerWorker
     xdb::RtEnvironment  *m_env;
     xdb::RtConnection   *m_db_connection;
     zmq::context_t &m_context;
+    // Признак успешности подключения к внешней БД хранения предыстории
+    bool m_history_db_connected;
     sampler_type_t m_sampler_type;
+#if 0
     // рабочий каталог файловой системы, используется как
     // вершина файловой иерархии хранения исторических значений
     char* m_cwd;
+#endif
+    // ip-адрес сервера хранения предыстории
+    const char* m_history_db_address;
+    // Номер порта БД хранения предыстории
+    int m_history_db_port;
 
     // собрать предысторию текущего типа
     void collect_sample();
     // передать эстафету сбора предыстории по цепочке
-    void push_next_stage(sampler_type_t);
-    void process_analog_samples(xdb::map_id_name_t&);
+    /*void push_next_stage(sampler_type_t);
+    //void process_analog_samples(struct tm&, xdb::map_id_name_t&);
     void process_discrete_samples(xdb::map_id_name_t&);
-    bool store_samples(std::string&, xdb::AttributeInfo_t&, xdb::AttributeInfo_t&); 
-    void make_samples(sampler_type_t);
+    bool store_samples(void*,
+                       struct tm& timer,
+                       std::string&,
+                       xdb::AttributeInfo_t&,
+                       xdb::AttributeInfo_t&); 
+    bool store_samples_in_files(std::string&, xdb::AttributeInfo_t&, xdb::AttributeInfo_t&);*/
+    void make_samples(const time_t);
 };
 
 // ---------------------------------------------------------------------
@@ -127,6 +151,10 @@ class ArchivistSamplerProxy
     static bool m_interrupt;
     timer_mark_t m_time_before;
     timer_mark_t m_time_after;
+    // ip-адрес сервера хранения предыстории
+    char m_history_db_address[20];
+    // Номер порта БД хранения предыстории
+    int m_history_db_port;
 
     // первоначальная инициализация списков аналоговых и дискретных точек
     void fill_points_list();

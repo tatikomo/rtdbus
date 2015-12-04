@@ -9,6 +9,13 @@
 #include "glog/logging.h"
 #include "gtest/gtest.h"
 
+#if defined HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+// API доступа к функциям СУБД Redis
+#include "hiredis.h"
+
 #include "xdb_common.hpp"
 
 #include "xdb_impl_db_broker.hpp"
@@ -36,6 +43,96 @@
 
 using namespace xdb;
 
+#define within(num) (int) ((float) (num) * random () / (RAND_MAX + 1.0))
+// Типы данных, испольуемые в проверке БД Истории
+enum ProcessingType_t { NONE = 0, ANALOG = 1, DISCRETE = 2, BINARY = 3 };
+
+// Порядок атрибутов в выборке HMGET Redis
+enum { VAL_INDEX = 0, VALID_INDEX = 1 };
+
+typedef union {
+  uint64_t  val_uint64;
+  double    val_double;
+} common_value_t;
+
+// Тип генератора предыстории
+typedef enum {
+  PER_1_MINUTE  = 0,
+  PER_5_MINUTES = 1,
+  PER_HOUR      = 2,
+  PER_DAY       = 3,
+  PER_MONTH     = 4,
+  STAGE_LAST    = PER_MONTH + 1
+} sampler_type_t;
+
+// Связка между собирателями текущего и следующего типов
+typedef struct {
+  sampler_type_t current;
+  const char* pair_name_current;
+  sampler_type_t next;
+  const char* pair_name_next;
+  // Количество анализируемых семплов предыдущей стадии для
+  // получения одного семпла текущей стадии
+  int num_prev_samples;
+  // Суффикс файла, содержащего предысторию данного цикла
+  char suffix[3];
+  // Длительность интервала данного типа в секундах
+  // минутная = 60 секунд
+  // 5 минут = 300 секунд
+  // 1 час = 3600 секунд
+  // 1 сутки = 86400 секунд
+  int duration;
+} state_pair_t;
+
+// Массив точек связи между собирателями и управляющей нитью
+const char* pairs[] = {
+  "inproc://pair_1_min",    // PER_1_MINUTE  = 0
+  "inproc://pair_5_min",    // PER_5_MINUTES = 1
+  "inproc://pair_hour",     // PER_HOUR      = 2
+  "inproc://pair_day",      // PER_DAY       = 3
+  "inproc://pair_month",    // PER_MONTH     = 4
+  "inproc://pair_main",     // STAGE_LAST    = 5
+};
+
+// Массив переходов от текущего типа собирателя к следующему
+const state_pair_t m_stages[STAGE_LAST] = {
+  // текущая стадия
+  // |              сокет текующей стадии
+  // |              |
+  // |              |                    следующая стадия
+  // |              |                    |
+  // |              |                    |              сокет следующей стадии
+  // |              |                    |              |
+  // |              |                    |              |                     анализируемых отсчетов
+  // |              |                    |              |                     предыдущей стадии
+  // |              |                    |              |                     |
+  // |              |                    |              |                     |  суффикс файла с семплом
+  // |              |                    |              |                     |  текущей стадии
+  // |              |                    |              |                     |  |
+  // |              |                    |              |                     |  |     длительность стадии
+  // |              |                    |              |                     |  |     в секундах
+  // |              |                    |              |                     |  |     |
+  { PER_1_MINUTE,  pairs[PER_1_MINUTE],  PER_5_MINUTES, pairs[PER_5_MINUTES], 1, ".0", 60},
+  { PER_5_MINUTES, pairs[PER_5_MINUTES], PER_HOUR,      pairs[PER_HOUR],      5, ".1", 300},
+  { PER_HOUR,      pairs[PER_HOUR],      PER_DAY,       pairs[PER_DAY],      12, ".2", 3600},
+  { PER_DAY,       pairs[PER_DAY],       PER_MONTH,     pairs[PER_MONTH],    24, ".3", 86400},
+  { PER_MONTH,     pairs[PER_MONTH],     STAGE_LAST,    pairs[STAGE_LAST],   30, ".4", 2592000} // для 30 дней
+};
+
+// Структура хранения информации о семпле со средними значениями 
+typedef struct {
+  // универсальное имя точки
+  std::string tag;
+  // класс точки
+  int objclass;
+  // тип точки
+  ProcessingType_t type;
+  // набор средних значений VAL за соответствующие периоды
+  common_value_t average[STAGE_LAST];
+  // Набор значений атрибута VALID
+  int valid[STAGE_LAST];
+} points_objclass_item_t;
+
 const char *service_name_1 = "service_test_1";
 const char *service_name_2 = "service_test_2";
 const char *unbelievable_service_name = "unbelievable_service";
@@ -45,11 +142,16 @@ const char *worker_identity_3 = "WRK3";
 std::string group_name_1 = "Группа подписки #1";
 std::string group_name_2 = "Группа подписки #2";
 std::string group_name_unexistant = "Несуществующая";
+// Набор точек для тестирования подписки
+// Используется также при тестировании БД Истории
 const char *sbs_points[] = {
     "/KD4001/GOV022",       // GOFVALTSC
     "/KO4016/GOV171/PT01",  // GOFVALTI
     "/KA4003/XA01"          // GOFVALAL
 };
+
+typedef std::vector <points_objclass_item_t> points_objclass_list_t;
+
 xdb::DatabaseBroker *database = NULL;
 xdb::Service *service1 = NULL;
 xdb::Service *service2 = NULL;
@@ -60,6 +162,9 @@ DBState_t state;
 xdb::RtApplication* app = NULL;
 xdb::RtEnvironment* env = NULL;
 xdb::RtConnection* connection = NULL;
+// структуры для работы с Redis
+redisContext *redis_context = NULL;
+bool redis_connected = false;
 
 /* 
  * Содержимое базы данных RTDB после чтения из файла classes.xml
@@ -71,6 +176,8 @@ rtap_db::Points point_list;
  * Экземпляр НСИ БДРВ RTAP
  */
 rtap_db_dict::Dictionaries_t dict;
+
+points_objclass_list_t points_objclass_list;
 
 void wait()
 {
@@ -112,6 +219,880 @@ void show_runtime_info(const char * lead_line)
   fprintf( stdout, "\tSQL support _____________ : %s\n", info.mco_sql_supported        ? "yes":"no" );
   fprintf( stdout, "\tPersistent storage support: %s\n", info.mco_disk_supported       ? "yes":"no" );
   fprintf( stdout, "\tDirect pointers mode ____ : %s\n", info.mco_direct_pointers      ? "yes":"no" );  
+}
+
+// ==============================================================================
+// [OK]
+// Получить среднее арифметическое.
+// Для аналоговых данных усреднение проводится только для параметров, присутствующих
+// в БД Истории.
+// Для дискретных данных рассчёт среднего арифметического не учитывает факта, что
+// некоторые параметры могут отсутствовать в БД Истории. 
+bool calc_average_sample(sampler_type_t type,
+                         points_objclass_item_t& item,
+                         common_value_t arr_values[],
+                         int arr_valid[])
+{
+  bool status = false;
+  // накапливаемая сумма значений атрибутов VAL аналогового значения
+  double sum_double_val;
+  int avg_valid;
+  // накапливаемая сумма значений атрибутов VAL дискретного значения
+  int sum_int_val;
+  // Количество известных в БД Истории элементов семпла, используется
+  // для подсчёта среднего арифметического.
+  int count = 0;
+
+  LOG(INFO) << "current sampling stage: " << m_stages[type].current;
+
+#if 1
+    // ---------------------------------------------------------
+    // Прочитать нужное количество отсчетов за предыдущий период
+    // и получить их ср. арифм. для точек из указанного списка
+    // ---------------------------------------------------------
+    switch(item.type)
+    {
+      case ANALOG:
+        // Выбрать N отсчетов из базы для предыдущего периода истории
+        // ----------------------------------------------------------
+        for (int num_sample = 0; num_sample < m_stages[type].num_prev_samples; num_sample++) {
+          LOG(INFO) << "sample " << num_sample+1 << "/" << m_stages[type].num_prev_samples
+                    << " " << item.tag << ".VAL=" << arr_values[num_sample].val_double;
+        }
+        break;
+
+      case DISCRETE:
+        // Выбрать N отсчетов из базы для предыдущего периода истории
+        // ----------------------------------------------------------
+        for (int num_sample = 0; num_sample < m_stages[type].num_prev_samples; num_sample++) {
+          LOG(INFO) << "sample " << num_sample+1 << "/" << m_stages[type].num_prev_samples
+                    << " " << item.tag << ".VAL=" << arr_values[num_sample].val_uint64;
+        }
+        break;
+
+      case BINARY:
+        // Пропускаем тип BINARY, поскольку его невозможно усреднять
+        LOG(WARNING) << "Skip binary typed point " << item.tag;
+        break;
+
+      default:
+        LOG(ERROR) << "Unsupported point " << item.tag << " type: " << item.type;
+    }
+#endif
+
+    // --------------------------------------------------
+    // Занести ср. арифм. для точек из указанного списка
+    // --------------------------------------------------
+    // Обнуление накопительных значений
+    sum_double_val = 0;
+    sum_int_val = 0;
+    avg_valid = 0;
+    count = 0;
+
+    switch(item.type)
+    {
+      case ANALOG:
+        for (int num_sample = 0; num_sample < m_stages[type].num_prev_samples; num_sample++) {
+          // Копим сумму
+          if (!isnan(arr_values[num_sample].val_double)) {
+            count++;
+            sum_double_val += arr_values[num_sample].val_double;
+          }
+          // Ищем макс. значение достоверности
+          if (avg_valid < arr_valid[num_sample])
+            avg_valid = arr_valid[num_sample];
+        }
+
+        if (count)
+          item.average[type].val_double = sum_double_val / count; //m_stages[type].num_prev_samples;
+        else item.average[type].val_double = NAN;
+
+        item.valid[type] = avg_valid;
+
+//1        LOG(INFO) << "AVG " << item.tag << ".VAL." << type << " = " << item.average[type].val_double
+//1                  << ", VALID = " << item.valid[type];
+        break;
+
+      case DISCRETE:
+        for (int num_sample = 0; num_sample < m_stages[type].num_prev_samples; num_sample++) {
+          // Копим сумму
+          sum_int_val += arr_values[num_sample].val_uint64;
+          // Ищем макс. значение достоверности
+          if (avg_valid < arr_valid[num_sample])
+            avg_valid = arr_valid[num_sample];
+        }
+        item.average[type].val_uint64 = sum_int_val / m_stages[type].num_prev_samples;
+        item.valid[type] = avg_valid;
+
+//1        LOG(INFO) << "AVG " << item.tag << ".VAL." << type << " = " << item.average[type].val_uint64
+//1                  << ", VALID = " << item.valid[type];
+        break;
+
+      case BINARY:
+        // Пропускаем тип BINARY, поскольку его невозможно усреднять
+        ;
+        break;
+
+      default:
+        LOG(ERROR) << "Unsupported point type: " << item.type;
+    }
+
+  return status;
+}
+
+// ==============================================================================
+//
+// Разбор ответа от Исторической БД по содержанию атрибутов VAL и VALID
+// Входные параметры:
+//   reply - ответ от БД Истории
+//   item - характеристика семпла
+//   type - тип периода
+// Выходные параметры:
+//   value - прочитанное из ответа значение VAL
+//   prev_valid - прочитанное из ответа значение VALID
+//
+int parse_redis_reply(redisReply*       reply,          // in
+                       common_value_t&  value,          // out
+                       int&             prev_valid,     // out
+                       points_objclass_item_t& item,    // in
+                       sampler_type_t   type)           // in
+{
+  char str_double[20];
+  int status = REDIS_ERR;
+  int curr_valid;
+
+  assert(reply);
+
+  status = reply->integer;
+
+  if (reply->type == REDIS_REPLY_ARRAY)
+  {
+    value.val_double = 0.0;
+    value.val_uint64 = 0;
+    curr_valid = 0;
+
+    switch(reply->type)
+    {
+      case REDIS_REPLY_STATUS:  // 5
+        LOG(INFO) << "status: " << reply->integer;
+        // NB: Этот ответ не считается, сохраним значение индекса
+        break;
+      case REDIS_REPLY_INTEGER: // 3
+        LOG(INFO) << "Get reply type 'integer': " << reply->integer;
+        break;
+      case REDIS_REPLY_NIL:     // 4
+        // WTF? - не найдены данные по запрашиваемому ключу?
+        LOG(INFO) << "<null>";
+        break;
+      case REDIS_REPLY_ARRAY:   // 2
+        //LOG(INFO) << "array: #" << reply->elements;
+        for (size_t i = 0; i < reply->elements; i++)
+        {
+          switch(reply->element[i]->type)
+          {
+            case REDIS_REPLY_INTEGER:
+//1              LOG(INFO) << "\tint: " << reply->element[i]->integer;
+              break;
+
+            case REDIS_REPLY_STRING:
+//1              LOG(INFO) << "\tstring[" << reply->element[i]->len<< "]: " << reply->element[i]->str;
+
+              switch(i)
+              {
+                case VAL_INDEX: // Первый по очереди - значение атрибута VAL
+                  switch(item.type)
+                  {
+                    case ANALOG:
+                      // В строке содержится больше, чем просто два символа кавычек ("")?
+                      if (reply->element[i]->len > 2) {
+                        memset(str_double, '\0', sizeof(str_double));
+                        // Выкинем кавычки из строкового представления (-2 байта)
+                        strncpy(str_double, &reply->element[i]->str[1], reply->element[i]->len - 2);
+                        //LOG(INFO) << "add double " << atof(str_double);
+                        value.val_double = atof(str_double);
+                        status = REDIS_OK;
+                      }
+                      else {
+//1                        LOG(ERROR) << "Get empty double " << item.tag << ".VAL";
+                        value.val_double = NAN;
+                      }
+                      break;
+
+                    case DISCRETE:
+                      //LOG(INFO) << "add int " << atol(reply->element[i]->str);
+                      if (reply->element[i]->len) {
+                        value.val_uint64 = atol(reply->element[i]->str);
+                        status = REDIS_OK;
+                      }
+                      else {
+//1                        LOG(ERROR) << "Get empty int " << item.tag << ".VAL";
+                        value.val_uint64 = 0;
+                      }
+                      break;
+
+                    default: ;
+                  }
+                  break;
+
+                case VALID_INDEX: // Второй по очереди - атрибут VALID
+                  if ((curr_valid = atoi(reply->element[i]->str)) > prev_valid) {
+                    // Найдено новое макс. значение достоверности, запомнить его
+                    prev_valid = curr_valid;
+                  }
+                  status = REDIS_OK;
+                  break;
+
+                default:
+                  LOG(ERROR) << "Unexpected field#: " << i;
+              }
+              break;
+
+            case REDIS_REPLY_NIL:     // 4
+              LOG(WARNING) << "empty reply for " << item.tag << "." << (unsigned int)type;
+              if (ANALOG == item.type) value.val_double = NAN;
+              else if (DISCRETE == item.type) value.val_uint64 = 0;
+              else LOG(ERROR) << "Unsupported item " << item.tag << " type: " << item.type;
+              break;
+
+            default:
+              LOG(ERROR) << "Unknown type: " << reply->element[i]->type;
+          }
+        }
+        break;
+
+      case REDIS_REPLY_STRING:  // 1
+//        LOG(INFO) << "string[" << reply->len << "]: " << reply->str;
+        break;
+
+      default:
+        LOG(ERROR) << "Unknown type: " << reply->type;
+    }
+  }
+  //NB: При возврате OK на HMSET сбивается синхронизация!
+  // else if (reply->type == REDIS_REPLY_STATUS) {
+  //   LOG(INFO) << "Reply status: " << reply->integer;
+  //}
+  else {
+    LOG(ERROR) << "Unexpected reply type: " << reply->type;
+    status = REDIS_ERR;
+  }
+
+  return status;
+}
+
+// ==============================================================================
+// [OK]
+// Функция формирует новые значения текущего цикла истории на основе данных
+// из БД Истории предыдущего цикла.
+//
+// Из данного времени finish_period вычитается время, равное продолжительности
+// текущего цикла, и с этого времени до указанного finish_period считываются все
+// семплы из БД Истории
+bool load_samples_from_hist(time_t finish_period,
+    sampler_type_t          sampler_type,
+    points_objclass_item_t& item,
+    common_value_t          arr_values[],
+    int                     arr_valid[])
+{
+  bool status = true;
+  int num_items = 0;
+  int curr_valid = 0;
+  char str[200];
+  time_t time_frame;
+  // ВременнАя отметка, прочитанная из БД Истории (является SCORE)
+  time_t sample_time_frame;
+  // Начало цикла
+  time_t start_period;
+  int previous_sampler_type = sampler_type - 1;
+  redisReply *reply = NULL;
+///////////////////////////////////////////
+  struct tm start_edge; // Прошедшее время, начало текущего цикла
+  struct tm finish_edge; // Прошедшее время, начало текущего цикла
+  char str_time_start[40 + 1];
+  char str_time_stop[40 + 1];
+///////////////////////////////////////////
+  // строковый буфер для хранения типа семпла, прочитанного из redisReply
+  char str_sample_type[10 + 1];
+  // строковый буфер для хранения значения VALID, прочитанного из redisReply
+  char str_valid[10 + 1];
+  // строковый буфер для хранения значения VAL, прочитанного из redisReply
+  char str_val[20 + 1];
+  // строковый буфер хранения значения времени генерации семпла, прочитанного из ответа
+  char str_sample_time[15 + 1];
+  // При чтении списка диапазона семплов в нём может быть семпл другого типа
+  sampler_type_t current_sample_type;
+  // временные хранилища
+  common_value_t temp_value;
+  int            temp_valid;
+
+  localtime_r(&finish_period, &finish_edge); // получили выровненное время окончания цикла
+
+  // Не должна быть вызвана для минутных семплов, поскольку они читаются не
+  // из БД Истории, а из БДРВ
+  assert(sampler_type != PER_1_MINUTE);
+
+  num_items = 0;
+  start_period = finish_period - m_stages[sampler_type].duration;
+  // Это скользящая отметка времени для учета пропусков значений
+  time_frame = start_period;
+
+  // Запросить диапазон значений тега item.tag от start_period до finish_period
+  // Оставить только значения, соответствующие указанному периоду семпла
+  //            Получить значения, сортированные по score (= дате семпла)
+  //            |             название тега
+  //            |             |  дата начала
+  //            |             |  |   дата окончания
+  //            |             |  |   |   вывод результата с отсечками времени (score)
+  //            |             |  |   |   |
+  sprintf(str, "ZRANGEBYSCORE %s %ld %ld WITHSCORES",
+          item.tag.c_str(),
+          start_period,
+          finish_period);
+
+  // Ожидаемый вывод :
+  // 1) "0;1;3.17"
+  // 2) "1440000180"
+  // 3) "0;1;3.18"
+  // 4) "1440000240"
+  // 5) "0;1;3.19"
+  // 6) "1440000300"
+  // 7) "1;1;5.24"      - семпл с отметкой времени семпла предыдущего типа
+  // 8) "1440000300"
+  // 9) "0;1;3.2"
+  //10) "1440000360"
+  // ....
+
+  reply = static_cast<redisReply*>(redisCommand(redis_context, str));
+
+  if (reply->type == REDIS_REPLY_ARRAY) {
+
+    for (unsigned int j = 0; j < reply->elements; j++) {
+
+      if (!reply->element[j]->str) {
+        LOG(ERROR) << "Empty answer for: " << item.tag << " type: " << sampler_type;
+        continue;
+      }
+
+      if (!(j % 2)) {
+        temp_valid = 0;
+        temp_value.val_uint64 = 0;
+
+        // Нечетная строка - значения в формате:
+        //   "<цифра (тип семпла)>:<цифра (значение .VALID)>:<число (значение .VAL)>"
+        const char* first_colon = strchr(reply->element[j]->str, ':');
+        if (first_colon) {
+          // Пропустить первый символ \"
+          strncpy(str_valid, reply->element[j]->str + 1, 2);
+          // Откусить второй символ \"
+          str_valid[1] = '\0';
+          int int_current_sample_type = atoi(str_valid);
+          if ((PER_1_MINUTE <= int_current_sample_type) && (int_current_sample_type <= PER_MONTH))
+          {
+             current_sample_type = (sampler_type_t)atoi(str_valid);
+
+             if (current_sample_type != previous_sampler_type) {
+               // Прочитали запись семпла другого типа, пропустить его
+               LOG(INFO) << "Skip loaded sample type: " << current_sample_type
+                         << " while need type: " << previous_sampler_type
+                         << " with current type: " << sampler_type;
+               continue;
+             }
+
+             const char* last_colon = strrchr(reply->element[j]->str, ':');
+             if (last_colon) {
+               strncpy(str_val, last_colon + 1, 20);
+               str_val[20] = '\0';
+               // Удалить последний символ \"
+               str_val[strlen(str_val) - 1] = '\0';
+
+               // Найти <>:<значение .VALID>:<>
+               //         ^                 ^
+               //         |                 |
+               //    first_colon       last_colon
+               strncpy(str_valid, first_colon + 1, 10);
+               if (first_colon < last_colon)
+                 str_valid[last_colon - first_colon - 1] = '\0';
+               else LOG(ERROR) << "Get " << item.tag << " valid from: " << reply->element[j]->str;
+               arr_valid[num_items] = atoi(str_valid);
+
+               switch(item.type)
+               {
+                 case ANALOG:
+                   temp_value.val_double = atof(str_val);
+                   break;
+                 case DISCRETE:
+                   temp_value.val_uint64 = atol(str_val);
+                   break;
+                 case BINARY:
+                   temp_value.val_uint64 = atoi(str_val);
+                   break;
+                 case NONE:
+                 default:
+                   LOG(ERROR) << "Unknown type: " << item.type << " for " << item.tag;
+                   // продолжим разбор следующего семпла
+                   continue;
+               } // конец выбора типа VAL - аналоговый или дискретный
+
+
+             } // конец успешной проверки наличия последнего символа-разделителя ':'
+             else {
+               LOG(ERROR) << "Converting " << int_current_sample_type
+                          << " to sample type from string:" << reply->element[j]->str;
+             }
+          }
+        }
+      } // конец проверки наличия первого разделителя полей, символа ':'
+      else {
+        // Четная строка - отметка времени текущей свежепрочитанной записи
+        str_sample_time[0] = '\0';
+        strncpy(str_sample_time, reply->element[j]->str, 15);
+        str_sample_time[15] = '\0';
+        if (!str_sample_time[0]) {
+          LOG(ERROR) << "Get sample mark time for " << item.tag << " from string: " << reply->element[j]->str;
+        }
+        else {
+          // Успешно получено значение времени
+          sample_time_frame = atoll(str_sample_time);
+
+          // Выведем в консоль отладочный вывод
+          std::cout << "type: " << current_sample_type
+                    << " valid: " << arr_valid[num_items];
+          if (item.type == ANALOG) {
+            std::cout << " val: " << temp_value.val_double;
+          } else if (item.type == DISCRETE) {
+            std::cout << " val: " << temp_value.val_uint64;
+          }
+          std::cout << " date: " << ctime(&sample_time_frame);
+
+          // Успешно прочитали все входные данные.
+          // TODO: Необходимо проверить, не было ли пропусков в семплах.
+          // Для этого нужно сверять прочитанную дату семпла, и если она не совпадает с ожидаемой
+          // (семплы должны идти друг за другом через один интервал), то следует считать, что
+          // в этот момент не было семпла. Следует специальным образом пометить этот интервал
+          // присвоением принудительной недостоверности?
+
+          // Прочитали ожидаемый семпл, перерывов в их сохранении не было
+          if (time_frame == sample_time_frame) {
+             // сохранить текущий прочитанный семпл
+             arr_values[num_items] = temp_value;
+             arr_valid[num_items] = temp_valid;
+             num_items++;
+          }
+          else {
+            // "Догнать" время нового семпла, заполнив массив специальными метками пропуска
+            while(time_frame < sample_time_frame)
+            {
+               LOG(WARNING) << "Обнаружен разрыв в сохраненной истории, тип: " << current_sample_type
+                            << " точка: " << item.tag
+                            << " текущий период: " << time_frame
+                            << " ожидаемый период: " << sample_time_frame;
+
+               // Увеличиваем время сохранения данных на 1 цикл предыдущего типа вперед
+               time_frame += m_stages[previous_sampler_type].duration;
+               arr_valid[num_items] = -1; // TODO: д.б. недостоверное значение!
+               arr_values[num_items].val_double = NAN;
+               num_items++;
+            }
+          }
+
+          // Увеличиваем время сохранения данных на 1 цикл предыдущего типа вперед
+          time_frame += m_stages[previous_sampler_type].duration;
+        }
+      }
+    } // конец цикла по всем элементам ответа redisReply
+  }
+  else {
+    LOG(ERROR) << "Unwilling reply type: " << reply->type << " for " << item.tag;
+  }
+  freeReplyObject(reply);
+
+#if 0
+  while (time_frame < finish_period)
+  {
+///////////////////////////////////////////
+    localtime_r(&time_frame, &start_edge); // получили выровненное время начала цикла
+    strftime(str_time_start, 40, "%T", &start_edge);
+    strftime(str_time_stop, 40, "%T", &finish_edge);
+///////////////////////////////////////////
+
+    // Инициализируем значения VAL и VALID
+    item.average[sampler_type].val_uint64 = 0;
+    item.valid[sampler_type] = 0;
+
+    switch(item.type)
+    {
+      case ANALOG:
+        if (REDIS_OK == (parse_redis_reply(reply,
+                                           arr_values[num_items],
+                                           curr_valid,
+                                           item,
+                                           sampler_type))) {
+            LOG(INFO) << "OK get analog: "
+                      << "\t" << str_time_start << "\t" << str_time_stop
+                      << "\t" << item.tag << "." << sampler_type
+                      << " = " << arr_values[num_items].val_double;
+            arr_valid[num_items] = curr_valid;
+            num_items++;
+          }
+          else {
+            LOG(WARNING) << "FAIL get analog : "
+                      << "\t" << str_time_start << "\t" << str_time_stop
+                      << "\t" << item.tag << "." << sampler_type;
+          }
+
+          freeReplyObject(reply);
+          break;
+
+        case DISCRETE:
+          sprintf(str, "HMGET %ld:%d:%s VAL VALID",
+                  time_frame,
+                  (int)previous_sampler_type,
+                  item.tag.c_str());
+
+          // Нельзя применить очередь для чтения очередного семпла, т.к. в этом
+          // случае вероятны пустые ответы на запрос несуществующих ключей.
+          // Существование запрашиваемых данных по генерируемым ключам никто не
+          // гарантирует.
+          reply = static_cast<redisReply*>(redisCommand(redis_context, str));
+
+//1          LOG(INFO) << "get = " << str;
+          if (REDIS_OK == (parse_redis_reply(reply, arr_values[num_items], curr_valid, item, sampler_type))) {
+            LOG(INFO) << "OK set discrete: " 
+                      << "\t" << str_time_start << "\t" << str_time_stop
+                      << "\t" << item.tag << "." << sampler_type
+                      << " = " << arr_values[num_items].val_uint64;
+            arr_valid[num_items] = curr_valid;
+            num_items++;
+          }
+          else {
+            LOG(WARNING) << "FAIL set discrete: " 
+                      << "\t" << str_time_start << "\t" << str_time_stop
+                      << "\t" << item.tag << "." << sampler_type;
+          }
+
+          freeReplyObject(reply);
+          break;
+
+        case NONE:
+        default:
+          LOG(ERROR) << "Unsupported type: " << item.type;
+      }
+
+      // Увеличиваем время сохранения данных на 1 цикл предыдущего типа вперед
+      time_frame += m_stages[sampler_type - 1].duration;
+    }
+
+    // К этому моменту в массиве arr_values находятся значения из предыдущих семплов
+
+    if (!num_items) {
+      // Ни одного семпла не было выгружено
+      LOG(ERROR) << item.tag << "." << (unsigned int)sampler_type
+                 << " are not loaded from history database: "
+                 << str_time_start << ", " << str_time_stop;
+      status = false;
+    }
+#else
+    item.average[sampler_type].val_uint64 = 0;
+    item.valid[sampler_type] = 0;
+#endif
+  return status;
+}
+
+// ==============================================================================
+// [OK] Чтение мгновенных значений из БДРВ в качестве минутных семплов
+bool load_samples_from_rtdbus(time_t finish_period,
+    sampler_type_t          sampler_type,
+    points_objclass_item_t& item,
+    common_value_t          arr_values[],
+    int                     arr_valid[])
+{
+  bool is_success = true;
+  int num_items = 0;
+//  size_t idx;
+
+  // Данная функция допустима только для минутных семплов
+  assert(sampler_type == PER_1_MINUTE);
+
+#if 0
+  xdb::Error status;
+  xdb::AttributeInfo_t info_read_val;
+  xdb::AttributeInfo_t info_read_valid;
+
+  // Минутный семпл, в отличие от остальных, в качестве входных данных использует БДРВ
+  memset((void*)&info_read_val.value, '\0', sizeof(info_read_val.value));
+  memset((void*)&info_read_valid.value, '\0', sizeof(info_read_valid.value));
+#endif
+
+#if 1
+      // TODO: При реальной работе чтение атрибута VALID из БДРВ
+      item.valid[PER_1_MINUTE] = 1; //VALIDITY_VALID;
+      arr_valid[0] = item.valid[PER_1_MINUTE];
+
+      // Сперва всегда формируется минутная история
+      switch(item.type)
+      {
+          case ANALOG:
+            // TODO: При реальной работе тут должен быть вызов чтения атрибута VAL из БДРВ
+            item.average[PER_1_MINUTE].val_double = sin(random() / (RAND_MAX + 1.0));
+//1            LOG(INFO) << item.tag << ".VAL="
+//1                      << item.average[PER_1_MINUTE].val_double;
+            arr_values[0].val_double = item.average[PER_1_MINUTE].val_double;
+            num_items++;
+            break;
+
+          case DISCRETE:
+            // TODO: При реальной работе тут должен быть вызов чтения атрибута VAL из БДРВ
+            item.average[PER_1_MINUTE].val_uint64 = within(25);
+//1            LOG(INFO) << item.tag << ".VAL="
+//1                      << item.average[PER_1_MINUTE].val_uint64;
+            arr_values[0].val_uint64 = item.average[PER_1_MINUTE].val_uint64;
+            num_items++;
+            break;
+
+          case BINARY:
+            item.average[PER_1_MINUTE].val_uint64 = within(1);
+//1            LOG(INFO) << item.tag << ".VAL="
+//1                      << item.average[PER_1_MINUTE].val_uint64;
+            arr_values[0].val_uint64 = item.average[PER_1_MINUTE].val_uint64;
+            num_items++;
+            break;
+
+          case NONE:
+          default:
+            LOG(ERROR) << "Unsupported type: " << item.type;
+            is_success = false;
+      }
+#else
+        // Прочесть значения атрибутов VAL, VALID
+        info_read_val.name = item.tag + "." + RTDB_ATT_VAL;
+        status = m_db_connection->read(&info_read_val);
+        if (status.code() != xdb::rtE_NONE) {
+          LOG(ERROR) << "Reading " << info_read_val.name;
+          is_success = false;
+        }
+
+        info_read_valid.name = item.tag + "." + RTDB_ATT_VALID;
+        status = m_db_connection->read(&info_read_valid);
+        if (status.code() != xdb::rtE_NONE) {
+          LOG(ERROR) << "Reading " << info_read_valid.name;
+          is_success = false;
+        }
+
+#endif
+
+  return is_success;
+}
+
+// ==============================================================================
+// [OK]
+// Функция формирует новые значения текущего цикла истории на основе данных предыдущего цикла
+// Для минутного цикла - чтение из БДРВ
+// Для остальных циклов - чтение из БД Истории
+bool load_samples(time_t    finish_period,
+    sampler_type_t          sampler_type,
+    points_objclass_item_t& item,
+    common_value_t          arr_values[],
+    int                     arr_valid[])
+{
+  bool status;
+
+  switch(sampler_type)
+  {
+    case PER_1_MINUTE:
+      status = load_samples_from_rtdbus(finish_period, sampler_type, item, arr_values, arr_valid);
+      break;
+    case PER_5_MINUTES:
+    case PER_HOUR:
+    case PER_DAY:
+    case PER_MONTH:
+      status = load_samples_from_hist(finish_period, sampler_type, item, arr_values, arr_valid);
+      break;
+    case STAGE_LAST:
+      LOG(ERROR) << "Unsupported sampler type: " << sampler_type;
+      status = false;
+  }
+  return status;
+}
+
+// ==============================================================================
+// [OK] Занесение указанных значений в Redis
+void store_sample_period(time_t finish_period,
+                         sampler_type_t sampler_type,
+                         points_objclass_item_t& item)
+{
+  //size_t idx;
+  // текущее время - время окончания текущего периода семпла
+  struct tm finish_edge;
+  // Отметка времени в прошлом, начало сохранения предыстории
+  // Скользящая отметка времени
+  time_t time_frame;
+  char str[200];
+  int num_items = 0;
+//  int samples_inserted;
+  bool is_success = true;
+  redisReply *reply = NULL;
+//  void* v_reply = &reply;
+
+  // Для продолжения тестов БД должна быть подключена
+  ASSERT_TRUE(redis_connected == true);
+
+  localtime_r(&finish_period, &finish_edge); // получили выровненное время окончания цикла
+  // Получим отметку времени окончания предыдущего цикла
+  finish_edge.tm_sec = 0;
+  time_frame = mktime(&finish_edge);
+  time_frame -= m_stages[sampler_type].duration;
+
+///////////////////////////////////////////
+  struct tm start_edge; // Прошедшее время, начало текущего цикла
+  char str_time_start[40 + 1];
+  char str_time_stop[40 + 1];
+  localtime_r(&time_frame, &start_edge); // получили выровненное время начала цикла
+  strftime(str_time_start, 40, "%T", &start_edge);
+  strftime(str_time_stop, 40, "%T", &finish_edge);
+///////////////////////////////////////////
+
+  // Заносим историю от начала предыдущего цикла до указанного момента
+  while (time_frame < finish_period)
+  {
+      switch(item.type)
+      {
+          case ANALOG:
+            //            Сортированный список
+            //            |
+            //            |    название списка (совпадает с тегом БДРВ)
+            //            |    |
+            //            |    |  отметка времени
+            //            |    |  |
+            //            |    |  |     тип семпла
+            //            |    |  |     |
+            //            |    |  |     |  достоверность
+            //            |    |  |     |  |
+            //            |    |  |     |  |  значение
+            //            |    |  |     |  |  |
+            sprintf(str, "ZADD %s %ld \"%d:%d:%g\"",
+                    item.tag.c_str(),
+                    time_frame,
+                    (int)sampler_type,
+                    item.valid[sampler_type],
+                    item.average[sampler_type].val_double);
+
+            // Добавить в очередь занесение очередного семпла
+            reply = static_cast<redisReply*>(redisCommand(redis_context, str));
+            if (1 == reply->integer) {
+            LOG(INFO) << "OK set analog " << item.tag << ".VAL." << sampler_type
+                      << " = " << item.average[sampler_type].val_double
+                      << " [" << str_time_start << " - " << str_time_stop << "]";
+
+            }
+            else LOG(WARNING) << "DUBLICATE set analog" << item.tag << ".VAL." << sampler_type
+                      << " = " << item.average[sampler_type].val_double
+                      << " [" << str_time_start << " - " << str_time_stop << "]";
+
+            freeReplyObject(reply);
+
+            num_items++;
+            break;
+
+          case DISCRETE:
+            //            Сортированный список
+            //            |
+            //            |    название списка (совпадает с тегом БДРВ)
+            //            |    |
+            //            |    |  отметка времени
+            //            |    |  |
+            //            |    |  |     тип семпла
+            //            |    |  |     |
+            //            |    |  |     |  достоверность
+            //            |    |  |     |  |
+            //            |    |  |     |  |  значение
+            //            |    |  |     |  |  |
+            sprintf(str, "ZADD %s %ld \"%d:%d:%lld\"",
+                    item.tag.c_str(),
+                    time_frame,
+                    (int)sampler_type,
+                    item.valid[sampler_type],
+                    item.average[sampler_type].val_uint64);
+
+            // Добавить в очередь занесение очередного семпла
+            reply = static_cast<redisReply*>(redisCommand(redis_context, str));
+            if (1 == reply->integer) {
+            LOG(INFO) << "OK set discrete " << item.tag << ".VAL." << sampler_type
+                      << " = " << item.average[sampler_type].val_uint64
+                      << " [" << str_time_start << " - " << str_time_stop << "]";
+            }
+            else LOG(WARNING) << "DUBLICATE set discrete " << item.tag << ".VAL." << sampler_type
+                      << " = " << item.average[sampler_type].val_uint64
+                      << " [" << str_time_start << " - " << str_time_stop << "]";
+
+            freeReplyObject(reply);
+
+            num_items++;
+            break;
+
+          case BINARY:
+            LOG(WARNING) << "Skip sampling type "<< sampler_type << " for binary point " << item.tag;
+            break;
+
+          case NONE:
+          default:
+            LOG(ERROR) << "Unsupported type: " << item.type;
+    }
+    // Увеличиваем скользящее время сохранения данных вперед, приближая его к текущему
+    time_frame += m_stages[sampler_type].duration;
+  }
+
+//  samples_inserted = num_items;
+
+/*
+  // Связаные запросы создаются с помошью redisAppendCommand(context, строка запроса)
+  // в цикле, затем вызываются с помощью redisCommand(), с разбором ответов
+  while ((--num_items > 0) && redisGetReply(redis_context, &v_reply) == REDIS_OK) {
+    freeReplyObject(v_reply);
+  }
+  if (num_items) {
+    LOG(ERROR) << "Part of sampling #" << sampler_type
+               << " (" << num_items << ") are not storing in history database";
+    is_success = false;
+  }
+  else {
+    LOG(INFO) << samples_inserted << " sample items inserted for type " << sampler_type;
+    is_success = true;
+  }
+*/  
+
+  EXPECT_TRUE(true == is_success);
+}
+
+// ==============================================================================
+// [OK]
+bool process_sample(const time_t time_frame, sampler_type_t type)
+{
+  bool status = false;
+  // 31 = макс. число семплов предыдущего типа (для месячной истории)
+  common_value_t arr_values[31];
+  int arr_valid[31];
+
+  // Главный цикл - пройтись по каждой точке всю процедуру от начала до конца:
+  //    Сгенерировать/выгрузить значение из БД
+  //    Подсчитать среднее
+  //    Загрузить БД Истории
+  for (size_t idx = 0; idx < points_objclass_list.size(); idx++)
+  {
+    // Обнулим хранилище мгновенных значений
+    memset(arr_values, '\0', sizeof(common_value_t) * 31);
+    memset(arr_valid, '\0', sizeof(int) * 31);
+
+    points_objclass_item_t& item = points_objclass_list.at(idx);
+
+    LOG(INFO) << "Process " << item.tag << "." << (unsigned int)type;
+    status = load_samples(time_frame, type, item, arr_values, arr_valid);
+    // Вычислить средние VAL и VALID за период
+    calc_average_sample(type, item, arr_values, arr_valid);
+    // Сбросить данные в Redis
+    store_sample_period(time_frame, type, item);
+  }
+
+  return status;
 }
 
 TEST(TestBrokerDATABASE, OPEN)
@@ -484,13 +1465,13 @@ TEST(TestBrokerDATABASE, DESTROY)
     ASSERT_TRUE (service2 != NULL);
     delete service2;
 
-#if 0
+/*
     ASSERT_TRUE (database != NULL);
     database->Disconnect();
 
     state = database->State();
     EXPECT_EQ(state, DB_STATE_DISCONNECTED);
-#endif
+*/
 
 #ifdef USE_EXTREMEDB_HTTP_SERVER
     printf("Press any key to continue...");
@@ -546,11 +1527,11 @@ TEST(TestDiggerDATABASE, CREATION)
   connection = env->getConnection();
   ASSERT_TRUE(connection != NULL);
 
-#if 0
+/*
   // TODO Реализация
   env->Start();
-  EXPECT_EQ(env->getLastError().getCode(), xdb::rtE_NONE /*rtE_NOT_IMPLEMENTED*/);
-#endif
+  EXPECT_EQ(env->getLastError().getCode(), xdb::rtE_NONE) //rtE_NOT_IMPLEMENTED
+*/
 
   err = env->MakeSnapshot(NULL);
   EXPECT_EQ(env->getLastError().getCode(), xdb::rtE_NONE);
@@ -726,7 +1707,9 @@ TEST(TestDiggerDATABASE, QUERY_PTS_IN_CLASS)
                                      discrete_points_per_object_type.end());
           break;
 
-        case NONE: ; // nothing to do
+        case NONE:
+        default:
+          ; // nothing to do
       }
     }
     else
@@ -1081,14 +2064,14 @@ TEST(TestDiggerDATABASE, CATCH_SBS)
     //EXPECT_EQ(points_map.size(), 2);
   }
 
-#if 0
+/*
   // 4) Получить id и теги всех изменившихся точек всех групп, вместе с id групп
   // ====================================================
   operation.action.query = rtQUERY_SBS_ALL_POINTS_ARMED;
   operation.buffer = &sbs_map;
   status = connection->QueryDatabase(operation);
   EXPECT_EQ(status.code(), rtE_NONE);
-#endif
+*/
 
 //  env->MakeSnapshot("AFTER_CATCH_SBS");
 }
@@ -1512,6 +2495,179 @@ TEST(TestTools, RELEASE_MEMORY)
   }
 }
 
+// ==============================================================================
+// [OK] Проверка доступа к БД Истории
+TEST(TestRedis, HIST_ACCESS)
+{
+  redisReply *reply = NULL;
+  struct timeval timeout = { 1, 500000 }; // 1.5 seconds
+  // ip-адрес сервера хранения предыстории
+  char history_db_address[100];
+  // Номер порта БД хранения предыстории
+  const int history_db_port = HISTDB_PORT_NUM;
+  bool history_db_connected = false;
+
+  strcpy(history_db_address, HISTDB_IP_ADDRESS);
+
+  redis_context = redisConnectWithTimeout(history_db_address, history_db_port, timeout);
+  if (redis_context == NULL || redis_context->err) {
+    if (redis_context) {
+      LOG(ERROR) << "Redis connection error: " << redis_context->errstr;
+      redisFree(redis_context);
+    } else {
+      LOG(ERROR) << "Connection error: can't allocate redis context";
+    }
+    redis_connected = false;
+  }
+  else {
+    redis_connected = true;
+  }
+
+  // Для продолжения тестов БД должна быть подключена
+  ASSERT_TRUE(redis_connected == true);
+
+  /* Проверить доступность сервера хранения истории Redis */
+  reply = static_cast<redisReply*>(redisCommand(redis_context,"PING"));
+  if (0 == strcmp(reply->str, "PONG")) {
+    LOG(INFO) << "Succesfully connected to history database at "
+              << history_db_address << ":" << history_db_port;
+    history_db_connected = true;
+  }
+  else {
+    LOG(ERROR) << "Unable to get responce from history database at "
+               << history_db_address << ":" << history_db_port;
+  }
+  freeReplyObject(reply);
+
+  EXPECT_TRUE(history_db_connected == true);
+}
+
+// ==============================================================================
+// [OK] Занести большой набор минутных тестовых данных: два месяца + два дня
+TEST(TestRedis, HIST_MAKE_SAMPLES)
+{
+  // текущее время
+  struct tm edge;
+  // прошлое время, для определения начала нового цикла
+  struct tm past_edge;
+  const time_t current = time(0);
+  // Сохраняем минутную историю
+//  sampler_type_t sampler_type = PER_1_MINUTE;
+  // Отметка времени в прошлом, начало сохранения предыстории
+  time_t history_mark;
+  // Скользящая отметка времени
+  time_t time_frame;
+//  int samples_inserted;
+  bool is_success = true;
+//  redisReply *reply = NULL;
+//  void* v_reply = &reply;
+  points_objclass_item_t item;
+
+  // Для продолжения тестов БД должна быть подключена
+  ASSERT_TRUE(redis_connected == true);
+
+  localtime_r(&current, &edge);
+  // Получим отметку времени на границе минуты, и трое суток назад + 2 часа
+  edge.tm_sec = 0;
+  history_mark = mktime(&edge);
+  // TODO: При реальной работе history_mark есть текущее время
+  history_mark -= m_stages[PER_5_MINUTES].duration * 2 + 60;
+//  history_mark -= m_stages[PER_MONTH].duration * 2 + m_stages[PER_DAY].duration * 2;
+
+  // Занести тестовые данные в список историзируемых точек
+  for (int idx = 0; idx < 3; idx++) {
+    item.tag.assign(sbs_points[idx]);
+    switch(idx) {
+      case 0:
+        item.type = DISCRETE;
+        item.objclass = GOF_D_BDR_OBJCLASS_VA;
+        break;
+      case 1:
+        item.type = ANALOG;
+        item.objclass = GOF_D_BDR_OBJCLASS_TM;
+        break;
+      case 2:
+        item.type = BINARY;
+        item.objclass = GOF_D_BDR_OBJCLASS_AL;
+        break;
+    }
+    std::cout << "add point " << item.tag << "(" << item.type << ";" << item.objclass << ")" << std::endl;
+    points_objclass_list.push_back(item);
+  }
+  // Успешно занесены три тестовые точки
+  EXPECT_EQ(points_objclass_list.size(), 3);
+
+  time_frame = history_mark;
+
+  // Накопливаем минутную историю от начала тестового периода до текущего момента
+  // После проверяем начало очередного расчетного периода и вызываем функцию его расчёта
+  while (time_frame < current)
+  {
+    // Разобрать текущее время на компоненты для проверки наступления начала очередного
+    // цикла расчета предыстории
+    localtime_r(&time_frame, &past_edge);
+
+    if (past_edge.tm_sec == 0) {
+      // Прочитать из БДРВ новые значения отсчетов минутных семплов
+      // NB: для тестов значения минутных семплов эмулируются!
+      process_sample(time_frame, PER_1_MINUTE);
+    }
+
+    // Проверка на границу пяти минут (минуты нацело делятся на 5)
+    if ((past_edge.tm_sec == 0) && !(past_edge.tm_min % 5)) {
+      process_sample(time_frame, PER_5_MINUTES);
+    }
+
+    // Проверка на границу часа (минуты д.б. равны 0)
+    if ((past_edge.tm_sec == 0) && (0 == past_edge.tm_min)) {
+      process_sample(time_frame, PER_HOUR);
+    }
+
+    // Проверка на границу суток (полночь - минуты и часы равны 0)
+    if ((past_edge.tm_sec == 0) && (0 == past_edge.tm_min) && (0 == past_edge.tm_hour)) {
+      process_sample(time_frame, PER_DAY);
+    }
+
+    // Проверка на границу месяца (граница суток + первый день месяца)
+    if ((past_edge.tm_sec == 0) && (0 == past_edge.tm_min) && (0 == past_edge.tm_hour) && (1 == past_edge.tm_mday)) {
+      process_sample(time_frame, PER_MONTH);
+    }
+
+    // Увеличиваем скользящее время сохранения данных на 1 минуту вперед, приближая его к текущему
+    // TODO: При реальной работе здесь будет ожидание начала нового, самого короткого интервала (минутного)
+    time_frame += m_stages[PER_1_MINUTE].duration;
+  }
+
+/*
+  // Связаные запросы создаются с помошью redisAppendCommand(context, строка запроса)
+  // в цикле, затем вызываются с помощью redisCommand(), с разбором ответов
+  while (redisGetReply(redis_context, &v_reply) == REDIS_OK) {
+    freeReplyObject(v_reply);
+  }
+  
+  if (0 < num_items) {
+    LOG(ERROR) << "Part of samplings (" << num_items << ") are not storing in history database";
+    is_success = false;
+  }
+  else {
+    LOG(INFO) << samples_inserted << " sample items inserted";
+    is_success = true;
+  }*/
+
+  EXPECT_TRUE(true == is_success);
+}
+
+// ==============================================================================
+TEST(TestRedis, HIST_CLOSE)
+{
+  // Для продолжения тестов БД должна быть подключена
+  ASSERT_TRUE(redis_connected == true);
+
+  // Disconnects and frees the Redis context
+  redisFree(redis_context);
+}
+
+// ==============================================================================
 int main(int argc, char** argv)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
@@ -1533,8 +2689,8 @@ int main(int argc, char** argv)
   }
 
   setenv("MCO_RUNTIME_STOP", "1", 0);
-  int retval = RUN_ALL_TESTS();
 
+  int retval = RUN_ALL_TESTS();
   try
   {
     XMLPlatformUtils::Terminate();

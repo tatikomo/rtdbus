@@ -113,6 +113,12 @@ if(NOT LIBGLOG_FOUND)
     return()
 endif(NOT LIBGLOG_FOUND)
 
+find_package(LIBHIREDIS)
+if(NOT LIBHIREDIS_FOUND)
+    message(SEND_ERROR "Failed to find HiRedis facility")
+    return()
+endif(NOT LIBHIREDIS_FOUND)
+
 include (ConfigureChecks.cmake)
 include (MacroLibrary)
 
@@ -226,6 +232,8 @@ set (ENDPOINT_EXCHG_FRONTEND        "tcp://localhost:5559")
 set (ENDPOINT_SBS_PUBLISHER         "tcp://localhost:5560")
 set (ENDPOINT_ARCH_FRONTEND         "tcp://localhost:5561")
 set (ENDPOINT_HIST_FRONTEND         "tcp://localhost:5562")
+set (HISTDB_IP_ADDRESS              "127.0.0.1")
+set (HISTDB_PORT_NUM                6379)
 
 # Предопределенные названия Служб
 set (BROKER_NAME        "BROKER")
@@ -301,6 +309,7 @@ message(STATUS "ZeroMQ:                   ${LIBZMQ_LIBRARIES_DIR}\t${LIBZMQ_LIBR
 message(STATUS "Protobuf:                 ${LIBPROTOBUF_LIBRARIES_DIR}\t${LIBPROTOBUF_LIBRARIES}")
 message(STATUS "eXtremeDB:                ${LIBEXTREMEDB_LIBRARIES_DIR}\t${LIBEXTREMEDB_LIBRARIES}")
 message(STATUS "glog:                     ${LIBGLOG_LIBRARIES_DIR}\t${LIBGLOG_LIBRARIES}")
+message(STATUS "hiredis:                  ${LIBHIREDIS_LIBRARIES_DIR}\t${LIBHIREDIS_LIBRARIES}")
 message(STATUS "Building unit tests:      ${RTDBUS_BUILD_TESTS}               ")
 message(STATUS "Building xdb http serv:   ${RTDBUS_USE_EXTREMEDB_HTTP_SERVER} ")
 message(STATUS "Building verbose mode:    ${RTDBUS_ENABLE_VERBOSE_MODE}       ")

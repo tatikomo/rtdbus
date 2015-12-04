@@ -18,6 +18,7 @@ else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
 include_directories(${LIBGLOG_INCLUDE_DIR})
+include_directories(${LIBHIREDIS_INCLUDE_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})
 include_directories(${LIBCPPZMQ_INCLUDE_DIR})
 include_directories(${LIBPROTOBUF_INCLUDE_DIR})
@@ -31,6 +32,7 @@ include_directories(${XDB_IMPL_DIR})
 include_directories(${TOOLS_DIR})
 
 link_directories(${LIBGLOG_LIBRARIES_DIR})
+link_directories(${LIBHIREDIS_LIBRARIES_DIR})
 link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
@@ -197,6 +199,7 @@ target_link_libraries(${WORKER_ARCHIVIST}
 add_executable (${WORKER_HIST_SAMPLER} ${WORKER_HIST_SAMPLER_SOURCES})
 target_link_libraries(${WORKER_HIST_SAMPLER}
     ${LIBGLOG_LIBRARIES}
+    ${LIBHIREDIS_LIBRARIES}
     ${MDP_LIBRARY_NAME}
 #    ${XDB_RTAP_IMPL_LIBRARY_NAME}
     ${XDB_RTAP_LIBRARY_NAME}

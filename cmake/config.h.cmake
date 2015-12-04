@@ -59,6 +59,8 @@
 #cmakedefine ENDPOINT_SBS_PUBLISHER   "@ENDPOINT_SBS_PUBLISHER@"
 #cmakedefine ENDPOINT_ARCH_FRONTEND   "@ENDPOINT_ARCH_FRONTEND@"
 #cmakedefine ENDPOINT_HIST_FRONTEND   "@ENDPOINT_HIST_FRONTEND@"
+#cmakedefine HISTDB_IP_ADDRESS        "@HISTDB_IP_ADDRESS@"
+#cmakedefine HISTDB_PORT_NUM           @HISTDB_PORT_NUM@
 
 /* Predefined service names */
 #cmakedefine BROKER_NAME        "@BROKER_NAME@"

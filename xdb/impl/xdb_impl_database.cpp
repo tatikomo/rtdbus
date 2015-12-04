@@ -453,8 +453,8 @@ const Error& DatabaseImpl::Init()
       }
 
       /* Set the error handler to be called from the eXtremeDB runtime if a fatal error occurs */
-      mco_error_set_handler(&impl_errhandler);
-      //mco_error_set_handler_ex(&extended_impl_errhandler);
+      //mco_error_set_handler(&impl_errhandler);
+      mco_error_set_handler_ex(&extended_impl_errhandler);
       LOG(INFO) << "User-defined error handler set";
     
 #if (EXTREMEDB_VERSION >= 40) && USE_EXTREMEDB_HTTP_SERVER
@@ -1186,7 +1186,7 @@ const Error& DatabaseImpl::LoadFromXML(const char* given_file_name)
 const Error& DatabaseImpl::Open()
 {
   MCO_RET rc = MCO_S_OK;
-  int val;
+//  int val;
   int pid = getpid();
 
   clearError();

@@ -2,7 +2,7 @@
 // GEV 2015/01/01
 ///////////////////////////////////////////////////////////////////////////
 
-#include <glog/logging.h>
+#include "glog/logging.h"
 
 #include "xdb_common.hpp" // AttributeInfo_t
 
@@ -67,7 +67,7 @@ bool Mosquito::process_read_response(msg::Letter* report)
     std::cout << "type=" << attr_val.type() << "\t"
               << attr_val.tag() << " = " << attr_val.as_string() << std::endl;
   }
- 
+
   return status;
 }
 
@@ -90,7 +90,7 @@ bool Mosquito::process_sbs_update_response(msg::Letter* report)
     std::cout << "type=" << attr_val.type() << "\t"
               << attr_val.tag() << " = " << attr_val.as_string() << std::endl;
   }
- 
+
   return status;
 }
 
@@ -403,7 +403,7 @@ int main (int argc, char *argv [])
             sbs_ctrl_msg = dynamic_cast<msg::SubscriptionControl*>(request);
             sbs_ctrl_msg->set_name(group_name);
             // TODO: ввести перечисление возможных кодов
-            // Сейчас (2015-10-01) 0 = SUSPEND, 1 = ENABLE 
+            // Сейчас (2015-10-01) 0 = SUSPEND, 1 = ENABLE
             sbs_ctrl_msg->set_ctrl(1); // TODO: ввести перечисление возможных кодов
           }
         }
@@ -492,7 +492,7 @@ int main (int argc, char *argv [])
 
                 resp->failure_cause(cause_code, cause_text);
                 std::cout << "Got ADG_D_MSG_EXECRESULT response: "
-                          << resp->header()->usr_msg_type() 
+                          << resp->header()->usr_msg_type()
                           << " status=" << resp->exec_result()
                           << " code=" << cause_code
                           << " text=\"" << cause_text << "\"" << std::endl;
@@ -516,7 +516,7 @@ int main (int argc, char *argv [])
                 }
                 break;
 
-              // NB: не должно быть такого ответа, должен быть ExecResult 
+              // NB: не должно быть такого ответа, должен быть ExecResult
               case SIG_D_MSG_WRITE_MULTI:
                 std::cerr << "Error: expect ExecResult but received SIG_D_MSG_WRITE_MULTI response: "
                           << report->header()->usr_msg_type() << std::endl;

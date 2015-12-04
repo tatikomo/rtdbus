@@ -29,6 +29,25 @@
 // сообщения по работе с БДРВ
 #include "msg_sinf.hpp"
 
+#include "hiredis.h"
+
+// ---------------------------------------------------------------------
+enum ProcessingType_t { NONE = 0, ANALOG = 1, DISCRETE = 2 };
+
+// Структура хранения информации о семпле со средними значениями 
+typedef struct {
+  // универсальное имя точки
+  std::string tag;
+  // класс точки
+  int objclass;
+  // тип точки
+  ProcessingType_t type;
+  // набор средних значений VAL за соответствующие периоды
+  common_value_t average[STAGE_LAST];
+  // Набор значений атрибута VALID
+  int valid[STAGE_LAST];
+} points_objclass_list_t;
+
 // ---------------------------------------------------------------------
 // Признаки необходимости завершения работы группы процессов генератора предыстории
 extern int interrupt_worker;
@@ -41,36 +60,38 @@ static const char *COMMAND_TERMINATION = "TERMINATE";
 // NB: заполняются один раз при старте ArchivistSamplerProxy
 xdb::map_id_name_t analog_points;
 xdb::map_id_name_t discrete_points;
+// вектор структур {тег + тип + objclass}
+std::vector <points_objclass_list_t> points_objclass_list;
 
 // Массив точек связи между собирателями и управляющей нитью
 const char* pairs[] = {
-  "inproc://pair_1_min",
-  "inproc://pair_5_min",
-  "inproc://pair_hour",
-  "inproc://pair_day",
-  "inproc://pair_month",
-  "inproc://pair_main",
+  "inproc://pair_1_min",    // PER_1_MINUTE  = 0
+  "inproc://pair_5_min",    // PER_5_MINUTES = 1
+  "inproc://pair_hour",     // PER_HOUR      = 2
+  "inproc://pair_day",      // PER_DAY       = 3
+  "inproc://pair_month",    // PER_MONTH     = 4
+  "inproc://pair_main",     // STAGE_LAST    = 5
 };
 
 // Массив переходов от текущего типа собирателя к следующему
 const state_pair_t m_stages[STAGE_LAST] = {
-  // текущая стадия
-  // |              сокет текующей стадии
+  // текущая стадия (current)
+  // |              сокет текующей стадии (pair_name_current)
   // |              |
-  // |              |                    следующая стадия
+  // |              |                    следующая стадия (next)
   // |              |                    |
-  // |              |                    |              сокет следующей стадии
+  // |              |                    |              сокет следующей стадии (pair_name_next)
   // |              |                    |              |
   // |              |                    |              |                     анализируемых отсчетов
-  // |              |                    |              |                     предыдущей стадии
+  // |              |                    |              |                     предыдущей стадии (num_prev_samples)
   // |              |                    |              |                     |
   // |              |                    |              |                     |  суффикс файла с семплом
-  // |              |                    |              |                     |  текущей стадии
+  // |              |                    |              |                     |  текущей стадии (suffix)
   // |              |                    |              |                     |  |
   // |              |                    |              |                     |  |     длительность стадии
-  // |              |                    |              |                     |  |     в секундах
+  // |              |                    |              |                     |  |     в секундах (duration)
   // |              |                    |              |                     |  |     |
-  { PER_1_MINUTE,  pairs[PER_1_MINUTE],  PER_5_MINUTES, pairs[PER_5_MINUTES], 0, ".0", 60},
+  { PER_1_MINUTE,  pairs[PER_1_MINUTE],  PER_5_MINUTES, pairs[PER_5_MINUTES], 1, ".0", 60},
   { PER_5_MINUTES, pairs[PER_5_MINUTES], PER_HOUR,      pairs[PER_HOUR],      5, ".1", 300},
   { PER_HOUR,      pairs[PER_HOUR],      PER_DAY,       pairs[PER_DAY],      12, ".2", 3600},
   { PER_DAY,       pairs[PER_DAY],       PER_MONTH,     pairs[PER_MONTH],    24, ".3", 86400},
@@ -136,22 +157,27 @@ int mkpath(const char *path, mode_t mode)
 // ---------------------------------------------------------------------
 SamplerWorker::SamplerWorker(zmq::context_t& ctx,
                              sampler_type_t type,
-                             xdb::RtEnvironment* env) :
+                             xdb::RtEnvironment* env,
+                             const char* db_hist_ip_addr,
+                             int db_hist_port) :
   m_env(env),
   m_db_connection(NULL),
   m_context(ctx),
+  m_history_db_connected(false),
   m_sampler_type(type),
-  m_cwd(get_current_dir_name())
+//  m_cwd(get_current_dir_name()),
+  m_history_db_address(db_hist_ip_addr),
+  m_history_db_port(db_hist_port)
 {
   LOG(INFO) << "Constructor SamplerWorker, type: " << m_sampler_type
-            << ", context: " << &m_context
-            << ", cwd: " << m_cwd;
+            << ", context: " << &m_context;
+ //           << ", cwd: " << m_cwd;
 }
 
 // ---------------------------------------------------------------------
 SamplerWorker::~SamplerWorker()
 {
-  delete m_cwd;
+//  delete m_cwd;
   delete m_db_connection;
   LOG(INFO) << "Destructor SamplerWorker, type: " << m_sampler_type
             << ", context " << &m_context;
@@ -164,8 +190,13 @@ void SamplerWorker::work()
   zmq::socket_t ignitor (m_context, ZMQ_PAIR);
   zmq::socket_t finitor (m_context, ZMQ_PAIR);
 
-  m_db_connection = m_env->getConnection();
-  assert(m_db_connection->state() == xdb::CONNECTION_VALID);
+  // Подключиться с БДРВ только для сборщика минутной истории
+  if (PER_1_MINUTE == m_sampler_type)
+  {
+    // Соединение будет удалено в деструкторе
+    m_db_connection = m_env->getConnection();
+    assert(m_db_connection->state() == xdb::CONNECTION_VALID);
+  }
 
   try
   {
@@ -206,7 +237,7 @@ void SamplerWorker::work()
       LOG(ERROR) << "SamplerWorker catch the signal: " << e.what();
   }
 
-  delete m_db_connection; m_db_connection = NULL;
+//  delete m_db_connection; m_db_connection = NULL;
   LOG(INFO) << "SamplerWorker::work finish";
 }
 
@@ -223,35 +254,36 @@ void SamplerWorker::collect_sample()
   {
     case PER_1_MINUTE:  // 0
       // Выгрузить атрибуты VAL и VALID всех Точек аналогового типа
-      process_analog_samples(analog_points);
+      //process_analog_samples(current, analog_points);
+      make_samples(current);
       break;
 
     case PER_5_MINUTES: // 1
       // Проверка на границу пяти минут (минуты нацело делятся на 5)
       if (!(edge.tm_min % 5)) {
         // Посчитать новый семпл из ранее изготовленных минутных
-        make_samples(m_sampler_type);
+        make_samples(current);
       }
       break;
 
     case PER_HOUR:      // 2
       // Проверка на границу часа (минуты д.б. равны 0)
       if (0 == edge.tm_min) {
-        make_samples(m_sampler_type);
+        make_samples(current);
       }
       break;
 
     case PER_DAY:       // 3
       // Проверка на границу суток (полночь - минуты и часы равны 0)
       if ((0 == edge.tm_min) && (0 == edge.tm_hour)) {
-        make_samples(m_sampler_type);
+        make_samples(current);
       }
       break;
 
     case PER_MONTH:     // 4
       // Проверка на границу месяца (граница суток + первый день месяца)
       if ((0 == edge.tm_min) && (0 == edge.tm_hour) && (1 == edge.tm_mday)) {
-        make_samples(m_sampler_type);
+        make_samples(current);
       }
       break;
 
@@ -267,95 +299,182 @@ void SamplerWorker::collect_sample()
 // 1) прочитать несколько последних отсчетов VAL и VALID архивов предыдущего цикла
 // 2) найти среднее арифметическое, поделив на число семплов предыдущего цикла
 // 3) добавить новый семпл в таблицу соответствующих семплов
-void SamplerWorker::make_samples(sampler_type_t history_type)
+void SamplerWorker::make_samples(const time_t timer)
 {
-  // индекс текущего семпла предыдущего цикла
-  int num_sample = 0;
+  xdb::AttributeInfo_t info_read_val;
+  xdb::AttributeInfo_t info_read_valid;
+  xdb::Error status;
   // Итератор доступа к тегам
-  xdb::map_id_name_t::iterator it;
-  // Дескриптор файла, содержащего семпл данного тега предыдущего цикла
-  int fd;
-  std::string file_name_sample;
+  std::vector <points_objclass_list_t>::iterator it;
+  bool is_success = true;
+  int num_items = 0;
+  // структуры для работы с Redis
+  redisContext *context = NULL;
+  redisReply *reply = NULL;
+  void* v_reply = &reply;
+  struct timeval timeout = { 1, 500000 }; // 1.5 seconds
+  char str[200];
+  // индекс текущего семпла предыдущего цикла
+//  int num_sample = 0;
 
-#if 0
-  switch(history_type)
-  {
-    case PER_5_MINUTES: // 1
-      LOG(INFO) << "edge of 5 min";
-      break;
-
-    case PER_HOUR:      // 2
-      LOG(INFO) << "edge of hour";
-      break;
-
-    case PER_DAY:       // 3
-      LOG(INFO) << "edge of day";
-      break;
-
-    case PER_MONTH:     // 4
-      LOG(INFO) << "edge of month";
-      break;
-
-    case PER_1_MINUTE:  // 0
-    case STAGE_LAST:    // NB: break пропущен специально
-    default:
-      LOG(ERROR) << "Unsupported history sample: " << history_type;
-      break;
-  }
-#endif
-
-  // Пройтись по всем аналоговым точкам
-  for(it = analog_points.begin(); it != analog_points.end(); it++)
-  {
-    // К названию файла хранения VAL и VALID добавляется суффикс,
-    // специфичный для разных типов сборщиков.
-    file_name_sample = (*it).second + m_stages[history_type].suffix;
-
-    // Открыть файл с соответствующим семплом
-    if (-1 != (fd = open(file_name_sample.c_str(), O_NOATIME)))
-    {
-
-      // Найти в файле нужное количество строк
-      // NB: Это будут последние m_stages[history_type].num_prev_samples строк
-      for (num_sample = 0; num_sample < m_stages[history_type].num_prev_samples; num_sample++)
-      {
-        // Получить сумму из num_sample семплов назад от текущего времени
-      }
-
-      if (-1 == close(fd))
-      {
-        LOG(ERROR) << "Closing file '" << file_name_sample << "', fd=" << fd
-                   << ", errno: " << errno << ", " << strerror(errno);
-      }
+  context = redisConnectWithTimeout(m_history_db_address, m_history_db_port, timeout);
+  if (context == NULL || context->err) {
+    if (context) {
+      LOG(ERROR) << "Redis connection error: " << context->errstr;
+      redisFree(context);
+    } else {
+      LOG(ERROR) << "Connection error: can't allocate redis context";
     }
+    return;
   }
 
-}
+  /* Проверить доступность сервера хранения истории Redis */
+  reply = static_cast<redisReply*>(redisCommand(context,"PING"));
+  if (0 == strcmp(reply->str, "PONG")) {
+    LOG(INFO) << "Succesfully connected to history database at "
+              << m_history_db_address << ":" << m_history_db_port;
+    m_history_db_connected = true;
+  }
+  else {
+    LOG(ERROR) << "Unable to get responce from history database at "
+               << m_history_db_address << ":" << m_history_db_port;
+  }
+  freeReplyObject(reply);
 
-#if 0
-// ---------------------------------------------------------------------
-// Уведомить следующего в цепочке собирателя предыстории о начале работы
-void SamplerWorker::push_next_stage(sampler_type_t type)
-{
-  // TODO: отправить сообщение о начале работы через сокет ZMQ_PAIR
-  switch(m_sampler_type)
+  if (!m_history_db_connected)
+    return;
+    
+  // Пройтись по всем точкам, аналоговым и дискретным
+  for(it = points_objclass_list.begin(); it != points_objclass_list.end(); it++)
   {
-    case PER_1_MINUTE:  // 0
-      break;
-    case PER_5_MINUTES: // 1
-      break;
-    case PER_HOUR:      // 2
-      break;
-    case PER_DAY:       // 3
-      break;
-    case PER_MONTH:     // 4
-      break;
-    case STAGE_LAST:
-      // Достигли последнего собирателя в цепочке, дальше хода нет
-      break;
+    // Для всех типов семплов, кроме минутного, расчет основывается на ранее
+    // сохраненных в предытории значениях. Для минутного семпла расчет ведется
+    // на основе данных из БДРВ.
+    //
+    // 1) Выгрузить из предыстории набор записей по ключам:
+    // <текущее время - N - 0>:<тип предыдущего семпла>:<тег>
+    // <текущее время - N - 1>:<тип предыдущего семпла>:<тег>
+    // ...
+    // <текущее время - N - N>:<тип предыдущего семпла>:<тег>
+    //
+    // 2) найти среднее арифметическое атрибута VAL
+    // 3) найденное ср.арифм. есть значение атрибута VAL текущего семпла
+    // 4) найти максимальное значение атрибута VALID
+    // 5) найденный максимум есть значение атрибута VALID текущего семпла 
+    // 6) занести новый семпл в БД истории
+
+    switch(m_sampler_type)
+    {
+      case PER_1_MINUTE: // 0
+        LOG(INFO) << "edge of minute";
+        // Минутный семпл, в отличие от остальных, в качестве входных данных использует БДРВ
+        memset((void*)&info_read_val.value, '\0', sizeof(info_read_val.value));
+        memset((void*)&info_read_valid.value, '\0', sizeof(info_read_valid.value));
+
+        // Прочесть значения атрибутов VAL, VALID
+        info_read_val.name = (*it).tag + "." + RTDB_ATT_VAL;
+        status = m_db_connection->read(&info_read_val);
+        if (status.code() != xdb::rtE_NONE) {
+          LOG(ERROR) << "Reading " << info_read_val.name;
+          is_success = false;
+        }
+
+        info_read_valid.name = (*it).tag + "." + RTDB_ATT_VALID;
+        status = m_db_connection->read(&info_read_valid);
+        if (status.code() != xdb::rtE_NONE) {
+          LOG(ERROR) << "Reading " << info_read_valid.name;
+          is_success = false;
+        }
+
+        // Открыть файл с шаблонным именем, основанным на названии тега.
+        // Занести в него новую строку, содержащую:
+        // 1) Текущую дату/время
+        // 2) Числовое значение значения
+        // 3) Числовое значение достоверности
+        switch((*it).type)
+        {
+          case ANALOG:
+            sprintf(str, "HMSET %ld:%d:%s VAL \"%g\" VALID %d",
+                    timer,
+                    (int)m_sampler_type,
+                    (*it).tag.c_str(),
+                    info_read_val.value.fixed.val_double,
+                    info_read_valid.value.fixed.val_int16);
+            break;
+
+          case DISCRETE:
+            sprintf(str, "HMSET %ld:%d:%s VAL %lld VALID %d",
+                    timer,
+                    (int)m_sampler_type,
+                    (*it).tag.c_str(),
+                    info_read_val.value.fixed.val_uint64,
+                    info_read_valid.value.fixed.val_int16);
+            break;
+
+          case NONE:
+          default:
+            LOG(ERROR) << "Unsupported type: " << (*it).type;
+         }
+
+        // Добавить в очередь занесение очередного семпла
+        redisAppendCommand(context, str);
+        num_items++;
+        break;
+
+      case PER_5_MINUTES: // 1
+        LOG(INFO) << "edge of 5 min";
+        break;
+
+      case PER_HOUR:      // 2
+        LOG(INFO) << "edge of hour";
+        break;
+
+      case PER_DAY:       // 3
+        LOG(INFO) << "edge of day";
+        break;
+
+      case PER_MONTH:     // 4
+        LOG(INFO) << "edge of month";
+        break;
+
+      case STAGE_LAST:    // NB: break пропущен специально
+      default:
+        LOG(ERROR) << "Unsupported history sample: " << m_sampler_type;
+        break;
+    }
+
+
+
+
+
+
+
+
+    // Связаные запросы создаются с помошью redisAppendCommand(context, строка запроса)
+    // в цикле, затем вызываются с помощью redisCommand(), с разбором ответов
+    while ((--num_items > 0) && redisGetReply(context, &v_reply) == REDIS_OK) {
+      freeReplyObject(v_reply);
+    }
+  
+    if (num_items) {
+      LOG(ERROR) << "Part of samplings (" << num_items << " are not storing in history database";
+      is_success = false;
+    }
+
+    if (true == is_success)
+    {
+      // Если не было ошибок, ограничимся общим уведомлением об успехе чтения
+      LOG(INFO) << "Successfully sampling analog parameters";
+    }
+
   }
+
+  // Disconnects and frees the Redis context
+  redisFree(context);
+  LOG(INFO) << "Disconnected sampler(" << m_sampler_type << ") from history database at "
+            << m_history_db_address << ":" << m_history_db_port;
+
 }
-#endif
 
 // ---------------------------------------------------------------------
 void SamplerWorker::stop()
@@ -365,15 +484,47 @@ void SamplerWorker::stop()
 }
 
 // ---------------------------------------------------------------------
-void SamplerWorker::process_analog_samples(xdb::map_id_name_t& id_list)
+/*
+void SamplerWorker::process_analog_samples(struct tm& timer, xdb::map_id_name_t& id_list)
 {
   xdb::AttributeInfo_t info_read_val;
   xdb::AttributeInfo_t info_read_valid;
   xdb::Error status;
   xdb::map_id_name_t::iterator it;
   bool is_success = true;
+  int num_items = 0;
+  // структуры для работы с Redis
+  redisContext *context = NULL;
+  redisReply *reply = NULL;
+  void* v_reply = &reply;
+  struct timeval timeout = { 1, 500000 }; // 1.5 seconds
+  char str[200];
 
-  for(it = id_list.begin(); it != id_list.end(); it++)
+  context = redisConnectWithTimeout(m_history_db_address, m_history_db_port, timeout);
+  if (context == NULL || context->err) {
+    if (context) {
+      LOG(ERROR) << "Redis connection error: " << context->errstr;
+      redisFree(context);
+    } else {
+      LOG(ERROR) << "Connection error: can't allocate redis context";
+    }
+    return;
+  }
+
+  // Проверить доступность сервера хранения истории Redis
+  reply = static_cast<redisReply*>(redisCommand(context,"PING"));
+  if (0 == strcmp(reply->str, "PONG")) {
+    LOG(INFO) << "Succesfully connected to history database at "
+              << m_history_db_address << ":" << m_history_db_port;
+    m_history_db_connected = true;
+  }
+  else {
+    LOG(ERROR) << "Unable to get responce from history database at "
+               << m_history_db_address << ":" << m_history_db_port;
+  }
+  freeReplyObject(reply);
+
+  for(it = id_list.begin(), num_items = 0; it != id_list.end(); it++)
   {
     memset((void*)&info_read_val.value, '\0', sizeof(info_read_val.value));
     memset((void*)&info_read_valid.value, '\0', sizeof(info_read_valid.value));
@@ -384,14 +535,13 @@ void SamplerWorker::process_analog_samples(xdb::map_id_name_t& id_list)
     if (status.code() == xdb::rtE_NONE)
     {
 #ifdef VERBOSE
-      std::cout << "Get "<< info_read_val.name <<"="<< info_read_val.value.fixed.val_int16 << std::endl;
+      std::cout << "Get "<< info_read_val.name <<"="<< info_read_val.value.fixed.val_double << std::endl;
 #endif
     }
     else {
       LOG(ERROR) << "Reading " << info_read_val.name;
       is_success = false;
     }
-
 
     info_read_valid.name = (*it).second + "." + RTDB_ATT_VALID;
     status = m_db_connection->read(&info_read_valid);
@@ -411,22 +561,106 @@ void SamplerWorker::process_analog_samples(xdb::map_id_name_t& id_list)
     // 1) Текущую дату/время
     // 2) Числовое значение значения
     // 3) Числовое значение достоверности
-    is_success = store_samples((*it).second, info_read_val, info_read_valid);
+#if 0
+    is_success = store_samples(context, timer, (*it).second, info_read_val, info_read_valid);
+#else
+    sprintf(str, "HMSET %ld:%d:%s VAL \"%g\" VALID %d",
+             mktime(&timer),
+             (int)m_sampler_type,
+             (*it).second.c_str(),
+             info_read_val.value.fixed.val_double,
+             info_read_valid.value.fixed.val_int16);
+//1    LOG(INFO) << "str: " << str;
+
+    // Добавить в очередь занесение очередного семпла
+    redisAppendCommand(context, str);
+    num_items++;
+#endif
+    
   }
 #ifdef VERBOSE
   std::cout << std::endl;
 #endif
+
+  // Связаные запросы создаются с помошью redisAppendCommand(context, строка запроса)
+  // в цикле, затем вызываются с помощью redisCommand(), с разбором ответов
+  while ((--num_items > 0) && redisGetReply(context, &v_reply) == REDIS_OK) {
+    freeReplyObject(v_reply);
+  }
+  
+  if (num_items) {
+    LOG(ERROR) << "Part of samplings (" << num_items << " are not storing in history database";
+    is_success = false;
+  }
 
   if (true == is_success)
   {
     // Если не было ошибок, ограничимся общим уведомлением об успехе чтения
     LOG(INFO) << "Successfully sampling analog parameters";
   }
+
+  // Disconnects and frees the Redis context
+  redisFree(context);
+  LOG(INFO) << "Disconnected sampler(" << m_sampler_type << ") from history database at "
+            << m_history_db_address << ":" << m_history_db_port;
+
+} 
+
+const int SAMPLE_REDIS_KEY_LENGTH = 12 + 1 + 1 + 1 + TAG_NAME_MAXLEN;
+const int SAMPLE_REDIS_VALUE_LENGTH = 40;
+// ---------------------------------------------------------------------
+// Поместить прочитанные значения VAL VALID точки tag в хранилище Redis
+bool SamplerWorker::store_samples(void *context,
+                                  struct tm& timer,
+                                  std::string& tag,
+                                  xdb::AttributeInfo_t& info_val,
+                                  xdb::AttributeInfo_t& info_valid)
+{
+  // Результат работы
+  bool status = true;
+  redisReply *reply = NULL;
+  size_t key_printed;
+  size_t value_printed;
+  redisContext *c = static_cast<redisContext*>(context);
+  // строка для формирования ключа одного семпла в формате:
+  // <time_t>:<тип семпла>:<тег>
+  char sample_db_key[SAMPLE_REDIS_KEY_LENGTH + 1];
+  // строка для формирования значения одного семпла в формате:
+  // VAL "<число с плав. точкой>" VALID <число>"
+  char sample_db_value[SAMPLE_REDIS_VALUE_LENGTH + 1];
+
+  if (m_history_db_connected) {
+    // Пример команды установки значения "hmset 1000000000:0:KD4005/5/RY05 VAL "3.14" VALID 1"
+    key_printed = snprintf(sample_db_key, SAMPLE_REDIS_KEY_LENGTH,
+             "%ld:%d:%s",
+             mktime(&timer),
+             (int)m_sampler_type,
+             tag.c_str());
+
+    value_printed = snprintf(sample_db_value, SAMPLE_REDIS_VALUE_LENGTH,
+             "VAL \"%g\" VALID %d",
+             info_val.value.fixed.val_double,
+             info_valid.value.fixed.val_int16);
+
+    reply = static_cast<redisReply*>(redisCommand(c, "HMSET %b %b",
+             sample_db_key, key_printed,
+             sample_db_value, value_printed));
+
+    printf("HMSET %s %s\n", sample_db_key, sample_db_value);
+    printf("HMSET: %s\n", reply->str);
+    freeReplyObject(reply);
+    abort();
+  }
+  else {
+    status = false;
+  }
+
+  return status;
 }
 
 // ---------------------------------------------------------------------
 // Поместить прочитанные значения VAL VALID точки tag в файловое хранилище
-bool SamplerWorker::store_samples(std::string& tag,
+bool SamplerWorker::store_samples_in_files(std::string& tag,
                                   xdb::AttributeInfo_t& info_val,
                                   xdb::AttributeInfo_t& info_valid)
 {
@@ -504,6 +738,7 @@ bool SamplerWorker::store_samples(std::string& tag,
 
   return status;
 }
+*/
 
 // ---------------------------------------------------------------------
 ArchivistSamplerProxy::ArchivistSamplerProxy(zmq::context_t& ctx, xdb::RtEnvironment* env) :
@@ -513,8 +748,11 @@ ArchivistSamplerProxy::ArchivistSamplerProxy(zmq::context_t& ctx, xdb::RtEnviron
   m_env(env),
   m_db_connection(NULL),
   m_time_before({0, 0}),
-  m_time_after({0, 0})
+  m_time_after({0, 0}),
+  m_history_db_port(HISTDB_PORT_NUM)
 {
+  strcpy(m_history_db_address, HISTDB_IP_ADDRESS);
+
   LOG(INFO) << "Constructor ArchivistSamplerProxy, env: " << m_env;
 }
 
@@ -565,7 +803,6 @@ void ArchivistSamplerProxy::stop()
 // Используется при чтении VAL и VALID при семплировании.
 void ArchivistSamplerProxy::fill_points_list()
 {
-  enum ProcessingType_t { NONE = 0, ANALOG = 1, DISCRETE = 2 };
   xdb::rtDbCq operation;
   xdb::Error result;
   int idx;
@@ -574,9 +811,11 @@ void ArchivistSamplerProxy::fill_points_list()
   // аналоговых и дискретных параметров.
   xdb::map_id_name_t analog_points_per_object_type;
   xdb::map_id_name_t discrete_points_per_object_type;
+  xdb::map_id_name_t::iterator map_iter;
   ProcessingType_t processing_type;
+  points_objclass_list_t item;
 
-  // Получить список имдентификаторов Точек с заданным в addrCnt значением objclass
+  // Получить список идентификаторов Точек с заданным в addrCnt значением objclass
   operation.action.query = xdb::rtQUERY_PTS_IN_CLASS;
 
   for (idx = GOF_D_BDR_OBJCLASS_TS;
@@ -618,7 +857,7 @@ void ArchivistSamplerProxy::fill_points_list()
         processing_type = NONE; // Ничего не делать
     }
 
-    // Чтение набора точек выполено успешно?
+    // Чтение набора точек выполнено успешно?
     if (result.Ok())
     {
       switch(processing_type)
@@ -626,11 +865,35 @@ void ArchivistSamplerProxy::fill_points_list()
         case ANALOG:
           analog_points.insert(analog_points_per_object_type.begin(),
                                analog_points_per_object_type.end());
+          // Добавить в общий список точек новую запись, определяемую типом и названием тега
+          for(map_iter = analog_points_per_object_type.begin();
+              map_iter != analog_points_per_object_type.end();
+              map_iter++) {
+
+            item.tag = (*map_iter).second;
+            item.objclass = xdb::ClassDescriptionTable[idx].code;
+            item.type = processing_type;
+
+            LOG(INFO) << "Add analog point: " << item.tag << ", " << item.objclass << ", " << item.type;
+            points_objclass_list.push_back(item);
+          }
           break;
 
         case DISCRETE:
           discrete_points.insert(discrete_points_per_object_type.begin(),
                                  discrete_points_per_object_type.end());
+          // Добавить в общий список точек новую запись, определяемую типом и названием тега
+          for(map_iter = discrete_points_per_object_type.begin();
+              map_iter != discrete_points_per_object_type.end();
+              map_iter++) {
+
+            item.tag = (*map_iter).second;
+            item.objclass = xdb::ClassDescriptionTable[idx].code;
+            item.type = processing_type;
+
+            LOG(INFO) << "Add discrete point: " << item.tag << ", " << item.objclass << ", " << item.type;
+            points_objclass_list.push_back(item);
+          }
           break;
 
         case NONE: ; // nothing to do
@@ -663,11 +926,16 @@ void ArchivistSamplerProxy::run()
   // Этот сокет получит сообщение от последнего семплера, тем самым цикл архивирования замкнется
   finitor.bind(m_stages[PER_MONTH].pair_name_next);
 
+  // Это соединение удаляется в деструкторе
   m_db_connection = m_env->getConnection();
 
   for (int type = PER_1_MINUTE; type < STAGE_LAST; type++)
   {
-    SamplerWorker* p_worker = new SamplerWorker(m_context, static_cast<sampler_type_t>(type), m_env);
+    SamplerWorker* p_worker = new SamplerWorker(m_context,
+                        static_cast<sampler_type_t>(type),
+                        m_env,
+                        m_history_db_address,
+                        m_history_db_port);
     std::thread *p_swt = new std::thread(std::bind(&SamplerWorker::work, p_worker));
     m_worker_list.push_back(p_worker);
     m_worker_thread.push_back(p_swt);
@@ -702,10 +970,14 @@ void ArchivistSamplerProxy::run()
     m_time_before = getTime();
 
     // Начать цепочку исполнения семплеров
+    LOG(INFO) << "before sending start to ignitor"; //1
     s_send(ignitor, "");
+    LOG(INFO) << "after sending start to ignitor";  //1
 
     // Блокирующее чтение вестей от последнего семплера в цепочке
+    LOG(INFO) << "before receiving from finitor";   //1
     s_recv (finitor);
+    LOG(INFO) << "after receiving from finitor";    //1
 
     // Запомнить время завершения цепочки
     m_time_after = getTime();
@@ -725,8 +997,12 @@ void ArchivistSamplerProxy::run()
     }
   }
   // Отправить команду Собирателям на завершение работы
+  LOG(INFO) << "before sending " << COMMAND_TERMINATION << " to ignitor";   //1
   s_send(ignitor, COMMAND_TERMINATION);
+  LOG(INFO) << "after sending " << COMMAND_TERMINATION << " to ignitor";   //1
+  LOG(INFO) << "before responce receiving from finitor";   //1
   std::string result = s_recv(finitor);
+  LOG(INFO) << "after responce receiving from finitor";   //1
 
   LOG(INFO) << "STOP ArchivistSamplerProxy::run(): result=" << result;
 }
@@ -857,6 +1133,8 @@ bool ArchivistSampler::init()
     LOG(ERROR) << "Couldn't attach to '" << RTDB_NAME << "'";
   }
 
+  // TODO: проверить подключение к Redis
+
   return status;
 }
 
@@ -883,7 +1161,7 @@ void ArchivistSampler::run()
 
         if (request)
         {
-          LOG(INFO) << "Digger::recv() got a message";
+          LOG(INFO) << "ArchivistSampler::recv() got a message";
 
           handle_request (request, reply_to);
 

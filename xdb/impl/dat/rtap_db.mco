@@ -46,11 +46,11 @@
 // Calculation Engines
 #define MAX_CE_QUANTITY         10
 // max history table depth for all points
-#define MAX_HISTORY_QUANTITY 10000
+#define MAX_HISTORY_QUANTITY 100000
 // max history table depth for single analog instance
-#define MAX_HIST_A_QUANTITY_PER_POINT 100
+//#define MAX_HIST_A_QUANTITY_PER_POINT 100
 // max history table depth for single discrete instance
-#define MAX_HIST_D_QUANTITY_PER_POINT 100
+//#define MAX_HIST_D_QUANTITY_PER_POINT 100
 
 declare database  rtap_db;
 //struct Id {
@@ -418,45 +418,19 @@ struct AlarmItem
 };
 
 /* ===================================================================== */
-/* Elementary historical data for analog information */
-/* Элементарная запись в исторических данных для аналоговых Точек */
-struct A_HIST_ITEM
-{
-  timestamp    mark;
-  double       value;
-};
-
-/* ===================================================================== */
 /* Elementary historical data for discrete information */
-/* Элементарная запись в исторических данных для дискретных Точек */
-struct D_HIST_ITEM
+/* Элементарная запись в исторических данных Точек */
+class HISTORY
 {
+  autoid[MAX_HISTORY_QUANTITY];
   timestamp    mark;
-  uint8        value;
-};
-
-/* ===================================================================== */
-/* HISTORY table for calculating analog historical data */
-/* Хранилище исторических данных для Точек с аналоговым состоянием */
-class A_HIST
-{
-  autoid[MAX_HISTORY_QUANTITY];
-  InternalState STATE = SUSPEND; /* state may be active or suspended */
-  vector <A_HIST_ITEM> items;  /* MAX_HIST_A_QUANTITY_PER_POINT */
-  autoid_t point_ref;
+  optional DiscreteInfoType di;    // Значение для Целочисленных Точек
+  optional AnalogInfoType   ai;    // Значение для Аналоговых Точек
+  Validity     VALIDITY     = VALIDITY_FAULT;
+  autoid_t     point_ref;
+  tree <mark.sec> SK_by_time;
   unique tree <point_ref> SK_by_point; /* point to history relationship is '1-to-1' */
-};
-
-/* ===================================================================== */
-/* HISTORY table for calculating analog historical data */
-/* Хранилище исторических данных для Точек с дискретным состоянием */
-class D_HIST
-{
-  autoid[MAX_HISTORY_QUANTITY];
-  InternalState STATE = SUSPEND; /* */
-  vector <D_HIST_ITEM> items;  /* MAX_HIST_D_QUANTITY_PER_POINT */
-  autoid_t point_ref;
-  unique tree <point_ref> SK_by_point; /* point to history relationship is '1-to-1' */
+  tree <point_ref, mark.sec> SK_by_point_time;
 };
 
 /* ===================================================================== */
@@ -543,6 +517,7 @@ class XDBPoint
   /* Reference to point-specific attributes */
   autoid_t      passport_ref;
   /* Reference to HISTORY table */
+  InternalState HISTORY_STATE = SUSPEND; /* state may be active or suspended */
   autoid_t      hist_ref;
   // Признак модификации атрибутов точки с момента последней проверки группы подписки
   Boolean       is_modified = FALSE;
