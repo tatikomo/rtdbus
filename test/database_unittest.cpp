@@ -57,11 +57,12 @@ typedef union {
 
 // Тип генератора предыстории
 typedef enum {
-  PER_1_MINUTE  = 0,
-  PER_5_MINUTES = 1,
-  PER_HOUR      = 2,
-  PER_DAY       = 3,
-  PER_MONTH     = 4,
+  PER_MOMENT    = 0,
+  PER_1_MINUTE  = 1,
+  PER_5_MINUTES = 2,
+  PER_HOUR      = 3,
+  PER_DAY       = 4,
+  PER_MONTH     = 5,
   STAGE_LAST    = PER_MONTH + 1
 } sampler_type_t;
 
@@ -96,21 +97,21 @@ const char* pairs[] = {
 
 // Массив переходов от текущего типа собирателя к следующему
 const state_pair_t m_stages[STAGE_LAST] = {
-  // текущая стадия
-  // |              сокет текующей стадии
+  // текущая стадия (current)
+  // |              сокет текующей стадии (pair_name_current)
   // |              |
-  // |              |                    следующая стадия
+  // |              |                    следующая стадия (next)
   // |              |                    |
-  // |              |                    |              сокет следующей стадии
+  // |              |                    |              сокет следующей стадии (pair_name_next)
   // |              |                    |              |
   // |              |                    |              |                     анализируемых отсчетов
-  // |              |                    |              |                     предыдущей стадии
+  // |              |                    |              |                     предыдущей стадии (num_prev_samples)
   // |              |                    |              |                     |
   // |              |                    |              |                     |  суффикс файла с семплом
-  // |              |                    |              |                     |  текущей стадии
+  // |              |                    |              |                     |  текущей стадии (suffix)
   // |              |                    |              |                     |  |
   // |              |                    |              |                     |  |     длительность стадии
-  // |              |                    |              |                     |  |     в секундах
+  // |              |                    |              |                     |  |     в секундах (duration)
   // |              |                    |              |                     |  |     |
   { PER_1_MINUTE,  pairs[PER_1_MINUTE],  PER_5_MINUTES, pairs[PER_5_MINUTES], 1, ".0", 60},
   { PER_5_MINUTES, pairs[PER_5_MINUTES], PER_HOUR,      pairs[PER_HOUR],      5, ".1", 300},
@@ -488,7 +489,9 @@ int parse_redis_reply(redisReply*       reply,          // in
 // Из данного времени finish_period вычитается время, равное продолжительности
 // текущего цикла, и с этого времени до указанного finish_period считываются все
 // семплы из БД Истории
-bool load_samples_from_hist(time_t finish_period,
+bool load_samples_from_hist(
+    time_t                  start_period,
+    time_t                  finish_period,
     sampler_type_t          sampler_type,
     points_objclass_item_t& item,
     common_value_t          arr_values[],
@@ -502,7 +505,7 @@ bool load_samples_from_hist(time_t finish_period,
   // ВременнАя отметка, прочитанная из БД Истории (является SCORE)
   time_t sample_time_frame;
   // Начало цикла
-  time_t start_period;
+//  time_t start_period;
   int previous_sampler_type = sampler_type - 1;
   redisReply *reply = NULL;
 ///////////////////////////////////////////
@@ -527,12 +530,11 @@ bool load_samples_from_hist(time_t finish_period,
 
   localtime_r(&finish_period, &finish_edge); // получили выровненное время окончания цикла
 
-  // Не должна быть вызвана для минутных семплов, поскольку они читаются не
+  // Не должна быть вызвана для мгновенных семплов, поскольку они читаются не
   // из БД Истории, а из БДРВ
-  assert(sampler_type != PER_1_MINUTE);
+  assert(sampler_type != PER_MOMENT);
 
   num_items = 0;
-  start_period = finish_period - m_stages[sampler_type].duration;
   // Это скользящая отметка времени для учета пропусков значений
   time_frame = start_period;
 
@@ -579,7 +581,7 @@ bool load_samples_from_hist(time_t finish_period,
 
         // Нечетная строка - значения в формате:
         //   "<цифра (тип семпла)>:<цифра (значение .VALID)>:<число (значение .VAL)>"
-        const char* first_colon = strchr(reply->element[j]->str, ':');
+        const char* first_colon = strchr(reply->element[j]->str, ';');
         if (first_colon) {
           // Пропустить первый символ \"
           strncpy(str_valid, reply->element[j]->str + 1, 2);
@@ -598,7 +600,7 @@ bool load_samples_from_hist(time_t finish_period,
                continue;
              }
 
-             const char* last_colon = strrchr(reply->element[j]->str, ':');
+             const char* last_colon = strrchr(reply->element[j]->str, ';');
              if (last_colon) {
                strncpy(str_val, last_colon + 1, 20);
                str_val[20] = '\0';
@@ -634,14 +636,14 @@ bool load_samples_from_hist(time_t finish_period,
                } // конец выбора типа VAL - аналоговый или дискретный
 
 
-             } // конец успешной проверки наличия последнего символа-разделителя ':'
+             } // конец успешной проверки наличия последнего символа-разделителя ';'
              else {
                LOG(ERROR) << "Converting " << int_current_sample_type
                           << " to sample type from string:" << reply->element[j]->str;
              }
           }
         }
-      } // конец проверки наличия первого разделителя полей, символа ':'
+      } // конец проверки наличия первого разделителя полей, символа ';'
       else {
         // Четная строка - отметка времени текущей свежепрочитанной записи
         str_sample_time[0] = '\0';
@@ -744,7 +746,7 @@ bool load_samples_from_hist(time_t finish_period,
           break;
 
         case DISCRETE:
-          sprintf(str, "HMGET %ld:%d:%s VAL VALID",
+          sprintf(str, "HMGET %ld;%d;%s VAL VALID",
                   time_frame,
                   (int)previous_sampler_type,
                   item.tag.c_str());
@@ -800,7 +802,9 @@ bool load_samples_from_hist(time_t finish_period,
 
 // ==============================================================================
 // [OK] Чтение мгновенных значений из БДРВ в качестве минутных семплов
-bool load_samples_from_rtdbus(time_t finish_period,
+bool load_samples_from_rtdbus(
+    time_t start_period,    // NB: не используется
+    time_t finish_period,   // NB: не используется
     sampler_type_t          sampler_type,
     points_objclass_item_t& item,
     common_value_t          arr_values[],
@@ -810,8 +814,8 @@ bool load_samples_from_rtdbus(time_t finish_period,
   int num_items = 0;
 //  size_t idx;
 
-  // Данная функция допустима только для минутных семплов
-  assert(sampler_type == PER_1_MINUTE);
+  // Данная функция допустима только для мгновенных семплов
+  assert(sampler_type == PER_MOMENT);
 
 #if 0
   xdb::Error status;
@@ -825,35 +829,35 @@ bool load_samples_from_rtdbus(time_t finish_period,
 
 #if 1
       // TODO: При реальной работе чтение атрибута VALID из БДРВ
-      item.valid[PER_1_MINUTE] = 1; //VALIDITY_VALID;
-      arr_valid[0] = item.valid[PER_1_MINUTE];
+      item.valid[PER_MOMENT] = 1; //VALIDITY_VALID;
+      arr_valid[0] = item.valid[PER_MOMENT];
 
       // Сперва всегда формируется минутная история
       switch(item.type)
       {
           case ANALOG:
             // TODO: При реальной работе тут должен быть вызов чтения атрибута VAL из БДРВ
-            item.average[PER_1_MINUTE].val_double = sin(random() / (RAND_MAX + 1.0));
+            item.average[PER_MOMENT].val_double = sin(random() / (RAND_MAX + 1.0));
 //1            LOG(INFO) << item.tag << ".VAL="
-//1                      << item.average[PER_1_MINUTE].val_double;
-            arr_values[0].val_double = item.average[PER_1_MINUTE].val_double;
+//1                      << item.average[PER_MOMENT].val_double;
+            arr_values[0].val_double = item.average[PER_MOMENT].val_double;
             num_items++;
             break;
 
           case DISCRETE:
             // TODO: При реальной работе тут должен быть вызов чтения атрибута VAL из БДРВ
-            item.average[PER_1_MINUTE].val_uint64 = within(25);
+            item.average[PER_MOMENT].val_uint64 = within(25);
 //1            LOG(INFO) << item.tag << ".VAL="
-//1                      << item.average[PER_1_MINUTE].val_uint64;
-            arr_values[0].val_uint64 = item.average[PER_1_MINUTE].val_uint64;
+//1                      << item.average[PER_MOMENT].val_uint64;
+            arr_values[0].val_uint64 = item.average[PER_MOMENT].val_uint64;
             num_items++;
             break;
 
           case BINARY:
-            item.average[PER_1_MINUTE].val_uint64 = within(1);
+            item.average[PER_MOMENT].val_uint64 = within(1);
 //1            LOG(INFO) << item.tag << ".VAL="
-//1                      << item.average[PER_1_MINUTE].val_uint64;
-            arr_values[0].val_uint64 = item.average[PER_1_MINUTE].val_uint64;
+//1                      << item.average[PER_MOMENT].val_uint64;
+            arr_values[0].val_uint64 = item.average[PER_MOMENT].val_uint64;
             num_items++;
             break;
 
@@ -888,25 +892,46 @@ bool load_samples_from_rtdbus(time_t finish_period,
 // Функция формирует новые значения текущего цикла истории на основе данных предыдущего цикла
 // Для минутного цикла - чтение из БДРВ
 // Для остальных циклов - чтение из БД Истории
-bool load_samples(time_t    finish_period,
+bool load_samples(
+    time_t                  finish_period,
     sampler_type_t          sampler_type,
     points_objclass_item_t& item,
     common_value_t          arr_values[],
     int                     arr_valid[])
 {
+  time_t start_period;
   bool status;
 
   switch(sampler_type)
   {
-    case PER_1_MINUTE:
-      status = load_samples_from_rtdbus(finish_period, sampler_type, item, arr_values, arr_valid);
+    // снимки мгновенных значений берутся из БДРВ
+    case PER_MOMENT:
+      status = load_samples_from_rtdbus(
+                        0,
+                        0,
+                        sampler_type,
+                        item,
+                        arr_values,
+                        arr_valid);
       break;
+
+    // Снимки архивных значений берутся из исторической БД
+    case PER_1_MINUTE:
     case PER_5_MINUTES:
     case PER_HOUR:
     case PER_DAY:
     case PER_MONTH:
-      status = load_samples_from_hist(finish_period, sampler_type, item, arr_values, arr_valid);
+      
+      start_period = finish_period - m_stages[sampler_type].duration;
+      status = load_samples_from_hist(
+                        start_period,
+                        finish_period,
+                        sampler_type,
+                        item,
+                        arr_values,
+                        arr_valid);
       break;
+
     case STAGE_LAST:
       LOG(ERROR) << "Unsupported sampler type: " << sampler_type;
       status = false;
@@ -969,7 +994,7 @@ void store_sample_period(time_t finish_period,
             //            |    |  |     |  |
             //            |    |  |     |  |  значение
             //            |    |  |     |  |  |
-            sprintf(str, "ZADD %s %ld \"%d:%d:%g\"",
+            sprintf(str, "ZADD %s %ld \"%d;%d;%g\"",
                     item.tag.c_str(),
                     time_frame,
                     (int)sampler_type,
@@ -1006,7 +1031,7 @@ void store_sample_period(time_t finish_period,
             //            |    |  |     |  |
             //            |    |  |     |  |  значение
             //            |    |  |     |  |  |
-            sprintf(str, "ZADD %s %ld \"%d:%d:%lld\"",
+            sprintf(str, "ZADD %s %ld \"%d;%d;%lld\"",
                     item.tag.c_str(),
                     time_frame,
                     (int)sampler_type,
@@ -1095,6 +1120,50 @@ bool process_sample(const time_t time_frame, sampler_type_t type)
   return status;
 }
 
+// ==============================================================================
+bool get_samples(const char* tag, ProcessingType_t processing_type, sampler_type_t sampler_type, const time_t start, const time_t finish)
+{
+  bool status = false;
+  points_objclass_item_t item;
+  /*
+  // универсальное имя точки
+  std::string tag;
+  // класс точки
+  int objclass;
+  // тип точки
+  ProcessingType_t type;
+  // набор средних значений VAL за соответствующие периоды
+  common_value_t average[STAGE_LAST];
+  // Набор значений атрибута VALID
+  int valid[STAGE_LAST];
+  */
+
+  // TODO: подсчитать количество требуемых отсчетов семплов:
+  // оно равно отношению разницы между отметками окончания и начала интервалов времени
+  // к длительности одного интервала
+  assert(start);
+  assert(finish);
+  assert(finish > start);
+  const time_t diff = finish - start;
+  int num_samples = diff / m_stages[sampler_type].duration;
+
+  common_value_t mass_value[100];
+  int mass_valid[100];
+
+  if (num_samples < 100) {
+    item.tag.assign(tag);
+    item.type = processing_type;
+    status = load_samples_from_hist(start, finish, sampler_type, item, mass_value, mass_valid);
+  }
+  else {
+    LOG(ERROR) << "Requested period ("<<start<<":"<<finish<<") exceeds limit of 100 samples: " << num_samples;
+  }
+
+  return status;
+}
+
+#if 0
+// ==============================================================================
 TEST(TestBrokerDATABASE, OPEN)
 {
     bool status;
@@ -2494,6 +2563,7 @@ TEST(TestTools, RELEASE_MEMORY)
     delete ClassDescriptionTable[objclass].attributes_pool;
   }
 }
+#endif
 
 // ==============================================================================
 // [OK] Проверка доступа к БД Истории
@@ -2552,7 +2622,7 @@ TEST(TestRedis, HIST_MAKE_SAMPLES)
   struct tm past_edge;
   const time_t current = time(0);
   // Сохраняем минутную историю
-//  sampler_type_t sampler_type = PER_1_MINUTE;
+//  sampler_type_t sampler_type = PER_MOMENT;
   // Отметка времени в прошлом, начало сохранения предыстории
   time_t history_mark;
   // Скользящая отметка времени
@@ -2567,7 +2637,7 @@ TEST(TestRedis, HIST_MAKE_SAMPLES)
   ASSERT_TRUE(redis_connected == true);
 
   localtime_r(&current, &edge);
-  // Получим отметку времени на границе минуты, и трое суток назад + 2 часа
+  // Получим отметку времени на границе минуты, и 11 минут (2*300 + 60 = 660 секунд) назад
   edge.tm_sec = 0;
   history_mark = mktime(&edge);
   // TODO: При реальной работе history_mark есть текущее время
@@ -2607,7 +2677,17 @@ TEST(TestRedis, HIST_MAKE_SAMPLES)
     // цикла расчета предыстории
     localtime_r(&time_frame, &past_edge);
 
+#if 0
+    NB: Для тестов достаточно обновлять данные непосредственно перед минутным интервалом
+    // Обновить мгновенные данные
+    //process_sample(time_frame, PER_MOMENT);
+#endif
+
     if (past_edge.tm_sec == 0) {
+      // Обновим мгновенные данные
+#warning "Если не тесты, удалить следующую строку"
+      process_sample(time_frame, PER_MOMENT);
+
       // Прочитать из БДРВ новые значения отсчетов минутных семплов
       // NB: для тестов значения минутных семплов эмулируются!
       process_sample(time_frame, PER_1_MINUTE);
@@ -2658,6 +2738,22 @@ TEST(TestRedis, HIST_MAKE_SAMPLES)
 }
 
 // ==============================================================================
+// Получить набор значений из истории за определенный период
+TEST(TestRedis, HIST_GET_PERIOD)
+{
+  bool status = false;
+  sampler_type_t type = PER_1_MINUTE;
+  // Начало запрашиваемого периода - текущее время
+  time_t finish_period = time(0);
+  // Конец запрашиваемого периода - 7,5 минут назад
+  time_t start_period = finish_period - (7 * 60 + 30);
+
+  status = get_samples(sbs_points[0], DISCRETE, type, start_period, finish_period);
+
+  ASSERT_TRUE(status == true);
+}
+
+// ==============================================================================
 TEST(TestRedis, HIST_CLOSE)
 {
   // Для продолжения тестов БД должна быть подключена
@@ -2676,6 +2772,7 @@ int main(int argc, char** argv)
   ::testing::InitGoogleTest(&argc, argv);
   ::google::InstallFailureSignalHandler();
 
+#if 0
   // Инициировать XML-движок единственный раз в рамках одного процесса
   try
   {
@@ -2691,6 +2788,7 @@ int main(int argc, char** argv)
   setenv("MCO_RUNTIME_STOP", "1", 0);
 
   int retval = RUN_ALL_TESTS();
+
   try
   {
     XMLPlatformUtils::Terminate();
@@ -2700,6 +2798,9 @@ int main(int argc, char** argv)
     std::cerr << "Error during finalization! :\n"
               << toCatch.getMessage() << std::endl;
   }
+#else
+  int retval = RUN_ALL_TESTS();
+#endif
 
   ::google::protobuf::ShutdownProtobufLibrary();
   ::google::ShutdownGoogleLogging();

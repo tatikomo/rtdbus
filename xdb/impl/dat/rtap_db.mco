@@ -47,10 +47,6 @@
 #define MAX_CE_QUANTITY         10
 // max history table depth for all points
 #define MAX_HISTORY_QUANTITY 100000
-// max history table depth for single analog instance
-//#define MAX_HIST_A_QUANTITY_PER_POINT 100
-// max history table depth for single discrete instance
-//#define MAX_HIST_D_QUANTITY_PER_POINT 100
 
 declare database  rtap_db;
 //struct Id {
@@ -248,6 +244,16 @@ enum objclass_t {
     HIST = 80
 };
 
+// Тип генератора предыстории
+enum HistoryType {
+  NONE          = 0,  // не собирается
+  PER_1_MINUTE  = 1,  // только минутная
+  PER_5_MINUTES = 2,  // минутная и пятиминутная
+  PER_HOUR      = 3,  // минутная, 5-минутная и часовая
+  PER_DAY       = 4,  // вплоть до суточной включительно
+  PER_MONTH     = 5   // до месячной включительно
+};
+
 // ==========================================================================
 // Переходные процессы
 // Константы значений атрибута VALIDCHANGE
@@ -423,7 +429,8 @@ struct AlarmItem
 class HISTORY
 {
   autoid[MAX_HISTORY_QUANTITY];
-  timestamp    mark;
+  timestamp     mark;
+  HistoryType   type = NONE;       // Тип хранимой истории (минутная, 5-минутная, часовая,...)
   optional DiscreteInfoType di;    // Значение для Целочисленных Точек
   optional AnalogInfoType   ai;    // Значение для Аналоговых Точек
   Validity     VALIDITY     = VALIDITY_FAULT;
@@ -514,11 +521,9 @@ class XDBPoint
   uint1         DE_TYPE;     /* type of data [ex. LOGICAL or BYTES256] */ 
   autoid_t      CE_ref;      /* link to CE definition */
   autoid_t      SA_ref;      /* reference to SA object */
-  /* Reference to point-specific attributes */
-  autoid_t      passport_ref;
-  /* Reference to HISTORY table */
-  InternalState HISTORY_STATE = SUSPEND; /* state may be active or suspended */
-  autoid_t      hist_ref;
+  autoid_t      passport_ref;// Ссылка на дополнительные параметры/атрибуты точки
+  autoid_t      hist_ref;    // ссылка на таблицу HISTORY
+  HistoryType   type = NONE; // Тип хранимой истории (минутная, 5-минутная, часовая,...)
   // Признак модификации атрибутов точки с момента последней проверки группы подписки
   Boolean       is_modified = FALSE;
   /* Point common DYNAMIC part */
