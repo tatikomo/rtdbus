@@ -13,9 +13,6 @@
 #include "config.h"
 #endif
 
-// API доступа к функциям СУБД Redis
-#include "hiredis.h"
-
 #include "xdb_common.hpp"
 
 #include "xdb_impl_db_broker.hpp"
@@ -46,9 +43,6 @@ using namespace xdb;
 #define within(num) (int) ((float) (num) * random () / (RAND_MAX + 1.0))
 // Типы данных, испольуемые в проверке БД Истории
 enum ProcessingType_t { NONE = 0, ANALOG = 1, DISCRETE = 2, BINARY = 3 };
-
-// Порядок атрибутов в выборке HMGET Redis
-enum { VAL_INDEX = 0, VALID_INDEX = 1 };
 
 typedef union {
   uint64_t  val_uint64;
@@ -163,9 +157,6 @@ DBState_t state;
 xdb::RtApplication* app = NULL;
 xdb::RtEnvironment* env = NULL;
 xdb::RtConnection* connection = NULL;
-// структуры для работы с Redis
-redisContext *redis_context = NULL;
-bool redis_connected = false;
 
 /* 
  * Содержимое базы данных RTDB после чтения из файла classes.xml
@@ -341,6 +332,7 @@ bool calc_average_sample(sampler_type_t type,
   return status;
 }
 
+#if 0
 // ==============================================================================
 //
 // Разбор ответа от Исторической БД по содержанию атрибутов VAL и VALID
@@ -480,6 +472,7 @@ int parse_redis_reply(redisReply*       reply,          // in
 
   return status;
 }
+#endif
 
 // ==============================================================================
 // [OK]
@@ -507,7 +500,6 @@ bool load_samples_from_hist(
   // Начало цикла
 //  time_t start_period;
   int previous_sampler_type = sampler_type - 1;
-  redisReply *reply = NULL;
 ///////////////////////////////////////////
   struct tm start_edge; // Прошедшее время, начало текущего цикла
   struct tm finish_edge; // Прошедшее время, начало текущего цикла
@@ -538,6 +530,7 @@ bool load_samples_from_hist(
   // Это скользящая отметка времени для учета пропусков значений
   time_frame = start_period;
 
+#if 0
   // Запросить диапазон значений тега item.tag от start_period до finish_period
   // Оставить только значения, соответствующие указанному периоду семпла
   //            Получить значения, сортированные по score (= дате семпла)
@@ -546,6 +539,7 @@ bool load_samples_from_hist(
   //            |             |  |   дата окончания
   //            |             |  |   |   вывод результата с отсечками времени (score)
   //            |             |  |   |   |
+  //  SK_by_point_time
   sprintf(str, "ZRANGEBYSCORE %s %ld %ld WITHSCORES",
           item.tag.c_str(),
           start_period,
@@ -564,7 +558,7 @@ bool load_samples_from_hist(
   //10) "1440000360"
   // ....
 
-  reply = static_cast<redisReply*>(redisCommand(redis_context, str));
+//  reply = static_cast<redisReply*>(redisCommand(redis_context, str));
 
   if (reply->type == REDIS_REPLY_ARRAY) {
 
@@ -706,94 +700,7 @@ bool load_samples_from_hist(
   else {
     LOG(ERROR) << "Unwilling reply type: " << reply->type << " for " << item.tag;
   }
-  freeReplyObject(reply);
 
-#if 0
-  while (time_frame < finish_period)
-  {
-///////////////////////////////////////////
-    localtime_r(&time_frame, &start_edge); // получили выровненное время начала цикла
-    strftime(str_time_start, 40, "%T", &start_edge);
-    strftime(str_time_stop, 40, "%T", &finish_edge);
-///////////////////////////////////////////
-
-    // Инициализируем значения VAL и VALID
-    item.average[sampler_type].val_uint64 = 0;
-    item.valid[sampler_type] = 0;
-
-    switch(item.type)
-    {
-      case ANALOG:
-        if (REDIS_OK == (parse_redis_reply(reply,
-                                           arr_values[num_items],
-                                           curr_valid,
-                                           item,
-                                           sampler_type))) {
-            LOG(INFO) << "OK get analog: "
-                      << "\t" << str_time_start << "\t" << str_time_stop
-                      << "\t" << item.tag << "." << sampler_type
-                      << " = " << arr_values[num_items].val_double;
-            arr_valid[num_items] = curr_valid;
-            num_items++;
-          }
-          else {
-            LOG(WARNING) << "FAIL get analog : "
-                      << "\t" << str_time_start << "\t" << str_time_stop
-                      << "\t" << item.tag << "." << sampler_type;
-          }
-
-          freeReplyObject(reply);
-          break;
-
-        case DISCRETE:
-          sprintf(str, "HMGET %ld;%d;%s VAL VALID",
-                  time_frame,
-                  (int)previous_sampler_type,
-                  item.tag.c_str());
-
-          // Нельзя применить очередь для чтения очередного семпла, т.к. в этом
-          // случае вероятны пустые ответы на запрос несуществующих ключей.
-          // Существование запрашиваемых данных по генерируемым ключам никто не
-          // гарантирует.
-          reply = static_cast<redisReply*>(redisCommand(redis_context, str));
-
-//1          LOG(INFO) << "get = " << str;
-          if (REDIS_OK == (parse_redis_reply(reply, arr_values[num_items], curr_valid, item, sampler_type))) {
-            LOG(INFO) << "OK set discrete: " 
-                      << "\t" << str_time_start << "\t" << str_time_stop
-                      << "\t" << item.tag << "." << sampler_type
-                      << " = " << arr_values[num_items].val_uint64;
-            arr_valid[num_items] = curr_valid;
-            num_items++;
-          }
-          else {
-            LOG(WARNING) << "FAIL set discrete: " 
-                      << "\t" << str_time_start << "\t" << str_time_stop
-                      << "\t" << item.tag << "." << sampler_type;
-          }
-
-          freeReplyObject(reply);
-          break;
-
-        case NONE:
-        default:
-          LOG(ERROR) << "Unsupported type: " << item.type;
-      }
-
-      // Увеличиваем время сохранения данных на 1 цикл предыдущего типа вперед
-      time_frame += m_stages[sampler_type - 1].duration;
-    }
-
-    // К этому моменту в массиве arr_values находятся значения из предыдущих семплов
-
-    if (!num_items) {
-      // Ни одного семпла не было выгружено
-      LOG(ERROR) << item.tag << "." << (unsigned int)sampler_type
-                 << " are not loaded from history database: "
-                 << str_time_start << ", " << str_time_stop;
-      status = false;
-    }
-#else
     item.average[sampler_type].val_uint64 = 0;
     item.valid[sampler_type] = 0;
 #endif
@@ -954,12 +861,11 @@ void store_sample_period(time_t finish_period,
   char str[200];
   int num_items = 0;
 //  int samples_inserted;
+  MCO_RET rc = MCO_S_OK;
+//  rtap_db::HISTORY *handle;
   bool is_success = true;
-  redisReply *reply = NULL;
-//  void* v_reply = &reply;
 
   // Для продолжения тестов БД должна быть подключена
-  ASSERT_TRUE(redis_connected == true);
 
   localtime_r(&finish_period, &finish_edge); // получили выровненное время окончания цикла
   // Получим отметку времени окончания предыдущего цикла
@@ -982,6 +888,11 @@ void store_sample_period(time_t finish_period,
       switch(item.type)
       {
           case ANALOG:
+            // HISTORY_point_ref_put
+            // HISTORY_VALIDITY_put
+//1            rc = rtap_db::HISTORY_new(t, handle);
+#warning "Продолжить процедуру сохранения истории отсюда"
+
             //            Сортированный список
             //            |
             //            |    название списка (совпадает с тегом БДРВ)
@@ -1002,18 +913,16 @@ void store_sample_period(time_t finish_period,
                     item.average[sampler_type].val_double);
 
             // Добавить в очередь занесение очередного семпла
-            reply = static_cast<redisReply*>(redisCommand(redis_context, str));
-            if (1 == reply->integer) {
+//            reply = static_cast<redisReply*>(redisCommand(redis_context, str));
+            if (1 == 1 /*reply->integer*/) {
             LOG(INFO) << "OK set analog " << item.tag << ".VAL." << sampler_type
                       << " = " << item.average[sampler_type].val_double
                       << " [" << str_time_start << " - " << str_time_stop << "]";
 
             }
-            else LOG(WARNING) << "DUBLICATE set analog" << item.tag << ".VAL." << sampler_type
+            else LOG(WARNING) << "DUPLICATE set analog" << item.tag << ".VAL." << sampler_type
                       << " = " << item.average[sampler_type].val_double
                       << " [" << str_time_start << " - " << str_time_stop << "]";
-
-            freeReplyObject(reply);
 
             num_items++;
             break;
@@ -1039,17 +948,15 @@ void store_sample_period(time_t finish_period,
                     item.average[sampler_type].val_uint64);
 
             // Добавить в очередь занесение очередного семпла
-            reply = static_cast<redisReply*>(redisCommand(redis_context, str));
-            if (1 == reply->integer) {
+//            reply = static_cast<redisReply*>(redisCommand(redis_context, str));
+            if (1 == 1 /*reply->integer*/) {
             LOG(INFO) << "OK set discrete " << item.tag << ".VAL." << sampler_type
                       << " = " << item.average[sampler_type].val_uint64
                       << " [" << str_time_start << " - " << str_time_stop << "]";
             }
-            else LOG(WARNING) << "DUBLICATE set discrete " << item.tag << ".VAL." << sampler_type
+            else LOG(WARNING) << "DUPLICATE set discrete " << item.tag << ".VAL." << sampler_type
                       << " = " << item.average[sampler_type].val_uint64
                       << " [" << str_time_start << " - " << str_time_stop << "]";
-
-            freeReplyObject(reply);
 
             num_items++;
             break;
@@ -2567,9 +2474,8 @@ TEST(TestTools, RELEASE_MEMORY)
 
 // ==============================================================================
 // [OK] Проверка доступа к БД Истории
-TEST(TestRedis, HIST_ACCESS)
+TEST(TestHIST, HIST_ACCESS)
 {
-  redisReply *reply = NULL;
   struct timeval timeout = { 1, 500000 }; // 1.5 seconds
   // ip-адрес сервера хранения предыстории
   char history_db_address[100];
@@ -2579,42 +2485,13 @@ TEST(TestRedis, HIST_ACCESS)
 
   strcpy(history_db_address, HISTDB_IP_ADDRESS);
 
-  redis_context = redisConnectWithTimeout(history_db_address, history_db_port, timeout);
-  if (redis_context == NULL || redis_context->err) {
-    if (redis_context) {
-      LOG(ERROR) << "Redis connection error: " << redis_context->errstr;
-      redisFree(redis_context);
-    } else {
-      LOG(ERROR) << "Connection error: can't allocate redis context";
-    }
-    redis_connected = false;
-  }
-  else {
-    redis_connected = true;
-  }
-
-  // Для продолжения тестов БД должна быть подключена
-  ASSERT_TRUE(redis_connected == true);
-
   /* Проверить доступность сервера хранения истории Redis */
-  reply = static_cast<redisReply*>(redisCommand(redis_context,"PING"));
-  if (0 == strcmp(reply->str, "PONG")) {
-    LOG(INFO) << "Succesfully connected to history database at "
-              << history_db_address << ":" << history_db_port;
-    history_db_connected = true;
-  }
-  else {
-    LOG(ERROR) << "Unable to get responce from history database at "
-               << history_db_address << ":" << history_db_port;
-  }
-  freeReplyObject(reply);
-
   EXPECT_TRUE(history_db_connected == true);
 }
 
 // ==============================================================================
 // [OK] Занести большой набор минутных тестовых данных: два месяца + два дня
-TEST(TestRedis, HIST_MAKE_SAMPLES)
+TEST(TestHIST, HIST_MAKE_SAMPLES)
 {
   // текущее время
   struct tm edge;
@@ -2629,12 +2506,7 @@ TEST(TestRedis, HIST_MAKE_SAMPLES)
   time_t time_frame;
 //  int samples_inserted;
   bool is_success = true;
-//  redisReply *reply = NULL;
-//  void* v_reply = &reply;
   points_objclass_item_t item;
-
-  // Для продолжения тестов БД должна быть подключена
-  ASSERT_TRUE(redis_connected == true);
 
   localtime_r(&current, &edge);
   // Получим отметку времени на границе минуты, и 11 минут (2*300 + 60 = 660 секунд) назад
@@ -2739,7 +2611,7 @@ TEST(TestRedis, HIST_MAKE_SAMPLES)
 
 // ==============================================================================
 // Получить набор значений из истории за определенный период
-TEST(TestRedis, HIST_GET_PERIOD)
+TEST(TestHIST, HIST_GET_PERIOD)
 {
   bool status = false;
   sampler_type_t type = PER_1_MINUTE;
@@ -2754,13 +2626,8 @@ TEST(TestRedis, HIST_GET_PERIOD)
 }
 
 // ==============================================================================
-TEST(TestRedis, HIST_CLOSE)
+TEST(TestHIST, HIST_CLOSE)
 {
-  // Для продолжения тестов БД должна быть подключена
-  ASSERT_TRUE(redis_connected == true);
-
-  // Disconnects and frees the Redis context
-  redisFree(redis_context);
 }
 
 // ==============================================================================

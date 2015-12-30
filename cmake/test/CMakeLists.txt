@@ -6,6 +6,7 @@ SET(UNITTEST_DATABASE db_test)
 SET(UNITTEST_MESSAGE  msg_test)
 SET(UNITTEST_METRICS  metric_test)
 SET(UNITTEST_CE       ce_test)
+SET(UNITTEST_HIST_XDB hist_xdb_test)
 
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # SOLARIS
@@ -130,7 +131,6 @@ set (TEST_DATABASE_SOURCES
         ${XDB_RTAP_DIR}/xdb_rtap_snap.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_snap_trans.cpp
         ${MDP_DIR}/mdp_zmsg.hpp
-        ${LIBHIREDIS_INCLUDE_DIR}/hiredis.h
         ${TEST_RTDBUS_DIR}/database_unittest.cpp)
 
 set (TEST_MSG_SOURCES
@@ -165,6 +165,17 @@ set (TEST_MSG_SOURCES
 set (TEST_CE_SOURCES
         ${TEST_RTDBUS_DIR}/ce_unittest.hpp
         ${TEST_RTDBUS_DIR}/ce_unittest.cpp)
+
+set (TEST_HIST_XDB_SOURCES
+        ${GTEST_INC_DIR}/gtest/gtest.h
+        ${XDB_COMMON_DIR}/xdb_common.cpp
+        ${XDB_COMMON_DIR}/xdb_common.hpp
+        ${XDB_IMPL_DIR}/dat/rtap_db.hpp
+        ${XDB_IMPL_DIR}/dat/rtap_db.h
+        ${XDB_IMPL_DIR}/dat/rtap_db.c
+        ${TEST_RTDBUS_DIR}/hist_xdb_unittest.hpp
+        ${TEST_RTDBUS_DIR}/hist_xdb_unittest.cpp)
+
 
 if (CMAKE_COMPILER_IS_GNUCC)
 #add_definitions (-Wno-missing-field-initializers)
@@ -303,9 +314,18 @@ target_link_libraries(${UNITTEST_CE}
     ${GTEST_DIR}/cmake/libgtest.a
     ${SYSTEM_EXTERNAL_LIBS})
 
+add_executable (${UNITTEST_HIST_XDB} ${TEST_HIST_XDB_SOURCES})
+target_link_libraries(${UNITTEST_HIST_XDB}
+    ${LIBGLOG_LIBRARIES}
+    ${LIBEXTREMEDB_LIBRARIES_ALL}
+    libmcodbcalc_debug.so
+    ${GTEST_DIR}/cmake/libgtest.a
+    ${SYSTEM_EXTERNAL_LIBS})
+
 add_test(NAME DATABASE_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_DATABASE})
 add_test(NAME DEV_INT_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_DEV_INT})
 add_test(NAME DEV_RUN_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_DEV_RUN})
 add_test(NAME MESSAGE_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_MESSAGE})
 add_test(NAME METRICS_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_METRICS})
 add_test(NAME CE_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_CE})
+add_test(NAME HIST_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_HIST_XDB})

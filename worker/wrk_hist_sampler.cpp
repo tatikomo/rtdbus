@@ -29,8 +29,6 @@
 // сообщения по работе с БДРВ
 #include "msg_sinf.hpp"
 
-#include "hiredis.h"
-
 // ---------------------------------------------------------------------
 enum ProcessingType_t { NONE = 0, ANALOG = 1, DISCRETE = 2 };
 
@@ -308,39 +306,12 @@ void SamplerWorker::make_samples(const time_t timer)
   std::vector <points_objclass_list_t>::iterator it;
   bool is_success = true;
   int num_items = 0;
-  // структуры для работы с Redis
-  redisContext *context = NULL;
-  redisReply *reply = NULL;
-  void* v_reply = &reply;
   struct timeval timeout = { 1, 500000 }; // 1.5 seconds
   char str[200];
   // индекс текущего семпла предыдущего цикла
 //  int num_sample = 0;
 
-  context = redisConnectWithTimeout(m_history_db_address, m_history_db_port, timeout);
-  if (context == NULL || context->err) {
-    if (context) {
-      LOG(ERROR) << "Redis connection error: " << context->errstr;
-      redisFree(context);
-    } else {
-      LOG(ERROR) << "Connection error: can't allocate redis context";
-    }
-    return;
-  }
-
   /* Проверить доступность сервера хранения истории Redis */
-  reply = static_cast<redisReply*>(redisCommand(context,"PING"));
-  if (0 == strcmp(reply->str, "PONG")) {
-    LOG(INFO) << "Succesfully connected to history database at "
-              << m_history_db_address << ":" << m_history_db_port;
-    m_history_db_connected = true;
-  }
-  else {
-    LOG(ERROR) << "Unable to get responce from history database at "
-               << m_history_db_address << ":" << m_history_db_port;
-  }
-  freeReplyObject(reply);
-
   if (!m_history_db_connected)
     return;
     
@@ -417,7 +388,6 @@ void SamplerWorker::make_samples(const time_t timer)
          }
 
         // Добавить в очередь занесение очередного семпла
-        redisAppendCommand(context, str);
         num_items++;
         break;
 
@@ -448,13 +418,6 @@ void SamplerWorker::make_samples(const time_t timer)
 
 
 
-
-
-    // Связаные запросы создаются с помошью redisAppendCommand(context, строка запроса)
-    // в цикле, затем вызываются с помощью redisCommand(), с разбором ответов
-    while ((--num_items > 0) && redisGetReply(context, &v_reply) == REDIS_OK) {
-      freeReplyObject(v_reply);
-    }
   
     if (num_items) {
       LOG(ERROR) << "Part of samplings (" << num_items << " are not storing in history database";
@@ -470,7 +433,6 @@ void SamplerWorker::make_samples(const time_t timer)
   }
 
   // Disconnects and frees the Redis context
-  redisFree(context);
   LOG(INFO) << "Disconnected sampler(" << m_sampler_type << ") from history database at "
             << m_history_db_address << ":" << m_history_db_port;
 

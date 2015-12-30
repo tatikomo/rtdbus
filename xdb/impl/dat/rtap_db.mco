@@ -436,8 +436,8 @@ class HISTORY
   Validity     VALIDITY     = VALIDITY_FAULT;
   autoid_t     point_ref;
   tree <mark.sec> SK_by_time;
-  unique tree <point_ref> SK_by_point; /* point to history relationship is '1-to-1' */
-  tree <point_ref, mark.sec> SK_by_point_time;
+  tree <point_ref> SK_by_point; /* point to history relationship is '1-to-1' */
+  tree <mark.sec, point_ref> SK_by_point_time;
 };
 
 /* ===================================================================== */

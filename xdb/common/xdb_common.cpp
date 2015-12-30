@@ -47,6 +47,14 @@ const AttrTypeDescription_t xdb::AttrTypeDescription[] =
 // NB: Поле size для типов данных DB_TYPE_BYTES* определяет максимальный,
 // а не фактический размер, поскольку в кодировке UTF-8 символ может занимать
 // как 1 (латиница), так и 2 байта (кириллица).
+//    (index)
+//    |
+//    |                             Указатель на строку с названием атрибута (name)
+//    |                             |
+//    |                             |                       Тип данных (type)
+//    |                             |                       |
+//    |                             |                       |               размер атрибута в байтах, макс. 32кБ (size)
+//    |                             |                       |               |
     { RTDB_ATT_IDX_ACTIONTYP,       RTDB_ATT_ACTIONTYP,     DB_TYPE_UINT16, sizeof(uint16_t) },   // 0
     { RTDB_ATT_IDX_ALARMBEGIN,      RTDB_ATT_ALARMBEGIN,    DB_TYPE_UINT32, sizeof(uint32_t) },   // 1
     { RTDB_ATT_IDX_ALARMBEGINACK,   RTDB_ATT_ALARMBEGINACK, DB_TYPE_UINT32, sizeof(uint32_t) },   // 2

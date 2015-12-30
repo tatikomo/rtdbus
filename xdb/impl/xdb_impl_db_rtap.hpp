@@ -106,7 +106,7 @@ class PointInDatabase
     autoid_t            m_passport_aid;
     autoid_t            m_CE_aid;
     autoid_t            m_SA_aid;
-    autoid_t            m_hist_aid;
+//    autoid_t            m_hist_aid;
     // Код возврата функций XDB
     MCO_RET             m_rc;
     //

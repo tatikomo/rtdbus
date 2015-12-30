@@ -147,7 +147,7 @@ PointInDatabase::PointInDatabase(rtap_db::Point* info) :
     m_passport_aid(0),
     m_CE_aid(0),
     m_SA_aid(0),
-    m_hist_aid(0),
+//    m_hist_aid(0),
     m_rc(MCO_S_OK),
     m_point(),
     m_info(info),
@@ -244,7 +244,7 @@ MCO_RET PointInDatabase::create(mco_trans_h t)
       // Для сохранения ссылочной целостности пока считаем, что ID Паспорта 
       // совпадает с ID Точки. Если в функции создания Паспорта сохранение 
       // данных пройдет успешно, ID Паспорта изменится на уникальное значение. 
-      m_passport_aid = m_CE_aid = m_SA_aid = m_hist_aid = m_point_aid;
+      m_passport_aid = m_CE_aid = m_SA_aid = m_point_aid;
 
       // Успешно создана общая часть паспорта Точки.
       // Приступаем к созданию дополнительных полей,
@@ -509,8 +509,9 @@ MCO_RET PointInDatabase::update_references()
     if (m_rc) { LOG(ERROR)<<"Setting CE link (" << m_CE_aid <<")"; break; }
     m_rc = m_point.SA_ref_put(m_SA_aid);
     if (m_rc) { LOG(ERROR)<<"Setting SA link (" << m_SA_aid << ")"; break; }
-    m_rc = m_point.hist_ref_put(m_hist_aid);
-    if (m_rc) { LOG(ERROR)<<"Setting HIST link (" << m_hist_aid << ")"; break; }
+    // Нет необходимости сохранять ссылку на таблицу HISTORY, она единственная, одна-одинёшенькая
+//    m_rc = m_point.hist_ref_put(m_hist_aid);
+//    if (m_rc) { LOG(ERROR)<<"Setting HIST link (" << m_hist_aid << ")"; break; }
 
   } while (false);
 
