@@ -135,30 +135,30 @@ typedef enum
 /*-------------------------------------------------*/
 typedef enum
 {
-    PUBLIC,
-    PRIVATE,
-    UNKNOWN
+    PUBLIC  = 1,
+    PRIVATE = 2,
+    UNKNOWN = 3
 } attrCategory;
 
 typedef enum
 {
-    C_TYPE = 1,
-    I_TYPE,
-    S_TYPE,
-    V_TYPE,
-    DV_TYPE,
-    T_TYPE,
-    F_TYPE,
-    DF_TYPE,
-    A_TYPE,
-    J_TYPE,
-    H_TYPE,
-    LF_TYPE,
-    CF_TYPE,
-    AV_TYPE,
-    C0_TYPE,
-    L0_TYPE,
-    UNKNOWN_RECORD_TYPE
+    C_TYPE  = 1,
+    I_TYPE  = 2,
+    S_TYPE  = 3,
+    V_TYPE  = 4,
+    DV_TYPE = 5,
+    T_TYPE  = 6,
+    F_TYPE  = 7,
+    DF_TYPE = 8,
+    A_TYPE  = 9,
+    J_TYPE  = 10,
+    H_TYPE  = 11,
+    LF_TYPE = 12,
+    CF_TYPE = 13,
+    AV_TYPE = 14,
+    C0_TYPE = 15,
+    L0_TYPE = 16,
+    UNKNOWN_RECORD_TYPE = 17
 } recordType;
 
 

@@ -326,17 +326,27 @@ int xdb::processClassFile(const char* fpath)
         // Присвоить значение атрибуту в соответствии с полученным типом
         getAttrValue(db_type, p_attr_info, s_default_value);
 #if defined VERBOSE
-        std::cout << "objclass: " << objclass << " attr_name: "
-                  << s_univname << " type: " << s_type
-                  << " type_code: " << db_type << std::endl;
+        std::cout << "objclass(" << objclass
+                  << ")\tattr_name(" << s_univname
+                  << ")\ttype(" << s_type
+                  << ")\ttype_code(" << db_type
+                  << ")\tdefault(" << s_default_value
+                  << ")"
+                  << std::endl;
 #endif
 
         // Поместить новый атрибут в список атрибутов класса
         ClassDescriptionTable[objclass].attributes_pool->insert(
                     AttributeMapPair_t(s_univname,  *p_attr_info)
                     );
-        // удалить и ресурсы, и сам указатель
-        releaseAttributeInfo(p_attr_info, true);
+        // Без освобождения выделенной динамической области памяти под строковые значения,
+        // поскольку они потребуются при разборе instances_total.dat
+        // При этом протекает память, конечно же. Хорошо, что строковых значений атрибутов
+        // по умолчанию мало. Данный процесс предназначен для разовой работы по конвертации
+        // базы данных, поэтому утечки пока никак не мешают работе.
+        // TODO: Сделать нормальное хранение значений атрибутов по умолчанию.
+#warning "Minor memory leakage here"
+        delete p_attr_info;
       }
 
       ifs.close();
@@ -790,6 +800,7 @@ bool xdb::processInstanceFile(const char* fpath)
   int         input_file_line = 0; // номер текущей строки во входном файле
   int         fieldCount = 0;
   recordType  typeRecord;
+  static int  current_history_index = 0;
 //  attrCategory      attrCateg;
   char*       tableStrDeType[rtMAX_FIELD_CNT];
 
@@ -1105,14 +1116,37 @@ bool xdb::processInstanceFile(const char* fpath)
          /*----------------------*/
          /* LINK_HIST            */
          case H_TYPE :
+           // TODO: Занести в атрибут Точки значение монотонно возрастающего счетчика.
+           // Он используется для идентификации позиции в массиве таблицы HISTORY
+           // Поле LINK_HIST содержит алиас таблицы хранения истории для RTAP. Поскольку
+           // в XDB таблицы общие, и различаются только названием для различной дискретности
+           // (.._1_MIN для ежеминутной, .._5_MIN для пятиминутной, и т.д.), то алиас RTAP
+           // в XDB не нужен.
+           if (iss >> type >> currentAttrName >> type /* >> history_link */)
+           {
+             p_attr_info = createAttributeInfo();
+             p_attr_info->name.assign(currentAttrName);
+             p_attr_info->type = DB_TYPE_UINT16;
+             p_attr_info->value.fixed.val_uint16 = current_history_index++;
+             attributes.insert(AttributeMapPair_t(currentAttrName, *p_attr_info));
+             delete p_attr_info;
+             LOG (INFO) << instanceAlias << "." << currentAttrName << " = " << current_history_index;
+           }
+           else {
+             LOG (ERROR) << instanceAlias << "." << currentAttrName << " бяка";
+           }
+           break;
+
          /* CE DEFINITION        */
          case A_TYPE :
          /* ALIAS CE DEFINITION  */
          /*----------------------*/
          case J_TYPE :
-//           LOG (INFO) << "(" << typeRecord 
-//            << ") : LINK_HIST|CE_DEFINITION|ALIAS_CE_DEFINITION : "
-//            << buffer;
+         /*
+           LOG (INFO) << "(" << typeRecord 
+            << ") : CE_DEFINITION|ALIAS_CE_DEFINITION : "
+            << buffer;
+          */
            break;
 
          default:

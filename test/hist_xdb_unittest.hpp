@@ -44,7 +44,7 @@ static mco_db_params_t m_db_params;
 static mco_device_t    m_dev[NDEV];
 static int             m_max_connections = XDB_MAX_CONN_NUM;
 static int             m_MemoryPageSize = XDB_MAX_MEMPAGE_SIZE;
-static int             m_DatabaseSize = (1024 * 1024 * 10);
+static int             m_DatabaseSize = (1024 * 1024 * 32);
 //static int             m_MapAddress = 0x20000000;
 static const char     *m_name = "XDB_HIST";
 static int snapshot_counter = 0;
@@ -54,13 +54,13 @@ static mco_dictionary_h       m_dict = rtap_db_get_dictionary();
 //static unsigned int    m_size;
 //static bool            m_metadict_initialized;
 
-bool create_point(const char*, const objclass_t, const HistoryType);
+bool create_point(const char*, const objclass_t, int2, const HistoryType);
 bool create_all_hist(const char*, const HistoryType, const int);
-MCO_RET create_hist_item(ProcessingType, int, HistoryType, xdb::datetime_t, autoid_t);
+MCO_RET create_hist_item(int, HistoryType, xdb::datetime_t, autoid_t, int2);
 bool db_fill_data();
 ProcessingType get_type_by_objclass(const objclass_t);
 bool locate_period(const char*, time_t, const HistoryType, const int);
-bool locate_samples(autoid_t, time_t, const HistoryType);
+bool locate_samples(autoid_t, int2, time_t, const HistoryType);
 
 static void show_db_stat(const mco_calc_t *calc);
 static const char *get_idx_type(uint4);

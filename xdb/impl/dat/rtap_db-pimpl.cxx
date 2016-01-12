@@ -120,7 +120,7 @@ namespace rtap_db
   Point (rtap_db::Point& Point)
   {
 #if VERBOSE
-    std::cout << "RTDB_STRUCT_pimpl::Point("<<Point.code()<<", "<<Point.tag()<<")"<<std::endl;
+    std::cout << "RTDB_STRUCT_pimpl::Point("<<Point.tag()<<")"<<std::endl;
 #endif
     if (m_classes)
     {

@@ -37,7 +37,7 @@ S VALIDCHANGE        PUB        rtUINT16       9
 #S LASTVALIDH         PUB        rtUINT16       0    
 #S LASTVALIDJ         PUB        rtUINT16       0    
 #S LASTVALIDM         PUB        rtUINT16       0    
-S LINK_HIST          PUB        rtDB_XREF      @[]
+#S LINK_HIST          PUB        rtDB_XREF      @[]
 #S HISTOTYPE          PUB        rtINT32        0    
 #S ACQMOD             PUB        rtINT16        0
 #S L_DIPL             PUB        rtBYTES32

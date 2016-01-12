@@ -48,7 +48,8 @@ S VAL                PUB        rtDOUBLE       0
 #S CUMULH             PUB        rtDOUBLE       0    
 #S CUMULJ             PUB        rtDOUBLE       0    
 #S CUMULM             PUB        rtDOUBLE       0    
-#S LINK_HIST          PUB        rtDB_XREF      @[]
+#GEV: xref became integer
+S LINK_HIST          PUB        rtDB_XREF      @[]
 #S HISTOTYPE          PUB        rtINT32        0    
 #S ACQMOD             PUB        rtINT16        0
 S L_DIPL             PUB        rtBYTES32

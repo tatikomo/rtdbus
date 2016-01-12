@@ -441,7 +441,7 @@ bool db_disconnect()
 
   SaveAsXML();
 
-#if 1
+#if 0
     if (rc) {
       std::cout << "W " << fname << ": db_disconnect '" << m_name << "', rc=" << rc << std::endl;
     }
@@ -456,6 +456,7 @@ bool db_disconnect()
 
         show_db_stat(&m_calc);
 
+#ifdef VERBOSE
         rc = mco_calc_cinfo_browse(&m_calc, class_iterator, NULL);
         if (rc) {
           std::cout << "W " << fname << ": mco_calc_cinfo_brouse, rc=" << rc << std::endl;
@@ -464,6 +465,7 @@ bool db_disconnect()
         if (rc) {
           std::cout << "W " << fname << ": mco_calc_iinfo_brouse, rc=" << rc << std::endl;
         }
+#endif
       }
     }
 #endif
@@ -475,6 +477,10 @@ bool db_disconnect()
 
   if (MCO_S_OK == rc) {
     result = true;
+  }
+  else {
+    std::cout << "W " << fname << ": rc=" << rc << std::endl;
+    result = false;
   }
   
   return result;
@@ -491,9 +497,10 @@ bool db_fill_data()
   const char* pname = HIST_TEST_POINT_NAME;
   const objclass_t point_objclass = TM;
   const HistoryType htype = PER_1_MINUTE;
+  int2  slot_number = 100;      // индекс в массиве семплов таблицы HISTORY
   const int quantity = 60 * 24; // 24 часа ежеминутных отсчётов
 
-  result = create_point(pname, point_objclass, htype);
+  result = create_point(pname, point_objclass, slot_number, htype);
 
   if (true == result) {
     result = create_all_hist(pname, htype, quantity);
@@ -534,7 +541,7 @@ ProcessingType get_type_by_objclass(const objclass_t objclass)
 }
 
 // Создать в БД Запись об указанной точке
-bool create_point(const char* pname, const objclass_t objclass, const HistoryType htype)
+bool create_point(const char* pname, const objclass_t objclass, int2 slot, const HistoryType htype)
 {
   mco_trans_h t;
   bool result = false;
@@ -543,6 +550,7 @@ bool create_point(const char* pname, const objclass_t objclass, const HistoryTyp
   MCO_RET rc = MCO_S_OK;
   XDBPoint handle_point;
   Validity validity = VALIDITY_VALID;
+  AnalogInfoType ait;
 
   ptype = get_type_by_objclass(objclass);
 
@@ -571,6 +579,11 @@ bool create_point(const char* pname, const objclass_t objclass, const HistoryTyp
     rc = XDBPoint_SHORTLABEL_put(&handle_point, "tili-tili-testo", 15);
     rc = XDBPoint_DE_TYPE_put(&handle_point, 0);
     rc = XDBPoint_VALIDITY_put(&handle_point, validity);
+    
+    rc = XDBPoint_ai_write_handle(&handle_point, &ait);
+    if (rc) { std::cout << "E " << fname << ": allocating " << pname << " analog part, rc=" << rc << std::endl; break; }
+    rc = AnalogInfoType_LINK_HIST_put(&ait, slot);
+    if (rc) { std::cout << "E " << fname << ": writing " << pname << ".LINK_HIST, rc=" << rc << std::endl; break; }
 
     rc = mco_trans_commit(t);
     if (rc) { std::cout << "E " << fname << ": commitment transaction, rc=" << rc << std::endl; break; }
@@ -578,7 +591,7 @@ bool create_point(const char* pname, const objclass_t objclass, const HistoryTyp
     std::cout << "I Creating '" << pname
               << "' objclass: " << objclass
               << " type: " << ptype
-              << " [SUCCES]" << std::endl;
+              << " [SUCCESS]" << std::endl;
 
     result = true;
 
@@ -602,11 +615,13 @@ bool create_all_hist(const char* pname, const HistoryType htype, const int n_sam
   ProcessingType ptype;
   MCO_RET rc = MCO_S_OK;
   XDBPoint handle_point;
+  AnalogInfoType handle_ait;
   autoid_t  point_aid;
   int last_sample_num;
   objclass_t point_objclass;
   const char* fname = "create_all_hist";
   xdb::datetime_t timer;
+  int2 history_index;
 
   // sec = 946684800 : GMT=[Sat, 01 Jan 2000 00:00:00]; MSK=[Sat, 01 Jan 2000 03:00:00]
   // sec = 946674000 : MSK=[Sat, 01 Jan 2000 00:00:00]
@@ -631,12 +646,19 @@ bool create_all_hist(const char* pname, const HistoryType htype, const int n_sam
 
     // По её objclass найти тип значения - DISCRETE, BINARY, ANALOG
     ptype = get_type_by_objclass(point_objclass);
-    if (UNKNOWN == ptype) break;
+    if (ANALOG != ptype) break;
     
+    // Найти индекс этой Точки в массиве истории
+    rc = XDBPoint_ai_read_handle(&handle_point, &handle_ait);
+    if (rc) { std::cout << "E " << fname << ": get analog part of " << pname << ", rc=" << rc << std::endl; break; }
+
+    rc = AnalogInfoType_LINK_HIST_get(&handle_ait, &history_index);
+    if (rc) { std::cout << "E " << fname << ": read history indexer of " << pname << ", rc=" << rc << std::endl; break; }
+
     rc = mco_trans_commit(t);
 
     for (last_sample_num = 0; last_sample_num < n_samples; last_sample_num++) {
-      rc = create_hist_item(ptype, last_sample_num, htype, timer, point_aid);
+      rc = create_hist_item(last_sample_num, htype, timer, point_aid, history_index);
 
       switch(htype) {
         case PER_1_MINUTE:
@@ -675,23 +697,24 @@ bool create_all_hist(const char* pname, const HistoryType htype, const int n_sam
   return result;
 }
 
-MCO_RET create_hist_item(ProcessingType ptype,
-                         int cur_sample,
+// Создать набор записей для требуемой Точки в соответствующее место
+// (hist_index) массива истории.
+MCO_RET create_hist_item(int cur_sample,
                          HistoryType htype,
                          xdb::datetime_t given_timer,
-                         autoid_t point_aid)
+                         autoid_t point_aid,
+                         int2 slot_num)
 {
   MCO_RET rc;
-  HISTORY handle_hist;
-  AnalogInfoType ai;
-  DiscreteInfoType di;
+  HISTORY_1_MIN handle_1_min_hist;
+  HISTORY_5_MIN handle_5_min_hist;
+  AnalogHistoryInfo ahi;
   Validity validity = VALIDITY_VALID;
   autoid_t hist_item_aid = 0;
   timestamp timer;
-  bool optional_created = false;
-  const char* fname = "create_hist_item";
-  double   val_g, valacq_g, valmanual_g = 0.0;
-  uint64_t val_i, valacq_i, valmanual_i = 0;
+//  bool optional_created = false;
+  static const char* fname = "create_hist_item";
+  double   val = 0.0;
   // Будет ошибка, если слишком много объектов создается внутри одной транзакции
   mco_trans_h t;
 
@@ -699,76 +722,48 @@ MCO_RET create_hist_item(ProcessingType ptype,
     rc = mco_trans_start(m_db, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
     if (rc) { std::cout << "E " << fname << ": start transaction, rc=" << rc << std::endl; break; }
  
-    rc = HISTORY_new(t, &handle_hist);
-    if (rc) { std::cout << "E " << fname << ": creating history item, rc=" << rc << std::endl; break; }
-
-    rc = HISTORY_type_put(&handle_hist, htype);
-    if (rc) { std::cout << "E " << fname << ": set history type, rc=" << rc << std::endl; break; }
-
-    rc = HISTORY_autoid_get(&handle_hist, &hist_item_aid);
-    if (rc) { std::cout << "E " << fname << ": getting new history item, rc=" << rc << std::endl; break; }
-
-    rc = HISTORY_point_ref_put(&handle_hist, point_aid);
+    if (PER_1_MINUTE == htype)       rc = HISTORY_1_MIN_new(t, &handle_1_min_hist);
+    else if (PER_5_MINUTES == htype) rc = HISTORY_5_MIN_new(t, &handle_5_min_hist);
+    else rc = MCO_E_UNSUPPORTED;
     if (rc) {
-      std::cout << "E " << fname << ": can't set point id " << point_aid
-                << " to history item, rc=" << rc
-                << std::endl;
+      std::cout << "E " << fname << ": creating history item type="
+                << htype << ", rc=" << rc << std::endl;
       break;
     }
 
-    switch (ptype) {
-      case DISCRETE:
-      case BINARY:
-        rc = HISTORY_di_write_handle(&handle_hist, &di);
-        if (rc) {
-          std::cout << "E " << fname << ": allocating discrete/binary infotype, rc=" << rc << std::endl;
-        }
-        else {
-          optional_created = true;
-
-          if (BINARY == ptype)
-            val_i = valacq_i = (cur_sample % 2);
-          else val_i = valacq_i = cur_sample;
-
-          rc = DiscreteInfoType_VAL_put(&di, val_i);
-          rc = DiscreteInfoType_VALACQ_put(&di, valacq_i);
-          rc = DiscreteInfoType_VALMANUAL_put(&di, valmanual_i);
-        }
-        break;
-
-      case ANALOG:
-        rc = HISTORY_ai_write_handle(&handle_hist, &ai);
-        if (rc) {
-          std::cout << "E " << fname << ": allocating analog infotype, rc=" << rc << std::endl;
-        }
-        else {
-          optional_created = true;
-
-          val_g = valacq_g = sin(cur_sample) * 10 + 11;
-
-          rc = AnalogInfoType_VAL_put(&ai, val_g);
-          rc = AnalogInfoType_VALACQ_put(&ai, valacq_g);
-          rc = AnalogInfoType_VALMANUAL_put(&ai, valmanual_g);
-        }
-        break;
-
-        default:
-          optional_created = false;
-          std::cout << "E " << fname << ": allocating unsupported infotype: " << ptype << ", rc=" << rc << std::endl;
-          rc = MCO_E_UNSUPPORTED;
-    }
-    
-    if (false == optional_created) // Если не получилось создать блок значения
+    if (PER_1_MINUTE == htype)       rc = HISTORY_1_MIN_autoid_get(&handle_1_min_hist, &hist_item_aid);
+    else if (PER_5_MINUTES == htype) rc = HISTORY_5_MIN_autoid_get(&handle_5_min_hist, &hist_item_aid);
+    else rc = MCO_E_UNSUPPORTED;
+    if (rc) {
+      std::cout << "E " << fname << ": getting new history item type="
+                << htype << ", rc=" << rc << std::endl;
       break;
+    }
 
-    rc = HISTORY_mark_write_handle(&handle_hist, &timer);
+    if (PER_1_MINUTE == htype)       rc = HISTORY_1_MIN_ahi_at(&handle_1_min_hist, slot_num, &ahi);
+    else if (PER_5_MINUTES == htype) rc = HISTORY_5_MIN_ahi_at(&handle_5_min_hist, slot_num, &ahi);
+    else rc = MCO_E_UNSUPPORTED;
+    if (rc) {
+      std::cout << "E " << fname << ": getting slot " << slot_num
+                << " from history type=" << htype
+                << ", rc=" << rc << std::endl;
+      break;
+    }
+
+    val = sin(cur_sample) * 10 + 11;
+
+    rc = AnalogHistoryInfo_VAL_put(&ahi, val);
+    if (rc) { std::cout << "E " << fname << std::endl; break; }
+    rc = AnalogHistoryInfo_VALIDITY_put(&ahi, validity);
+    if (rc) { std::cout << "E " << fname << std::endl; break; }
+
+    if (PER_1_MINUTE == htype)       rc = HISTORY_1_MIN_mark_write_handle(&handle_1_min_hist, &timer);
+    else if (PER_5_MINUTES == htype) rc = HISTORY_5_MIN_mark_write_handle(&handle_5_min_hist, &timer);
+    else rc = MCO_E_UNSUPPORTED;
     if (rc) { std::cout << "E " << fname << ": allocating datetime, rc=" << rc << std::endl; break; }
 
     rc = timestamp_sec_put(&timer, given_timer.part[0]);
     rc = timestamp_nsec_put(&timer, 0);
-
-    rc = HISTORY_VALIDITY_put(&handle_hist, validity);
-    if (rc) { std::cout << "E " << fname << ": set history item validity, rc=" << rc << std::endl; break; }
 
     rc = mco_trans_commit(t);
     if (rc) {
@@ -780,8 +775,20 @@ MCO_RET create_hist_item(ProcessingType ptype,
   } while (false);
 
   if (rc) {
-    std::cout << "E " << fname << ": can't create new history item for point id=" << point_aid << std::endl;
+    std::cout << "E " << fname
+              << ": can't create new history item type " << htype
+              << " for point id " << point_aid << ", slot " << slot_num
+              << std::endl;
     mco_trans_rollback(t);
+  }
+  else {
+    std::cout << "I " << fname << ": store " << cur_sample
+              << " htype=" << htype
+              << " value=" << val
+              << " timer=" << given_timer.tv.tv_sec
+              << " history item point id=" << point_aid
+              << " into slot=" << slot_num
+              << std::endl;
   }
 
   return rc;
@@ -801,6 +808,8 @@ bool locate_period(const char* pname, time_t start, const HistoryType htype, con
   autoid_t point_aid;
   mco_trans_h t;
   time_t delta;
+  AnalogInfoType ai;
+  int2 slot_idx; // индекс слота в массиве истории для данной Точки
   MCO_RET rc;
 
   switch (htype) {
@@ -826,6 +835,13 @@ bool locate_period(const char* pname, time_t start, const HistoryType htype, con
     rc = XDBPoint_autoid_get(&handle_point, &point_aid);
     if (rc) { std::cout << "E " << fname << ": get point " << pname << " id, rc=" << rc << std::endl; break; }
 
+    // Узнать нужный индекс массива истории
+    rc = XDBPoint_ai_read_handle(&handle_point, &ai);
+    if (rc) { std::cout << "E " << fname << ": get " << pname << " AnalogInfoType, rc=" << rc << std::endl; break; }
+
+    rc = AnalogInfoType_LINK_HIST_get(&ai, &slot_idx);
+    if (rc) { std::cout << "E " << fname << ": get " << pname << " history slot idx, rc=" << rc << std::endl; break; }
+
     rc = mco_trans_commit(t);
 
   } while (false);
@@ -840,7 +856,7 @@ bool locate_period(const char* pname, time_t start, const HistoryType htype, con
     for (frame = start; frame < (start + delta * n_samples); frame += delta) {
 
       // TODO: прочитать значение семпла на этот период
-      status = locate_samples(point_aid, frame, htype);
+      status = locate_samples(point_aid, slot_idx, frame, htype);
 
       if (!status) {
         std::cout << "W " << fname << ": can't read '" << pname << "' sample "
@@ -858,28 +874,38 @@ bool locate_period(const char* pname, time_t start, const HistoryType htype, con
 // ===========================================================================
 // Найти последовательность исторических семплов указанного типа (htype)
 // для точки с указанным именем (pname), начинающуюся с момента времени
-// (start) и состоящую из указанного количества (n_samples)
-bool locate_samples(autoid_t point_aid, time_t start, const HistoryType htype)
+// (start), хранящуюся в массиве истории под указанным индексом (slot_idx)
+// и состоящую из указанного количества (n_samples)
+bool locate_samples(autoid_t point_aid, int2 slot_idx, time_t start, const HistoryType htype)
 {
   const char* fname = "locate_samples";
   bool status = false;
-  HISTORY handle_history;
-  HistoryType history_type;
+  HISTORY_1_MIN handle_1_min_history;
+  HISTORY_5_MIN handle_5_min_history;
+//  HistoryType history_type;
+  AnalogHistoryInfo ahi;
   autoid_t history_point_aid;
   mco_trans_h t;
   mco_cursor_t csr;
   MCO_RET rc;
   int compare_result = 0;
+  // Значение и Достоверность одного семпла
+  double value;
+  Validity valid;
 
   do {
     // В таблице HISTORY найти записи, соответствующие найденному идентификатору и времени начала
     rc = mco_trans_start(m_db, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
     if (rc) { std::cout << "E " << fname << ": start transaction, rc=" << rc << std::endl; break; }
 
-    rc = HISTORY_SK_by_time_index_cursor(t, &csr);
+    if (PER_1_MINUTE == htype)       rc = HISTORY_1_MIN_SK_by_time_index_cursor(t, &csr);
+    else if (PER_5_MINUTES == htype) rc = HISTORY_5_MIN_SK_by_time_index_cursor(t, &csr);
+    else rc = MCO_E_UNSUPPORTED;
     if (rc) { std::cout << "E " << fname << ": get SK_by_point_time cursor, rc=" << rc << std::endl; break; }
 
-    rc = HISTORY_SK_by_time_search(t, &csr, MCO_EQ, start);
+    if (PER_1_MINUTE == htype)       rc = HISTORY_1_MIN_SK_by_time_search(t, &csr, MCO_EQ, start);
+    else if (PER_5_MINUTES == htype) rc = HISTORY_5_MIN_SK_by_time_search(t, &csr, MCO_EQ, start);
+    else rc = MCO_E_UNSUPPORTED;
     if (rc) {
       // Ошибка?
       if (rc == MCO_S_NOTFOUND) {
@@ -896,16 +922,19 @@ bool locate_samples(autoid_t point_aid, time_t start, const HistoryType htype)
     }
 
     while (MCO_S_OK == rc) {
-      rc = HISTORY_SK_by_time_compare(t, &csr, start, &compare_result);
+      if (PER_1_MINUTE == htype)       rc = HISTORY_1_MIN_SK_by_time_compare(t, &csr, start, &compare_result);
+      else if (PER_5_MINUTES == htype) rc = HISTORY_5_MIN_SK_by_time_compare(t, &csr, start, &compare_result);
+      else rc = MCO_E_UNSUPPORTED;
       if (rc) {
         std::cout << "E " << fname << ": Unable to compare with id="<<point_aid<<", rc=" << rc << std::endl;
         break;
       }
 
       if (0 == compare_result) { // Найден элемент с указаным временем
-
         // Проверить, ссылается ли найденный элемент на указанный идентификатор Точки?
-        rc = HISTORY_from_cursor(t, &csr, &handle_history);
+        if (PER_1_MINUTE == htype)       rc = HISTORY_1_MIN_from_cursor(t, &csr, &handle_1_min_history);
+        else if (PER_5_MINUTES == htype) rc = HISTORY_5_MIN_from_cursor(t, &csr, &handle_5_min_history);
+        else rc = MCO_E_UNSUPPORTED;
         if (rc) {
           std::cout << "E " << fname
                     << ": Unable to locate item from SK_by_time cursor with id="
@@ -913,22 +942,29 @@ bool locate_samples(autoid_t point_aid, time_t start, const HistoryType htype)
           break;
         }
 
-        // Читать ссылку на Точку
-        rc = HISTORY_point_ref_get(&handle_history, &history_point_aid);
-        if (rc) { std::cout << "E " << fname << ": can't get point reference, rc=" << rc << std::endl; break; }
-        // Читать тип исторической записи
-        rc = HISTORY_type_get(&handle_history, &history_type);
+        if (PER_1_MINUTE == htype)       rc = HISTORY_1_MIN_ahi_at(&handle_1_min_history, slot_idx, &ahi);
+        else if (PER_5_MINUTES == htype) rc = HISTORY_5_MIN_ahi_at(&handle_5_min_history, slot_idx, &ahi);
         if (rc) {
-          std::cout << "E " << fname << ": can't get history type for id="
-                    << history_point_aid
+          std::cout << "E " << fname
+                    << ": Unable to get history item idx=" << slot_idx
+                    << " type=" << htype
+                    << " for point id=" << point_aid
                     << ", rc=" << rc
                     << std::endl;
           break;
         }
+        else {
+          rc = AnalogHistoryInfo_VAL_get(&ahi, &value);
+          if (rc) { std::cout << "E " << fname << " get VAL for history idx=" << slot_idx << std::endl; break; };
 
-        if ((history_point_aid == point_aid) && (history_type == htype)) {
+          rc = AnalogHistoryInfo_VALIDITY_get(&ahi, &valid);
+          if (rc) { std::cout << "E " << fname << " get VALIDITY for history idx=" << slot_idx << std::endl; break; };
+
           std::cout << "Gotcha! Point id=" << point_aid
-                    << ", type="<< htype
+                    << ", type=" << htype
+                    << ", val=" << value
+                    << ", valid=" << valid
+                    << ", slot=" << slot_idx
                     << ", " << start << " (sec)"
                     << std::endl;
 

@@ -45,8 +45,12 @@
 #define MAX_LISTACT_QUANTITY  1000
 // Calculation Engines
 #define MAX_CE_QUANTITY         10
-// max history table depth for all points
+// max history table depth for discrete points
 #define MAX_HISTORY_QUANTITY 100000
+// max history table depth for 1-minute sampling table
+#define MAX_1_MIN_HISTORY_QUANTITY 100000
+// max history table depth for 5-minutes sampling table
+#define MAX_5_MIN_HISTORY_QUANTITY 100000
 
 declare database  rtap_db;
 //struct Id {
@@ -425,20 +429,29 @@ struct AlarmItem
 
 /* ===================================================================== */
 /* Elementary historical data for discrete information */
-/* Элементарная запись в исторических данных Точек */
-class HISTORY
+/* Элементарная запись в исторических данных Точек для минутных семплов */
+class HISTORY_1_MIN
 {
-  autoid[MAX_HISTORY_QUANTITY];
+  autoid[MAX_1_MIN_HISTORY_QUANTITY];
   timestamp     mark;
-  HistoryType   type = NONE;       // Тип хранимой истории (минутная, 5-минутная, часовая,...)
-  optional DiscreteInfoType di;    // Значение для Целочисленных Точек
-  optional AnalogInfoType   ai;    // Значение для Аналоговых Точек
-  Validity     VALIDITY     = VALIDITY_FAULT;
-  autoid_t     point_ref;
+  // TODO: Индекс в массиве должен храниться в специфичном для Аналогов атрибуте
+  // TODO: Дисретные типы данных должны хранить историю в таблице EQV
+  AnalogHistoryInfo   ahi[1000];    // Значение + Достоверность для среза Аналоговых Точек
   tree <mark.sec> SK_by_time;
-  tree <point_ref> SK_by_point; /* point to history relationship is '1-to-1' */
-  tree <mark.sec, point_ref> SK_by_point_time;
 };
+
+/* ===================================================================== */
+/* Elementary historical data for discrete information */
+/* Элементарная запись в исторических данных Точек для 5-минутных семплов */
+class HISTORY_5_MIN
+{
+  autoid[MAX_5_MIN_HISTORY_QUANTITY];
+  timestamp     mark;
+  // TODO: Индекс в массиве должен храниться в специфичном для Аналогов атрибуте
+  AnalogHistoryInfo   ahi[1000];    // Значение + Достоверность для среза Аналоговых Точек
+  tree <mark.sec> SK_by_time;
+};
+
 
 /* ===================================================================== */
 /* LISTACD table for TS, TM, TSC, AL, ICS, ICM points */
@@ -494,9 +507,21 @@ struct DiscreteInfoType
 /* Common part for analog-state objects */
 struct AnalogInfoType
 {
+  // Индекс текущей Точки (0-65535) в массиве значений таблиц HISTORY (1_MIN, 5_MIN,...)
+  int2          LINK_HIST; // Только для аналоговых типов данных
   double        VAL;
   double        VALACQ;
   double        VALMANUAL;
+};
+
+/* ===================================================================== */
+/* Common part for history analog-state objects */
+struct AnalogHistoryInfo
+{
+  // Может быть, сделать значением по умолчанию std::numeric_limits<double>::quiet_NaN()
+  // для VAL в качестве значения "не присвоено" (NULL)?
+  double        VAL          = 0.0;
+  Validity      VALIDITY     = VALIDITY_FAULT;
 };
 
 /* ===================================================================== */
@@ -522,7 +547,6 @@ class XDBPoint
   autoid_t      CE_ref;      /* link to CE definition */
   autoid_t      SA_ref;      /* reference to SA object */
   autoid_t      passport_ref;// Ссылка на дополнительные параметры/атрибуты точки
-  autoid_t      hist_ref;    // ссылка на таблицу HISTORY
   HistoryType   type = NONE; // Тип хранимой истории (минутная, 5-минутная, часовая,...)
   // Признак модификации атрибутов точки с момента последней проверки группы подписки
   Boolean       is_modified = FALSE;
@@ -534,13 +558,12 @@ class XDBPoint
   Validity      VALIDITY     = VALIDITY_FAULT;
   Validity      VALIDITY_ACQ = VALIDITY_FAULT;
 
-  /* Optional analog of discrete part */
+  // Optional analog of discrete part
   optional  AnalogInfoType   ai;
   optional  DiscreteInfoType di;
-  /* 
-  * TODO: У части классов есть свой атрибут TSSYNTHETICAL, он частично
-  * дублирует AlarmItem (2 экземпляра AlarmState). Как их объединить?
-  */
+
+  // TODO: У части классов есть свой атрибут TSSYNTHETICAL, он частично
+  // дублирует AlarmItem (2 экземпляра AlarmState). Как их объединить?
   optional  AlarmItem alarm;
   
   /* Indexes */

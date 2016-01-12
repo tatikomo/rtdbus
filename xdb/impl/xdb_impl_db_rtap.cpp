@@ -86,8 +86,8 @@ static AttributesHolder attribute_holder;
 typedef MCO_RET (*schema_f) (mco_trans_h, void*, mco_stream_write);
 // ===============================================================================
 // Взято из 'xdb/impl/dat/rtap_db.h'
-// Результат выполнения "grep _xml_schema rtap_db.h|wc -l" равен 49 (10.09.2015)
-const int ALL_TYPES_COUNT = 49;
+// Результат выполнения "grep _xml_schema rtap_db.h|wc -l" равен 50 (30.12.2015)
+const int ALL_TYPES_COUNT = 50;
 schema_f ALL_TYPES_LIST[] = {
   XDBPoint_xml_schema,
   DICT_TSC_VAL_LABEL_xml_schema,
@@ -98,7 +98,8 @@ schema_f ALL_TYPES_LIST[] = {
   SBS_GROUPS_ITEM_xml_schema,
   XDB_CE_xml_schema,
   ALARM_xml_schema,
-  HISTORY_xml_schema,
+  HISTORY_1_MIN_xml_schema,
+  HISTORY_5_MIN_xml_schema,
   LISTACD_xml_schema,
   LISTACT_xml_schema,
   XDBPoint_xml_schema,
@@ -6509,12 +6510,116 @@ MCO_RET DatabaseRtapImpl::createVAL_LABEL(PointInDatabase* /* instance */, rtap_
   return MCO_S_OK;
 }
 
-MCO_RET DatabaseRtapImpl::createLINK_HIST(PointInDatabase* /* instance */, rtap_db::Attrib& /* attr */)
+// ======================== LINK_HIST ============================
+MCO_RET DatabaseRtapImpl::createLINK_HIST(PointInDatabase* instance, rtap_db::Attrib& attr)
 {
-  // NB: Пропустим этот атрибут
-  return MCO_S_OK;
+  static const char *attr_name = RTDB_ATT_LINK_HIST;
+  MCO_RET rc = MCO_S_NOTFOUND;
+  uint2 history_index = atoi(attr.value().c_str());
+
+  switch(instance->objclass())
+  {
+    case TM:
+    case ICS:
+    case ICM:
+        rc = instance->AIT().LINK_HIST_put(history_index);
+        break;
+
+    default:
+        LOG(ERROR) << "'" << attr_name
+                   << "' for objclass " << instance->objclass()
+                   << " is not supported";
+  }
+  return rc;
 }
 
+MCO_RET DatabaseRtapImpl::readLINK_HIST(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  static const char *attr_name = RTDB_ATT_LINK_HIST;
+  MCO_RET rc = MCO_S_NOTFOUND;
+  rtap_db::AnalogInfoType   ai;
+  objclass_t objclass;
+  int2 index;
+
+  // Инициализация индекса, на случай аварийного возврата до чтения
+  attr_info->value.fixed.val_uint16 = 0;
+
+  do
+  {
+    rc = instance.OBJCLASS_get(objclass);
+    if (rc) { LOG(ERROR) << "Can't get objclass for " << attr_info->name; break; }
+
+    switch(objclass)
+    {
+        case TM:    // 01
+        case ICS:   // 07
+        case ICM:   // 08
+            rc = instance.ai_read(ai);
+            if (rc) { LOG(ERROR) << "Can't read analog part of " << attr_info->name; break; }
+
+            rc = ai.LINK_HIST_get(index);
+            if (rc) { LOG(ERROR) << "Can't read " << attr_info->name; break; }
+            attr_info->value.fixed.val_uint16 = index;
+            attr_info->type = DB_TYPE_UINT16;
+#if defined VERBOSE
+            LOG(INFO) << attr_info->name << " = " << attr_info->value.fixed.val_uint16; //1
+#endif
+            break;
+
+        default:
+            LOG(ERROR) << "'" << attr_name
+                       << "' for objclass " << objclass
+                       << " is not supported, point " << attr_info->name;
+            attr_info->type = DB_TYPE_UNDEF;
+            break;
+    }
+    // Если внутри switch(objclass) была ошибка, дальнейшая обработка сразу прекращается
+    if (rc) break;
+
+  } while(false);
+
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeLINK_HIST(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  static const char *attr_name = RTDB_ATT_LINK_HIST;
+  MCO_RET rc = MCO_S_NOTFOUND;
+  rtap_db::AnalogInfoType   ai;
+  objclass_t objclass;
+
+  do
+  {
+    rc = instance.OBJCLASS_get(objclass);
+    if (rc) { LOG(ERROR) << "Can't get objclass for " << attr_info->name; break; }
+
+    switch(objclass)
+    {
+        case TM:    // 01
+        case ICS:   // 07
+        case ICM:   // 08
+            rc = instance.ai_read(ai);
+            if (rc) { LOG(ERROR) << "Can't read analog part of " << attr_info->name; break; }
+
+            rc = ai.LINK_HIST_put(attr_info->value.fixed.val_uint16);
+            if (rc) { LOG(ERROR) << "Can't write " << attr_info->name; break; }
+            break;
+
+        default:
+            LOG(ERROR) << "'" << attr_name
+                       << "' for objclass " << objclass
+                       << " is not supported, point " << attr_info->name;
+            break;
+    }
+    // Если внутри switch(objclass) была ошибка, дальнейшая обработка сразу прекращается
+    if (rc) break;
+
+  } while(false);
+
+  return rc;
+}
+
+// ======================== L_DIPL ============================
 MCO_RET DatabaseRtapImpl::createL_DIPL(PointInDatabase* instance, rtap_db::Attrib& attr)
 {
   static const char *attr_name = RTDB_ATT_L_DIPL;
