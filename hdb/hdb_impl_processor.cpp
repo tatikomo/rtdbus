@@ -22,12 +22,12 @@
 #include <algorithm>    // std::sort
 #include <vector>       // std::vector
 
+#include <assert.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "glog/logging.h"
-#include "gtest/gtest.h"
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -39,7 +39,7 @@
 #include "xdb_rtap_database.hpp"
 #include "xdb_rtap_connection.hpp"
 
-#include "hist_xdb_unittest.hpp"
+#include "hdb_impl_processor.hpp"
 
 // ===========================================================================
 #include "sqlite3.h"
@@ -1607,147 +1607,4 @@ bool Historian::Make(time_t current)
 }
 
 // ===========================================================================
-int main(int argc, char* argv[])
-{
-  bool status;
-  int opt;
-  int history_type = PER_1_MINUTE;
-  int n_samples_to_read = 100;
-  sampler_type_t htype = PER_1_MINUTE;
-  // Приращение времени при тестовом заполнении - 1 минута
-  time_t delta = m_stages[PER_1_MINUTE].duration;
-  // Начало тестов - 00:00.00 1 января 2000 года
-  time_t sampling_time_start = HIST_TEST_PERIOD_START;
-  // Конец тестов - 00:00.00 2 января 2000 года
-  time_t sample_time_finish = HIST_TEST_PERIOD_START + m_stages[PER_HOUR].duration + m_stages[PER_5_MINUTES].duration;
-  time_t frame = HIST_TEST_PERIOD_START;
-  char s_tag[TAG_NAME_MAXLEN + 1] = HIST_TEST_POINT_NAME;
-  char s_rtdb_name[SERVICE_NAME_MAXLEN + 1] = "";
-  char s_history_db_filename[SERVICE_NAME_MAXLEN + 1] = "";
-  bool need_to_init_hdb = false;
-  char s_time[50 + 1];
-  Historian *historian = NULL;
-
-  while ((opt = getopt (argc, argv, "f:t:h:n:is:p:")) != -1)
-  {
-     switch (opt)
-     {
-       case 'f': // --from, отметка времени начала занесения/чтения тестовой истории в/из HDB
-         strncpy(s_time, optarg, 50);
-         s_time[50] = '\0';
-         // Используется как при генерации тестовых данных, так и при чтении результатов по запросу
-         sampling_time_start = atol(s_time);
-         frame = sampling_time_start;
-         break;
-
-       case 't': // --to, отметка времени окончания чтения тестовой истории из HDB
-         strncpy(s_time, optarg, 50);
-         s_time[50] = '\0';
-         // Используется только при генерации тестовых данных
-         sample_time_finish = atol(s_time);
-         break;
-
-       case 'i': // --init, инициализация HDB тестовыми начальными значениями
-         need_to_init_hdb = true;
-         break;
-
-       case 's': // --service, название БДРВ для загрузки
-         strncpy(s_rtdb_name, optarg, SERVICE_NAME_MAXLEN);
-         s_rtdb_name[SERVICE_NAME_MAXLEN] = '\0';
-         break;
-
-       case 'h': // --hdb, название файла HDB для загрузки
-         strncpy(s_history_db_filename, optarg, SERVICE_NAME_MAXLEN);
-         s_history_db_filename[SERVICE_NAME_MAXLEN] = '\0';
-         break;
-
-       case 'p': // --point, название тега БДРВ для выгрузки истории
-         // Используется только при чтении результатов по запросу
-         strncpy(s_tag, optarg, TAG_NAME_MAXLEN);
-         s_tag[TAG_NAME_MAXLEN] = '\0';
-         break;
-
-       case 'd': // --depth, глубина выбираемой из HDB предысториии
-         // Используется только при чтении результатов по запросу
-         switch(atoi(optarg))
-         {
-             case 1: htype = PER_1_MINUTE;  break;
-             case 2: htype = PER_5_MINUTES; break;
-             case 3: htype = PER_HOUR;      break;
-             case 4: htype = PER_DAY;       break;
-             case 5: htype = PER_MONTH;     break;
-             case 0:
-             default:
-               fprintf(stderr, "Unsuported history type.\n");
-               return 1;
-         }
-         break;
-
-       case 'n': // --num, количество читаемых семплов предысториии
-         // Используется только при чтении результатов по запросу
-         n_samples_to_read = atoi(optarg);
-         break;
-
-       case '?':
-         if (optopt == 'n')
-           fprintf (stderr, "Option -%c requires an argument.\n", optopt);
-         else if (isprint (optopt))
-           fprintf (stderr, "Unknown option `-%c'.\n", optopt);
-         else
-           fprintf (stderr,
-                    "Unknown option character `\\x%x'.\n",
-                    optopt);
-         return 1;
-
-       default:
-         abort ();
-     }
-  }
-
-  LOG(INFO) << "Use defaults: tag=" << s_tag
-            << ", htype=" << htype
-            << ", read_samples=" << n_samples_to_read
-            << ", time_start=" << sampling_time_start;
-  
-  historian = new Historian(s_rtdb_name, s_history_db_filename);
-
-  // Подключиться к БДРВ
-  if (true == (status = historian->Connect()))
-  {
-
-     if (need_to_init_hdb) {
-            LOG(INFO) << "Init HDB content...";
-
-            while(frame < sample_time_finish) {
-              // Обсчитать предысторию для времени frame
-              historian->Make(frame);
-              // Передвинуть временнОе окно на следующую минуту
-              frame += delta;
-            }
- 
-     } // Конец блока инициализации HDB
-
-     LOG(INFO) << "Locate point " << s_tag << " from HDB...";
-     status = historian->load_samples_period_per_tag(s_tag,
-                                 htype,
-                                 sampling_time_start,
-                                 n_samples_to_read);
-     LOG(INFO) << "reading samples " << ((true == status)? "[SUCCESS]" : "[FAILURE]");
-
-     if (true == historian->Disconnect())
-     {
-       LOG(INFO) << "Disconnection completed";
-     }
-     else
-     {
-       LOG(ERROR) << "Unable to release resources";
-     }
-  }
-  else
-  {
-    LOG(ERROR) << "Loading resources";
-  }
-
-  return 0;
-}
 

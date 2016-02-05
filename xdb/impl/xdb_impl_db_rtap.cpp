@@ -6,7 +6,7 @@
  */
 #include <new>
 #include <map>
-#include <unordered_set>
+//#include <unordered_set>
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h> // exit
@@ -28,6 +28,7 @@ extern "C" {
 #endif
 
 #include "xdb_common.hpp"
+#include "xdb_impl_common.h"
 #include "xdb_impl_error.hpp"
 
 #include "helper.hpp"
@@ -49,6 +50,20 @@ using namespace xdb;
  */
 #include "dat/rtap_db.hpp"
 
+// Конверсия между целым числом и значением HistoryType
+typedef struct {
+  int idx;
+  HistoryType htype;
+} int_to_his;
+static const int_to_his decoder[6] = {
+    { 0, NONE },
+    { 1, PER_1_MINUTE },
+    { 2, PER_5_MINUTES },
+    { 3, PER_HOUR },
+    { 4, PER_DAY },
+    { 5, PER_MONTH }
+};
+
 /* helper function to print an XML schema */
 # if (EXTREMEDB_VERSION <= 40)
 mco_size_t file_writer(void* stream_handle, const void* from, mco_size_t nbytes)
@@ -59,6 +74,7 @@ mco_size_sig_t file_writer(void* stream_handle, const void* from, mco_size_t nby
   return (mco_size_t) fwrite(from, 1, nbytes, (FILE*) stream_handle);
 }
 
+# if (EXTREMEDB_VERSION > 40)
 // --------------------------------------------------------------------------------
 // Проверка доступности указанного идентификатора
 int os_task_id_check( pid_t tid )
@@ -78,6 +94,9 @@ MCO_RET sniffer_callback(mco_db_h db, void* context, mco_trans_counter_t trans_n
     LOG(WARNING) << "Control database: process " << pid << " is crashed";
     return MCO_S_DEAD_CONNECTION;
 }
+#else
+#warning "Connection control is disabled in this XDB version"
+#endif
 
 // Класс для получения атрибутов в зависимости от OBJCLASS Точки для формирования
 // ответа на событие группы подписки.
@@ -86,7 +105,7 @@ static AttributesHolder attribute_holder;
 typedef MCO_RET (*schema_f) (mco_trans_h, void*, mco_stream_write);
 // ===============================================================================
 // Взято из 'xdb/impl/dat/rtap_db.h'
-// Результат выполнения "grep _xml_schema rtap_db.h|wc -l" равен 50 (30.12.2015)
+// Результат выполнения "grep _xml_schema rtap_db.h|wc -l" равен 48 (15.01.2016)
 const int ALL_TYPES_COUNT = 50;
 schema_f ALL_TYPES_LIST[] = {
   XDBPoint_xml_schema,
@@ -98,8 +117,6 @@ schema_f ALL_TYPES_LIST[] = {
   SBS_GROUPS_ITEM_xml_schema,
   XDB_CE_xml_schema,
   ALARM_xml_schema,
-  HISTORY_1_MIN_xml_schema,
-  HISTORY_5_MIN_xml_schema,
   LISTACD_xml_schema,
   LISTACT_xml_schema,
   XDBPoint_xml_schema,
@@ -148,7 +165,6 @@ PointInDatabase::PointInDatabase(rtap_db::Point* info) :
     m_passport_aid(0),
     m_CE_aid(0),
     m_SA_aid(0),
-//    m_hist_aid(0),
     m_rc(MCO_S_OK),
     m_point(),
     m_info(info),
@@ -310,7 +326,7 @@ MCO_RET PointInDatabase::create(mco_trans_h t)
 
         // Группа точек, не имеющих атрибутов значений VAL|VALACQ
         // ======================================================
-#warning "Формализовать создание атрибутов VAL для части OBJCLASS в PointInDatabase::create"
+#pragma note "Формализовать создание атрибутов VAL для части OBJCLASS в PointInDatabase::create"
         case TC:        /* 05 */
         case PIPE:      /* 11 */
         case PIPELINE:  /* 15 */
@@ -925,9 +941,9 @@ MCO_RET DatabaseRtapImpl::RegisterEvents()
     rc = mco_register_update_validchange_point_evnt_handler(t,
             validchange_handler,
             static_cast<void*>(this)
-#if EXTREMEDB_VERSION >= 50
+//#if EXTREMEDB_VERSION >= 50
             ,MCO_AFTER_UPDATE
-#endif
+//#endif
             );
     if (rc) LOG(ERROR) << "Registering event on VALIDCHANGE updates, rc=" << rc;
     else LOG(INFO) << "Register event on VALIDCHANGE update is OK";
@@ -1239,8 +1255,10 @@ const Error& DatabaseRtapImpl::read(mco_db_h& handle, std::string& sbs_name, int
             } // конец цикла проверки всех элементов в SBS_GROUPS_ITEM
         } // конец проверки на существование группы с заданным именем
 
+#if (EXTREMEDB_VERSION >=40)
         rc = mco_cursor_close(t, &csr);
         if (rc) { LOG(ERROR) << "Unable to close SBS_GROUPS_ITEM cursor, rc=" << rc; break; }
+#endif
       }
 
       // Если был запрос на получение количества элементов в группе, передадим подсчитанную цифру
@@ -1271,7 +1289,10 @@ const Error& DatabaseRtapImpl::read(mco_db_h& handle, std::string& sbs_name, int
 }
 
 // По заданной своим id XDBPoint создать и заполнить структуру AttributeInfo_t
-MCO_RET DatabaseRtapImpl::LoadPointInfo(mco_db_h& handle, mco_trans_h t, autoid_t point_aid, xdb::PointDescription_t* point_info)
+MCO_RET DatabaseRtapImpl::LoadPointInfo(mco_db_h& handle,
+                                        mco_trans_h t,
+                                        autoid_t point_aid,
+                                        xdb::PointDescription_t* point_info)
 {
   // Учтено увеличение размера строки при хранении русского в UTF-8
   char s_tag[sizeof(wchar_t)*TAG_NAME_MAXLEN + 1];
@@ -1505,69 +1526,20 @@ const Error& DatabaseRtapImpl::Control(mco_db_h& handler, rtDbCq& info)
 // Проверка состояния подключений
 MCO_RET DatabaseRtapImpl::controlConnections (mco_db_h& handler, rtDbCq& info)
 {
-  MCO_RET rc;
+  MCO_RET rc = MCO_S_OK;
 
+#if (EXTREMEDB_VERSION > 40)
   // Проверка статуса активных соединений.
   // Если процесс недоступен, но информация о соединении сохранилась, это подключение
   // считается аварийно завершенным.
   // NB: данная проверка возможна, если подключение происходит функцией mco_db_connect_ctx()
   rc = mco_db_sniffer(handler, sniffer_callback, MCO_SNIFFER_INSPECT_ACTIVE_CONNECTIONS);
-  LOG(INFO) << "Control database connections, rc=" << rc;
+  LOG(INFO) << "Control database connections: " << mco_ret_string(rc, NULL);
+#else
+  LOG(INFO) << "Control database connections not supported in this XDB version";
+#endif
 
   return rc;
-}
-
-// =================================================================================
-// Группа функций управления
-const Error& DatabaseRtapImpl::Query(mco_db_h& handler, rtDbCq& info)
-{
-  MCO_RET rc;
-
-  clearError();
-
-  switch(info.action.query)
-  {
-    // Прочитать список точек указанного класса
-    case rtQUERY_PTS_IN_CLASS:
-        rc = queryPointsOfSpecifiedClass(handler, info);
-        if (rc) { LOG(ERROR) << "Get points list of specified class"; }
-        break;
-
-    // Вернуть список групп подписки, содержашие точки с модифицированными атрибутами
-    case rtQUERY_SBS_LIST_ARMED:
-        rc = querySbsArmedGroup(handler, info);
-        if (rc) { LOG(ERROR) << "Get active subscription groups list"; }
-        break;
-
-    // Вернуть список точек с модифицированными атрибутами, для указанной группы
-    case rtQUERY_SBS_POINTS_ARMED:
-        rc = querySbsPoints(handler, info, info.action.query);
-        if (rc) { LOG(ERROR) << "Get activated points for selected subscription group"; }
-        break;
-
-    // Для указанной группы Точек сбросить признак модификации
-    case rtQUERY_SBS_POINTS_DISARM:
-        rc = querySbsPoints(handler, info, info.action.query);
-        if (rc) { LOG(ERROR) << "Deactivating points for selected subscription group"; }
-        break;
-
-    // Для указанной группы прочитать значения модифицированных атрибутов
-    case rtQUERY_SBS_READ_POINTS_ARMED:
-        rc = querySbsPoints(handler, info, info.action.query);
-        if (rc) { LOG(ERROR) << "Reading modified points for selected subscription group"; }
-        break;
-
-    // Сбросить флаг модификации для измененных точек из данного списка unordered_map
-    case rtQUERY_SBS_POINTS_DISARM_BY_LIST:
-        rc = querySbsDisarmSelectedPoints(handler, info);
-        if (rc) { LOG(ERROR) << "Deactivating selected modified points for all subscription groups"; }
-        break;
-
-    default:
-        setError(rtE_NOT_IMPLEMENTED);
-  }
-
-  return getLastError();
 }
 
 // =================================================================================
@@ -1847,8 +1819,10 @@ MCO_RET DatabaseRtapImpl::deleteGroup(mco_db_h& handler, rtDbCq& info)
             } // конец цикла удаления всех элементов в SBS_GROUPS_ITEM
         }
 
+#if (EXTREMEDB_VERSION >=40)
         rc = mco_cursor_close(t, &csr);
         if (rc) { LOG(ERROR) << "Unable to close SBS_GROUPS_ITEM cursor, rc=" << rc; break; }
+#endif
       }
 
       // 2. Удалить из SBS_GROUPS_STAT
@@ -1879,566 +1853,6 @@ MCO_RET DatabaseRtapImpl::deleteGroup(mco_db_h& handler, rtDbCq& info)
 
   if (rc)
     mco_trans_rollback(t);
-
-  return rc;
-}
-
-// =================================================================================
-// Прочитать список точек указанного класса
-// Входные данные:
-// 1) buffer - ссылка на map_id_name_t, содержащего карту autoid_t и имени тега
-// 2) addrCnt - objclass искомых точек
-MCO_RET DatabaseRtapImpl::queryPointsOfSpecifiedClass (mco_db_h& handler, rtDbCq& info)
-{
-  MCO_RET rc = MCO_E_UNSUPPORTED;
-  mco_cursor_t csr;
-  mco_trans_h t;
-  autoid_t point_aid = 0;
-  // Текущий экземпляр Точки
-  XDBPoint point_instance;
-  // Значение OBJCLASS текущего экземпляра
-  objclass_t objclass_instance;
-  // Результат сравнения с атрибутом objclass_needed
-  int compare_result = 0;
-  // Входной параметр - адрес хеша с выходными данными
-  map_id_name_t *points_map = static_cast<map_id_name_t*>(info.buffer);
-  map_id_name_t::iterator points_map_iterator;
-  // Ай-яй-яй! Стыдно должно быть передавать тип объекта через значение несоответствующего аргумента!
-  objclass_t objclass_needed = static_cast<objclass_t>(info.addrCnt);
-  // Буфер для чтения значения тега Точки
-  const uint2 tag_size = sizeof(wchar_t)*TAG_NAME_MAXLEN;
-  char tag[tag_size + 1];
-
-  assert(info.buffer);
-  points_map->clear();
-
-  do
-  {
-    rc = mco_trans_start(handler, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
-    if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
-
-    rc = XDBPoint_SK_by_objclass_index_cursor(t, &csr);
-    if (MCO_S_OK == rc)
-    {
-      rc = XDBPoint_SK_by_objclass_search(t, &csr, MCO_EQ, objclass_needed);
-      if (rc && (rc != MCO_S_NOTFOUND)) { LOG(ERROR) << "Search in point's tree by OBJCLASS cursor, rc=" << rc; break; }
-
-      if (rc != MCO_S_NOTFOUND)
-      {
-        // Прочитать очередной экземпляр XDBPoint
-        rc = mco_cursor_first(t, &csr);
-        if (rc) { LOG(ERROR) << "Get first XDBPoint item, rc=" << rc; break; }
-
-        // Цикл по всем Точкам
-        while (MCO_S_OK == rc)
-        {
-          compare_result = 0;
-          rc = XDBPoint_SK_by_objclass_compare(t, &csr, objclass_needed, &compare_result);
-          if (rc) { LOG(ERROR) << "Compare OBJCLASS in tree index cursor, rc=" << rc; break; }
-
-          if (0 == compare_result) // Найден объект соответствующего класса
-          {
-            rc = XDBPoint_from_cursor(t, &csr, &point_instance);
-            if (rc) { LOG(ERROR) << "Get instance from tree index cursor, rc=" << rc; break; }
-
-            rc = XDBPoint_OBJCLASS_get(&point_instance, &objclass_instance);
-            if (rc) { LOG(ERROR) << "Get point's id=" <<point_aid<<" OBJCLASS, rc=" << rc; break; }
-
-            rc = XDBPoint_autoid_get(&point_instance, &point_aid);
-            if (rc) { LOG(ERROR) << "Get point's id, rc=" << rc; break; }
-
-            rc = XDBPoint_TAG_get(&point_instance, tag, tag_size);
-            if (rc) { LOG(ERROR) << "Get point's id="<<point_aid<<" TAG, rc=" << rc; break; }
-
-            // Занесем реквизиты текущей точки в список
-            points_map->insert(std::pair<autoid_t, std::string>(point_aid, tag));
-//1            LOG(INFO) << "queryPointsOfSpecifiedClass insert " << objclass_needed << ":" << point_aid << ":" << tag;
-          }
-
-          rc = mco_cursor_next(t, &csr);
-          if (rc && (rc != MCO_S_CURSOR_END)) { LOG(ERROR) << "Next XDBPoint cursor, rc=" << rc; break; }
-
-        } // Конец проверки, что первый элемент курсора установлен
- 
-      } // Конец проверки, есть ли точки такого класса?
-
-      rc = mco_cursor_close(t, &csr);
-      if (rc) { LOG(ERROR) << "Close XDBPoint cursor, rc=" << rc; break; }
-
-    } // Конец успешного создания курсора по индексу модификации 
-
-    rc = mco_trans_commit(t);
-    if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; break; }
-
-  } while (false);
-
-  if (rc)
-  {
-    mco_trans_rollback(t);
-    setError(rtE_RUNTIME_ERROR);
-  }
-
-  return rc;
-}
-
-// =================================================================================
-// Интерфейс получения списка групп с активированными (измененными) атрибутами точек
-// Каждая точка может находиться в нескольких группах. Необходимо для каждой точки
-// определить этот набор групп, и каждая последующая точка должна его расширять.
-// Группа должна находиться в состоянии ENABLE
-//
-// Для этого можно использовать std::map(идентификатор группы, название группы)
-MCO_RET DatabaseRtapImpl::querySbsArmedGroup (mco_db_h& handler, rtDbCq& info)
-{
-  MCO_RET rc = MCO_E_UNSUPPORTED;
-  mco_cursor_t csr_point;
-  mco_cursor_t csr_sbs;
-  mco_trans_h t;
-  autoid_t point_aid = 0;
-  autoid_t sbs_aid = 0;
-  XDBPoint point_instance;
-  SBS_GROUPS_ITEM sbs_item_instance;
-  SBS_GROUPS_STAT sbs_stat_instance;
-  // Состояние Группы Подписки
-  InternalState state;
-  Boolean mod = TRUE;
-  // Результат сравнения с атрибутом is_modified
-  int compare_modified_result = 0;
-  // Результат сравнения с атрибутом tag_id
-  int compare_id_result = 0;
-  char sbs_name[LABEL_MAXLEN + 1];
-  uint2 sbs_name_size = LABEL_MAXLEN;
-
-  map_id_name_t *sbs_map = static_cast<map_id_name_t*>(info.buffer);
-  map_id_name_t::iterator sbs_map_iterator;
-
-  assert(info.buffer);
-
-  sbs_map->clear();
-
-  do
-  {
-    rc = mco_trans_start(handler, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
-    if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
-
-    // Найти все изменившиеся точки
-    rc = XDBPoint_SK_by_modified_index_cursor(t, &csr_point);
-    if (MCO_S_OK == rc)
-    {
-      // У изменившихся взведен флаг is_modified
-      rc = XDBPoint_SK_by_modified_search(t, &csr_point, MCO_EQ, TRUE);
-      if (rc && (rc != MCO_S_NOTFOUND)) { LOG(ERROR) << "Find modified XDBPoint since last sbs poll, rc="<<rc; break; }
-
-      if (rc != MCO_S_NOTFOUND)
-      {
-         // Прочитать очередной экземпляр XDBPoint
-         rc = mco_cursor_first(t, &csr_point);
-         if (rc) { LOG(ERROR) << "Get first XDBPoint item, rc=" << rc; break; }
-
-         // Цикл по всем Точкам
-         while (MCO_S_OK == rc)
-         {
-           compare_modified_result = 0;
-           rc = XDBPoint_SK_by_modified_compare(t, &csr_point, mod, &compare_modified_result);
-           if (rc) { LOG(ERROR) << "Compare XDBPoint modif status, rc=" << rc; break; }
-
-           if (0 == compare_modified_result) // Найден элемент, принадлежащий нужной группе
-           {
-             rc = XDBPoint_from_cursor(t, &csr_point, &point_instance);
-             if (rc) { LOG(ERROR) << "Get XDBPoint modif status, rc=" << rc; break; }
-
-             // point_instance - модифицированная Точка
-             // Найти группы, куда она входит
-             
-             // point_aid - идентификатор модифицированной Точки
-             rc = XDBPoint_autoid_get(&point_instance, &point_aid);
-             if (rc) { LOG(ERROR) << "Get XDBPoint aid, rc=" << rc; break; }
-
-             // Открыть курсор в таблице Групп Подписки
-             rc = SBS_GROUPS_ITEM_SK_by_tag_id_index_cursor(t, &csr_sbs);
-             if (rc) { LOG(ERROR) << "Get XDBPoint aid, rc=" << rc; break; }
-
-             // Найти все группы подписки, в которые входит Точка с идентификатором point_aid
-             rc = SBS_GROUPS_ITEM_SK_by_tag_id_search(t, &csr_sbs, MCO_EQ, point_aid);
-             if (rc != MCO_S_NOTFOUND)
-             {
-               compare_id_result = 0;
-
-               // Проверить очередной экземпляр SBS_GROUPS_ITEM
-               rc = mco_cursor_first(t, &csr_sbs);
-               if (rc) { LOG(ERROR) << "Get first SBS_GROUPS_ITEM, rc="<<rc; break; };
-
-               while (MCO_S_OK == rc)
-               {
-                 rc = SBS_GROUPS_ITEM_SK_by_tag_id_compare(t, &csr_sbs, point_aid, &compare_id_result);
-                 if (rc) { LOG(ERROR) << "Compare SBS_GROUPS_ITEM with point id="<<point_aid<<", rc=" << rc; break; }
-
-                 if (0 == compare_id_result) // Найден элемент, принадлежащий нужной группе
-                 {
-                   rc = SBS_GROUPS_ITEM_from_cursor(t, &csr_sbs, &sbs_item_instance);
-                   if (rc) { LOG(ERROR) << "Get current item from SBS_GROUPS_ITEM cursor, rc=" << rc; break; }
-
-                   rc = SBS_GROUPS_ITEM_group_id_get(&sbs_item_instance, &sbs_aid);
-                   if (rc) { LOG(ERROR) << "Get point id from SBS_GROUPS_ITEM, rc=" << rc; break; }
-
-                   // Если идентификатор данной группы не известен, запоминаем ее
-                   if ((sbs_map_iterator = sbs_map->find(sbs_aid)) == sbs_map->end())
-                   {
-                     // Получить название группы
-                     rc = SBS_GROUPS_STAT_autoid_find(t, sbs_aid, &sbs_stat_instance);
-                     if (rc) { LOG(ERROR) << "Locate SBS from SBS_GROUPS_STAT with id="<<sbs_aid<<", rc=" << rc; break; }
-
-                     // Проверить состояние группы, нужны только ENABLE
-                     rc = SBS_GROUPS_STAT_state_get(&sbs_stat_instance, &state);
-                     if (rc) { LOG(ERROR) << "Get SBS state from SBS_GROUPS_STAT with id="<<sbs_aid<<", rc=" << rc; break; }
-
-                     // Подходят только Группы в состоянии ENABLE
-                     if (ENABLE == state)
-                     {
-                       // Обнулить название группы, поскольку в буфере может остаться мусор,
-                       // а name_get() не пишет завершающий '\0'
-                       memset(sbs_name, '\0', LABEL_MAXLEN);
-                       rc = SBS_GROUPS_STAT_name_get(&sbs_stat_instance, sbs_name, sbs_name_size);
-                       if (rc) { LOG(ERROR) << "Get SBS name from SBS_GROUPS_STAT with id="<<sbs_aid<<", rc=" << rc; break; }
-
-                       LOG(INFO) << "Memory new SBS '" << sbs_name << "'";
-                       sbs_map->insert(std::pair<autoid_t, std::string>(sbs_aid, sbs_name));
-                     }
-#if defined VERBOSE
-                     else // группа заблокирована
-                     {
-                       LOG(INFO) << "Skip suspended SBS '"<< sbs_map_iterator->second <<"'";
-                     }
-#endif
-                   }
-#if defined VERBOSE
-                   else // группа уже отметилась
-                   {
-                     LOG(INFO) << "Skip already known SBS '"<< sbs_map_iterator->second <<"'";
-                   }
-#endif
-                 }
-                 rc = mco_cursor_next(t, &csr_sbs);
-                 if (rc && (rc != MCO_S_CURSOR_END)) { LOG(ERROR) << "Next SBS_GROUPS_ITEM cursor, rc=" << rc; break; }
-               }
-
-             } // Конец поиска групп подписки, содержащих искомую Точку
-
-             rc = mco_cursor_close(t, &csr_sbs);
-             if (rc) { LOG(ERROR) << "Close SBS_GROUPS_ITEM cursor, rc=" << rc; break; }
-
-           } // Конец проверки того, что искомая Точка модифицирована
-
-           rc = mco_cursor_next(t, &csr_point);
-           if (rc && (rc != MCO_S_CURSOR_END)) { LOG(ERROR) << "Next XDBPoint cursor, rc=" << rc; break; }
-
-         } // Конец цикла проверки всех Точек на модификации
-
-      } // Конец проверки, есть ли модифицированные точки?
-
-      rc = mco_cursor_close(t, &csr_point);
-      if (rc) { LOG(ERROR) << "Close XDBPoint cursor, rc=" << rc; break; }
-
-    } // Конец успешного создания курсора по индексу модификации 
-
-    rc = mco_trans_commit(t);
-    if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; break; }
-
-  } while (false);
-
-  if (rc)
-  {
-    mco_trans_rollback(t);
-    setError(rtE_RUNTIME_ERROR);
-  }
-
-  return rc;
-}
-
-// =================================================================================
-// Пройти по списку Точек, и сбросить им флаг модификации
-// Входные параметры:
-//   info.buffer - указатель на std::unordered_set<std::string>
-MCO_RET DatabaseRtapImpl::querySbsDisarmSelectedPoints(mco_db_h& handler, rtDbCq& info)
-{
-  mco_trans_h t;
-  XDBPoint instance;
-  MCO_RET rc = MCO_E_UNSUPPORTED;
-
-  assert(info.buffer);
-  std::unordered_set<std::string> *selected_points =
-            static_cast< std::unordered_set<std::string>* >(info.buffer);
-
-  do
-  {
-    LOG(INFO) << "querySbsDisarmSelectedPoints #points:" << selected_points->size();
-
-    rc = mco_trans_start(handler, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
-    if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
-
-    for (auto it = selected_points->begin(); it != selected_points->end(); it++)
-    {
-      rc = XDBPoint_SK_by_tag_find(t,
-                                   (*it).c_str(),
-                                   (*it).size(), //xdb::AttrTypeDescription[RTDB_ATT_IDX_UNIVNAME].size,
-                                   &instance);
-      LOG(INFO) << "querySbsDisarmSelectedPoints find : " << (*it).c_str()
-                << " size: " << xdb::AttrTypeDescription[RTDB_ATT_IDX_UNIVNAME].size
-                << " rc=" << rc;
-      if (rc)
-      {
-        LOG(ERROR) << "Finding point by tag '" << (*it) << "', rc=" << rc;
-        break;
-      }
-
-      rc = XDBPoint_is_modified_put(&instance, FALSE);
-      if (rc)
-      {
-        LOG(ERROR) << "Clear modified flag for tag '" << (*it) << "', rc=" << rc;
-        break;
-      }
-    }
-
-    rc = mco_trans_commit(t);
-    if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; break; }
-
-  } while (false);
-
-  if (rc)
-    mco_trans_rollback(t);
-
-  return rc;
-}
-
-// =================================================================================
-// Получить перечень активированных точек для указанной группы
-// Входные параметры:
-//  handler - идентификатор БДРВ
-//  info - структура запроса
-//   info.tags - вектор строк (std::vector для совместимости с другими вызовами Query),
-//               содержит один элемент с названием проверяемой группы.
-//
-// Выходные параметры для соответствующих запросов:
-//  rtQUERY_SBS_POINTS_ARMED:  info.buffer - карта соответствия (std::map) "идентификатор точки" <-> "тег точки"
-//  rtQUERY_SBS_POINTS_DISARM: info.buffer - карта соответствия (std::map) "идентификатор точки" <-> "тег точки"
-//  rtQUERY_SBS_READ_POINTS_ARMED: info.buffer - std::vector<xdb::AttributeInfo_t*>
-MCO_RET DatabaseRtapImpl::querySbsPoints(mco_db_h& handler, rtDbCq& info, TypeOfQuery action)
-{
-  MCO_RET rc = MCO_E_UNSUPPORTED;
-  mco_cursor_t csr_point;
-  mco_cursor_t csr_sbs;
-  mco_trans_h t;
-  autoid_t point_aid = 0;
-  autoid_t sbs_aid_looked = 0;
-  autoid_t sbs_aid_current = 0;
-  XDBPoint point_instance;
-  SBS_GROUPS_ITEM sbs_item_instance;
-  SBS_GROUPS_STAT sbs_stat_instance;
-  Boolean mod = TRUE;
-  // Результат сравнения с атрибутом is_modified
-  int compare_modified_result = 0;
-  // Результат сравнения с атрибутом tag_id
-  int compare_id_result = 0;
-  char point_name[TAG_NAME_MAXLEN + 1];
-  uint2 point_name_size = TAG_NAME_MAXLEN;
-  map_id_name_t::iterator sbs_map_iterator;
-  map_id_name_t *sbs_map = NULL;
-  MCO_TRANS_TYPE trans_type = MCO_READ_ONLY;
-  SubscriptionPoints_t* points_list = NULL; // Используется для rtQUERY_SBS_READ_POINTS_ARMED
-  xdb::PointDescription_t* point_info = NULL; // Используется для rtQUERY_SBS_READ_POINTS_ARMED
-
-  // Этот запрос использует параметр buffer для передачи значений
-  switch(action)
-  {
-    case rtQUERY_SBS_POINTS_ARMED:
-      assert(info.buffer);
-      sbs_map = static_cast<map_id_name_t*>(info.buffer);
-      sbs_map->clear();
-      trans_type = MCO_READ_ONLY;
-      break;
-    case rtQUERY_SBS_READ_POINTS_ARMED:
-      assert(info.buffer);
-      points_list = static_cast<SubscriptionPoints_t*>(info.buffer);
-      trans_type = MCO_READ_ONLY;
-      break;
-    case rtQUERY_SBS_POINTS_DISARM:
-      trans_type = MCO_READ_WRITE;
-      break;
-    default: ; // Остальные запросы не используют rtDbCq.info.buffer
-  }
-
-  assert(info.tags);
-  assert(info.tags->size() == 1);
-
-  LOG(INFO) << "querySbsPoints with action: " << action;
-
-  do
-  {
-    rc = mco_trans_start(handler, trans_type, MCO_TRANS_FOREGROUND, &t);
-    if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
-
-    // Найти информацию по требуемой группе
-    rc = SBS_GROUPS_STAT_PK_by_name_find(t, info.tags->at(0).c_str(), info.tags->at(0).size(), &sbs_stat_instance);
-    if (rc) { LOG(ERROR) << "Locating SBS '"<< info.tags->at(0) <<"', rc=" << rc; break; }
-
-    rc = SBS_GROUPS_STAT_autoid_get(&sbs_stat_instance, &sbs_aid_looked);
-    if (rc) { LOG(ERROR) << "Get SBS '"<< info.tags->at(0) <<"' id, rc=" << rc; break; }
-
-    // Найти все изменившиеся точки и отметить только те, что входят в искомую группу
-    rc = XDBPoint_SK_by_modified_index_cursor(t, &csr_point);
-
-    if (MCO_S_OK == rc)
-    {
-      // У изменившихся взведен флаг is_modified
-      rc = XDBPoint_SK_by_modified_search(t, &csr_point, MCO_EQ, TRUE);
-      if (rc && (rc != MCO_S_NOTFOUND)) { LOG(ERROR) << "Find modified XDBPoint since last sbs poll, rc="<<rc; break; }
-
-      if (rc != MCO_S_NOTFOUND)
-      {
-         // Прочитать очередной экземпляр XDBPoint
-         rc = mco_cursor_first(t, &csr_point);
-         if (rc) { LOG(ERROR) << "Get first XDBPoint item, rc=" << rc; break; }
-
-         // Цикл по всем Точкам
-         while (MCO_S_OK == rc)
-         {
-           compare_modified_result = 0;
-           rc = XDBPoint_SK_by_modified_compare(t, &csr_point, mod, &compare_modified_result);
-           if (rc) { LOG(ERROR) << "Compare XDBPoint modif status, rc=" << rc; break; }
-
-           if (0 == compare_modified_result) // Найден изменившийся элемент, принадлежащий пока неизвестной группе
-           {
-             rc = XDBPoint_from_cursor(t, &csr_point, &point_instance);
-             if (rc) { LOG(ERROR) << "Get XDBPoint modif status, rc=" << rc; break; }
-
-             // point_instance - модифицированная Точка
-             // Найти группы, куда она входит
-             
-             // point_aid - идентификатор модифицированной Точки
-             rc = XDBPoint_autoid_get(&point_instance, &point_aid);
-             if (rc) { LOG(ERROR) << "Get XDBPoint aid, rc=" << rc; break; }
-
-             // Открыть курсор в таблице Групп Подписки
-             rc = SBS_GROUPS_ITEM_SK_by_tag_id_index_cursor(t, &csr_sbs);
-             if (rc) { LOG(ERROR) << "Get XDBPoint aid, rc=" << rc; break; }
-
-             // Найти все группы подписки, в которые входит Точка с идентификатором point_aid
-             rc = SBS_GROUPS_ITEM_SK_by_tag_id_search(t, &csr_sbs, MCO_EQ, point_aid);
-             if (rc != MCO_S_NOTFOUND)
-             {
-               compare_id_result = 0;
-
-               // Проверить очередной экземпляр SBS_GROUPS_ITEM
-               rc = mco_cursor_first(t, &csr_sbs);
-               if (rc) { LOG(ERROR) << "Get first SBS_GROUPS_ITEM, rc="<<rc; break; };
-
-               while (MCO_S_OK == rc)
-               {
-                 rc = SBS_GROUPS_ITEM_SK_by_tag_id_compare(t, &csr_sbs, point_aid, &compare_id_result);
-                 if (rc) { LOG(ERROR) << "Compare SBS_GROUPS_ITEM with point id="<<point_aid<<", rc=" << rc; break; }
-
-                 if (0 == compare_id_result) // Найдена запись о принадлежности текущего элемента некоторой группе
-                 {
-                   // Проверить, та ли это группа?
-                   // Идентификатор должен совпасть с sbs_aid_looked
-
-                   rc = SBS_GROUPS_ITEM_from_cursor(t, &csr_sbs, &sbs_item_instance);
-                   if (rc) { LOG(ERROR) << "Get current item from SBS_GROUPS_ITEM cursor, rc=" << rc; break; }
-
-                   rc = SBS_GROUPS_ITEM_group_id_get(&sbs_item_instance, &sbs_aid_current);
-                   if (rc) { LOG(ERROR) << "Get point id from SBS_GROUPS_ITEM, rc=" << rc; break; }
-
-                   // Если идентификатор текущей группы совпадает с нужным, то это интересующая нас точка
-                   if (sbs_aid_current == sbs_aid_looked)
-                   {
-                     // Определим, что нужно делать?
-                     switch(action)
-                     {
-                       // Получить карту точек с идентификаторами и тегами
-                       case rtQUERY_SBS_POINTS_ARMED:
-                       // -----------------------------------------------
-                         // Получить название Точки в point_name
-                         // В буфере мог остаться мусор, а name_get() не пишет завершающий '\0'
-                         memset(point_name, '\0', TAG_NAME_MAXLEN);
-
-                         rc = XDBPoint_TAG_get(&point_instance, point_name, point_name_size);
-                         if (rc) { LOG(ERROR) << "Get TAG for point id="<<point_aid<<", rc=" << rc; break; }
-
-                         LOG(INFO) << "Memory new pair {id:tag} "<< point_aid << ":'" << point_name << "'";
-                         sbs_map->insert(std::pair<autoid_t, std::string>(point_aid, point_name));
-                         break;
-
-                       // Сбросить флаг модификации для данной точки 
-                       case rtQUERY_SBS_POINTS_DISARM:
-                       // -----------------------------------------------
-                         rc = XDBPoint_is_modified_put(&point_instance, FALSE);
-                         if (rc) { LOG(ERROR) << "Clear modified flag for point id="<<point_aid<<", rc=" << rc; break; }
-                         break;
-    
-                       // Прочитать значение значимых атрибутов и занести их в список AttributeInfo_t
-                       case rtQUERY_SBS_READ_POINTS_ARMED:
-                       // -----------------------------------------------
-                         point_info = new xdb::PointDescription_t;
-                         // Загрузка нужных группе подписки атрибутов текущей Точки
-                         rc = LoadPointInfo(handler, t, point_aid, point_info);
-                         // В случае единичной ошибки чтения продолжить работу, пропустив сбойную точку
-                         if (rc)
-                         {
-                           LOG(WARNING) << "Loading attributes for point id="<<point_aid<<", rc=" << rc;
-                           // TODO: может быть их тоже вносить в список, но с "больным" качеством?
-                           delete point_info;
-                         }
-                         else
-                         {
-                           LOG(INFO) << "add tag "<<point_info->tag<<" with "<<point_info->attributes.size() << " attributes";
-                           points_list->push_back(point_info);
-                         }
-                         break;
-
-                       default:
-                         LOG(ERROR) << "Unsupported action code: " << action;
-                     }
-                   }
-#if defined VERBOSE
-                   else // группа не совпадает, пропустить её
-                   {
-                     LOG(INFO) << "Skip another SBS with id="<< sbs_aid_current <<" for point id=" << point_aid;
-                   }
-#endif
-                 }
-                 rc = mco_cursor_next(t, &csr_sbs);
-                 if (rc && (rc != MCO_S_CURSOR_END)) { LOG(ERROR) << "Next SBS_GROUPS_ITEM cursor, rc=" << rc; break; }
-               }
-
-             } // Конец поиска групп подписки, содержащих искомую Точку
-
-             rc = mco_cursor_close(t, &csr_sbs);
-             if (rc) { LOG(ERROR) << "Close SBS_GROUPS_ITEM cursor, rc=" << rc; break; }
-
-           } // Конец проверки того, что искомая Точка модифицирована
-
-           rc = mco_cursor_next(t, &csr_point);
-           if (rc && (rc != MCO_S_CURSOR_END)) { LOG(ERROR) << "Next XDBPoint cursor, rc=" << rc; break; }
-
-         } // Конец цикла проверки всех Точек на модификации
-
-      } // Конец проверки, есть ли модифицированные точки?
-
-      rc = mco_cursor_close(t, &csr_point);
-      if (rc) { LOG(ERROR) << "Close XDBPoint cursor, rc=" << rc; break; }
-
-    } // Конец успешного создания курсора по индексу модификации 
-
-    rc = mco_trans_commit(t);
-    if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; break; }
-
-  } while (false);
-
-  if (rc)
-  {
-    mco_trans_rollback(t);
-    setError(rtE_RUNTIME_ERROR);
-  }
 
   return rc;
 }
@@ -5106,6 +4520,137 @@ MCO_RET DatabaseRtapImpl::writeVALMANUAL(mco_trans_h& t, rtap_db::XDBPoint& inst
   return rc;
 }
 
+// ======================== HISTOTYPE ============================
+MCO_RET DatabaseRtapImpl::createHISTOTYPE(PointInDatabase* instance, rtap_db::Attrib& attr)
+{
+  static const char *attr_name = RTDB_ATT_HISTOTYPE;
+  MCO_RET rc = MCO_S_NOTFOUND;
+  HistoryType histotype;
+  uint16_t given_type;
+
+  switch(instance->objclass())
+  {
+    case TM:    // 01
+    case ICS:   // 07
+    case ICM:   // 08
+        // NB: Значение HISTOTYPE в RTAP м.б. { -1, 1, 2, 3, ...}
+        given_type = atoi(attr.value().c_str());
+        if ((NONE <= given_type) && (given_type <= PER_MONTH)) {
+          histotype = decoder[given_type].htype;
+        }
+        else {
+          histotype = NONE;
+#ifdef VERBOSE
+          LOG(WARNING) << "Unsupported value=" << given_type
+                       << " for " << instance->tag() << "." << attr_name;
+#endif
+        }
+        rc = instance->AIT().HISTOTYPE_put(histotype);
+        if (rc) { LOG(ERROR) << "Can't write " << instance->tag(); break; }
+
+        break;
+
+    default:
+        LOG(ERROR) << "'" << attr_name
+                   << "' for objclass " << instance->objclass()
+                   << " is not supported";
+  }
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::readHISTOTYPE(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  static const char *attr_name = RTDB_ATT_HISTOTYPE;
+  MCO_RET rc = MCO_S_NOTFOUND;
+  rtap_db::AnalogInfoType   ai;
+  HistoryType histotype;
+  objclass_t objclass;
+
+  do
+  {
+    rc = instance.OBJCLASS_get(objclass);
+    if (rc) { LOG(ERROR) << "Can't get objclass for " << attr_info->name; break; }
+
+    switch(objclass)
+    {
+      case TM:    // 01
+      case ICS:   // 07
+      case ICM:   // 08
+        attr_info->value.fixed.val_uint16 = NONE;
+
+        rc = instance.ai_read(ai);
+        if (rc) { LOG(ERROR) << "Can't read analog part of " << attr_info->name; break; }
+
+        rc = ai.HISTOTYPE_get(histotype);
+        if (rc) { LOG(ERROR) << "Can't read " << attr_info->name; break; }
+        attr_info->value.fixed.val_uint16 = static_cast<uint16_t>(histotype);
+        attr_info->type = AttrTypeDescription[RTDB_ATT_IDX_HISTOTYPE].type;
+        break;
+
+      default:
+        LOG(ERROR) << "'" << attr_name
+                   << "' for objclass " << objclass
+                   << " is not supported, point " << attr_info->name;
+        attr_info->type = DB_TYPE_UNDEF;
+        break;
+    }
+    // Если внутри switch(objclass) была ошибка, дальнейшая обработка сразу прекращается
+    if (rc) break;
+
+  } while(false);
+
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeHISTOTYPE(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  static const char *attr_name = RTDB_ATT_HISTOTYPE;
+  MCO_RET rc = MCO_S_NOTFOUND;
+  rtap_db::AnalogInfoType   ai;
+  HistoryType histotype = NONE;
+  objclass_t objclass;
+
+  assert(attr_info->type == AttrTypeDescription[RTDB_ATT_IDX_HISTOTYPE].type);
+  do
+  {
+    rc = instance.OBJCLASS_get(objclass);
+    if (rc) { LOG(ERROR) << "Can't get objclass for " << attr_info->name; break; }
+
+    switch(objclass)
+    {
+      case TM:    // 01
+      case ICS:   // 07
+      case ICM:   // 08
+        rc = instance.ai_read(ai);
+        if (rc) { LOG(ERROR) << "Can't read analog part of " << attr_info->name; break; }
+
+        if ((NONE <= attr_info->value.fixed.val_uint16)
+        && (attr_info->value.fixed.val_uint16 <= PER_MONTH)) {
+          histotype = decoder[attr_info->value.fixed.val_uint16].htype;
+          rc = ai.HISTOTYPE_put(histotype);
+          if (rc) { LOG(ERROR) << "Can't write " << attr_info->name; break; }
+        }
+        else {
+          LOG(ERROR) << "Unsupported value=" << attr_info->value.fixed.val_uint16
+                     << " for " << attr_info->name << "." << attr_name;
+        }
+        break;
+
+      default:
+        LOG(ERROR) << "'" << attr_name
+                   << "' for objclass " << objclass
+                   << " is not supported, point " << attr_info->name;
+        attr_info->type = DB_TYPE_UNDEF;
+        break;
+    }
+    // Если внутри switch(objclass) была ошибка, дальнейшая обработка сразу прекращается
+    if (rc) break;
+
+  } while(false);
+
+  return rc;
+}
+
 // ======================== VALEX ============================
 // Предыдущее значение ТИ
 MCO_RET DatabaseRtapImpl::createVALEX(PointInDatabase* instance, rtap_db::Attrib& attr)
@@ -6510,6 +6055,7 @@ MCO_RET DatabaseRtapImpl::createVAL_LABEL(PointInDatabase* /* instance */, rtap_
   return MCO_S_OK;
 }
 
+#if 0
 // ======================== LINK_HIST ============================
 MCO_RET DatabaseRtapImpl::createLINK_HIST(PointInDatabase* instance, rtap_db::Attrib& attr)
 {
@@ -6618,6 +6164,7 @@ MCO_RET DatabaseRtapImpl::writeLINK_HIST(mco_trans_h& t, rtap_db::XDBPoint& inst
 
   return rc;
 }
+#endif
 
 // ======================== L_DIPL ============================
 MCO_RET DatabaseRtapImpl::createL_DIPL(PointInDatabase* instance, rtap_db::Attrib& attr)

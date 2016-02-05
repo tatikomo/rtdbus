@@ -43,7 +43,7 @@ include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})
 include_directories(${LIBCPPZMQ_INCLUDE_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})
-include_directories(${LIBHIREDIS_INCLUDE_DIR})
+include_directories(${LIBSQLITE_INCLUDE_DIR})
 
 link_directories(${GTEST_DIR}/lib/.libs)
 link_directories(${LIBGLOG_LIBRARIES_DIR})
@@ -52,7 +52,7 @@ link_directories(${XDB_BROKER_DIR})
 link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
-link_directories(${LIBHIREDIS_LIBRARIES_DIR})
+link_directories(${LIBSQLITE_LIBRARIES_DIR})
 
 set (TEST_METRICS_SOURCES
         ${GTEST_INC_DIR}/gtest/gtest.h
@@ -170,6 +170,8 @@ set (TEST_HIST_XDB_SOURCES
         ${GTEST_INC_DIR}/gtest/gtest.h
         ${XDB_COMMON_DIR}/xdb_common.cpp
         ${XDB_COMMON_DIR}/xdb_common.hpp
+        ${XDB_IMPL_DIR}/xdb_impl_common.h
+        ${XDB_IMPL_DIR}/xdb_impl_common.c
         ${XDB_IMPL_DIR}/dat/rtap_db.hpp
         ${XDB_IMPL_DIR}/dat/rtap_db.h
         ${XDB_IMPL_DIR}/dat/rtap_db.c
@@ -293,7 +295,7 @@ target_link_libraries(${UNITTEST_DATABASE}
     ${MSG_LIBRARY_NAME}
     ${LIBPROTOBUF_LIBRARIES}
     ${LIBGLOG_LIBRARIES}
-    ${LIBHIREDIS_LIBRARIES}
+    ${LIBSQLITE_LIBRARIES}
     ${GTEST_DIR}/cmake/libgtest.a
     ${SYSTEM_EXTERNAL_LIBS})
 
@@ -315,10 +317,15 @@ target_link_libraries(${UNITTEST_CE}
     ${SYSTEM_EXTERNAL_LIBS})
 
 add_executable (${UNITTEST_HIST_XDB} ${TEST_HIST_XDB_SOURCES})
+#add_definitions("-pthread")
+add_definitions (-DHIST_DATABASE_LOCALIZATION=LOCAL)
 target_link_libraries(${UNITTEST_HIST_XDB}
     ${LIBGLOG_LIBRARIES}
+    ${XDB_RTAP_LIBRARY_NAME}
+    ${LIBSQLITE_LIBRARIES}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
-    libmcodbcalc_debug.so
+    # mco_db_load/save
+    ${LIBEXTREMEDB_EXTRA_LIBRARIES}
     ${GTEST_DIR}/cmake/libgtest.a
     ${SYSTEM_EXTERNAL_LIBS})
 

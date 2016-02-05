@@ -22,14 +22,16 @@
 #include "mdp_worker_api.hpp"
 #include "mdp_zmsg.hpp"
 #include "msg_message.hpp"
+//1 #include "hdb_impl_processor.hpp"
 
 // Тип генератора предыстории
 typedef enum {
-  PER_1_MINUTE  = 0,
-  PER_5_MINUTES = 1,
-  PER_HOUR      = 2,
-  PER_DAY       = 3,
-  PER_MONTH     = 4,
+  STAGE_NONE    = 0,
+  PER_1_MINUTE  = 1,
+  PER_5_MINUTES = 2,
+  PER_HOUR      = 3,
+  PER_DAY       = 4,
+  PER_MONTH     = 5,
   STAGE_LAST    = PER_MONTH + 1
 } sampler_type_t;
 
@@ -58,6 +60,8 @@ typedef union {
   double    val_double;
 } common_value_t;
 
+class Historian;
+
 // ---------------------------------------------------------------------
 // Собиратель архивов
 // Выполняется несколько экземпляров, каждый из которых занимается обработкой
@@ -80,9 +84,7 @@ class SamplerWorker
     SamplerWorker(zmq::context_t&,      /* Ссылка на общий ZMQ контекст         */
                   sampler_type_t,       /* Тип семпла - минутный, часовой,...   */
                   xdb::RtEnvironment*,  /* Ссылка на экземпляр БД               */
-                  const char*,          /* адрес сервера хранения предыстории   */
-                  int                   /* Номер порта сервера хранения предыстории */
-                  );
+                  const char*);         /* адрес сервера хранения предыстории   */
    ~SamplerWorker();
 
     // Бесконечный цикл обработки запросов
@@ -101,15 +103,14 @@ class SamplerWorker
     // Признак успешности подключения к внешней БД хранения предыстории
     bool m_history_db_connected;
     sampler_type_t m_sampler_type;
+    Historian *historian;
 #if 0
     // рабочий каталог файловой системы, используется как
     // вершина файловой иерархии хранения исторических значений
     char* m_cwd;
 #endif
-    // ip-адрес сервера хранения предыстории
-    const char* m_history_db_address;
-    // Номер порта БД хранения предыстории
-    int m_history_db_port;
+    // имя снимка БД хранения предыстории
+    const char* m_history_db_filename;
 
     // собрать предысторию текущего типа
     void collect_sample();
@@ -151,10 +152,8 @@ class ArchivistSamplerProxy
     static bool m_interrupt;
     timer_mark_t m_time_before;
     timer_mark_t m_time_after;
-    // ip-адрес сервера хранения предыстории
-    char m_history_db_address[20];
-    // Номер порта БД хранения предыстории
-    int m_history_db_port;
+    // имя файлового снимка БД хранения предыстории
+    char m_history_db_filename[20];
 
     // первоначальная инициализация списков аналоговых и дискретных точек
     void fill_points_list();
@@ -171,7 +170,7 @@ class ArchivistSampler : public mdp::mdwrk
     // Запуск ArchivistSamplerProxy и цикла получения сообщений
     void run();
 
-    int handle_request(mdp::zmsg*, std::string*);
+    int handle_request(mdp::zmsg*, std::string*, bool&);
 
   private:
     std::string m_broker_endpoint;

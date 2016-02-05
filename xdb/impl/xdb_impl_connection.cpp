@@ -45,10 +45,14 @@ ConnectionImpl::ConnectionImpl(DatabaseRtapImpl* rtap_db/*EnvironmentImpl *env*/
    m_last_error(rtE_CONNECTION_INVALID)
 {
   MCO_RET rc;
-  int pid = getpid();
 
   // Каждая нить должна вызвать mco_db_connect
+#if (EXTREMEDB_VERSION > 40)
+  int pid = getpid();
   rc = mco_db_connect_ctx(m_rtap_db_impl->getName(), &pid, &m_database_handle);
+#else
+  rc = mco_db_connect(m_rtap_db_impl->getName(), &m_database_handle);
+#endif
   if (rc)
   {
     LOG(ERROR) << "Couldn't get new database '"<<m_rtap_db_impl->getName()<<"' connection, rc="<<rc;

@@ -10,10 +10,16 @@
 #ifdef __cplusplus
 extern "C" {
 #include "mco.h"
-# if (EXTREMEDB_VERSION >= 40)
+
+#if RTDBUS_USE_XDB_CALC
+#include "mcodbcalc.h"
+#endif
+
+#if (EXTREMEDB_VERSION >= 40)
 #include "mcouda.h"  // mco_metadict_header_t
 #include "mcohv.h"   // mcohv_p
-# endif
+#endif
+
 #define SETUP_POLICY
 #include "mcoxml.h"
 }
@@ -102,6 +108,9 @@ class DatabaseImpl
     char         m_name[DBNAME_MAXLEN+1];
     mco_db_h     m_db;
     mco_dictionary_h m_dict;
+#if RTDBUS_USE_XDB_CALC
+    mco_calc_t   m_calc;
+#endif
     const Options     *m_db_access_flags;
     bool         m_save_to_xml_feature;
     BitSet8      m_flags;

@@ -161,6 +161,13 @@ typedef AttrProcessingFuncMap_t::iterator AttrProcessingFuncMapIterator_t;
 
 void errhandler(MCO_RET);
 void extended_errhandler(MCO_RET errcode, const char* file, int line);
+// Определение типа атрибута VAL по OBJCLASS
+// Значениями могут быть:
+//   NONE (в случае ошибки или если точка не имеет атрибута VAL)
+//   ANALOG
+//   DISCRETE
+//   BINARY
+ProcessingType_t get_type_by_objclass(const objclass_t objclass);
 
 /* Фактическая реализация функциональности Базы Данных для Брокера */
 class DatabaseRtapImpl
@@ -361,6 +368,8 @@ class DatabaseRtapImpl
     // ====================================================
     // Работа с группами подписки через интерфейс Query()
     // ====================================================
+    // Прочитать список точек указанной категории
+    MCO_RET queryPointsOfSpecifiedCategory (mco_db_h&, rtDbCq&);
     // Прочитать список точек указанного класса
     MCO_RET queryPointsOfSpecifiedClass (mco_db_h&, rtDbCq&);
     // Получить список групп подписки с активными (модифицированными элементами)
@@ -372,6 +381,8 @@ class DatabaseRtapImpl
     // rtQUERY_SBS_POINTS_DISARM: Для указанной группы Точек сбросить признак модификации
     // rtQUERY_SBS_READ_POINTS_ARMED: Прочитать значения всех атрибутов указанной группы
     MCO_RET querySbsPoints(mco_db_h&, rtDbCq&, TypeOfQuery);
+    // Запрос на получение списка Точек, имеющих предысторию
+    MCO_RET queryPointsWithHistory(mco_db_h& handler, rtDbCq& info);
      
     // Главный источник переченя атрибутов - rtap_db.xsd
     // Но поскольку скриптом мне проще обрабатывать плоский текстовый

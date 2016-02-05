@@ -1,28 +1,14 @@
-#ifndef HIST_XDB_UNITTEST_HPP
-#define HIST_XDB_UNITTEST_HPP
+#ifndef HIST_IMPL_PROCESSOR_HPP
+#define HIST_IMPL_PROCESSOR_HPP
 #pragma once
 
 #include "sqlite3.h"
 
+#if defined HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "xdb_common.hpp"
-
-// sec = 946684800 : GMT=[Sat, 01 Jan 2000 00:00:00]; MSK=[Sat, 01 Jan 2000 03:00:00]
-// sec = 946674000 : MSK=[Sat, 01 Jan 2000 00:00:00]
-// MSK=[Sat, 01 Jan 2000 00:00:00]
-#define HIST_TEST_PERIOD_START  946674000
-#define HIST_TEST_POINT_NAME    "/KA4001/FY01"
-
-// Название таблицы с данными в HDB
-#define HDB_DATA_TABLENAME  "HIST"
-// Название таблицы с НСИ в HDB
-#define HDB_DICT_TABLENAME  "HIST_DICT"
-#define HISTORY_DB_FILENAME "hdb.sqlite3"
-#define RTDB_NAME           "SINF"
-
-// Максимальное кол-во одновременно читаемых элементов предыстории для одного параметра
-#define MAX_PORTION_SIZE_LOADED_HISTORY 100
-// Размер буфера для формирования SQL-команды
-#define MAX_BUFFER_SIZE_FOR_SQL_COMMAND 400
 
 #define within(num) (int) ((float) (num) * random () / (RAND_MAX + 1.0))
 

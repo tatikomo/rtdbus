@@ -12,6 +12,7 @@
 #if defined HAVE_CONFIG_H
 #include "config.h"
 #endif
+#include "sqlite3.h"
 
 #include "xdb_common.hpp"
 
@@ -41,8 +42,6 @@
 using namespace xdb;
 
 #define within(num) (int) ((float) (num) * random () / (RAND_MAX + 1.0))
-// Типы данных, испольуемые в проверке БД Истории
-enum ProcessingType_t { NONE = 0, ANALOG = 1, DISCRETE = 2, BINARY = 3 };
 
 typedef union {
   uint64_t  val_uint64;
@@ -144,6 +143,8 @@ const char *sbs_points[] = {
     "/KO4016/GOV171/PT01",  // GOFVALTI
     "/KA4003/XA01"          // GOFVALAL
 };
+// Хендлер БД Истории
+sqlite3 *hist_db = NULL;
 
 typedef std::vector <points_objclass_item_t> points_objclass_list_t;
 
@@ -171,6 +172,7 @@ rtap_db_dict::Dictionaries_t dict;
 
 points_objclass_list_t points_objclass_list;
 
+// ===========================================================================
 void wait()
 {
 #ifdef USE_EXTREMEDB_HTTP_SERVER
@@ -179,6 +181,7 @@ void wait()
 #endif
 }
 
+// ===========================================================================
 void show_runtime_info(const char * lead_line)
 {
   mco_runtime_info_t info;
@@ -244,7 +247,7 @@ bool calc_average_sample(sampler_type_t type,
     // ---------------------------------------------------------
     switch(item.type)
     {
-      case ANALOG:
+      case PROCESSING_ANALOG:
         // Выбрать N отсчетов из базы для предыдущего периода истории
         // ----------------------------------------------------------
         for (int num_sample = 0; num_sample < m_stages[type].num_prev_samples; num_sample++) {
@@ -253,7 +256,7 @@ bool calc_average_sample(sampler_type_t type,
         }
         break;
 
-      case DISCRETE:
+      case PROCESSING_DISCRETE:
         // Выбрать N отсчетов из базы для предыдущего периода истории
         // ----------------------------------------------------------
         for (int num_sample = 0; num_sample < m_stages[type].num_prev_samples; num_sample++) {
@@ -262,7 +265,7 @@ bool calc_average_sample(sampler_type_t type,
         }
         break;
 
-      case BINARY:
+      case PROCESSING_BINARY:
         // Пропускаем тип BINARY, поскольку его невозможно усреднять
         LOG(WARNING) << "Skip binary typed point " << item.tag;
         break;
@@ -283,7 +286,7 @@ bool calc_average_sample(sampler_type_t type,
 
     switch(item.type)
     {
-      case ANALOG:
+      case PROCESSING_ANALOG:
         for (int num_sample = 0; num_sample < m_stages[type].num_prev_samples; num_sample++) {
           // Копим сумму
           if (!isnan(arr_values[num_sample].val_double)) {
@@ -305,7 +308,7 @@ bool calc_average_sample(sampler_type_t type,
 //1                  << ", VALID = " << item.valid[type];
         break;
 
-      case DISCRETE:
+      case PROCESSING_DISCRETE:
         for (int num_sample = 0; num_sample < m_stages[type].num_prev_samples; num_sample++) {
           // Копим сумму
           sum_int_val += arr_values[num_sample].val_uint64;
@@ -320,7 +323,7 @@ bool calc_average_sample(sampler_type_t type,
 //1                  << ", VALID = " << item.valid[type];
         break;
 
-      case BINARY:
+      case PROCESSING_BINARY:
         // Пропускаем тип BINARY, поскольку его невозможно усреднять
         ;
         break;
@@ -742,7 +745,7 @@ bool load_samples_from_rtdbus(
       // Сперва всегда формируется минутная история
       switch(item.type)
       {
-          case ANALOG:
+          case PROCESSING_ANALOG:
             // TODO: При реальной работе тут должен быть вызов чтения атрибута VAL из БДРВ
             item.average[PER_MOMENT].val_double = sin(random() / (RAND_MAX + 1.0));
 //1            LOG(INFO) << item.tag << ".VAL="
@@ -751,7 +754,7 @@ bool load_samples_from_rtdbus(
             num_items++;
             break;
 
-          case DISCRETE:
+          case PROCESSING_DISCRETE:
             // TODO: При реальной работе тут должен быть вызов чтения атрибута VAL из БДРВ
             item.average[PER_MOMENT].val_uint64 = within(25);
 //1            LOG(INFO) << item.tag << ".VAL="
@@ -760,7 +763,7 @@ bool load_samples_from_rtdbus(
             num_items++;
             break;
 
-          case BINARY:
+          case PROCESSING_BINARY:
             item.average[PER_MOMENT].val_uint64 = within(1);
 //1            LOG(INFO) << item.tag << ".VAL="
 //1                      << item.average[PER_MOMENT].val_uint64;
@@ -768,7 +771,6 @@ bool load_samples_from_rtdbus(
             num_items++;
             break;
 
-          case NONE:
           default:
             LOG(ERROR) << "Unsupported type: " << item.type;
             is_success = false;
@@ -887,7 +889,7 @@ void store_sample_period(time_t finish_period,
   {
       switch(item.type)
       {
-          case ANALOG:
+          case PROCESSING_ANALOG:
             // HISTORY_point_ref_put
             // HISTORY_VALIDITY_put
 //1            rc = rtap_db::HISTORY_new(t, handle);
@@ -927,7 +929,7 @@ void store_sample_period(time_t finish_period,
             num_items++;
             break;
 
-          case DISCRETE:
+          case PROCESSING_DISCRETE:
             //            Сортированный список
             //            |
             //            |    название списка (совпадает с тегом БДРВ)
@@ -961,11 +963,10 @@ void store_sample_period(time_t finish_period,
             num_items++;
             break;
 
-          case BINARY:
+          case PROCESSING_BINARY:
             LOG(WARNING) << "Skip sampling type "<< sampler_type << " for binary point " << item.tag;
             break;
 
-          case NONE:
           default:
             LOG(ERROR) << "Unsupported type: " << item.type;
     }
@@ -1069,7 +1070,6 @@ bool get_samples(const char* tag, ProcessingType_t processing_type, sampler_type
   return status;
 }
 
-#if 0
 // ==============================================================================
 TEST(TestBrokerDATABASE, OPEN)
 {
@@ -1608,9 +1608,26 @@ TEST(TestDiggerDATABASE, READ_WRITE)
   delete [] info.value.dynamic.varchar;
 }
 
+TEST(TestDiggerDATABASE, QUERY_PTS_IN_CATEG)
+{
+  xdb::rtDbCq operation;
+  xdb::Error result;
+  category_type_t ctype = CATEGORY_HAS_HISTORY;
+  xdb::map_name_id_t historized_points;
+
+  // Получить список идентификаторов Точек с заданным в addrCnt значением категории
+  operation.action.query = xdb::rtQUERY_PTS_IN_CATEG;
+  operation.buffer = &historized_points;
+  // Плохо - передача значения Категории через атрибут, предназначенный для другой цели
+  operation.addrCnt = ctype;
+  result = connection->QueryDatabase(operation);
+  EXPECT_EQ(result.code(), rtE_NONE);
+
+  EXPECT_TRUE(historized_points.size() > 0);
+}
+
 TEST(TestDiggerDATABASE, QUERY_PTS_IN_CLASS)
 {
-  enum ProcessingType_t { NONE = 0, ANALOG = 1, DISCRETE = 2 };
   xdb::rtDbCq operation;
   xdb::Error result;
   int idx;
@@ -1624,7 +1641,7 @@ TEST(TestDiggerDATABASE, QUERY_PTS_IN_CLASS)
   xdb::map_id_name_t discrete_points_per_object_type;
   ProcessingType_t processing_type;
 
-  // Получить список имдентификаторов Точек с заданным в addrCnt значением objclass
+  // Получить список идентификаторов Точек с заданным в addrCnt значением objclass
   operation.action.query = xdb::rtQUERY_PTS_IN_CLASS;
 
   for (idx = GOF_D_BDR_OBJCLASS_TS;
@@ -1633,7 +1650,7 @@ TEST(TestDiggerDATABASE, QUERY_PTS_IN_CLASS)
   {
     discrete_points_per_object_type.clear();
     analog_points_per_object_type.clear();
-    processing_type = NONE;
+    processing_type = PROCESSING_UNKNOWN;
 
     switch(xdb::ClassDescriptionTable[idx].val_type)
     {
@@ -1647,7 +1664,7 @@ TEST(TestDiggerDATABASE, QUERY_PTS_IN_CLASS)
       case xdb::DB_TYPE_INT64:   // 8
       case xdb::DB_TYPE_UINT64:  // 9
         // Дискретное состояние данного типа Точки
-        processing_type = DISCRETE;
+        processing_type = PROCESSING_DISCRETE;
         operation.buffer = &discrete_points_per_object_type;
         operation.addrCnt = xdb::ClassDescriptionTable[idx].code;
         result = connection->QueryDatabase(operation);
@@ -1657,7 +1674,7 @@ TEST(TestDiggerDATABASE, QUERY_PTS_IN_CLASS)
       case xdb::DB_TYPE_FLOAT:   // 10
       case xdb::DB_TYPE_DOUBLE:  // 11
         // Аналоговое состояние данного типа Точки
-        processing_type = ANALOG;
+        processing_type = PROCESSING_ANALOG;
         operation.buffer = &analog_points_per_object_type;
         operation.addrCnt = xdb::ClassDescriptionTable[idx].code;
         result = connection->QueryDatabase(operation);
@@ -1665,7 +1682,7 @@ TEST(TestDiggerDATABASE, QUERY_PTS_IN_CLASS)
         break;
 
       default:
-        processing_type = NONE; // Ничего не делать
+        processing_type = PROCESSING_UNKNOWN; // Ничего не делать
     }
 
     // Чтение набора точек выполено успешно?
@@ -1673,17 +1690,16 @@ TEST(TestDiggerDATABASE, QUERY_PTS_IN_CLASS)
     {
       switch(processing_type)
       {
-        case ANALOG:
+        case PROCESSING_ANALOG:
           all_analog_points.insert(analog_points_per_object_type.begin(),
                                    analog_points_per_object_type.end());
           break;
 
-        case DISCRETE:
+        case PROCESSING_DISCRETE:
           all_discrete_points.insert(discrete_points_per_object_type.begin(),
                                      discrete_points_per_object_type.end());
           break;
 
-        case NONE:
         default:
           ; // nothing to do
       }
@@ -2470,20 +2486,28 @@ TEST(TestTools, RELEASE_MEMORY)
     delete ClassDescriptionTable[objclass].attributes_pool;
   }
 }
-#endif
 
+#if 0
 // ==============================================================================
 // [OK] Проверка доступа к БД Истории
 TEST(TestHIST, HIST_ACCESS)
 {
   struct timeval timeout = { 1, 500000 }; // 1.5 seconds
   // ip-адрес сервера хранения предыстории
-  char history_db_address[100];
+  char history_db_filename[200];
   // Номер порта БД хранения предыстории
-  const int history_db_port = HISTDB_PORT_NUM;
   bool history_db_connected = false;
 
-  strcpy(history_db_address, HISTDB_IP_ADDRESS);
+  strcpy(history_db_filename, HISTDB_SNAP_FILENAME);
+
+  // Подключиться к БД Истории
+  if (sqlite3_open(history_db_filename, &hist_db)) {
+    LOG(ERROR) << "Opening History DB '" << history_db_filename << "':  " << sqlite3_errmsg(hist_db);
+  }
+  else {
+    LOG(INFO) << "History DB '" << history_db_filename << "' successfuly opened";
+    history_db_connected = true;
+  }
 
   /* Проверить доступность сервера хранения истории Redis */
   EXPECT_TRUE(history_db_connected == true);
@@ -2550,7 +2574,7 @@ TEST(TestHIST, HIST_MAKE_SAMPLES)
     localtime_r(&time_frame, &past_edge);
 
 #if 0
-    NB: Для тестов достаточно обновлять данные непосредственно перед минутным интервалом
+    // NB: Для тестов достаточно обновлять данные непосредственно перед минутным интервалом
     // Обновить мгновенные данные
     //process_sample(time_frame, PER_MOMENT);
 #endif
@@ -2629,6 +2653,7 @@ TEST(TestHIST, HIST_GET_PERIOD)
 TEST(TestHIST, HIST_CLOSE)
 {
 }
+#endif
 
 // ==============================================================================
 int main(int argc, char** argv)

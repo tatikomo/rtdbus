@@ -14,6 +14,7 @@ set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/modules")
 set (USE_EXTREMEDB_HTTP_SERVER 0)
 OPTION (RTDBUS_USE_EXTREMEDB_HTTP_SERVER "enable internal http server"  OFF)
 OPTION (RTDBUS_USE_MSEC_IN_EXPIRATION    "enable nanoseconds comparing" OFF)
+OPTION (RTDBUS_USE_XDB_CALC              "enable internal xdb statisic" OFF)
  
 STRING(TOUPPER ${CMAKE_SYSTEM_NAME} sysname)
 
@@ -113,11 +114,11 @@ if(NOT LIBGLOG_FOUND)
     return()
 endif(NOT LIBGLOG_FOUND)
 
-find_package(LIBHIREDIS)
-if(NOT LIBHIREDIS_FOUND)
-    message(SEND_ERROR "Failed to find HiRedis facility")
+find_package(LIBSQLITE)
+if(NOT LIBSQLITE_FOUND)
+    message(SEND_ERROR "Failed to find SQLite facility")
     return()
-endif(NOT LIBHIREDIS_FOUND)
+endif(NOT LIBSQLITE_FOUND)
 
 include (ConfigureChecks.cmake)
 include (MacroLibrary)
@@ -173,6 +174,8 @@ set(TOOLS_DIR                ${CMAKE_SOURCE_DIR}/../tools)
 set(WORKER_DIR               ${CMAKE_SOURCE_DIR}/../worker)
 set(CLIENT_DIR               ${CMAKE_SOURCE_DIR}/../client)
 set(MSG_DIR                  ${CMAKE_SOURCE_DIR}/../msg)
+set(HDB_DIR                  ${CMAKE_SOURCE_DIR}/../hdb)
+
 set(MDP_LIBRARY_NAME             ${RTDBUS_PROJECT_PREFIX}_mdp_${RTDBUS_VERSION})
 # Высокоуровневая библиотека работы с БД RTAP, отвязанная от деталей реализации MCO
 set(XDB_RTAP_LIBRARY_NAME        ${RTDBUS_PROJECT_PREFIX}_xrtap_${RTDBUS_VERSION})
@@ -185,6 +188,7 @@ set(XDB_BROKER_IMPL_LIBRARY_NAME ${RTDBUS_PROJECT_PREFIX}_xbrkri_${RTDBUS_VERSIO
 set(XDB_RTAP_DIGGER_NAME         ${RTDBUS_PROJECT_PREFIX}_xdig_${RTDBUS_VERSION})
 set(MSG_LIBRARY_NAME             ${RTDBUS_PROJECT_PREFIX}_zmsg_${RTDBUS_VERSION})
 set(TOOLS_LIBRARY_NAME           ${RTDBUS_PROJECT_PREFIX}_hlpr_${RTDBUS_VERSION})
+set(HDB_LIBRARY_NAME             ${RTDBUS_PROJECT_PREFIX}_hdb_${RTDBUS_VERSION})
 
 OPTION(RTDBUS_BUILD_TESTS "enable unit test code" ON)
 OPTION(RTDBUS_ENABLE_VERBOSE_MODE "Enable additional debug trace" ON)
@@ -232,8 +236,7 @@ set (ENDPOINT_EXCHG_FRONTEND        "tcp://localhost:5559")
 set (ENDPOINT_SBS_PUBLISHER         "tcp://localhost:5560")
 set (ENDPOINT_ARCH_FRONTEND         "tcp://localhost:5561")
 set (ENDPOINT_HIST_FRONTEND         "tcp://localhost:5562")
-set (HISTDB_IP_ADDRESS              "127.0.0.1")
-set (HISTDB_PORT_NUM                6379)
+set (HISTDB_SNAP_FILENAME           "hdb.sqlite3")
 
 # Предопределенные названия Служб
 set (BROKER_NAME        "BROKER")
@@ -242,6 +245,16 @@ set (HMI_NAME           "HMI")
 set (EXCHANGE_NAME      "ECH")
 set (ARCHIVIST_NAME     "ARCH")
 set (HIST_SAMPLER_NAME  "HIST")
+
+# Названия таблиц Исторической БД (HDB)
+set (HDB_DATA_TABLENAME "HIST")
+set (HDB_DICT_TABLENAME "HIST_DICT")
+# Название файла со снимком HDB
+set (HISTORY_DB_FILENAME "hdb.sqlite3")
+# Максимальное кол-во одновременно читаемых элементов предыстории для одного параметра
+set (MAX_PORTION_SIZE_LOADED_HISTORY 100)
+# Размер буфера для формирования SQL-команды
+set (MAX_BUFFER_SIZE_FOR_SQL_COMMAND 400)
 
 # Максимальное количество одновременно допустимых подключений
 set (DEFAULT_MAX_DB_CONNECTIONS_ALLOWED  4)
@@ -268,6 +281,7 @@ install_files(/bin FILES ${CMAKE_BINARY_DIR}/bin/rtdbus-env.bat)
 add_subdirectory( xdb/impl )
 add_subdirectory( xdb/broker )
 add_subdirectory( xdb/rtap )
+add_subdirectory( hdb )
 add_subdirectory( tools )
 add_subdirectory( mdp )
 add_subdirectory( worker )
@@ -309,7 +323,7 @@ message(STATUS "ZeroMQ:                   ${LIBZMQ_LIBRARIES_DIR}\t${LIBZMQ_LIBR
 message(STATUS "Protobuf:                 ${LIBPROTOBUF_LIBRARIES_DIR}\t${LIBPROTOBUF_LIBRARIES}")
 message(STATUS "eXtremeDB:                ${LIBEXTREMEDB_LIBRARIES_DIR}\t${LIBEXTREMEDB_LIBRARIES}")
 message(STATUS "glog:                     ${LIBGLOG_LIBRARIES_DIR}\t${LIBGLOG_LIBRARIES}")
-message(STATUS "hiredis:                  ${LIBHIREDIS_LIBRARIES_DIR}\t${LIBHIREDIS_LIBRARIES}")
+message(STATUS "sqlite:                   ${LIBSQLITE_LIBRARIES_DIR}\t${LIBSQLITE_LIBRARIES}")
 message(STATUS "Building unit tests:      ${RTDBUS_BUILD_TESTS}               ")
 message(STATUS "Building xdb http serv:   ${RTDBUS_USE_EXTREMEDB_HTTP_SERVER} ")
 message(STATUS "Building verbose mode:    ${RTDBUS_ENABLE_VERBOSE_MODE}       ")

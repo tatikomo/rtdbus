@@ -59,8 +59,7 @@
 #cmakedefine ENDPOINT_SBS_PUBLISHER   "@ENDPOINT_SBS_PUBLISHER@"
 #cmakedefine ENDPOINT_ARCH_FRONTEND   "@ENDPOINT_ARCH_FRONTEND@"
 #cmakedefine ENDPOINT_HIST_FRONTEND   "@ENDPOINT_HIST_FRONTEND@"
-#cmakedefine HISTDB_IP_ADDRESS        "@HISTDB_IP_ADDRESS@"
-#cmakedefine HISTDB_PORT_NUM           @HISTDB_PORT_NUM@
+#cmakedefine HISTDB_SNAP_FILENAME     "@HISTDB_SNAP_FILENAME@"
 
 /* Predefined service names */
 #cmakedefine BROKER_NAME        "@BROKER_NAME@"
@@ -70,6 +69,16 @@
 #cmakedefine ARCHIVIST_NAME     "@ARCHIVIST_NAME@"
 #cmakedefine HIST_SAMPLER_NAME  "@HIST_SAMPLER_NAME@"
 
+/* Predefined HDB table names */
+#cmakedefine HDB_DATA_TABLENAME "@HDB_DATA_TABLENAME@"
+#cmakedefine HDB_DICT_TABLENAME "@HDB_DICT_TABLENAME@"
+/* HDB snapshot filename */
+#cmakedefine HISTORY_DB_FILENAME "@HISTORY_DB_FILENAME@"
+/* Maximum amount of history samples loaded by time */
+#cmakedefine MAX_PORTION_SIZE_LOADED_HISTORY @MAX_PORTION_SIZE_LOADED_HISTORY@
+/* Maximum buffer size for single part of SQL-command */
+#cmakedefine MAX_BUFFER_SIZE_FOR_SQL_COMMAND @MAX_BUFFER_SIZE_FOR_SQL_COMMAND@
+ 
 /* Timeouts for ZMQ-throw operations */
 #cmakedefine RECV_TIMEOUT_MSEC        @RECV_TIMEOUT_MSEC@
 #cmakedefine SEND_TIMEOUT_MSEC        @SEND_TIMEOUT_MSEC@

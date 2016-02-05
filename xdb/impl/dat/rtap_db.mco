@@ -46,11 +46,13 @@
 // Calculation Engines
 #define MAX_CE_QUANTITY         10
 // max history table depth for discrete points
-#define MAX_HISTORY_QUANTITY 100000
-// max history table depth for 1-minute sampling table
-#define MAX_1_MIN_HISTORY_QUANTITY 100000
-// max history table depth for 5-minutes sampling table
-#define MAX_5_MIN_HISTORY_QUANTITY 100000
+#define MAX_D_HISTORY_QUANTITY 100000
+// 7 days as max history table depth for 1-minute sampling table
+// 10080 = 60(samples/min) * 24(hours/day) * 7(days)
+//#define MAX_A_HISTORY_QUANTITY 10080
+// Макс. количество аналоговых точек, имеющих предысторию
+// Определяет размер массива среза семплов на одну дату
+//#define MAX_A_POINTS_WITH_HISTORY 1000
 
 declare database  rtap_db;
 //struct Id {
@@ -326,7 +328,11 @@ class DICT_UNITY_ID
   s_attname     dimension_entry;// Символьный код размерности на англ. языке 
   s_label       UNITY;          // Символьное обозначение размерности (С, км3/сут,...)
   s_label       designation_entry;// Символьное описание размерности (Температура, Расход,...)
-  unique hash <UNITY>  unityHash[100];    /* max 100 different unities */
+#ifdef (EXTREMEDB_VERSION >= 40)
+//  unique hash <UNITY>  unityHash[100];    /* max 100 different unities */
+#else
+  hash <UNITY>  unityHash[100];    /* max 100 different unities */
+#endif
   unique tree <unityID> PK_by_id;  /* get unity instance by ID */
 };
 
@@ -347,7 +353,11 @@ class SBS_GROUPS_STAT
   autoid[MAX_SBS_QUANTITY]; // group_id из SBS_GROUPS_ITEM
   s_label       name;   // название группы
   InternalState state = ENABLE;  // состояние работы
-  unique hash <name>   PK_by_name[MAX_SBS_QUANTITY];
+#ifdef (EXTREMEDB_VERSION >= 40)
+//  unique hash <name>   PK_by_name[MAX_SBS_QUANTITY];
+#else
+  hash <name>   PK_by_name[MAX_SBS_QUANTITY];
+#endif
 };
 
 // Элементарная запись о группе подписки
@@ -365,9 +375,10 @@ class SBS_GROUPS_ITEM
 /* ===================================================================== */
 // Хранилище событий смены состояния оборудования
 // Заполняется в CE VALIDCHANGE (на 2015-10-09 пока не реализовано)
-class EQV // Аналог таблицы T_EQV в TSC для RTAP
+// TODO: перенести эту таблицу в БД Истории
+/* persistent */ class EQV // Аналог таблицы T_EQV в TSC для RTAP
 {
-  autoid[MAX_HISTORY_QUANTITY];
+  autoid[MAX_D_HISTORY_QUANTITY];
   // Ссылка на оборудование
   autoid_t      tag_id;
   // Дата смены состояния
@@ -428,32 +439,6 @@ struct AlarmItem
 };
 
 /* ===================================================================== */
-/* Elementary historical data for discrete information */
-/* Элементарная запись в исторических данных Точек для минутных семплов */
-class HISTORY_1_MIN
-{
-  autoid[MAX_1_MIN_HISTORY_QUANTITY];
-  timestamp     mark;
-  // TODO: Индекс в массиве должен храниться в специфичном для Аналогов атрибуте
-  // TODO: Дисретные типы данных должны хранить историю в таблице EQV
-  AnalogHistoryInfo   ahi[1000];    // Значение + Достоверность для среза Аналоговых Точек
-  tree <mark.sec> SK_by_time;
-};
-
-/* ===================================================================== */
-/* Elementary historical data for discrete information */
-/* Элементарная запись в исторических данных Точек для 5-минутных семплов */
-class HISTORY_5_MIN
-{
-  autoid[MAX_5_MIN_HISTORY_QUANTITY];
-  timestamp     mark;
-  // TODO: Индекс в массиве должен храниться в специфичном для Аналогов атрибуте
-  AnalogHistoryInfo   ahi[1000];    // Значение + Достоверность для среза Аналоговых Точек
-  tree <mark.sec> SK_by_time;
-};
-
-
-/* ===================================================================== */
 /* LISTACD table for TS, TM, TSC, AL, ICS, ICM points */
 /* Перечень действий по изменению уставок */
 class LISTACD
@@ -507,8 +492,10 @@ struct DiscreteInfoType
 /* Common part for analog-state objects */
 struct AnalogInfoType
 {
-  // Индекс текущей Точки (0-65535) в массиве значений таблиц HISTORY (1_MIN, 5_MIN,...)
-  int2          LINK_HIST; // Только для аналоговых типов данных
+  // Дискретизация хранимой предыстории текущей Точки
+  // HISTOTYPE=0 - предыстория не хранится
+  // HISTOTYPE=[1-5]: 1 минута, 5 минут, ..., месяц
+  HistoryType   HISTOTYPE = PER_1_MINUTE; // Только для аналоговых типов данных
   double        VAL;
   double        VALACQ;
   double        VALMANUAL;
@@ -547,7 +534,6 @@ class XDBPoint
   autoid_t      CE_ref;      /* link to CE definition */
   autoid_t      SA_ref;      /* reference to SA object */
   autoid_t      passport_ref;// Ссылка на дополнительные параметры/атрибуты точки
-  HistoryType   type = NONE; // Тип хранимой истории (минутная, 5-минутная, часовая,...)
   // Признак модификации атрибутов точки с момента последней проверки группы подписки
   Boolean       is_modified = FALSE;
   /* Point common DYNAMIC part */
@@ -612,7 +598,6 @@ class TM_passport       /* 01 */
   s_tag      L_EQT;  // Ссылка на родительский объект
   s_tag      L_DIPL; // Ссылка на свое ЛПУ
   s_tag      L_TYPINFO; // Linked information type
-  autoid_t   LINK_HIST_ref;
   autoid_t   LISTACD_ref;
 };
 
