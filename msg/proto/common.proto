@@ -124,6 +124,7 @@ enum gof_t_AlaListType {
 	GOF_D_NON_OPE_ALA   = 2;
 }
 
+/*
 enum gof_t_PeriodType {
 	GOF_D_PER_NOHISTO   = -1;
 	GOF_D_PER_QH        = 0;
@@ -134,6 +135,7 @@ enum gof_t_PeriodType {
 	GOF_D_PER_YEAR      = 5;
 	GOF_D_PER_5MN       = 6;
 }
+*/
 
 enum gof_t_Phase {
 	GOF_D_INACTIVE      = 0;

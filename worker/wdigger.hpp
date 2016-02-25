@@ -45,7 +45,7 @@ class DiggerWorker
   public:
     static const int PollingTimeout;
 
-    DiggerWorker(zmq::context_t&, int, xdb::RtEnvironment*);
+    DiggerWorker(zmq::context_t*, int, xdb::RtEnvironment*);
    ~DiggerWorker();
     // Бесконечный цикл обработки запросов
     void work();
@@ -67,7 +67,7 @@ class DiggerWorker
     DISALLOW_COPY_AND_ASSIGN(DiggerWorker);
     // Копия контекста основной нити Digger
     // требуется для работы транспорта inproc
-    zmq::context_t &m_context;
+    zmq::context_t *m_context;
     zmq::socket_t   m_worker;
     zmq::socket_t   m_commands;
     pid_t           m_thread_id;
@@ -89,7 +89,7 @@ class DiggerPoller
 {
   public:
     static const int PollingPeriod;
-    DiggerPoller(zmq::context_t&, xdb::RtEnvironment*);
+    DiggerPoller(zmq::context_t*, xdb::RtEnvironment*);
    ~DiggerPoller(); 
     void work();
     void stop();
@@ -107,7 +107,7 @@ class DiggerPoller
 
     // Копия контекста основной нити Digger
     // требуется для работы транспорта inproc
-    zmq::context_t &m_context;
+    zmq::context_t *m_context;
     // Публикация данных по подписке
     zmq::socket_t   m_publisher;
 
@@ -126,7 +126,7 @@ class DiggerProbe
     // Общее количество нитей +1 (добавится DiggerPoller)
     static const int kMaxWorkerThreads;
 
-    DiggerProbe(zmq::context_t&, xdb::RtEnvironment*);
+    DiggerProbe(zmq::context_t*, xdb::RtEnvironment*);
    ~DiggerProbe();
     // Нить проверки состояния нитей DiggerWorker
     void work();
@@ -148,7 +148,7 @@ class DiggerProbe
 
     // Копия контекста основной нити Digger
     // требуется для работы транспорта inproc
-    zmq::context_t  &m_context;
+    zmq::context_t  *m_context;
     // Сокет для связи с экземплярами DiggerWorker
     zmq::socket_t    m_worker_command_socket;
     // Передача доступа в БДРВ
@@ -179,7 +179,7 @@ class DiggerProbe
 class DiggerProxy
 {
   public:
-    DiggerProxy(zmq::context_t&, xdb::RtEnvironment*);
+    DiggerProxy(zmq::context_t*, xdb::RtEnvironment*);
    ~DiggerProxy();
 
     // Запуск прокси-треда обмена между DiggerProxy и DiggerWorker
@@ -194,7 +194,7 @@ class DiggerProxy
     // требуется для работы транспорта inproc
     // TODO: проверить, нужен ли общий контекст Digger и DiggerProxy. Можно ли их разделить для ускорения работы?
 #warning "Проверить, нужен ли общий контекст Digger и DiggerProxy. Можно ли их разделить для ускорения работы?"
-    zmq::context_t  &m_context;
+    zmq::context_t  *m_context;
     // Управляющий сокет Прокси - для паузы, продолжения или завершения работы
     zmq::socket_t    m_control;
     // Входящее соединение от Клиентов

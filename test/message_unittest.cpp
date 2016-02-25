@@ -29,6 +29,7 @@ mdp::zmsg         *message = NULL;
 msg::AskLife        *ask_life       = NULL;
 msg::ReadMulti      *readMultiMsg   = NULL;
 msg::WriteMulti     *writeMultiMsg  = NULL;
+msg::HistoryRequest *queryHistoryMsg = NULL;
 
 const msg::Header   *head = NULL;
 const msg::Data     *data = NULL;
@@ -407,6 +408,7 @@ TEST(TestMessage, CREATE_SINF)
 {
   readMultiMsg   = static_cast<msg::ReadMulti*>  (message_factory->create(SIG_D_MSG_READ_MULTI));
   writeMultiMsg  = static_cast<msg::WriteMulti*> (message_factory->create(SIG_D_MSG_WRITE_MULTI));
+  queryHistoryMsg = static_cast<msg::HistoryRequest*> (message_factory->create(SIG_D_MSG_REQ_HISTORY));
 }
 
 //
@@ -651,10 +653,26 @@ TEST(TestMessage, USE_SINF)
   }
 }
 
+TEST(TestMessage, USE_HISTORY)
+{
+  std::string probe_tag = "/KD4001/FY01";
+  time_t start = 1000000000;
+  int samples = 100;
+  int htype = RTDBM::PER_1_MINUTE;
+
+  queryHistoryMsg->set(probe_tag, start, samples, htype);
+
+  EXPECT_TRUE(probe_tag.compare(queryHistoryMsg->tag()) == 0);
+  EXPECT_TRUE(queryHistoryMsg->num_required_samples() == samples);
+  EXPECT_TRUE(queryHistoryMsg->history_type() == htype);
+  EXPECT_TRUE(queryHistoryMsg->start_time() == start);
+}
+
 TEST(TestMessage, DESTROY_SINF)
 {
   delete readMultiMsg;
   delete writeMultiMsg;
+  delete queryHistoryMsg;
   // Освободить выделенную память для успокоения valgrind
   release_TestSINF_parameters();
 }

@@ -39,93 +39,10 @@
 #include "xdb_rtap_connection.hpp"
 #include "xdb_rtap_snap.hpp"
 
+#include "hdb_impl_processor.hpp"
+
 using namespace xdb;
 
-#define within(num) (int) ((float) (num) * random () / (RAND_MAX + 1.0))
-
-typedef union {
-  uint64_t  val_uint64;
-  double    val_double;
-} common_value_t;
-
-// Тип генератора предыстории
-typedef enum {
-  PER_MOMENT    = 0,
-  PER_1_MINUTE  = 1,
-  PER_5_MINUTES = 2,
-  PER_HOUR      = 3,
-  PER_DAY       = 4,
-  PER_MONTH     = 5,
-  STAGE_LAST    = PER_MONTH + 1
-} sampler_type_t;
-
-// Связка между собирателями текущего и следующего типов
-typedef struct {
-  sampler_type_t current;
-  const char* pair_name_current;
-  sampler_type_t next;
-  const char* pair_name_next;
-  // Количество анализируемых семплов предыдущей стадии для
-  // получения одного семпла текущей стадии
-  int num_prev_samples;
-  // Суффикс файла, содержащего предысторию данного цикла
-  char suffix[3];
-  // Длительность интервала данного типа в секундах
-  // минутная = 60 секунд
-  // 5 минут = 300 секунд
-  // 1 час = 3600 секунд
-  // 1 сутки = 86400 секунд
-  int duration;
-} state_pair_t;
-
-// Массив точек связи между собирателями и управляющей нитью
-const char* pairs[] = {
-  "inproc://pair_1_min",    // PER_1_MINUTE  = 0
-  "inproc://pair_5_min",    // PER_5_MINUTES = 1
-  "inproc://pair_hour",     // PER_HOUR      = 2
-  "inproc://pair_day",      // PER_DAY       = 3
-  "inproc://pair_month",    // PER_MONTH     = 4
-  "inproc://pair_main",     // STAGE_LAST    = 5
-};
-
-// Массив переходов от текущего типа собирателя к следующему
-const state_pair_t m_stages[STAGE_LAST] = {
-  // текущая стадия (current)
-  // |              сокет текующей стадии (pair_name_current)
-  // |              |
-  // |              |                    следующая стадия (next)
-  // |              |                    |
-  // |              |                    |              сокет следующей стадии (pair_name_next)
-  // |              |                    |              |
-  // |              |                    |              |                     анализируемых отсчетов
-  // |              |                    |              |                     предыдущей стадии (num_prev_samples)
-  // |              |                    |              |                     |
-  // |              |                    |              |                     |  суффикс файла с семплом
-  // |              |                    |              |                     |  текущей стадии (suffix)
-  // |              |                    |              |                     |  |
-  // |              |                    |              |                     |  |     длительность стадии
-  // |              |                    |              |                     |  |     в секундах (duration)
-  // |              |                    |              |                     |  |     |
-  { PER_1_MINUTE,  pairs[PER_1_MINUTE],  PER_5_MINUTES, pairs[PER_5_MINUTES], 1, ".0", 60},
-  { PER_5_MINUTES, pairs[PER_5_MINUTES], PER_HOUR,      pairs[PER_HOUR],      5, ".1", 300},
-  { PER_HOUR,      pairs[PER_HOUR],      PER_DAY,       pairs[PER_DAY],      12, ".2", 3600},
-  { PER_DAY,       pairs[PER_DAY],       PER_MONTH,     pairs[PER_MONTH],    24, ".3", 86400},
-  { PER_MONTH,     pairs[PER_MONTH],     STAGE_LAST,    pairs[STAGE_LAST],   30, ".4", 2592000} // для 30 дней
-};
-
-// Структура хранения информации о семпле со средними значениями 
-typedef struct {
-  // универсальное имя точки
-  std::string tag;
-  // класс точки
-  int objclass;
-  // тип точки
-  ProcessingType_t type;
-  // набор средних значений VAL за соответствующие периоды
-  common_value_t average[STAGE_LAST];
-  // Набор значений атрибута VALID
-  int valid[STAGE_LAST];
-} points_objclass_item_t;
 
 const char *service_name_1 = "service_test_1";
 const char *service_name_2 = "service_test_2";
@@ -143,10 +60,17 @@ const char *sbs_points[] = {
     "/KO4016/GOV171/PT01",  // GOFVALTI
     "/KA4003/XA01"          // GOFVALAL
 };
-// Хендлер БД Истории
-sqlite3 *hist_db = NULL;
 
-typedef std::vector <points_objclass_item_t> points_objclass_list_t;
+// vvvvv Блок истории ================================================
+// Указатель на экземпляр БД Истории
+HistoricImpl *historic = NULL;
+// sec = 946684800 : GMT=[Sat, 01 Jan 2000 00:00:00]; MSK=[Sat, 01 Jan 2000 03:00:00]
+// sec = 946674000 : MSK=[Sat, 01 Jan 2000 00:00:00]
+// MSK=[Sat, 01 Jan 2000 00:00:00]
+#define HIST_TEST_POINT_NAME    "/KA4001/FY01"
+time_t finish_sampling_time;    // Конец тестов
+time_t start_sampling_time;     // Начало тестов
+// ^^^^^ Блок истории ================================================
 
 xdb::DatabaseBroker *database = NULL;
 xdb::Service *service1 = NULL;
@@ -169,8 +93,6 @@ rtap_db::Points point_list;
  * Экземпляр НСИ БДРВ RTAP
  */
 rtap_db_dict::Dictionaries_t dict;
-
-points_objclass_list_t points_objclass_list;
 
 // ===========================================================================
 void wait()
@@ -216,858 +138,70 @@ void show_runtime_info(const char * lead_line)
   fprintf( stdout, "\tDirect pointers mode ____ : %s\n", info.mco_direct_pointers      ? "yes":"no" );  
 }
 
-// ==============================================================================
-// [OK]
-// Получить среднее арифметическое.
-// Для аналоговых данных усреднение проводится только для параметров, присутствующих
-// в БД Истории.
-// Для дискретных данных рассчёт среднего арифметического не учитывает факта, что
-// некоторые параметры могут отсутствовать в БД Истории. 
-bool calc_average_sample(sampler_type_t type,
-                         points_objclass_item_t& item,
-                         common_value_t arr_values[],
-                         int arr_valid[])
+// ===========================================================================
+// Если значение attach == true, округления в большую сторону не происходит
+time_t roundTimeToNextEdge(time_t given_time, xdb::sampler_type_t htype, bool attach)
 {
-  bool status = false;
-  // накапливаемая сумма значений атрибутов VAL аналогового значения
-  double sum_double_val;
-  int avg_valid;
-  // накапливаемая сумма значений атрибутов VAL дискретного значения
-  int sum_int_val;
-  // Количество известных в БД Истории элементов семпла, используется
-  // для подсчёта среднего арифметического.
-  int count = 0;
+  time_t round_time = given_time;
+  struct tm edge;
+  div_t rest;
 
-  LOG(INFO) << "current sampling stage: " << m_stages[type].current;
+  localtime_r(&given_time, &edge);
+  // все отметки времени проходят по границе минуты
 
-#if 1
-    // ---------------------------------------------------------
-    // Прочитать нужное количество отсчетов за предыдущий период
-    // и получить их ср. арифм. для точек из указанного списка
-    // ---------------------------------------------------------
-    switch(item.type)
-    {
-      case PROCESSING_ANALOG:
-        // Выбрать N отсчетов из базы для предыдущего периода истории
-        // ----------------------------------------------------------
-        for (int num_sample = 0; num_sample < m_stages[type].num_prev_samples; num_sample++) {
-          LOG(INFO) << "sample " << num_sample+1 << "/" << m_stages[type].num_prev_samples
-                    << " " << item.tag << ".VAL=" << arr_values[num_sample].val_double;
-        }
+  // Дальнейшее округление зависит от желаемого типа истории
+  switch(htype) {
+      case xdb::PERIOD_1_MINUTE:
+        // округления по границы минуты достаточно
+        edge.tm_sec = 0;
+        if (attach) // притянуть время к следущей минуте?
+          edge.tm_min++;
         break;
 
-      case PROCESSING_DISCRETE:
-        // Выбрать N отсчетов из базы для предыдущего периода истории
-        // ----------------------------------------------------------
-        for (int num_sample = 0; num_sample < m_stages[type].num_prev_samples; num_sample++) {
-          LOG(INFO) << "sample " << num_sample+1 << "/" << m_stages[type].num_prev_samples
-                    << " " << item.tag << ".VAL=" << arr_values[num_sample].val_uint64;
-        }
+      case xdb::PERIOD_5_MINUTES:
+        // округлим до ближайшей минуты, делящейся на 5
+        edge.tm_sec = 0;
+        rest = div(edge.tm_min,5);
+        if (attach && rest.rem)
+          edge.tm_min += 5 - rest.rem;
         break;
 
-      case PROCESSING_BINARY:
-        // Пропускаем тип BINARY, поскольку его невозможно усреднять
-        LOG(WARNING) << "Skip binary typed point " << item.tag;
+      case xdb::PERIOD_HOUR:
+        // округлим до ближайшего часа
+        edge.tm_sec = 0;
+        edge.tm_min = 0;
+        if (attach)
+          edge.tm_hour++;
         break;
 
-      default:
-        LOG(ERROR) << "Unsupported point " << item.tag << " type: " << item.type;
-    }
-#endif
-
-    // --------------------------------------------------
-    // Занести ср. арифм. для точек из указанного списка
-    // --------------------------------------------------
-    // Обнуление накопительных значений
-    sum_double_val = 0;
-    sum_int_val = 0;
-    avg_valid = 0;
-    count = 0;
-
-    switch(item.type)
-    {
-      case PROCESSING_ANALOG:
-        for (int num_sample = 0; num_sample < m_stages[type].num_prev_samples; num_sample++) {
-          // Копим сумму
-          if (!isnan(arr_values[num_sample].val_double)) {
-            count++;
-            sum_double_val += arr_values[num_sample].val_double;
-          }
-          // Ищем макс. значение достоверности
-          if (avg_valid < arr_valid[num_sample])
-            avg_valid = arr_valid[num_sample];
-        }
-
-        if (count)
-          item.average[type].val_double = sum_double_val / count; //m_stages[type].num_prev_samples;
-        else item.average[type].val_double = NAN;
-
-        item.valid[type] = avg_valid;
-
-//1        LOG(INFO) << "AVG " << item.tag << ".VAL." << type << " = " << item.average[type].val_double
-//1                  << ", VALID = " << item.valid[type];
+      case xdb::PERIOD_DAY:
+        // округлим до ближайшего дня
+        edge.tm_sec = 0;
+        edge.tm_min = 0;
+        edge.tm_hour = 0;
+        if (attach)
+          edge.tm_mday++;
         break;
 
-      case PROCESSING_DISCRETE:
-        for (int num_sample = 0; num_sample < m_stages[type].num_prev_samples; num_sample++) {
-          // Копим сумму
-          sum_int_val += arr_values[num_sample].val_uint64;
-          // Ищем макс. значение достоверности
-          if (avg_valid < arr_valid[num_sample])
-            avg_valid = arr_valid[num_sample];
-        }
-        item.average[type].val_uint64 = sum_int_val / m_stages[type].num_prev_samples;
-        item.valid[type] = avg_valid;
-
-//1        LOG(INFO) << "AVG " << item.tag << ".VAL." << type << " = " << item.average[type].val_uint64
-//1                  << ", VALID = " << item.valid[type];
+      case xdb::PERIOD_MONTH:
+        // округлим до ближайшего месяца
+        edge.tm_sec = 0;
+        edge.tm_min = 0;
+        edge.tm_hour = 0;
+        edge.tm_mday = 1;
+        if (attach)
+          edge.tm_mon++;
         break;
 
-      case PROCESSING_BINARY:
-        // Пропускаем тип BINARY, поскольку его невозможно усреднять
-        ;
+      case xdb::PERIOD_NONE:
+      case xdb::PERIOD_LAST:
+        std::cout << "Бяка" << std::endl;
         break;
-
-      default:
-        LOG(ERROR) << "Unsupported point type: " << item.type;
-    }
-
-  return status;
-}
-
-#if 0
-// ==============================================================================
-//
-// Разбор ответа от Исторической БД по содержанию атрибутов VAL и VALID
-// Входные параметры:
-//   reply - ответ от БД Истории
-//   item - характеристика семпла
-//   type - тип периода
-// Выходные параметры:
-//   value - прочитанное из ответа значение VAL
-//   prev_valid - прочитанное из ответа значение VALID
-//
-int parse_redis_reply(redisReply*       reply,          // in
-                       common_value_t&  value,          // out
-                       int&             prev_valid,     // out
-                       points_objclass_item_t& item,    // in
-                       sampler_type_t   type)           // in
-{
-  char str_double[20];
-  int status = REDIS_ERR;
-  int curr_valid;
-
-  assert(reply);
-
-  status = reply->integer;
-
-  if (reply->type == REDIS_REPLY_ARRAY)
-  {
-    value.val_double = 0.0;
-    value.val_uint64 = 0;
-    curr_valid = 0;
-
-    switch(reply->type)
-    {
-      case REDIS_REPLY_STATUS:  // 5
-        LOG(INFO) << "status: " << reply->integer;
-        // NB: Этот ответ не считается, сохраним значение индекса
-        break;
-      case REDIS_REPLY_INTEGER: // 3
-        LOG(INFO) << "Get reply type 'integer': " << reply->integer;
-        break;
-      case REDIS_REPLY_NIL:     // 4
-        // WTF? - не найдены данные по запрашиваемому ключу?
-        LOG(INFO) << "<null>";
-        break;
-      case REDIS_REPLY_ARRAY:   // 2
-        //LOG(INFO) << "array: #" << reply->elements;
-        for (size_t i = 0; i < reply->elements; i++)
-        {
-          switch(reply->element[i]->type)
-          {
-            case REDIS_REPLY_INTEGER:
-//1              LOG(INFO) << "\tint: " << reply->element[i]->integer;
-              break;
-
-            case REDIS_REPLY_STRING:
-//1              LOG(INFO) << "\tstring[" << reply->element[i]->len<< "]: " << reply->element[i]->str;
-
-              switch(i)
-              {
-                case VAL_INDEX: // Первый по очереди - значение атрибута VAL
-                  switch(item.type)
-                  {
-                    case ANALOG:
-                      // В строке содержится больше, чем просто два символа кавычек ("")?
-                      if (reply->element[i]->len > 2) {
-                        memset(str_double, '\0', sizeof(str_double));
-                        // Выкинем кавычки из строкового представления (-2 байта)
-                        strncpy(str_double, &reply->element[i]->str[1], reply->element[i]->len - 2);
-                        //LOG(INFO) << "add double " << atof(str_double);
-                        value.val_double = atof(str_double);
-                        status = REDIS_OK;
-                      }
-                      else {
-//1                        LOG(ERROR) << "Get empty double " << item.tag << ".VAL";
-                        value.val_double = NAN;
-                      }
-                      break;
-
-                    case DISCRETE:
-                      //LOG(INFO) << "add int " << atol(reply->element[i]->str);
-                      if (reply->element[i]->len) {
-                        value.val_uint64 = atol(reply->element[i]->str);
-                        status = REDIS_OK;
-                      }
-                      else {
-//1                        LOG(ERROR) << "Get empty int " << item.tag << ".VAL";
-                        value.val_uint64 = 0;
-                      }
-                      break;
-
-                    default: ;
-                  }
-                  break;
-
-                case VALID_INDEX: // Второй по очереди - атрибут VALID
-                  if ((curr_valid = atoi(reply->element[i]->str)) > prev_valid) {
-                    // Найдено новое макс. значение достоверности, запомнить его
-                    prev_valid = curr_valid;
-                  }
-                  status = REDIS_OK;
-                  break;
-
-                default:
-                  LOG(ERROR) << "Unexpected field#: " << i;
-              }
-              break;
-
-            case REDIS_REPLY_NIL:     // 4
-              LOG(WARNING) << "empty reply for " << item.tag << "." << (unsigned int)type;
-              if (ANALOG == item.type) value.val_double = NAN;
-              else if (DISCRETE == item.type) value.val_uint64 = 0;
-              else LOG(ERROR) << "Unsupported item " << item.tag << " type: " << item.type;
-              break;
-
-            default:
-              LOG(ERROR) << "Unknown type: " << reply->element[i]->type;
-          }
-        }
-        break;
-
-      case REDIS_REPLY_STRING:  // 1
-//        LOG(INFO) << "string[" << reply->len << "]: " << reply->str;
-        break;
-
-      default:
-        LOG(ERROR) << "Unknown type: " << reply->type;
-    }
-  }
-  //NB: При возврате OK на HMSET сбивается синхронизация!
-  // else if (reply->type == REDIS_REPLY_STATUS) {
-  //   LOG(INFO) << "Reply status: " << reply->integer;
-  //}
-  else {
-    LOG(ERROR) << "Unexpected reply type: " << reply->type;
-    status = REDIS_ERR;
   }
 
-  return status;
-}
-#endif
+  round_time = mktime(&edge);
 
-// ==============================================================================
-// [OK]
-// Функция формирует новые значения текущего цикла истории на основе данных
-// из БД Истории предыдущего цикла.
-//
-// Из данного времени finish_period вычитается время, равное продолжительности
-// текущего цикла, и с этого времени до указанного finish_period считываются все
-// семплы из БД Истории
-bool load_samples_from_hist(
-    time_t                  start_period,
-    time_t                  finish_period,
-    sampler_type_t          sampler_type,
-    points_objclass_item_t& item,
-    common_value_t          arr_values[],
-    int                     arr_valid[])
-{
-  bool status = true;
-  int num_items = 0;
-  int curr_valid = 0;
-  char str[200];
-  time_t time_frame;
-  // ВременнАя отметка, прочитанная из БД Истории (является SCORE)
-  time_t sample_time_frame;
-  // Начало цикла
-//  time_t start_period;
-  int previous_sampler_type = sampler_type - 1;
-///////////////////////////////////////////
-  struct tm start_edge; // Прошедшее время, начало текущего цикла
-  struct tm finish_edge; // Прошедшее время, начало текущего цикла
-  char str_time_start[40 + 1];
-  char str_time_stop[40 + 1];
-///////////////////////////////////////////
-  // строковый буфер для хранения типа семпла, прочитанного из redisReply
-  char str_sample_type[10 + 1];
-  // строковый буфер для хранения значения VALID, прочитанного из redisReply
-  char str_valid[10 + 1];
-  // строковый буфер для хранения значения VAL, прочитанного из redisReply
-  char str_val[20 + 1];
-  // строковый буфер хранения значения времени генерации семпла, прочитанного из ответа
-  char str_sample_time[15 + 1];
-  // При чтении списка диапазона семплов в нём может быть семпл другого типа
-  sampler_type_t current_sample_type;
-  // временные хранилища
-  common_value_t temp_value;
-  int            temp_valid;
-
-  localtime_r(&finish_period, &finish_edge); // получили выровненное время окончания цикла
-
-  // Не должна быть вызвана для мгновенных семплов, поскольку они читаются не
-  // из БД Истории, а из БДРВ
-  assert(sampler_type != PER_MOMENT);
-
-  num_items = 0;
-  // Это скользящая отметка времени для учета пропусков значений
-  time_frame = start_period;
-
-#if 0
-  // Запросить диапазон значений тега item.tag от start_period до finish_period
-  // Оставить только значения, соответствующие указанному периоду семпла
-  //            Получить значения, сортированные по score (= дате семпла)
-  //            |             название тега
-  //            |             |  дата начала
-  //            |             |  |   дата окончания
-  //            |             |  |   |   вывод результата с отсечками времени (score)
-  //            |             |  |   |   |
-  //  SK_by_point_time
-  sprintf(str, "ZRANGEBYSCORE %s %ld %ld WITHSCORES",
-          item.tag.c_str(),
-          start_period,
-          finish_period);
-
-  // Ожидаемый вывод :
-  // 1) "0;1;3.17"
-  // 2) "1440000180"
-  // 3) "0;1;3.18"
-  // 4) "1440000240"
-  // 5) "0;1;3.19"
-  // 6) "1440000300"
-  // 7) "1;1;5.24"      - семпл с отметкой времени семпла предыдущего типа
-  // 8) "1440000300"
-  // 9) "0;1;3.2"
-  //10) "1440000360"
-  // ....
-
-//  reply = static_cast<redisReply*>(redisCommand(redis_context, str));
-
-  if (reply->type == REDIS_REPLY_ARRAY) {
-
-    for (unsigned int j = 0; j < reply->elements; j++) {
-
-      if (!reply->element[j]->str) {
-        LOG(ERROR) << "Empty answer for: " << item.tag << " type: " << sampler_type;
-        continue;
-      }
-
-      if (!(j % 2)) {
-        temp_valid = 0;
-        temp_value.val_uint64 = 0;
-
-        // Нечетная строка - значения в формате:
-        //   "<цифра (тип семпла)>:<цифра (значение .VALID)>:<число (значение .VAL)>"
-        const char* first_colon = strchr(reply->element[j]->str, ';');
-        if (first_colon) {
-          // Пропустить первый символ \"
-          strncpy(str_valid, reply->element[j]->str + 1, 2);
-          // Откусить второй символ \"
-          str_valid[1] = '\0';
-          int int_current_sample_type = atoi(str_valid);
-          if ((PER_1_MINUTE <= int_current_sample_type) && (int_current_sample_type <= PER_MONTH))
-          {
-             current_sample_type = (sampler_type_t)atoi(str_valid);
-
-             if (current_sample_type != previous_sampler_type) {
-               // Прочитали запись семпла другого типа, пропустить его
-               LOG(INFO) << "Skip loaded sample type: " << current_sample_type
-                         << " while need type: " << previous_sampler_type
-                         << " with current type: " << sampler_type;
-               continue;
-             }
-
-             const char* last_colon = strrchr(reply->element[j]->str, ';');
-             if (last_colon) {
-               strncpy(str_val, last_colon + 1, 20);
-               str_val[20] = '\0';
-               // Удалить последний символ \"
-               str_val[strlen(str_val) - 1] = '\0';
-
-               // Найти <>:<значение .VALID>:<>
-               //         ^                 ^
-               //         |                 |
-               //    first_colon       last_colon
-               strncpy(str_valid, first_colon + 1, 10);
-               if (first_colon < last_colon)
-                 str_valid[last_colon - first_colon - 1] = '\0';
-               else LOG(ERROR) << "Get " << item.tag << " valid from: " << reply->element[j]->str;
-               arr_valid[num_items] = atoi(str_valid);
-
-               switch(item.type)
-               {
-                 case ANALOG:
-                   temp_value.val_double = atof(str_val);
-                   break;
-                 case DISCRETE:
-                   temp_value.val_uint64 = atol(str_val);
-                   break;
-                 case BINARY:
-                   temp_value.val_uint64 = atoi(str_val);
-                   break;
-                 case NONE:
-                 default:
-                   LOG(ERROR) << "Unknown type: " << item.type << " for " << item.tag;
-                   // продолжим разбор следующего семпла
-                   continue;
-               } // конец выбора типа VAL - аналоговый или дискретный
-
-
-             } // конец успешной проверки наличия последнего символа-разделителя ';'
-             else {
-               LOG(ERROR) << "Converting " << int_current_sample_type
-                          << " to sample type from string:" << reply->element[j]->str;
-             }
-          }
-        }
-      } // конец проверки наличия первого разделителя полей, символа ';'
-      else {
-        // Четная строка - отметка времени текущей свежепрочитанной записи
-        str_sample_time[0] = '\0';
-        strncpy(str_sample_time, reply->element[j]->str, 15);
-        str_sample_time[15] = '\0';
-        if (!str_sample_time[0]) {
-          LOG(ERROR) << "Get sample mark time for " << item.tag << " from string: " << reply->element[j]->str;
-        }
-        else {
-          // Успешно получено значение времени
-          sample_time_frame = atoll(str_sample_time);
-
-          // Выведем в консоль отладочный вывод
-          std::cout << "type: " << current_sample_type
-                    << " valid: " << arr_valid[num_items];
-          if (item.type == ANALOG) {
-            std::cout << " val: " << temp_value.val_double;
-          } else if (item.type == DISCRETE) {
-            std::cout << " val: " << temp_value.val_uint64;
-          }
-          std::cout << " date: " << ctime(&sample_time_frame);
-
-          // Успешно прочитали все входные данные.
-          // TODO: Необходимо проверить, не было ли пропусков в семплах.
-          // Для этого нужно сверять прочитанную дату семпла, и если она не совпадает с ожидаемой
-          // (семплы должны идти друг за другом через один интервал), то следует считать, что
-          // в этот момент не было семпла. Следует специальным образом пометить этот интервал
-          // присвоением принудительной недостоверности?
-
-          // Прочитали ожидаемый семпл, перерывов в их сохранении не было
-          if (time_frame == sample_time_frame) {
-             // сохранить текущий прочитанный семпл
-             arr_values[num_items] = temp_value;
-             arr_valid[num_items] = temp_valid;
-             num_items++;
-          }
-          else {
-            // "Догнать" время нового семпла, заполнив массив специальными метками пропуска
-            while(time_frame < sample_time_frame)
-            {
-               LOG(WARNING) << "Обнаружен разрыв в сохраненной истории, тип: " << current_sample_type
-                            << " точка: " << item.tag
-                            << " текущий период: " << time_frame
-                            << " ожидаемый период: " << sample_time_frame;
-
-               // Увеличиваем время сохранения данных на 1 цикл предыдущего типа вперед
-               time_frame += m_stages[previous_sampler_type].duration;
-               arr_valid[num_items] = -1; // TODO: д.б. недостоверное значение!
-               arr_values[num_items].val_double = NAN;
-               num_items++;
-            }
-          }
-
-          // Увеличиваем время сохранения данных на 1 цикл предыдущего типа вперед
-          time_frame += m_stages[previous_sampler_type].duration;
-        }
-      }
-    } // конец цикла по всем элементам ответа redisReply
-  }
-  else {
-    LOG(ERROR) << "Unwilling reply type: " << reply->type << " for " << item.tag;
-  }
-
-    item.average[sampler_type].val_uint64 = 0;
-    item.valid[sampler_type] = 0;
-#endif
-  return status;
-}
-
-// ==============================================================================
-// [OK] Чтение мгновенных значений из БДРВ в качестве минутных семплов
-bool load_samples_from_rtdbus(
-    time_t start_period,    // NB: не используется
-    time_t finish_period,   // NB: не используется
-    sampler_type_t          sampler_type,
-    points_objclass_item_t& item,
-    common_value_t          arr_values[],
-    int                     arr_valid[])
-{
-  bool is_success = true;
-  int num_items = 0;
-//  size_t idx;
-
-  // Данная функция допустима только для мгновенных семплов
-  assert(sampler_type == PER_MOMENT);
-
-#if 0
-  xdb::Error status;
-  xdb::AttributeInfo_t info_read_val;
-  xdb::AttributeInfo_t info_read_valid;
-
-  // Минутный семпл, в отличие от остальных, в качестве входных данных использует БДРВ
-  memset((void*)&info_read_val.value, '\0', sizeof(info_read_val.value));
-  memset((void*)&info_read_valid.value, '\0', sizeof(info_read_valid.value));
-#endif
-
-#if 1
-      // TODO: При реальной работе чтение атрибута VALID из БДРВ
-      item.valid[PER_MOMENT] = 1; //VALIDITY_VALID;
-      arr_valid[0] = item.valid[PER_MOMENT];
-
-      // Сперва всегда формируется минутная история
-      switch(item.type)
-      {
-          case PROCESSING_ANALOG:
-            // TODO: При реальной работе тут должен быть вызов чтения атрибута VAL из БДРВ
-            item.average[PER_MOMENT].val_double = sin(random() / (RAND_MAX + 1.0));
-//1            LOG(INFO) << item.tag << ".VAL="
-//1                      << item.average[PER_MOMENT].val_double;
-            arr_values[0].val_double = item.average[PER_MOMENT].val_double;
-            num_items++;
-            break;
-
-          case PROCESSING_DISCRETE:
-            // TODO: При реальной работе тут должен быть вызов чтения атрибута VAL из БДРВ
-            item.average[PER_MOMENT].val_uint64 = within(25);
-//1            LOG(INFO) << item.tag << ".VAL="
-//1                      << item.average[PER_MOMENT].val_uint64;
-            arr_values[0].val_uint64 = item.average[PER_MOMENT].val_uint64;
-            num_items++;
-            break;
-
-          case PROCESSING_BINARY:
-            item.average[PER_MOMENT].val_uint64 = within(1);
-//1            LOG(INFO) << item.tag << ".VAL="
-//1                      << item.average[PER_MOMENT].val_uint64;
-            arr_values[0].val_uint64 = item.average[PER_MOMENT].val_uint64;
-            num_items++;
-            break;
-
-          default:
-            LOG(ERROR) << "Unsupported type: " << item.type;
-            is_success = false;
-      }
-#else
-        // Прочесть значения атрибутов VAL, VALID
-        info_read_val.name = item.tag + "." + RTDB_ATT_VAL;
-        status = m_db_connection->read(&info_read_val);
-        if (status.code() != xdb::rtE_NONE) {
-          LOG(ERROR) << "Reading " << info_read_val.name;
-          is_success = false;
-        }
-
-        info_read_valid.name = item.tag + "." + RTDB_ATT_VALID;
-        status = m_db_connection->read(&info_read_valid);
-        if (status.code() != xdb::rtE_NONE) {
-          LOG(ERROR) << "Reading " << info_read_valid.name;
-          is_success = false;
-        }
-
-#endif
-
-  return is_success;
-}
-
-// ==============================================================================
-// [OK]
-// Функция формирует новые значения текущего цикла истории на основе данных предыдущего цикла
-// Для минутного цикла - чтение из БДРВ
-// Для остальных циклов - чтение из БД Истории
-bool load_samples(
-    time_t                  finish_period,
-    sampler_type_t          sampler_type,
-    points_objclass_item_t& item,
-    common_value_t          arr_values[],
-    int                     arr_valid[])
-{
-  time_t start_period;
-  bool status;
-
-  switch(sampler_type)
-  {
-    // снимки мгновенных значений берутся из БДРВ
-    case PER_MOMENT:
-      status = load_samples_from_rtdbus(
-                        0,
-                        0,
-                        sampler_type,
-                        item,
-                        arr_values,
-                        arr_valid);
-      break;
-
-    // Снимки архивных значений берутся из исторической БД
-    case PER_1_MINUTE:
-    case PER_5_MINUTES:
-    case PER_HOUR:
-    case PER_DAY:
-    case PER_MONTH:
-      
-      start_period = finish_period - m_stages[sampler_type].duration;
-      status = load_samples_from_hist(
-                        start_period,
-                        finish_period,
-                        sampler_type,
-                        item,
-                        arr_values,
-                        arr_valid);
-      break;
-
-    case STAGE_LAST:
-      LOG(ERROR) << "Unsupported sampler type: " << sampler_type;
-      status = false;
-  }
-  return status;
-}
-
-// ==============================================================================
-// [OK] Занесение указанных значений в Redis
-void store_sample_period(time_t finish_period,
-                         sampler_type_t sampler_type,
-                         points_objclass_item_t& item)
-{
-  //size_t idx;
-  // текущее время - время окончания текущего периода семпла
-  struct tm finish_edge;
-  // Отметка времени в прошлом, начало сохранения предыстории
-  // Скользящая отметка времени
-  time_t time_frame;
-  char str[200];
-  int num_items = 0;
-//  int samples_inserted;
-  MCO_RET rc = MCO_S_OK;
-//  rtap_db::HISTORY *handle;
-  bool is_success = true;
-
-  // Для продолжения тестов БД должна быть подключена
-
-  localtime_r(&finish_period, &finish_edge); // получили выровненное время окончания цикла
-  // Получим отметку времени окончания предыдущего цикла
-  finish_edge.tm_sec = 0;
-  time_frame = mktime(&finish_edge);
-  time_frame -= m_stages[sampler_type].duration;
-
-///////////////////////////////////////////
-  struct tm start_edge; // Прошедшее время, начало текущего цикла
-  char str_time_start[40 + 1];
-  char str_time_stop[40 + 1];
-  localtime_r(&time_frame, &start_edge); // получили выровненное время начала цикла
-  strftime(str_time_start, 40, "%T", &start_edge);
-  strftime(str_time_stop, 40, "%T", &finish_edge);
-///////////////////////////////////////////
-
-  // Заносим историю от начала предыдущего цикла до указанного момента
-  while (time_frame < finish_period)
-  {
-      switch(item.type)
-      {
-          case PROCESSING_ANALOG:
-            // HISTORY_point_ref_put
-            // HISTORY_VALIDITY_put
-//1            rc = rtap_db::HISTORY_new(t, handle);
-#warning "Продолжить процедуру сохранения истории отсюда"
-
-            //            Сортированный список
-            //            |
-            //            |    название списка (совпадает с тегом БДРВ)
-            //            |    |
-            //            |    |  отметка времени
-            //            |    |  |
-            //            |    |  |     тип семпла
-            //            |    |  |     |
-            //            |    |  |     |  достоверность
-            //            |    |  |     |  |
-            //            |    |  |     |  |  значение
-            //            |    |  |     |  |  |
-            sprintf(str, "ZADD %s %ld \"%d;%d;%g\"",
-                    item.tag.c_str(),
-                    time_frame,
-                    (int)sampler_type,
-                    item.valid[sampler_type],
-                    item.average[sampler_type].val_double);
-
-            // Добавить в очередь занесение очередного семпла
-//            reply = static_cast<redisReply*>(redisCommand(redis_context, str));
-            if (1 == 1 /*reply->integer*/) {
-            LOG(INFO) << "OK set analog " << item.tag << ".VAL." << sampler_type
-                      << " = " << item.average[sampler_type].val_double
-                      << " [" << str_time_start << " - " << str_time_stop << "]";
-
-            }
-            else LOG(WARNING) << "DUPLICATE set analog" << item.tag << ".VAL." << sampler_type
-                      << " = " << item.average[sampler_type].val_double
-                      << " [" << str_time_start << " - " << str_time_stop << "]";
-
-            num_items++;
-            break;
-
-          case PROCESSING_DISCRETE:
-            //            Сортированный список
-            //            |
-            //            |    название списка (совпадает с тегом БДРВ)
-            //            |    |
-            //            |    |  отметка времени
-            //            |    |  |
-            //            |    |  |     тип семпла
-            //            |    |  |     |
-            //            |    |  |     |  достоверность
-            //            |    |  |     |  |
-            //            |    |  |     |  |  значение
-            //            |    |  |     |  |  |
-            sprintf(str, "ZADD %s %ld \"%d;%d;%lld\"",
-                    item.tag.c_str(),
-                    time_frame,
-                    (int)sampler_type,
-                    item.valid[sampler_type],
-                    item.average[sampler_type].val_uint64);
-
-            // Добавить в очередь занесение очередного семпла
-//            reply = static_cast<redisReply*>(redisCommand(redis_context, str));
-            if (1 == 1 /*reply->integer*/) {
-            LOG(INFO) << "OK set discrete " << item.tag << ".VAL." << sampler_type
-                      << " = " << item.average[sampler_type].val_uint64
-                      << " [" << str_time_start << " - " << str_time_stop << "]";
-            }
-            else LOG(WARNING) << "DUPLICATE set discrete " << item.tag << ".VAL." << sampler_type
-                      << " = " << item.average[sampler_type].val_uint64
-                      << " [" << str_time_start << " - " << str_time_stop << "]";
-
-            num_items++;
-            break;
-
-          case PROCESSING_BINARY:
-            LOG(WARNING) << "Skip sampling type "<< sampler_type << " for binary point " << item.tag;
-            break;
-
-          default:
-            LOG(ERROR) << "Unsupported type: " << item.type;
-    }
-    // Увеличиваем скользящее время сохранения данных вперед, приближая его к текущему
-    time_frame += m_stages[sampler_type].duration;
-  }
-
-//  samples_inserted = num_items;
-
-/*
-  // Связаные запросы создаются с помошью redisAppendCommand(context, строка запроса)
-  // в цикле, затем вызываются с помощью redisCommand(), с разбором ответов
-  while ((--num_items > 0) && redisGetReply(redis_context, &v_reply) == REDIS_OK) {
-    freeReplyObject(v_reply);
-  }
-  if (num_items) {
-    LOG(ERROR) << "Part of sampling #" << sampler_type
-               << " (" << num_items << ") are not storing in history database";
-    is_success = false;
-  }
-  else {
-    LOG(INFO) << samples_inserted << " sample items inserted for type " << sampler_type;
-    is_success = true;
-  }
-*/  
-
-  EXPECT_TRUE(true == is_success);
-}
-
-// ==============================================================================
-// [OK]
-bool process_sample(const time_t time_frame, sampler_type_t type)
-{
-  bool status = false;
-  // 31 = макс. число семплов предыдущего типа (для месячной истории)
-  common_value_t arr_values[31];
-  int arr_valid[31];
-
-  // Главный цикл - пройтись по каждой точке всю процедуру от начала до конца:
-  //    Сгенерировать/выгрузить значение из БД
-  //    Подсчитать среднее
-  //    Загрузить БД Истории
-  for (size_t idx = 0; idx < points_objclass_list.size(); idx++)
-  {
-    // Обнулим хранилище мгновенных значений
-    memset(arr_values, '\0', sizeof(common_value_t) * 31);
-    memset(arr_valid, '\0', sizeof(int) * 31);
-
-    points_objclass_item_t& item = points_objclass_list.at(idx);
-
-    LOG(INFO) << "Process " << item.tag << "." << (unsigned int)type;
-    status = load_samples(time_frame, type, item, arr_values, arr_valid);
-    // Вычислить средние VAL и VALID за период
-    calc_average_sample(type, item, arr_values, arr_valid);
-    // Сбросить данные в Redis
-    store_sample_period(time_frame, type, item);
-  }
-
-  return status;
-}
-
-// ==============================================================================
-bool get_samples(const char* tag, ProcessingType_t processing_type, sampler_type_t sampler_type, const time_t start, const time_t finish)
-{
-  bool status = false;
-  points_objclass_item_t item;
-  /*
-  // универсальное имя точки
-  std::string tag;
-  // класс точки
-  int objclass;
-  // тип точки
-  ProcessingType_t type;
-  // набор средних значений VAL за соответствующие периоды
-  common_value_t average[STAGE_LAST];
-  // Набор значений атрибута VALID
-  int valid[STAGE_LAST];
-  */
-
-  // TODO: подсчитать количество требуемых отсчетов семплов:
-  // оно равно отношению разницы между отметками окончания и начала интервалов времени
-  // к длительности одного интервала
-  assert(start);
-  assert(finish);
-  assert(finish > start);
-  const time_t diff = finish - start;
-  int num_samples = diff / m_stages[sampler_type].duration;
-
-  common_value_t mass_value[100];
-  int mass_valid[100];
-
-  if (num_samples < 100) {
-    item.tag.assign(tag);
-    item.type = processing_type;
-    status = load_samples_from_hist(start, finish, sampler_type, item, mass_value, mass_valid);
-  }
-  else {
-    LOG(ERROR) << "Requested period ("<<start<<":"<<finish<<") exceeds limit of 100 samples: " << num_samples;
-  }
-
-  return status;
+  return round_time;
 }
 
 // ==============================================================================
@@ -1476,13 +610,13 @@ TEST(TestDiggerDATABASE, CREATION)
 
   // Если снимок БД есть - прочитать его при старте,
   // Если снимка нет - подключения не будет
-  app->setOption("OF_CREATE", 0);
-  app->setOption("OF_LOAD_SNAP", 1);
-  app->setOption("OF_RDWR",   1);
-  app->setOption("OF_REGISTER_EVENT", 1); // Взвести CE
-  app->setOption("OF_DATABASE_SIZE", 1024 * 1024 * 10);
-  app->setOption("OF_MEMORYPAGE_SIZE", 1024); // 0..65535
-  app->setOption("OF_MAP_ADDRESS",   0x30000000);
+  app->setOption(OF_DEFINE_CREATE, 0);
+  app->setOption(OF_DEFINE_LOAD_SNAP, 1);
+  app->setOption(OF_DEFINE_RDWR,   1);
+  app->setOption(OF_DEFINE_REGISTER_EVENT, 1); // Взвести CE
+  app->setOption(OF_DEFINE_DATABASE_SIZE, 1024 * 1024 * 10);
+  app->setOption(OF_DEFINE_MEMORYPAGE_SIZE, 1024); // 0..65535
+  app->setOption(OF_DEFINE_MAP_ADDRESS,   0x30000000);
   EXPECT_EQ(app->getLastError().getCode(), xdb::rtE_NONE);
 
   // Завершить инициализацию
@@ -2138,6 +1272,7 @@ TEST(TestDiggerDATABASE, DELETE_SBS)
 //  env->MakeSnapshot("AFTER_DELETE_SBS");
 }
 
+#if 0
 TEST(TestDiggerDATABASE, DESTROY)
 {
   LOG(INFO) << "BEGIN DESTROY TestDiggerDATABASE";
@@ -2145,6 +1280,7 @@ TEST(TestDiggerDATABASE, DESTROY)
   delete app;
   LOG(INFO) << "END DESTROY TestDiggerDATABASE";
 }
+#endif
 
 using namespace xercesc;
 TEST(TestTools, LOAD_DICT_XML)
@@ -2487,12 +1623,10 @@ TEST(TestTools, RELEASE_MEMORY)
   }
 }
 
-#if 0
 // ==============================================================================
-// [OK] Проверка доступа к БД Истории
+// Проверка доступа к БД Истории
 TEST(TestHIST, HIST_ACCESS)
 {
-  struct timeval timeout = { 1, 500000 }; // 1.5 seconds
   // ip-адрес сервера хранения предыстории
   char history_db_filename[200];
   // Номер порта БД хранения предыстории
@@ -2500,19 +1634,86 @@ TEST(TestHIST, HIST_ACCESS)
 
   strcpy(history_db_filename, HISTDB_SNAP_FILENAME);
 
-  // Подключиться к БД Истории
-  if (sqlite3_open(history_db_filename, &hist_db)) {
-    LOG(ERROR) << "Opening History DB '" << history_db_filename << "':  " << sqlite3_errmsg(hist_db);
-  }
-  else {
-    LOG(INFO) << "History DB '" << history_db_filename << "' successfuly opened";
-    history_db_connected = true;
-  }
+  historic = new HistoricImpl(env, history_db_filename);
 
-  /* Проверить доступность сервера хранения истории Redis */
+  history_db_connected = historic->Connect();
   EXPECT_TRUE(history_db_connected == true);
 }
 
+// ==============================================================================
+// Инициализация БД Истории
+TEST(TestHIST, HIST_INIT)
+{
+  // Приращение времени при тестовом заполнении - 1 минута
+  time_t delta = 60; //m_stages[xdb::PERIOD_1_MINUTE].duration;
+  time_t now = time(0);
+  time_t current_sampling_time;
+
+  // Конец тестов
+  finish_sampling_time = roundTimeToNextEdge(now, xdb::PERIOD_1_MINUTE, true);
+  // Начало тестов - за 15 минут до текущего времени
+  start_sampling_time = finish_sampling_time - 60 * 15;
+  // Текущий фрейм
+  current_sampling_time = start_sampling_time;
+
+  LOG(INFO) << "Init HDB content from " << start_sampling_time << " to " << finish_sampling_time;
+
+  while(current_sampling_time < finish_sampling_time) {
+    // Обсчитать предысторию для времени frame
+    historic->Make(current_sampling_time);
+    // Передвинуть временнОе окно на следующую минуту
+    current_sampling_time += delta;
+  }
+}
+
+// ==============================================================================
+// Проверка доступа к БД Истории
+TEST(TestHIST, HIST_LOAD)
+{
+  int n_samples_to_read = 30;
+  xdb::sampler_type_t htype = xdb::PERIOD_1_MINUTE;
+  char s_tag[TAG_NAME_MAXLEN + 1] = HIST_TEST_POINT_NAME;
+  historized_attributes_t historized[MAX_PORTION_SIZE_LOADED_HISTORY];
+  
+  LOG(INFO) << "Loading history of " << s_tag << " from HDB";
+  int loaded = historic->load_samples_period_per_tag(s_tag,
+                                 htype,
+                                 start_sampling_time,
+                                 historized,
+                                 n_samples_to_read);
+  LOG(INFO) << "reading " << loaded << " sample(s) ";
+  for (int i=0; i<loaded; i++)
+      std::cout << " HIST " << i+1 << "/" << loaded << ": "
+                << s_tag << " "
+                << ".DATEHOURM=" << historized[i].datehourm << " "
+                << ".VAL=" << historized[i].val << " "
+                << ".VALID=" << (unsigned int)historized[i].valid
+                << std::endl;
+
+//  EXPECT_TRUE(status == true);
+}
+
+
+// ==============================================================================
+// Проверка доступа к БД Истории
+TEST(TestHIST, HIST_CLOSE)
+{
+  bool history_db_disconnected = historic->Disconnect();
+  EXPECT_TRUE(history_db_disconnected == true);
+  delete historic;
+}
+
+#warning "RtEnvironment нужен здесь"
+TEST(TestHIST, APP_DESTROY)
+{
+  LOG(INFO) << "BEGIN DESTROY TestHIST";
+  delete connection;
+  delete app;
+  LOG(INFO) << "END DESTROY TestHIST";
+}
+
+
+#if 0
 // ==============================================================================
 // [OK] Занести большой набор минутных тестовых данных: два месяца + два дня
 TEST(TestHIST, HIST_MAKE_SAMPLES)
@@ -2523,7 +1724,7 @@ TEST(TestHIST, HIST_MAKE_SAMPLES)
   struct tm past_edge;
   const time_t current = time(0);
   // Сохраняем минутную историю
-//  sampler_type_t sampler_type = PER_MOMENT;
+//  xdb::sampler_type_t sampler_type = xdb::PERIOD_MOMENT;
   // Отметка времени в прошлом, начало сохранения предыстории
   time_t history_mark;
   // Скользящая отметка времени
@@ -2537,8 +1738,8 @@ TEST(TestHIST, HIST_MAKE_SAMPLES)
   edge.tm_sec = 0;
   history_mark = mktime(&edge);
   // TODO: При реальной работе history_mark есть текущее время
-  history_mark -= m_stages[PER_5_MINUTES].duration * 2 + 60;
-//  history_mark -= m_stages[PER_MONTH].duration * 2 + m_stages[PER_DAY].duration * 2;
+  history_mark -= m_stages[xdb::PERIOD_5_MINUTES].duration * 2 + 60;
+//  history_mark -= m_stages[xdb::PERIOD_MONTH].duration * 2 + m_stages[xdb::PERIOD_DAY].duration * 2;
 
   // Занести тестовые данные в список историзируемых точек
   for (int idx = 0; idx < 3; idx++) {
@@ -2576,42 +1777,42 @@ TEST(TestHIST, HIST_MAKE_SAMPLES)
 #if 0
     // NB: Для тестов достаточно обновлять данные непосредственно перед минутным интервалом
     // Обновить мгновенные данные
-    //process_sample(time_frame, PER_MOMENT);
+    //process_sample(time_frame, xdb::PERIOD_MOMENT);
 #endif
 
     if (past_edge.tm_sec == 0) {
       // Обновим мгновенные данные
 #warning "Если не тесты, удалить следующую строку"
-      process_sample(time_frame, PER_MOMENT);
+      process_sample(time_frame, xdb::PERIOD_MOMENT);
 
       // Прочитать из БДРВ новые значения отсчетов минутных семплов
       // NB: для тестов значения минутных семплов эмулируются!
-      process_sample(time_frame, PER_1_MINUTE);
+      process_sample(time_frame, xdb::PERIOD_1_MINUTE);
     }
 
     // Проверка на границу пяти минут (минуты нацело делятся на 5)
     if ((past_edge.tm_sec == 0) && !(past_edge.tm_min % 5)) {
-      process_sample(time_frame, PER_5_MINUTES);
+      process_sample(time_frame, xdb::PERIOD_5_MINUTES);
     }
 
     // Проверка на границу часа (минуты д.б. равны 0)
     if ((past_edge.tm_sec == 0) && (0 == past_edge.tm_min)) {
-      process_sample(time_frame, PER_HOUR);
+      process_sample(time_frame, xdb::PERIOD_HOUR);
     }
 
     // Проверка на границу суток (полночь - минуты и часы равны 0)
     if ((past_edge.tm_sec == 0) && (0 == past_edge.tm_min) && (0 == past_edge.tm_hour)) {
-      process_sample(time_frame, PER_DAY);
+      process_sample(time_frame, xdb::PERIOD_DAY);
     }
 
     // Проверка на границу месяца (граница суток + первый день месяца)
     if ((past_edge.tm_sec == 0) && (0 == past_edge.tm_min) && (0 == past_edge.tm_hour) && (1 == past_edge.tm_mday)) {
-      process_sample(time_frame, PER_MONTH);
+      process_sample(time_frame, xdb::PERIOD_MONTH);
     }
 
     // Увеличиваем скользящее время сохранения данных на 1 минуту вперед, приближая его к текущему
     // TODO: При реальной работе здесь будет ожидание начала нового, самого короткого интервала (минутного)
-    time_frame += m_stages[PER_1_MINUTE].duration;
+    time_frame += m_stages[xdb::PERIOD_1_MINUTE].duration;
   }
 
 /*
@@ -2638,7 +1839,7 @@ TEST(TestHIST, HIST_MAKE_SAMPLES)
 TEST(TestHIST, HIST_GET_PERIOD)
 {
   bool status = false;
-  sampler_type_t type = PER_1_MINUTE;
+  xdb::sampler_type_t type = xdb::PERIOD_1_MINUTE;
   // Начало запрашиваемого периода - текущее время
   time_t finish_period = time(0);
   // Конец запрашиваемого периода - 7,5 минут назад

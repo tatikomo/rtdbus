@@ -234,17 +234,19 @@ set (ENDPOINT_RTDB_COMMAND_BACKEND  "inproc://rtdb_digger_command")
 set (ENDPOINT_HMI_FRONTEND          "tcp://localhost:5558")
 set (ENDPOINT_EXCHG_FRONTEND        "tcp://localhost:5559")
 set (ENDPOINT_SBS_PUBLISHER         "tcp://localhost:5560")
-set (ENDPOINT_ARCH_FRONTEND         "tcp://localhost:5561")
-set (ENDPOINT_HIST_FRONTEND         "tcp://localhost:5562")
+set (ENDPOINT_HIST_FRONTEND         "tcp://localhost:5561")
 set (HISTDB_SNAP_FILENAME           "hdb.sqlite3")
+# Локальное или удаленное расположение БДРВ для службы Архивирования.
+# Значение LOCAL - БДРВ расположена на тем же сервере, можно получать данные локально
+# Значение REMOTE - БДРВ расположена на удаленном сервере, получать данные можно только запросом
+set (HIST_DATABASE_LOCALIZATION     "LOCAL")
 
 # Предопределенные названия Служб
 set (BROKER_NAME        "BROKER")
 set (RTDB_NAME          "SINF")
 set (HMI_NAME           "HMI")
 set (EXCHANGE_NAME      "ECH")
-set (ARCHIVIST_NAME     "ARCH")
-set (HIST_SAMPLER_NAME  "HIST")
+set (HISTORIAN_NAME     "HIST")
 
 # Названия таблиц Исторической БД (HDB)
 set (HDB_DATA_TABLENAME "HIST")

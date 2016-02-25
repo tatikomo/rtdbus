@@ -95,6 +95,40 @@ bool Mosquito::process_sbs_update_response(msg::Letter* report)
 }
 
 // ----------------------------------------------------------
+bool Mosquito::process_history(msg::Letter* report)
+{
+  bool status = false;
+  // буфер для прочитанного элемента предыстории
+  msg::hist_attr_t item;
+  msg::HistoryRequest* response = dynamic_cast<msg::HistoryRequest*>(report);
+
+  std::cout << std::endl
+            << "exchg#" << response->header()->exchange_id()
+            << " intr#" << response->header()->interest_id()
+            << " orig:" << response->header()->proc_origin()
+            << " dest:" << response->header()->proc_dest()
+            << " tm:"   << response->header()->time_mark()
+            << std::endl;
+  std::cout << "History " << response->tag() << " received " << response->num_required_samples()
+            << " of " << response->num_read_samples() << " item(s)" << std::endl;
+  for (int idx = 0; idx < response->num_read_samples(); idx++)
+  {
+    if (true == response->get(idx, item)) {
+      std::cout << idx+1 << "/" << response->num_read_samples()
+                << " time=" << item.datehourm
+                << "\t" << item.val
+                << "\t" << (unsigned int)item.valid
+                << std::endl;
+    }
+    else {
+      LOG(ERROR) << "Unable to get history item " << idx;
+    }
+  }
+
+  return status;
+}
+
+// ----------------------------------------------------------
 // Подписаться на рассылку Группы для заданного Сервиса
 int Mosquito::subscript(const std::string& service_name, const std::string& group_name)
 {
@@ -235,6 +269,8 @@ int main (int argc, char *argv [])
   msg::WriteMulti   *write_msg = NULL;
   // Управление Группами Подписки
   msg::SubscriptionControl *sbs_ctrl_msg = NULL;
+  // Запрос получения истории
+  msg::HistoryRequest *history_req = NULL;
   // Событие Группы Подписки
   //msg::SubscriptionEvent *sbs_event_msg = NULL;
   std::string group_name;
@@ -256,6 +292,11 @@ int main (int argc, char *argv [])
   std::string input_tag, input_type, input_val;
   int num = 0;
   xdb::AttributeInfo_t attr_info;
+  static const char *arguments_template =
+              "-s <service_name> [-v] "
+              "[-g <sbs_name>] "
+              "[-m <%s|%s|%s|%s|%s>]";
+  char arguments_out[255];
 
   while ((opt = getopt (argc, argv, "vs:m:g:")) != -1)
   {
@@ -285,6 +326,8 @@ int main (int argc, char *argv [])
             mode = Mosquito::MODE_PROBE;
           else if (0 == strncmp(one_argument, OPTION_MODE_SUBSCRIBE, SERVICE_NAME_MAXLEN))
             mode = Mosquito::MODE_SUBSCRIBE;
+          else if (0 == strncmp(one_argument, OPTION_MODE_HISTORY, SERVICE_NAME_MAXLEN))
+            mode = Mosquito::MODE_HISTORY_REQ;
           else {
             std::cout << "Unknown work mode, will use PROBE" << std::endl;
             mode = Mosquito::MODE_PROBE;
@@ -317,11 +360,16 @@ int main (int argc, char *argv [])
 
   if (!is_service_name_given)
   {
-    std::cout << "Service name not given.\n"
-              << "Use -s <service_name> [-v] "
-              << "[-g <sbs_name>] "
-              << "[-m <read|write|probe|sup>] "
-              << "option.\n";
+    snprintf(arguments_out,
+             255,
+             arguments_template,
+             OPTION_MODE_READ,
+             OPTION_MODE_WRITE,
+             OPTION_MODE_PROBE,
+             OPTION_MODE_SUBSCRIBE,
+             OPTION_MODE_HISTORY);
+    std::cout << "Service name not given." << std::endl
+              << "Usage: " << arguments_out << std::endl;
     return(1);
   }
   std::cout << "Will use work mode " << mode << std::endl;
@@ -412,6 +460,21 @@ int main (int argc, char *argv [])
           std::cerr << "SBS group name not supported, use '-g <name>'" << std::endl;
         }
         break;
+
+      case Mosquito::MODE_HISTORY_REQ:
+      //----------------------------
+        // Запросить у Службы истории тренд указанного параметра
+        request = mosquito->create_message(SIG_D_MSG_REQ_HISTORY);
+        history_req = dynamic_cast<msg::HistoryRequest*>(request);
+        assert(history_req);
+
+        std::string probe_tag = "/KA4001/FY01";
+        time_t start = time(0) - 7200;
+        int samples = 100;
+        int htype = xdb::PERIOD_1_MINUTE;
+
+        history_req->set(probe_tag, start, samples, htype);
+        break;
     }
 
     // Есть чего сказать миру?
@@ -484,6 +547,7 @@ int main (int argc, char *argv [])
 
         case Mosquito::RECEIVE_OK:
           assert(report);
+          report->dump();
 
             switch(report->header()->usr_msg_type())
             {
@@ -526,6 +590,12 @@ int main (int argc, char *argv [])
               // Очередная порция обновленных данных. Поступают циклически, без запроса.
               case SIG_D_MSG_GRPSBS:
                 mosquito->process_sbs_update_response(report);
+                stop_receiving = false;
+                break;
+
+              // Ответ на запрос истории
+              case SIG_D_MSG_REQ_HISTORY:
+                mosquito->process_history(report);
                 stop_receiving = false;
                 break;
 

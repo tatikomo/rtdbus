@@ -56,9 +56,11 @@
 #cmakedefine ENDPOINT_RTDB_COMMAND_BACKEND    "@ENDPOINT_RTDB_COMMAND_BACKEND@"
 #cmakedefine ENDPOINT_HMI_FRONTEND    "@ENDPOINT_HMI_FRONTEND@"
 #cmakedefine ENDPOINT_EXCHG_FRONTEND  "@ENDPOINT_EXCHG_FRONTEND@"
+/* group subscription server */
 #cmakedefine ENDPOINT_SBS_PUBLISHER   "@ENDPOINT_SBS_PUBLISHER@"
-#cmakedefine ENDPOINT_ARCH_FRONTEND   "@ENDPOINT_ARCH_FRONTEND@"
+/* historian server */
 #cmakedefine ENDPOINT_HIST_FRONTEND   "@ENDPOINT_HIST_FRONTEND@"
+/* historian database snapshot filename */
 #cmakedefine HISTDB_SNAP_FILENAME     "@HISTDB_SNAP_FILENAME@"
 
 /* Predefined service names */
@@ -66,8 +68,10 @@
 #cmakedefine RTDB_NAME          "@RTDB_NAME@"
 #cmakedefine HMI_NAME           "@HMI_NAME@"
 #cmakedefine EXCHANGE_NAME      "@EXCHANGE_NAME@"
-#cmakedefine ARCHIVIST_NAME     "@ARCHIVIST_NAME@"
-#cmakedefine HIST_SAMPLER_NAME  "@HIST_SAMPLER_NAME@"
+#cmakedefine HISTORIAN_NAME     "@HISTORIAN_NAME@"
+
+/* RTDB and Archivist may run on same (LOCAL) or on different hosts (REMOTE) */
+#cmakedefine HIST_DATABASE_LOCALIZATION  @HIST_DATABASE_LOCALIZATION@
 
 /* Predefined HDB table names */
 #cmakedefine HDB_DATA_TABLENAME "@HDB_DATA_TABLENAME@"

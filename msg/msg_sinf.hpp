@@ -17,6 +17,13 @@
 
 namespace msg {
 
+// Элементарная запись единичного семпла
+typedef struct {
+  time_t datehourm;
+  double val;
+  char valid;
+} hist_attr_t;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Хранитель значений 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -179,6 +186,37 @@ class SubscriptionEvent : public Letter
 };
  
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+class HistoryRequest : public Letter
+{
+  public:
+    // Фактические значения не получены, значит нужно присвоить
+    // значения по умолчанию, иначе protobuf не сериализует пустые поля
+    HistoryRequest();
+    HistoryRequest(const std::string&, const std::string&);
+    HistoryRequest(Header*, const std::string&);
+    virtual ~HistoryRequest();
+
+    // Указать тег для получения истории
+    void set(std::string&, time_t /* start */, int /* num_samples */, int /* history_type */);
+    // Добавить в пул еще одну запись
+    void add(time_t, double, int);
+    // Получить значения записи с заданным индексом
+    bool get(int, hist_attr_t&);
+
+    // методы доступа
+    const std::string& tag();
+    time_t start_time();
+    // Получить количество запрошенных элементов
+    int num_required_samples();
+    // Получить количество действительных элементов в пуле
+    int num_read_samples();
+    xdb::sampler_type_t history_type();
+
+  private:
+    DISALLOW_COPY_AND_ASSIGN(HistoryRequest);
+};
+ 
+
 } // namespace msg
 
 

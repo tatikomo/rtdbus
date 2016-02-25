@@ -79,50 +79,57 @@ const Error& DatabaseRtapImpl::Query(mco_db_h& handler, rtDbCq& info)
 {
   MCO_RET rc;
 
-  clearError();
+  setError(rtE_RUNTIME_ERROR);
 
   switch(info.action.query)
   {
     // Прочитать список точек, удовлетворяющих заданным критериям
     case rtQUERY_PTS_IN_CATEG:
         rc = queryPointsOfSpecifiedCategory(handler, info);
-        if (rc) { LOG(ERROR) << "Get points list of specified category"; }
+        if (rc) { LOG(ERROR) << "Get points list of category: " << info.addrCnt; }
+        else clearError();
         break;
 
     // Прочитать список точек указанного класса
     case rtQUERY_PTS_IN_CLASS:
         rc = queryPointsOfSpecifiedClass(handler, info);
-        if (rc) { LOG(ERROR) << "Get points list of specified class"; }
+        if (rc) { LOG(ERROR) << "Get points list of class: " << info.addrCnt; }
+        else clearError();
         break;
 
     // Вернуть список групп подписки, содержащие точки с модифицированными атрибутами
     case rtQUERY_SBS_LIST_ARMED:
         rc = querySbsArmedGroup(handler, info);
         if (rc) { LOG(ERROR) << "Get active subscription groups list"; }
+        else clearError();
         break;
 
     // Вернуть список точек с модифицированными атрибутами, для указанной группы
     case rtQUERY_SBS_POINTS_ARMED:
         rc = querySbsPoints(handler, info, info.action.query);
         if (rc) { LOG(ERROR) << "Get activated points for selected subscription group"; }
+        else clearError();
         break;
 
     // Для указанной группы Точек сбросить признак модификации
     case rtQUERY_SBS_POINTS_DISARM:
         rc = querySbsPoints(handler, info, info.action.query);
         if (rc) { LOG(ERROR) << "Deactivating points for selected subscription group"; }
+        else clearError();
         break;
 
     // Для указанной группы прочитать значения модифицированных атрибутов
     case rtQUERY_SBS_READ_POINTS_ARMED:
         rc = querySbsPoints(handler, info, info.action.query);
         if (rc) { LOG(ERROR) << "Reading modified points for selected subscription group"; }
+        else clearError();
         break;
 
     // Сбросить флаг модификации для измененных точек из данного списка unordered_map
     case rtQUERY_SBS_POINTS_DISARM_BY_LIST:
         rc = querySbsDisarmSelectedPoints(handler, info);
         if (rc) { LOG(ERROR) << "Deactivating selected modified points for all subscription groups"; }
+        else clearError();
         break;
 
     default:
@@ -730,7 +737,7 @@ MCO_RET DatabaseRtapImpl::querySbsPoints(mco_db_h& handler, rtDbCq& info, TypeOf
 // =================================================================================
 // Получить список Точек, имеющих предысторию
 // Анализируется значение атрибута XDBPoint.HistoryType:
-//   NONE - предыстория не собирается
+//   PER_NONE      - предыстория не собирается
 //   PER_1_MINUTE  - только минутная
 //   PER_5_MINUTES - минутная и пятиминутная
 //   PER_HOUR      - минутная, 5-минутная и часовая
@@ -738,6 +745,7 @@ MCO_RET DatabaseRtapImpl::querySbsPoints(mco_db_h& handler, rtDbCq& info, TypeOf
 //   PER_MONTH     - до месячной включительно
 MCO_RET DatabaseRtapImpl::queryPointsWithHistory (mco_db_h& handler, rtDbCq& info)
 {
+  const char *fname = "queryPointsWithHistory";
   MCO_RET rc = MCO_E_UNSUPPORTED;
   mco_cursor_t csr;
   mco_trans_h t;
@@ -747,7 +755,7 @@ MCO_RET DatabaseRtapImpl::queryPointsWithHistory (mco_db_h& handler, rtDbCq& inf
   objclass_t objclass_instance;
   AnalogInfoType ai;
   // Глубина хранения предыстории экземпляра
-  HistoryType htype = NONE;
+  HistoryType htype = PER_NONE;
   // Входной параметр - адрес хеша с выходными данными
   map_name_id_t *points_map = static_cast<map_name_id_t*>(info.buffer);
   map_name_id_t::iterator points_map_iterator;
@@ -765,8 +773,9 @@ MCO_RET DatabaseRtapImpl::queryPointsWithHistory (mco_db_h& handler, rtDbCq& inf
     rc = XDBPoint_list_cursor(t, &csr);
     if (rc) { LOG(ERROR) << "Get Points list: " << mco_ret_string(rc,NULL); break; }
 
-    while((MCO_S_OK == rc) || (rc != MCO_S_CURSOR_EMPTY)) {
+    while((MCO_S_OK == rc) || (rc != MCO_S_CURSOR_EMPTY) || (rc != MCO_S_CURSOR_END)) {
       rc = XDBPoint_from_cursor(t, &csr, &point_instance);
+
       if (rc) { LOG(ERROR) << "Get point instance from cursor: " << mco_ret_string(rc,NULL); break; }
 
       // Проверить тип атрибута VAL - аналоговый, дискретный или бинарный?
@@ -793,7 +802,7 @@ MCO_RET DatabaseRtapImpl::queryPointsWithHistory (mco_db_h& handler, rtDbCq& inf
         }
 
         switch(htype) {
-          case NONE:
+          case PER_NONE:
             // такая точка нам не интересна
             break;
 
@@ -809,7 +818,6 @@ MCO_RET DatabaseRtapImpl::queryPointsWithHistory (mco_db_h& handler, rtDbCq& inf
               // Продолжить работу, даже если была ошибка чтения тега историзируемых Точек
             }
             else {
-
               // Занесем реквизиты текущей точки в список
               // NB: вместо идентификатора Точки заносим значение глубины хранения истории
               points_map->insert(std::pair<std::string, autoid_t>(tag, static_cast<autoid_t>(htype)));
@@ -822,18 +830,22 @@ MCO_RET DatabaseRtapImpl::queryPointsWithHistory (mco_db_h& handler, rtDbCq& inf
       } // Конец обработки Точки аналогового типа
 
       rc = mco_cursor_next(t, &csr);
+      // Всего лишь конец курсора, очистим ошибку и выйдем из цикла
+      if (MCO_S_CURSOR_END == rc) { rc = MCO_S_OK; break; }
     }
 
-    if (MCO_S_OK == rc)
+    if (MCO_S_OK == rc) {
       rc = mco_trans_commit(t);
-
-    if (rc) { LOG(ERROR) << "Commitment transaction: " << mco_ret_string(rc,NULL); break; }
+      if (rc) { LOG(ERROR) << "Commitment transaction: " << mco_ret_string(rc,NULL); break; }
+    }
   } while (false);
 
   if (rc) {
     LOG(ERROR) << "Query points with history traitments: " << mco_ret_string(rc,NULL);
     mco_trans_rollback(t);
   }
+
+  LOG(INFO) << fname << ": Loaded " << points_map->size() << " history element(s)";
 
   return rc;
 }

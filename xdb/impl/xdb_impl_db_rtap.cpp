@@ -50,13 +50,13 @@ using namespace xdb;
  */
 #include "dat/rtap_db.hpp"
 
-// Конверсия между целым числом и значением HistoryType
+// Конверсия между целым числом и значением HistoryType из rtap_db.mco
 typedef struct {
   int idx;
   HistoryType htype;
 } int_to_his;
 static const int_to_his decoder[6] = {
-    { 0, NONE },
+    { 0, PER_NONE },
     { 1, PER_1_MINUTE },
     { 2, PER_5_MINUTES },
     { 3, PER_HOUR },
@@ -526,9 +526,6 @@ MCO_RET PointInDatabase::update_references()
     if (m_rc) { LOG(ERROR)<<"Setting CE link (" << m_CE_aid <<")"; break; }
     m_rc = m_point.SA_ref_put(m_SA_aid);
     if (m_rc) { LOG(ERROR)<<"Setting SA link (" << m_SA_aid << ")"; break; }
-    // Нет необходимости сохранять ссылку на таблицу HISTORY, она единственная, одна-одинёшенькая
-//    m_rc = m_point.hist_ref_put(m_hist_aid);
-//    if (m_rc) { LOG(ERROR)<<"Setting HIST link (" << m_hist_aid << ")"; break; }
 
   } while (false);
 
@@ -4526,7 +4523,7 @@ MCO_RET DatabaseRtapImpl::createHISTOTYPE(PointInDatabase* instance, rtap_db::At
   static const char *attr_name = RTDB_ATT_HISTOTYPE;
   MCO_RET rc = MCO_S_NOTFOUND;
   HistoryType histotype;
-  uint16_t given_type;
+  int given_type;
 
   switch(instance->objclass())
   {
@@ -4535,11 +4532,11 @@ MCO_RET DatabaseRtapImpl::createHISTOTYPE(PointInDatabase* instance, rtap_db::At
     case ICM:   // 08
         // NB: Значение HISTOTYPE в RTAP м.б. { -1, 1, 2, 3, ...}
         given_type = atoi(attr.value().c_str());
-        if ((NONE <= given_type) && (given_type <= PER_MONTH)) {
+        if ((PER_NONE >= given_type) && (given_type <= PER_MONTH)) {
           histotype = decoder[given_type].htype;
         }
         else {
-          histotype = NONE;
+          histotype = PER_NONE;
 #ifdef VERBOSE
           LOG(WARNING) << "Unsupported value=" << given_type
                        << " for " << instance->tag() << "." << attr_name;
@@ -4576,7 +4573,7 @@ MCO_RET DatabaseRtapImpl::readHISTOTYPE(mco_trans_h& t, rtap_db::XDBPoint& insta
       case TM:    // 01
       case ICS:   // 07
       case ICM:   // 08
-        attr_info->value.fixed.val_uint16 = NONE;
+        attr_info->value.fixed.val_uint16 = PER_NONE;
 
         rc = instance.ai_read(ai);
         if (rc) { LOG(ERROR) << "Can't read analog part of " << attr_info->name; break; }
@@ -4607,7 +4604,7 @@ MCO_RET DatabaseRtapImpl::writeHISTOTYPE(mco_trans_h& t, rtap_db::XDBPoint& inst
   static const char *attr_name = RTDB_ATT_HISTOTYPE;
   MCO_RET rc = MCO_S_NOTFOUND;
   rtap_db::AnalogInfoType   ai;
-  HistoryType histotype = NONE;
+  HistoryType histotype = PER_NONE;
   objclass_t objclass;
 
   assert(attr_info->type == AttrTypeDescription[RTDB_ATT_IDX_HISTOTYPE].type);
@@ -4624,7 +4621,7 @@ MCO_RET DatabaseRtapImpl::writeHISTOTYPE(mco_trans_h& t, rtap_db::XDBPoint& inst
         rc = instance.ai_read(ai);
         if (rc) { LOG(ERROR) << "Can't read analog part of " << attr_info->name; break; }
 
-        if ((NONE <= attr_info->value.fixed.val_uint16)
+        if ((PER_NONE >= attr_info->value.fixed.val_uint16)
         && (attr_info->value.fixed.val_uint16 <= PER_MONTH)) {
           histotype = decoder[attr_info->value.fixed.val_uint16].htype;
           rc = ai.HISTOTYPE_put(histotype);

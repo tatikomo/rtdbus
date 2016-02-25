@@ -2,26 +2,18 @@
 #define HIST_IMPL_PROCESSOR_HPP
 #pragma once
 
-#include "sqlite3.h"
+//#include "sqlite3.h"
 
 #if defined HAVE_CONFIG_H
 #include "config.h"
 #endif
 
 #include "xdb_common.hpp"
+#include "xdb_rtap_environment.hpp"
 
 #define within(num) (int) ((float) (num) * random () / (RAND_MAX + 1.0))
 
-// Тип генератора предыстории
-typedef enum {
-  STAGE_NONE    = 0,
-  PER_1_MINUTE  = 1,
-  PER_5_MINUTES = 2,
-  PER_HOUR      = 3,
-  PER_DAY       = 4,
-  PER_MONTH     = 5,
-  STAGE_LAST    = PER_MONTH + 1
-} sampler_type_t; // HistoryType из rtap_db.h
+class sqlite3;
 
 // Элементарная запись связки идентификатора Тега и Глубины хранения истории для него
 typedef struct {
@@ -39,15 +31,12 @@ typedef struct {
 
 // Связка между собирателями текущего и следующего типов
 typedef struct {
-  sampler_type_t current;
-  const char* pair_name_current;
-  sampler_type_t next;
-  const char* pair_name_next;
+  xdb::sampler_type_t current;
+  xdb::sampler_type_t prev;
+  xdb::sampler_type_t next;
   // Количество анализируемых семплов предыдущей стадии для
   // получения одного семпла текущей стадии
   int num_prev_samples;
-  // Суффикс файла, содержащего предысторию данного цикла
-  char suffix[3];
   // Длительность интервала данного типа в секундах
   // минутная = 60 секунд
   // 5 минут = 300 секунд
@@ -61,10 +50,11 @@ typedef std::map <std::string, history_info_t> map_history_info_t;
 typedef std::map <const std::string, historized_attributes_t> HistorizedInfoMap_t;
 
 
-class Historian {
+// Класс накопления и обработки предыстории Аналоговых параметров, имеющих ненулевой HISTOTYPE
+class HistoricImpl {
   public:
-    Historian(const char*, const char*);
-   ~Historian();
+    HistoricImpl(xdb::RtEnvironment*, const char*);
+   ~HistoricImpl();
 
     // Подключиться к БДРВ и HDB
     bool Connect();
@@ -72,8 +62,14 @@ class Historian {
     bool Disconnect();
     // Выполнить рассчёт и сохранение среза данных, в зависимости от указанного времени
     bool Make(time_t);
+    // Занести все историзированные значения из HistorizedInfoMap_t в HDB
+    int store_history_samples(HistorizedInfoMap_t&, xdb::sampler_type_t);
     // Загрузить набор семплов для данного тега, указанной глубины, начиная с указанной даты
-    bool load_samples_period_per_tag(const char*, const sampler_type_t, time_t, const int);
+    int load_samples_period_per_tag(const char*,
+                                    const xdb::sampler_type_t,
+                                    time_t,
+                                    historized_attributes_t*,
+                                    const int);
 
   private:
     // Шаблон SQL-выражения создания таблицы НСИ в HDB
@@ -91,7 +87,7 @@ class Historian {
     static const char *s_SQL_READ_DATA_ITEM_TEMPLATE;
     static const char *s_SQL_READ_DATA_AVERAGE_ITEM_TEMPLATE;
 
-    xdb::RtDatabase* m_rtdb;
+    xdb::RtEnvironment* m_rtdb_env;
     xdb::RtConnection* m_rtdb_conn;
     sqlite3     *m_hist_db;      // Указатель на объект БД Истории
     char        *m_hist_err;     // Сведения об ошибке при работе с БД Истории
@@ -99,21 +95,18 @@ class Historian {
     bool         m_rtdb_connected;
     // Название файла со снимком HDB
     char m_history_db_filename[SERVICE_NAME_MAXLEN + 1];
-    // Название Службы БДРВ, для получения оттуда данных
-    char m_rtdb_name[SERVICE_NAME_MAXLEN + 1];
 
     // Результат выполнения запроса на список точек с предысторией в формате RTDB.
     // Требует конвертации, чтобы хранить еще и идентификатор записи в HDB.
+    // Каждый экземпляр HistoricImpl должен иметь доступ к одному общему
+    // m_raw_actual_rtdb_points, m_actual_rtdb_points и m_actual_hist_points.
+    // Метод Make() вызывается только из одной (ведущей) нити в нужное время,
+    // семплы разной глубины рассчитываются друг за другом, от PER_1_MINUTE до PER_MONTH.
     xdb::map_name_id_t m_raw_actual_rtdb_points;
     // Текущие теги из БДРВ
     map_history_info_t m_actual_rtdb_points;
     // Теги из существующего снимка Исторической БД
     map_history_info_t m_actual_hist_points;
-    // Разница между старым и новым наборами тегов Исторической БД
-    map_history_info_t m_need_to_create_hist_points;
-    map_history_info_t m_need_to_delete_hist_points;
-    historized_attributes_t m_historized[MAX_PORTION_SIZE_LOADED_HISTORY];
-
 
     bool history_db_connect();
     bool rtdb_connect();
@@ -126,15 +119,16 @@ class Historian {
     // Создать соответствующую таблицу, если она ранее не существовала
     bool createTable(const char*);
 
-    bool make_history_samples_by_type(const sampler_type_t, time_t);
-    bool load_samples_list_by_type(const sampler_type_t, time_t, xdb::map_name_id_t, HistorizedInfoMap_t&);
+    bool make_history_samples_by_type(const xdb::sampler_type_t, time_t);
+    bool load_samples_list_by_type(const xdb::sampler_type_t, time_t, xdb::map_name_id_t, HistorizedInfoMap_t&);
+    // Загрузка структур из HDB в память, пересоздав таблицы HDB и заполнив их данными
     bool tune_dictionaries();
 
     bool rtdb_get_info_historized_points();
-#if (HIST_DATABASE_LOCALIZATION==LOCAL)
+#if (HIST_DATABASE_LOCALIZATION == LOCAL)
     bool local_rtdb_get_info_historized_points(xdb::map_name_id_t&);
 #endif
-#if (HIST_DATABASE_LOCALIZATION==DISTANT)
+#if (HIST_DATABASE_LOCALIZATION == REMOTE)
     bool remote_rtdb_get_info_historized_points(xdb::map_name_id_t&);
 #endif
     int getPointsFromDictHDB(map_history_info_t&);
@@ -146,13 +140,11 @@ class Historian {
     int getPointIdFromDictHDB(const char*);
     void accelerate(bool);
 
-    // Занести все историзированные значения из HistorizedInfoMap_t в HDB
-    int store_history_samples(HistorizedInfoMap_t&, sampler_type_t);
     // Выбрать среднее значение VAL из семплов предыдущего типа
-    bool select_avg_values_from_sample(historized_attributes_t&, const sampler_type_t);
-    time_t roundTimeToNextEdge(time_t, const sampler_type_t, bool);
+    bool select_avg_values_from_sample(historized_attributes_t&, const xdb::sampler_type_t);
+    time_t roundTimeToNextEdge(time_t, const xdb::sampler_type_t, bool);
     int readValuesFromDataHDB(int,       // Id точки
-                          sampler_type_t,// Тип читаемой истории
+                          xdb::sampler_type_t,// Тип читаемой истории
                           time_t,        // Начало диапазона читаемой истории
                           time_t,        // Конец диапазона читаемой истории
                           historized_attributes_t*); // Прочитанные данные семплов

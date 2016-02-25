@@ -6,7 +6,6 @@ SET(UNITTEST_DATABASE db_test)
 SET(UNITTEST_MESSAGE  msg_test)
 SET(UNITTEST_METRICS  metric_test)
 SET(UNITTEST_CE       ce_test)
-SET(UNITTEST_HIST_XDB hist_xdb_test)
 
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # SOLARIS
@@ -31,6 +30,7 @@ SET(GTEST_INC_DIR ${GTEST_DIR}/include)
 include_directories(${GTEST_INC_DIR})
 include_directories(${TOOLS_DIR})
 include_directories(${MDP_DIR})
+include_directories(${HDB_DIR})
 include_directories(${MSG_DIR})
 include_directories(${XDB_COMMON_DIR})
 include_directories(${XDB_BROKER_DIR})
@@ -48,6 +48,7 @@ include_directories(${LIBSQLITE_INCLUDE_DIR})
 link_directories(${GTEST_DIR}/lib/.libs)
 link_directories(${LIBGLOG_LIBRARIES_DIR})
 link_directories(${MDP_DIR})
+link_directories(${HDB_DIR})
 link_directories(${XDB_BROKER_DIR})
 link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
@@ -131,6 +132,7 @@ set (TEST_DATABASE_SOURCES
         ${XDB_RTAP_DIR}/xdb_rtap_snap.hpp
         ${XDB_RTAP_DIR}/xdb_rtap_snap_trans.cpp
         ${MDP_DIR}/mdp_zmsg.hpp
+        ${HDB_DIR}/hdb_impl_processor.hpp
         ${TEST_RTDBUS_DIR}/database_unittest.cpp)
 
 set (TEST_MSG_SOURCES
@@ -165,19 +167,6 @@ set (TEST_MSG_SOURCES
 set (TEST_CE_SOURCES
         ${TEST_RTDBUS_DIR}/ce_unittest.hpp
         ${TEST_RTDBUS_DIR}/ce_unittest.cpp)
-
-set (TEST_HIST_XDB_SOURCES
-        ${GTEST_INC_DIR}/gtest/gtest.h
-        ${XDB_COMMON_DIR}/xdb_common.cpp
-        ${XDB_COMMON_DIR}/xdb_common.hpp
-        ${XDB_IMPL_DIR}/xdb_impl_common.h
-        ${XDB_IMPL_DIR}/xdb_impl_common.c
-        ${XDB_IMPL_DIR}/dat/rtap_db.hpp
-        ${XDB_IMPL_DIR}/dat/rtap_db.h
-        ${XDB_IMPL_DIR}/dat/rtap_db.c
-        ${TEST_RTDBUS_DIR}/hist_xdb_unittest.hpp
-        ${TEST_RTDBUS_DIR}/hist_xdb_unittest.cpp)
-
 
 if (CMAKE_COMPILER_IS_GNUCC)
 #add_definitions (-Wno-missing-field-initializers)
@@ -292,6 +281,7 @@ target_link_libraries(${UNITTEST_DATABASE}
     ${XDB_BROKER_LIBRARY_NAME}
     ${XDB_RTAP_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
+    ${HDB_LIBRARY_NAME}
     ${MSG_LIBRARY_NAME}
     ${LIBPROTOBUF_LIBRARIES}
     ${LIBGLOG_LIBRARIES}
@@ -316,23 +306,9 @@ target_link_libraries(${UNITTEST_CE}
     ${GTEST_DIR}/cmake/libgtest.a
     ${SYSTEM_EXTERNAL_LIBS})
 
-add_executable (${UNITTEST_HIST_XDB} ${TEST_HIST_XDB_SOURCES})
-#add_definitions("-pthread")
-add_definitions (-DHIST_DATABASE_LOCALIZATION=LOCAL)
-target_link_libraries(${UNITTEST_HIST_XDB}
-    ${LIBGLOG_LIBRARIES}
-    ${XDB_RTAP_LIBRARY_NAME}
-    ${LIBSQLITE_LIBRARIES}
-    ${LIBEXTREMEDB_LIBRARIES_ALL}
-    # mco_db_load/save
-    ${LIBEXTREMEDB_EXTRA_LIBRARIES}
-    ${GTEST_DIR}/cmake/libgtest.a
-    ${SYSTEM_EXTERNAL_LIBS})
-
 add_test(NAME DATABASE_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_DATABASE})
 add_test(NAME DEV_INT_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_DEV_INT})
 add_test(NAME DEV_RUN_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_DEV_RUN})
 add_test(NAME MESSAGE_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_MESSAGE})
 add_test(NAME METRICS_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_METRICS})
 add_test(NAME CE_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_CE})
-add_test(NAME HIST_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_HIST_XDB})

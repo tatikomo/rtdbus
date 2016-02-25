@@ -193,6 +193,10 @@ void DataImpl::set_initial_values()
         m_protobuf_instance = new RTDBM::SubscriptionControl();
       break;
 
+      case SIG_D_MSG_REQ_HISTORY:
+        m_protobuf_instance = new RTDBM::HistoryRequest();
+      break;
+
       default:
         LOG(ERROR) << "Unsupported message type: " << m_type;
       break;

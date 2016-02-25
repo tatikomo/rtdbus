@@ -840,8 +840,8 @@ MCO_RET DatabaseRtapImpl::GOFTSCVA(mco_trans_h t,
 {
   static const char *fname = "GOFTSCVA";
   MCO_RET rc = MCO_S_NOTFOUND;
-  ValidChange h_AcqVty; // local_Validchange;
-  ValidChange h_AcqVty_Re; // результирующая достоверность
+  ValidChange h_AcqVty = VALIDCHANGE_FAULT; // local_Validchange;
+  ValidChange h_AcqVty_Re = VALIDCHANGE_FAULT; // результирующая достоверность
 
   if (objclass == VA)
   {

@@ -44,6 +44,17 @@ enum Quality {
   ATTR_NOT_FOUND = 4; /* attribute is not found in database */
 }
 
+// Тип выбираемой истории
+// NB: синхронизировать со схемой БДРВ (rtap_db.mco, HistoryType)
+enum HistoryType {
+  PER_NONE       = 0;
+  PER_1_MINUTE   = 1;
+  PER_5_MINUTES  = 2;
+  PER_HOUR       = 3;
+  PER_DAY        = 4;
+  PER_MONTH      = 5;
+}
+
 message ValueUpdate {
   required string   tag     = 1;
   required DbType   type    = 2 [default=DB_TYPE_UNDEF];
@@ -81,5 +92,30 @@ message SubscriptionControl {
 // #SIG_D_MSG_GRPSBS
 message SubscriptionEvent {
   repeated ValueUpdate  update_item = 1;
+}
+
+// Элементарное значение предыстории
+message HistoryItem {
+  // Достоверность отсчёта
+  required gof_t_AcqInfoValid valid = 1 [default=GOF_D_ACQ_INVALID];
+  // Время формирования
+  required int32  frame = 2 [default=0];
+  // Значение отсчёта
+  required double value = 3 [default=0];
+}
+
+// Запрос получения истории указанного типа для указанного тега 
+// #SIG_D_MSG_REQ_HISTORY
+message HistoryRequest {
+  // Запрашиваемая история для указанного Тега 
+  required string   tag         = 1;
+  // Время начала интересующего интервала истории
+  required int32    time_start  = 2;
+  // Количество запрашиваемых семплов
+  required int32    num_required_samples = 3;
+  // Тип выбираемой истории (минутная, 5-ти минутная, часовая, ...)
+  required HistoryType history_type = 4;
+  // Массив значений, заполняется при ответе
+  repeated HistoryItem item = 5;
 }
 

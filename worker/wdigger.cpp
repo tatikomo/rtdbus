@@ -201,10 +201,10 @@ void release_point_info(xdb::PointDescription_t* info)
 
 
 // --------------------------------------------------------------------------------
-DiggerWorker::DiggerWorker(zmq::context_t &ctx, int sock_type, xdb::RtEnvironment* env) :
+DiggerWorker::DiggerWorker(zmq::context_t *ctx, int sock_type, xdb::RtEnvironment* env) :
  m_context(ctx),
- m_worker(m_context, sock_type), // клиентский сокет для приема от фронтенда
- m_commands(m_context, ZMQ_SUB), // серверный сокет приема команд от DiggerProxy
+ m_worker(*m_context, sock_type), // клиентский сокет для приема от фронтенда
+ m_commands(*m_context, ZMQ_SUB), // серверный сокет приема команд от DiggerProxy
  m_thread_id(0),
  m_interrupt(false),
  m_environment(env),
@@ -417,9 +417,6 @@ int DiggerWorker::processing(mdp::zmsg* request, std::string &identity)
   // Получить отметку времени начала обработки запроса
   m_metric_center->before();
 
-  // Получить отметку времени начала обработки запроса
-  m_metric_center->before();
-
   msg::Letter *letter = m_message_factory->create(request);
   if (letter->valid())
   {
@@ -463,7 +460,7 @@ int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
   msg::ReadMulti *read_msg = dynamic_cast<msg::ReadMulti*>(letter);
   mdp::zmsg      *response = new mdp::zmsg();
   xdb::DbType_t  given_xdb_type;
-#if defined VERBOSE
+#if (VERBOSE > 2)
   struct tm result_time;
 #endif
   // удалить
@@ -508,7 +505,7 @@ int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
       // Перенос прочитанных из БДРВ значений (AttrVal) в RTDBM::ValueUpdate
       todo.flush();
     
-#if defined VERBOSE
+#if (VERBOSE > 2)
         LOG(INFO) << "Read [" << todo.type() << "] " << todo.tag() << " = " << todo.as_string();
 #endif
 
@@ -521,7 +518,7 @@ int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
 
     if (true == read_msg->get(idx, delme_name, delme_type, delme_quality, delme_val))
     {
-#if defined VERBOSE
+#if (VERBOSE > 2)
         if (xdb::ATTR_OK == delme_quality)
         {
           std::cout << "[  OK  ] #" << idx << " name:" << delme_name << " type:" << delme_type << " val:";
@@ -530,7 +527,7 @@ int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
 
         switch(delme_type)
         {
-#if defined VERBOSE
+#if (VERBOSE > 3)
             case xdb::DB_TYPE_LOGICAL:
             std::cout << (signed int)delme_val.fixed.val_bool;
             break;
@@ -566,7 +563,7 @@ int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
             break;
 #endif
             case xdb::DB_TYPE_BYTES:
-#if defined VERBOSE
+#if (VERBOSE > 2)
               std::cout << delme_val.dynamic.val_string;
 #endif
               delete delme_val.dynamic.val_string;
@@ -582,13 +579,13 @@ int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
             case xdb::DB_TYPE_BYTES80:
             case xdb::DB_TYPE_BYTES128:
             case xdb::DB_TYPE_BYTES256:
-#if defined VERBOSE
+#if (VERBOSE > 2)
               std::cout << delme_val.dynamic.varchar;
 #endif
               delete [] delme_val.dynamic.varchar;
             break;
 
-#if defined VERBOSE
+#if (VERBOSE > 2)
             case xdb::DB_TYPE_ABSTIME:
               given_time = delme_val.fixed.val_time.tv_sec;
               localtime_r(&given_time, &result_time);
@@ -621,13 +618,13 @@ int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
             default: ; // nothing to do
 #endif
         }
-#if defined VERBOSE
+#if (VERBOSE > 2)
         std::cout << std::endl;
 #endif
     }
     else // Ошибка функции get()
     {
-#if defined VERBOSE
+#if (VERBOSE > 2)
       LOG(ERROR) << "[ FAIL ] #" << idx << " name:" << delme_name << " type:" << delme_type << std::endl;
 #endif
     }
@@ -656,7 +653,7 @@ int DiggerWorker::handle_write(msg::Letter* letter, std::string& identity)
   {
     msg::Value& todo = write_msg->item(idx);
 
-#if defined VERBOSE
+#if (VERBOSE > 2)
     LOG(INFO) << "write #"<<idx<<":"<<todo.tag()<< ":"<<(unsigned int)todo.type()<<":"<<todo.as_string();
 #endif
     // Изменить значение атрибута
@@ -668,7 +665,7 @@ int DiggerWorker::handle_write(msg::Letter* letter, std::string& identity)
     {
       case xdb::rtE_NONE: // Все в порядке
         status_code = 0;
-#if defined VERBOSE
+#if (VERBOSE > 2)
         std::cout << "[  OK  ] #" << idx << " name:" << todo.tag()
                   << " type:" << todo.type()
                   << " val:" << todo.as_string()
@@ -838,13 +835,13 @@ void DiggerWorker::send_exec_result(int exec_val, std::string& identity)
   delete response;
 }
 
-DiggerPoller::DiggerPoller(zmq::context_t &ctx, xdb::RtEnvironment* env) :
+DiggerPoller::DiggerPoller(zmq::context_t *ctx, xdb::RtEnvironment* env) :
  m_context(ctx),
- m_publisher(m_context, ZMQ_PUB),
+ m_publisher(*m_context, ZMQ_PUB),
  m_environment(env),
  m_message_factory(new msg::MessageFactory(DIGGER_NAME))
 {
-  LOG(INFO) << "Create DiggerPoller";
+  LOG(INFO) << "Create DiggerPoller, context " << m_context;
 }
 
 DiggerPoller::~DiggerPoller()
@@ -1034,16 +1031,16 @@ void DiggerPoller::release_attribute_info(xdb::AttributeInfo_t* info)
 }
 
 // --------------------------------------------------------------------------------
-DiggerProbe::DiggerProbe(zmq::context_t &ctx, xdb::RtEnvironment* env) :
+DiggerProbe::DiggerProbe(zmq::context_t *ctx, xdb::RtEnvironment* env) :
  m_context(ctx),
- m_worker_command_socket(m_context, ZMQ_PUB),
+ m_worker_command_socket(*m_context, ZMQ_PUB),
  m_environment(env),
  m_worker_list(),
  m_worker_thread(),
  m_sbs_checker(NULL),
  m_sbs_thread(NULL)
 {
-  LOG(INFO) << "DiggerProbe start, new context " << &m_context;
+  LOG(INFO) << "DiggerProbe start, context " << m_context;
 }
 
 DiggerProbe::~DiggerProbe()
@@ -1285,16 +1282,16 @@ void DiggerProbe::stop()
 }
 
 // --------------------------------------------------------------------------------
-DiggerProxy::DiggerProxy(zmq::context_t &ctx, xdb::RtEnvironment* env) :
+DiggerProxy::DiggerProxy(zmq::context_t *ctx, xdb::RtEnvironment* env) :
  m_context(ctx),
- m_control(m_context, ZMQ_SUB),
- m_frontend(m_context, ZMQ_ROUTER),
- m_backend(m_context, ZMQ_DEALER),
+ m_control(*m_context, ZMQ_SUB),
+ m_frontend(*m_context, ZMQ_ROUTER),
+ m_backend(*m_context, ZMQ_DEALER),
  m_environment(env),
  m_probe(NULL),
  m_probe_thread(NULL)
 {
-  LOG(INFO) << "DiggerProxy start, new context " << &m_context;
+  LOG(INFO) << "DiggerProxy start, context " << m_context;
 }
 
 // --------------------------------------------------------------------------------
@@ -1325,7 +1322,7 @@ void DiggerProxy::run()
 
   try
   {
-    // Сокет прямого подключения к экземплярям DiggerWorker
+    // Сокет прямого подключения к экземплярам DiggerWorker
     // NB: Выполняется в отдельной нити 
     //ZMQ_ROUTER_MANDATORY может привести zmq_proxy_steerable к аномальному завершению: rc=-1, errno=113
     //Наблюдалось в случаях интенсивного обмена брокера с клиентом, если последний аномально завершался.
@@ -1375,8 +1372,7 @@ void DiggerProxy::run()
                                   (void*)m_backend,
                                   NULL /* C++11: nullptr */,
                                   (void*)m_control);
-	    if (rc == EHOSTUNREACH)
- 		  LOG(WARNING) << "Restart DiggerProxy after EHOSTUNREACH";
+	    if (rc == EHOSTUNREACH) LOG(WARNING) << "Restart DiggerProxy after EHOSTUNREACH";
       }
 
       if (0 == rc)
@@ -1473,6 +1469,8 @@ Digger::Digger(std::string broker_endpoint, std::string service)
    m_environment(NULL),
    m_db_connection(NULL)
 {
+  // Здесь используется m_context из mdp::mdwrk
+  LOG(INFO) << "new Digger, context " << &m_context;
   m_appli = new xdb::RtApplication("DIGGER");
   // NB: Флаг OF_CREATE говорит о том, что текущий процесс будет являться владельцем БД,
   // то есть при завершении своей работы он может удалить экземпляр.
@@ -1539,7 +1537,7 @@ void Digger::run()
     LOG(INFO) << "RTDB status: " << m_environment->getLastError().what();
 
     LOG(INFO) << "DiggerProxy creating, interrupt_worker=" << &interrupt_worker;
-    m_digger_proxy = new DiggerProxy(m_context, m_environment);
+    m_digger_proxy = new DiggerProxy(&m_context, m_environment);
 
     LOG(INFO) << "DiggerProxy starting Main thread";
     m_proxy_thread = new std::thread(std::bind(&DiggerProxy::run, m_digger_proxy));

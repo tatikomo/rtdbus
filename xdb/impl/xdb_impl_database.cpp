@@ -984,7 +984,9 @@ const Error& DatabaseImpl::StoreSnapshot(const char* given_file_name)
                    << "' snapshot into '" << fname
                    << "': " << mco_ret_string(rc,NULL);
       }
-      fclose(fbak);
+    // GEV: valgrind ругается на fbak: Syscall param write(buf) points to uninitialised byte(s)
+    // Возможно, fbak закрывается внутри mco_db_save
+     fclose(fbak);
     }
     else
     {
@@ -1374,7 +1376,9 @@ const Error& DatabaseImpl::LoadFromXML(const char* given_file_name)
 const Error& DatabaseImpl::Open()
 {
   MCO_RET rc = MCO_S_OK;
+#ifdef DISK_DATABASE
   void* cache_address = NULL;
+#endif
 
   clearError();
 

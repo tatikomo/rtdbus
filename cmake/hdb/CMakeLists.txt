@@ -34,8 +34,10 @@ else (CMAKE_COMPILER_IS_GNUCC)
   add_definitions (-library=stlport4)
 endif (CMAKE_COMPILER_IS_GNUCC)
 add_definitions (-library=stlport4)
+#add_definitions (-DVERBOSE=1)
 
 add_library (${HDB_LIBRARY_NAME} ${HDB_SOURCES})
 target_link_libraries(${HDB_LIBRARY_NAME}
+    ${LIBSQLITE_LIBRARIES}
     ${SYSTEM_EXTERNAL_LIBS})
 

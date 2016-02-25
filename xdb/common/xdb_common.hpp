@@ -292,6 +292,17 @@ typedef enum
   ATTR_NOT_FOUND = 4  /* attribute is not found in database */
 } Quality_t;
 
+// Тип генератора предыстории (аналог HistoryType из rtap_db.mco)
+typedef enum {
+  PERIOD_NONE      = 0,
+  PERIOD_1_MINUTE  = 1,
+  PERIOD_5_MINUTES = 2,
+  PERIOD_HOUR      = 3,
+  PERIOD_DAY       = 4,
+  PERIOD_MONTH     = 5,
+  PERIOD_LAST      = PERIOD_MONTH + 1
+} sampler_type_t; // HistoryType из rtap_db.h
+
 typedef union
 {
   //uint8 common;
@@ -495,16 +506,47 @@ typedef struct
 #endif
 } AttributeInfo_t;
 
+// Наборы значений флагов
+// создать БД в случае, если это не было сделано ранее
+#define OF_DEFINE_CREATE          "OF_CREATE"
+// открыть в режиме "только для чтения"
+#define OF_DEFINE_READONLY        "OF_READONLY"
+// открыть в режиме "чтение|запись" (по умолчанию)
+#define OF_DEFINE_RDWR            "OF_RDWR"
+// открыть пустую базу, удалив данные в существующем экземпляре
+#define OF_DEFINE_TRUNCATE        "OF_TRUNCATE"
+// открыть базу, заполнив ее данными из последнего снапшота
+#define OF_DEFINE_LOAD_SNAP       "OF_LOAD_SNAP"
+// сохранить дамп базы после завершения работы
+#define OF_DEFINE_SAVE_SNAP       "OF_SAVE_SNAP"
+// активировать обработчики событий БДРВ
+#define OF_DEFINE_REGISTER_EVENT  "OF_REGISTER_EVENT"
+// подключиться к уже существующей БДРВ, дать ошибку если иначе
+#define OF_DEFINE_ATTACH          "OF_ATTACH"
+// определить размер БДРВ
+#define OF_DEFINE_DATABASE_SIZE   "OF_DATABASE_SIZE"
+// определить размер одного сегмента памяти
+#define OF_DEFINE_MEMORYPAGE_SIZE "OF_MEMORYPAGE_SIZE"
+// задать адрес в памяти, с которого будет видна БДРВ
+#define OF_DEFINE_MAP_ADDRESS     "OF_MAP_ADDRESS"
+// задать размер буфера в памяти, для persistent-классов
+#define OF_DEFINE_DISK_CACHE_SIZE "OF_DISK_CACHE_SIZE"
+
 // Позиции бит в флагах, передаваемых конструктору
 typedef enum
 {
-  OF_POS_CREATE   = 1, // создать БД в случае, если это не было сделано ранее
-  OF_POS_READONLY = 2, // открыть в режиме "только для чтения"
-  OF_POS_RDWR     = 3, // открыть в режиме "чтение|запись" (по умолчанию)
-  OF_POS_TRUNCATE = 4, // открыть пустую базу, удалив данные в существующем экземпляре
-  OF_POS_LOAD_SNAP= 5, // открыть базу, заполнив ее данными из последнего снапшота
-  OF_POS_SAVE_SNAP= 6, // сохранить дамп базы после завершения работы
-  OF_POS_REGISTER_EVENT = 7 // активировать обработчики событий БДРВ
+  OF_POS_CREATE   = 1,
+  OF_POS_READONLY = 2,
+  OF_POS_RDWR     = 3,
+  OF_POS_TRUNCATE = 4,
+  OF_POS_LOAD_SNAP= 5,
+  OF_POS_SAVE_SNAP= 6,
+  OF_POS_REGISTER_EVENT  = 7,
+  OF_POS_ATTACH          = 8,
+  OF_POS_DATABASE_SIZE   = 9,
+  OF_POS_MEMORYPAGE_SIZE = 10,
+  OF_POS_MAP_ADDRESS     = 11,
+  OF_POS_DISK_CACHE_SIZE = 12
 } FlagPos_t;
 
 /*

@@ -243,7 +243,10 @@ const rtdbMsgType SIG_D_MSG_ACDQUERY            = GOF_D_BASE_MSG_SINF + 125;
  */
 const rtdbMsgType SIG_D_MSG_READ_MULTI          = GOF_D_BASE_MSG_SINF + 200; // +
 const rtdbMsgType SIG_D_MSG_WRITE_MULTI         = GOF_D_BASE_MSG_SINF + 201; // +
+// Управление подпиской
 const rtdbMsgType SIG_D_MSG_GRPSBS_CTRL         = GOF_D_BASE_MSG_SINF + 202; // +
+// Запрос истории HistoryRequest
+const rtdbMsgType SIG_D_MSG_REQ_HISTORY         = GOF_D_BASE_MSG_SINF + 203; // +
 
 /*
  * NB: Есть дополнительные константы типов, расположенные в sig/ext/dat: 

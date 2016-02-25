@@ -1,8 +1,7 @@
 set(WORKER_TESTER wtester)
 set(WORKER_ECHO   wecho)
 set(WORKER_DIGGER wdigger)
-set(WORKER_ARCHIVIST warchivist)
-set(WORKER_HIST_SAMPLER wsampler)
+set(WORKER_HISTORIAN whistorian)
 
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   set (SYSTEM_EXTERNAL_LIBS
@@ -74,23 +73,14 @@ set (WORKER_DIGGER_SOURCES
         ${WORKER_DIR}/wdigger.cpp
         ${WORKER_DIR}/wdigger.hpp)
 
-set (WORKER_ARCHIVIST_SOURCES
+set (WORKER_HISTORIAN_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
         ${MDP_DIR}/mdp_zmsg.hpp
         ${MDP_DIR}/mdp_common.h
         ${MDP_DIR}/mdp_worker_api.hpp
         ${MSG_DIR}/msg_message.hpp
-        ${WORKER_DIR}/warchivist.cpp
-        ${WORKER_DIR}/warchivist.hpp)
-
-set (WORKER_HIST_SAMPLER_SOURCES
-        ${CMAKE_SOURCE_DIR}/config.h
-        ${MDP_DIR}/mdp_zmsg.hpp
-        ${MDP_DIR}/mdp_common.h
-        ${MDP_DIR}/mdp_worker_api.hpp
-        ${MSG_DIR}/msg_message.hpp
-        ${WORKER_DIR}/wrk_hist_sampler.cpp
-        ${WORKER_DIR}/wrk_hist_sampler.hpp)
+        ${WORKER_DIR}/whistorian.cpp
+        ${WORKER_DIR}/whistorian.hpp)
 
 
 add_custom_command(
@@ -178,27 +168,10 @@ target_link_libraries(${WORKER_DIGGER}
     ${LIBGLOG_LIBRARIES}
     ${LIBZMQ_LIBRARIES})
 
-#add_definitions(-fpermissive)
-# Сборка ARCHIVIST - сервера выдачи архивных данных
+# Сборка HISTORIAN - сервера накопления и выдачи архивных данных
 ##########################################################
-add_executable (${WORKER_ARCHIVIST} ${WORKER_ARCHIVIST_SOURCES})
-target_link_libraries(${WORKER_ARCHIVIST}
-    ${LIBGLOG_LIBRARIES}
-#    ${XDB_RTAP_IMPL_LIBRARY_NAME}
-#    ${XDB_RTAP_LIBRARY_NAME}
-    ${MDP_LIBRARY_NAME}
-#    ${TOOLS_LIBRARY_NAME}
-#    ${LIBEXTREMEDB_LIBRARIES_ALL}
-#    ${LIBPROTOBUF_LIBRARIES}
-#    ${SYSTEM_EXTERNAL_LIBS}
-#    pthread
-#    ${LIBZMQ_LIBRARIES}
-    )
-
-# Сборка HIST_SAMPLER - сервера накопления архивных данных
-##########################################################
-add_executable (${WORKER_HIST_SAMPLER} ${WORKER_HIST_SAMPLER_SOURCES})
-target_link_libraries(${WORKER_HIST_SAMPLER}
+add_executable (${WORKER_HISTORIAN} ${WORKER_HISTORIAN_SOURCES})
+target_link_libraries(${WORKER_HISTORIAN}
     ${LIBGLOG_LIBRARIES}
     ${LIBSQLITE_LIBRARIES}
     ${MDP_LIBRARY_NAME}
