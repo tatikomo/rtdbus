@@ -66,6 +66,7 @@ class HistoricImpl {
     int store_history_samples(HistorizedInfoMap_t&, xdb::sampler_type_t);
     // Загрузить набор семплов для данного тега, указанной глубины, начиная с указанной даты
     int load_samples_period_per_tag(const char*,
+                                    bool&,
                                     const xdb::sampler_type_t,
                                     time_t,
                                     historized_attributes_t*,
@@ -123,6 +124,7 @@ class HistoricImpl {
     bool load_samples_list_by_type(const xdb::sampler_type_t, time_t, xdb::map_name_id_t, HistorizedInfoMap_t&);
     // Загрузка структур из HDB в память, пересоздав таблицы HDB и заполнив их данными
     bool tune_dictionaries();
+    void enable_features();
 
     bool rtdb_get_info_historized_points();
 #if (HIST_DATABASE_LOCALIZATION == LOCAL)

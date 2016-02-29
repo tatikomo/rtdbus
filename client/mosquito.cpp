@@ -109,7 +109,8 @@ bool Mosquito::process_history(msg::Letter* report)
             << " dest:" << response->header()->proc_dest()
             << " tm:"   << response->header()->time_mark()
             << std::endl;
-  std::cout << "History " << response->tag() << " received " << response->num_required_samples()
+  std::cout << "History " << response->tag() << " existance(" << response->existance()
+            << ") received " << response->num_required_samples()
             << " of " << response->num_read_samples() << " item(s)" << std::endl;
   for (int idx = 0; idx < response->num_read_samples(); idx++)
   {
@@ -269,12 +270,20 @@ int main (int argc, char *argv [])
   msg::WriteMulti   *write_msg = NULL;
   // Управление Группами Подписки
   msg::SubscriptionControl *sbs_ctrl_msg = NULL;
-  // Запрос получения истории
-  msg::HistoryRequest *history_req = NULL;
   // Событие Группы Подписки
   //msg::SubscriptionEvent *sbs_event_msg = NULL;
   std::string group_name;
   bool is_group_name_given = false;
+  // Блок параметров для запроса Истории
+  bool is_point_name_given = false;
+  std::string point_name;
+  // значение по умолчанию - текущее время минус макс. количество минут в одной посылке
+  time_t start_time = time(0) - MAX_PORTION_SIZE_LOADED_HISTORY * 60;
+  int num_samples = 100;
+  int history_type = xdb::PERIOD_1_MINUTE;
+  // Запрос получения истории
+  msg::HistoryRequest *history_req = NULL;
+
   //msg::ProbeMsg   *probe_msg = NULL; Не реализовано
   int opt;
   int verbose;
@@ -294,11 +303,15 @@ int main (int argc, char *argv [])
   xdb::AttributeInfo_t attr_info;
   static const char *arguments_template =
               "-s <service_name> [-v] "
-              "[-g <sbs_name>] "
+              "[-g <sbs name>] "
+              "[-p <point name>] "
+              "[-n <num history samples>] "
+              "[-t <history time start>] "
+              "[-h <history depth>] "
               "[-m <%s|%s|%s|%s|%s>]";
   char arguments_out[255];
 
-  while ((opt = getopt (argc, argv, "vs:m:g:")) != -1)
+  while ((opt = getopt (argc, argv, "vs:m:g:t:p:n:h:")) != -1)
   {
     switch (opt)
     {
@@ -340,6 +353,35 @@ int main (int argc, char *argv [])
           group_name.assign(one_argument);
           std::cout << "Group name is \"" << group_name << "\"" << std::endl;
           is_group_name_given = true;
+          break;
+
+        case 'p': // название тега для запроса его истории
+          strncpy(one_argument, optarg, SERVICE_NAME_MAXLEN);
+          one_argument[SERVICE_NAME_MAXLEN] = '\0';
+          point_name.assign(one_argument);
+          std::cout << "Point name is \"" << point_name << "\"" << std::endl;
+          is_point_name_given = true;
+          break;
+
+        case 't': // начало интервала времени запроса истории
+          strncpy(one_argument, optarg, SERVICE_NAME_MAXLEN);
+          one_argument[SERVICE_NAME_MAXLEN] = '\0';
+          start_time = atol(one_argument);
+          std::cout << "Start history period is: " << ctime(&start_time) << std::endl;
+          break;
+
+        case 'n': // количество читаемых интервалов истории
+          strncpy(one_argument, optarg, SERVICE_NAME_MAXLEN);
+          one_argument[SERVICE_NAME_MAXLEN] = '\0';
+          num_samples = atol(one_argument);
+          std::cout << "Samples number is: " << num_samples << std::endl;
+          break;
+
+        case 'h': // тип читаемой истории
+          strncpy(one_argument, optarg, SERVICE_NAME_MAXLEN);
+          one_argument[SERVICE_NAME_MAXLEN] = '\0';
+          history_type = atol(one_argument);
+          std::cout << "History type is: " << history_type << std::endl;
           break;
 
         case '?':
@@ -463,17 +505,14 @@ int main (int argc, char *argv [])
 
       case Mosquito::MODE_HISTORY_REQ:
       //----------------------------
-        // Запросить у Службы истории тренд указанного параметра
-        request = mosquito->create_message(SIG_D_MSG_REQ_HISTORY);
-        history_req = dynamic_cast<msg::HistoryRequest*>(request);
-        assert(history_req);
-
-        std::string probe_tag = "/KA4001/FY01";
-        time_t start = time(0) - 7200;
-        int samples = 100;
-        int htype = xdb::PERIOD_1_MINUTE;
-
-        history_req->set(probe_tag, start, samples, htype);
+        if (is_point_name_given) {
+          // Запросить у Службы истории тренд указанного параметра
+          request = mosquito->create_message(SIG_D_MSG_REQ_HISTORY);
+          history_req = dynamic_cast<msg::HistoryRequest*>(request);
+          assert(history_req);
+          history_req->set(point_name, start_time, num_samples, history_type);
+        }
+        else std::cerr << "Tag not scpecified, exiting" << std::endl;
         break;
     }
 

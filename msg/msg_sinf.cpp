@@ -1489,6 +1489,14 @@ void HistoryRequest::add(time_t start, double new_val, int new_validity)
   new_item->set_frame(start);
 }
 
+// Установить признак существования запрошенного тега в HDB
+void HistoryRequest::set_existance(bool is_exist)
+{
+  RTDBM::HistoryRequest* pb_request =
+        static_cast<RTDBM::HistoryRequest*>(data()->impl()->instance());
+  pb_request->set_existance(is_exist);
+}
+
 // Получить значения записи с заданным индексом idx
 bool HistoryRequest::get(int index, hist_attr_t& out)
 {
@@ -1556,6 +1564,12 @@ xdb::sampler_type_t HistoryRequest::history_type()
   }
 
   return htype_out;
+}
+
+// Признак существования запрошенного тега в HDB (true = существует)
+bool HistoryRequest::existance()
+{
+  return static_cast<RTDBM::HistoryRequest*>(data()->impl()->instance())->existance();
 }
 
 // Вернуть количество прочитанных семплов предыстории

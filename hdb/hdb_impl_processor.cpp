@@ -186,7 +186,7 @@ HistoricImpl::~HistoricImpl()
 // Если экземпляр создаётся из нескольких нитей, загрузка точек из БДРВ может быть
 // многократной, так как каждая нить будет создавать подключение к БДРВ. Чтобы
 // этого избежать, во второстепенных нитях первым параметром передается NULL,
-// тогда подключение к БДРВ не требуется.
+// тогда подключение к БДРВ не требуется, и структура HDB не будет изменяться.
 bool HistoricImpl::Connect()
 {
   bool status = false;
@@ -194,6 +194,8 @@ bool HistoricImpl::Connect()
 
   // Подключиться к БДРВ, если необходимо
   if (m_rtdb_env) {
+    LOG(INFO) << "Prepare to attach to RTDB and HDB after";
+    // 
     if (true == (status = rtdb_connect()))
     {
       // Получить из БДРВ перечень точек, имеющих предысторию
@@ -223,6 +225,7 @@ bool HistoricImpl::Connect()
     }    
   }
   else { // подключаться к БДРВ не требуется, только к HDB
+    LOG(INFO) << "Prepare to attach to HDB only";
     if (true == (status = history_db_connect())) {
       // Инициализируем словарь на основе уже существующих данных
       dict_size = getPointsFromDictHDB(m_actual_hist_points);
@@ -362,6 +365,28 @@ bool HistoricImpl::createTable(const char* table_name)
 }
 
 // ===========================================================================
+void HistoricImpl::enable_features()
+{
+  const char* fname = "enable_features";
+
+  if (true == m_history_db_connected) {
+    // Установить кодировку UTF8
+    if (sqlite3_exec(m_hist_db, "PRAGMA ENCODING = \"UTF-8\"", 0, 0, &m_hist_err)) {
+      LOG(ERROR) << fname << ": Unable to set UTF-8 support for HDB: " << m_hist_err;
+      sqlite3_free(m_hist_err);
+    }
+    else LOG(INFO) << "Enable UTF-8 support for HDB";
+
+    // Включить поддержку внешних ключей
+    if (sqlite3_exec(m_hist_db, "PRAGMA FOREIGN_KEYS = 1", 0, 0, &m_hist_err)) {
+      LOG(ERROR) << fname << ": Unable to set FOREIGN_KEYS support for HDB: " << m_hist_err;
+      sqlite3_free(m_hist_err);
+    }
+    else LOG(INFO) << "Enable FOREIGN_KEYS support for HDB";
+  }
+}
+
+// ===========================================================================
 bool HistoricImpl::history_db_connect()
 {
   const char* fname = "history_db_connect";
@@ -386,37 +411,30 @@ bool HistoricImpl::history_db_connect()
     LOG(INFO) << fname << ": HDB '" << m_history_db_filename << "' successfuly opened";
     m_history_db_connected = true;
 
-    // Установить кодировку UTF8
-    if (sqlite3_exec(m_hist_db, "PRAGMA ENCODING = \"UTF-8\"", 0, 0, &m_hist_err)) {
-      LOG(ERROR) << fname << ": Unable to set UTF-8 support for HDB: " << m_hist_err;
-      sqlite3_free(m_hist_err);
-    }
-    else LOG(INFO) << "Enable UTF-8 support for HDB";
+    if (m_rtdb_connected) {
 
-    // Включить поддержку внешних ключей
-    if (sqlite3_exec(m_hist_db, "PRAGMA FOREIGN_KEYS = 1", 0, 0, &m_hist_err)) {
-      LOG(ERROR) << fname << ": Unable to set FOREIGN_KEYS support for HDB: " << m_hist_err;
-      sqlite3_free(m_hist_err);
-    }
-    else LOG(INFO) << "Enable FOREIGN_KEYS support for HDB";
+      //  Включить поддержку UTF8 и внешних ключей
+      enable_features();
 
 /*    if (is_table_exist(m_hist_db, HDB_DATA_TABLENAME)) {
     }
     else .c_str()
     }*/
 
-    // TODO: Проверить структуру только что открытой БД.
-    // Для этого получить из БДРВ список всех параметров ТИ, для которых указано сохранение истории.
-    // Если Историческая база пуста - создать ей новую структуру на основе данных из БДРВ
-    // Если Историческая база не пуста, требуется сравнение новой и старой версий списка параметров.
-    status = createTable(HDB_DICT_TABLENAME);
+      // Проверить структуру только что открытой БД.
+      // Для этого получить из БДРВ список всех параметров ТИ, для которых указано сохранение истории.
+      // Если Историческая база пуста - создать ей новую структуру на основе данных из БДРВ
+      // Если Историческая база не пуста, требуется сравнение новой и старой версий списка параметров.
+      status = createTable(HDB_DICT_TABLENAME);
 
-    if (true == (status = createTable(HDB_DATA_TABLENAME)))
-      status = createIndexes();
+      if (true == (status = createTable(HDB_DATA_TABLENAME)))
+        status = createIndexes();
+    }
   }
   else
   {
-    LOG(ERROR) << fname << ": Opening HDB '" << m_history_db_filename << "':  " << sqlite3_errmsg(m_hist_db);
+    LOG(ERROR) << fname << ": Opening HDB '" << m_history_db_filename
+               << "':  " << sqlite3_errmsg(m_hist_db);
     status = false;
   }
 
@@ -558,6 +576,7 @@ bool HistoricImpl::tune_dictionaries()
   map_history_info_t need_to_create_hist_points;
   map_history_info_t need_to_delete_hist_points;
 
+  LOG(INFO) << fname << ": START";
   // Установить щадящий режим занесения данных, отключив сброс журнала на диск
   accelerate(true);
 
@@ -593,6 +612,7 @@ bool HistoricImpl::tune_dictionaries()
   deletePointsDictHDB(need_to_delete_hist_points);
 
   accelerate(false);
+  LOG(INFO) << fname << ": STOP " << result;
 
   return result;
 }
@@ -658,7 +678,7 @@ int HistoricImpl::getPointsFromDictHDB(map_history_info_t &actual_hist_points)
       info.tag_id = sqlite3_column_int(stmt, 0);
       tag = (const char*)(sqlite3_column_text(stmt, 1));
       info.history_type = sqlite3_column_int(stmt, 2);
-#if (VERBOSE > 3)
+#if (VERBOSE > 2)
       LOG(INFO) << "load actual hist id=" << info.tag_id << " '" << tag << "' htype=" << info.history_type;
 #endif
       actual_hist_points.insert(std::pair<std::string, history_info_t>(tag, info));
@@ -987,10 +1007,11 @@ int HistoricImpl::store_history_samples(HistorizedInfoMap_t& historized_map, xdb
     // Генерация SQL-запроса на вставку новых элементов в таблицу данных HDB
     for(HistorizedInfoMap_t::iterator it = historized_map.begin();
         it != historized_map.end();
-        it++) {
-
+        it++)
+    {
       // Сохранить только те семплы, которые укладываются в допустимый тип
-      if ((*it).second.info.history_type >= store_only_htype) {
+      if ((*it).second.info.history_type >= store_only_htype)
+      {
         printed = snprintf(sql_operator,
             MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
             s_SQL_INSERT_DATA_ONE_ITEM_VALUES_TEMPLATE,
@@ -1005,12 +1026,13 @@ int HistoricImpl::store_history_samples(HistorizedInfoMap_t& historized_map, xdb
         sql += sql_operator;
       }
 #if (VERBOSE > 3)
-      else LOG(INFO) << "GEV: skip point " << (*it).first << " with type=" << (*it).second.info.history_type
+      else LOG(INFO) << "Skip point " << (*it).first
+                     << " with type=" << (*it).second.info.history_type
                      << " while storing type=" << store_only_htype;
 #endif
     }
 
-    // Затереть последние два символа ',\n'
+    // Затереть последние два символа ',' и '\n'
     sql.erase(sql.end() - 2, sql.end());
 
     sql += ";\nCOMMIT;";
@@ -1020,8 +1042,8 @@ int HistoricImpl::store_history_samples(HistorizedInfoMap_t& historized_map, xdb
   LOG(INFO) << "SQL: " << sql;
 #endif
 
-  LOG(INFO) << "estimated_sql_operator_size=" << estimated_sql_operator_size
-            << " real sql size=" << sql.size()
+  LOG(INFO) << "estimated_sql_size=" << estimated_sql_operator_size
+            << " real_sql_size=" << sql.size()
             << " for " << historized_map.size() << " point(s)";
 
 //  accelerate(true);
@@ -1423,6 +1445,7 @@ time_t HistoricImpl::roundTimeToNextEdge(time_t given_time, xdb::sampler_type_t 
 // (pname), начинающуюся с момента времени (start), и состоящую из указанного
 // количества (n_samples)
 int HistoricImpl::load_samples_period_per_tag(const char* pname,
+                                           bool& existance, // признак наличия точки в HDB
                                            const xdb::sampler_type_t htype,
                                            time_t start,
                                            historized_attributes_t *output_historized,
@@ -1459,9 +1482,11 @@ int HistoricImpl::load_samples_period_per_tag(const char* pname,
 
   if (0 == (point_id = getPointIdFromDictHDB(pname))) {
     LOG(ERROR) << "Unable to find point " << pname << " in HDB";
+    existance = false;
     status = false;
   }
   else {
+    existance = true;
     finish = start + (delta * (samples_to_read - 1));
     memset(internal_historized, '\0', sizeof(historized_attributes_t) * MAX_PORTION_SIZE_LOADED_HISTORY);
 

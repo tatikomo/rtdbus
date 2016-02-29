@@ -246,6 +246,7 @@ int HistorianResponder::processing(mdp::zmsg* request, std::string &identity)
 int HistorianResponder::handle_query_history(msg::Letter* letter, std::string* reply_to)
 {
   historized_attributes_t info[100];
+  bool existance;
   msg::HistoryRequest *msg_req_history = static_cast<msg::HistoryRequest*>(letter);
   mdp::zmsg *response = new mdp::zmsg();
 
@@ -260,14 +261,23 @@ int HistorianResponder::handle_query_history(msg::Letter* letter, std::string* r
   // Получить значения из истории
   int loaded = m_historic->load_samples_period_per_tag(
             msg_req_history->tag().c_str(),
+            existance,
             msg_req_history->history_type(),
             msg_req_history->start_time(),
             info,
             msg_req_history->num_required_samples());
 
   if (!loaded) {
-    // Нет такой точки в БДРВ
-    LOG(ERROR) << "Request history of unexistent point \"" << msg_req_history->tag() << "\"";
+    // Установить признак существования запрошенного тега в HDB
+    msg_req_history->set_existance(existance);
+
+    if (false == existance) {
+      // Нет такой точки в БДРВ
+      LOG(ERROR) << "Request history of unexistent point \"" << msg_req_history->tag() << "\"";
+    }
+    else LOG(ERROR) << "None selected for point \"" << msg_req_history->tag() << "\""
+                    << " started at " << msg_req_history->start_time()
+                    << " " << msg_req_history->num_required_samples() << " samples";
   }
   else
   {
@@ -548,6 +558,9 @@ void Historian::run()
     m_producer = new HistorianProducer(m_context, m_environment);
     // Запустить Накопителя предыстории
     m_producer_thread = new std::thread(std::bind(&HistorianProducer::run, m_producer));
+
+#warning "Проверить конкуренцию между открытием HistoricImpl в HistorianProducer и HistorianResponder"
+    usleep(500000);
 
     // Запустить обработчик запросов от Клиентов на получение истории
     m_responder = new HistorianResponder(m_context);

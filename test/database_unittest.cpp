@@ -1671,12 +1671,15 @@ TEST(TestHIST, HIST_INIT)
 TEST(TestHIST, HIST_LOAD)
 {
   int n_samples_to_read = 30;
+  bool existance;
   xdb::sampler_type_t htype = xdb::PERIOD_1_MINUTE;
   char s_tag[TAG_NAME_MAXLEN + 1] = HIST_TEST_POINT_NAME;
   historized_attributes_t historized[MAX_PORTION_SIZE_LOADED_HISTORY];
+  int loaded;
   
   LOG(INFO) << "Loading history of " << s_tag << " from HDB";
-  int loaded = historic->load_samples_period_per_tag(s_tag,
+  loaded = historic->load_samples_period_per_tag(s_tag,
+                                 existance,
                                  htype,
                                  start_sampling_time,
                                  historized,
@@ -1689,8 +1692,18 @@ TEST(TestHIST, HIST_LOAD)
                 << ".VAL=" << historized[i].val << " "
                 << ".VALID=" << (unsigned int)historized[i].valid
                 << std::endl;
+  EXPECT_TRUE(loaded > 0);
+  EXPECT_TRUE(existance == true);
 
-//  EXPECT_TRUE(status == true);
+  // Проверка загрузки несуществующего параметра
+  loaded = historic->load_samples_period_per_tag("/несуществующая/точка",
+                                 existance,
+                                 htype,
+                                 start_sampling_time,
+                                 historized,
+                                 n_samples_to_read);
+  EXPECT_TRUE(loaded == 0);
+  EXPECT_TRUE(existance == false);
 }
 
 

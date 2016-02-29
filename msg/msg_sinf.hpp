@@ -202,6 +202,8 @@ class HistoryRequest : public Letter
     void add(time_t, double, int);
     // Получить значения записи с заданным индексом
     bool get(int, hist_attr_t&);
+    // Установить признак существования запрошенного тега в HDB
+    void set_existance(bool);
 
     // методы доступа
     const std::string& tag();
@@ -210,6 +212,9 @@ class HistoryRequest : public Letter
     int num_required_samples();
     // Получить количество действительных элементов в пуле
     int num_read_samples();
+    // Признак существования запрошенного тега в HDB (true = существует)
+    bool existance();
+    // Тип переданной предыстории
     xdb::sampler_type_t history_type();
 
   private:

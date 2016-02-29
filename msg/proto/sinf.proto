@@ -107,6 +107,7 @@ message HistoryItem {
 // Запрос получения истории указанного типа для указанного тега 
 // #SIG_D_MSG_REQ_HISTORY
 message HistoryRequest {
+  // Входные данные =================================================
   // Запрашиваемая история для указанного Тега 
   required string   tag         = 1;
   // Время начала интересующего интервала истории
@@ -115,7 +116,10 @@ message HistoryRequest {
   required int32    num_required_samples = 3;
   // Тип выбираемой истории (минутная, 5-ти минутная, часовая, ...)
   required HistoryType history_type = 4;
+  // Выходные данные ================================================
+  // Признак существования запрашиваемой точки в HDB
+  optional bool     existance = 5   [default = false];
   // Массив значений, заполняется при ответе
-  repeated HistoryItem item = 5;
+  repeated HistoryItem item = 6;
 }
 

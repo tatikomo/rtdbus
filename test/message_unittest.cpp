@@ -666,6 +666,8 @@ TEST(TestMessage, USE_HISTORY)
   EXPECT_TRUE(queryHistoryMsg->num_required_samples() == samples);
   EXPECT_TRUE(queryHistoryMsg->history_type() == htype);
   EXPECT_TRUE(queryHistoryMsg->start_time() == start);
+  // Пока не было физической проверки существования в HDB
+  EXPECT_TRUE(queryHistoryMsg->existance() == false);
 }
 
 TEST(TestMessage, DESTROY_SINF)
