@@ -1,0 +1,6 @@
+#Управление работой БДРВ
+Выполняется методом <i>ControlDatabase()</i> объекта <b>RtConnection</b>.
+Поля структуры rtDbCq
+
+rtCONTROL_SAVE_XSD
+rtCONTROL_CHECK_CONN

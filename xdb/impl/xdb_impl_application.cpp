@@ -10,6 +10,8 @@
 #include "config.h"
 #endif
 
+#include "mco.h"
+
 #include "xdb_impl_error.hpp"
 #include "xdb_impl_application.hpp"
 
@@ -113,5 +115,43 @@ void ApplicationImpl::setLastError(const Error& _new_error)
 void ApplicationImpl::clearError()
 {
   m_last_error.clear();
+}
+
+bool ApplicationImpl::database_instance_presence(const char* env_name)
+{
+  MCO_RET rc;
+  // Размер общего буфера
+  const mco_size32_t buffer_size = (DBNAME_MAXLEN+1) * MAX_DATABASE_INSTANCES_PER_SYSTEM;
+  // Общий буфер, где лежат названия БД, разделенные символом '\0'
+  char lpBuffer[buffer_size + 1];
+  // Рабочий указатель, перемещается от имени к имени
+  char* ptr = &lpBuffer[0];
+  // Номер по порядку экземпляра БД
+  int idx = 0;
+  // Признак, найдена ли требуемая БД
+  bool is_found = false;
+  // Количество БД, которые следует пропустить с начала общего буфера
+  mco_counter32_t skip_first = 0;
+
+  do
+  {
+    // Получить названия всех активных БД в памяти
+    rc = mco_db_databases(lpBuffer, buffer_size, skip_first);
+    if (rc) { LOG(ERROR) << "Get names of all active databases, rc=" << rc; break; }
+
+    while(*ptr)
+    {
+      LOG(INFO) << "Found active database instance " << (unsigned int) ++idx
+                << ", name '" << ptr << "'";
+      if (0 == strncmp(env_name, ptr, DBNAME_MAXLEN))
+      {
+        is_found = true;
+      }
+      ptr = ptr + strlen(ptr) + 1;
+    }
+
+  } while(false);
+
+  return is_found;
 }
 

@@ -5,6 +5,9 @@
 #include <sstream>
 #include <string>
 
+#define SEND_TIMEOUT_MSEC 1000000
+#define RECV_TIMEOUT_MSEC 3000000
+
 std::vector<std::string> m_part_data;
 
 bool recv(zmq::socket_t& socket)
@@ -47,8 +50,8 @@ int main (int argc, char *argv[])
 {
   int linger = 0;
   int hwm = 100;
-  int send_timeout_msec = 1000000; // 1 sec
-  int recv_timeout_msec = 3000000; // 3 sec
+  int send_timeout_msec = SEND_TIMEOUT_MSEC; // 1 sec
+  int recv_timeout_msec = RECV_TIMEOUT_MSEC; // 3 sec
 
     zmq::context_t context (1);
     const char* conn_str = "tcp://localhost:5560";

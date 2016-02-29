@@ -135,6 +135,7 @@ namespace xdb {
 #define RTDB_ATT_FUNCTION       "FUNCTION"
 #define RTDB_ATT_CONVERTCOEFF   "CONVERTCOEFF"
 #define RTDB_ATT_GRADLEVEL      "GRADLEVEL"
+#define RTDB_ATT_HISTOTYPE      "HISTOTYPE"
 #define RTDB_ATT_INHIB          "INHIB"
 #define RTDB_ATT_MNVALPHY       "MNVALPHY"
 #define RTDB_ATT_MXPRESSURE     "MXPRESSURE"
@@ -215,63 +216,65 @@ namespace xdb {
 #define RTDB_ATT_IDX_FLGREMOTECMD   16
 #define RTDB_ATT_IDX_FUNCTION       17
 #define RTDB_ATT_IDX_GRADLEVEL      18
-#define RTDB_ATT_IDX_INHIB          19
-#define RTDB_ATT_IDX_INHIBLOCAL     20
-#define RTDB_ATT_IDX_KMREFDWN       21
-#define RTDB_ATT_IDX_KMREFUPS       22
-#define RTDB_ATT_IDX_LABEL          23
-#define RTDB_ATT_IDX_L_CONSUMER     24
-#define RTDB_ATT_IDX_L_CORRIDOR     25
-#define RTDB_ATT_IDX_L_DIPL         26
-#define RTDB_ATT_IDX_L_EQT          27
-#define RTDB_ATT_IDX_L_EQTORBORDWN  28
-#define RTDB_ATT_IDX_L_EQTORBORUPS  29
-#define RTDB_ATT_IDX_L_EQTTYP       30
-#define RTDB_ATT_IDX_LINK_HIST      31
-#define RTDB_ATT_IDX_L_NET          32
-#define RTDB_ATT_IDX_L_NETTYPE      33
-#define RTDB_ATT_IDX_LOCALFLAG      34
-#define RTDB_ATT_IDX_L_PIPE         35
-#define RTDB_ATT_IDX_L_PIPELINE     36
-#define RTDB_ATT_IDX_L_SA           37
-#define RTDB_ATT_IDX_L_TL           38
-#define RTDB_ATT_IDX_L_TM           39
-#define RTDB_ATT_IDX_L_TYPINFO      40
-#define RTDB_ATT_IDX_MAXVAL         41
-#define RTDB_ATT_IDX_MINVAL         42
-#define RTDB_ATT_IDX_MNVALPHY       43
-#define RTDB_ATT_IDX_MXFLOW         44
-#define RTDB_ATT_IDX_MXPRESSURE     45
-#define RTDB_ATT_IDX_MXVALPHY       46
-#define RTDB_ATT_IDX_NAMEMAINTENANCE  47
-#define RTDB_ATT_IDX_NMFLOW         48
-#define RTDB_ATT_IDX_NMPRESSURE     49
-#define RTDB_ATT_IDX_OBJCLASS       50
-#define RTDB_ATT_IDX_PLANFLOW       51
-#define RTDB_ATT_IDX_PLANPRESSURE   52
-#define RTDB_ATT_IDX_PREV_DISPATCHER  53
-#define RTDB_ATT_IDX_PREV_SHIFT_TIME  54
-#define RTDB_ATT_IDX_REMOTECONTROL  55
-#define RTDB_ATT_IDX_SHORTLABEL     56
-#define RTDB_ATT_IDX_STATUS         57
-#define RTDB_ATT_IDX_SUPPLIER       58
-#define RTDB_ATT_IDX_SUPPLIERMODE   59
-#define RTDB_ATT_IDX_SUPPLIERSTATE  60
-#define RTDB_ATT_IDX_SYNTHSTATE     61
-#define RTDB_ATT_IDX_TSSYNTHETICAL  62
-#define RTDB_ATT_IDX_TYPE           63
-#define RTDB_ATT_IDX_UNITY          64
-#define RTDB_ATT_IDX_UNITYCATEG     65
-#define RTDB_ATT_IDX_UNIVNAME       66
-#define RTDB_ATT_IDX_VAL            67
-#define RTDB_ATT_IDX_VALACQ         68
-#define RTDB_ATT_IDX_VALEX          69
-#define RTDB_ATT_IDX_VALID          70
-#define RTDB_ATT_IDX_VALIDACQ       71
-#define RTDB_ATT_IDX_VALIDCHANGE    72
-#define RTDB_ATT_IDX_VALMANUAL      73
+#define RTDB_ATT_IDX_HISTOTYPE      19
+
+#define RTDB_ATT_IDX_INHIB          20
+#define RTDB_ATT_IDX_INHIBLOCAL     21
+#define RTDB_ATT_IDX_KMREFDWN       22
+#define RTDB_ATT_IDX_KMREFUPS       23
+#define RTDB_ATT_IDX_LABEL          24
+#define RTDB_ATT_IDX_L_CONSUMER     25
+#define RTDB_ATT_IDX_L_CORRIDOR     26
+#define RTDB_ATT_IDX_L_DIPL         27
+#define RTDB_ATT_IDX_L_EQT          28
+#define RTDB_ATT_IDX_L_EQTORBORDWN  29
+#define RTDB_ATT_IDX_L_EQTORBORUPS  30
+#define RTDB_ATT_IDX_L_EQTTYP       31
+#define RTDB_ATT_IDX_LINK_HIST      32
+#define RTDB_ATT_IDX_L_NET          33
+#define RTDB_ATT_IDX_L_NETTYPE      34
+#define RTDB_ATT_IDX_LOCALFLAG      35
+#define RTDB_ATT_IDX_L_PIPE         36
+#define RTDB_ATT_IDX_L_PIPELINE     37
+#define RTDB_ATT_IDX_L_SA           38
+#define RTDB_ATT_IDX_L_TL           39
+#define RTDB_ATT_IDX_L_TM           40
+#define RTDB_ATT_IDX_L_TYPINFO      41
+#define RTDB_ATT_IDX_MAXVAL         42
+#define RTDB_ATT_IDX_MINVAL         43
+#define RTDB_ATT_IDX_MNVALPHY       44
+#define RTDB_ATT_IDX_MXFLOW         45
+#define RTDB_ATT_IDX_MXPRESSURE     46
+#define RTDB_ATT_IDX_MXVALPHY       47
+#define RTDB_ATT_IDX_NAMEMAINTENANCE  48
+#define RTDB_ATT_IDX_NMFLOW         49
+#define RTDB_ATT_IDX_NMPRESSURE     50
+#define RTDB_ATT_IDX_OBJCLASS       51
+#define RTDB_ATT_IDX_PLANFLOW       52
+#define RTDB_ATT_IDX_PLANPRESSURE   53
+#define RTDB_ATT_IDX_PREV_DISPATCHER  54
+#define RTDB_ATT_IDX_PREV_SHIFT_TIME  55
+#define RTDB_ATT_IDX_REMOTECONTROL  56
+#define RTDB_ATT_IDX_SHORTLABEL     57
+#define RTDB_ATT_IDX_STATUS         58
+#define RTDB_ATT_IDX_SUPPLIER       59
+#define RTDB_ATT_IDX_SUPPLIERMODE   60
+#define RTDB_ATT_IDX_SUPPLIERSTATE  61
+#define RTDB_ATT_IDX_SYNTHSTATE     62
+#define RTDB_ATT_IDX_TSSYNTHETICAL  63
+#define RTDB_ATT_IDX_TYPE           64
+#define RTDB_ATT_IDX_UNITY          65
+#define RTDB_ATT_IDX_UNITYCATEG     66
+#define RTDB_ATT_IDX_UNIVNAME       67
+#define RTDB_ATT_IDX_VAL            68
+#define RTDB_ATT_IDX_VALACQ         69
+#define RTDB_ATT_IDX_VALEX          70
+#define RTDB_ATT_IDX_VALID          71
+#define RTDB_ATT_IDX_VALIDACQ       72
+#define RTDB_ATT_IDX_VALIDCHANGE    73
+#define RTDB_ATT_IDX_VALMANUAL      74
 // Последнее значение, индекс несуществующего атрибута
-#define RTDB_ATT_IDX_UNEXIST        74
+#define RTDB_ATT_IDX_UNEXIST        75
 
 // ====================================================================
 //
@@ -289,6 +292,17 @@ typedef enum
   ATTR_NOT_FOUND = 4  /* attribute is not found in database */
 } Quality_t;
 
+// Тип генератора предыстории (аналог HistoryType из rtap_db.mco)
+typedef enum {
+  PERIOD_NONE      = 0,
+  PERIOD_1_MINUTE  = 1,
+  PERIOD_5_MINUTES = 2,
+  PERIOD_HOUR      = 3,
+  PERIOD_DAY       = 4,
+  PERIOD_MONTH     = 5,
+  PERIOD_LAST      = PERIOD_MONTH + 1
+} sampler_type_t; // HistoryType из rtap_db.h
+
 typedef union
 {
   //uint8 common;
@@ -305,6 +319,36 @@ typedef struct
   char        *varchar; // ссылка на данные типа [BYTES4..BYTES256]
   std::string *val_string;  // ссылка на данные типа DB_TYPE_BYTES
 } dynamic_part;
+
+#define CATEGORY_WORK          0x0001   // В рабочем состоянии
+#define CATEGORY_ANALOG_TYPE   0x0002   // Аналоговый тип атрибута VAL
+#define CATEGORY_DISCRETE_TYPE 0x0004   // Дискретный тип атрибута VAL
+#define CATEGORY_BINARY_TYPE   0x0008   // Двоичный тип атрибута VAL
+#define CATEGORY_EXIST_IN_SBS  0x0010   // Присутствует в одной из Групп Подписок
+#define CATEGORY_HAS_HISTORY   0x0020   // Имеет предысторию
+#define CATEGORY_7             0x0040   //
+#define CATEGORY_8             0x0080   //
+#define CATEGORY_9             0x0100   //
+#define CATEGORY_10            0x0200   //
+#define CATEGORY_11            0x0400   //
+#define CATEGORY_12            0x0800   //
+#define CATEGORY_13            0x1000   //
+#define CATEGORY_14            0x2000   //
+#define CATEGORY_15            0x4000   //
+#define CATEGORY_16            0x8000   //
+
+// Типы данных атрибута VAL Точки
+// используется при проверке БД Истории
+enum ProcessingType_t {
+    PROCESSING_UNKNOWN  = 0,
+    PROCESSING_ANALOG   = 1,
+    PROCESSING_DISCRETE = 2,
+    PROCESSING_BINARY   = 3
+};
+
+// Значения битов отдельных Категорий Точек БДРВ
+// NB: Ширина поля 16 бит обусловлена разрядностью поля rtDbCq.addrCnt
+typedef uint16_t category_type_t;
 
 // Одно элементарное значение из БДРВ
 typedef union
@@ -462,15 +506,47 @@ typedef struct
 #endif
 } AttributeInfo_t;
 
+// Наборы значений флагов
+// создать БД в случае, если это не было сделано ранее
+#define OF_DEFINE_CREATE          "OF_CREATE"
+// открыть в режиме "только для чтения"
+#define OF_DEFINE_READONLY        "OF_READONLY"
+// открыть в режиме "чтение|запись" (по умолчанию)
+#define OF_DEFINE_RDWR            "OF_RDWR"
+// открыть пустую базу, удалив данные в существующем экземпляре
+#define OF_DEFINE_TRUNCATE        "OF_TRUNCATE"
+// открыть базу, заполнив ее данными из последнего снапшота
+#define OF_DEFINE_LOAD_SNAP       "OF_LOAD_SNAP"
+// сохранить дамп базы после завершения работы
+#define OF_DEFINE_SAVE_SNAP       "OF_SAVE_SNAP"
+// активировать обработчики событий БДРВ
+#define OF_DEFINE_REGISTER_EVENT  "OF_REGISTER_EVENT"
+// подключиться к уже существующей БДРВ, дать ошибку если иначе
+#define OF_DEFINE_ATTACH          "OF_ATTACH"
+// определить размер БДРВ
+#define OF_DEFINE_DATABASE_SIZE   "OF_DATABASE_SIZE"
+// определить размер одного сегмента памяти
+#define OF_DEFINE_MEMORYPAGE_SIZE "OF_MEMORYPAGE_SIZE"
+// задать адрес в памяти, с которого будет видна БДРВ
+#define OF_DEFINE_MAP_ADDRESS     "OF_MAP_ADDRESS"
+// задать размер буфера в памяти, для persistent-классов
+#define OF_DEFINE_DISK_CACHE_SIZE "OF_DISK_CACHE_SIZE"
+
 // Позиции бит в флагах, передаваемых конструктору
 typedef enum
 {
-  OF_POS_CREATE   = 1, // создать БД в случае, если это не было сделано ранее
-  OF_POS_READONLY = 2, // открыть в режиме "только для чтения"
-  OF_POS_RDWR     = 3, // открыть в режиме "чтение|запись" (по умолчанию)
-  OF_POS_TRUNCATE = 4, // открыть пустую базу, удалив данные в существующем экземпляре
-  OF_POS_LOAD_SNAP= 5, // открыть базу, заполнив ее данными из последнего снапшота
-  OF_POS_SAVE_SNAP= 6  // сохранить дамп базы после завершения работы
+  OF_POS_CREATE   = 1,
+  OF_POS_READONLY = 2,
+  OF_POS_RDWR     = 3,
+  OF_POS_TRUNCATE = 4,
+  OF_POS_LOAD_SNAP= 5,
+  OF_POS_SAVE_SNAP= 6,
+  OF_POS_REGISTER_EVENT  = 7,
+  OF_POS_ATTACH          = 8,
+  OF_POS_DATABASE_SIZE   = 9,
+  OF_POS_MEMORYPAGE_SIZE = 10,
+  OF_POS_MAP_ADDRESS     = 11,
+  OF_POS_DISK_CACHE_SIZE = 12
 } FlagPos_t;
 
 /*
@@ -495,12 +571,28 @@ typedef enum
     //    rtCONTROL_REUSE_PLINS   14, /* allow reuse of PLINs */
     rtCONTROL_RDR_CFI       = 15, /* obtain a multi-reader CFI */
     rtCONTROL_CLR_CFI       = 16, /* clear a dead process's zombie CFI */
-    rtCONTROL_SAVE_XSD      = 17  /* Сохранить XML Schema базы */
+    // Далее - специфичные для XDB
+    rtCONTROL_SAVE_XSD      = 17, /* Сохранить XML Schema базы */
+    rtCONTROL_CHECK_CONN    = 18  // Проверить статус имеющихся подключений
 } TypeOfControl;
 
 /*
  * Database query actions
  * Типы запросов на контроль структуры БДРВ
+ * В RTAP есть числовое понятие Категории, предназначенное для хранение битовой маски
+ * различных категорий данной точки.
+ *
+ * TODO: стоит ли перенести понятие Категории в БДРВ, для создания единого запроса по
+ * выгрузки информации о Точках нужной категории? Маска категории может формироваться
+ * на этапе генерации БДРВ, а может быть синтетической. В первом случае генератор БДРВ
+ * формирует маску Категории, основываясь на свойстве генерируемой сейчас Точки.
+ * В последнем случае информация о категории нигде в явном не хранится, но при запросе
+ * выборки соответствующих данных поисковый движок будет учитывать характеристики Точки.
+ *
+ * К примеру, запрос на получение списка Точек с плав. точкой, имеющих предысторию:
+ *   (1) rtQUERY_PTS_IN_CATEG(CATEG_ANALOG | CATEG_HISTORY_EXISTS)
+ *   или
+ *   (2) rtQUERY_PTS_IN_CATEG(CATEG_ANALOG_HISTORY_EXISTS)
  */
 typedef enum
 {
@@ -529,8 +621,8 @@ typedef enum
     rtQUERY_ATTR_IDS        = 24,      /* get Attribute ID numbers (AINs) */
     //    rtQUERY_ALPHA_ATTRS     = 25,      /* get sorted attribute names */
     rtQUERY_PT_CLASS        = 26,      /* get point class */
-    rtQUERY_PTS_IN_CLASS    = 27,      /* get points matching a class */
-    rtQUERY_PTS_IN_CATEG    = 28,      /* get points matching categories */
+    rtQUERY_PTS_IN_CLASS    = 27,      /* get points matching a class */    // есть в RTDB
+    rtQUERY_PTS_IN_CATEG    = 28,      /* get points matching categories */ // есть в RTDB
     rtQUERY_CE_DEP_REF      = 29,      /* get pts with CE ref's to a pt */
     rtQUERY_CE_DEP_UPD      = 30,      /* get pts CE would update for a pt */
     /* Attribute level */
@@ -615,6 +707,12 @@ typedef union {
 typedef struct
 {
     ActionType      act_type;  // тип действия
+    // Поле 'addrCnt' может использоваться не только в виде значения количества точек, но и как:
+    // 1) хранилище искомого OBJCLASS Точек (для запроса rtQUERY_PTS_IN_CLASS)
+    // 2) хранилище битового массива искомых Категорий Точек (запрос rtQUERY_PTS_IN_CATEG)
+    // TODO: переделать некрасивое решение, возможно в этих случаях buffer должен указывать
+    // не на контейнер результата, а на структуру, содержащую новый атрибут и контейнер
+    // результата вместе.
     uint16_t        addrCnt;   /* count of addresses */
     //rtDbAddress     *addr;     /* addresses of Points */
     std::vector<std::string> *tags; // Теги Точек
@@ -626,6 +724,8 @@ typedef struct
 
 // Тип для хранения связи "идентификатор <-> название"
 typedef std::map <uint64_t/*autoid_t*/, std::string> map_id_name_t;
+// Тип для хранения связи "название <-> идентификатор"
+typedef std::map <std::string, uint64_t/*autoid_t*/> map_name_id_t;
 
 // TODO: проверить, можно ли изолировать связанные с этой константой данные в xdb_rtap_snap.hpp
 #define ELEMENT_DESCRIPTION_MAXLEN  15

@@ -9,13 +9,14 @@
 
 #include "timer.hpp"
 
+#define within(num) (int) ((float) (num) * random () / (RAND_MAX + 1.0))
+
 void  hex_dump(const std::string&);
 char* hex_dump(const char*, unsigned int);
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 
 typedef std::bitset<8> BitSet8;
 

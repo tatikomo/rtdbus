@@ -7,7 +7,7 @@
 # The standard <name>_FOUND variables can be used in the same way
 # as when using the normal FIND_PACKAGE()
 
-MACRO (MACRO_OPTIONAL_FIND_PACKAGE _name)
+MACRO (MACRO_OPTIONAL_FIND_PACKAGE _name )
    OPTION(WITH_${_name} "Search for ${_name} package" ON)
    if (WITH_${_name})
       FIND_PACKAGE(${_name} ${ARGN})

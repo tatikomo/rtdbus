@@ -539,6 +539,9 @@ Letter* MessageFactory::create(rtdbMsgType type)
     case SIG_D_MSG_GRPSBS_CTRL:
         created = new SubscriptionControl();
         break;
+    case SIG_D_MSG_REQ_HISTORY:
+        created = new HistoryRequest();
+        break;
 
     default:
       LOG(ERROR) << "Unsupported message type " << type; 
@@ -691,13 +694,18 @@ Letter* MessageFactory::unserialize(const std::string& pb_header, const std::str
       created = new WriteMulti(fresh_header, pb_data);
       break;
  
+    case SIG_D_MSG_GRPSBS:
+      created = new SubscriptionEvent(fresh_header, pb_data);
+      break;
+
     case SIG_D_MSG_GRPSBS_CTRL:
       created = new SubscriptionControl(fresh_header, pb_data);
       break;
 
-    case SIG_D_MSG_GRPSBS:
-      created = new SubscriptionEvent(fresh_header, pb_data);
+    case SIG_D_MSG_REQ_HISTORY:
+      created = new HistoryRequest(fresh_header, pb_data);
       break;
+
     default:
       LOG(ERROR) << "Unsupported message type " << user_type; 
   }

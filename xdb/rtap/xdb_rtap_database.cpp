@@ -104,13 +104,13 @@ const Error& RtDatabase::Control(rtDbCq& info)
   return m_impl->Control(info);
 }
 
-// Интерфейс управления БД - Контроль Точек
+// Интерфейс управления БД - Запрос информации
 const Error& RtDatabase::Query(rtDbCq& info)
 {
   return m_impl->Query(info);
 }
 
-// Интерфейс управления БД - Контроль выполнения
+// Интерфейс управления БД - Конфигуцрирование
 const Error& RtDatabase::Config(rtDbCq& info)
 {
   return m_impl->Config(info);

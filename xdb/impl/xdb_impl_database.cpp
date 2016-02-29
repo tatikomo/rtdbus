@@ -24,10 +24,21 @@ extern "C" {
 # if (EXTREMEDB_VERSION <= 40)
 mco_size_t file_writer(void*, const void*, mco_size_t);
 # else
+
 #include "mcouda.h"  // mco_metadict_header_t
 #include "mcohv.h"   // mcohv_p
+
+#if RTDBUS_USE_XDB_CALC
+#include "mcodbcalc.h"
+#endif
+
 mco_size_sig_t file_writer(void*, const void*, mco_size_t);
 mco_size_sig_t file_reader(void*, void*, mco_size_t);
+// Проверка доступности процесса, заданного своим pid
+int os_task_id_check(pid_t);
+// Метод, вызываемый при подключении/отключении процессов к БДРВ
+MCO_RET sniffer_callback(mco_db_h, void*, mco_trans_counter_t);
+
 # endif
 
 #define SETUP_POLICY
@@ -40,6 +51,7 @@ void extended_impl_errhandler(MCO_RET, const char*, int);
 }
 #endif
 
+#include "xdb_impl_common.h" // mco_ret_string
 #include "xdb_impl_database.hpp"
 
 using namespace xdb;
@@ -99,6 +111,136 @@ int task_id_check( pid_t tid ){
     return kill(tid, 0) == 0 ? 0 : 1;
 }
 
+#if RTDBUS_USE_XDB_CALC
+static void show_db_stat(const mco_calc_t *calc)
+{
+  printf("Database memory statistics:\n");
+  printf("Page size: %d\n", calc->pg_size);
+  printf("Free pages: %d\n", calc->free_pgs);
+  printf("Total pages: %d\n", calc->total_pgs);
+  printf("Bytes used: %d\n", (calc->total_pgs - calc->free_pgs) * calc->pg_size);
+  printf("Registered classes: %d\n", calc->ncls);
+}
+
+static void class_iterator(mco_calc_t *calc, mco_cc_t *cls, mco_cc_info_t *info, void *priv_data)
+{
+  printf("%s statistics:\n", cls->cc_name);
+  printf(" - objects: %d\n", info->nobjs);
+  printf(" - bytes min: %lld\n", info->bytes_min);
+  printf(" - bytes cur: %lld\n", info->bytes_cur);
+  printf(" - bytes max: %lld\n", info->bytes_max);
+  printf(" - pages min: %d\n", info->pages_min);
+  printf(" - pages cur: %d\n", info->pages_cur);
+  printf(" - pages max: %d\n", info->pages_max);
+  printf("%s has %d strings, %d vectors and %d blobs\n",
+         cls->cc_name, info->nstrs, info->nvecs, info->nblobs);
+  printf("Filling time: %ld\n", cls->cc_time);
+}
+
+static const char *get_idx_type(uint4 type)
+{
+  switch( type & MCO_IDXST_FUNCTION_MASK ) {
+    case MCO_IDXST_FUNCTION_REGULAR:
+      return "Regular";
+    case MCO_IDXST_FUNCTION_OID:
+      return "OID";
+    case MCO_IDXST_FUNCTION_AUTOOID:
+      return "AUTOOID";
+    case MCO_IDXST_FUNCTION_AUTOID:
+      return "AutoID";
+    case MCO_IDXST_FUNCTION_LIST:
+      return "List";
+    default:
+      return "Unknown";
+  }
+}
+
+/* iterator which will be used with mco_calc_iinfo_brouse */
+static void index_iterator(mco_calc_t *calc, mco_index_stat_t *istat, void *priv_data)
+{
+  int tmp;
+  char *str = NULL, c;
+
+  if ((istat->type & MCO_IDXST_TYPE_MASK) == MCO_IDXST_TYPE_MEM)
+    str = (const char*) "Inmem";
+  else if ((istat->type & MCO_IDXST_TYPE_MASK) == MCO_IDXST_TYPE_DISK)
+    str = (const char*) "Disk";
+
+  printf(" -> %s [%s ", istat->plabel, str);
+
+  if (istat->type & MCO_IDXST_FEATURE_UNIQUE)
+    printf("unique ");
+
+  if (istat->type & MCO_IDXST_FEATURE_UDF)
+    printf("userdef ");
+
+  tmp = 0;
+
+  switch (istat->type & MCO_IDXST_NATURE_MASK) {
+    case MCO_IDXST_NATURE_BTREE:
+      tmp = istat->spec.btree.levels_num;
+      printf("btree");
+      break;
+
+    case MCO_IDXST_NATURE_PTREE:
+      tmp = istat->spec.ptree.levels_num;
+      printf("ptree");
+      break;
+
+    case MCO_IDXST_NATURE_RTREE:
+      tmp = istat->spec.rtree.levels_num;
+      printf("rtree");
+      break;
+
+    case MCO_IDXST_NATURE_HASH:
+      printf("hash");
+      break;
+
+    case MCO_IDXST_NATURE_META:
+      printf("meta");
+      break;
+
+    default:
+      printf("unknown");
+  }
+
+  printf("]\n");
+  printf(" * %-20s %s\n", "Type:", get_idx_type(istat->type));
+
+  switch (istat->type & MCO_IDXST_NATURE_MASK) {
+    case MCO_IDXST_NATURE_BTREE:
+    case MCO_IDXST_NATURE_PTREE:
+    case MCO_IDXST_NATURE_RTREE:
+    {
+      printf(" * %-20s %8d\n", "Levels:", tmp);
+      break;
+    }
+
+    case MCO_IDXST_NATURE_HASH:
+      printf(" * %-20s %8ld\n", "Avg chain length:", (long)istat->spec.hash.avg_chain_length);
+      printf(" * %-20s %8ld\n", "Max chain length:", (long)istat->spec.hash.max_chain_length);
+      break;
+
+    case MCO_IDXST_NATURE_META:
+      printf(" * %-20s %8ld\n", "Disk pages:", (long)istat->spec.meta.disk_pages_num);
+      break;
+  }
+
+  printf(" * %-20s %8ld\n", "Keys:", (long)istat->keys_num);
+  printf(" * %-20s %8ld\n", "Pages:", (long)istat->pages_num);
+  tmp = istat->pages_num * calc->pg_size;
+
+  if (tmp > 0x400) {
+    tmp >>= 10;
+    c = 'K';
+  }
+  else c = 'B';
+
+  printf(" * %-20s %8d%c\n", "Space:", tmp, c);
+}
+#endif
+
+// ============================================================================================
 DatabaseImpl::DatabaseImpl(const char* _name, const Options* _options, mco_dictionary_h _dict) :
   m_snapshot_counter(0),
   m_DatabaseSize(1024 * 1024 * 10),
@@ -114,7 +256,8 @@ DatabaseImpl::DatabaseImpl(const char* _name, const Options* _options, mco_dicti
   m_save_to_xml_feature(false),
   m_flags(0),
   m_max_connections(DEFAULT_MAX_DB_CONNECTIONS_ALLOWED),
-  m_snapshot_loaded(false)
+  m_snapshot_loaded(false),
+  m_database_was_created(false)
 #if EXTREMEDB_VERSION >= 40
   , m_dev_num(1)
 #endif
@@ -296,11 +439,13 @@ DatabaseImpl::~DatabaseImpl()
         if (enable_mco_stop && strtol(enable_mco_stop,NULL,10) == 1)
         {
           rc = mco_runtime_stop();
-          LOG(INFO) << "mco_runtime_stop '" << m_name << "', rc=" << rc;
+          LOG(INFO) << "mco_runtime_stop '" << m_name
+                    << "': " << mco_ret_string(rc,NULL);
         }
         if (rc)
         {
-          LOG(ERROR) << "Unable to stop database '" << m_name << "' runtime, code=" << rc;
+          LOG(ERROR) << "Unable to stop database '" << m_name
+                     << "' runtime: " << mco_ret_string(rc,NULL);
         }
       }
       LOG(INFO) << "mco_runtime_stop '" << m_name << "' " << m_count;
@@ -361,7 +506,10 @@ const Error& DatabaseImpl::Init()
     }
     m_count++;
 
-    LOG(INFO) << "mco_runtime_start '" << m_name << "' " << m_count << ", rc=" << rc;
+    LOG(INFO) << "mco_runtime_start '" << m_name
+              << "' " << m_count
+              << ": " << mco_ret_string(rc,NULL);
+
     mco_get_runtime_info(&info);
     if (!info.mco_save_load_supported)
     {
@@ -411,6 +559,11 @@ const Error& DatabaseImpl::Init()
 
     m_dev_num += 3;
   }
+  else {
+    m_dev[1].assignment = MCO_MEMORY_NULL;
+    m_dev[2].assignment = MCO_MEMORY_NULL;
+    m_dev[3].assignment = MCO_MEMORY_NULL;
+  }
 
   mco_db_params_init (&m_db_params);
   m_db_params.db_max_connections       = m_max_connections;
@@ -419,13 +572,12 @@ const Error& DatabaseImpl::Init()
   m_db_params.mem_page_size      = m_MemoryPageSize;
   /* set page size for persistent storage */
   m_db_params.disk_page_size     = m_DbDiskPageSize;
-
-#if 0
+  /*
   m_db_params.mode_mask |= MCO_DB_USE_CRC_CHECK;
   m_db_params.cipher_key = (const char*)"my_secure_key";
-#endif
+  */
 
-#endif
+#endif /* EXTREMEDB_VERSION >= 40 */
 
     if (rc)
     {
@@ -435,7 +587,7 @@ const Error& DatabaseImpl::Init()
       if (m_flags[OF_POS_CREATE] || m_flags[OF_POS_TRUNCATE])
       {
         rc = mco_db_kill(m_name);
-        LOG(INFO) << "mco_db_kill '" << m_name << "', rc=" << rc;
+        LOG(INFO) << "mco_db_kill '" << m_name << "': " << mco_ret_string(rc,NULL);
       }
     }
     else
@@ -448,25 +600,53 @@ const Error& DatabaseImpl::Init()
       }
 
       /* Set the error handler to be called from the eXtremeDB runtime if a fatal error occurs */
-      mco_error_set_handler(&impl_errhandler);
-      //mco_error_set_handler_ex(&extended_impl_errhandler);
+      //mco_error_set_handler(&impl_errhandler);
+      mco_error_set_handler_ex(&extended_impl_errhandler);
       LOG(INFO) << "User-defined error handler set";
-    
+ 
+#if RTDBUS_USE_XDB_CALC
+      mco_calc_init(&m_calc, m_dict);
+
+      if (rc) {
+        LOG(WARNING) << "mco_calc_fill_db '" << m_name << "': " << mco_ret_string(rc,NULL);
+      }
+      else {
+        /*
+         * Note, mco_stat_collect must be called before
+         * mco_calc_iinfo_brouse or mco_calc_cinfo_brouse
+         */
+        rc = mco_calc_stat_collect(&m_calc);
+
+        if (rc == MCO_S_OK) {
+
+          show_db_stat(&m_calc);
+          rc = mco_calc_cinfo_browse(&m_calc, class_iterator, NULL);
+          if (rc) {
+            LOG(WARNING) << "mco_calc_cinfo_browse '"<<m_name<<"': " << mco_ret_string(rc,NULL);
+          }
+          rc = mco_calc_iinfo_browse(&m_calc, index_iterator, NULL);
+          if (rc) {
+            LOG(WARNING) << "mco_calc_iinfo_browse '"<<m_name<<"': " << mco_ret_string(rc,NULL);
+          }
+        }
+      }
+#endif
+
 #if (EXTREMEDB_VERSION >= 40) && USE_EXTREMEDB_HTTP_SERVER
       if (1 == m_count) // Первый вызов инициализации
       {
           /* initialize MCOHV */
           m_hv = 0;
           int ret = mcohv_initialize();
-          LOG(INFO) << "mcohv_initialize '" << m_name << "', ret=" << ret;
+          LOG(INFO) << "mcohv_initialize '" << m_name << "' = " << ret;
 
           mco_metadict_size(1, &m_size);
           m_metadict = (mco_metadict_header_t *) malloc(m_size);
           rc = mco_metadict_init (m_metadict, m_size, 0);
-          LOG(INFO) << "mco_metadict_init '" << m_name << ", rc=" << rc;
+          LOG(INFO) << "mco_metadict_init '" << m_name << "' " << mco_ret_string(rc,NULL);
           if (rc)
           {
-            LOG(ERROR) << "Unable to initialize UDA metadictionary, rc=" << rc;
+            LOG(ERROR) << "Unable to initialize UDA metadictionary: " << mco_ret_string(rc,NULL);
             free(m_metadict);
             m_metadict_initialized = false;
           }
@@ -474,14 +654,13 @@ const Error& DatabaseImpl::Init()
           {
             m_metadict_initialized = true;
             rc = mco_metadict_register(m_metadict, m_name, m_dict, NULL);
-            LOG(INFO) << "mco_metadict_register '" << m_name << ", rc=" << rc;
-            if (rc) LOG(INFO) << "mco_metadict_register=" << rc;
+            LOG(INFO) << "mco_metadict_register '" << m_name << "': " << mco_ret_string(rc,NULL);
           }
       }
 #endif
       // Рантайм запущен, база не подключена
       TransitionToState(DB_STATE_INITIALIZED);
-    }
+    } // конец блока если ранее был успешно вызван mco_runtime_start
 
     return getLastError();
 }
@@ -549,10 +728,16 @@ const Error& DatabaseImpl::ConnectToInstance()
   }
 
   // База в состоянии ATTACHED, можно подключаться
+#if (EXTREMEDB_VERSION >= 40)
+  int pid = getpid();
+  rc = mco_db_connect_ctx(m_name, &pid, &m_db);
+#else
   rc = mco_db_connect(m_name, &m_db);
+#endif
+
   LOG(INFO) << "mco_db_connect '" << m_name
             << "', state=" << m_state
-            << ", rc=" << rc;
+            << ": " << mco_ret_string(rc,NULL);
 
   if ((m_flags[OF_POS_LOAD_SNAP]) && (!m_snapshot_loaded))
   {
@@ -570,7 +755,7 @@ const Error& DatabaseImpl::ConnectToInstance()
         }
         else
         {
-          m_snapshot_loaded = true;
+          m_snapshot_loaded = m_database_was_created = true;
         }
       }
   }
@@ -587,13 +772,20 @@ const Error& DatabaseImpl::ConnectToInstance()
       {
         LOG(ERROR) << "Unable to recreating '" << m_name << "', try to kill";
         rc = mco_db_kill(m_name);
-        LOG(INFO) << "mco_db_kill '" << m_name << "', rc=" << rc;
+        LOG(INFO) << "mco_db_kill '" << m_name << "': " << mco_ret_string(rc,NULL);
         return getLastError();
       }
+      // База данных была создана, значит ее можно удалять с помощью mco_db_close
+      //
+      // Если БД не была создана, а произошло лишь подключение к ней
+      // (для второстепенных процессов это нормальное состояние), при завершении работы
+      // достаточно вызвать mco_db_disconnect()
+      LOG(INFO) << "Database instance was initially created";
+      m_database_was_created = true;
     }
     else
     {
-      LOG(ERROR) << "Unable connect to " << m_name << ", rc="<<rc;
+      LOG(ERROR) << "Unable connect to " << m_name << ": " << mco_ret_string(rc,NULL);
       TransitionToState(DB_STATE_DISCONNECTED);
     }
   }
@@ -612,25 +804,25 @@ const Error& DatabaseImpl::ConnectToInstance()
         * persistent-хранилища после аварийного завершения.
         */
        rc = mco_db_clean(m_db);
-       LOG(INFO) << "mco_db_clean '" << m_name << "', rc=" << rc;
+       LOG(INFO) << "mco_db_clean '" << m_name << "': " << mco_ret_string(rc,NULL);
        if (rc)
        {
-         LOG(ERROR) << "Unable truncate database "<<m_name;
+         LOG(ERROR) << "Unable truncate database " << m_name;
        }
     }
  
     if (!rc)
     {
       RegisterEvents();
-#if 0
+      /*
       MCO_TRANS_ISOLATION_LEVEL isolation_level = 
             mco_trans_set_default_isolation_level(m_db, MCO_REPEATABLE_READ);
       LOG(INFO) << "Change default transaction isolation level to MCO_REPEATABLE_READ, "<<isolation_level;
-#endif
+      */
 
 #if (EXTREMEDB_VERSION >= 40) && USE_EXTREMEDB_HTTP_SERVER
       mcohv_start(&m_hv, m_metadict, &m_intf, 1);
-      LOG(INFO) << "mcohv_start '" << m_name << "', rc=" << rc;
+      LOG(INFO) << "mcohv_start '" << m_name << "': " << mco_ret_string(rc,NULL);
 #endif
     }
   }
@@ -706,7 +898,7 @@ const Error& DatabaseImpl::SaveAsXML(const char* given_file_name, const char *ms
       rc = mco_xml_set_policy(t, &np);
       if (MCO_S_OK != rc)
       {
-        LOG(ERROR)<< "Unable to set xml policy, rc="<<rc;
+        LOG(ERROR)<< "Unable to set xml policy: " << mco_ret_string(rc,NULL);
       }
 #endif
       rc = mco_db_xml_export(t, f, file_writer);
@@ -718,18 +910,18 @@ const Error& DatabaseImpl::SaveAsXML(const char* given_file_name, const char *ms
 
       if (rc != MCO_S_OK)
       {
-         LOG(ERROR)<< "Exporting, rc="<<rc;
+         LOG(ERROR)<< "mco_db_xml_export: " << mco_ret_string(rc,NULL);
          mco_trans_rollback(t);
       }
       else
       {
          rc = mco_trans_commit(t);
-         if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; }
+         if (rc) { LOG(ERROR) << "Commitment transaction: " << mco_ret_string(rc,NULL); }
       }
   }
   else
   {
-      LOG(ERROR)<< "Opening transaction, rc="<<rc;
+      LOG(ERROR)<< "Opening transaction: " << mco_ret_string(rc,NULL);
       m_last_error.set(rtE_SNAPSHOT_WRITE);
   }
 
@@ -788,9 +980,13 @@ const Error& DatabaseImpl::StoreSnapshot(const char* given_file_name)
       rc = mco_db_save(static_cast<void*>(fbak), file_writer, m_db);
       if (rc)
       {
-        LOG(ERROR) << "Unable to save "<<m_name<<" snapshot into "<<fname<<", rc="<<rc;
+        LOG(ERROR) << "Unable to save '" << m_name
+                   << "' snapshot into '" << fname
+                   << "': " << mco_ret_string(rc,NULL);
       }
-      fclose(fbak);
+    // GEV: valgrind ругается на fbak: Syscall param write(buf) points to uninitialised byte(s)
+    // Возможно, fbak закрывается внутри mco_db_save
+     fclose(fbak);
     }
     else
     {
@@ -844,30 +1040,54 @@ const Error& DatabaseImpl::Disconnect()
       rc = mco_async_event_release_all(m_db);
       if (rc != MCO_S_OK && rc != MCO_S_EVENT_RELEASED)
       {
-        LOG(ERROR)<<"Unable to release "<<m_name<<" events, rc="<<rc;
+        LOG(ERROR) << "Unable to release '" << m_name
+                   << "' events: " << mco_ret_string(rc,NULL);
       }
 
       rc = mco_db_disconnect(m_db);
-      LOG(INFO)<<"mco_db_disconnect '" << m_name << "', rc=" << rc;
+      LOG(INFO)<<"mco_db_disconnect '" << m_name << "': " << mco_ret_string(rc,NULL);
       if (rc) 
       {
-        LOG(ERROR)<<"Unable to disconnect from "<<m_name<<", rc="<<rc;
+        LOG(ERROR) << "Unable to disconnect from '" << m_name
+                   << "': " << mco_ret_string(rc,NULL);
       }
       else TransitionToState(DB_STATE_DISCONNECTED);
 
       // NB: break пропущен специально
     case DB_STATE_ATTACHED:  // база подключена
-#if (EXTREMEDB_VERSION >= 40) && USE_EXTREMEDB_HTTP_SERVER
-      rc = mco_uda_db_close(m_metadict, 0);
-#else      
-      rc = mco_db_close(m_name);
-#endif
-      LOG(INFO)<<"mco_db_close '"<<m_name<<"', rc="<<rc;
-      if (rc)
+      if (m_database_was_created)
       {
-        LOG(ERROR)<<"Unable to close "<<m_name<<", rc="<<rc;
+        // Закрывать БД допустимо только тому процессу, который за неё отвечает.
+        // Остальные подключившиеся процессы должны только отключаться от БД.
+#if (EXTREMEDB_VERSION >= 40) && USE_EXTREMEDB_HTTP_SERVER
+        rc = mco_uda_db_close(m_metadict, 0);
+#else      
+        rc = mco_db_close(m_name);
+#endif
+        LOG(INFO)<<"mco_db_close '"<<m_name<<"': "<<mco_ret_string(rc,NULL);
+        if (rc)
+        {
+          LOG(ERROR)<<"Unable to close "<<m_name<<": "<<mco_ret_string(rc,NULL);
+
+          // TODO: попробовать принудительно завершить работу БД,
+          // т.к. мы ее основной создатель (m_database_was_created == true)
+          // NB: при этом зависают процессы, подключенные к этой БД
+          rc = mco_db_kill(m_name);
+          if (rc)
+          {
+            LOG(ERROR) << "Unable to kill '"<<m_name<<"': "<<mco_ret_string(rc,NULL);
+          }
+          else {
+            TransitionToState(DB_STATE_CLOSED);
+            TransitionToState(DB_STATE_UNINITIALIZED);
+          }
+        }
+        else TransitionToState(DB_STATE_CLOSED);
       }
-      else TransitionToState(DB_STATE_CLOSED);
+      else
+      {
+        LOG(INFO) << "Closing database '"<<m_name<<"' was skipped as I'm not created it";
+      }
     break;
 
     default:
@@ -882,10 +1102,10 @@ const Error& DatabaseImpl::Disconnect()
   if (!m_count && m_metadict_initialized == true)
   {
     ret = mcohv_stop(m_hv);
-    LOG(INFO) << "mcohv_stop '" << m_name << "', ret=" << ret;
+    LOG(INFO) << "mcohv_stop '" << m_name << "' = " << ret;
 
     ret = mcohv_shutdown();
-    LOG(INFO) << "mcohv_shutdown '" << m_name << "', ret=" << ret;
+    LOG(INFO) << "mcohv_shutdown '" << m_name << "' = " << ret;
     free(m_metadict);
     m_metadict_initialized = false;
   }
@@ -964,20 +1184,29 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
         {
           LOG(ERROR) << "Unable to load '" << m_name
                      << "' binary snapshot file '" <<fname
-                     << "', rc="<<rc;
+                     << "': " << mco_ret_string(rc,NULL);
           m_snapshot_loaded = false;
-          setError(rtE_SNAPSHOT_READ);
+
+          switch(rc)
+          {
+            case MCO_E_INSTANCE_DUPLICATE:
+              setError(rtE_DATABASE_INSTANCE_DUPLICATE);
+              break;
+            default:
+              setError(rtE_SNAPSHOT_READ);
+          }
         }
         else
         {
           // Успешно прочитали бинарный дамп
           m_snapshot_loaded = true;
+          m_database_was_created = true;
           LOG(INFO) << "Binary dump '" << fname << "' succesfully loaded";
         }
         fclose(fbak);
     }
     else
-    {
+    { // Нет двоичного файла снимка
       LOG(ERROR) << "Unable to open binary snapshot file "<<fname;
       setError(rtE_SNAPSHOT_READ);
 
@@ -994,16 +1223,22 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
                            m_dev,
                            m_dev_num,
                            &m_db_params);
-      LOG(INFO) << "mco_db_open_dev '" << m_name << "', rc=" << rc;
+      LOG(INFO) << "mco_db_open_dev '" << m_name << "': " << mco_ret_string(rc,NULL);
 
       if ( MCO_S_OK == rc )
       {
         // Состояние ATTACHED - подключение m_db не инициализировано
         TransitionToState(DB_STATE_ATTACHED);
         m_snapshot_loaded = false;
+        m_database_was_created = true;
 
+#if (EXTREMEDB_VERSION >= 40)
+        int pid = getpid();
+        rc = mco_db_connect_ctx(m_name, &pid, &m_db);
+#else
         rc = mco_db_connect(m_name, &m_db);
-        LOG(INFO) << "mco_db_connect '" << m_name << "', rc=" << rc;
+#endif
+        LOG(INFO) << "mco_db_connect '" << m_name << "': " << mco_ret_string(rc,NULL);
         if ( MCO_S_OK == rc )
         {
           TransitionToState(DB_STATE_CONNECTED);
@@ -1018,7 +1253,7 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
       }
       else
       {
-        LOG(ERROR) << "Failed mco_db_open_dev, rc=" << rc;
+        LOG(ERROR) << "mco_db_open_dev: " << mco_ret_string(rc,NULL);
       }
 
       if (!m_snapshot_loaded)
@@ -1034,7 +1269,7 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
         {
             rc = mco_db_disconnect(m_db);
             TransitionToState(DB_STATE_DISCONNECTED);
-            LOG(INFO) << "Disconnecting from " << m_name << ", rc=" << rc;
+            LOG(INFO) << "Disconnecting from '" << m_name << "': " << mco_ret_string(rc,NULL);
         }
         setError(restoring_state);
       }
@@ -1064,8 +1299,6 @@ const Error& DatabaseImpl::LoadFromXML(const char* given_file_name)
   MCO_RET           rc = MCO_S_OK;
   mco_trans_h       t;
   mco_xml_policy_t  policy;
-//  static char       calc_file_name[150];
-//  char             *fname = &calc_file_name[0];
   FILE             *f = NULL;
 
   m_last_error.clear();
@@ -1100,7 +1333,7 @@ const Error& DatabaseImpl::LoadFromXML(const char* given_file_name)
     rc = mco_trans_start(m_db, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
     if (rc)
     {
-      LOG(ERROR) << "Starting transaction, rc=" << rc;
+      LOG(ERROR) << "Starting transaction: " << mco_ret_string(rc,NULL);
       setError(rtE_RUNTIME_FATAL);
       break;
     }
@@ -1115,13 +1348,14 @@ const Error& DatabaseImpl::LoadFromXML(const char* given_file_name)
     if (MCO_S_OK == rc)
     {
       rc = mco_trans_commit(t);
-      LOG(INFO) << "XML-import '" << m_name << "' is done, rc=" << rc;
+      LOG(INFO) << "XML-importing '" << m_name << "' success";
       m_snapshot_loaded = true;
     }
     else
     {
       rc = mco_trans_rollback(t);
-      LOG(INFO) << "XML-import '" << m_name << "' failure, rc=" << rc;
+      LOG(INFO) << "XML-importing '" << m_name
+                << "' failure: " << mco_ret_string(rc,NULL);
       m_snapshot_loaded = true;
     }
 
@@ -1142,6 +1376,9 @@ const Error& DatabaseImpl::LoadFromXML(const char* given_file_name)
 const Error& DatabaseImpl::Open()
 {
   MCO_RET rc = MCO_S_OK;
+#ifdef DISK_DATABASE
+  void* cache_address = NULL;
+#endif
 
   clearError();
 
@@ -1155,10 +1392,9 @@ const Error& DatabaseImpl::Open()
                        &m_db_params,
                        NULL,
                        0);
-  LOG(INFO) << "mco_uda_db_open '" << m_name << "', rc=" << rc;
   if (rc)
   {
-    LOG(ERROR) << "Unable to open UDA, rc=" << rc;
+    LOG(ERROR) << "Unable to open UDA: " << mco_ret_string(rc,NULL);
     m_last_error.set(rtE_RUNTIME_FATAL);
     return m_last_error;
   }
@@ -1197,9 +1433,40 @@ const Error& DatabaseImpl::Open()
                          m_dev,
                          m_dev_num,
                          &m_db_params);
-    LOG(INFO) << "mco_db_open_dev '" << m_name << "', rc=" << rc;
-    // Состояние ATTACHED - подключение m_db не инициализировано
-    TransitionToState(DB_STATE_ATTACHED);
+    LOG(INFO) << "mco_db_open_dev '" << m_name << "': " << mco_ret_string(rc,NULL);
+    if (rc && (MCO_E_INSTANCE_DUPLICATE == rc))
+    {
+      // Такая БД уже открыта, возможно в другом процессе
+      LOG(INFO) << "Database '" << m_name << "' already opened";
+
+      // Если есть флаг OF_CREATE, то считаем, что мы создали эту БД,
+      // поскольку она могла остаться в памяти после аварийного завершения
+      // нашего процесса.
+      if (m_flags[OF_POS_CREATE])
+      {
+        m_database_was_created = true;
+      }
+      else
+      {
+        m_database_was_created = false;
+      }
+
+#if (EXTREMEDB_VERSION >= 40)
+      int pid = getpid();
+      rc = mco_db_connect_ctx(m_name, &pid, &m_db);
+#else
+      rc = mco_db_connect(m_name, &m_db);
+#endif
+      if (!rc)
+      {
+        TransitionToState(DB_STATE_CONNECTED);
+      }
+    }
+    else
+    {
+      // Состояние ATTACHED - подключение m_db не инициализировано
+      TransitionToState(DB_STATE_ATTACHED);
+    }
   }
 
 #endif /* USE_EXTREMEDB_HTTP_SERVER */
@@ -1216,7 +1483,7 @@ const Error& DatabaseImpl::Open()
                     (void*)m_MapAddress,
                     m_DatabaseSize + m_DbDiskCache,
                     m_MemoryPageSize /*PAGESIZE*/);
-    LOG(INFO) << "mco_db_open '" << m_name << "', rc=" << rc;
+    LOG(INFO) << "mco_db_open '" << m_name << "': " << mco_ret_string(rc,NULL);
   }
 
 #endif /* EXTREMEDB_VERSION >= 40 */
@@ -1233,7 +1500,7 @@ const Error& DatabaseImpl::Open()
      else
      {
        LOG(ERROR) << "Can't open DB dictionary '" << m_name
-                  << "', rc=" << rc;
+                  << "': " << mco_ret_string(rc,NULL);
        setError(rtE_RUNTIME_FATAL);
        return getLastError();
      }
@@ -1243,9 +1510,9 @@ const Error& DatabaseImpl::Open()
    LOG(INFO) << "Opening '" << m_dbsFileName << "' disk database";
    rc = mco_disk_open(m_name,
                       m_dbsFileName,
-                      m_logFileName, 
-                      0, 
-                      m_DbDiskCache, 
+                      m_logFileName,
+                      cache_address,
+                      m_DbDiskCache,
                       m_DbDiskPageSize,
                       MCO_INFINITE_DATABASE_SIZE,
                       DB_LOG_TYPE);
@@ -1254,7 +1521,7 @@ const Error& DatabaseImpl::Open()
     && (rc != MCO_ERR_DISK_ALREADY_OPENED)
     && (rc != MCO_E_INSTANCE_DUPLICATE))
    {
-     LOG(ERROR) << "Error creating disk database, rc=" << rc;
+     LOG(ERROR) << "Error creating disk database: " << mco_ret_string(rc,NULL);
      TransitionToState(DB_STATE_INITIALIZED);
      setError(rtE_RUNTIME_FATAL);
      return getLastError();
@@ -1483,3 +1750,4 @@ const Error& DatabaseImpl::Config(rtDbCq& info)
   m_last_error = rtE_NOT_IMPLEMENTED;
   return m_last_error;
 }
+

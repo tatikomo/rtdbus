@@ -332,7 +332,7 @@ bool process_group(RtConnection *conn, const char* work_env, const char* file_na
     group_file_name += "/";
     group_file_name += sbs_group_name;
     // Удалось открыть файл группы?
-    if (NULL != (group_file = fopen(group_file_name.c_str(), "rw")))
+    if (NULL != (group_file = fopen(group_file_name.c_str(), "r")))
     {
       LOG(INFO) << "Read group name: " << sbs_group_name;
     

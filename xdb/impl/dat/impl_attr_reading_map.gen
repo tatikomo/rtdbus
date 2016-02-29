@@ -16,6 +16,7 @@
   m_attr_reading_func_map.insert(AttrProcessingFuncPair_t("FLGMAINTENANCE", &xdb::DatabaseRtapImpl::readFLGMAINTENANCE));
   m_attr_reading_func_map.insert(AttrProcessingFuncPair_t("FLGREMOTECMD", &xdb::DatabaseRtapImpl::readFLGREMOTECMD));
   m_attr_reading_func_map.insert(AttrProcessingFuncPair_t("FUNCTION", &xdb::DatabaseRtapImpl::readFUNCTION));
+  m_attr_reading_func_map.insert(AttrProcessingFuncPair_t("HISTOTYPE", &xdb::DatabaseRtapImpl::readHISTOTYPE));
   m_attr_reading_func_map.insert(AttrProcessingFuncPair_t("GRADLEVEL", &xdb::DatabaseRtapImpl::readGRADLEVEL));
   m_attr_reading_func_map.insert(AttrProcessingFuncPair_t("INHIB", &xdb::DatabaseRtapImpl::readINHIB));
   m_attr_reading_func_map.insert(AttrProcessingFuncPair_t("INHIBLOCAL", &xdb::DatabaseRtapImpl::readINHIBLOCAL));
@@ -29,7 +30,6 @@
   m_attr_reading_func_map.insert(AttrProcessingFuncPair_t("L_EQTORBORDWN", &xdb::DatabaseRtapImpl::readL_EQTORBORDWN));
   m_attr_reading_func_map.insert(AttrProcessingFuncPair_t("L_EQTORBORUPS", &xdb::DatabaseRtapImpl::readL_EQTORBORUPS));
   m_attr_reading_func_map.insert(AttrProcessingFuncPair_t("L_EQTTYP", &xdb::DatabaseRtapImpl::readL_EQTTYP));
-  m_attr_reading_func_map.insert(AttrProcessingFuncPair_t("LINK_HIST", &xdb::DatabaseRtapImpl::readLINK_HIST));
   m_attr_reading_func_map.insert(AttrProcessingFuncPair_t("L_NET", &xdb::DatabaseRtapImpl::readL_NET));
   m_attr_reading_func_map.insert(AttrProcessingFuncPair_t("L_NETTYPE", &xdb::DatabaseRtapImpl::readL_NETTYPE));
   m_attr_reading_func_map.insert(AttrProcessingFuncPair_t("LOCALFLAG", &xdb::DatabaseRtapImpl::readLOCALFLAG));

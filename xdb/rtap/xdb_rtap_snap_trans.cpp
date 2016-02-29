@@ -62,6 +62,10 @@ int nbHistFailed;
 // Заполнить структуру AttributeInfo_t по заданным DbType_t и 
 // строковому представлению значения
 bool getAttrValue(DbType_t, AttributeInfo_t*, const std::string&);
+
+AttributeInfo_t* createAttributeInfo();
+void releaseAttributeInfo(AttributeInfo_t*, bool);
+
 // ###############################################################
 
 // Создать точку c заданным именем и без атрибутов, подключив её к ROOT
@@ -316,20 +320,32 @@ int xdb::processClassFile(const char* fpath)
         if (!ClassDescriptionTable[objclass].attributes_pool)
              ClassDescriptionTable[objclass].attributes_pool = new AttributeMap_t;
 
-        p_attr_info = new AttributeInfo_t;
+        // Создать память под ресурсы по указателю p_attr_info
+        p_attr_info = createAttributeInfo();
         p_attr_info->name.assign(s_univname);
         // Присвоить значение атрибуту в соответствии с полученным типом
         getAttrValue(db_type, p_attr_info, s_default_value);
 #if defined VERBOSE
-        std::cout << "objclass: " << objclass << " attr_name: "
-                  << s_univname << " type: " << s_type
-                  << " type_code: " << db_type << std::endl;
+        std::cout << "objclass(" << objclass
+                  << ")\tattr_name(" << s_univname
+                  << ")\ttype(" << s_type
+                  << ")\ttype_code(" << db_type
+                  << ")\tdefault(" << s_default_value
+                  << ")"
+                  << std::endl;
 #endif
 
         // Поместить новый атрибут в список атрибутов класса
         ClassDescriptionTable[objclass].attributes_pool->insert(
                     AttributeMapPair_t(s_univname,  *p_attr_info)
                     );
+        // Без освобождения выделенной динамической области памяти под строковые значения,
+        // поскольку они потребуются при разборе instances_total.dat
+        // При этом протекает память, конечно же. Хорошо, что строковых значений атрибутов
+        // по умолчанию мало. Данный процесс предназначен для разовой работы по конвертации
+        // базы данных, поэтому утечки пока никак не мешают работе.
+        // TODO: Сделать нормальное хранение значений атрибутов по умолчанию.
+#warning "Minor memory leakage here"
         delete p_attr_info;
       }
 
@@ -344,6 +360,55 @@ int xdb::processClassFile(const char* fpath)
   }
 
   return loadedClasses;
+}
+
+// Создать пустую запись для значения атрибута из instances_total
+AttributeInfo_t* createAttributeInfo()
+{
+  AttributeInfo_t* create_me = new AttributeInfo_t;
+
+  create_me->name.clear();
+  create_me->type = DB_TYPE_UNDEF;
+  create_me->quality = ATTR_ERROR;
+  // Память под значение атрибута еще не выделена
+  create_me->value = { {0}, {0, NULL, NULL} };
+
+  return create_me;
+}
+
+// Освободить память значений атрибута из instances_total
+void releaseAttributeInfo(AttributeInfo_t* delete_me, bool is_delete_after = false)
+{
+  switch(delete_me->type)
+  {
+    case DB_TYPE_BYTES:
+//      LOG(INFO) << "GEV: deallocate val_string: " << delete_me->value.dynamic.val_string;
+      delete delete_me->value.dynamic.val_string;
+      break;
+
+    case DB_TYPE_BYTES4:
+    case DB_TYPE_BYTES8:
+    case DB_TYPE_BYTES12:
+    case DB_TYPE_BYTES16:
+    case DB_TYPE_BYTES20:
+    case DB_TYPE_BYTES32:
+    case DB_TYPE_BYTES48:
+    case DB_TYPE_BYTES64:
+    case DB_TYPE_BYTES80:
+    case DB_TYPE_BYTES128:
+    case DB_TYPE_BYTES256:
+//      LOG(INFO) << "GEV: deallocate " << (void*)delete_me->value.dynamic.varchar;
+//                << ": '" << delete_me->value.dynamic.varchar << "'";
+      delete[] delete_me->value.dynamic.varchar;
+      break;
+
+    default:
+      // nothing to do here
+      break;
+  }
+
+  if (is_delete_after)
+    delete delete_me;
 }
 
 // 
@@ -365,10 +430,10 @@ bool getAttrValue(DbType_t db_type,
       // TODO: учитывать данное ограничение размера строки
       // NB: сейчас ограничение не применяется, используется
       // фактическая поданная длина
-      // TODO: проверить работу с UTF-8
       case DB_TYPE_BYTES:
         if (!given_value.empty())
         {
+//          LOG(INFO) << "GEV: allocate val_string: " << given_value;
           p_attr_info->value.dynamic.val_string = new std::string(given_value);
         }
         else p_attr_info->value.dynamic.val_string = NULL;
@@ -389,19 +454,20 @@ bool getAttrValue(DbType_t db_type,
         // для непустого значения
         if (p_attr_info->value.dynamic.size)
         {
+           // Строки UTF-8 могут занимать до 4-х раз больше байт, чем количество содержащихся в них символов.
+           // Буква =/= символ, 1 символ может быть длиной до 4 байт.
+           // Обычно для русского текста: 1 символ = 2 байта
+           // Сравнить длину данного текста с шаблонной длиной из таблицы:
+           assert(p_attr_info->value.dynamic.size <= xdb::DbTypeDescription[db_type].size);
            p_attr_info->value.dynamic.varchar = new char[p_attr_info->value.dynamic.size + 1];
+//           LOG(INFO) << "GEV: allocate "<<(void*)p_attr_info->value.dynamic.varchar
+//                     << " of actual:" << (p_attr_info->value.dynamic.size + 1) << " bytes"
+//                     << "(tab:" << DbTypeDescription[db_type].size << ")"
+//                     << " for '" << given_value << "' with given length=" << given_value.length();
            memcpy(p_attr_info->value.dynamic.varchar,
                given_value.data(),
                given_value.length());
            p_attr_info->value.dynamic.varchar[p_attr_info->value.dynamic.size] = '\0';
-        }
-        else
-        {
-/*          LOG(ERROR) << "LEAK?:" << p_attr_info->name
-                     << " type:" << p_attr_info->type
-                     << " size:" << p_attr_info->value.dynamic.size
-                     << " data:" << (void*)p_attr_info->value.dynamic.varchar;*/
-          p_attr_info->value.dynamic.varchar = NULL;
         }
         break;
 
@@ -464,6 +530,7 @@ std::string getValueAsString(AttributeInfo_t* attr_info, bool masquerade)
   std::string s_val;
   std::stringstream ss;
   std::string::size_type found;
+  struct tm result_time;
   time_t given_time;
   static char s_date[D_DATE_FORMAT_LEN + 1];
 
@@ -472,13 +539,15 @@ std::string getValueAsString(AttributeInfo_t* attr_info, bool masquerade)
   {
       case DB_TYPE_BYTES:
         s_val.assign(*attr_info->value.dynamic.val_string);
-      break;
+        break;
+
       case DB_TYPE_BYTES4:
       case DB_TYPE_BYTES8:
       case DB_TYPE_BYTES12:
       case DB_TYPE_BYTES16:
       case DB_TYPE_BYTES20:
       case DB_TYPE_BYTES32:
+      case DB_TYPE_BYTES48:
       case DB_TYPE_BYTES64:
       case DB_TYPE_BYTES80:
       case DB_TYPE_BYTES128:
@@ -490,12 +559,14 @@ std::string getValueAsString(AttributeInfo_t* attr_info, bool masquerade)
         ss << static_cast<unsigned int>(attr_info->value.fixed.val_bool);
         s_val.assign(ss.str());
         break;
+
       case DB_TYPE_INT8:
         // NB: простой вывод int8 значением < '0' в поток проводит к
         // занесению туда непечатных символов, нужно приводить int8 к int16
         ss << static_cast<signed int>(attr_info->value.fixed.val_int8);
         s_val.assign(ss.str());
         break;
+
       case DB_TYPE_UINT8:
         ss << static_cast<unsigned int>(attr_info->value.fixed.val_uint8);
         s_val.assign(ss.str());
@@ -540,7 +611,8 @@ std::string getValueAsString(AttributeInfo_t* attr_info, bool masquerade)
 
       case DB_TYPE_ABSTIME:
         given_time = attr_info->value.fixed.val_time.tv_sec;
-        strftime(s_date, D_DATE_FORMAT_LEN, D_DATE_FORMAT_STR, localtime(&given_time));
+        localtime_r(&given_time, &result_time);
+        strftime(s_date, D_DATE_FORMAT_LEN, D_DATE_FORMAT_STR, &result_time);
 //              std::cout << "snap sec:" << given_time
 //                        << " date:" << s_date
 //                        << std::endl; //1
@@ -681,28 +753,7 @@ std::string& xdb::dump_point(
          it_attr_pool != attributes_given.end();
          ++it_attr_pool)
     {
-      switch(it_attr_pool->second.type)
-      {
-        case DB_TYPE_BYTES:
-          delete it_attr_pool->second.value.dynamic.val_string;
-        break;
-        case DB_TYPE_BYTES4:
-        case DB_TYPE_BYTES8:
-        case DB_TYPE_BYTES12:
-        case DB_TYPE_BYTES16:
-        case DB_TYPE_BYTES20:
-        case DB_TYPE_BYTES32:
-        case DB_TYPE_BYTES48:
-        case DB_TYPE_BYTES64:
-        case DB_TYPE_BYTES80:
-        case DB_TYPE_BYTES128:
-        case DB_TYPE_BYTES256:
-          delete[] it_attr_pool->second.value.dynamic.varchar;
-          break;
-        default:
-          // nothing to do here
-          break;
-      }
+      releaseAttributeInfo(&it_attr_pool->second, false);
     }
 
     attributes_given.clear();
@@ -724,7 +775,7 @@ bool xdb::processInstanceFile(const char* fpath)
   // Хранение Атрибутов точки до момента их сброса на диск
   AttributeMap_t attributes;
   // Буфер для хранения состояния прочитанного Атрибута
-  AttributeInfo_t attr_info; 
+  AttributeInfo_t *p_attr_info = NULL;
   // Сконвертированный из строки тип Атрибута
   DbType_t    db_type;
   int         class_idx = GOF_D_BDR_OBJCLASS_UNUSED;
@@ -749,6 +800,7 @@ bool xdb::processInstanceFile(const char* fpath)
   int         input_file_line = 0; // номер текущей строки во входном файле
   int         fieldCount = 0;
   recordType  typeRecord;
+  static int  current_history_index = 0;
 //  attrCategory      attrCateg;
   char*       tableStrDeType[rtMAX_FIELD_CNT];
 
@@ -911,7 +963,9 @@ bool xdb::processInstanceFile(const char* fpath)
              // type может быть: строковое, с плав. точкой, целое
              if (GetDbTypeFromString(type, db_type))
              {
-               attr_info.name.assign(currentAttrName); // имя атрибута
+               p_attr_info = createAttributeInfo();
+
+               p_attr_info->name.assign(currentAttrName); // имя атрибута
 
                // Если в iss еще остались данные, и тип атрибута символьный,
                // нужно получить все это содержимое вместе с кавычками и пробелами.
@@ -941,13 +995,19 @@ bool xdb::processInstanceFile(const char* fpath)
 
                //memset(&attr_info.value, '\0', sizeof(attr_info.value));
                // Присвоить значение атрибуту в соответствии с полученным типом
-               if (!getAttrValue(db_type, &attr_info, value))
+               if (getAttrValue(db_type, p_attr_info, value))
+               {
+                 attributes.insert(AttributeMapPair_t(currentAttrName, *p_attr_info));
+               }
+               else
                {
                  LOG(ERROR) << "Unable process type info '" << type
                             << "' for " << currentAttrName;
                }
 
-               attributes.insert(AttributeMapPair_t(currentAttrName, attr_info));
+               // NB: Очистка выделенной под значения атрибута памяти выполняется в dump_point
+               // releaseAttributeInfo(p_attr_info, false);
+               delete p_attr_info;
              }
              else
              {
@@ -1056,14 +1116,37 @@ bool xdb::processInstanceFile(const char* fpath)
          /*----------------------*/
          /* LINK_HIST            */
          case H_TYPE :
+           // TODO: Занести в атрибут Точки значение монотонно возрастающего счетчика.
+           // Он используется для идентификации позиции в массиве таблицы HISTORY
+           // Поле LINK_HIST содержит алиас таблицы хранения истории для RTAP. Поскольку
+           // в XDB таблицы общие, и различаются только названием для различной дискретности
+           // (.._1_MIN для ежеминутной, .._5_MIN для пятиминутной, и т.д.), то алиас RTAP
+           // в XDB не нужен.
+           if (iss >> type >> currentAttrName >> type /* >> history_link */)
+           {
+             p_attr_info = createAttributeInfo();
+             p_attr_info->name.assign(currentAttrName);
+             p_attr_info->type = DB_TYPE_UINT16;
+             p_attr_info->value.fixed.val_uint16 = current_history_index++;
+             attributes.insert(AttributeMapPair_t(currentAttrName, *p_attr_info));
+             delete p_attr_info;
+             LOG (INFO) << instanceAlias << "." << currentAttrName << " = " << current_history_index;
+           }
+           else {
+             LOG (ERROR) << instanceAlias << "." << currentAttrName << " бяка";
+           }
+           break;
+
          /* CE DEFINITION        */
          case A_TYPE :
          /* ALIAS CE DEFINITION  */
          /*----------------------*/
          case J_TYPE :
-//           LOG (INFO) << "(" << typeRecord 
-//            << ") : LINK_HIST|CE_DEFINITION|ALIAS_CE_DEFINITION : "
-//            << buffer;
+         /*
+           LOG (INFO) << "(" << typeRecord 
+            << ") : CE_DEFINITION|ALIAS_CE_DEFINITION : "
+            << buffer;
+          */
            break;
 
          default:

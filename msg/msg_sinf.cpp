@@ -4,14 +4,16 @@
 
 #include <iostream> // std::cerr
 
+#include "glog/logging.h"
 #include "google/protobuf/stubs/common.h"
+
 #include "proto/common.pb.h"
 #include "proto/sinf.pb.h"
 #include "msg_message.hpp"
 #include "msg_message_impl.hpp"
 #include "msg_sinf.hpp"
 
-#include "xdb_common.hpp"   // типы данных xdb::DbType_t, xdb::datetime_t
+#include "xdb_common.hpp"   // типы данных xdb::DbType_t, xdb::datetime_t, xdb::sampler_type_t
 
 using namespace msg;
 
@@ -85,9 +87,9 @@ Value::Value(std::string& _name, xdb::DbType_t _type, void* val)
       //memcpy(i&m_instance.value.fixed.val_time, static_cast<timeval*>(val), sizeof(timeval));
     break;
     default:
-      std::cerr << "E: " << __FILE__ << ":" << __LINE__
+      LOG(ERROR)<< __FILE__ << ":" << __LINE__
                 << ": Value::Value() unsupported attr '" << m_instance.name
-                << "' type: " << m_instance.type << std::endl;
+                << "' type: " << m_instance.type;
     break;
   }
 }
@@ -169,11 +171,10 @@ Value::Value(/*RTDBM::ValueUpdate* */ void* vu)
 
       // Странно - размер данных не нулевой, но не совпадает с ожидаемым
       if (temp->s_value().size() && (temp->s_value().size() != xdb::var_size[m_instance.type]))
-        std::cerr << "E: " << __FILE__ << ":" << __LINE__
-                  << ": Value::Value(void*) " << m_instance.name
+        LOG(ERROR)<< "Value::Value(void*) " << m_instance.name
                   << ": size doesn't equal (" 
                   << temp->s_value().size() << ", "
-                  << xdb::var_size[m_instance.type] << ")" << std::endl;
+                  << xdb::var_size[m_instance.type] << ")";
 
       strncpy(m_instance.value.dynamic.varchar, temp->s_value().c_str(), xdb::var_size[m_instance.type]);
 //      m_instance.value.dynamic.varchar[xdb::var_size[m_instance.type]] = '\0';
@@ -199,9 +200,7 @@ Value::Value(/*RTDBM::ValueUpdate* */ void* vu)
     break;
 
     default:
-      std::cerr << "E: " << __FILE__ << ":" << __LINE__
-                << ": unsupported type " << m_instance.type
-                << " for " << m_instance.name << std::endl;
+      LOG(ERROR)<< ": unsupported type " << m_instance.type << " for " << m_instance.name;
     break;
   }
 }
@@ -467,6 +466,7 @@ const std::string Value::as_string() const
   std::string value;
   char buffer [50];
   char s_date [D_DATE_FORMAT_LEN + 1];
+  struct tm result_time;
   time_t given_time;
 
   switch(m_instance.type)
@@ -537,7 +537,8 @@ const std::string Value::as_string() const
 
     case xdb::DB_TYPE_ABSTIME:
       given_time = m_instance.value.fixed.val_time.tv_sec;
-      strftime(s_date, D_DATE_FORMAT_LEN, D_DATE_FORMAT_STR, localtime(&given_time));
+      localtime_r(&given_time, &result_time);
+      strftime(s_date, D_DATE_FORMAT_LEN, D_DATE_FORMAT_STR, &result_time);
       snprintf(buffer, D_DATE_FORMAT_W_MSEC_LEN, "%s.%06ld", s_date, m_instance.value.fixed.val_time.tv_usec);
       value.assign(buffer);
 //      std::cout << "msg_sinf: sec=" << m_instance.value.fixed.val_time.tv_sec
@@ -549,9 +550,8 @@ const std::string Value::as_string() const
     break;
 
     default:
-      std::cerr << "E: " << __FILE__ << ":" << __LINE__
-                << ": unsupported data type: " << m_instance.type
-                << " for " << m_instance.name << std::endl;
+      LOG(ERROR)<< ": unsupported data type: " << m_instance.type
+                << " for " << m_instance.name;
     break;
   }
 
@@ -642,8 +642,7 @@ void Value::flush()
     break;
 
     default:
-      std::cerr << "E: " << __FILE__ << ":" << __LINE__
-                << ": unsupported type " << m_instance.type << std::endl;
+      LOG(ERROR)<< ": unsupported type " << m_instance.type;
     break;
   }
 }
@@ -774,8 +773,7 @@ void ReadMulti::add(std::string& tag, xdb::DbType_t type, void* val)
     break;
 
     default:
-      std::cerr << "E: " << __FILE__ << ":" << __LINE__
-                << ": unsupported type " << type << std::endl;
+      LOG(ERROR)<< ": unsupported type " << type;
     break;
   }
 }
@@ -869,8 +867,7 @@ bool ReadMulti::get(std::size_t idx, std::string& tag, xdb::DbType_t& type, xdb:
      break;
 
      default:
-       std::cerr << "E: " << __FILE__ << ":" << __LINE__
-                 << ": ReadMulti::get() unsupported type: " << type << std::endl;
+       LOG(ERROR)<< ": ReadMulti::get() unsupported type: " << type;
        // Неизвестный тип
        status = false;
        val = NULL;
@@ -964,8 +961,7 @@ bool ReadMulti::get(std::size_t idx, std::string& tag, xdb::DbType_t& type, xdb:
     default:
        // Неизвестный тип
        status = false;
-       std::cerr << "E: " << __FILE__ << ":" << __LINE__
-                 << ": unsupported '" << tag << "' type " << type << std::endl; //1
+       LOG(ERROR)<< ": unsupported '" << tag << "' type " << type; //1
     break;  
   }
 
@@ -1121,8 +1117,7 @@ void WriteMulti::add(std::string& tag, xdb::DbType_t type, void* val)
     break;
 
     default:
-       std::cerr << "E: " << __FILE__ << ":" << __LINE__
-                 << ": Unsupported type " << type << std::endl;
+      LOG(ERROR)<< ": Unsupported type " << type;
     break;
   }
 }
@@ -1151,26 +1146,26 @@ std::size_t WriteMulti::num_items()
 SubscriptionControl::SubscriptionControl()
  : Letter(SIG_D_MSG_GRPSBS_CTRL, 0), m_updater(NULL)
 {
-  std::cerr << "On SubscriptionControl()" << std::endl;
+  LOG(INFO) << "On SubscriptionControl()";
 }
 
 SubscriptionControl::SubscriptionControl(const std::string& _head, const std::string& _body)
  : Letter(_head, _body), m_updater(NULL)
 {
   assert(header()->usr_msg_type() == SIG_D_MSG_GRPSBS_CTRL);
-  std::cerr << "On SubscriptionControl(head, body)" << std::endl;
+  LOG(INFO) << "SubscriptionControl("<<_head<<", " << _body <<")";
 }
 
 SubscriptionControl::SubscriptionControl(Header* _head, const std::string& _body)
  : Letter(_head, _body), m_updater(NULL)
 {
   assert(header()->usr_msg_type() == SIG_D_MSG_GRPSBS_CTRL);
-  std::cerr << "On SubscriptionControl(header, body)" << std::endl;
+  LOG(INFO) << "On SubscriptionControl(header, body)";
 }
 
 SubscriptionControl::~SubscriptionControl()
 {
-  std::cerr << "On ~SubscriptionControl()" << std::endl;
+  LOG(INFO) << "On ~SubscriptionControl()";
   delete m_updater;
 }
 
@@ -1204,26 +1199,26 @@ const std::string& SubscriptionControl::name()
 SubscriptionEvent::SubscriptionEvent()
  : Letter(SIG_D_MSG_GRPSBS, 0), m_updater(NULL)
 {
-//  std::cerr << "On SubscriptionEvent()" << std::endl;
+  LOG(INFO) << "On SubscriptionEvent()";
 }
 
 SubscriptionEvent::SubscriptionEvent(const std::string& _head, const std::string& _body)
  : Letter(_head, _body), m_updater(NULL)
 {
   assert(header()->usr_msg_type() == SIG_D_MSG_GRPSBS);
-//  std::cerr << "On SubscriptionEvent(head, body)" << std::endl;
+  LOG(INFO) << "On SubscriptionEvent(head, body)";
 }
 
 SubscriptionEvent::SubscriptionEvent(Header* _head, const std::string& _body)
  : Letter(_head, _body), m_updater(NULL)
 {
   assert(header()->usr_msg_type() == SIG_D_MSG_GRPSBS);
-//  std::cerr << "On SubscriptionEvent(header, body)" << std::endl;
+  LOG(INFO) << "On SubscriptionEvent(header, body)";
 }
 
 SubscriptionEvent::~SubscriptionEvent()
 {
-//  std::cerr << "On ~SubscriptionEvent()" << std::endl;
+  LOG(INFO) << "On ~SubscriptionEvent()";
   delete m_updater;
 }
 
@@ -1305,8 +1300,7 @@ void SubscriptionEvent::add(std::string& tag, xdb::DbType_t type, void* val)
     break;
 
     default:
-       std::cerr << "E: " << __FILE__ << ":" << __LINE__
-                 << ": Unsupported type " << type << std::endl;
+      LOG(ERROR) << ": Unsupported type " << type;
     break;
   }
 }
@@ -1395,8 +1389,7 @@ bool SubscriptionEvent::get(std::size_t idx, std::string& tag, xdb::DbType_t& ty
     default:
        // Неизвестный тип
        status = false;
-       std::cerr << "E: " << __FILE__ << ":" << __LINE__
-                 << ": unsupported '" << tag << "' type " << type << std::endl; //1
+       LOG(ERROR) << ": unsupported '" << tag << "' type " << type;
     break;  
   }
 
@@ -1425,3 +1418,164 @@ std::size_t SubscriptionEvent::num_items()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+HistoryRequest::HistoryRequest()
+ : Letter(SIG_D_MSG_REQ_HISTORY, 0)
+{
+  LOG(INFO) << "On HistoryRequest()";
+}
+
+HistoryRequest::HistoryRequest(const std::string& _head, const std::string& _body)
+ : Letter(_head, _body)
+{
+  assert(header()->usr_msg_type() == SIG_D_MSG_REQ_HISTORY);
+  LOG(INFO) << "On HistoryRequest(head, body)";
+}
+
+HistoryRequest::HistoryRequest(Header* _head, const std::string& _body)
+ : Letter(_head, _body)
+{
+  assert(header()->usr_msg_type() == SIG_D_MSG_REQ_HISTORY);
+  LOG(INFO) << "On HistoryRequest(header, body)";
+}
+
+HistoryRequest::~HistoryRequest()
+{
+  LOG(INFO) << "On ~HistoryRequest()";
+}
+
+// Указать в пул еще один тег
+void HistoryRequest::set(std::string& tag, time_t start, int num_req_samples, int history_type)
+{
+  RTDBM::HistoryType pb_htype = RTDBM::PER_NONE;
+  RTDBM::HistoryRequest* pb_request =
+        static_cast<RTDBM::HistoryRequest*>(data()->impl()->instance());
+
+  assert(pb_request);
+
+  pb_request->set_tag(tag);
+
+  // NB: синхронизовать со схемой БДРВ
+  // NB: Требуется поддерживать синхронность между xdb::DbType_t и RTDBM::DbType (!)
+  if (RTDBM::HistoryType_IsValid(history_type))
+    pb_htype = static_cast<RTDBM::HistoryType>(history_type);
+  else {
+    pb_htype = RTDBM::PER_NONE;
+    LOG(ERROR) << "Unsupported history depth: " << history_type;
+  }
+  pb_request->set_history_type(pb_htype);
+
+  pb_request->set_num_required_samples(num_req_samples);
+
+  pb_request->set_time_start(start);
+}
+
+// Добавить в пул еще одну запись
+void HistoryRequest::add(time_t start, double new_val, int new_validity)
+{
+  RTDBM::HistoryItem* new_item = NULL;
+  RTDBM::HistoryRequest* pb_request =
+        static_cast<RTDBM::HistoryRequest*>(data()->impl()->instance());
+
+  new_item = pb_request->add_item();
+
+  if (RTDBM::gof_t_AcqInfoValid_IsValid(new_validity)) {
+    new_item->set_valid(static_cast<RTDBM::gof_t_AcqInfoValid>(new_validity));
+  }
+  else new_item->set_valid(RTDBM::GOF_D_ACQ_INVALID);
+  
+  new_item->set_value(new_val);
+
+  new_item->set_frame(start);
+}
+
+// Установить признак существования запрошенного тега в HDB
+void HistoryRequest::set_existance(bool is_exist)
+{
+  RTDBM::HistoryRequest* pb_request =
+        static_cast<RTDBM::HistoryRequest*>(data()->impl()->instance());
+  pb_request->set_existance(is_exist);
+}
+
+// Получить значения записи с заданным индексом idx
+bool HistoryRequest::get(int index, hist_attr_t& out)
+{
+  bool status;
+  RTDBM::HistoryRequest* pb_request =
+        static_cast<RTDBM::HistoryRequest*>(data()->impl()->instance());
+
+  if ((0 <= index) && (index < pb_request->item_size())) {
+    const RTDBM::HistoryItem& pb_item = pb_request->item(index);
+    out.valid = pb_item.valid();
+    out.val = pb_item.value();
+    out.datehourm = pb_item.frame();
+    status = true;
+  }
+  else {
+    out.datehourm = 0;
+    out.val = 0;
+    out.valid = 0;
+    status = false;
+  }
+
+  return status;
+}
+
+// Вернуть название тега, по которому запрошена предыстория
+const std::string& HistoryRequest::tag()
+{
+  RTDBM::HistoryRequest* pb_request =
+        static_cast<RTDBM::HistoryRequest*>(data()->impl()->instance());
+
+  if (!pb_request->has_tag()) {
+    LOG(WARNING) << "HistoryRequest: get empty tag";
+    assert (1 == 0);
+  }
+
+  return pb_request->tag();
+}
+
+// Вернуть отметку времени начала периода запрашиваемой предыстории
+time_t HistoryRequest::start_time()
+{
+  return static_cast<RTDBM::HistoryRequest*>(data()->impl()->instance())->time_start();
+}
+
+// Вернуть количество семплов запрашиваемой предыстории
+int HistoryRequest::num_required_samples()
+{
+  return static_cast<RTDBM::HistoryRequest*>(data()->impl()->instance())->num_required_samples();
+}
+
+xdb::sampler_type_t HistoryRequest::history_type()
+{
+  int htype_in = static_cast<RTDBM::HistoryRequest*>(data()->impl()->instance())->history_type();
+  xdb::sampler_type_t htype_out;
+
+  switch(htype_in) {
+    case 1:  htype_out = xdb::PERIOD_1_MINUTE;  break;
+    case 2:  htype_out = xdb::PERIOD_5_MINUTES; break;
+    case 3:  htype_out = xdb::PERIOD_HOUR;      break;
+    case 4:  htype_out = xdb::PERIOD_DAY;       break;
+    case 5:  htype_out = xdb::PERIOD_MONTH;     break;
+
+    case 0:  // NB: break пропущен специально
+    default: htype_out = xdb::PERIOD_NONE;    break;
+  }
+
+  return htype_out;
+}
+
+// Признак существования запрошенного тега в HDB (true = существует)
+bool HistoryRequest::existance()
+{
+  return static_cast<RTDBM::HistoryRequest*>(data()->impl()->instance())->existance();
+}
+
+// Вернуть количество прочитанных семплов предыстории
+int HistoryRequest::num_read_samples()
+{
+  return static_cast<RTDBM::HistoryRequest*>(data()->impl()->instance())->item_size();
+}
+
+

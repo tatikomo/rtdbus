@@ -47,6 +47,14 @@ const AttrTypeDescription_t xdb::AttrTypeDescription[] =
 // NB: Поле size для типов данных DB_TYPE_BYTES* определяет максимальный,
 // а не фактический размер, поскольку в кодировке UTF-8 символ может занимать
 // как 1 (латиница), так и 2 байта (кириллица).
+//    (index)
+//    |
+//    |                             Указатель на строку с названием атрибута (name)
+//    |                             |
+//    |                             |                       Тип данных (type)
+//    |                             |                       |
+//    |                             |                       |               размер атрибута в байтах, макс. 32кБ (size)
+//    |                             |                       |               |
     { RTDB_ATT_IDX_ACTIONTYP,       RTDB_ATT_ACTIONTYP,     DB_TYPE_UINT16, sizeof(uint16_t) },   // 0
     { RTDB_ATT_IDX_ALARMBEGIN,      RTDB_ATT_ALARMBEGIN,    DB_TYPE_UINT32, sizeof(uint32_t) },   // 1
     { RTDB_ATT_IDX_ALARMBEGINACK,   RTDB_ATT_ALARMBEGINACK, DB_TYPE_UINT32, sizeof(uint32_t) },   // 2
@@ -68,73 +76,74 @@ const AttrTypeDescription_t xdb::AttrTypeDescription[] =
     { RTDB_ATT_IDX_FLGREMOTECMD,    RTDB_ATT_FLGREMOTECMD,  DB_TYPE_LOGICAL,sizeof(bool) },       // 16
     { RTDB_ATT_IDX_FUNCTION,        RTDB_ATT_FUNCTION,      DB_TYPE_BYTES20,sizeof(wchar_t)*20 }, // 17
     { RTDB_ATT_IDX_GRADLEVEL,       RTDB_ATT_GRADLEVEL,     DB_TYPE_DOUBLE, sizeof(double) },     // 18
-    { RTDB_ATT_IDX_INHIB,           RTDB_ATT_INHIB,         DB_TYPE_LOGICAL,sizeof(bool) },       // 19
-    { RTDB_ATT_IDX_INHIBLOCAL,      RTDB_ATT_INHIBLOCAL,    DB_TYPE_LOGICAL,sizeof(bool) },       // 20
-    { RTDB_ATT_IDX_KMREFDWN,        RTDB_ATT_KMREFDWN,      DB_TYPE_DOUBLE, sizeof(double) },     // 21
-    { RTDB_ATT_IDX_KMREFUPS,        RTDB_ATT_KMREFUPS,      DB_TYPE_DOUBLE, sizeof(double) },     // 22
-    { RTDB_ATT_IDX_LABEL,           RTDB_ATT_LABEL,         DB_TYPE_BYTES20,sizeof(wchar_t)*20 }, // 23
-    { RTDB_ATT_IDX_L_CONSUMER,      RTDB_ATT_L_CONSUMER,    DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 24
-    { RTDB_ATT_IDX_L_CORRIDOR,      RTDB_ATT_L_CORRIDOR,    DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 25
-    { RTDB_ATT_IDX_L_DIPL,          RTDB_ATT_L_DIPL,        DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 26
-    { RTDB_ATT_IDX_L_EQT,           RTDB_ATT_L_EQT,         DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 27
-    { RTDB_ATT_IDX_L_EQTORBORDWN,   RTDB_ATT_L_EQTORBORDWN, DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 28
-    { RTDB_ATT_IDX_L_EQTORBORUPS,   RTDB_ATT_L_EQTORBORUPS, DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 29
-    { RTDB_ATT_IDX_L_EQTTYP,        RTDB_ATT_L_EQTTYP,      DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 30
-    { RTDB_ATT_IDX_LINK_HIST,       RTDB_ATT_LINK_HIST,     DB_TYPE_UINT64, sizeof(uint64_t) },   // 31
-    { RTDB_ATT_IDX_L_NET,           RTDB_ATT_L_NET,         DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 32
-    { RTDB_ATT_IDX_L_NETTYPE,       RTDB_ATT_L_NETTYPE,     DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 33
-    { RTDB_ATT_IDX_LOCALFLAG,       RTDB_ATT_LOCALFLAG,     DB_TYPE_UINT8,  sizeof(uint8_t) },    // 34
-    { RTDB_ATT_IDX_L_PIPE,          RTDB_ATT_L_PIPE,        DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 35
-    { RTDB_ATT_IDX_L_PIPELINE,      RTDB_ATT_L_PIPELINE,    DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 36
-    { RTDB_ATT_IDX_L_SA,            RTDB_ATT_L_SA,          DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 37
-    { RTDB_ATT_IDX_L_TL,            RTDB_ATT_L_TL,          DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 38
-    { RTDB_ATT_IDX_L_TM,            RTDB_ATT_L_TM,          DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 39
-    { RTDB_ATT_IDX_L_TYPINFO,       RTDB_ATT_L_TYPINFO,     DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 40
-    { RTDB_ATT_IDX_MAXVAL,          RTDB_ATT_MAXVAL,        DB_TYPE_DOUBLE, sizeof(double) },     // 41
-    { RTDB_ATT_IDX_MINVAL,          RTDB_ATT_MINVAL,        DB_TYPE_DOUBLE, sizeof(double) },     // 42
-    { RTDB_ATT_IDX_MNVALPHY,        RTDB_ATT_MNVALPHY,      DB_TYPE_DOUBLE, sizeof(double) },     // 43
-    { RTDB_ATT_IDX_MXFLOW,          RTDB_ATT_MXFLOW,        DB_TYPE_DOUBLE, sizeof(double) },     // 44
-    { RTDB_ATT_IDX_MXPRESSURE,      RTDB_ATT_MXPRESSURE,    DB_TYPE_DOUBLE, sizeof(double) },     // 45
-    { RTDB_ATT_IDX_MXVALPHY,        RTDB_ATT_MXVALPHY,      DB_TYPE_DOUBLE, sizeof(double) },     // 46
+    { RTDB_ATT_IDX_HISTOTYPE,       RTDB_ATT_HISTOTYPE,     DB_TYPE_UINT16, sizeof(uint16_t) },   // 19
+    { RTDB_ATT_IDX_INHIB,           RTDB_ATT_INHIB,         DB_TYPE_LOGICAL,sizeof(bool) },       // 20
+    { RTDB_ATT_IDX_INHIBLOCAL,      RTDB_ATT_INHIBLOCAL,    DB_TYPE_LOGICAL,sizeof(bool) },       // 21
+    { RTDB_ATT_IDX_KMREFDWN,        RTDB_ATT_KMREFDWN,      DB_TYPE_DOUBLE, sizeof(double) },     // 22
+    { RTDB_ATT_IDX_KMREFUPS,        RTDB_ATT_KMREFUPS,      DB_TYPE_DOUBLE, sizeof(double) },     // 23
+    { RTDB_ATT_IDX_LABEL,           RTDB_ATT_LABEL,         DB_TYPE_BYTES20,sizeof(wchar_t)*20 }, // 24
+    { RTDB_ATT_IDX_L_CONSUMER,      RTDB_ATT_L_CONSUMER,    DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 25
+    { RTDB_ATT_IDX_L_CORRIDOR,      RTDB_ATT_L_CORRIDOR,    DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 26
+    { RTDB_ATT_IDX_L_DIPL,          RTDB_ATT_L_DIPL,        DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 27
+    { RTDB_ATT_IDX_L_EQT,           RTDB_ATT_L_EQT,         DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 28
+    { RTDB_ATT_IDX_L_EQTORBORDWN,   RTDB_ATT_L_EQTORBORDWN, DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 29
+    { RTDB_ATT_IDX_L_EQTORBORUPS,   RTDB_ATT_L_EQTORBORUPS, DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 30
+    { RTDB_ATT_IDX_L_EQTTYP,        RTDB_ATT_L_EQTTYP,      DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 31
+    { RTDB_ATT_IDX_LINK_HIST,       RTDB_ATT_LINK_HIST,     DB_TYPE_UINT64, sizeof(uint64_t) },   // 32
+    { RTDB_ATT_IDX_L_NET,           RTDB_ATT_L_NET,         DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 33
+    { RTDB_ATT_IDX_L_NETTYPE,       RTDB_ATT_L_NETTYPE,     DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 34
+    { RTDB_ATT_IDX_LOCALFLAG,       RTDB_ATT_LOCALFLAG,     DB_TYPE_UINT8,  sizeof(uint8_t) },    // 35
+    { RTDB_ATT_IDX_L_PIPE,          RTDB_ATT_L_PIPE,        DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 36
+    { RTDB_ATT_IDX_L_PIPELINE,      RTDB_ATT_L_PIPELINE,    DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 37
+    { RTDB_ATT_IDX_L_SA,            RTDB_ATT_L_SA,          DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 38
+    { RTDB_ATT_IDX_L_TL,            RTDB_ATT_L_TL,          DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 39
+    { RTDB_ATT_IDX_L_TM,            RTDB_ATT_L_TM,          DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 40
+    { RTDB_ATT_IDX_L_TYPINFO,       RTDB_ATT_L_TYPINFO,     DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 41
+    { RTDB_ATT_IDX_MAXVAL,          RTDB_ATT_MAXVAL,        DB_TYPE_DOUBLE, sizeof(double) },     // 42
+    { RTDB_ATT_IDX_MINVAL,          RTDB_ATT_MINVAL,        DB_TYPE_DOUBLE, sizeof(double) },     // 43
+    { RTDB_ATT_IDX_MNVALPHY,        RTDB_ATT_MNVALPHY,      DB_TYPE_DOUBLE, sizeof(double) },     // 44
+    { RTDB_ATT_IDX_MXFLOW,          RTDB_ATT_MXFLOW,        DB_TYPE_DOUBLE, sizeof(double) },     // 45
+    { RTDB_ATT_IDX_MXPRESSURE,      RTDB_ATT_MXPRESSURE,    DB_TYPE_DOUBLE, sizeof(double) },     // 46
+    { RTDB_ATT_IDX_MXVALPHY,        RTDB_ATT_MXVALPHY,      DB_TYPE_DOUBLE, sizeof(double) },     // 47
     { RTDB_ATT_IDX_NAMEMAINTENANCE, RTDB_ATT_NAMEMAINTENANCE,
-                                                            DB_TYPE_BYTES12,sizeof(wchar_t)*12 }, // 47
-    { RTDB_ATT_IDX_NMFLOW,          RTDB_ATT_NMFLOW,        DB_TYPE_DOUBLE, sizeof(double) },     // 48
-    { RTDB_ATT_IDX_NMPRESSURE,      RTDB_ATT_NMPRESSURE,    DB_TYPE_DOUBLE, sizeof(double) },     // 49
+                                                            DB_TYPE_BYTES12,sizeof(wchar_t)*12 }, // 48
+    { RTDB_ATT_IDX_NMFLOW,          RTDB_ATT_NMFLOW,        DB_TYPE_DOUBLE, sizeof(double) },     // 49
+    { RTDB_ATT_IDX_NMPRESSURE,      RTDB_ATT_NMPRESSURE,    DB_TYPE_DOUBLE, sizeof(double) },     // 50
 // NB: OBJCLASS - особый случай, этот атрибут более не является самостоятельным,
 // став принадлежностью XDBPoint
-    { RTDB_ATT_IDX_OBJCLASS,        RTDB_ATT_OBJCLASS,      DB_TYPE_UINT8,  sizeof(uint8_t) },    // 50
-    { RTDB_ATT_IDX_PLANFLOW,        RTDB_ATT_PLANFLOW,      DB_TYPE_DOUBLE, sizeof(double) },     // 51
-    { RTDB_ATT_IDX_PLANPRESSURE,    RTDB_ATT_PLANPRESSURE,  DB_TYPE_DOUBLE, sizeof(double) },     // 52
+    { RTDB_ATT_IDX_OBJCLASS,        RTDB_ATT_OBJCLASS,      DB_TYPE_UINT8,  sizeof(uint8_t) },    // 51
+    { RTDB_ATT_IDX_PLANFLOW,        RTDB_ATT_PLANFLOW,      DB_TYPE_DOUBLE, sizeof(double) },     // 52
+    { RTDB_ATT_IDX_PLANPRESSURE,    RTDB_ATT_PLANPRESSURE,  DB_TYPE_DOUBLE, sizeof(double) },     // 53
     { RTDB_ATT_IDX_PREV_DISPATCHER, RTDB_ATT_PREV_DISPATCHER,
-                                                            DB_TYPE_BYTES12,sizeof(wchar_t)*12 }, // 53
+                                                            DB_TYPE_BYTES12,sizeof(wchar_t)*12 }, // 54
     { RTDB_ATT_IDX_PREV_SHIFT_TIME, RTDB_ATT_PREV_SHIFT_TIME,
-                                                            DB_TYPE_UINT64, sizeof(uint64_t) },   // 54
-    { RTDB_ATT_IDX_REMOTECONTROL,   RTDB_ATT_REMOTECONTROL, DB_TYPE_UINT8,  sizeof(uint8_t) },    // 55
-    { RTDB_ATT_IDX_SHORTLABEL,      RTDB_ATT_SHORTLABEL,    DB_TYPE_BYTES16,sizeof(wchar_t)*16 }, // 56
-    { RTDB_ATT_IDX_STATUS,          RTDB_ATT_STATUS,        DB_TYPE_UINT8,  sizeof(uint8_t) },    // 57
-    { RTDB_ATT_IDX_SUPPLIER,        RTDB_ATT_SUPPLIER,      DB_TYPE_BYTES16,sizeof(wchar_t)*16 }, // 58
-    { RTDB_ATT_IDX_SUPPLIERMODE,    RTDB_ATT_SUPPLIERMODE,  DB_TYPE_BYTES16,sizeof(wchar_t)*16 }, // 59
-    { RTDB_ATT_IDX_SUPPLIERSTATE,   RTDB_ATT_SUPPLIERSTATE, DB_TYPE_BYTES16,sizeof(wchar_t)*16 }, // 60
-    { RTDB_ATT_IDX_SYNTHSTATE,      RTDB_ATT_SYNTHSTATE,    DB_TYPE_UINT8,  sizeof(uint8_t) },    // 61
-    { RTDB_ATT_IDX_TSSYNTHETICAL,   RTDB_ATT_TSSYNTHETICAL, DB_TYPE_UINT8,  sizeof(uint8_t) },    // 62
-    { RTDB_ATT_IDX_TYPE,            RTDB_ATT_TYPE,          DB_TYPE_UINT32, sizeof(uint32_t) },   // 63
-    { RTDB_ATT_IDX_UNITY,           RTDB_ATT_UNITY,         DB_TYPE_BYTES20,sizeof(wchar_t)*20 }, // 64
-    { RTDB_ATT_IDX_UNITYCATEG,      RTDB_ATT_UNITYCATEG,    DB_TYPE_UINT8,  sizeof(uint8_t) },    // 65
+                                                            DB_TYPE_UINT64, sizeof(uint64_t) },   // 55
+    { RTDB_ATT_IDX_REMOTECONTROL,   RTDB_ATT_REMOTECONTROL, DB_TYPE_UINT8,  sizeof(uint8_t) },    // 56
+    { RTDB_ATT_IDX_SHORTLABEL,      RTDB_ATT_SHORTLABEL,    DB_TYPE_BYTES16,sizeof(wchar_t)*16 }, // 57
+    { RTDB_ATT_IDX_STATUS,          RTDB_ATT_STATUS,        DB_TYPE_UINT8,  sizeof(uint8_t) },    // 58
+    { RTDB_ATT_IDX_SUPPLIER,        RTDB_ATT_SUPPLIER,      DB_TYPE_BYTES16,sizeof(wchar_t)*16 }, // 59
+    { RTDB_ATT_IDX_SUPPLIERMODE,    RTDB_ATT_SUPPLIERMODE,  DB_TYPE_BYTES16,sizeof(wchar_t)*16 }, // 60
+    { RTDB_ATT_IDX_SUPPLIERSTATE,   RTDB_ATT_SUPPLIERSTATE, DB_TYPE_BYTES16,sizeof(wchar_t)*16 }, // 61
+    { RTDB_ATT_IDX_SYNTHSTATE,      RTDB_ATT_SYNTHSTATE,    DB_TYPE_UINT8,  sizeof(uint8_t) },    // 62
+    { RTDB_ATT_IDX_TSSYNTHETICAL,   RTDB_ATT_TSSYNTHETICAL, DB_TYPE_UINT8,  sizeof(uint8_t) },    // 63
+    { RTDB_ATT_IDX_TYPE,            RTDB_ATT_TYPE,          DB_TYPE_UINT32, sizeof(uint32_t) },   // 64
+    { RTDB_ATT_IDX_UNITY,           RTDB_ATT_UNITY,         DB_TYPE_BYTES20,sizeof(wchar_t)*20 }, // 65
+    { RTDB_ATT_IDX_UNITYCATEG,      RTDB_ATT_UNITYCATEG,    DB_TYPE_UINT8,  sizeof(uint8_t) },    // 66
 // NB: UNIVNAME - особый случай, этот атрибут более не является самостоятельным,
 // став принадлежностью XDBPoint
 // Размерность определяется значением TAG_NAME_MAXLEN в файле config.h
-    { RTDB_ATT_IDX_UNIVNAME,        RTDB_ATT_TAG,           DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 66
-// NB: VAL - особый случай, может быть как целочисленным, так и double 
-    { RTDB_ATT_IDX_VAL,             RTDB_ATT_VAL,           DB_TYPE_DOUBLE, sizeof(double) },     // 67
+    { RTDB_ATT_IDX_UNIVNAME,        RTDB_ATT_TAG,           DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 67
+// NB: VAL - особый случай, может быть как целочисленным, так и double
+    { RTDB_ATT_IDX_VAL,             RTDB_ATT_VAL,           DB_TYPE_DOUBLE, sizeof(double) },     // 68
 // NB: VALACQ - особый случай, может быть как целочисленным, так и double 
-    { RTDB_ATT_IDX_VALACQ,          RTDB_ATT_VALACQ,        DB_TYPE_DOUBLE, sizeof(double) },     // 68
-    { RTDB_ATT_IDX_VALEX,           RTDB_ATT_VALEX,         DB_TYPE_DOUBLE, sizeof(double) },     // 69
-    { RTDB_ATT_IDX_VALID,           RTDB_ATT_VALID,         DB_TYPE_UINT8,  sizeof(uint8_t) },    // 70
-    { RTDB_ATT_IDX_VALIDACQ,        RTDB_ATT_VALIDACQ,      DB_TYPE_UINT8,  sizeof(uint8_t) },    // 71
-    { RTDB_ATT_IDX_VALIDCHANGE,     RTDB_ATT_VALIDCHANGE,   DB_TYPE_UINT8,  sizeof(uint8_t) },    // 72
-// NB: VALMANUAL - особый случай, может быть как целочисленным, так и double 
-    { RTDB_ATT_IDX_VALMANUAL,       RTDB_ATT_VALMANUAL,     DB_TYPE_DOUBLE, sizeof(double) },     // 73
-    { RTDB_ATT_IDX_UNEXIST,         "",                     DB_TYPE_UNDEF,  0 }                   // 74
+    { RTDB_ATT_IDX_VALACQ,          RTDB_ATT_VALACQ,        DB_TYPE_DOUBLE, sizeof(double) },     // 69
+    { RTDB_ATT_IDX_VALEX,           RTDB_ATT_VALEX,         DB_TYPE_DOUBLE, sizeof(double) },     // 70
+    { RTDB_ATT_IDX_VALID,           RTDB_ATT_VALID,         DB_TYPE_UINT8,  sizeof(uint8_t) },    // 71
+    { RTDB_ATT_IDX_VALIDACQ,        RTDB_ATT_VALIDACQ,      DB_TYPE_UINT8,  sizeof(uint8_t) },    // 72
+    { RTDB_ATT_IDX_VALIDCHANGE,     RTDB_ATT_VALIDCHANGE,   DB_TYPE_UINT8,  sizeof(uint8_t) },    // 73
+// NB: VALMANUAL - особый случай, может быть как целочисленным, так и double
+    { RTDB_ATT_IDX_VALMANUAL,       RTDB_ATT_VALMANUAL,     DB_TYPE_DOUBLE, sizeof(double) },     // 74
+    { RTDB_ATT_IDX_UNEXIST,         "",                     DB_TYPE_UNDEF,  0 }                   // 75
 };
 
 
@@ -290,6 +299,11 @@ const DeTypeDescription_t xdb::rtDataElem[] =
 //  XX = номер класса
 //  YYY = название класса
 ClassDescription_t xdb::ClassDescriptionTable[] =  {
+//        Имя (name)
+//        |         Objclass (code) 
+//        |         |                       тип атрибутов {VAL|VALMANUAL|VALACQ} (val_type)
+//        |         |                       |               ссылка на набор атрибутов (attributes_pool)
+//        |         |                       |               |
 /*  0*/ {"TS",      GOF_D_BDR_OBJCLASS_TS,  DB_TYPE_UINT16, 0},           /* Телесигнализация */
 /*  1*/ {"TM",      GOF_D_BDR_OBJCLASS_TM,  DB_TYPE_DOUBLE, 0},           /* Телеизмерение */
 /*  2*/ {"TR",      GOF_D_BDR_OBJCLASS_TR,  DB_TYPE_DOUBLE, 0},           /* Телерегулировка */

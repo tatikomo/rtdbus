@@ -54,6 +54,14 @@ bool DiggerProbe::m_interrupt = false;
 bool DiggerProxy::m_interrupt = false;
 bool DiggerPoller::m_interrupt = false;
 
+// --------------------------------------------------------------------------------
+bool publish_sbs_impl(std::string& dest_name,
+                      xdb::SubscriptionPoints_t &info_all,
+                      rtdbMsgType msg_type,
+                      msg::MessageFactory *message_factory,
+                      zmq::socket_t& pub_socket);
+void release_point_info(xdb::PointDescription_t*);
+
 // Общая часть реализации отправки SBS сообщения для классов DiggerPoller и DiggerWorker
 // --------------------------------------------------------------------------------
 bool publish_sbs_impl(std::string& dest_name,
@@ -153,10 +161,50 @@ bool publish_sbs_impl(std::string& dest_name,
 }
 
 // --------------------------------------------------------------------------------
-DiggerWorker::DiggerWorker(zmq::context_t &ctx, int sock_type, xdb::RtEnvironment* env) :
+// Освободить занятые ресурсы
+void release_point_info(xdb::PointDescription_t* info)
+{
+  assert(info);
+
+  // Почистить память, выделенную для атрибутов
+  for(xdb::AttributeMapIterator_t it = info->attributes.begin();
+      it != info->attributes.end();
+      it++)
+  {
+#warning "проверить вероятность двойного удаления value.dynamic"
+      switch((*it).second.type)
+      {
+        case xdb::DB_TYPE_BYTES:     /* 12 */
+          delete (*it).second.value.dynamic.val_string;
+          break;
+
+        case xdb::DB_TYPE_BYTES4:    /* 13 */
+        case xdb::DB_TYPE_BYTES8:    /* 14 */
+        case xdb::DB_TYPE_BYTES12:   /* 15 */
+        case xdb::DB_TYPE_BYTES16:   /* 16 */
+        case xdb::DB_TYPE_BYTES20:   /* 17 */
+        case xdb::DB_TYPE_BYTES32:   /* 18 */
+        case xdb::DB_TYPE_BYTES48:   /* 19 */
+        case xdb::DB_TYPE_BYTES64:   /* 20 */
+        case xdb::DB_TYPE_BYTES80:   /* 21 */
+        case xdb::DB_TYPE_BYTES128:  /* 22 */
+        case xdb::DB_TYPE_BYTES256:  /* 23 */
+          delete [] (*it).second.value.dynamic.varchar;
+          break;
+
+        default: ; // другие типы - статическое выделение памяти
+      }
+  }
+
+  delete info;
+}
+
+
+// --------------------------------------------------------------------------------
+DiggerWorker::DiggerWorker(zmq::context_t *ctx, int sock_type, xdb::RtEnvironment* env) :
  m_context(ctx),
- m_worker(m_context, sock_type), // клиентский сокет для приема от фронтенда
- m_commands(m_context, ZMQ_SUB), // серверный сокет приема команд от DiggerProxy
+ m_worker(*m_context, sock_type), // клиентский сокет для приема от фронтенда
+ m_commands(*m_context, ZMQ_SUB), // серверный сокет приема команд от DiggerProxy
  m_thread_id(0),
  m_interrupt(false),
  m_environment(env),
@@ -229,8 +277,8 @@ int DiggerWorker::probe(mdp::zmsg* request)
 void DiggerWorker::work()
 {
    int linger = 0;
-   int send_timeout_msec = 1000000;
-   int recv_timeout_msec = 3000000;
+   int send_timeout_msec = SEND_TIMEOUT_MSEC;
+   int recv_timeout_msec = RECV_TIMEOUT_MSEC;
    zmsg *request, *command = NULL;
    zmq::pollitem_t  socket_items[2];
    time_t last_probe_time, cur_time;
@@ -369,9 +417,6 @@ int DiggerWorker::processing(mdp::zmsg* request, std::string &identity)
   // Получить отметку времени начала обработки запроса
   m_metric_center->before();
 
-  // Получить отметку времени начала обработки запроса
-  m_metric_center->before();
-
   msg::Letter *letter = m_message_factory->create(request);
   if (letter->valid())
   {
@@ -415,6 +460,9 @@ int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
   msg::ReadMulti *read_msg = dynamic_cast<msg::ReadMulti*>(letter);
   mdp::zmsg      *response = new mdp::zmsg();
   xdb::DbType_t  given_xdb_type;
+#if (VERBOSE > 2)
+  struct tm result_time;
+#endif
   // удалить
   std::string delme_name;
   xdb::DbType_t delme_type;
@@ -457,7 +505,7 @@ int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
       // Перенос прочитанных из БДРВ значений (AttrVal) в RTDBM::ValueUpdate
       todo.flush();
     
-#if defined VERBOSE
+#if (VERBOSE > 2)
         LOG(INFO) << "Read [" << todo.type() << "] " << todo.tag() << " = " << todo.as_string();
 #endif
 
@@ -470,7 +518,7 @@ int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
 
     if (true == read_msg->get(idx, delme_name, delme_type, delme_quality, delme_val))
     {
-#if defined VERBOSE
+#if (VERBOSE > 2)
         if (xdb::ATTR_OK == delme_quality)
         {
           std::cout << "[  OK  ] #" << idx << " name:" << delme_name << " type:" << delme_type << " val:";
@@ -479,7 +527,7 @@ int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
 
         switch(delme_type)
         {
-#if defined VERBOSE
+#if (VERBOSE > 3)
             case xdb::DB_TYPE_LOGICAL:
             std::cout << (signed int)delme_val.fixed.val_bool;
             break;
@@ -515,7 +563,7 @@ int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
             break;
 #endif
             case xdb::DB_TYPE_BYTES:
-#if defined VERBOSE
+#if (VERBOSE > 2)
               std::cout << delme_val.dynamic.val_string;
 #endif
               delete delme_val.dynamic.val_string;
@@ -531,16 +579,17 @@ int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
             case xdb::DB_TYPE_BYTES80:
             case xdb::DB_TYPE_BYTES128:
             case xdb::DB_TYPE_BYTES256:
-#if defined VERBOSE
+#if (VERBOSE > 2)
               std::cout << delme_val.dynamic.varchar;
 #endif
               delete [] delme_val.dynamic.varchar;
             break;
 
-#if defined VERBOSE
+#if (VERBOSE > 2)
             case xdb::DB_TYPE_ABSTIME:
               given_time = delme_val.fixed.val_time.tv_sec;
-              strftime(s_date, D_DATE_FORMAT_LEN, D_DATE_FORMAT_STR, localtime(&given_time));
+              localtime_r(&given_time, &result_time);
+              strftime(s_date, D_DATE_FORMAT_LEN, D_DATE_FORMAT_STR, &result_time);
               snprintf(buffer, D_DATE_FORMAT_W_MSEC_LEN, "%s.%06ld", s_date, delme_val.fixed.val_time.tv_usec);
               std::cout << buffer;
             break;
@@ -569,13 +618,13 @@ int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
             default: ; // nothing to do
 #endif
         }
-#if defined VERBOSE
+#if (VERBOSE > 2)
         std::cout << std::endl;
 #endif
     }
     else // Ошибка функции get()
     {
-#if defined VERBOSE
+#if (VERBOSE > 2)
       LOG(ERROR) << "[ FAIL ] #" << idx << " name:" << delme_name << " type:" << delme_type << std::endl;
 #endif
     }
@@ -604,7 +653,9 @@ int DiggerWorker::handle_write(msg::Letter* letter, std::string& identity)
   {
     msg::Value& todo = write_msg->item(idx);
 
+#if (VERBOSE > 2)
     LOG(INFO) << "write #"<<idx<<":"<<todo.tag()<< ":"<<(unsigned int)todo.type()<<":"<<todo.as_string();
+#endif
     // Изменить значение атрибута
     const xdb::Error& err = m_db_connection->write(&todo.instance());
     // Накапливающийся код ошибки
@@ -614,7 +665,7 @@ int DiggerWorker::handle_write(msg::Letter* letter, std::string& identity)
     {
       case xdb::rtE_NONE: // Все в порядке
         status_code = 0;
-#if defined VERBOSE
+#if (VERBOSE > 2)
         std::cout << "[  OK  ] #" << idx << " name:" << todo.tag()
                   << " type:" << todo.type()
                   << " val:" << todo.as_string()
@@ -715,6 +766,15 @@ int DiggerWorker::handle_sbs_ctrl(msg::Letter* letter, std::string& identity)
           LOG(ERROR) << "Publish initial SBS update to '"<<identity<<"'";
           status_code = result.code();
         }
+
+        // Освободить ресурсы info_all
+        for (xdb::SubscriptionPoints_t::iterator it_info = points_list.begin();
+             it_info != points_list.end();
+             it_info++)
+        {
+          release_point_info(*it_info);
+        }
+        points_list.clear();
       }
   }
 
@@ -775,13 +835,13 @@ void DiggerWorker::send_exec_result(int exec_val, std::string& identity)
   delete response;
 }
 
-DiggerPoller::DiggerPoller(zmq::context_t &ctx, xdb::RtEnvironment* env) :
+DiggerPoller::DiggerPoller(zmq::context_t *ctx, xdb::RtEnvironment* env) :
  m_context(ctx),
- m_publisher(m_context, ZMQ_PUB),
+ m_publisher(*m_context, ZMQ_PUB),
  m_environment(env),
  m_message_factory(new msg::MessageFactory(DIGGER_NAME))
 {
-  LOG(INFO) << "Create DiggerPoller";
+  LOG(INFO) << "Create DiggerPoller, context " << m_context;
 }
 
 DiggerPoller::~DiggerPoller()
@@ -847,66 +907,6 @@ void DiggerPoller::work()
         {
           LOG(INFO) << "Detect modified SBS " << it_sbs->first << ":'" << it_sbs->second << "'";
 
-#if 0
-          // Получить id и теги всех изменившихся точек указанной группы
-          // ====================================================
-          operation.action.query = xdb::rtQUERY_SBS_POINTS_ARMED;
-          // Название искомой группы подписки хранится в it->second
-          tags.clear();
-          tags.push_back(it_sbs->second);
-          operation.tags = &tags;
-          operation.buffer = &points_map;
-          status = db_connection->QueryDatabase(operation);
-          if (status.Ok())
-          {
-            // Опубликовать изменения текущей Группы всем подписчикам через PUB-SUB,
-            // с фильтром на клиенте в виде имени группы.
-            // Сервер сериализует поток атрибутов из it_points в сообщение, обертывая
-            // его названием группы подписки.
-            tags.clear();       // Будем заполнять его тегами атрибутов, чтобы потом прочитать
-            for (it_points = points_map.begin(); it_points != points_map.end(); it_points++)
-            {
-              info = new xdb::AttributeInfo_t;
-              memset(&info->value, '\0', sizeof(info->value));
-              info->name.assign(it_points->second);
-              // Прочитаем значение атрибута
-              status = db_connection->read(info);
-              if (status.Ok())
-              {
-                // Если чтение удалось, добавим этот тег в список готовых к публикации
-                info_all.push_back(info);
-                LOG(INFO) << "Publish tag '" << it_points->second
-                          << "' to channel '" << it_sbs->second << "'";
-              }
-              else
-              {
-                // освободить память под этот info сразу же здесь, т.к. он не попал
-                // в список на передачу, а значит не будет освобожден после передачи 
-                release_attribute_info(info);
-              }
-            } // Конец цикла рассылки для текущей группы
-
-            // Публикация (название группы, перечень тегов со значениями
-            publish_sbs(it_sbs->second, info_all);
-
-            // После публикации сбросить признак модификации успешно переданных точек
-            // для указанной группы списка tags.
-
-            // NB: Одна и та же точка может участвовать в нескольких группах.
-            // TODO: как в таком случае сбрасывать флаг?
-            clear_modification_flag(it_sbs->second, info_all);
-
-            // Освободить ресурсы info_all
-            for (std::vector<xdb::AttributeInfo_t*>::iterator it_info = info_all.begin();
-                 it_info != info_all.end();
-                 it_info++)
-            {
-                release_attribute_info(*it_info);
-            }
-            info_all.clear();
-
-          } // Конец запроса БДРВ на перечень модифицированных точек текущей группы
-#else
           // Читать все значения модифицированных атрибутов точек для указанной группы 
           operation.action.query = xdb::rtQUERY_SBS_READ_POINTS_ARMED;
           tags.clear();
@@ -950,7 +950,6 @@ void DiggerPoller::work()
             }
             points_list.clear();
           }
-#endif
         } // Конец цикла сбора информации о модифицированных точках
 
         // TODO: Сбросить признак модификации для успешно переданных точек
@@ -1003,44 +1002,6 @@ bool DiggerPoller::clear_modification_flag(std::string& sbs_name, xdb::Subscript
   return status;
 }
 
-// Освободить занятые ресурсы
-void DiggerPoller::release_point_info(xdb::PointDescription_t* info)
-{
-  assert(info);
-
-  // Почистить память, выделенную для атрибутов
-  for(xdb::AttributeMapIterator_t it = info->attributes.begin();
-      it != info->attributes.end();
-      it++)
-  {
-#warning "проверить вероятность двойного удаления value.dynamic"
-      switch((*it).second.type)
-      {
-        case xdb::DB_TYPE_BYTES:     /* 12 */
-          delete (*it).second.value.dynamic.val_string;
-          break;
-
-        case xdb::DB_TYPE_BYTES4:    /* 13 */
-        case xdb::DB_TYPE_BYTES8:    /* 14 */
-        case xdb::DB_TYPE_BYTES12:   /* 15 */
-        case xdb::DB_TYPE_BYTES16:   /* 16 */
-        case xdb::DB_TYPE_BYTES20:   /* 17 */
-        case xdb::DB_TYPE_BYTES32:   /* 18 */
-        case xdb::DB_TYPE_BYTES48:   /* 19 */
-        case xdb::DB_TYPE_BYTES64:   /* 20 */
-        case xdb::DB_TYPE_BYTES80:   /* 21 */
-        case xdb::DB_TYPE_BYTES128:  /* 22 */
-        case xdb::DB_TYPE_BYTES256:  /* 23 */
-          delete [] (*it).second.value.dynamic.varchar;
-          break;
-
-        default: ; // другие типы - статическое выделение памяти
-      }
-  }
-
-  delete info;
-}
-
 void DiggerPoller::release_attribute_info(xdb::AttributeInfo_t* info)
 {
   assert(info);
@@ -1070,16 +1031,16 @@ void DiggerPoller::release_attribute_info(xdb::AttributeInfo_t* info)
 }
 
 // --------------------------------------------------------------------------------
-DiggerProbe::DiggerProbe(zmq::context_t &ctx, xdb::RtEnvironment* env) :
+DiggerProbe::DiggerProbe(zmq::context_t *ctx, xdb::RtEnvironment* env) :
  m_context(ctx),
- m_worker_command_socket(m_context, ZMQ_PUB),
+ m_worker_command_socket(*m_context, ZMQ_PUB),
  m_environment(env),
  m_worker_list(),
  m_worker_thread(),
  m_sbs_checker(NULL),
  m_sbs_thread(NULL)
 {
-  LOG(INFO) << "DiggerProbe start, new context " << &m_context;
+  LOG(INFO) << "DiggerProbe start, context " << m_context;
 }
 
 DiggerProbe::~DiggerProbe()
@@ -1105,8 +1066,8 @@ bool DiggerProbe::start()
 int DiggerProbe::start_workers()
 {
   int linger = 0;
-  int send_timeout_msec = 1000000; // 1 sec
-  int recv_timeout_msec = 3000000; // 3 sec
+  int send_timeout_msec = SEND_TIMEOUT_MSEC; // 1 sec
+  int recv_timeout_msec = RECV_TIMEOUT_MSEC; // 3 sec
 
   try
   {
@@ -1257,22 +1218,20 @@ void DiggerProbe::shutdown_workers()
 void DiggerProbe::work()
 {
   xdb::RtConnection *db_connection = NULL;
+  xdb::rtDbCq operation;
+  xdb::Error result;
+
+  // Проверить статус подключений
+  operation.action.control = xdb::rtCONTROL_CHECK_CONN;
 
   try
   {
     db_connection = m_environment->getConnection();
 
-    // TODO: получить перечень групп подписки и отслеживать их
-
     while (!m_interrupt)
     {
-//      LOG(INFO) << "Probe!";
       // Отправить сообщение PROBE всем экземплярам DiggerWorker
-#if 1
       m_worker_command_socket.send("PROBE", 5, 0);
-#else
-#warning "DiggerProbe::PROBE disabled"
-#endif
 
 #if 0
       // И дождаться ответа от каждого
@@ -1283,7 +1242,10 @@ void DiggerProbe::work()
 //        (*it)->probe(NULL);
       }
 #endif
-      
+
+      result = db_connection->ControlDatabase(operation);
+      LOG(INFO) << "Control database connections liveness: " << result.what();
+
       sleep(POLLING_PROBE_PERIOD);
     }
 
@@ -1295,7 +1257,7 @@ void DiggerProbe::work()
     // Послать сигнал TERMINATE Обработчикам и дождаться их завершения
     shutdown_workers();
 
-    usleep(500000);
+//    usleep(500000);
   }
   catch(zmq::error_t error)
   {
@@ -1320,16 +1282,16 @@ void DiggerProbe::stop()
 }
 
 // --------------------------------------------------------------------------------
-DiggerProxy::DiggerProxy(zmq::context_t &ctx, xdb::RtEnvironment* env) :
+DiggerProxy::DiggerProxy(zmq::context_t *ctx, xdb::RtEnvironment* env) :
  m_context(ctx),
- m_control(m_context, ZMQ_SUB),
- m_frontend(m_context, ZMQ_ROUTER),
- m_backend(m_context, ZMQ_DEALER),
+ m_control(*m_context, ZMQ_SUB),
+ m_frontend(*m_context, ZMQ_ROUTER),
+ m_backend(*m_context, ZMQ_DEALER),
  m_environment(env),
  m_probe(NULL),
  m_probe_thread(NULL)
 {
-  LOG(INFO) << "DiggerProxy start, new context " << &m_context;
+  LOG(INFO) << "DiggerProxy start, context " << m_context;
 }
 
 // --------------------------------------------------------------------------------
@@ -1355,12 +1317,12 @@ void DiggerProxy::run()
   int mandatory = 1;
   int linger = 0;
   int hwm = 100;
-  int send_timeout_msec = 1000000; // 1 sec
-  int recv_timeout_msec = 3000000; // 3 sec
+  int send_timeout_msec = SEND_TIMEOUT_MSEC; // 1 sec
+  int recv_timeout_msec = RECV_TIMEOUT_MSEC; // 3 sec
 
   try
   {
-    // Сокет прямого подключения к экземплярям DiggerWorker
+    // Сокет прямого подключения к экземплярам DiggerWorker
     // NB: Выполняется в отдельной нити 
     //ZMQ_ROUTER_MANDATORY может привести zmq_proxy_steerable к аномальному завершению: rc=-1, errno=113
     //Наблюдалось в случаях интенсивного обмена брокера с клиентом, если последний аномально завершался.
@@ -1410,8 +1372,7 @@ void DiggerProxy::run()
                                   (void*)m_backend,
                                   NULL /* C++11: nullptr */,
                                   (void*)m_control);
-	    if (rc == EHOSTUNREACH)
- 		  LOG(WARNING) << "Restart DiggerProxy after EHOSTUNREACH";
+	    if (rc == EHOSTUNREACH) LOG(WARNING) << "Restart DiggerProxy after EHOSTUNREACH";
       }
 
       if (0 == rc)
@@ -1508,7 +1469,11 @@ Digger::Digger(std::string broker_endpoint, std::string service)
    m_environment(NULL),
    m_db_connection(NULL)
 {
+  // Здесь используется m_context из mdp::mdwrk
+  LOG(INFO) << "new Digger, context " << &m_context;
   m_appli = new xdb::RtApplication("DIGGER");
+  // NB: Флаг OF_CREATE говорит о том, что текущий процесс будет являться владельцем БД,
+  // то есть при завершении своей работы он может удалить экземпляр.
   m_appli->setOption("OF_CREATE",   1);    // Создать если БД не было ранее
   m_appli->setOption("OF_LOAD_SNAP",1);
   m_appli->setOption("OF_SAVE_SNAP",1);
@@ -1518,7 +1483,7 @@ Digger::Digger(std::string broker_endpoint, std::string service)
   // b) один Управляющий Группами
   // c) один для Digger
   // d) один для мониторинга
-  m_appli->setOption("OF_MAX_CONNECTIONS",  DiggerProbe::kMaxWorkerThreads + 1 + 1 + 1 + 1);
+  m_appli->setOption("OF_MAX_CONNECTIONS",  DiggerProbe::kMaxWorkerThreads + 10 + 1 + 1 + 1);
   m_appli->setOption("OF_RDWR",1);      // Открыть БД для чтения/записи
   m_appli->setOption("OF_DATABASE_SIZE",    Digger::DatabaseSizeBytes);
   m_appli->setOption("OF_MEMORYPAGE_SIZE",  1024);
@@ -1572,7 +1537,7 @@ void Digger::run()
     LOG(INFO) << "RTDB status: " << m_environment->getLastError().what();
 
     LOG(INFO) << "DiggerProxy creating, interrupt_worker=" << &interrupt_worker;
-    m_digger_proxy = new DiggerProxy(m_context, m_environment);
+    m_digger_proxy = new DiggerProxy(&m_context, m_environment);
 
     LOG(INFO) << "DiggerProxy starting Main thread";
     m_proxy_thread = new std::thread(std::bind(&DiggerProxy::run, m_digger_proxy));

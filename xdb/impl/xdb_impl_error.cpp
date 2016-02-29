@@ -38,7 +38,8 @@ static __attribute__((constructor)) void my_errortable_init()
   g_error_descriptions[rtE_ATTR_NOT_FOUND]   = (const char*)"Specific attribute is not found";
   g_error_descriptions[rtE_ILLEGAL_TAG_NAME] = (const char*)"Illegal point's tag";
   g_error_descriptions[rtE_ALREADY_EXIST]    = (const char*)"Object already exist";
-  g_error_descriptions[rtE_CONNECTION_INVALID]  = (const char*)"Connection not valid";
+  g_error_descriptions[rtE_CONNECTION_INVALID] = (const char*)"Connection not valid";
+  g_error_descriptions[rtE_DATABASE_INSTANCE_DUPLICATE] = (const char*)"Database instance duplicate";
 }
 
 Error::Error() :

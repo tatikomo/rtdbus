@@ -426,11 +426,14 @@ Broker::release (xdb::Worker *&wrk, int disconnect)
 
   if (disconnect) 
   {
+    LOG(INFO) << "Send DISCONNECT to Service " << wrk->GetIDENTITY();
     worker_send (wrk->GetIDENTITY(), MDPW_DISCONNECT, EMPTY_FRAME);
   }
 
   if (false == (status = m_database->RemoveWorker(wrk)))
     LOG(ERROR) << "Unable to remove worker '"<<wrk->GetIDENTITY()<<"'";
+  else
+    LOG(INFO) << "DISARM service " << wrk->GetIDENTITY();
 
   if (xdb::Worker::DISARMED != wrk->GetSTATE())
   {
@@ -457,9 +460,13 @@ Broker::worker_process_READY(xdb::Worker*& worker,
 
   if (worker) /* Указанный обработчик уже известен */
   {
+#if 0
     /*  Not first command in session */
     // TODO обновить ему время регистрации
     status = release (worker, 1);
+#else
+    worker->SetSTATE(xdb::Worker::ARMED);
+#endif
   }
   else /* Указанный Обработчик не зарегистрирован */
   {

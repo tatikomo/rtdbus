@@ -55,7 +55,7 @@ ServiceEndpoint_t Endpoints[] = { // NB: Копия структуры в фай
   {RTDB_NAME,   ENDPOINT_RTDB_FRONTEND  /* tcp://localhost:5556 */, ""}, // Информационный сервер БДРВ
   {HMI_NAME,    ENDPOINT_HMI_FRONTEND   /* tcp://localhost:5557 */, ""}, // Сервер отображения
   {EXCHANGE_NAME,  ENDPOINT_EXCHG_FRONTEND /* tcp://localhost:5558 */, ""}, // Сервер обменов
-  {ARCHIVIST_NAME, ENDPOINT_ARCH_FRONTEND  /* tcp://localhost:5561 */, ""}, // Сервер архивирования
+  {HISTORIAN_NAME, ENDPOINT_HIST_FRONTEND  /* tcp://localhost:5561 */, ""}, // Сервер архивирования и накопления предыстории
   {"", "", ""}  // Последняя запись
 };
 // Запись о точке подключения к Брокеру д.б. первой
@@ -68,15 +68,15 @@ DatabaseBrokerImpl::DatabaseBrokerImpl(const char* _name) :
   assert(_name);
 
   // Опции по умолчанию
-  setOption(&m_opt, "OF_CREATE",    1);
-  setOption(&m_opt, "OF_LOAD_SNAP", 1);
-  setOption(&m_opt, "OF_DATABASE_SIZE",   1024 * 1024 * 10);
-  setOption(&m_opt, "OF_MEMORYPAGE_SIZE", 1024); // 0..65535
-  setOption(&m_opt, "OF_MAP_ADDRESS", 0x20000000);
+  setOption(&m_opt, OF_DEFINE_CREATE,    1);
+  setOption(&m_opt, OF_DEFINE_LOAD_SNAP, 1);
+  setOption(&m_opt, OF_DEFINE_DATABASE_SIZE,   1024 * 1024 * 10);
+  setOption(&m_opt, OF_DEFINE_MEMORYPAGE_SIZE, 1024); // 0..65535
+  setOption(&m_opt, OF_DEFINE_MAP_ADDRESS, 0x20000000);
 #if defined USE_EXTREMEDB_HTTP_SERVER
-  setOption(&m_opt, "OF_HTTP_PORT", 8081);
+  setOption(&m_opt, OF_DEFINE_HTTP_PORT, 8081);
 #endif
-  setOption(&m_opt, "OF_DISK_CACHE_SIZE", 0);
+  setOption(&m_opt, OF_DEFINE_DISK_CACHE_SIZE, 0);
 
   mco_dictionary_h broker_dict = broker_db_get_dictionary();
 
@@ -520,7 +520,7 @@ Service *DatabaseBrokerImpl::AddService(const char *name/*, const char *endpoint
     rc = service_instance.create(t);
     if (rc) { LOG(ERROR) << "Creating instance, rc=" << rc; break; }
 
-    rc = service_instance.name_put(name, static_cast<uint2>(strlen(name)));
+    rc = service_instance.name_put(name, (uint2)strlen(name));
     if (rc) { LOG(ERROR) << "Setting '" << name << "' name"; break; }
 
     // Если пишется известная нам Служба => присвоить точке подключения значение "по умолчанию"
@@ -736,7 +736,7 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
 
   assert(wrk);
   const char* wrk_identity = wrk->GetIDENTITY();
-  size_t wrk_identity_len = strlen(wrk_identity);
+  uint2 wrk_identity_len = strlen(wrk_identity);
   assert(wrk_identity_len <= IDENTITY_MAXLEN);
 
   do

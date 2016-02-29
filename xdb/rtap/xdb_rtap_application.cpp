@@ -17,6 +17,7 @@
 
 using namespace xdb;
 
+// ---------------------------------------------------------------------
 RtApplication::RtApplication(const char* _name)
   : m_impl(new ApplicationImpl(_name)),
     m_initialized(false)
@@ -24,6 +25,7 @@ RtApplication::RtApplication(const char* _name)
   m_env_list.reserve(4);
 }
 
+// ---------------------------------------------------------------------
 RtApplication::~RtApplication()
 {
   for (size_t env_nbr = 0; env_nbr < m_env_list.size(); env_nbr++)
@@ -36,6 +38,7 @@ RtApplication::~RtApplication()
   delete m_impl;
 }
 
+// ---------------------------------------------------------------------
 // TODO: провести инициализацию рантайма с учетом данных начальных условий
 const Error& RtApplication::initialize()
 {
@@ -53,46 +56,55 @@ const Error& RtApplication::initialize()
   return m_impl->getLastError();
 }
 
+// ---------------------------------------------------------------------
 ApplicationImpl* RtApplication::getImpl()
 {
   return m_impl;
 }
 
+// ---------------------------------------------------------------------
 const ::Options* RtApplication::getOptions() const
 {
   return m_impl->getOptions();
 }
 
+// ---------------------------------------------------------------------
 bool RtApplication::getOption(const std::string& key, int& val)
 {
   return m_impl->getOption(key, val);
 }
 
+// ---------------------------------------------------------------------
 void RtApplication::setOption(const char* key, int val)
 {
   m_impl->setOption(key, val);
 }
 
+// ---------------------------------------------------------------------
 const char* RtApplication::getAppName() const
 {
   return m_impl->getAppName();
 }
 
+// ---------------------------------------------------------------------
 const Error& RtApplication::getLastError() const
 {
   return m_impl->getLastError();
 }
 
+// ---------------------------------------------------------------------
 AppMode_t RtApplication::getOperationMode() const
 {
   return m_impl->getOperationMode();
 }
 
+// ---------------------------------------------------------------------
 AppState_t RtApplication::getOperationState() const
 {
   return m_impl->getOperationState();
 }
 
+// ---------------------------------------------------------------------
 // Загрузить среду с заданным именем, или среду по умолчанию
 // Фактическое содание БД произойдет в RtEnvironment.Start()
 // TODO: Найти файл с описателем данной среды (аналог RtapEnvTable) и НСИ
@@ -104,8 +116,8 @@ RtEnvironment* RtApplication::loadEnvironment(const char* _env_name)
   
   if (env)
   {
-    LOG(INFO) << "Load existent environment '" << _env_name
-                 << "' for App '" << m_impl->getAppName() << "'";
+    LOG(INFO) << "Application '" << m_impl->getAppName()
+              << "' is loading environment '" << _env_name << "'";
     return env;
   }
 
@@ -121,36 +133,47 @@ RtEnvironment* RtApplication::loadEnvironment(const char* _env_name)
     {
       case rtE_NONE:
         LOG(INFO) << "'" << _env_name << "' DB content is loaded succesfully";
-      break;
+        break;
       
       case rtE_SNAPSHOT_NOT_EXIST:
-          // TODO восстановить состояние по конфигурационным файлам
-          LOG(ERROR) << "Construct empty database contents for '"
-                     << m_impl->getAppName() << ":" << env->getName() << "'";
-          status.set(rtE_NOT_IMPLEMENTED);
-      break;
+        // TODO восстановить состояние по конфигурационным файлам
+        LOG(ERROR) << "Construct empty database contents for '"
+                   << m_impl->getAppName() << ":" << env->getName() << "'";
+        status.set(rtE_NOT_IMPLEMENTED);
+        break;
+
+      case rtE_DATABASE_INSTANCE_DUPLICATE:
+        // Возможно, это повторный запуск после аварийного сбоя.
+        // БД уже загружена в разделяемую память, просто подключиться к ней.
+        delete env;
+        env = attach_to_env(_env_name);
+        env->clearError();
+        status.clear();
+        break;
 
       case rtE_SNAPSHOT_READ:
-          // TODO восстановить состояние по конфигурационным файлам
-          LOG(ERROR) << "Recovery database contents for '"
-                     << m_impl->getAppName() << ":" << env->getName() << "'";
-          status.set(rtE_NOT_IMPLEMENTED);
-      break;
+        // TODO восстановить состояние по конфигурационным файлам
+        LOG(ERROR) << "TODO: Recovery database contents for '"
+                   << m_impl->getAppName() << ":" << env->getName() << "'";
+        status.set(rtE_NOT_IMPLEMENTED);
+        break;
 
       default:
         LOG(ERROR) << m_impl->getAppName() << " fault loads '" << env->getName()
                    << "' DB content from its snapshot";
     }
 
-#if 0
-        // Удаляем экземпляр Среды, созданный с ошибкой
-        delete env;
-        env = NULL;
-#else
-#warning "Нельзя регистрировать ошибочные экземпляры Сред. Сейчас это сделано для тестов."
-#endif
-    // Владение экземпляром перешло к RtApplication
-    registerEnvironment(env);
+    if (status.Ok())
+    {
+      // Владение экземпляром перешло к RtApplication
+      registerEnvironment(env);
+    }
+    else
+    {
+      // Удаляем экземпляр Среды, созданный с ошибкой
+      delete env;
+      env = NULL;
+    }
   }
   else
   {
@@ -166,7 +189,39 @@ RtEnvironment* RtApplication::loadEnvironment(const char* _env_name)
   return env;
 }
 
+// ---------------------------------------------------------------------
+// TODO: БДРВ может быть создана другим процессом, и находиться в общем
+// сегменте разделяемой памяти. В таком случае необходимо найти такую БДРВ
+// среди других возможно существующих экземпляров XDB.
+//
+RtEnvironment* RtApplication::attach_to_env(const char* _env_name)
+{
+  // Попытаемся определить, был ли уже текущий процесс подключен к этой БД?
+  // Если env равно NULL - не был подключен.
+  RtEnvironment *env = isEnvironmentRegistered(_env_name);
+  
+  if (env)
+  {
+    LOG(INFO) << "Application '" << m_impl->getAppName()
+              << "' is attached to environment '" << _env_name;
+  }
+  else
+  {
+    if (true == m_impl->database_instance_presence(_env_name))
+    {
+      // Экземпляр БД есть в памяти, и текущий процесс не был подключен - подключиться
+      // создать и зарегистрировать экземпляр RtEnvironment
+      env = new RtEnvironment(this, _env_name);
+      LOG(INFO) << "Attach to external instance '" << _env_name << "'";
+      // Владение экземпляром перешло к RtApplication
+      registerEnvironment(env);
+    }
+  }
 
+  return env;
+}
+
+// ---------------------------------------------------------------------
 // Зарегистрировать в Приложении новую Среду, кроме дубликатов 
 void RtApplication::registerEnvironment(RtEnvironment* _new_env)
 {
@@ -181,6 +236,7 @@ void RtApplication::registerEnvironment(RtEnvironment* _new_env)
   }
 }
 
+// ---------------------------------------------------------------------
 // Вернуть ссылку на объект-среду по её имени
 // NB: Если имя не задано, вернуть среду по-умолчанию
 RtEnvironment* RtApplication::getEnvironment(const char* _env_name)
@@ -198,6 +254,7 @@ RtEnvironment* RtApplication::getEnvironment(const char* _env_name)
   return env;
 }
 
+// ---------------------------------------------------------------------
 RtEnvironment*  RtApplication::isEnvironmentRegistered(const char* _env_name)
 {
   RtEnvironment *env = NULL;
@@ -222,3 +279,5 @@ RtEnvironment*  RtApplication::isEnvironmentRegistered(const char* _env_name)
 
   return env;
 }
+// ---------------------------------------------------------------------
+

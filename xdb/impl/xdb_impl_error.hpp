@@ -42,7 +42,8 @@ typedef enum
   rtE_ILLEGAL_TAG_NAME  = 29,
   rtE_ALREADY_EXIST     = 30,
   rtE_CONNECTION_INVALID= 31,
-  rtE_LAST              = 32
+  rtE_DATABASE_INSTANCE_DUPLICATE   = 32,
+  rtE_LAST              = 33
 } ErrorCode_t;
 
 class Error

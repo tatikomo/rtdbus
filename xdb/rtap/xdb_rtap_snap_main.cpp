@@ -142,9 +142,9 @@ int main(int argc, char** argv)
 
         // Все в порядке, начинаем работу
         app = new RtApplication("xdb_snap");
-        app->setOption("OF_TRUNCATE", 1);
-        app->setOption("OF_RDWR", 1);
-        app->setOption("OF_SAVE_SNAP", 1);
+        app->setOption(OF_DEFINE_TRUNCATE, 1);
+        app->setOption(OF_DEFINE_RDWR, 1);
+        app->setOption(OF_DEFINE_SAVE_SNAP, 1);
         RtEnvironment *env = app->loadEnvironment(database_name);
       
         switch (command)

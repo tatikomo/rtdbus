@@ -23,6 +23,7 @@ extern "C" {
 
 namespace xdb {
 
+class DatabaseImpl;
 class DatabaseRtapImpl;
 
 typedef union {
@@ -105,7 +106,7 @@ class PointInDatabase
     autoid_t            m_passport_aid;
     autoid_t            m_CE_aid;
     autoid_t            m_SA_aid;
-    autoid_t            m_hist_aid;
+//    autoid_t            m_hist_aid;
     // Код возврата функций XDB
     MCO_RET             m_rc;
     //
@@ -129,9 +130,6 @@ class PointInDatabase
     bool m_is_DI_assigned;  // DiscreteInformation
     bool m_is_AL_assigned;  // AlarmInformation
 };
-
-class DatabaseImpl;
-class DatabaseRtapImpl;
 
 // Тип функции, создающей известный атрибут
 // NB: полный их перечень приведен в словаре 'rtap_db.xsd'
@@ -163,6 +161,13 @@ typedef AttrProcessingFuncMap_t::iterator AttrProcessingFuncMapIterator_t;
 
 void errhandler(MCO_RET);
 void extended_errhandler(MCO_RET errcode, const char* file, int line);
+// Определение типа атрибута VAL по OBJCLASS
+// Значениями могут быть:
+//   NONE (в случае ошибки или если точка не имеет атрибута VAL)
+//   ANALOG
+//   DISCRETE
+//   BINARY
+ProcessingType_t get_type_by_objclass(const objclass_t objclass);
 
 /* Фактическая реализация функциональности Базы Данных для Брокера */
 class DatabaseRtapImpl
@@ -320,6 +325,15 @@ class DatabaseRtapImpl
         SystemState,
         SystemState);
 
+    // Контроль Кранов
+    MCO_RET GOFTSCVA(mco_trans_h,
+        XDBPoint*,
+        DiscreteInfoType&,
+        const char*,
+        objclass_t,
+        ValidChange,
+        Validity);
+
     // Связь между названием атрибута и функцией его создания
     AttrCreatingFuncMap_t     m_attr_creating_func_map;
     // Связь между названием атрибута и функцией его записи
@@ -334,6 +348,10 @@ class DatabaseRtapImpl
     MCO_RET createTableDICT_UNITY_ID(mco_db_h&, rtap_db_dict::unity_labels_t*);
     MCO_RET createTableXDB_CE(mco_db_h&, rtap_db_dict::macros_def_t*);
 
+    // ====================================================
+    // Работа с группами подписки через интерфейс Control()
+    // ====================================================
+    MCO_RET controlConnections(mco_db_h&, rtDbCq&);
     // ====================================================
     // Работа с группами подписки через интерфейс Config()
     // ====================================================
@@ -350,6 +368,10 @@ class DatabaseRtapImpl
     // ====================================================
     // Работа с группами подписки через интерфейс Query()
     // ====================================================
+    // Прочитать список точек указанной категории
+    MCO_RET queryPointsOfSpecifiedCategory (mco_db_h&, rtDbCq&);
+    // Прочитать список точек указанного класса
+    MCO_RET queryPointsOfSpecifiedClass (mco_db_h&, rtDbCq&);
     // Получить список групп подписки с активными (модифицированными элементами)
     MCO_RET querySbsArmedGroup(mco_db_h&, rtDbCq&);
     // Сбросить флаг модифицикации атрибутов всех групп из указанного списка
@@ -359,6 +381,8 @@ class DatabaseRtapImpl
     // rtQUERY_SBS_POINTS_DISARM: Для указанной группы Точек сбросить признак модификации
     // rtQUERY_SBS_READ_POINTS_ARMED: Прочитать значения всех атрибутов указанной группы
     MCO_RET querySbsPoints(mco_db_h&, rtDbCq&, TypeOfQuery);
+    // Запрос на получение списка Точек, имеющих предысторию
+    MCO_RET queryPointsWithHistory(mco_db_h& handler, rtDbCq& info);
      
     // Главный источник переченя атрибутов - rtap_db.xsd
     // Но поскольку скриптом мне проще обрабатывать плоский текстовый

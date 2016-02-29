@@ -1,7 +1,7 @@
 set(WORKER_TESTER wtester)
 set(WORKER_ECHO   wecho)
 set(WORKER_DIGGER wdigger)
-set(WORKER_ARCHIVIST warchivist)
+set(WORKER_HISTORIAN whistorian)
 
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   set (SYSTEM_EXTERNAL_LIBS
@@ -17,6 +17,7 @@ else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
 include_directories(${LIBGLOG_INCLUDE_DIR})
+include_directories(${LIBSQLITE_INCLUDE_DIR})
 include_directories(${LIBZMQ_INCLUDE_DIR})
 include_directories(${LIBCPPZMQ_INCLUDE_DIR})
 include_directories(${LIBPROTOBUF_INCLUDE_DIR})
@@ -24,12 +25,14 @@ include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
 include_directories(${WORKER_DIR})
 include_directories(${MDP_DIR})
 include_directories(${MSG_DIR})
+include_directories(${HDB_DIR})
 include_directories(${XDB_COMMON_DIR})
 include_directories(${XDB_RTAP_DIR})
 include_directories(${XDB_IMPL_DIR})
 include_directories(${TOOLS_DIR})
 
 link_directories(${LIBGLOG_LIBRARIES_DIR})
+link_directories(${LIBSQLITE_LIBRARIES_DIR})
 link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
@@ -70,14 +73,15 @@ set (WORKER_DIGGER_SOURCES
         ${WORKER_DIR}/wdigger.cpp
         ${WORKER_DIR}/wdigger.hpp)
 
-set (WORKER_ARCHIVIST_SOURCES
+set (WORKER_HISTORIAN_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
         ${MDP_DIR}/mdp_zmsg.hpp
         ${MDP_DIR}/mdp_common.h
         ${MDP_DIR}/mdp_worker_api.hpp
         ${MSG_DIR}/msg_message.hpp
-        ${WORKER_DIR}/warchivist.cpp
-        ${WORKER_DIR}/warchivist.hpp)
+        ${WORKER_DIR}/whistorian.cpp
+        ${WORKER_DIR}/whistorian.hpp)
+
 
 add_custom_command(
         OUTPUT 
@@ -164,20 +168,14 @@ target_link_libraries(${WORKER_DIGGER}
     ${LIBGLOG_LIBRARIES}
     ${LIBZMQ_LIBRARIES})
 
-#add_definitions(-fpermissive)
-# Сборка ARCHIVIST - сервера накопления архивных данных
+# Сборка HISTORIAN - сервера накопления и выдачи архивных данных
 ##########################################################
-add_executable (${WORKER_ARCHIVIST} ${WORKER_ARCHIVIST_SOURCES})
-target_link_libraries(${WORKER_ARCHIVIST}
+add_executable (${WORKER_HISTORIAN} ${WORKER_HISTORIAN_SOURCES})
+target_link_libraries(${WORKER_HISTORIAN}
     ${LIBGLOG_LIBRARIES}
-#    ${XDB_RTAP_IMPL_LIBRARY_NAME}
-#    ${XDB_RTAP_LIBRARY_NAME}
+    ${LIBSQLITE_LIBRARIES}
     ${MDP_LIBRARY_NAME}
-#    ${TOOLS_LIBRARY_NAME}
-#    ${LIBEXTREMEDB_LIBRARIES_ALL}
-#    ${LIBPROTOBUF_LIBRARIES}
-#    ${SYSTEM_EXTERNAL_LIBS}
-#    pthread
-#    ${LIBZMQ_LIBRARIES}
+    ${HDB_LIBRARY_NAME}
+    ${XDB_RTAP_LIBRARY_NAME}
+    ${LIBPROTOBUF_LIBRARIES}
     )
-

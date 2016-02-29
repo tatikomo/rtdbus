@@ -13,6 +13,7 @@
 #define OPTION_MODE_WRITE "write"
 #define OPTION_MODE_PROBE "probe"
 #define OPTION_MODE_SUBSCRIBE "sub"
+#define OPTION_MODE_HISTORY   "hist"
 
 class Mosquito: public mdp::mdcli
 {
@@ -21,7 +22,8 @@ class Mosquito: public mdp::mdcli
       MODE_READ  = 1, // режим чтения из БДРВ
       MODE_WRITE = 2, // режим записи в БДРВ
       MODE_PROBE = 3,  // режим тестирования доступа к БДРВ
-      MODE_SUBSCRIBE = 4  // режим подписки на группу
+      MODE_SUBSCRIBE = 4,   // режим подписки на группу
+      MODE_HISTORY_REQ = 5  // режим запроса истории
     } WorkMode_t;
 
     Mosquito(std::string broker, int verbose, WorkMode_t);
@@ -38,6 +40,8 @@ class Mosquito: public mdp::mdcli
     bool process_read_response(msg::Letter*);
     // Обработка обновления значений группы подписки
     bool process_sbs_update_response(msg::Letter*);
+    // Обработка ответа на запрос истории
+    bool process_history(msg::Letter*);
 
     const msg::MessageFactory* message_factory() { return m_factory; };
   private:

@@ -1,0 +1,69 @@
+#Запросы к БДРВ
+Выполняется методом <i>QueryDatabase()</i> объекта <b>RtConnection</b>.
+Поля структуры rtDbCq
+<div>
+<table>
+<tr>
+<td><b>Поле</b></td><td><b>Назначение</b></td>
+</tr>
+<tr>
+<td></td>action<td>Указание типа запроса</td>
+</tr>
+<tr>
+<td></td>buffer<td>Указатель на структуру ответа</td>
+</tr>
+<tr>
+<td>addrCnt</td><td>Количество переданных тегов</td>
+</tr>
+</table>
+
+Код запроса задается в атрибуте <b><i>action.query</i></b>
+<div>
+Возможные значения:
+<table>
+<tr>
+<td><b>Запрос</b></td><td><b>Описание</b></td>
+</tr>
+<tr>
+<td></td>[rtQUERY_PTS_IN_CATEG](#rtQUERY_PTS_IN_CATEG)<td>Получить список точек в соответствии с указанной <b><i>категорий</i></b></td>
+</tr>
+<tr>
+<td></td>[rtQUERY_PTS_IN_CLASS](#rtQUERY_PTS_IN_CLASS)<td>Получить список точек в соответствии с указанным типом Точки (OBJCLASS)</td>
+</tr>
+<tr>
+<td>[rtQUERY_SBS_LIST_ARMED](#rtQUERY_SBS_LIST_ARMED)</td><td>Получить список активных SBS групп с измененными элементами</td>
+</tr>
+<tr>
+<td>[rtQUERY_SBS_POINTS_ARMED](#rtQUERY_SBS_POINTS_ARMED)</td><td>Получить список измененных точек для указанной группы</td>
+</tr>
+</tr>
+<tr>
+<td>[rtQUERY_SBS_POINTS_DISARM](#rtQUERY_SBS_POINTS_DISARM)</td><td>Сбросить для всех измененных точек признак модификации</td>
+</tr>
+</tr>
+<tr>
+<td>[rtQUERY_SBS_POINTS_DISARM_BY_LIST](#rtQUERY_SBS_POINTS_DISARM_BY_LIST)</td><td>Сбросить флаг модификации для измененных точек из списка</td>
+</tr>
+</tr>
+<tr>
+<td>[rtQUERY_SBS_READ_POINTS_ARMED](#rtQUERY_SBS_POINTS_DISARM_BY_LIST)</td><td>Прочитать список модифицированных атрибутов указанной группы</td>
+</tr>
+
+</table>
+
+#Результат
+Возвращается объект <b><i>xdb::Error</i></b>
+
+
+#Детали
+rtQUERY_PTS_IN_CATEG
+Значение buffer - Указатель на экземпляр map_id_name_t
+
+rtQUERY_PTS_IN_CLASS
+Значение buffer - Указатель на экземпляр map_name_id_t
+
+rtQUERY_SBS_LIST_ARMED
+rtQUERY_SBS_POINTS_ARMED
+rtQUERY_SBS_POINTS_DISARM
+rtQUERY_SBS_POINTS_DISARM_BY_LIST
+rtQUERY_SBS_READ_POINTS_ARMED

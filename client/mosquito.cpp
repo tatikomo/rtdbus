@@ -2,7 +2,7 @@
 // GEV 2015/01/01
 ///////////////////////////////////////////////////////////////////////////
 
-#include <glog/logging.h>
+#include "glog/logging.h"
 
 #include "xdb_common.hpp" // AttributeInfo_t
 
@@ -67,7 +67,7 @@ bool Mosquito::process_read_response(msg::Letter* report)
     std::cout << "type=" << attr_val.type() << "\t"
               << attr_val.tag() << " = " << attr_val.as_string() << std::endl;
   }
- 
+
   return status;
 }
 
@@ -90,7 +90,42 @@ bool Mosquito::process_sbs_update_response(msg::Letter* report)
     std::cout << "type=" << attr_val.type() << "\t"
               << attr_val.tag() << " = " << attr_val.as_string() << std::endl;
   }
- 
+
+  return status;
+}
+
+// ----------------------------------------------------------
+bool Mosquito::process_history(msg::Letter* report)
+{
+  bool status = false;
+  // буфер для прочитанного элемента предыстории
+  msg::hist_attr_t item;
+  msg::HistoryRequest* response = dynamic_cast<msg::HistoryRequest*>(report);
+
+  std::cout << std::endl
+            << "exchg#" << response->header()->exchange_id()
+            << " intr#" << response->header()->interest_id()
+            << " orig:" << response->header()->proc_origin()
+            << " dest:" << response->header()->proc_dest()
+            << " tm:"   << response->header()->time_mark()
+            << std::endl;
+  std::cout << "History " << response->tag() << " existance(" << response->existance()
+            << ") received " << response->num_required_samples()
+            << " of " << response->num_read_samples() << " item(s)" << std::endl;
+  for (int idx = 0; idx < response->num_read_samples(); idx++)
+  {
+    if (true == response->get(idx, item)) {
+      std::cout << idx+1 << "/" << response->num_read_samples()
+                << " time=" << item.datehourm
+                << "\t" << item.val
+                << "\t" << (unsigned int)item.valid
+                << std::endl;
+    }
+    else {
+      LOG(ERROR) << "Unable to get history item " << idx;
+    }
+  }
+
   return status;
 }
 
@@ -239,6 +274,16 @@ int main (int argc, char *argv [])
   //msg::SubscriptionEvent *sbs_event_msg = NULL;
   std::string group_name;
   bool is_group_name_given = false;
+  // Блок параметров для запроса Истории
+  bool is_point_name_given = false;
+  std::string point_name;
+  // значение по умолчанию - текущее время минус макс. количество минут в одной посылке
+  time_t start_time = time(0) - MAX_PORTION_SIZE_LOADED_HISTORY * 60;
+  int num_samples = 100;
+  int history_type = xdb::PERIOD_1_MINUTE;
+  // Запрос получения истории
+  msg::HistoryRequest *history_req = NULL;
+
   //msg::ProbeMsg   *probe_msg = NULL; Не реализовано
   int opt;
   int verbose;
@@ -256,8 +301,17 @@ int main (int argc, char *argv [])
   std::string input_tag, input_type, input_val;
   int num = 0;
   xdb::AttributeInfo_t attr_info;
+  static const char *arguments_template =
+              "-s <service_name> [-v] "
+              "[-g <sbs name>] "
+              "[-p <point name>] "
+              "[-n <num history samples>] "
+              "[-t <history time start>] "
+              "[-h <history depth>] "
+              "[-m <%s|%s|%s|%s|%s>]";
+  char arguments_out[255];
 
-  while ((opt = getopt (argc, argv, "vs:m:g:")) != -1)
+  while ((opt = getopt (argc, argv, "vs:m:g:t:p:n:h:")) != -1)
   {
     switch (opt)
     {
@@ -285,6 +339,8 @@ int main (int argc, char *argv [])
             mode = Mosquito::MODE_PROBE;
           else if (0 == strncmp(one_argument, OPTION_MODE_SUBSCRIBE, SERVICE_NAME_MAXLEN))
             mode = Mosquito::MODE_SUBSCRIBE;
+          else if (0 == strncmp(one_argument, OPTION_MODE_HISTORY, SERVICE_NAME_MAXLEN))
+            mode = Mosquito::MODE_HISTORY_REQ;
           else {
             std::cout << "Unknown work mode, will use PROBE" << std::endl;
             mode = Mosquito::MODE_PROBE;
@@ -297,6 +353,35 @@ int main (int argc, char *argv [])
           group_name.assign(one_argument);
           std::cout << "Group name is \"" << group_name << "\"" << std::endl;
           is_group_name_given = true;
+          break;
+
+        case 'p': // название тега для запроса его истории
+          strncpy(one_argument, optarg, SERVICE_NAME_MAXLEN);
+          one_argument[SERVICE_NAME_MAXLEN] = '\0';
+          point_name.assign(one_argument);
+          std::cout << "Point name is \"" << point_name << "\"" << std::endl;
+          is_point_name_given = true;
+          break;
+
+        case 't': // начало интервала времени запроса истории
+          strncpy(one_argument, optarg, SERVICE_NAME_MAXLEN);
+          one_argument[SERVICE_NAME_MAXLEN] = '\0';
+          start_time = atol(one_argument);
+          std::cout << "Start history period is: " << ctime(&start_time) << std::endl;
+          break;
+
+        case 'n': // количество читаемых интервалов истории
+          strncpy(one_argument, optarg, SERVICE_NAME_MAXLEN);
+          one_argument[SERVICE_NAME_MAXLEN] = '\0';
+          num_samples = atol(one_argument);
+          std::cout << "Samples number is: " << num_samples << std::endl;
+          break;
+
+        case 'h': // тип читаемой истории
+          strncpy(one_argument, optarg, SERVICE_NAME_MAXLEN);
+          one_argument[SERVICE_NAME_MAXLEN] = '\0';
+          history_type = atol(one_argument);
+          std::cout << "History type is: " << history_type << std::endl;
           break;
 
         case '?':
@@ -317,11 +402,16 @@ int main (int argc, char *argv [])
 
   if (!is_service_name_given)
   {
-    std::cout << "Service name not given.\n"
-              << "Use -s <service_name> [-v] "
-              << "[-g <sbs_name>] "
-              << "[-m <read|write|probe|sup>] "
-              << "option.\n";
+    snprintf(arguments_out,
+             255,
+             arguments_template,
+             OPTION_MODE_READ,
+             OPTION_MODE_WRITE,
+             OPTION_MODE_PROBE,
+             OPTION_MODE_SUBSCRIBE,
+             OPTION_MODE_HISTORY);
+    std::cout << "Service name not given." << std::endl
+              << "Usage: " << arguments_out << std::endl;
     return(1);
   }
   std::cout << "Will use work mode " << mode << std::endl;
@@ -403,7 +493,7 @@ int main (int argc, char *argv [])
             sbs_ctrl_msg = dynamic_cast<msg::SubscriptionControl*>(request);
             sbs_ctrl_msg->set_name(group_name);
             // TODO: ввести перечисление возможных кодов
-            // Сейчас (2015-10-01) 0 = SUSPEND, 1 = ENABLE 
+            // Сейчас (2015-10-01) 0 = SUSPEND, 1 = ENABLE
             sbs_ctrl_msg->set_ctrl(1); // TODO: ввести перечисление возможных кодов
           }
         }
@@ -411,6 +501,18 @@ int main (int argc, char *argv [])
         {
           std::cerr << "SBS group name not supported, use '-g <name>'" << std::endl;
         }
+        break;
+
+      case Mosquito::MODE_HISTORY_REQ:
+      //----------------------------
+        if (is_point_name_given) {
+          // Запросить у Службы истории тренд указанного параметра
+          request = mosquito->create_message(SIG_D_MSG_REQ_HISTORY);
+          history_req = dynamic_cast<msg::HistoryRequest*>(request);
+          assert(history_req);
+          history_req->set(point_name, start_time, num_samples, history_type);
+        }
+        else std::cerr << "Tag not scpecified, exiting" << std::endl;
         break;
     }
 
@@ -484,6 +586,7 @@ int main (int argc, char *argv [])
 
         case Mosquito::RECEIVE_OK:
           assert(report);
+          report->dump();
 
             switch(report->header()->usr_msg_type())
             {
@@ -492,7 +595,7 @@ int main (int argc, char *argv [])
 
                 resp->failure_cause(cause_code, cause_text);
                 std::cout << "Got ADG_D_MSG_EXECRESULT response: "
-                          << resp->header()->usr_msg_type() 
+                          << resp->header()->usr_msg_type()
                           << " status=" << resp->exec_result()
                           << " code=" << cause_code
                           << " text=\"" << cause_text << "\"" << std::endl;
@@ -516,7 +619,7 @@ int main (int argc, char *argv [])
                 }
                 break;
 
-              // NB: не должно быть такого ответа, должен быть ExecResult 
+              // NB: не должно быть такого ответа, должен быть ExecResult
               case SIG_D_MSG_WRITE_MULTI:
                 std::cerr << "Error: expect ExecResult but received SIG_D_MSG_WRITE_MULTI response: "
                           << report->header()->usr_msg_type() << std::endl;
@@ -526,6 +629,12 @@ int main (int argc, char *argv [])
               // Очередная порция обновленных данных. Поступают циклически, без запроса.
               case SIG_D_MSG_GRPSBS:
                 mosquito->process_sbs_update_response(report);
+                stop_receiving = false;
+                break;
+
+              // Ответ на запрос истории
+              case SIG_D_MSG_REQ_HISTORY:
+                mosquito->process_history(report);
                 stop_receiving = false;
                 break;
 

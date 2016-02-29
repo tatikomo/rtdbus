@@ -9,6 +9,11 @@
 #include "glog/logging.h"
 #include "gtest/gtest.h"
 
+#if defined HAVE_CONFIG_H
+#include "config.h"
+#endif
+#include "sqlite3.h"
+
 #include "xdb_common.hpp"
 
 #include "xdb_impl_db_broker.hpp"
@@ -34,7 +39,10 @@
 #include "xdb_rtap_connection.hpp"
 #include "xdb_rtap_snap.hpp"
 
+#include "hdb_impl_processor.hpp"
+
 using namespace xdb;
+
 
 const char *service_name_1 = "service_test_1";
 const char *service_name_2 = "service_test_2";
@@ -45,11 +53,25 @@ const char *worker_identity_3 = "WRK3";
 std::string group_name_1 = "Группа подписки #1";
 std::string group_name_2 = "Группа подписки #2";
 std::string group_name_unexistant = "Несуществующая";
+// Набор точек для тестирования подписки
+// Используется также при тестировании БД Истории
 const char *sbs_points[] = {
     "/KD4001/GOV022",       // GOFVALTSC
     "/KO4016/GOV171/PT01",  // GOFVALTI
     "/KA4003/XA01"          // GOFVALAL
 };
+
+// vvvvv Блок истории ================================================
+// Указатель на экземпляр БД Истории
+HistoricImpl *historic = NULL;
+// sec = 946684800 : GMT=[Sat, 01 Jan 2000 00:00:00]; MSK=[Sat, 01 Jan 2000 03:00:00]
+// sec = 946674000 : MSK=[Sat, 01 Jan 2000 00:00:00]
+// MSK=[Sat, 01 Jan 2000 00:00:00]
+#define HIST_TEST_POINT_NAME    "/KA4001/FY01"
+time_t finish_sampling_time;    // Конец тестов
+time_t start_sampling_time;     // Начало тестов
+// ^^^^^ Блок истории ================================================
+
 xdb::DatabaseBroker *database = NULL;
 xdb::Service *service1 = NULL;
 xdb::Service *service2 = NULL;
@@ -72,6 +94,7 @@ rtap_db::Points point_list;
  */
 rtap_db_dict::Dictionaries_t dict;
 
+// ===========================================================================
 void wait()
 {
 #ifdef USE_EXTREMEDB_HTTP_SERVER
@@ -80,6 +103,7 @@ void wait()
 #endif
 }
 
+// ===========================================================================
 void show_runtime_info(const char * lead_line)
 {
   mco_runtime_info_t info;
@@ -114,6 +138,73 @@ void show_runtime_info(const char * lead_line)
   fprintf( stdout, "\tDirect pointers mode ____ : %s\n", info.mco_direct_pointers      ? "yes":"no" );  
 }
 
+// ===========================================================================
+// Если значение attach == true, округления в большую сторону не происходит
+time_t roundTimeToNextEdge(time_t given_time, xdb::sampler_type_t htype, bool attach)
+{
+  time_t round_time = given_time;
+  struct tm edge;
+  div_t rest;
+
+  localtime_r(&given_time, &edge);
+  // все отметки времени проходят по границе минуты
+
+  // Дальнейшее округление зависит от желаемого типа истории
+  switch(htype) {
+      case xdb::PERIOD_1_MINUTE:
+        // округления по границы минуты достаточно
+        edge.tm_sec = 0;
+        if (attach) // притянуть время к следущей минуте?
+          edge.tm_min++;
+        break;
+
+      case xdb::PERIOD_5_MINUTES:
+        // округлим до ближайшей минуты, делящейся на 5
+        edge.tm_sec = 0;
+        rest = div(edge.tm_min,5);
+        if (attach && rest.rem)
+          edge.tm_min += 5 - rest.rem;
+        break;
+
+      case xdb::PERIOD_HOUR:
+        // округлим до ближайшего часа
+        edge.tm_sec = 0;
+        edge.tm_min = 0;
+        if (attach)
+          edge.tm_hour++;
+        break;
+
+      case xdb::PERIOD_DAY:
+        // округлим до ближайшего дня
+        edge.tm_sec = 0;
+        edge.tm_min = 0;
+        edge.tm_hour = 0;
+        if (attach)
+          edge.tm_mday++;
+        break;
+
+      case xdb::PERIOD_MONTH:
+        // округлим до ближайшего месяца
+        edge.tm_sec = 0;
+        edge.tm_min = 0;
+        edge.tm_hour = 0;
+        edge.tm_mday = 1;
+        if (attach)
+          edge.tm_mon++;
+        break;
+
+      case xdb::PERIOD_NONE:
+      case xdb::PERIOD_LAST:
+        std::cout << "Бяка" << std::endl;
+        break;
+  }
+
+  round_time = mktime(&edge);
+
+  return round_time;
+}
+
+// ==============================================================================
 TEST(TestBrokerDATABASE, OPEN)
 {
     bool status;
@@ -484,13 +575,13 @@ TEST(TestBrokerDATABASE, DESTROY)
     ASSERT_TRUE (service2 != NULL);
     delete service2;
 
-#if 0
+/*
     ASSERT_TRUE (database != NULL);
     database->Disconnect();
 
     state = database->State();
     EXPECT_EQ(state, DB_STATE_DISCONNECTED);
-#endif
+*/
 
 #ifdef USE_EXTREMEDB_HTTP_SERVER
     printf("Press any key to continue...");
@@ -519,13 +610,13 @@ TEST(TestDiggerDATABASE, CREATION)
 
   // Если снимок БД есть - прочитать его при старте,
   // Если снимка нет - подключения не будет
-  app->setOption("OF_CREATE", 0);
-  app->setOption("OF_LOAD_SNAP", 1);
-  app->setOption("OF_RDWR",   1);
-  app->setOption("OF_REGISTER_EVENT", 1); // Взвести CE
-  app->setOption("OF_DATABASE_SIZE", 1024 * 1024 * 10);
-  app->setOption("OF_MEMORYPAGE_SIZE", 1024); // 0..65535
-  app->setOption("OF_MAP_ADDRESS",   0x30000000);
+  app->setOption(OF_DEFINE_CREATE, 0);
+  app->setOption(OF_DEFINE_LOAD_SNAP, 1);
+  app->setOption(OF_DEFINE_RDWR,   1);
+  app->setOption(OF_DEFINE_REGISTER_EVENT, 1); // Взвести CE
+  app->setOption(OF_DEFINE_DATABASE_SIZE, 1024 * 1024 * 10);
+  app->setOption(OF_DEFINE_MEMORYPAGE_SIZE, 1024); // 0..65535
+  app->setOption(OF_DEFINE_MAP_ADDRESS,   0x30000000);
   EXPECT_EQ(app->getLastError().getCode(), xdb::rtE_NONE);
 
   // Завершить инициализацию
@@ -546,11 +637,11 @@ TEST(TestDiggerDATABASE, CREATION)
   connection = env->getConnection();
   ASSERT_TRUE(connection != NULL);
 
-#if 0
+/*
   // TODO Реализация
   env->Start();
-  EXPECT_EQ(env->getLastError().getCode(), xdb::rtE_NONE /*rtE_NOT_IMPLEMENTED*/);
-#endif
+  EXPECT_EQ(env->getLastError().getCode(), xdb::rtE_NONE) //rtE_NOT_IMPLEMENTED
+*/
 
   err = env->MakeSnapshot(NULL);
   EXPECT_EQ(env->getLastError().getCode(), xdb::rtE_NONE);
@@ -649,6 +740,114 @@ TEST(TestDiggerDATABASE, READ_WRITE)
   std::cout << info.name << " = [" << info.value.dynamic.size << "] '"
             << info.value.dynamic.varchar << "'" << std::endl;
   delete [] info.value.dynamic.varchar;
+}
+
+TEST(TestDiggerDATABASE, QUERY_PTS_IN_CATEG)
+{
+  xdb::rtDbCq operation;
+  xdb::Error result;
+  category_type_t ctype = CATEGORY_HAS_HISTORY;
+  xdb::map_name_id_t historized_points;
+
+  // Получить список идентификаторов Точек с заданным в addrCnt значением категории
+  operation.action.query = xdb::rtQUERY_PTS_IN_CATEG;
+  operation.buffer = &historized_points;
+  // Плохо - передача значения Категории через атрибут, предназначенный для другой цели
+  operation.addrCnt = ctype;
+  result = connection->QueryDatabase(operation);
+  EXPECT_EQ(result.code(), rtE_NONE);
+
+  EXPECT_TRUE(historized_points.size() > 0);
+}
+
+TEST(TestDiggerDATABASE, QUERY_PTS_IN_CLASS)
+{
+  xdb::rtDbCq operation;
+  xdb::Error result;
+  int idx;
+  // Наборы Точек с заданным objclass
+  // Все наборы точек аналогового и дискретного типов
+  xdb::map_id_name_t all_analog_points;
+  xdb::map_id_name_t all_discrete_points;
+  // Используются для накопления результата в общих списках
+  // аналоговых и дискретных параметров.
+  xdb::map_id_name_t analog_points_per_object_type;
+  xdb::map_id_name_t discrete_points_per_object_type;
+  ProcessingType_t processing_type;
+
+  // Получить список идентификаторов Точек с заданным в addrCnt значением objclass
+  operation.action.query = xdb::rtQUERY_PTS_IN_CLASS;
+
+  for (idx = GOF_D_BDR_OBJCLASS_TS;
+       idx < GOF_D_BDR_OBJCLASS_FIXEDPOINT;
+       idx++)
+  {
+    discrete_points_per_object_type.clear();
+    analog_points_per_object_type.clear();
+    processing_type = PROCESSING_UNKNOWN;
+
+    switch(xdb::ClassDescriptionTable[idx].val_type)
+    {
+      case xdb::DB_TYPE_LOGICAL: // 1
+      case xdb::DB_TYPE_INT8:    // 2
+      case xdb::DB_TYPE_UINT8:   // 3
+      case xdb::DB_TYPE_INT16:   // 4
+      case xdb::DB_TYPE_UINT16:  // 5
+      case xdb::DB_TYPE_INT32:   // 6
+      case xdb::DB_TYPE_UINT32:  // 7
+      case xdb::DB_TYPE_INT64:   // 8
+      case xdb::DB_TYPE_UINT64:  // 9
+        // Дискретное состояние данного типа Точки
+        processing_type = PROCESSING_DISCRETE;
+        operation.buffer = &discrete_points_per_object_type;
+        operation.addrCnt = xdb::ClassDescriptionTable[idx].code;
+        result = connection->QueryDatabase(operation);
+        EXPECT_EQ(result.code(), rtE_NONE);
+        break;
+
+      case xdb::DB_TYPE_FLOAT:   // 10
+      case xdb::DB_TYPE_DOUBLE:  // 11
+        // Аналоговое состояние данного типа Точки
+        processing_type = PROCESSING_ANALOG;
+        operation.buffer = &analog_points_per_object_type;
+        operation.addrCnt = xdb::ClassDescriptionTable[idx].code;
+        result = connection->QueryDatabase(operation);
+        EXPECT_EQ(result.code(), rtE_NONE);
+        break;
+
+      default:
+        processing_type = PROCESSING_UNKNOWN; // Ничего не делать
+    }
+
+    // Чтение набора точек выполено успешно?
+    if (result.Ok())
+    {
+      switch(processing_type)
+      {
+        case PROCESSING_ANALOG:
+          all_analog_points.insert(analog_points_per_object_type.begin(),
+                                   analog_points_per_object_type.end());
+          break;
+
+        case PROCESSING_DISCRETE:
+          all_discrete_points.insert(discrete_points_per_object_type.begin(),
+                                     discrete_points_per_object_type.end());
+          break;
+
+        default:
+          ; // nothing to do
+      }
+    }
+    else
+    {
+      LOG(ERROR) << "Reading points with objclass "
+                 << (unsigned int) xdb::ClassDescriptionTable[idx].code
+                 << " : " << result.what();
+    }
+  }
+
+  std::cout << "size of all_analog_points=" << all_analog_points.size() << std::endl;
+  std::cout << "size of all_discrete_points=" << all_discrete_points.size() << std::endl;
 }
 
 TEST(TestDiggerDATABASE, UPDATE_EVENTS)
@@ -817,6 +1016,7 @@ TEST(TestDiggerDATABASE, READ_SBS)
   xdb::SubscriptionPoints_t points_list;
   int list_size = 0;
   char s_date [D_DATE_FORMAT_LEN + 1];
+  struct tm result_time;
   time_t given_time;
   char s_val[100];
   uint16_t  update_val = 0;
@@ -911,7 +1111,8 @@ TEST(TestDiggerDATABASE, READ_SBS)
             break;
             case DB_TYPE_ABSTIME:   /* 24 */
               given_time = (*it).second.value.fixed.val_time.tv_sec;
-              strftime(s_date, D_DATE_FORMAT_LEN, D_DATE_FORMAT_STR, localtime(&given_time));
+              localtime_r(&given_time, &result_time);
+              strftime(s_date, D_DATE_FORMAT_LEN, D_DATE_FORMAT_STR, &result_time);
               snprintf(s_val, D_DATE_FORMAT_W_MSEC_LEN, "%s.%06ld", s_date, (*it).second.value.fixed.val_time.tv_usec);
             break;
             case DB_TYPE_UNDEF:
@@ -989,14 +1190,14 @@ TEST(TestDiggerDATABASE, CATCH_SBS)
     //EXPECT_EQ(points_map.size(), 2);
   }
 
-#if 0
+/*
   // 4) Получить id и теги всех изменившихся точек всех групп, вместе с id групп
   // ====================================================
   operation.action.query = rtQUERY_SBS_ALL_POINTS_ARMED;
   operation.buffer = &sbs_map;
   status = connection->QueryDatabase(operation);
   EXPECT_EQ(status.code(), rtE_NONE);
-#endif
+*/
 
 //  env->MakeSnapshot("AFTER_CATCH_SBS");
 }
@@ -1071,6 +1272,7 @@ TEST(TestDiggerDATABASE, DELETE_SBS)
 //  env->MakeSnapshot("AFTER_DELETE_SBS");
 }
 
+#if 0
 TEST(TestDiggerDATABASE, DESTROY)
 {
   LOG(INFO) << "BEGIN DESTROY TestDiggerDATABASE";
@@ -1078,6 +1280,7 @@ TEST(TestDiggerDATABASE, DESTROY)
   delete app;
   LOG(INFO) << "END DESTROY TestDiggerDATABASE";
 }
+#endif
 
 using namespace xercesc;
 TEST(TestTools, LOAD_DICT_XML)
@@ -1291,6 +1494,7 @@ TEST(TestTools, LOAD_CLASSES)
   char msg_info[255];
   char msg_val[255];
   char s_date [D_DATE_FORMAT_LEN + 1];
+  struct tm result_time;
   time_t given_time;
   xdb::AttributeMap_t *pool;
 
@@ -1382,7 +1586,8 @@ TEST(TestTools, LOAD_CLASSES)
 
               case xdb::DB_TYPE_ABSTIME:
                   given_time = it->second.value.fixed.val_time.tv_sec;
-                  strftime(s_date, D_DATE_FORMAT_LEN, D_DATE_FORMAT_STR, localtime(&given_time));
+                  localtime_r(&given_time, &result_time);
+                  strftime(s_date, D_DATE_FORMAT_LEN, D_DATE_FORMAT_STR, &result_time);
                   snprintf(msg_val, D_DATE_FORMAT_W_MSEC_LEN, "%s.%06ld", s_date, it->second.value.fixed.val_time.tv_usec);
                   break;
 
@@ -1410,6 +1615,261 @@ TEST(TestTools, LOAD_INSTANCE)
   LOG(INFO) << "END LOAD_INSTANCE TestTools";
 }
 
+TEST(TestTools, RELEASE_MEMORY)
+{
+  for (int objclass=0; objclass <= GOF_D_BDR_OBJCLASS_LASTUSED; objclass++)
+  {
+    delete ClassDescriptionTable[objclass].attributes_pool;
+  }
+}
+
+// ==============================================================================
+// Проверка доступа к БД Истории
+TEST(TestHIST, HIST_ACCESS)
+{
+  // ip-адрес сервера хранения предыстории
+  char history_db_filename[200];
+  // Номер порта БД хранения предыстории
+  bool history_db_connected = false;
+
+  strcpy(history_db_filename, HISTDB_SNAP_FILENAME);
+
+  historic = new HistoricImpl(env, history_db_filename);
+
+  history_db_connected = historic->Connect();
+  EXPECT_TRUE(history_db_connected == true);
+}
+
+// ==============================================================================
+// Инициализация БД Истории
+TEST(TestHIST, HIST_INIT)
+{
+  // Приращение времени при тестовом заполнении - 1 минута
+  time_t delta = 60; //m_stages[xdb::PERIOD_1_MINUTE].duration;
+  time_t now = time(0);
+  time_t current_sampling_time;
+
+  // Конец тестов
+  finish_sampling_time = roundTimeToNextEdge(now, xdb::PERIOD_1_MINUTE, true);
+  // Начало тестов - за 15 минут до текущего времени
+  start_sampling_time = finish_sampling_time - 60 * 15;
+  // Текущий фрейм
+  current_sampling_time = start_sampling_time;
+
+  LOG(INFO) << "Init HDB content from " << start_sampling_time << " to " << finish_sampling_time;
+
+  while(current_sampling_time < finish_sampling_time) {
+    // Обсчитать предысторию для времени frame
+    historic->Make(current_sampling_time);
+    // Передвинуть временнОе окно на следующую минуту
+    current_sampling_time += delta;
+  }
+}
+
+// ==============================================================================
+// Проверка доступа к БД Истории
+TEST(TestHIST, HIST_LOAD)
+{
+  int n_samples_to_read = 30;
+  bool existance;
+  xdb::sampler_type_t htype = xdb::PERIOD_1_MINUTE;
+  char s_tag[TAG_NAME_MAXLEN + 1] = HIST_TEST_POINT_NAME;
+  historized_attributes_t historized[MAX_PORTION_SIZE_LOADED_HISTORY];
+  int loaded;
+  
+  LOG(INFO) << "Loading history of " << s_tag << " from HDB";
+  loaded = historic->load_samples_period_per_tag(s_tag,
+                                 existance,
+                                 htype,
+                                 start_sampling_time,
+                                 historized,
+                                 n_samples_to_read);
+  LOG(INFO) << "reading " << loaded << " sample(s) ";
+  for (int i=0; i<loaded; i++)
+      std::cout << " HIST " << i+1 << "/" << loaded << ": "
+                << s_tag << " "
+                << ".DATEHOURM=" << historized[i].datehourm << " "
+                << ".VAL=" << historized[i].val << " "
+                << ".VALID=" << (unsigned int)historized[i].valid
+                << std::endl;
+  EXPECT_TRUE(loaded > 0);
+  EXPECT_TRUE(existance == true);
+
+  // Проверка загрузки несуществующего параметра
+  loaded = historic->load_samples_period_per_tag("/несуществующая/точка",
+                                 existance,
+                                 htype,
+                                 start_sampling_time,
+                                 historized,
+                                 n_samples_to_read);
+  EXPECT_TRUE(loaded == 0);
+  EXPECT_TRUE(existance == false);
+}
+
+
+// ==============================================================================
+// Проверка доступа к БД Истории
+TEST(TestHIST, HIST_CLOSE)
+{
+  bool history_db_disconnected = historic->Disconnect();
+  EXPECT_TRUE(history_db_disconnected == true);
+  delete historic;
+}
+
+#warning "RtEnvironment нужен здесь"
+TEST(TestHIST, APP_DESTROY)
+{
+  LOG(INFO) << "BEGIN DESTROY TestHIST";
+  delete connection;
+  delete app;
+  LOG(INFO) << "END DESTROY TestHIST";
+}
+
+
+#if 0
+// ==============================================================================
+// [OK] Занести большой набор минутных тестовых данных: два месяца + два дня
+TEST(TestHIST, HIST_MAKE_SAMPLES)
+{
+  // текущее время
+  struct tm edge;
+  // прошлое время, для определения начала нового цикла
+  struct tm past_edge;
+  const time_t current = time(0);
+  // Сохраняем минутную историю
+//  xdb::sampler_type_t sampler_type = xdb::PERIOD_MOMENT;
+  // Отметка времени в прошлом, начало сохранения предыстории
+  time_t history_mark;
+  // Скользящая отметка времени
+  time_t time_frame;
+//  int samples_inserted;
+  bool is_success = true;
+  points_objclass_item_t item;
+
+  localtime_r(&current, &edge);
+  // Получим отметку времени на границе минуты, и 11 минут (2*300 + 60 = 660 секунд) назад
+  edge.tm_sec = 0;
+  history_mark = mktime(&edge);
+  // TODO: При реальной работе history_mark есть текущее время
+  history_mark -= m_stages[xdb::PERIOD_5_MINUTES].duration * 2 + 60;
+//  history_mark -= m_stages[xdb::PERIOD_MONTH].duration * 2 + m_stages[xdb::PERIOD_DAY].duration * 2;
+
+  // Занести тестовые данные в список историзируемых точек
+  for (int idx = 0; idx < 3; idx++) {
+    item.tag.assign(sbs_points[idx]);
+    switch(idx) {
+      case 0:
+        item.type = DISCRETE;
+        item.objclass = GOF_D_BDR_OBJCLASS_VA;
+        break;
+      case 1:
+        item.type = ANALOG;
+        item.objclass = GOF_D_BDR_OBJCLASS_TM;
+        break;
+      case 2:
+        item.type = BINARY;
+        item.objclass = GOF_D_BDR_OBJCLASS_AL;
+        break;
+    }
+    std::cout << "add point " << item.tag << "(" << item.type << ";" << item.objclass << ")" << std::endl;
+    points_objclass_list.push_back(item);
+  }
+  // Успешно занесены три тестовые точки
+  EXPECT_EQ(points_objclass_list.size(), 3);
+
+  time_frame = history_mark;
+
+  // Накопливаем минутную историю от начала тестового периода до текущего момента
+  // После проверяем начало очередного расчетного периода и вызываем функцию его расчёта
+  while (time_frame < current)
+  {
+    // Разобрать текущее время на компоненты для проверки наступления начала очередного
+    // цикла расчета предыстории
+    localtime_r(&time_frame, &past_edge);
+
+#if 0
+    // NB: Для тестов достаточно обновлять данные непосредственно перед минутным интервалом
+    // Обновить мгновенные данные
+    //process_sample(time_frame, xdb::PERIOD_MOMENT);
+#endif
+
+    if (past_edge.tm_sec == 0) {
+      // Обновим мгновенные данные
+#warning "Если не тесты, удалить следующую строку"
+      process_sample(time_frame, xdb::PERIOD_MOMENT);
+
+      // Прочитать из БДРВ новые значения отсчетов минутных семплов
+      // NB: для тестов значения минутных семплов эмулируются!
+      process_sample(time_frame, xdb::PERIOD_1_MINUTE);
+    }
+
+    // Проверка на границу пяти минут (минуты нацело делятся на 5)
+    if ((past_edge.tm_sec == 0) && !(past_edge.tm_min % 5)) {
+      process_sample(time_frame, xdb::PERIOD_5_MINUTES);
+    }
+
+    // Проверка на границу часа (минуты д.б. равны 0)
+    if ((past_edge.tm_sec == 0) && (0 == past_edge.tm_min)) {
+      process_sample(time_frame, xdb::PERIOD_HOUR);
+    }
+
+    // Проверка на границу суток (полночь - минуты и часы равны 0)
+    if ((past_edge.tm_sec == 0) && (0 == past_edge.tm_min) && (0 == past_edge.tm_hour)) {
+      process_sample(time_frame, xdb::PERIOD_DAY);
+    }
+
+    // Проверка на границу месяца (граница суток + первый день месяца)
+    if ((past_edge.tm_sec == 0) && (0 == past_edge.tm_min) && (0 == past_edge.tm_hour) && (1 == past_edge.tm_mday)) {
+      process_sample(time_frame, xdb::PERIOD_MONTH);
+    }
+
+    // Увеличиваем скользящее время сохранения данных на 1 минуту вперед, приближая его к текущему
+    // TODO: При реальной работе здесь будет ожидание начала нового, самого короткого интервала (минутного)
+    time_frame += m_stages[xdb::PERIOD_1_MINUTE].duration;
+  }
+
+/*
+  // Связаные запросы создаются с помошью redisAppendCommand(context, строка запроса)
+  // в цикле, затем вызываются с помощью redisCommand(), с разбором ответов
+  while (redisGetReply(redis_context, &v_reply) == REDIS_OK) {
+    freeReplyObject(v_reply);
+  }
+  
+  if (0 < num_items) {
+    LOG(ERROR) << "Part of samplings (" << num_items << ") are not storing in history database";
+    is_success = false;
+  }
+  else {
+    LOG(INFO) << samples_inserted << " sample items inserted";
+    is_success = true;
+  }*/
+
+  EXPECT_TRUE(true == is_success);
+}
+
+// ==============================================================================
+// Получить набор значений из истории за определенный период
+TEST(TestHIST, HIST_GET_PERIOD)
+{
+  bool status = false;
+  xdb::sampler_type_t type = xdb::PERIOD_1_MINUTE;
+  // Начало запрашиваемого периода - текущее время
+  time_t finish_period = time(0);
+  // Конец запрашиваемого периода - 7,5 минут назад
+  time_t start_period = finish_period - (7 * 60 + 30);
+
+  status = get_samples(sbs_points[0], DISCRETE, type, start_period, finish_period);
+
+  ASSERT_TRUE(status == true);
+}
+
+// ==============================================================================
+TEST(TestHIST, HIST_CLOSE)
+{
+}
+#endif
+
+// ==============================================================================
 int main(int argc, char** argv)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
@@ -1418,6 +1878,7 @@ int main(int argc, char** argv)
   ::testing::InitGoogleTest(&argc, argv);
   ::google::InstallFailureSignalHandler();
 
+#if 0
   // Инициировать XML-движок единственный раз в рамках одного процесса
   try
   {
@@ -1431,6 +1892,7 @@ int main(int argc, char** argv)
   }
 
   setenv("MCO_RUNTIME_STOP", "1", 0);
+
   int retval = RUN_ALL_TESTS();
 
   try
@@ -1442,6 +1904,9 @@ int main(int argc, char** argv)
     std::cerr << "Error during finalization! :\n"
               << toCatch.getMessage() << std::endl;
   }
+#else
+  int retval = RUN_ALL_TESTS();
+#endif
 
   ::google::protobuf::ShutdownProtobufLibrary();
   ::google::ShutdownGoogleLogging();

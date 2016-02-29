@@ -45,12 +45,14 @@
 #define MAX_LISTACT_QUANTITY  1000
 // Calculation Engines
 #define MAX_CE_QUANTITY         10
-// max history table depth for all points
-#define MAX_HISTORY_QUANTITY 10000
-// max history table depth for single analog instance
-#define MAX_HIST_A_QUANTITY_PER_POINT 100
-// max history table depth for single discrete instance
-#define MAX_HIST_D_QUANTITY_PER_POINT 100
+// max history table depth for discrete points
+#define MAX_D_HISTORY_QUANTITY 100000
+// 7 days as max history table depth for 1-minute sampling table
+// 10080 = 60(samples/min) * 24(hours/day) * 7(days)
+//#define MAX_A_HISTORY_QUANTITY 10080
+// Макс. количество аналоговых точек, имеющих предысторию
+// Определяет размер массива среза семплов на одну дату
+//#define MAX_A_POINTS_WITH_HISTORY 1000
 
 declare database  rtap_db;
 //struct Id {
@@ -131,16 +133,20 @@ enum AlarmType {
   TC_DIR      = 27  /* TC DIR */
 };
 
+// Достоверность
+// Достоверное - (1) VALIDITY_VALID
+// Сомнительное - (0, 3, 4, 8)
+// Введенное вручную - (2, 5, 7)
 enum Validity {
-  VALIDITY_FAULT        = 0,
-  VALIDITY_VALID        = 1,
-  VALIDITY_MANUAL       = 2,    // или FORCED
-  VALIDITY_INHIBITION   = 3,
-  VALIDITY_FAULT_INHIB  = 4,
-  VALIDITY_FAULT_FORCED = 5,
-  VALIDITY_INQUIRED     = 6,
-  VALIDITY_NO_INSTRUM   = 7,
-  VALIDITY_GLOBAL_FAULT = 8
+  VALIDITY_FAULT        = 0,    // недостоверное полученное значение
+  VALIDITY_VALID        = 1,    // достоверное полученное значение
+  VALIDITY_MANUAL       = 2,    // или FORCED - введенное вручную значение
+  VALIDITY_INHIBITION   = 3,    // запрещенное значение
+  VALIDITY_FAULT_INHIB  = 4,    // недостоверное и отбракованное значение
+  VALIDITY_FAULT_FORCED = 5,    // недостоверное и введенное вручную значение
+  VALIDITY_INQUIRED     = 6,    //
+  VALIDITY_NO_INSTRUM   = 7,    // неинструментированные значения
+  VALIDITY_GLOBAL_FAULT = 8     // глобальное недостоверное значение
 };
 
 // Уровень полномочий управления
@@ -244,21 +250,34 @@ enum objclass_t {
     HIST = 80
 };
 
+// Тип генератора предыстории
+enum HistoryType {
+  PER_NONE      = 0,  // не собирается
+  PER_1_MINUTE  = 1,  // только минутная
+  PER_5_MINUTES = 2,  // минутная и пятиминутная
+  PER_HOUR      = 3,  // минутная, 5-минутная и часовая
+  PER_DAY       = 4,  // вплоть до суточной включительно
+  PER_MONTH     = 5   // до месячной включительно
+};
+
+// ==========================================================================
+// Переходные процессы
 // Константы значений атрибута VALIDCHANGE
+// ==========================================================================
 enum ValidChange {
-    VALIDCHANGE_FAULT          = 0,
-    VALIDCHANGE_VALID          = 1,
-    VALIDCHANGE_FORCED         = 2,
-    VALIDCHANGE_INHIB          = 3,
-    VALIDCHANGE_MANUAL         = 4,
-    VALIDCHANGE_END_INHIB      = 5,
-    VALIDCHANGE_END_FORCED     = 6,
-    VALIDCHANGE_INHIB_GBL      = 7,
-    VALIDCHANGE_END_INHIB_GBL  = 8,
-    VALIDCHANGE_NULL           = 9 /* VIDE */,
-    VALIDCHANGE_FAULT_GBL      = 10,
-    VALIDCHANGE_INHIB_SA       = 11,
-    VALIDCHANGE_END_INHIB_SA   = 12
+    VALIDCHANGE_FAULT          = 0,  // получение недостоверного значения
+    VALIDCHANGE_VALID          = 1,  // получение достоверного значения
+    VALIDCHANGE_FORCED         = 2,  // ручной ввод значения
+    VALIDCHANGE_INHIB          = 3,  // запрещение значения
+    VALIDCHANGE_MANUAL         = 4,  // ручной ввод значения
+    VALIDCHANGE_END_INHIB      = 5,  // конец запрещения
+    VALIDCHANGE_END_FORCED     = 6,  // конец ручного ввода
+    VALIDCHANGE_INHIB_GBL      = 7,  // глобальное запрещение
+    VALIDCHANGE_END_INHIB_GBL  = 8,  // конец глобального запрещения
+    VALIDCHANGE_NULL           = 9   /* VIDE */, // не делать ничего
+    VALIDCHANGE_FAULT_GBL      = 10, // глобальная ошибка (система сбора данных недоступна)
+    VALIDCHANGE_INHIB_SA       = 11, // запрещение системы сбора данных
+    VALIDCHANGE_END_INHIB_SA   = 12  // конец запрещения системы сбора данных
 };
 
 /* ===================================================================== */
@@ -309,7 +328,11 @@ class DICT_UNITY_ID
   s_attname     dimension_entry;// Символьный код размерности на англ. языке 
   s_label       UNITY;          // Символьное обозначение размерности (С, км3/сут,...)
   s_label       designation_entry;// Символьное описание размерности (Температура, Расход,...)
-  unique hash <UNITY>  unityHash[100];    /* max 100 different unities */
+#ifdef (EXTREMEDB_VERSION >= 40)
+//  unique hash <UNITY>  unityHash[100];    /* max 100 different unities */
+#else
+  hash <UNITY>  unityHash[100];    /* max 100 different unities */
+#endif
   unique tree <unityID> PK_by_id;  /* get unity instance by ID */
 };
 
@@ -330,7 +353,11 @@ class SBS_GROUPS_STAT
   autoid[MAX_SBS_QUANTITY]; // group_id из SBS_GROUPS_ITEM
   s_label       name;   // название группы
   InternalState state = ENABLE;  // состояние работы
-  unique hash <name>   PK_by_name[MAX_SBS_QUANTITY];
+#ifdef (EXTREMEDB_VERSION >= 40)
+//  unique hash <name>   PK_by_name[MAX_SBS_QUANTITY];
+#else
+  hash <name>   PK_by_name[MAX_SBS_QUANTITY];
+#endif
 };
 
 // Элементарная запись о группе подписки
@@ -348,9 +375,10 @@ class SBS_GROUPS_ITEM
 /* ===================================================================== */
 // Хранилище событий смены состояния оборудования
 // Заполняется в CE VALIDCHANGE (на 2015-10-09 пока не реализовано)
-class EQV // Аналог таблицы T_EQV в TSC для RTAP
+// TODO: перенести эту таблицу в БД Истории
+/* persistent */ class EQV // Аналог таблицы T_EQV в TSC для RTAP
 {
-  autoid[MAX_HISTORY_QUANTITY];
+  autoid[MAX_D_HISTORY_QUANTITY];
   // Ссылка на оборудование
   autoid_t      tag_id;
   // Дата смены состояния
@@ -362,6 +390,8 @@ class EQV // Аналог таблицы T_EQV в TSC для RTAP
   s_dispatch    dispatcher;
   // Индекс по оборудованию
   tree <tag_id>   SK_by_tag_id;
+  // Индекс по дате изменения состояния
+  tree <datetime.sec> SK_by_modif_time;
 };
 
 /* ===================================================================== */
@@ -406,48 +436,6 @@ struct AlarmItem
   uint4    ALARMBEGINACK;
   uint4    ALARMENDACK;
   AlarmState   ALARMSYNTH = NO_ALARM;
-};
-
-/* ===================================================================== */
-/* Elementary historical data for analog information */
-/* Элементарная запись в исторических данных для аналоговых Точек */
-struct A_HIST_ITEM
-{
-  timestamp    mark;
-  double       value;
-};
-
-/* ===================================================================== */
-/* Elementary historical data for discrete information */
-/* Элементарная запись в исторических данных для дискретных Точек */
-struct D_HIST_ITEM
-{
-  timestamp    mark;
-  uint8        value;
-};
-
-/* ===================================================================== */
-/* HISTORY table for calculating analog historical data */
-/* Хранилище исторических данных для Точек с аналоговым состоянием */
-class A_HIST
-{
-  autoid[MAX_HISTORY_QUANTITY];
-  InternalState STATE = SUSPEND; /* state may be active or suspended */
-  vector <A_HIST_ITEM> items;  /* MAX_HIST_A_QUANTITY_PER_POINT */
-  autoid_t point_ref;
-  unique tree <point_ref> SK_by_point; /* point to history relationship is '1-to-1' */
-};
-
-/* ===================================================================== */
-/* HISTORY table for calculating analog historical data */
-/* Хранилище исторических данных для Точек с дискретным состоянием */
-class D_HIST
-{
-  autoid[MAX_HISTORY_QUANTITY];
-  InternalState STATE = SUSPEND; /* */
-  vector <D_HIST_ITEM> items;  /* MAX_HIST_D_QUANTITY_PER_POINT */
-  autoid_t point_ref;
-  unique tree <point_ref> SK_by_point; /* point to history relationship is '1-to-1' */
 };
 
 /* ===================================================================== */
@@ -504,9 +492,23 @@ struct DiscreteInfoType
 /* Common part for analog-state objects */
 struct AnalogInfoType
 {
+  // Дискретизация хранимой предыстории текущей Точки
+  // HISTOTYPE=0 - предыстория не хранится
+  // HISTOTYPE=[1-5]: 1 минута, 5 минут, ..., месяц
+  HistoryType   HISTOTYPE = PER_1_MINUTE; // Только для аналоговых типов данных
   double        VAL;
   double        VALACQ;
   double        VALMANUAL;
+};
+
+/* ===================================================================== */
+/* Common part for history analog-state objects */
+struct AnalogHistoryInfo
+{
+  // Может быть, сделать значением по умолчанию std::numeric_limits<double>::quiet_NaN()
+  // для VAL в качестве значения "не присвоено" (NULL)?
+  double        VAL          = 0.0;
+  Validity      VALIDITY     = VALIDITY_FAULT;
 };
 
 /* ===================================================================== */
@@ -531,10 +533,7 @@ class XDBPoint
   uint1         DE_TYPE;     /* type of data [ex. LOGICAL or BYTES256] */ 
   autoid_t      CE_ref;      /* link to CE definition */
   autoid_t      SA_ref;      /* reference to SA object */
-  /* Reference to point-specific attributes */
-  autoid_t      passport_ref;
-  /* Reference to HISTORY table */
-  autoid_t      hist_ref;
+  autoid_t      passport_ref;// Ссылка на дополнительные параметры/атрибуты точки
   // Признак модификации атрибутов точки с момента последней проверки группы подписки
   Boolean       is_modified = FALSE;
   /* Point common DYNAMIC part */
@@ -545,23 +544,25 @@ class XDBPoint
   Validity      VALIDITY     = VALIDITY_FAULT;
   Validity      VALIDITY_ACQ = VALIDITY_FAULT;
 
-  /* Optional analog of discrete part */
+  // Optional analog of discrete part
   optional  AnalogInfoType   ai;
   optional  DiscreteInfoType di;
-  /* 
-  * TODO: У части классов есть свой атрибут TSSYNTHETICAL, он частично
-  * дублирует AlarmItem (2 экземпляра AlarmState). Как их объединить?
-  */
+
+  // TODO: У части классов есть свой атрибут TSSYNTHETICAL, он частично
+  // дублирует AlarmItem (2 экземпляра AlarmState). Как их объединить?
   optional  AlarmItem alarm;
   
   /* Indexes */
   unique tree <passport_ref> SK_by_passport; /* point to passport relationship is '1-to-1' */
   /* locating point instance by tag */
   unique tree <TAG> SK_by_tag; //[MAX_POINTS_QUANTITY];
-  // Поиск всех эеземпляров, атрибуты которых изменились с момента последней проверки
+  // Поиск всех экземпляров, атрибуты которых изменились с момента последней проверки
   tree <is_modified>   SK_by_modified;
 //  Тип "Patricia Trie" появился только в версии старше 4
 //  patricia <TAG> SK_by_tag; //[MAX_POINTS_QUANTITY];
+  // Поиск по типу объекта
+  tree <OBJCLASS>   SK_by_objclass;
+  list;
 
   /* Events */
   event <new> new_point_evnt;
@@ -597,7 +598,6 @@ class TM_passport       /* 01 */
   s_tag      L_EQT;  // Ссылка на родительский объект
   s_tag      L_DIPL; // Ссылка на свое ЛПУ
   s_tag      L_TYPINFO; // Linked information type
-  autoid_t   LINK_HIST_ref;
   autoid_t   LISTACD_ref;
 };
 

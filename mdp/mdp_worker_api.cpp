@@ -43,7 +43,7 @@ ServiceEndpoint_t Endpoints[] = { // NB: Копия структуры в фай
   {RTDB_NAME,   ENDPOINT_RTDB_FRONTEND  /* tcp://localhost:5556 */, ""}, // Информационный сервер БДРВ
   {HMI_NAME,    ENDPOINT_HMI_FRONTEND   /* tcp://localhost:5557 */, ""}, // Сервер отображения
   {EXCHANGE_NAME,  ENDPOINT_EXCHG_FRONTEND /* tcp://localhost:5558 */, ""}, // Сервер обменов
-  {ARCHIVIST_NAME, ENDPOINT_ARCH_FRONTEND  /* tcp://localhost:5561 */, ""}, // Сервер архивирования
+  {HISTORIAN_NAME, ENDPOINT_HIST_FRONTEND  /* tcp://localhost:5561 */, ""}, // Сервер архивирования и накопления предыстории
   {"", "", ""}  // Последняя запись
 };
 
@@ -91,7 +91,7 @@ mdwrk::mdwrk (std::string broker_endpoint, std::string service, int num_threads)
 
     catch_signals ();
 
-    LOG(INFO) << "mdwrk new context"; // << m_context;
+    LOG(INFO) << "Create mdwrk, context " << &m_context;
 
     // Обнулим хранище данных сокетов для zmq::poll
     // Заполняется хранилище в функциях connect_to_*
@@ -129,8 +129,9 @@ mdwrk::~mdwrk ()
         delete m_welcome;
       }
 
-      LOG(INFO) << "mdwrk destroy context"; // << m_context;
-      m_context.close();
+      LOG(INFO) << "WARNING: uncomment to mdwrk destroy context " << &m_context;
+#warning "Временная проверка против падения"
+//1      m_context.close();
     }
     catch(zmq::error_t error)
     {
@@ -174,8 +175,8 @@ void mdwrk::send_to_broker(const char *command, const char* option, zmsg *_msg)
 void mdwrk::connect_to_broker ()
 {
     int linger = 0;
-    int send_timeout_msec = 1000000;
-    int recv_timeout_msec = 3000000;
+    int send_timeout_msec = SEND_TIMEOUT_MSEC;
+    int recv_timeout_msec = RECV_TIMEOUT_MSEC;
 
     if (m_worker) {
         // Пересоздание сокета без обновления таблицы m_socket_items

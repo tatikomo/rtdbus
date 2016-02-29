@@ -16,6 +16,9 @@ typedef struct timespec timer_mark_t;
 
 int GetTimerValue(timer_mark_t&);
 int GetTimerValueByClockId(clockid_t, timer_mark_t&);
+long get_seconds_to_minute_edge();
+long get_realtime_seconds_to_minute_edge();
+long get_monotonic_seconds_to_minute_edge();
 
 static inline timer_mark_t getTime() {
     static struct timespec time;

@@ -29,6 +29,8 @@ class RtEnvironment
 
     // Получить код последней ошибки
     const Error& getLastError() const;
+    // Сбросить код ошибки
+    void clearError();
 
     // Создать и вернуть новое подключение к указанной БД/среде
     RtConnection* getConnection();
