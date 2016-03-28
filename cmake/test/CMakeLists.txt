@@ -5,6 +5,7 @@ SET(UNITTEST_DEV_RUN  dev_run_test)
 SET(UNITTEST_DATABASE db_test)
 SET(UNITTEST_MESSAGE  msg_test)
 SET(UNITTEST_METRICS  metric_test)
+SET(UNITTEST_EXCHANGE exch_test)
 SET(UNITTEST_CE       ce_test)
 
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
@@ -32,6 +33,10 @@ include_directories(${TOOLS_DIR})
 include_directories(${MDP_DIR})
 include_directories(${HDB_DIR})
 include_directories(${MSG_DIR})
+include_directories(${RAPIDJSON_INCLUDE_DIR})
+include_directories(${EXCHANGE_CONFIG_DIR})
+include_directories(${EXCHANGE_MODBUS_DIR})
+include_directories(${EXCHANGE_SMAD_DIR})
 include_directories(${XDB_COMMON_DIR})
 include_directories(${XDB_BROKER_DIR})
 include_directories(${XDB_IMPL_DIR})
@@ -54,6 +59,13 @@ link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 link_directories(${LIBSQLITE_LIBRARIES_DIR})
+
+set (TEST_EXCHANGE_SOURCES
+        ${GTEST_INC_DIR}/gtest/gtest.h
+        ${EXCHANGE_CONFIG_DIR}/exchange_config_impl.cpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config_impl.hpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config.hpp
+        ${TEST_RTDBUS_DIR}/exchange_unittest.cpp)
 
 set (TEST_METRICS_SOURCES
         ${GTEST_INC_DIR}/gtest/gtest.h
@@ -240,6 +252,13 @@ set_source_files_properties(${XDB_IMPL_DIR}/dat/broker_db.h
 set_source_files_properties(${XDB_IMPL_DIR}/dat/rtap_db-pskel.hxx
                             ${XDB_IMPL_DIR}/dat/rtap_db-pskel.cxx
                             PROPERTIES GENERATED 1)
+
+add_executable (${UNITTEST_EXCHANGE} ${TEST_EXCHANGE_SOURCES})
+add_definitions (-D_FUNCTIONAL_TEST)
+target_link_libraries(${UNITTEST_EXCHANGE}
+    ${LIBGLOG_LIBRARIES}
+    ${GTEST_DIR}/cmake/libgtest.a
+    ${SYSTEM_EXTERNAL_LIBS})
 
 add_executable (${UNITTEST_METRICS} ${TEST_METRICS_SOURCES})
 add_definitions (-D_FUNCTIONAL_TEST)

@@ -1,0 +1,220 @@
+{
+  "common": {
+    "TIMEOUT":    5,
+    "REPEAT_NB":  3,
+    "ERROR_NB":   3,
+    "BYTE_ORDER": "ABCD",
+    "SUB":        0,
+    "DUBIOUS_VALUE": 999999999.9,
+    "NAME":       "/BI4500",
+    "SMAD":       "DB_LOCAL_SA.sqlite",
+    "CHANNEL":    "MODBUS-TCP",
+    "TRACE":      4
+  },
+
+  "modbus": {
+    "HC_FUNCTION":   1,
+    "IC_FUNCTION":   2,
+    "HR_FUNCTION":   3,
+    "IR_FUNCTION":   4,
+    "FSC_FUNCTION":  5,
+    "PSR_FUNCTION":  6,
+    "FHR_FUNCTION":  103,
+    "FP_FUNCTION":   104,
+    "DP_FUNCTION":   105,
+    "DELEGATION_COIL_ADDRESS":  0,
+    "DELEGATION_2DIPL_WRITE":   0,
+    "DELEGATION_2SCC_WRITE":    0,
+    "TELECOMAND_LATCH_ADDRESS": 0,
+    "VALIDITY_OFFSET":   100,
+    "SLAVE_IDX":  1
+  },
+
+  "service": [
+  {
+    "HOST":       "rk05gev2",
+    "PORT":       "modbus"
+  },
+  {
+    "HOST":       "rk05gev2",
+    "PORT":       "modbus"
+  }
+  ],
+
+  "parameters": {
+
+    "acquisition": [
+    {
+      "NAME":     "/KX5020/TT01",
+      "INCLUDE":  1,
+      "TYPE":     "TM",
+      "TYPESUP":  "HR",
+      "ADDR":     0,
+      "LOW_FAN":  0,
+      "HIGH_FAN": 32000,
+      "LOW_FIS":  0.0,
+      "HIGH_FIS": 150.0,
+      "FACTOR":   1.0
+    },
+    {
+      "NAME":     "/KX5020/TT02",
+      "INCLUDE":  1,
+      "TYPE":     "TM",
+      "TYPESUP":  "HR",
+      "ADDR":     1,
+      "LOW_FAN":  0,
+      "HIGH_FAN": 32000,
+      "LOW_FIS":  0.0,
+      "HIGH_FIS": 150.0,
+      "FACTOR":   1.0
+    },
+    {
+      "NAME":     "/KX5021/TT01",
+      "INCLUDE":  1,
+      "TYPE":     "TM",
+      "TYPESUP":  "HR",
+      "ADDR":     2,
+      "LOW_FAN":  0,
+      "HIGH_FAN": 32000,
+      "LOW_FIS":  0.0,
+      "HIGH_FIS": 150.0,
+      "FACTOR":   1.0
+    },
+    {
+      "NAME":     "/KX5021/TT02",
+      "INCLUDE":  1,
+      "TYPE":     "TM",
+      "TYPESUP":  "HR",
+      "ADDR":     3,
+      "LOW_FAN":  0,
+      "HIGH_FAN": 32000,
+      "LOW_FIS":  0.0,
+      "HIGH_FIS": 150.0,
+      "FACTOR":   1.0
+    },
+    {
+      "NAME":     "/KX5022/TT01",
+      "INCLUDE":  1,
+      "TYPE":     "TM",
+      "TYPESUP":  "HR",
+      "ADDR":     8,
+      "LOW_FAN":  0,
+      "HIGH_FAN": 32000,
+      "LOW_FIS":  0.0,
+      "HIGH_FIS": 150.0,
+      "FACTOR":   1.0
+    },
+    {
+      "NAME":     "/KX5022/TT02",
+      "INCLUDE":  1,
+      "TYPE":     "TM",
+      "TYPESUP":  "HR",
+      "ADDR":     9,
+      "LOW_FAN":  0,
+      "HIGH_FAN": 32000,
+      "LOW_FIS":  0.0,
+      "HIGH_FIS": 150.0,
+      "FACTOR":   1.0
+    },
+    {
+      "NAME":     "/KD4505/XA01",
+      "INCLUDE":  1,
+      "TYPE":     "AL",
+      "TYPESUP":  "IC",
+      "ADDR":     1
+    },
+    {
+      "NAME":     "/KD4505/XS01",
+      "INCLUDE":  1,
+      "TYPE":     "TSA",
+      "TYPESUP":  "IC",
+      "ADDR":     2
+    },
+    {
+      "NAME":     "/KD4505/XS11",
+      "INCLUDE":  1,
+      "TYPE":     "TSA",
+      "TYPESUP":  "IC",
+      "ADDR":     3
+    },
+    {
+      "NAME":     "/KD4505/GOV60/ZSVA",
+      "INCLUDE":  1,
+      "TYPE":     "TSA",
+      "TYPESUP":  "IC",
+      "ADDR":     101
+    },
+    {
+      "NAME":     "/KD4505/GOV60/ZSVB",
+      "INCLUDE":  1,
+      "TYPE":     "TSA",
+      "TYPESUP":  "IC",
+      "ADDR":     102
+    },
+    {
+      "NAME":     "/KD4505/XS12",
+      "INCLUDE":  1,
+      "TYPE":     "TSA",
+      "TYPESUP":  "IC",
+      "ADDR":     1999
+    },
+    {
+      "NAME":     "/KD4505/XS13",
+      "INCLUDE":  1,
+      "TYPE":     "TSA",
+      "TYPESUP":  "IC",
+      "ADDR":     2000
+    },
+    {
+      "NAME":     "/KD4505/XS14",
+      "INCLUDE":  1,
+      "TYPE":     "TSA",
+      "TYPESUP":  "IC",
+      "ADDR":     2001
+    },
+    {
+      "NAME":     "/KD4505/XS15",
+      "INCLUDE":  1,
+      "TYPE":     "TSA",
+      "TYPESUP":  "IC",
+      "ADDR":     2002
+    }
+    ],
+
+    "commands": [
+    {
+      "NAME":     "/KD1041/GOV19/ZCVA",
+      "NATURE":   0,
+      "ORDER":    0,
+      "TIME":     180,
+      "TS_INFO":  "/KD1041/GOV19/ZSVA,1",
+      "TELE_COMM_INFO": "FSC+10+14"
+    },
+    {
+      "NAME":     "/KD1041/GOV19/ZCVB",
+      "NATURE":   0,
+      "ORDER":    0,
+      "TIME":     180,
+      "TS_INFO":  "/KD1041/GOV19/ZSVB,1",
+      "TELE_COMM_INFO": "FSC+10+14"
+    }
+    ],
+
+    "transmission": [
+    {
+      "NAME":     "/KD4505/GOV60/ZCVA",
+      "INCLUDE":  1,
+      "TYPE":     "TC",
+      "TYPESUP":  "IC",
+      "ADDR":     1
+    },
+    {
+      "NAME":     "/KD4505/GOV60/ZCVB",
+      "INCLUDE":  1,
+      "TYPE":     "TC",
+      "TYPESUP":  "IC",
+      "ADDR":     2
+    }
+    ]
+  }
+}

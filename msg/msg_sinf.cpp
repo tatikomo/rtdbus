@@ -2,8 +2,6 @@
 #include "config.h"
 #endif
 
-#include <iostream> // std::cerr
-
 #include "glog/logging.h"
 #include "google/protobuf/stubs/common.h"
 
