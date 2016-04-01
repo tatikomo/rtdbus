@@ -44,7 +44,7 @@ class HistorianProducer
     zmq::context_t &m_context;
     xdb::RtEnvironment *m_env;
     // Сигнал к завершению работы
-    static bool m_interrupt;
+    volatile static bool m_interrupt;
     timer_mark_t m_time_before;
     timer_mark_t m_time_after;
 };
@@ -72,7 +72,7 @@ class HistorianResponder
     // Входящее соединение от Клиентов
     zmq::socket_t   m_frontend;
     // Сигнал к завершению работы
-    static bool m_interrupt;
+    volatile static bool m_interrupt;
     timer_mark_t m_time_before;
     timer_mark_t m_time_after;
     msg::MessageFactory *m_message_factory;
@@ -107,7 +107,7 @@ class HistorianProxy
   private:
     DISALLOW_COPY_AND_ASSIGN(HistorianProxy);
     // Сигнал к завершению работы
-    static bool m_interrupt;
+    volatile static bool m_interrupt;
     // Копия контекста основной нити Historian
     // требуется для работы транспорта inproc
     zmq::context_t  &m_context;

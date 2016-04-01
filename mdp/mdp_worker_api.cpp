@@ -53,12 +53,12 @@ ServiceEndpoint_t Endpoints[] = { // NB: Копия структуры в фай
 //  Call s_catch_signals() in your application at startup, and then exit
 //  your main loop if interrupt_worker is ever 1. Works especially well with
 //  zmq_poll.
-int interrupt_worker = 0;
+volatile int interrupt_worker = 0;
 
 static void signal_handler (int signal_value)
 {
     interrupt_worker = 1;
-    LOG(INFO) << "Got signal "<<signal_value<<", interrupt_worker="<<&interrupt_worker;
+    LOG(INFO) << "Got signal "<<signal_value;
     // TODO: активировать нить-сторожа для принудительного удаления "зависших" процессов и ресурсов
 }
 

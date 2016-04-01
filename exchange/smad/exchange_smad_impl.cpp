@@ -13,7 +13,7 @@
 #include "exchange_config.hpp"
 #include "exchange_smad_impl.hpp"
 
-// Структура таблицы SMAD
+// Структура общей таблицы "SMAD"
 // ---+-------------+-----------+--------------+
 //  # |  Имя поля   | Тип поля  | По умолчанию |
 // ---+-------------+-----------+--------------+
@@ -21,75 +21,173 @@
 //  2 | NAME        | TEXT      |              |    |
 //  3 | STATE       | INTEGER   | 0            |    |
 //  4 | DELEGATION  | INTEGER   | 1            |    |
-//  5 | LAST_PROBE  | TIME      |              |    |
-//  6 | MODE        | TEXT      |              |    |
+//  5 | LAST_PROBE  | TIME      |              |    |   // Когда в последний раз опрашивалась модулем
+//  6 | LAST_SENT   | TIME      |              |    |   // Последний раз, когда данные были отправлены клиенту
+//  7 | MODE        | TEXT      |              |    |   
 // ---+-------------+-----------+--------------+    |
 //                                                  |
-// Структура таблицы СС                             |
+// Структура таблицы описания параметров СС "DICT"  |
 // ---+-------------+-----------+--------------+    |
 //  # |  Имя поля   | Тип поля  | По умолчанию |    |
 // ---+-------------+-----------+--------------+    |
-//  1 | SA_ID       | INTEGER   | NOT NULL     |----+
-//  2 | NAME        | TEXT      |              |
-//  3 | ADDR        | INTEGER   |              |
-//  4 | TYPE        | INTEGER   | 0            |
-//  5 | TYPE_SUPPORT| INTEGER   | 0            |
-//  6 | Timestamp   | TIME      |              |
-//  7 | VALID       | INTEGER   | 0            |
-//  8 | I_VAL       | INTEGER   | 0            |
-//  9 | G_VAL       | REAL      | 0            |
-// 10 | LOW_FAN     | INTEGER   | 0            |
-// 11 | HIGH_FAN    | INTEGER   | 0            |
-// 12 | LOW_FIS     | REAL      | 0            |
-// 13 | HIGH_FIS    | REAL      | 0            |
+//  1 | SA_REF      | INTEGER   | NOT NULL     |----+   // Ссылка на таблицу структуры SMAD
+//  2 | ID          | INTEGER   | generated    |<---+
+//  2 | NAME        | TEXT      |              |    |
+//  3 | ADDR        | INTEGER   |              |    |
+//  4 | TYPE        | INTEGER   | 0            |    |
+//  5 | TYPE_SUPPORT| INTEGER   | 0            |    |
+//  6 | Timestamp   | TIME      |              |    |   // TODO: для чего хранить индивидуальное время параметрам?
+//  7 | LOW_FAN     | INTEGER   | 0            |    |
+//  8 | HIGH_FAN    | INTEGER   | 0            |    |
+//  9 | LOW_FIS     | REAL      | 0            |    |
+// 10 | HIGH_FIS    | REAL      | 0            |    |
+// ---+-------------+-----------+--------------+    |
+//                                                  |
+// Структура таблицы текущих данных СС "DATA"       |
+// ---+-------------+-----------+--------------+    |
+//  # |  Имя поля   | Тип поля  | По умолчанию |    |
+// ---+-------------+-----------+--------------+    |
+//  1 | PARAM_REF   | INTEGER   | NOT NULL     |----+   // Ссылка на таблицу описания
+//  2 | Timestamp   | TIME      |              |        // Время получения данных от СС, выставляется модулем
+//  3 | Timestamp_SA| TIME      |              |        // Время формирования данных в СС, приходит от СС
+//  4 | VALID       | INTEGER   | 0            |        // Достоверность расчётная
+//  5 | VALID_SA    | INTEGER   | 0            |        // Достоверность, полученная от СС
+//  6 | I_VAL       | INTEGER   | 0            |        // Целочисленное значение параметра
+//  7 | G_VAL       | REAL      | 0            |        // Дробное значение параметра
 // ---+-------------+-----------+--------------+
-
+// Команда создания таблицы SMAD в случае, если ранее её не было
 const char *SMAD::s_SQL_CREATE_SMAD_TEMPLATE =
     "CREATE TABLE IF NOT EXISTS %s "
     "("
-    "ID INTEGER PRIMARY KEY AUTOINCREMENT," // Уник. идентификатор записи
+    "ID INTEGER PRIMARY KEY,"       // Уник. идентификатор записи
     "NAME TEXT NOT NULL,"           // Тег СС
     "STATE INTEGER DEFAULT 0,"      // Состояние СС { Недоступно(0)|Инициализация(1)|Работа(2) }
     "DELEGATION INTEGER DEFAULT 1," // Режим управления CC { Местный(1)|Дистанционный(0) }
     "LAST_PROBE INTEGER,"           // Время последнего сеанса работы модуля с Системой Сбора
     "MODE TEXT"                     // Режим работы СС
     ");";
+// Шаблон занесения данных в таблицу SMAD
 const char *SMAD::s_SQL_INSERT_SMAD_TEMPLATE =
     "INSERT INTO %s (NAME,STATE,DELEGATION,LAST_PROBE,MODE) VALUES ('%s',%d,%d,%ld,'%s');";
+// Команда создания таблицы НСИ СС в случае, если ранее её не было
 const char *SMAD::s_SQL_CREATE_SA_TEMPLATE =
     "CREATE TABLE IF NOT EXISTS %s "
     "("
-    "SA_ID INTEGER NOT NULL,"
-    "NAME TEXT NOT NULL,"           // Название параметра
-    "ADDR INTEGER,"                 // Адрес регистра
-    "TYPE INTEGER DEFAULT 0,"               // Тип параметра
+    "ID INTEGER PRIMARY KEY,"     // Уник. идентификатор записи
+    "SA_REF INTEGER NOT NULL,"
+    "NAME TEXT NOT NULL,"         // Название параметра
+    "ADDR INTEGER,"               // Адрес регистра
+    "TYPE INTEGER DEFAULT 0,"     // Тип параметра
     "TYPE_SUPPORT INTEGER DEFAULT 0,"       // Тип обработки
-    "RTDBUS_Timestamp INTEGER DEFAULT 0,"   // Время получения данных, выставляется модулем
-    "SA_Timestamp INTEGER DEFAULT 0,"       // Время, переданное системой сбора
-    "VALID INTEGER DEFAULT 0,"      // Значение Достоверности параметра
-    "I_VAL INTEGER DEFAULT 0,"      // (только для дискретов) Значение параметра
-    "G_VAL REAL DEFAULT 0,"         // (только для аналогов) Значение параметра
-    "LOW_FAN INTEGER DEFAULT 0,"    // (только для аналогов) Нижняя граница инженерного диапазона
-    "HIGH_FAN INTEGER DEFAULT 0,"   // (только для аналогов) Верхняя граница инженерного диапазона
-    "LOW_FIS REAL DEFAULT 0,"    // (только для аналогов) Нижняя граница физического диапазона
-    "HIGH_FIS REAL DEFAULT 0,"   // (только для аналогов) Верхняя граница физического диапазона
-    "FACTOR REAL DEFAULT 1,"     // (только для аналогов) Коэффициент масштабирования
-    "PRIMARY KEY (SA_ID,ADDR,TYPE_SUPPORT) ON CONFLICT ABORT,"
-    "FOREIGN KEY (SA_ID) REFERENCES %s(ID) ON DELETE CASCADE"
+    "Timestamp INTEGER DEFAULT 0,"// Время какое-то. Неястно пока для чего, но пусть будет.
+    "LOW_FAN INTEGER DEFAULT 0,"  // (только для аналогов) Нижняя граница инженерного диапазона
+    "HIGH_FAN INTEGER DEFAULT 0," // (только для аналогов) Верхняя граница инженерного диапазона
+    "LOW_FIS REAL DEFAULT 0,"     // (только для аналогов) Нижняя граница физического диапазона
+    "HIGH_FIS REAL DEFAULT 0,"    // (только для аналогов) Верхняя граница физического диапазона
+    "FACTOR REAL DEFAULT 1,"      // (только для аналогов) Коэффициент масштабирования
+//    "PRIMARY KEY (SA_REF,ADDR,TYPE_SUPPORT) ON CONFLICT ABORT,"
+    "FOREIGN KEY (SA_REF) REFERENCES %s(ID) ON DELETE CASCADE"
     ");";
 // Шаблон заголовка SQL-выражения занесения данных целочисленного типа в базу
 const char *SMAD::s_SQL_INSERT_SA_HEADER_INT_TEMPLATE =
-    "INSERT INTO %s (SA_ID,NAME,ADDR,TYPE,TYPE_SUPPORT) VALUES\n";
+    "INSERT INTO %s (SA_REF,NAME,ADDR,TYPE,TYPE_SUPPORT) VALUES\n";
+// Шаблон тела SQL-выражения занесения данных целочисленного типа в базу
 const char *SMAD::s_SQL_INSERT_SA_VALUES_INT_TEMPLATE =
-    "(%d,'%s',%d,%d,%d),\n";
+//    SA_REF
+//    |     NAME
+//    |     |   ADDR
+//    |     |   |  TYPE
+//    |     |   |  |  TYPE_SUPPORT
+//    |     |   |  |  |
+    "(%lld,'%s',%d,%d,%d),\n";
 
 // Шаблон заголовка SQL-выражения занесения данных с плав. запятой в базу
 const char *SMAD::s_SQL_INSERT_SA_HEADER_FLOAT_TEMPLATE =
-    "INSERT INTO %s (SA_ID,NAME,ADDR,TYPE,TYPE_SUPPORT,LOW_FAN,HIGH_FAN,LOW_FIS,HIGH_FIS,FACTOR) VALUES\n";
+    "INSERT INTO %s (SA_REF,NAME,ADDR,TYPE,TYPE_SUPPORT,LOW_FAN,HIGH_FAN,LOW_FIS,HIGH_FIS,FACTOR) VALUES\n";
+// Шаблон тела SQL-выражения занесения данных с плав. запятой в базу
 const char *SMAD::s_SQL_INSERT_SA_VALUES_FLOAT_TEMPLATE =
-    "(%d,'%s',%d,%d,%d,%d,%d,%g,%g,%g),\n";
-// Таблица с описанием СС, включенных в эту зону SMAD
+//    SA_REF
+//    |     NAME
+//    |     |   ADDR
+//    |     |   |  TYPE
+//    |     |   |  |  TYPE_SUPPORT
+//    |     |   |  |  |  LOW_FAN
+//    |     |   |  |  |  |  HIGH_FAN
+//    |     |   |  |  |  |  |  LOW_FIS
+//    |     |   |  |  |  |  |  |  HIGH_FIS
+//    |     |   |  |  |  |  |  |  |  FACTOR
+//    |     |   |  |  |  |  |  |  |  |
+    "(%lld,'%s',%d,%d,%d,%d,%d,%g,%g,%g),\n";
+
+// Таблица с накапливаемыми значениями параметров
+const char *SMAD::s_SQL_CREATE_SA_DATA_TEMPLATE =
+    "CREATE TABLE IF NOT EXISTS %s"
+    "("
+    "PARAM_REF INTEGER NOT NULL,"   // Ссылка на таблицу с описателями параметров СС
+    "Timestamp INTEGER DEFAULT 0,"  // Время получения данных, выставляется модулем
+    "Timestamp_ACQ INTEGER DEFAULT 0,"   // Время, переданное системой сбора
+    "VALID INTEGER DEFAULT 0,"      // Расчётное значение Достоверности параметра
+    "VALID_ACQ INTEGER DEFAULT 0,"  // Значение Достоверности параметра, полученное от СС
+    "I_VAL INTEGER DEFAULT 0,"      // (только для дискретов) Значение параметра
+    "G_VAL REAL DEFAULT 0,"         // (только для аналогов) Значение параметра
+    "PRIMARY KEY (PARAM_REF,Timestamp) ON CONFLICT ABORT,"
+    "FOREIGN KEY (PARAM_REF) REFERENCES %s(ID) ON DELETE CASCADE"
+    ");";
+
+// Шаблон заголовка SQL-выражения занесения целочисленных данных в базу
+const char *SMAD::s_SQL_INSERT_SA_DATA_HEADER_INT_TEMPLATE =
+    "INSERT INTO %s (PARAM_REF,Timestamp,VALID,VALID_ACQ,I_VAL) VALUES\n";
+const char *SMAD::s_SQL_INSERT_SA_DATA_VALUES_INT_TEMPLATE =
+    //PARAM_REF
+    //|    Timestamp
+    //|    |   VALID
+    //|    |   |  VALID_ACQ
+    //|    |   |  |  I_VALUE
+    //|    |   |  |  |
+    "(%lld,%ld,%d,%d,%d);";
+
+// Шаблон заголовка SQL-выражения занесения данных с плав. запятой в базу
+const char *SMAD::s_SQL_INSERT_SA_DATA_HEADER_FLOAT_TEMPLATE =
+    "INSERT INTO %s (PARAM_REF,Timestamp,VALID,VALID_ACQ,G_VAL) VALUES\n";
+const char *SMAD::s_SQL_INSERT_SA_DATA_VALUES_FLOAT_TEMPLATE =
+    //PARAM_REF
+    //|    Timestamp
+    //|    |   VALID
+    //|    |   |  VALID_ACQ
+    //|    |   |  |  G_VALUE
+    //|    |   |  |  |
+    "(%lld,%ld,%d,%d,%g);";
+
+// Выбрать ссылку параметра из справочной таблицы указанной системы сбора
+const char *SMAD::s_SQL_SELECT_SA_DICT_REF =
+    "SELECT ID FROM %s WHERE SA_REF=%lld AND NAME='%s';";
+// Выбрать количество записей об указанной системе сбора из конфигурации SMAD
+const char *SMAD::s_SQL_SELECT_SMAD_SA_COUNT =
+    "SELECT COUNT(*) FROM %s WHERE NAME='%s';";
+// Прочитать идентификатор искомой СС из таблицы SMAD
+const char *SMAD::s_SQL_SELECT_ID_FROM_SA =
+    "SELECT ID FROM %s WHERE NAME='%s';";
+// Удалить данные очищаемой СС из аккумуляторной таблицы по идентификатору
+const char *SMAD::s_SQL_DELETE_SA_DATA_BY_REF =
+    "DELETE FROM DATA WHERE DATA.PARAM_REF IN (SELECT ID FROM DICT WHERE SA_REF=%lld);";
+// Удалить данные очищаемой СС из аккумуляторной таблицы по её имени
+const char *SMAD::s_SQL_DELETE_SA_DATA_BY_NAME =
+    "DELETE FROM DATA WHERE DATA.PARAM_REF IN (SELECT DICT.ID FROM DICT,SMAD WHERE SMAD.NAME='%s' and DICT.SA_REF=SMAD.ID);";
+// Удалить НСИ очищаемой СС по её идентификатору
+const char *SMAD::s_SQL_DELETE_SA_DICT_BY_REF =
+    "DELETE FROM DICT WHERE DICT.SA_REF=%lld;";
+// Удалить НСИ очищаемой СС по её имени
+const char *SMAD::s_SQL_DELETE_SA_DICT_BY_NAME =
+    "DELETE FROM DICT WHERE DICT.SA_REF=(SELECT SMAD.ID FROM SMAD WHERE SMAD.NAME='%s');";
+// Обновить время последнего успешного обмена с указанной СС
+const char *SMAD::s_SQL_UPDATE_SMAD_SA_LASTPROBE =
+    "UPDATE OR ABORT %s SET LAST_PROBE=%ld WHERE ID=%lld;";
+// Название таблицы с описанием систем сбора, включенных в эту зону SMAD
 const char *SMAD::s_SMAD_DESCRIPTION_TABLENAME = "SMAD";
+// Название таблицы с описанием параметров, принадлежащих данной СС
+const char *SMAD::s_SA_DICT_TABLENAME = "DICT";
+// Название таблицы, аккумулирующей данные от всех систем сбора этой зоны SMAD
+const char *SMAD::s_SA_DATA_TABLENAME = "DATA";
 
 // ==========================================================================================
 SMAD::SMAD(const char *filename)
@@ -98,7 +196,7 @@ SMAD::SMAD(const char *filename)
    m_db_err(NULL),
    m_snapshot_filename(NULL),
    m_sa_name(NULL),
-   m_sa_reference(-1)
+   m_sa_reference(0)
 {
   LOG(INFO) << "Constructor SMAD";
   m_snapshot_filename = strdup(filename);
@@ -157,7 +255,9 @@ SMAD::connection_state_t SMAD::connect(const char* sa_name)
     // Успешное подключение к БД
     // ------------------------------------------------------------------
     // 1) Создать общую таблицу SMAD, если она ранее не существовала
-    printed = snprintf(sql_operator, 1000, s_SQL_CREATE_SMAD_TEMPLATE, s_SMAD_DESCRIPTION_TABLENAME);
+    printed = snprintf(sql_operator, 1000,
+                       s_SQL_CREATE_SMAD_TEMPLATE,
+                       s_SMAD_DESCRIPTION_TABLENAME);
     assert(printed < 1000);
     if (true == create_table(s_SMAD_DESCRIPTION_TABLENAME, sql_operator))
     {
@@ -167,20 +267,37 @@ SMAD::connection_state_t SMAD::connect(const char* sa_name)
       if (true == get_sa_reference(m_sa_name, m_sa_reference))
       {
         // ------------------------------------------------------------------
-        // Всегда заново создавать таблицу CC, даже если она ранее существовала
-        drop_table(m_sa_name);
+        // Всегда заново создавать данные CC, даже если они ранее существовали.
+        // Первичной информацией должен быть конфигурационный файл, иначе возможна
+        // ситуация с рассинхронизацией структуры БД SMAD и конфигурационного файла.
+        drop_dict(m_sa_name, m_sa_reference);
       }
 
-      // Таблица СС удалена, пересоздать её
+      // Попытка создать таблицу НСИ "DICT", если она была удалена ранее
       printed = snprintf(sql_operator,
                1000,
                s_SQL_CREATE_SA_TEMPLATE,
-               m_sa_name,
-               s_SMAD_DESCRIPTION_TABLENAME);
+               s_SA_DICT_TABLENAME,             // Название таблицы = "DICT"
+               s_SMAD_DESCRIPTION_TABLENAME);   // Название таблицы SMAD, содержащую внешние ссылки
       assert(printed < 1000);
-      if (false == create_table(m_sa_name, sql_operator)) {
-        LOG(ERROR) << "Creating table " << m_sa_name;
+      if (false == create_table(s_SA_DICT_TABLENAME, sql_operator)) {
+        LOG(ERROR) << "Creating table " << s_SA_DICT_TABLENAME;
         m_state = STATE_ERROR;
+      }
+      else {
+        // Создать таблицу "DATA" с аккумулируемыми данными от СС
+        sprintf(sql_operator,
+                s_SQL_CREATE_SA_DATA_TEMPLATE,
+                s_SA_DATA_TABLENAME,    // Название таблицы-аккумулятора "DATA"
+                s_SA_DICT_TABLENAME);   // Название таблицы НСИ "DICT", содержащую внешние ссылки
+        if (true == create_table(s_SA_DATA_TABLENAME, sql_operator)) {
+          LOG(INFO) << "Creating accumulative data table '"
+                    << s_SA_DATA_TABLENAME << "' is OK";
+        }
+        else {
+          LOG(INFO) << "Creating accumulative data table '"
+                    << s_SA_DATA_TABLENAME << "' is FAIL";
+        }
       }
     }
   }
@@ -193,21 +310,195 @@ SMAD::connection_state_t SMAD::connect(const char* sa_name)
   return m_state;
 }
 
-// ==========================================================================================
-int SMAD::push(const sa_parameter_info_t& info)
+// ------------------------------------------------------------------
+// Всегда заново создавать данные CC, даже если они ранее существовали.
+// Первичной информацией должен быть конфигурационный файл, иначе возможна
+// ситуация с рассинхронизацией структуры БД SMAD и конфигурационного файла.
+// Удалить записи о параметрах данной СС из DATA, затем удалить НСИ из DICT
+int SMAD::drop_dict(const char* sa_name, uint64_t sa_ref)
 {
+  const char* fname = "drop_dict";
+  int rc = -1;
+  int printed;
+  std::string sql;
+  char sql_operator[1000 + 1];
+
+  LOG(INFO) << "Drop all '" << sa_name << "' info with SMAD.reference=" << sa_ref;
+
+  sql = "BEGIN;\n";
+  printed = snprintf(sql_operator, 1000,
+                   s_SQL_DELETE_SA_DATA_BY_REF,
+                   sa_ref
+                  );
+  assert(printed < 1000);
+  sql += sql_operator;
+  sql += "\n";
+
+  printed = snprintf(sql_operator, 1000,
+                   s_SQL_DELETE_SA_DICT_BY_REF,
+                   sa_ref
+                  );
+  assert(printed < 1000);
+  sql += sql_operator;
+  sql += "\nCOMMIT;";
+
+  if (sqlite3_exec(m_db, sql.c_str(), 0, 0, &m_db_err)) {
+      LOG(ERROR) << fname << ": clear all info for SA '" << sa_name
+                 << "': " << m_db_err << " (" << sql << ")";
+      sqlite3_free(m_db_err);
+  }
+  else {
+    rc = 0;
+#if (VERBOSE >= 4)
+    LOG(INFO) << fname << ": SUCCESS SQL (" << sql << ")";
+#endif
+  }
+
+/*
+ * select DATA.TIMESTAMP,DATA.PARAM_REF,DICT.NAME from DATA,DICT,SMAD
+ * where DICT.SA_REF = SMAD.ID
+ * and DATA.PARAM_REF IN (SELECT ID FROM DICT WHERE SA_REF=DICT.SA_REF AND SA_REF=1)
+ * and SMAD.NAME = 'BI4500';
+*/
+  return rc;
+}
+
+// ==========================================================================================
+// Обновить отметку времени в таблице SMAD
+int SMAD::update_last_acq_info()
+{
+  const char* fname = "update_last_acq_info";
+  std::string sql = "BEGIN;\n";
+  char sql_operator[1000 + 1];
+  int printed;
   int status = -1;
 
-  LOG(INFO) << "Push " << info.name;
+  printed = snprintf(sql_operator, 1000,
+                     s_SQL_UPDATE_SMAD_SA_LASTPROBE,
+                     s_SMAD_DESCRIPTION_TABLENAME,
+                     time(0),
+                     m_sa_reference);
+  assert(printed < 1000);
+
+  sql += sql_operator;
+  sql += "\nCOMMIT;";
+
+  if (sqlite3_exec(m_db, sql.c_str(), 0, 0, &m_db_err)) {
+    LOG(ERROR) << fname << ": update last acquisition time - " << m_db_err << " (" << sql << ")";
+    sqlite3_free(m_db_err);
+  }
+  else status = 0;
+
+  return status;
+}
+
+
+// ==========================================================================================
+// Занести указанное значение в SMAD до тех пор, пока верхний уровень не заберет его, или
+// не будет превышено время хранения в SMAD.
+// Предполагается, что вызывающий контекст переводит режим фиксации траназакции в "MEMORY".
+int SMAD::push(const sa_parameter_info_t& info)
+{
+  const char* fname = "push";
+  int status = -1;
+  std::string sql;
+  char sql_operator[1000 + 1];
+
+  // Занести текущее значение в БД, как новую строку
+  LOG(INFO) << "Push " << info.name << " with ref=" << info.ref;
+
+  sql = "BEGIN;\n";
+
+  switch(info.type) {
+    case SA_PARAM_TYPE_TM:
+      // Подготовили заголовок
+      status = snprintf(sql_operator,
+                         1000,
+                         // INSERT INTO DATA (PARAM_REF,Timestamp,VALID,VALID_ACQ,I_VAL) VALUES
+                         s_SQL_INSERT_SA_DATA_HEADER_FLOAT_TEMPLATE,
+                         s_SA_DATA_TABLENAME);
+      assert(status < 1000);
+      sql += sql_operator;
+
+      status = snprintf(sql_operator,
+                         1000,
+                         s_SQL_INSERT_SA_DATA_VALUES_FLOAT_TEMPLATE,
+                            //  PARAM_REF
+                            //  |   Timestamp_ACQ
+                            //  |   |   VALID
+                            //  |   |   |  VALID_ACQ
+                            //  |   |   |  |  G_VAL
+                            //  |   |   |  |  |
+                            // (%ld,%ld,%d,%d,%g)
+                         info.ref,
+                         info.rtdbus_timestamp,
+                         info.valid,
+                         info.valid_acq,
+                         info.g_value
+                         );
+      assert(status < 1000);
+      sql += sql_operator;
+      sql += "\nCOMMIT;";
+      break;
+
+    case SA_PARAM_TYPE_AL:
+    case SA_PARAM_TYPE_TS:
+    case SA_PARAM_TYPE_TSA:
+      // Подготовили заголовок
+      status = snprintf(sql_operator,
+                         1000,
+                         // INSERT INTO DATA (PARAM_REF,Timestamp,VALID,VALID_ACQ,G_VAL) VALUES
+                         s_SQL_INSERT_SA_DATA_HEADER_INT_TEMPLATE,
+                         s_SA_DATA_TABLENAME);
+      assert(status < 1000);
+      sql += sql_operator;
+
+      status = snprintf(sql_operator,
+                         1000,
+                         s_SQL_INSERT_SA_DATA_VALUES_INT_TEMPLATE,
+                            //  PARAM_REF
+                            //  |   Timestamp_ACQ
+                            //  |   |   VALID
+                            //  |   |   |  VALID_ACQ
+                            //  |   |   |  |  I_VAL
+                            //  |   |   |  |  |
+                            // (%ld,%ld,%d,%d,%d)
+                         info.ref,
+                         info.rtdbus_timestamp,
+                         info.valid,
+                         info.valid_acq,
+                         info.i_value
+                         );
+      assert(status < 1000);
+      sql += sql_operator;
+      sql += "\nCOMMIT;";
+
+      break;
+
+    default:
+      LOG(ERROR) << "Бяка";
+      assert(0 == 1);
+  }
+
+  if (sqlite3_exec(m_db, sql.c_str(), 0, 0, &m_db_err)) {
+      LOG(ERROR) << fname << ": parameter '" << info.name
+                 << "': " << m_db_err << " (" << sql << ")";
+      sqlite3_free(m_db_err);
+  }
+  else status = 0;
+  
   return status;
 }
 
 // ==========================================================================================
-int SMAD::purge()
+int SMAD::purge(time_t since)
 {
   int status = -1;
 
-  LOG(INFO) << "Purge";
+  LOG(INFO) << "Purge since " << since;
+
+  // TODO: удалить данные, принадлежащие текущей системе сбора, за интервал
+  // от указанного момента до текущего времени.
   return status;
 }
 
@@ -245,7 +536,7 @@ bool SMAD::create_table(const char* table_name, const char* create_template)
 }
 
 // ==========================================================================================
-bool SMAD::get_sa_reference(char* system_name, int& reference)
+bool SMAD::get_sa_reference(char* system_name, uint64_t& reference)
 {
   const char *fname = "get_sa_reference";
   char sql_operator[MAX_BUFFER_SIZE_FOR_SQL_COMMAND + 1];
@@ -257,30 +548,28 @@ bool SMAD::get_sa_reference(char* system_name, int& reference)
   do
   {
     reference = 0;
+    // Выбрать количество записей об указанной системе сбора из конфигурации SMAD
     printed = snprintf(sql_operator,
                        MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
-                       "SELECT COUNT(*) FROM %s WHERE NAME='%s';",
+                       s_SQL_SELECT_SMAD_SA_COUNT,
                        s_SMAD_DESCRIPTION_TABLENAME,
                        system_name);
     assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
 
     printed = sqlite3_prepare(m_db, sql_operator, -1, &stmt, 0);
     if (printed != SQLITE_OK) {
-      LOG(ERROR) << fname << ": Could not select count() from "
-                 << s_SMAD_DESCRIPTION_TABLENAME << ", code="<< printed;
+      LOG(ERROR) << fname << ": Could not get count of " << system_name
+                 << " from " << s_SMAD_DESCRIPTION_TABLENAME << ", code="<< printed;
       break;
     }
 
     // Поместить словарь тегов в actual_hist_points
     while(sqlite3_step(stmt) == SQLITE_ROW) {
       count = sqlite3_column_int(stmt, 0);
-#if (VERBOSE > 2)
-      LOG(INFO) << "count=" << reference << " for " << system_name;
-#endif
     }
     sqlite3_finalize(stmt);
 
-    if (!count) {
+    if (0 == count) {
       // В таблице SMAD нет записи об искомой СС, завести её
       printed = snprintf(sql_operator,
                          MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
@@ -301,11 +590,19 @@ bool SMAD::get_sa_reference(char* system_name, int& reference)
       else LOG(INFO) << "Insert into " << s_SMAD_DESCRIPTION_TABLENAME
                      << " new " << system_name << " record";
     }
+    else if (1 == count) {
+      // Нормальная ситуация, одна запись для СС
+      LOG(INFO) << "SA " << system_name << " is found";
+    }
+    else {
+      LOG(ERROR) << "Detected multiple records (" << count << ") for SA " << system_name;
+      assert(0 == 1);
+    }
 
-    // Прочитать запись об искомой СС
+    // Прочитать идентификатор искомой СС из таблицы SMAD
     printed = snprintf(sql_operator,
                        MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
-                       "SELECT ID FROM %s WHERE NAME='%s';",
+                       s_SQL_SELECT_ID_FROM_SA,
                        s_SMAD_DESCRIPTION_TABLENAME,
                        system_name);
     assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
@@ -318,9 +615,9 @@ bool SMAD::get_sa_reference(char* system_name, int& reference)
     }
 
     while(sqlite3_step(stmt) == SQLITE_ROW) {
-        reference = sqlite3_column_int(stmt, 0);
+        reference = sqlite3_column_int64(stmt, 0);
 #if (VERBOSE > 2)
-        LOG(INFO) << "find ref=" << reference << " for " << system_name;
+        LOG(INFO) << system_name << " reference=" << reference;
 #endif
      }
 
@@ -460,13 +757,14 @@ bool SMAD::drop_table(const char* table_name)
 }
 
 // ==========================================================================================
-int SMAD::setup_parameter(const sa_parameter_info_t& info)
+int SMAD::setup_parameter(sa_parameter_info_t& info)
 {
   int rc = -1;
   char sql_operator[1000 + 1];
   std::string sql;
-  const char *fname = "setup_smad_parameter";
+  const char *fname = "setup_parameter";
   int printed;
+  sqlite3_stmt* stmt = 0;
 
   LOG(INFO) << "setup parameter: "
             << info.name << ":"
@@ -482,14 +780,14 @@ int SMAD::setup_parameter(const sa_parameter_info_t& info)
   sql = "BEGIN;\n";
 
   switch(info.type) {
-    case MBUS_PARAM_TYPE_TS:
-    case MBUS_PARAM_TYPE_TSA:
-    case MBUS_PARAM_TYPE_AL:
-    case MBUS_PARAM_TYPE_SA:
+    case SA_PARAM_TYPE_TS:
+    case SA_PARAM_TYPE_TSA:
+    case SA_PARAM_TYPE_AL:
+    case SA_PARAM_TYPE_SA:
       printed = snprintf(sql_operator,
                          1000,
                          s_SQL_INSERT_SA_HEADER_INT_TEMPLATE,
-                         m_sa_name);
+                         s_SA_DICT_TABLENAME);
       assert (printed < 1000);
       sql += sql_operator;
 
@@ -505,11 +803,11 @@ int SMAD::setup_parameter(const sa_parameter_info_t& info)
       sql += sql_operator;
       break;
 
-    case MBUS_PARAM_TYPE_TM:
+    case SA_PARAM_TYPE_TM:
       printed = snprintf(sql_operator,
                          1000,
                          s_SQL_INSERT_SA_HEADER_FLOAT_TEMPLATE,
-                         m_sa_name);
+                         s_SA_DICT_TABLENAME);
       assert (printed < 1000);
       sql += sql_operator;
 
@@ -552,6 +850,46 @@ int SMAD::setup_parameter(const sa_parameter_info_t& info)
 #if (VERBOSE > 3)
   LOG(INFO) << fname << ": SQL: " << sql;
 #endif
+
+  // ----------------------------------------------------------------
+  // TODO: Прочитать значение идентификатора, и занести в словарь
+  // info.ref = "SELECT ID FROM _DICT WHERE SA_REF=<Ссылка на СС> AND NAME=<TAG>"
+  printed = snprintf(sql_operator,
+                     1000,
+    // SELECT ID FROM DICT WHERE SA_REF=%lld AND NAME='%s'
+                     s_SQL_SELECT_SA_DICT_REF,
+                     s_SA_DICT_TABLENAME,
+                     m_sa_reference,
+                     info.name);
+  assert (printed < 1000);
+  info.ref = 0;
+
+  printed = sqlite3_prepare(m_db, sql_operator, -1, &stmt, 0);
+  if (printed != SQLITE_OK) {
+    LOG(ERROR) << fname << ": select parameter reference: "
+               << " (" << sql_operator << ")";
+  }
+  else {
+    // Поместить словарь тегов в actual_hist_points
+    while(sqlite3_step(stmt) == SQLITE_ROW) {
+      info.ref = sqlite3_column_int64(stmt, 0);
+//#if (VERBOSE > 2)
+      LOG(INFO) << m_sa_name << ":" << info.name << " reference=" << info.ref;
+//#endif
+    }
+    sqlite3_finalize(stmt);
+
+    if (0 == info.ref) {
+      // В таблице SMAD не обнаружена запись об искомой точке в справочнике, хотя
+      // мы её только что занесли...
+      LOG(ERROR) << m_sa_name << ":" << info.name << " reference not found (" << sql_operator << ")";
+      assert(0 == 1);
+    }
+    else {
+      LOG(INFO) << fname << ": Select point '" << info.name << "' reference=" << info.ref;
+      rc = 0; // успешно прочитали ссылку
+    }
+  }
 
   return rc;
 }

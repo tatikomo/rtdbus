@@ -12,7 +12,7 @@
 #include "zmq.hpp"
 #include "zhelpers.hpp"
 
-int interrupt_broker = 0;
+volatile int interrupt_broker = 0;
 const char *endpoint = "tcp://localhost:5555";
 const char *compiler_options = "g++ -g broker_sim_mt.cpp -o broker_sim_mt -std=c++11 -I/home/gev/ITG/sandbox/cppzmq -I../mdp -I/home/gev/ITG/sandbox/libzmq/include -L/home/gev/ITG/sandbox/libzmq/src/.libs -lzmq";
 

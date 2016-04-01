@@ -55,8 +55,8 @@ using namespace mdp;
 // ---------------------------------------------------------------------
 // Признаки необходимости завершения работы группы процессов генератора предыстории
 extern int interrupt_worker;
-bool HistorianProducer::m_interrupt = false;
-bool HistorianResponder::m_interrupt = false;
+volatile bool HistorianProducer::m_interrupt = false;
+volatile bool HistorianResponder::m_interrupt = false;
 // Таймаут в миллисекундах (мсек) ожидания получения данных
 const int HistorianResponder::PollingTimeout = 1000;
 

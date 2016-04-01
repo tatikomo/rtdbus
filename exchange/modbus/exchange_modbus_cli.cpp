@@ -5,9 +5,8 @@
 // Общесистемные заголовочные файлы
 #include <assert.h>
 #include <iostream>
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <netdb.h>
+#include <arpa/inet.h>
 
 // Служебные заголовочные файлы сторонних утилит
 #include "glog/logging.h"
@@ -57,6 +56,24 @@ MBusFuncDesription RTDBUS_Modbus_client::mbusDescr[] = {
 /* 8 */{MBUS_TYPE_SUPPORT_DP, code_MBUS_TYPE_SUPPORT_DP,  code_MBUS_TYPE_SUPPORT_DP,  s_MBUS_TYPE_SUPPORT_DP,   31, false}
     };  
 
+volatile int g_interrupt = 0;
+
+static void signal_handler (int signal_value)
+{
+  g_interrupt = 1;
+  LOG(INFO) << "Got signal "<<signal_value;
+}
+
+static void catch_signals ()
+{
+  struct sigaction action;
+  action.sa_handler = signal_handler;
+  action.sa_flags = 0;
+  sigemptyset (&action.sa_mask);
+  sigaction (SIGINT,  &action, NULL);
+  sigaction (SIGTERM, &action, NULL);
+  sigaction (SIGUSR1, &action, NULL);
+}
 
 // ==========================================================================================
 // Аргументы:
@@ -66,6 +83,8 @@ RTDBUS_Modbus_client::RTDBUS_Modbus_client(const char* config)
 : m_config(NULL),
   m_config_filename(config),
   m_sa_common(),
+  m_connection_idx(0),
+  m_status(STATUS_OK_NOT_CONNECTED),
   m_ctx(NULL),
   m_header_length(0),
   m_smad(NULL)
@@ -86,11 +105,13 @@ RTDBUS_Modbus_client::RTDBUS_Modbus_client(const char* config)
   m_pFMessages[2].ReqEGSAAttr.MessageEGSA   = Negsa_initialization;
   m_pFMessages[2].ReqEGSAAttr.SendAccept    = 1;
 #endif
+  //LOG(INFO) << "Constructor RTDBUS_Modbus_client";
 }
 
 // ==========================================================================================
 RTDBUS_Modbus_client::~RTDBUS_Modbus_client()
 {
+  //LOG(INFO) << "Destructor RTDBUS_Modbus_client, ctx="<< m_ctx;
   // Освободить SMAD, отключившись от него
   delete m_smad;
 
@@ -109,35 +130,133 @@ RTDBUS_Modbus_client::~RTDBUS_Modbus_client()
 }
 
 // ==========================================================================================
-int RTDBUS_Modbus_client::connect()
+// TODO: Устранить дублирование - такой же код находится в имитаторе сервера MODBUS
+int RTDBUS_Modbus_client::resolve_addr_info(const char* host_name, const char* port_name, int& port_num)
 {
-  const char* fname = "RTDBUS_Modbus_client::conect";
+  int rc = 0;
+//  struct addrinfo *servinfo;  // указатель на результаты
+  struct addrinfo hints, *res, *p;
+  char ipstr[INET6_ADDRSTRLEN];
+  void *addr;
+  int status;
+
+  memset(&hints, 0, sizeof(hints)); // убедимся, что структура пуста
+  hints.ai_family = AF_INET;        // IPv4 (AF_UNSPEC = неважно, IPv4 или IPv6)
+  hints.ai_socktype = SOCK_STREAM;  // TCP stream-sockets
+
+  if ((status = getaddrinfo(host_name, port_name, &hints, &res)) != 0) {
+    LOG(ERROR) << "Resolving " << host_name << ":" << port_name
+               << " - getaddrinfo(): " << gai_strerror(status);
+    rc = -1;
+  }
+  else {
+      // Имя и порт успешно разрешились, продолжим
+      for(p = res;p != NULL; p = p->ai_next) {
+        
+        // получаем указатель на адрес, по разному в разных протоколах
+        if (p->ai_family == AF_INET) { // IPv4
+          struct sockaddr_in *ipv4 = (struct sockaddr_in *)p->ai_addr;
+          addr = &(ipv4->sin_addr);
+          port_num = htons(ipv4->sin_port);
+
+          // преобразуем IP в строку и выводим его:
+          inet_ntop(p->ai_family, addr, ipstr, sizeof(ipstr));
+          LOG(INFO) << ipstr;
+        }
+        else { // IPv6
+          LOG(ERROR) << "IPv6 for '" << host_name << "' is forbidden";
+          rc = -1;
+        }
+      }
+      freeaddrinfo(res); // free the linked list
+
+      if (0 == rc) {
+        LOG(INFO) << "Resolve '" << host_name << "' as " << ipstr
+                  << ", port '" << port_name << "' as " << (unsigned int) port_num;
+      }
+  }
+
+  return rc;
+}
+
+// ==========================================================================================
+client_status_t RTDBUS_Modbus_client::connect()
+{
+  const char* fname = "conect";
   const std::vector <sa_network_address_t>& list = m_config->server_list();
   struct timeval response_timeout;
-  int rc = 0;
+  int port_num;
+
+  // Если это повторное подключение после неуспешной работы
+  if (STATUS_FAIL_NEED_RECONNECTED == m_status) {
+    if (m_ctx) {
+      modbus_close(m_ctx);
+      modbus_free(m_ctx);
+      m_ctx = NULL;
+    }
+  }
 
   switch(m_config->channel())
   {
     case SA_MODE_MODBUS_TCP:
-      assert(list.size() > 0);
-      m_ctx = modbus_new_tcp("127.0.0.1", list[0].port_num);
-      //1 m_ctx = modbus_new_tcp("192.168.1.141", 502);
+      // В списке адресов сервера есть хотя бы одна запись
+      if (list.size()) {
+        //m_status = STATUS_OK_NOT_CONNECTED;
+        // Попытаемся найти первый адрес, известный операционной системе
+        while ((m_connection_idx < list.size())
+           && (-1 == resolve_addr_info("127.0.0.1" /* list[m_connection_idx].host_name */,
+                                       list[m_connection_idx].port_name,
+                                       port_num)))
+        {
+          LOG(WARNING) << "Unable to resolve address " << list[m_connection_idx].host_name
+                       << ":" << list[m_connection_idx].port_name;
+          m_connection_idx++;
+        }
+
+        if (m_connection_idx < list.size())
+        {
+          // Нашли первую пару хост-порт, которые известны системе
+          LOG(INFO) << "Connecting to " << list[m_connection_idx].host_name << ":" << (unsigned int) port_num;
+
+          m_ctx = modbus_new_tcp("127.0.0.1" /* list[m_connection_idx].host_name */, port_num);
+          if (NULL == m_ctx) {
+            LOG(ERROR) << fname << ": modbus_new_tcp - " << modbus_strerror(errno);
+          }
+        }
+        else {
+          // Ни одно имя/порт из указанных не разрешилось системой
+          LOG(ERROR) << "No one supported servers name are resolved, exiting";
+          m_status = STATUS_FATAL_RUNTIME;
+        }
+      }
+      else {
+        LOG(ERROR) << "No one servers network info supported, exiting";
+        m_status = STATUS_FATAL_RUNTIME;
+      }
       break;
 
     case SA_MODE_MODBUS_RTU:
-      LOG(ERROR) << fname << ": not yet supported: " << m_config->channel();
-      m_ctx = modbus_new_rtu("/dev/ttyUSB0", 115200, 'N', 8, 1);
+      LOG(INFO) << fname << ": RTU "
+                << m_config->rtu_list()[0].dev_name << ":"
+                << m_config->rtu_list()[0].speed << ":"
+                << (unsigned int) m_config->rtu_list()[0].nbit << ":"
+                << (unsigned char)m_config->rtu_list()[0].parity << ":"
+                << (unsigned int) m_config->rtu_list()[0].flow_control;
+      m_ctx = modbus_new_rtu(m_config->rtu_list()[0].dev_name,
+                             m_config->rtu_list()[0].speed,
+                             m_config->rtu_list()[0].parity,
+                             m_config->rtu_list()[0].nbit,
+                             m_config->rtu_list()[0].flow_control);
+      if (NULL == m_ctx) {
+        LOG(ERROR) << fname << ": modbus_new_rtu - " << modbus_strerror(errno);
+      }
       break;
 
     default:
       LOG(ERROR) << fname << ": unsupported mode: " << m_config->channel(); 
   }
 
-  if (modbus_connect(m_ctx) == -1) {
-    LOG(ERROR) << "Connection failed: " << modbus_strerror(errno);
-    rc = -1;
-  }
-  else {
+  if (m_ctx && (0 == modbus_connect(m_ctx))) {
     modbus_set_debug(m_ctx, TRUE);
 
     // Установка таймаута
@@ -147,22 +266,32 @@ int RTDBUS_Modbus_client::connect()
 
     // Может быть разной длины, для RTU=256, для TCP=260
     m_header_length = modbus_get_header_length(m_ctx);
+    m_status = STATUS_OK_CONNECTED;
+  }
+  else {
+    LOG(ERROR) << "Connection failed: " << modbus_strerror(errno);
+    m_status = STATUS_OK_NOT_CONNECTED;
+    // Подключиться не получилось, поэтому освободим память,
+    // выделенную в modbus_new_tcp() или modbus_new_rtu()
+    modbus_free(m_ctx);
   }
 
-  return rc;
+  return m_status;
 }
 
 // ==========================================================================================
-int RTDBUS_Modbus_client::run()
+client_status_t RTDBUS_Modbus_client::run()
 {
   const char* fname = "run";
-  bool stop = false;
-  int rc = -1;
+  //bool stop = false;
+  int connection_reestablised = 0;
+  int num_connection_try = 0;
 
-  if (0 != (rc = read_config()))
+  if (0 != read_config())
   {
       LOG(ERROR) << fname << ": reading configuration files";
-      return rc;
+      m_status = STATUS_FATAL_CONFIG;
+      return m_status;
   }
 
   // Открыть SMAD из указанного снимка
@@ -171,38 +300,57 @@ int RTDBUS_Modbus_client::run()
   // Открыть SMAD указанной СС
   if (SMAD::STATE_OK != m_smad->connect(m_config->name().c_str())) {
     LOG(ERROR) << "Unable to continue without SMAD " << m_config->name();
-    return -1;
+    m_status = STATUS_FATAL_SMAD;
+    // NB: m_smad будет удалён в деструкторе
+    return m_status;
   }
 
   // Загрузить в неё параметры
-  rc = init_smad_parameters();
+  if (STATUS_OK_SMAD_LOAD != init_smad_parameters())
+  {
+    LOG(ERROR) << "Unable to init SMAD";
+    m_status = STATUS_FATAL_SMAD;
+    return m_status;
+  }
 
   // На основе прочитанных данных построить план запросов к СС
   if (make_request_plan()) {
-    // Сформировано ненулевое количество запросов - есть смысл поработать
-    LOG(INFO) << fname << ": connecting";
-    if (0 != (rc = connect()))
-    {
-        LOG(ERROR) << fname << ": connecting to the server";
-        return rc;
-    }
 
+    // Сформировано ненулевое количество запросов - есть смысл поработать
     LOG(INFO) << fname << ": processing";
 
-    while (!stop) {
+    while (!g_interrupt) {
 
-      rc = ask();
-
-      switch(rc) {
-          case 0:
-            // OK
+      switch(m_status) {
+          case STATUS_OK_CONNECTED:
             sleep (m_config->timeout());
-            //stop = true;
+            m_status = ask();
+            break;
+
+          case STATUS_FAIL_NEED_RECONNECTED:
+            // Требуется переподключение
+            LOG(WARNING) << "Need to reestablish connection, #try=" << ++connection_reestablised;
+            m_status = connect();
+            break;
+
+          case STATUS_OK_NOT_CONNECTED:
+            // Повторное подключение, чуть подождем...
+            sleep (m_config->timeout());
+            // NB: break пропущен специально
+          case STATUS_OK_SMAD_LOAD:
+            // попытаться подключиться к очередному серверу после начала работы
+            LOG(WARNING) << "Try to connect, #try=" << ++num_connection_try;
+            m_status = connect();
+            break;
+
+          case STATUS_FAIL_TO_RECONNECT:
+            LOG(FATAL) << "Unable to reconnect, exiting";
+            g_interrupt = 1;
             break;
 
           default:
-            LOG(ERROR) << fname << ": result code=" << rc;
-            stop = true;
+            LOG(ERROR) << fname << ": status code=" << m_status;
+            g_interrupt = 1;
       }
     }
   }
@@ -210,11 +358,11 @@ int RTDBUS_Modbus_client::run()
     LOG(WARNING) << "There are no automatic generated orders, exiting";
   }
 
-  return rc;
+  return m_status;
 }
 
 // ==========================================================================================
-int RTDBUS_Modbus_client::ask()
+client_status_t RTDBUS_Modbus_client::ask()
 {
   const char* fname = "ask";
   unsigned int idx = 0;
@@ -230,6 +378,11 @@ int RTDBUS_Modbus_client::ask()
   int num_uint16_registers_to_read = 1;
   uint8_t rsp_8[2000]; // максимальное количество двоичных переменных в одном запросе
   uint16_t rsp_16[MODBUS_TCP_MAX_ADU_LENGTH + 1];
+
+  if (STATUS_OK_CONNECTED != m_status) {
+    LOG(WARNING) << fname << ": forbidden call while incorrect state:" << m_status;
+    return m_status;
+  }
 
   for (std::vector<ModbusOrderDescription>::iterator it = m_actual_orders_description.begin();
        it != m_actual_orders_description.end();
@@ -366,7 +519,13 @@ int RTDBUS_Modbus_client::ask()
     }
   }
 
-  return nb_fail;
+  if (nb_fail > m_config->error_nb())
+  {
+    LOG(WARNING) << "Exceed maximum error number: " << nb_fail << ", need to reconnect";
+    m_status = STATUS_FAIL_NEED_RECONNECTED;
+  }
+
+  return m_status;
 }
 
 // ==========================================================================================
@@ -383,6 +542,8 @@ int RTDBUS_Modbus_client::parse_response(ModbusOrderDescription& handler, uint8_
 {
   int status = 0;
   address_map_t *address_map = NULL;
+
+  m_smad->accelerate(true);
 
   switch(handler.SupportType) {
     case MBUS_TYPE_SUPPORT_HC:
@@ -418,6 +579,12 @@ int RTDBUS_Modbus_client::parse_response(ModbusOrderDescription& handler, uint8_
                  << " for function " << handler.NumberModbusFunction;
       assert (0 == 1);
   }
+
+  // Обновить отметку времени последнего обмена с системой сбора в таблице SMAD
+  m_smad->update_last_acq_info();
+
+  m_smad->accelerate(false);
+
 /*
   switch(handler.NumberModbusFunction) {
     case code_MBUS_TYPE_SUPPORT_HC:
@@ -488,8 +655,11 @@ int RTDBUS_Modbus_client::parse_HR_IR(address_map_t* address_map, ModbusOrderDes
         printf("U 0x%04X (raw=%f zoom=%f)\n", UZnach, FZnach, item.g_value);
 #endif
       }
-
-      item.rtdbus_timestamp = time(0);
+  
+      // Запомним текущее время получения данных
+      time(&item.rtdbus_timestamp);
+      // TODO: получить достоверность параметра
+      item.valid_acq = item.valid = 0; // GOF_D_ACQ_VALID
 
       if ((FZnach == USHRT_MAX) || (FZnach > item.high_fis) || (FZnach < item.low_fis))
       {
@@ -538,11 +708,12 @@ int RTDBUS_Modbus_client::parse_HC_IC(address_map_t* address_map, ModbusOrderDes
                 << (*it).second.name
                 << ", address=" << (*it).second.address << ", " << (unsigned int)data[i];
 
-      item.rtdbus_timestamp = time(0);
+      // Запомним текущее время получения данных
+      time(&item.rtdbus_timestamp);
       item.i_value = (unsigned int)data[i];
 
       // TODO: получить достоверность дискретов
-      item.valid = 1; //1 test
+      item.valid_acq = item.valid = 0; // GOF_D_ACQ_VALID
 
       // Занести значение в SMAD
       m_smad->push(item);
@@ -584,11 +755,12 @@ int RTDBUS_Modbus_client::parse_FP(address_map_t* address_map, ModbusOrderDescri
       common.i_values[0] =  (unsigned int)data[register_idx++];
       common.i_values[1] =  (unsigned int)data[register_idx++];
 
-      item.rtdbus_timestamp = time(0);
+      // Запомним текущее время получения данных
+      time(&item.rtdbus_timestamp);
       item.g_value = common.f_value;
 
       // TODO: получить достоверность дискретов
-      item.valid = 1; //1 test
+      item.valid_acq = item.valid = 0; // GOF_D_ACQ_VALID
 
       LOG(INFO) << "["<< func_by_type_support[handler.SupportType].name
                 << " as " << (unsigned int) handler.NumberModbusFunction << "] "
@@ -598,6 +770,12 @@ int RTDBUS_Modbus_client::parse_FP(address_map_t* address_map, ModbusOrderDescri
                 << ", idx=" << register_idx;
 
       // Занести значение в SMAD
+      // TODO: возможно предварительное занесение данных во внутренний буфер, с тем чтобы потом разово
+      // в одной транзакции занести оттуда данные в БД. Это ускорит работу за счёт отказа от создания
+      // транзакции на каждый параметр в отдельности.
+      // Пример
+      //    В цикле m_smad->add_item_to_bunch(item)
+      //    Затем m_smad->push_bunch()
       m_smad->push(item);
     }
   }
@@ -734,9 +912,8 @@ int RTDBUS_Modbus_client::read_config()
 // создать с именем, соответствующим коду системы сбора, таблицу в SMAD,
 // и заполнить её списком параметров. Параллельно собрать такую же информацию
 // в виде сортированного по адресу дерева для каждого из типов обработки.
-int RTDBUS_Modbus_client::init_smad_parameters() // загрузка параметров обмена
+client_status_t RTDBUS_Modbus_client::init_smad_parameters() // загрузка параметров обмена
 {
-  int status = 0;
   // Значения атрибутов прочитанных из конфигурации параметров
 //  int include;              // Признак необходимости передачи параметра в БДРВ
   std::string s_type;       // Символьное значения типа параметра
@@ -752,9 +929,10 @@ int RTDBUS_Modbus_client::init_smad_parameters() // загрузка парам�
        itr++)
   {
     LOG(INFO) << "Acquisition item " << ++i;
-    const sa_parameter_info_t &info = (*itr);
+    sa_parameter_info_t &info = (*itr);
 
-    if (0 == (status = m_smad->setup_parameter(info))) {
+    if (0 == m_smad->setup_parameter(info)) {
+      m_status = STATUS_OK_SMAD_LOAD;
       // Запомнить реально собираемые регистры в соответствующих наборах,
       // для последующей идентификации действительных данных в содержимом
       // полученного от сервера буфере
@@ -784,7 +962,7 @@ int RTDBUS_Modbus_client::init_smad_parameters() // загрузка парам�
   // Вернуть режим работы журнала транзакций в норму
   m_smad->accelerate(false);
 
-  return status;
+  return m_status;
 }
 
 
@@ -851,7 +1029,7 @@ int RTDBUS_Modbus_client::calculate()
           }
           else it--; // вернуться к предыдущему параметру, оставив значения name и current_address прежними
 #if (VERBOSE >=7)
-          LOG(INFO) << fname << " :" << m_config->name() << " " << name << "\t"
+          LOG(INFO) << fname << ": " << m_config->name() << " " << name << "\t"
                     << m_actual_orders_description.size()+1 << " ADDR:"
                     << current_address << " TYPE:" << type << " OT:" << order_state;
 #endif
@@ -862,7 +1040,7 @@ int RTDBUS_Modbus_client::calculate()
             order.NumberModbusFunction = mbusDescr[support_type].actualCode;
             order.IdModbusServer = m_config->modbus_specific().slave_idx;
             // TODO: доработать возможность диффузии данных от клиента серверу
-            order.Direction = MBUS_FLOW_ACQUISITION;
+            order.Direction = SA_FLOW_ACQUISITION;
             // order.StartAddress: Начальный адрес регистра текущего запроса
             // previous_address: Инициализировали предыдущий адрес текущего запроса, он пока равен текущему адресу
             order.StartAddress = previous_address = current_address;
@@ -898,7 +1076,7 @@ int RTDBUS_Modbus_client::calculate()
           }
       }
 
-      // Проверить возможность неполного заполнения запроса - данные в SQL-выборке закончились,
+      // Проверить возможность неполного заполнения запроса - данные в выборке закончились,
       // а ордер не внесен в список активных, поскольку пакет ещё не заполнен.
       if (order_state != END) {
           // Обнаружен не до конца сформированный запрос
@@ -977,6 +1155,7 @@ int main(int argc, char* argv[])
      }
   }
 
+  catch_signals();
   mbus_client = new RTDBUS_Modbus_client(config_filename);
 
   if (0 == mbus_client->run())

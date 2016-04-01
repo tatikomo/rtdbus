@@ -72,7 +72,7 @@ class DiggerWorker
     zmq::socket_t   m_commands;
     pid_t           m_thread_id;
     // Локальный флаг завершения работы, чтобы разные экземпляры не зависели друг от друга
-    bool m_interrupt;
+    volatile bool m_interrupt;
     // Объекты доступа к БДРВ
     // TODO: поведение БДРВ при одномоментном исполнении нескольких конкурирующих экземпляров?
     xdb::RtEnvironment *m_environment;
@@ -103,7 +103,7 @@ class DiggerPoller
     void release_attribute_info(xdb::AttributeInfo_t*);
 
     // Сигнал к завершению работы
-    static bool m_interrupt;
+    volatile static bool m_interrupt;
 
     // Копия контекста основной нити Digger
     // требуется для работы транспорта inproc
@@ -137,7 +137,7 @@ class DiggerProbe
   private:
     DISALLOW_COPY_AND_ASSIGN(DiggerProbe);
     // Признак продолжения работы нити Probe
-    static bool m_interrupt;
+    volatile static bool m_interrupt;
 
     int  start_workers();
     bool start_sbs_poller();
@@ -189,7 +189,7 @@ class DiggerProxy
   private:
     DISALLOW_COPY_AND_ASSIGN(DiggerProxy);
     // Сигнал к завершению работы
-    static bool m_interrupt;
+    volatile static bool m_interrupt;
     // Копия контекста основной нити Digger
     // требуется для работы транспорта inproc
     // TODO: проверить, нужен ли общий контекст Digger и DiggerProxy. Можно ли их разделить для ускорения работы?

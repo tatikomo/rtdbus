@@ -19,6 +19,9 @@ typedef struct { int first; int last; } min_max_t;
 // min_max: Минимальное и максимальное значение регистра для данного типа обработки
 // data:    Указатель на область памяти, где размещаются параметры
 typedef struct { int supply; int actual; bool use; min_max_t min_max; uint8_t* data; } supply_info_t;
+// Типы данных для преобразования между целочисленными значениями и значениями с плав. запятой
+typedef union { uint16_t i16_val[2]; float  f_val; } common_float_t;
+typedef union { uint16_t i16_val[4]; double g_val; } common_double_t;
 
 // ---------------------------------------------------------
 class RTDBUS_Modbus_server {
@@ -34,6 +37,12 @@ class RTDBUS_Modbus_server {
     int load_config();
     // Имитировать изменения данных областях, соответствующих запросам
     void simulate_values();
+    void simulate_HC(const sa_parameter_info_t&, int, uint8_t*);
+    void simulate_IC(const sa_parameter_info_t&, int, uint8_t*);
+    void simulate_HR(const sa_parameter_info_t&, int, uint16_t*);
+    void simulate_FP(const sa_parameter_info_t&, int, uint16_t*);
+    void simulate_DP(const sa_parameter_info_t&, int, uint16_t*);
+    int resolve_addr_info(const char*, const char*, int&);
 
     // Конфигурационный файл системы сбора
     modbus_t   *m_ctx;

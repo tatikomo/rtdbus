@@ -17,7 +17,7 @@ using namespace mdp;
 //  Call s_catch_signals() in your application at startup, and then exit
 //  your main loop if interrupt_broker is ever 1. Works especially well with
 //  zmq_poll.
-int interrupt_broker = 0;
+volatile int interrupt_broker = 0;
 
 void s_signal_handler (int /*signal_value*/)
 {

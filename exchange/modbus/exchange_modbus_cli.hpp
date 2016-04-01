@@ -58,6 +58,30 @@ typedef struct  {
     int SendAccept;  /* send accept if == 1 */
 } SReqEGSAAttr;
 
+// Набор состояний модуля
+typedef enum {
+  // Ещё не подключён, все в порядке
+  STATUS_OK = 1,
+  // Ещё не подключён, SMAD загружена
+  STATUS_OK_SMAD_LOAD,
+  // Подключён, все в порядке
+  STATUS_OK_CONNECTED,
+  // Не подключён, требуется переподключение
+  STATUS_OK_NOT_CONNECTED,
+  // Подключён, требуется переподключение
+  STATUS_FAIL_NEED_RECONNECTED,
+  // Не подключён, переподключение нек удалось
+  STATUS_FAIL_TO_RECONNECT,
+  // Нормальное завершение работы
+  STATUS_OK_SHUTDOWN,
+  // Нет возможности продолжать работу из-за проблем со SMAD
+  STATUS_FATAL_SMAD,
+  // Нет возможности продолжать работу из-за проблем с конфигурационными файлами
+  STATUS_FATAL_CONFIG,
+  // Нет возможности продолжать работу из-за проблем с ОС
+  STATUS_FATAL_RUNTIME
+} client_status_t;
+
 /*--------------------------------------------------------------*/
 /* Common part for each request */
 typedef struct {
@@ -96,13 +120,13 @@ class RTDBUS_Modbus_client {
   public:
     RTDBUS_Modbus_client(const char*);
    ~RTDBUS_Modbus_client();
-    int connect();
-    int run();
+    client_status_t connect();
+    client_status_t run();
 
   private:
     DISALLOW_COPY_AND_ASSIGN(RTDBUS_Modbus_client);
     // Итерация запросов сервера СС
-    int ask();
+    client_status_t ask();
     // На основе прочитанных данных автоматически построить план запросов к СС и вывести его в лог
     int make_request_plan();
     int calculate();
@@ -116,16 +140,16 @@ class RTDBUS_Modbus_client {
     void set_validity(int);
 
     int read_config();     // Точка входа в функции загрузки конфигурационных файлов
-//    int load_control(rapidjson::Document&);    // загрузка основной конфигурации
     int load_parameters(); // загрузка параметров обмена
     int load_commands();   // загрузка команд управления
 
     // Подключиться к внутренней БД для хранения там полученных данных
-    int connect_to_smad();
+    client_status_t connect_to_smad();
     // Инициализировать значения всех параметров в SMAD
-    int init_smad_parameters();
+    client_status_t init_smad_parameters();
     // Завершить формированое запроса
     void polish_order(int, int, ModbusOrderDescription&);
+    int resolve_addr_info(const char*, const char*, int&);
 
     // -------------------------------------------------------------------
     static MBusFuncDesription mbusDescr[];
@@ -133,6 +157,10 @@ class RTDBUS_Modbus_client {
     ExchangeConfig* m_config;
     const char*     m_config_filename;
     sa_common_t     m_sa_common;
+    // Номер подключения к серверу по порядку в секции SERVICE
+    size_t          m_connection_idx;
+    // Код состояния модуля
+    client_status_t m_status;
 
     modbus_t *m_ctx;
     // Размер заголовка запроса

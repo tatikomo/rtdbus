@@ -40,7 +40,7 @@
 
 using namespace mdp;
 
-extern int interrupt_worker;
+extern volatile int interrupt_worker;
 
 // Таймаут в миллисекундах (мсек) ожидания получения данных в экземпляре DiggerWorker
 const int DiggerWorker::PollingTimeout = 1000;
@@ -50,9 +50,9 @@ const int DiggerProbe::kMaxWorkerThreads = 3;
 const int Digger::DatabaseSizeBytes = 1024 * 1024 * DIGGER_DB_SIZE_MB;
 // Статические флаги завершения работы
 // NB: Каждый экземпляр DiggerWorker имеет локальный флаг останова
-bool DiggerProbe::m_interrupt = false;
-bool DiggerProxy::m_interrupt = false;
-bool DiggerPoller::m_interrupt = false;
+volatile bool DiggerProbe::m_interrupt = false;
+volatile bool DiggerProxy::m_interrupt = false;
+volatile bool DiggerPoller::m_interrupt = false;
 
 // --------------------------------------------------------------------------------
 bool publish_sbs_impl(std::string& dest_name,
@@ -1536,7 +1536,7 @@ void Digger::run()
 
     LOG(INFO) << "RTDB status: " << m_environment->getLastError().what();
 
-    LOG(INFO) << "DiggerProxy creating, interrupt_worker=" << &interrupt_worker;
+    LOG(INFO) << "DiggerProxy creating, interrupt_worker=" << (void*)&interrupt_worker;
     m_digger_proxy = new DiggerProxy(&m_context, m_environment);
 
     LOG(INFO) << "DiggerProxy starting Main thread";
