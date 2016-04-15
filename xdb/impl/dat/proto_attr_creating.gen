@@ -58,6 +58,7 @@ MCO_RET createSTATUS (PointInDatabase*, rtap_db::Attrib&);
 MCO_RET createSUPPLIER (PointInDatabase*, rtap_db::Attrib&);
 MCO_RET createSUPPLIERMODE (PointInDatabase*, rtap_db::Attrib&);
 MCO_RET createSUPPLIERSTATE (PointInDatabase*, rtap_db::Attrib&);
+MCO_RET createEXPMODE (PointInDatabase*, rtap_db::Attrib&);
 MCO_RET createSYNTHSTATE (PointInDatabase*, rtap_db::Attrib&);
 MCO_RET createTSSYNTHETICAL (PointInDatabase*, rtap_db::Attrib&);
 MCO_RET createTYPE (PointInDatabase*, rtap_db::Attrib&);

@@ -11,8 +11,7 @@
 //#include "rapidjson/document.h"
 
 // Служебные файлы RTDBUS
-#include "exchange_config_impl.hpp"
-//#include "exchange_smad_impl.hpp"
+#include "exchange_config_sac.hpp"
 
 // ===============================================================================================
 
@@ -37,7 +36,7 @@
 #define Negsa_acquisition       1
 #define Negsa_initialization    13
 
-class SMAD;
+class InternalSMAD;
 
 // ---------------------------------------------------------
 // Справочная таблица по всем используемым MODBUS-функциям
@@ -62,7 +61,7 @@ typedef struct  {
 typedef enum {
   // Ещё не подключён, все в порядке
   STATUS_OK = 1,
-  // Ещё не подключён, SMAD загружена
+  // Ещё не подключён, InternalSMAD загружена
   STATUS_OK_SMAD_LOAD,
   // Подключён, все в порядке
   STATUS_OK_CONNECTED,
@@ -74,7 +73,7 @@ typedef enum {
   STATUS_FAIL_TO_RECONNECT,
   // Нормальное завершение работы
   STATUS_OK_SHUTDOWN,
-  // Нет возможности продолжать работу из-за проблем со SMAD
+  // Нет возможности продолжать работу из-за проблем с InternalSMAD
   STATUS_FATAL_SMAD,
   // Нет возможности продолжать работу из-за проблем с конфигурационными файлами
   STATUS_FATAL_CONFIG,
@@ -145,7 +144,7 @@ class RTDBUS_Modbus_client {
 
     // Подключиться к внутренней БД для хранения там полученных данных
     client_status_t connect_to_smad();
-    // Инициализировать значения всех параметров в SMAD
+    // Инициализировать значения всех параметров в InternalSMAD
     client_status_t init_smad_parameters();
     // Завершить формированое запроса
     void polish_order(int, int, ModbusOrderDescription&);
@@ -154,7 +153,7 @@ class RTDBUS_Modbus_client {
     // -------------------------------------------------------------------
     static MBusFuncDesription mbusDescr[];
 
-    ExchangeConfig* m_config;
+    AcquisitionSystemConfig* m_config;
     const char*     m_config_filename;
     sa_common_t     m_sa_common;
     // Номер подключения к серверу по порядку в секции SERVICE
@@ -167,7 +166,7 @@ class RTDBUS_Modbus_client {
     int m_header_length;
     // Параметры самого интерфейсного модуля
 
-    SMAD    *m_smad;
+    InternalSMAD    *m_smad;
     // Хранилище соответствия "адрес" - "информация по параметру" для каждого типа обработки,
     // что требуется для поиска интересующих регистров в составе ответа при его разборе.
     address_map_t m_HC_map;

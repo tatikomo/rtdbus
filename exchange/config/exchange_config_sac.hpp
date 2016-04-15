@@ -1,5 +1,5 @@
-#ifndef EXCHANGE_CONFIG_IMPL_H
-#define EXCHANGE_CONFIG_IMPL_H
+#ifndef EXCHANGE_CONFIG_SAC_H
+#define EXCHANGE_CONFIG_SAC_H
 #pragma once
 
 #ifdef HAVE_CONFIG_H
@@ -17,11 +17,11 @@
 #include "exchange_config.hpp"
 
 // ---------------------------------------------------------
-class ExchangeConfig
+class AcquisitionSystemConfig
 {
   public:
-    ExchangeConfig(const char*);
-   ~ExchangeConfig();
+    AcquisitionSystemConfig(const char*);
+   ~AcquisitionSystemConfig();
 
     // Загрузка конфига целиком
     int load();
@@ -59,7 +59,7 @@ class ExchangeConfig
     const std::vector <sa_rtu_info_t>& rtu_list() const { return m_rtu_list; };
 
   private:
-    DISALLOW_COPY_AND_ASSIGN(ExchangeConfig);
+    DISALLOW_COPY_AND_ASSIGN(AcquisitionSystemConfig);
     char   *m_config_filename;
     bool    m_config_has_good_format;
     rapidjson::Document m_document;

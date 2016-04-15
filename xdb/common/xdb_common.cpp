@@ -143,7 +143,8 @@ const AttrTypeDescription_t xdb::AttrTypeDescription[] =
     { RTDB_ATT_IDX_VALIDCHANGE,     RTDB_ATT_VALIDCHANGE,   DB_TYPE_UINT8,  sizeof(uint8_t) },    // 73
 // NB: VALMANUAL - особый случай, может быть как целочисленным, так и double
     { RTDB_ATT_IDX_VALMANUAL,       RTDB_ATT_VALMANUAL,     DB_TYPE_DOUBLE, sizeof(double) },     // 74
-    { RTDB_ATT_IDX_UNEXIST,         "",                     DB_TYPE_UNDEF,  0 }                   // 75
+    { RTDB_ATT_IDX_EXPMODE,         RTDB_ATT_EXPMODE,       DB_TYPE_UINT8,  sizeof(uint8_t) },    // 75
+    { RTDB_ATT_IDX_UNEXIST,         "",                     DB_TYPE_UNDEF,  0 }                   // 76
 };
 
 

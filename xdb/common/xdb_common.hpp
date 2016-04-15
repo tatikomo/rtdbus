@@ -145,6 +145,7 @@ namespace xdb {
 #define RTDB_ATT_SUPPLIER       "SUPPLIER"
 #define RTDB_ATT_SUPPLIERMODE   "SUPPLIERMODE"
 #define RTDB_ATT_SUPPLIERSTATE  "SUPPLIERSTATE"
+#define RTDB_ATT_EXPMODE        "EXPMODE"
 #define RTDB_ATT_SYNTHSTATE     "SYNTHSTATE"
 #define RTDB_ATT_DELEGABLE      "DELEGABLE"
 #define RTDB_ATT_TYPE           "TYPE"
@@ -273,8 +274,9 @@ namespace xdb {
 #define RTDB_ATT_IDX_VALIDACQ       72
 #define RTDB_ATT_IDX_VALIDCHANGE    73
 #define RTDB_ATT_IDX_VALMANUAL      74
+#define RTDB_ATT_IDX_EXPMODE        75
 // Последнее значение, индекс несуществующего атрибута
-#define RTDB_ATT_IDX_UNEXIST        75
+#define RTDB_ATT_IDX_UNEXIST        76
 
 // ====================================================================
 //

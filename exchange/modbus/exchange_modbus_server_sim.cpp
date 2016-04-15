@@ -38,7 +38,7 @@ RTDBUS_Modbus_server::RTDBUS_Modbus_server(const char* config_filename)
     m_UT_INPUT_REGISTERS_ADDRESS(0),
     m_UT_INPUT_REGISTERS_NB(0)
 {
-  m_config = new ExchangeConfig(config_filename);
+  m_config = new AcquisitionSystemConfig(config_filename);
 }
 
 // ==========================================================================================

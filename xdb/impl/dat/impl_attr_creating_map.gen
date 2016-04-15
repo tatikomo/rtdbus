@@ -58,6 +58,7 @@
   m_attr_creating_func_map.insert(AttrCreatingFuncPair_t("SUPPLIER", &xdb::DatabaseRtapImpl::createSUPPLIER));
   m_attr_creating_func_map.insert(AttrCreatingFuncPair_t("SUPPLIERMODE", &xdb::DatabaseRtapImpl::createSUPPLIERMODE));
   m_attr_creating_func_map.insert(AttrCreatingFuncPair_t("SUPPLIERSTATE", &xdb::DatabaseRtapImpl::createSUPPLIERSTATE));
+  m_attr_creating_func_map.insert(AttrCreatingFuncPair_t("EXPMODE", &xdb::DatabaseRtapImpl::createEXPMODE));
   m_attr_creating_func_map.insert(AttrCreatingFuncPair_t("SYNTHSTATE", &xdb::DatabaseRtapImpl::createSYNTHSTATE));
   m_attr_creating_func_map.insert(AttrCreatingFuncPair_t("TSSYNTHETICAL", &xdb::DatabaseRtapImpl::createTSSYNTHETICAL));
   m_attr_creating_func_map.insert(AttrCreatingFuncPair_t("TYPE", &xdb::DatabaseRtapImpl::createTYPE));

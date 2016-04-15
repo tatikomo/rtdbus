@@ -17,7 +17,7 @@
 
 // Служебные файлы RTDBUS
 #include "exchange_modbus_cli.hpp"
-#include "exchange_smad_impl.hpp"
+#include "exchange_smad_int.hpp"
 
 using namespace rapidjson;
 using namespace std;
@@ -273,7 +273,10 @@ client_status_t RTDBUS_Modbus_client::connect()
     m_status = STATUS_OK_NOT_CONNECTED;
     // Подключиться не получилось, поэтому освободим память,
     // выделенную в modbus_new_tcp() или modbus_new_rtu()
-    modbus_free(m_ctx);
+    if (!m_ctx) {
+      modbus_free(m_ctx);
+      m_ctx = NULL;
+    }
   }
 
   return m_status;
@@ -294,12 +297,12 @@ client_status_t RTDBUS_Modbus_client::run()
       return m_status;
   }
 
-  // Открыть SMAD из указанного снимка
-  m_smad = new SMAD(m_config->smad_filename().c_str());
+  // Открыть InternalSMAD из указанного снимка
+  m_smad = new InternalSMAD(m_config->smad_filename().c_str());
 
-  // Открыть SMAD указанной СС
-  if (SMAD::STATE_OK != m_smad->connect(m_config->name().c_str())) {
-    LOG(ERROR) << "Unable to continue without SMAD " << m_config->name();
+  // Открыть InternalSMAD указанной СС
+  if (STATE_OK != m_smad->connect(m_config->name().c_str(), TYPE_LOCAL_SA)) {
+    LOG(ERROR) << "Unable to continue without InternalSMAD " << m_config->name();
     m_status = STATUS_FATAL_SMAD;
     // NB: m_smad будет удалён в деструкторе
     return m_status;
@@ -308,7 +311,7 @@ client_status_t RTDBUS_Modbus_client::run()
   // Загрузить в неё параметры
   if (STATUS_OK_SMAD_LOAD != init_smad_parameters())
   {
-    LOG(ERROR) << "Unable to init SMAD";
+    LOG(ERROR) << "Unable to init InternalSMAD";
     m_status = STATUS_FATAL_SMAD;
     return m_status;
   }
@@ -324,6 +327,7 @@ client_status_t RTDBUS_Modbus_client::run()
       switch(m_status) {
           case STATUS_OK_CONNECTED:
             sleep (m_config->timeout());
+            if (g_interrupt) break;
             m_status = ask();
             break;
 
@@ -336,6 +340,7 @@ client_status_t RTDBUS_Modbus_client::run()
           case STATUS_OK_NOT_CONNECTED:
             // Повторное подключение, чуть подождем...
             sleep (m_config->timeout());
+            if (g_interrupt) break;
             // NB: break пропущен специально
           case STATUS_OK_SMAD_LOAD:
             // попытаться подключиться к очередному серверу после начала работы
@@ -680,7 +685,7 @@ int RTDBUS_Modbus_client::parse_HR_IR(address_map_t* address_map, ModbusOrderDes
                   << ", valid=" << item.valid;
       } // конец проверки, что значение не вышло за допустимый диапазон
 
-      // Занести значение в SMAD
+      // Занести значение в InternalSMAD
       m_smad->push(item);
 
     } // конец блока обработки значения, присутствующего в конфигурации
@@ -715,7 +720,7 @@ int RTDBUS_Modbus_client::parse_HC_IC(address_map_t* address_map, ModbusOrderDes
       // TODO: получить достоверность дискретов
       item.valid_acq = item.valid = 0; // GOF_D_ACQ_VALID
 
-      // Занести значение в SMAD
+      // Занести значение в InternalSMAD
       m_smad->push(item);
     }
   }
@@ -769,7 +774,7 @@ int RTDBUS_Modbus_client::parse_FP(address_map_t* address_map, ModbusOrderDescri
                 << " ([0]=" << common.i_values[0] <<" [1]=" << common.i_values[1] << ")"
                 << ", idx=" << register_idx;
 
-      // Занести значение в SMAD
+      // Занести значение в InternalSMAD
       // TODO: возможно предварительное занесение данных во внутренний буфер, с тем чтобы потом разово
       // в одной транзакции занести оттуда данные в БД. Это ускорит работу за счёт отказа от создания
       // транзакции на каждый параметр в отдельности.
@@ -898,7 +903,7 @@ int RTDBUS_Modbus_client::read_config()
 {
   int status = 0;
 
-  m_config = new ExchangeConfig(m_config_filename);
+  m_config = new AcquisitionSystemConfig(m_config_filename);
 
   if (-1 == (status = m_config->load())) {
     LOG(ERROR) << "бяка config";
@@ -909,7 +914,7 @@ int RTDBUS_Modbus_client::read_config()
 
 // ==========================================================================================
 // На основе ранее прочитанных из конфигурационного файла списков параметров
-// создать с именем, соответствующим коду системы сбора, таблицу в SMAD,
+// создать с именем, соответствующим коду системы сбора, таблицу в InternalSMAD,
 // и заполнить её списком параметров. Параллельно собрать такую же информацию
 // в виде сортированного по адресу дерева для каждого из типов обработки.
 client_status_t RTDBUS_Modbus_client::init_smad_parameters() // загрузка параметров обмена

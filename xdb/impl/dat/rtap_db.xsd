@@ -44,6 +44,7 @@ elementFormDefault="qualified" attributeFormDefault="unqualified">
     <xs:enumeration value="SUPPLIER"/>
     <xs:enumeration value="SUPPLIERMODE"/>
     <xs:enumeration value="SUPPLIERSTATE"/>
+    <xs:enumeration value="EXPMODE"/>
     <xs:enumeration value="SYNTHSTATE"/>
     <xs:enumeration value="DELEGABLE"/>
     <xs:enumeration value="PREV_SHIFT_TIME"/>

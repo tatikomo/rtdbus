@@ -58,6 +58,7 @@ MCO_RET writeSTATUS (mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*);
 MCO_RET writeSUPPLIER (mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*);
 MCO_RET writeSUPPLIERMODE (mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*);
 MCO_RET writeSUPPLIERSTATE (mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*);
+MCO_RET writeEXPMODE (mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*);
 MCO_RET writeSYNTHSTATE (mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*);
 MCO_RET writeTSSYNTHETICAL (mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*);
 MCO_RET writeTYPE (mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*);

@@ -132,7 +132,11 @@ static const read_attribs_on_sbs_event_t g_attribs_on_event[] = {
 /* 49*/ {GOF_D_BDR_OBJCLASS_UNUSED, 0, {}}, /* Missing */
 /* -------------------------------------  System objects    */
 /* NB: update GOF_D_BDR_OBJCLASS_SYSTLAST when adding an System objects */
-/* 50*/ {GOF_D_BDR_OBJCLASS_SA,     0, {}},         /* Система сбора данных */
+/* GEV: EGSA подписывается на три атрибута у каждой системы сбора */
+/* 50*/ {GOF_D_BDR_OBJCLASS_SA,     3, {
+                                    RTDB_ATT_IDX_EXPMODE,
+                                    RTDB_ATT_IDX_INHIB,
+                                    RTDB_ATT_IDX_SYNTHSTATE}},  /* Система сбора данных */
 /* -------------------------------------  Alarms objects    */
 /* 51*/ {GOF_D_BDR_OBJCLASS_GENAL,  0, {}},         /*  */
 /* 52*/ {GOF_D_BDR_OBJCLASS_USERAL, 0, {}},         /*  */

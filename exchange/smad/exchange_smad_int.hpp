@@ -1,5 +1,5 @@
-#ifndef EXCHANGE_SMAD_IMPL_H
-#define EXCHANGE_SMAD_IMPL_H
+#ifndef EXCHANGE_SMAD_INTERNAL_H
+#define EXCHANGE_SMAD_INTERNAL_H
 #pragma once
 
 #ifdef HAVE_CONFIG_H
@@ -19,53 +19,61 @@
 // Доступ к БД кратковременного хранения данных, поступивших от СС
 // На период отсутствия связи между модулем сбора и верхним уровнем данные кратковременно
 // накапливаются в локальной БД SMAD, для последующей передачи на верхний уровень.
-class SMAD
+class InternalSMAD
 {
   public:
-    // текущее состояние подключения
-    typedef enum { STATE_OK = 1, STATE_DISCONNECTED = 2, STATE_ERROR = 3 } connection_state_t;
-
     // ПОдключиться к указанному снимку БД
-    SMAD(const char*);
-   ~SMAD();
+    InternalSMAD(const char*);
+   ~InternalSMAD();
 
-    // Подключиться к указанной таблице SMAD
-    connection_state_t connect(const char*);
-    connection_state_t state() { return m_state; };
-    // Занести значение в SMAD
+    // Подключиться к указанной таблице InternalSMAD, создав новую запись для указанной СС
+    // NB: используется модулем СС
+    smad_connection_state_t connect(const char*, sa_object_type_t);
+    // Подключиться к указанной СС, не создавая новых записей
+    // NB: используется EGSA
+    smad_connection_state_t attach(const char*, sa_object_type_t);
+    smad_connection_state_t state() { return m_state; };
+    sa_object_type_t type() { return m_sa_object_type; };
+    // Занести значение в InternalSMAD
     int push(const sa_parameter_info_t&);
-    // Удалить из SMAD уже переданные наружу значения
+    // Прочитать измененные значения
+    int pop(sa_parameters_t&);
+    // Удалить из InternalSMAD уже переданные наружу значения
     int purge(time_t);
     // Установить первоначальное значения параметра, найти и установить
     // идентификатор этой новой записи
     int setup_parameter(sa_parameter_info_t&);
     // Изменить/вернуть ежим журналирования БД для ускорения занесения в неё данных
     void accelerate(bool);
-    // Обновить отметку времени последнего обмена с системой сбора в таблице SMAD
+    // Обновить отметку времени последнего обмена с системой сбора в таблице InternalSMAD
     int update_last_acq_info();
 
   private:
-    DISALLOW_COPY_AND_ASSIGN(SMAD);
+    DISALLOW_COPY_AND_ASSIGN(InternalSMAD);
     // Создать таблицу по заданному имени и SQL-выражению
     bool create_table(const char*, const char*);
     // Удалить целиком указанную таблицу 
     bool drop_table(const char*);
     // Удалить из таблиц аккумулятора и НСИ сведения об указанной СС
     int drop_dict(const char*, uint64_t);
+    // Проверка существования указанной таблицы
+    bool table_existance(const char*);
     // Получить идентификатор системы сбора с указанным именем
     bool get_sa_reference(char*, uint64_t&);
 
     // -------------------------------------------------------------------
-    // Название таблицы с описанием систем сбора, включенных в эту зону SMAD
+    // Название таблицы с описанием систем сбора, включенных в эту зону InternalSMAD
     static const char *s_SMAD_DESCRIPTION_TABLENAME;
     // Название таблицы с описанием параметров, принадлежащих данной СС
     static const char *s_SA_DICT_TABLENAME;
-    // Название таблицы, аккумулирующей данные от всех систем сбора этой зоны SMAD
+    // Название таблицы, аккумулирующей данные от всех систем сбора этой зоны InternalSMAD
     static const char *s_SA_DATA_TABLENAME;
 
-    // Команда создания таблицы SMAD в случае, если ранее её не было
+    // Проверка существования таблицы
+    static const char *s_SQL_CHECK_TABLE_TEMPLATE;
+    // Команда создания таблицы InternalSMAD в случае, если ранее её не было
     static const char *s_SQL_CREATE_SMAD_TEMPLATE;
-    // Шаблон занесения данных в таблицу SMAD
+    // Шаблон занесения данных в таблицу InternalSMAD
     static const char *s_SQL_INSERT_SMAD_TEMPLATE;
     // Команда создания таблицы НСИ СС в случае, если ранее её не было
     static const char *s_SQL_CREATE_SA_TEMPLATE;
@@ -89,10 +97,10 @@ class SMAD
     static const char *s_SQL_INSERT_SA_DATA_VALUES_FLOAT_TEMPLATE;
     // Выбрать ссылку параметра из справочной таблицы указанной системы сбора
     static const char *s_SQL_SELECT_SA_DICT_REF;
-    // Выбрать количество записей об указанной системе сбора из конфигурации SMAD
+    // Выбрать количество записей об указанной системе сбора из конфигурации InternalSMAD
     static const char *s_SQL_SELECT_SMAD_SA_COUNT;
-    // Прочитать идентификатор искомой СС из таблицы SMAD
-    static const char *s_SQL_SELECT_ID_FROM_SA;
+    // Прочитать идентификатор искомой СС из таблицы InternalSMAD
+    static const char *s_SQL_SELECT_SA_ID_FROM_SMAD;
     // Удалить данные очищаемой СС из аккумуляторной таблицы по идентификатору
     static const char *s_SQL_DELETE_SA_DATA_BY_REF;
     // Удалить данные очищаемой СС из аккумуляторной таблицы по её имени
@@ -105,7 +113,8 @@ class SMAD
     static const char *s_SQL_UPDATE_SMAD_SA_LASTPROBE;
 
     sqlite3* m_db;
-    connection_state_t  m_state;
+    smad_connection_state_t  m_state;
+    sa_object_type_t    m_sa_object_type;
     char*    m_db_err;
     char*    m_snapshot_filename;
     char*    m_sa_name;

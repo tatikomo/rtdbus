@@ -952,8 +952,7 @@ void DiggerPoller::work()
           }
         } // Конец цикла сбора информации о модифицированных точках
 
-        // TODO: Сбросить признак модификации для успешно переданных точек
-#warning "Сбросить признак модификации для всех успешно переданных точек"
+        // Сбросить признак модификации для успешно переданных точек
         operation.action.query = xdb::rtQUERY_SBS_POINTS_DISARM_BY_LIST;
         operation.buffer = &sbs_points_ready_to_clear_modif_flags;
         status = db_connection->QueryDatabase(operation);

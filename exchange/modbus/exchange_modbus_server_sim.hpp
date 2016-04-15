@@ -55,7 +55,7 @@ class RTDBUS_Modbus_server {
     // Область полученного от Клиента запроса
     uint8_t    *m_query;
     // Доступ к конфигурационным данным СС
-    ExchangeConfig* m_config;
+    AcquisitionSystemConfig* m_config;
 
     supply_info_t m_supply_info[MBUS_TYPE_SUPPORT_UNK] = 
     {

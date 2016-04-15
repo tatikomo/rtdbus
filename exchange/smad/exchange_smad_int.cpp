@@ -11,7 +11,7 @@
 
 // Служебные файлы RTDBUS
 #include "exchange_config.hpp"
-#include "exchange_smad_impl.hpp"
+#include "exchange_smad_int.hpp"
 
 // Структура общей таблицы "SMAD"
 // ---+-------------+-----------+--------------+
@@ -19,11 +19,12 @@
 // ---+-------------+-----------+--------------+
 //  1 | ID          | INTEGER   | generated    |<---+
 //  2 | NAME        | TEXT      |              |    |
-//  3 | STATE       | INTEGER   | 0            |    |
-//  4 | DELEGATION  | INTEGER   | 1            |    |
-//  5 | LAST_PROBE  | TIME      |              |    |   // Когда в последний раз опрашивалась модулем
-//  6 | LAST_SENT   | TIME      |              |    |   // Последний раз, когда данные были отправлены клиенту
-//  7 | MODE        | TEXT      |              |    |   
+//  3 | TYPE        | INTEGER   |              |    |   // Тип: СС, ЛПУ, ЦДП, ...
+//  4 | STATE       | INTEGER   | 0            |    |
+//  5 | DELEGATION  | INTEGER   | 1            |    |
+//  6 | LAST_PROBE  | TIME      |              |    |   // Когда в последний раз опрашивалась модулем
+//  7 | LAST_SENT   | TIME      |              |    |   // Последний раз, когда данные были отправлены клиенту
+//  8 | MODE        | TEXT      |              |    |   
 // ---+-------------+-----------+--------------+    |
 //                                                  |
 // Структура таблицы описания параметров СС "DICT"  |
@@ -56,21 +57,22 @@
 //  7 | G_VAL       | REAL      | 0            |        // Дробное значение параметра
 // ---+-------------+-----------+--------------+
 // Команда создания таблицы SMAD в случае, если ранее её не было
-const char *SMAD::s_SQL_CREATE_SMAD_TEMPLATE =
+const char *InternalSMAD::s_SQL_CREATE_SMAD_TEMPLATE =
     "CREATE TABLE IF NOT EXISTS %s "
     "("
     "ID INTEGER PRIMARY KEY,"       // Уник. идентификатор записи
     "NAME TEXT NOT NULL,"           // Тег СС
+    "TYPE INTEGER DEFAULT 0,"       // Тип системы - локальная СС, смежное ЛПУ, подчиненное ЛПУ, ЦДП, РПУ,..
     "STATE INTEGER DEFAULT 0,"      // Состояние СС { Недоступно(0)|Инициализация(1)|Работа(2) }
     "DELEGATION INTEGER DEFAULT 1," // Режим управления CC { Местный(1)|Дистанционный(0) }
     "LAST_PROBE INTEGER,"           // Время последнего сеанса работы модуля с Системой Сбора
     "MODE TEXT"                     // Режим работы СС
     ");";
 // Шаблон занесения данных в таблицу SMAD
-const char *SMAD::s_SQL_INSERT_SMAD_TEMPLATE =
-    "INSERT INTO %s (NAME,STATE,DELEGATION,LAST_PROBE,MODE) VALUES ('%s',%d,%d,%ld,'%s');";
+const char *InternalSMAD::s_SQL_INSERT_SMAD_TEMPLATE =
+    "INSERT INTO %s (NAME,TYPE,STATE,DELEGATION,LAST_PROBE,MODE) VALUES ('%s',%d,%d,%d,%ld,'%s');";
 // Команда создания таблицы НСИ СС в случае, если ранее её не было
-const char *SMAD::s_SQL_CREATE_SA_TEMPLATE =
+const char *InternalSMAD::s_SQL_CREATE_SA_TEMPLATE =
     "CREATE TABLE IF NOT EXISTS %s "
     "("
     "ID INTEGER PRIMARY KEY,"     // Уник. идентификатор записи
@@ -89,10 +91,10 @@ const char *SMAD::s_SQL_CREATE_SA_TEMPLATE =
     "FOREIGN KEY (SA_REF) REFERENCES %s(ID) ON DELETE CASCADE"
     ");";
 // Шаблон заголовка SQL-выражения занесения данных целочисленного типа в базу
-const char *SMAD::s_SQL_INSERT_SA_HEADER_INT_TEMPLATE =
+const char *InternalSMAD::s_SQL_INSERT_SA_HEADER_INT_TEMPLATE =
     "INSERT INTO %s (SA_REF,NAME,ADDR,TYPE,TYPE_SUPPORT) VALUES\n";
 // Шаблон тела SQL-выражения занесения данных целочисленного типа в базу
-const char *SMAD::s_SQL_INSERT_SA_VALUES_INT_TEMPLATE =
+const char *InternalSMAD::s_SQL_INSERT_SA_VALUES_INT_TEMPLATE =
 //    SA_REF
 //    |     NAME
 //    |     |   ADDR
@@ -102,10 +104,10 @@ const char *SMAD::s_SQL_INSERT_SA_VALUES_INT_TEMPLATE =
     "(%lld,'%s',%d,%d,%d),\n";
 
 // Шаблон заголовка SQL-выражения занесения данных с плав. запятой в базу
-const char *SMAD::s_SQL_INSERT_SA_HEADER_FLOAT_TEMPLATE =
+const char *InternalSMAD::s_SQL_INSERT_SA_HEADER_FLOAT_TEMPLATE =
     "INSERT INTO %s (SA_REF,NAME,ADDR,TYPE,TYPE_SUPPORT,LOW_FAN,HIGH_FAN,LOW_FIS,HIGH_FIS,FACTOR) VALUES\n";
 // Шаблон тела SQL-выражения занесения данных с плав. запятой в базу
-const char *SMAD::s_SQL_INSERT_SA_VALUES_FLOAT_TEMPLATE =
+const char *InternalSMAD::s_SQL_INSERT_SA_VALUES_FLOAT_TEMPLATE =
 //    SA_REF
 //    |     NAME
 //    |     |   ADDR
@@ -120,7 +122,7 @@ const char *SMAD::s_SQL_INSERT_SA_VALUES_FLOAT_TEMPLATE =
     "(%lld,'%s',%d,%d,%d,%d,%d,%g,%g,%g),\n";
 
 // Таблица с накапливаемыми значениями параметров
-const char *SMAD::s_SQL_CREATE_SA_DATA_TEMPLATE =
+const char *InternalSMAD::s_SQL_CREATE_SA_DATA_TEMPLATE =
     "CREATE TABLE IF NOT EXISTS %s"
     "("
     "PARAM_REF INTEGER NOT NULL,"   // Ссылка на таблицу с описателями параметров СС
@@ -135,9 +137,9 @@ const char *SMAD::s_SQL_CREATE_SA_DATA_TEMPLATE =
     ");";
 
 // Шаблон заголовка SQL-выражения занесения целочисленных данных в базу
-const char *SMAD::s_SQL_INSERT_SA_DATA_HEADER_INT_TEMPLATE =
+const char *InternalSMAD::s_SQL_INSERT_SA_DATA_HEADER_INT_TEMPLATE =
     "INSERT INTO %s (PARAM_REF,Timestamp,VALID,VALID_ACQ,I_VAL) VALUES\n";
-const char *SMAD::s_SQL_INSERT_SA_DATA_VALUES_INT_TEMPLATE =
+const char *InternalSMAD::s_SQL_INSERT_SA_DATA_VALUES_INT_TEMPLATE =
     //PARAM_REF
     //|    Timestamp
     //|    |   VALID
@@ -147,9 +149,9 @@ const char *SMAD::s_SQL_INSERT_SA_DATA_VALUES_INT_TEMPLATE =
     "(%lld,%ld,%d,%d,%d);";
 
 // Шаблон заголовка SQL-выражения занесения данных с плав. запятой в базу
-const char *SMAD::s_SQL_INSERT_SA_DATA_HEADER_FLOAT_TEMPLATE =
+const char *InternalSMAD::s_SQL_INSERT_SA_DATA_HEADER_FLOAT_TEMPLATE =
     "INSERT INTO %s (PARAM_REF,Timestamp,VALID,VALID_ACQ,G_VAL) VALUES\n";
-const char *SMAD::s_SQL_INSERT_SA_DATA_VALUES_FLOAT_TEMPLATE =
+const char *InternalSMAD::s_SQL_INSERT_SA_DATA_VALUES_FLOAT_TEMPLATE =
     //PARAM_REF
     //|    Timestamp
     //|    |   VALID
@@ -159,74 +161,80 @@ const char *SMAD::s_SQL_INSERT_SA_DATA_VALUES_FLOAT_TEMPLATE =
     "(%lld,%ld,%d,%d,%g);";
 
 // Выбрать ссылку параметра из справочной таблицы указанной системы сбора
-const char *SMAD::s_SQL_SELECT_SA_DICT_REF =
+const char *InternalSMAD::s_SQL_SELECT_SA_DICT_REF =
     "SELECT ID FROM %s WHERE SA_REF=%lld AND NAME='%s';";
 // Выбрать количество записей об указанной системе сбора из конфигурации SMAD
-const char *SMAD::s_SQL_SELECT_SMAD_SA_COUNT =
+const char *InternalSMAD::s_SQL_SELECT_SMAD_SA_COUNT =
     "SELECT COUNT(*) FROM %s WHERE NAME='%s';";
 // Прочитать идентификатор искомой СС из таблицы SMAD
-const char *SMAD::s_SQL_SELECT_ID_FROM_SA =
+const char *InternalSMAD::s_SQL_SELECT_SA_ID_FROM_SMAD =
     "SELECT ID FROM %s WHERE NAME='%s';";
 // Удалить данные очищаемой СС из аккумуляторной таблицы по идентификатору
-const char *SMAD::s_SQL_DELETE_SA_DATA_BY_REF =
-    "DELETE FROM DATA WHERE DATA.PARAM_REF IN (SELECT ID FROM DICT WHERE SA_REF=%lld);";
+const char *InternalSMAD::s_SQL_DELETE_SA_DATA_BY_REF =
+    "DELETE FROM %s WHERE DATA.PARAM_REF IN (SELECT ID FROM DICT WHERE SA_REF=%lld);";
 // Удалить данные очищаемой СС из аккумуляторной таблицы по её имени
-const char *SMAD::s_SQL_DELETE_SA_DATA_BY_NAME =
+const char *InternalSMAD::s_SQL_DELETE_SA_DATA_BY_NAME =
     "DELETE FROM DATA WHERE DATA.PARAM_REF IN (SELECT DICT.ID FROM DICT,SMAD WHERE SMAD.NAME='%s' and DICT.SA_REF=SMAD.ID);";
 // Удалить НСИ очищаемой СС по её идентификатору
-const char *SMAD::s_SQL_DELETE_SA_DICT_BY_REF =
-    "DELETE FROM DICT WHERE DICT.SA_REF=%lld;";
+const char *InternalSMAD::s_SQL_DELETE_SA_DICT_BY_REF =
+    "DELETE FROM %s WHERE DICT.SA_REF=%lld;";
 // Удалить НСИ очищаемой СС по её имени
-const char *SMAD::s_SQL_DELETE_SA_DICT_BY_NAME =
+const char *InternalSMAD::s_SQL_DELETE_SA_DICT_BY_NAME =
     "DELETE FROM DICT WHERE DICT.SA_REF=(SELECT SMAD.ID FROM SMAD WHERE SMAD.NAME='%s');";
 // Обновить время последнего успешного обмена с указанной СС
-const char *SMAD::s_SQL_UPDATE_SMAD_SA_LASTPROBE =
+const char *InternalSMAD::s_SQL_UPDATE_SMAD_SA_LASTPROBE =
     "UPDATE OR ABORT %s SET LAST_PROBE=%ld WHERE ID=%lld;";
+// Проверить существование таблицы с указанным именем
+// NB: Ключевое слово "table" должно быть строчным, регистр имеет значение
+const char *InternalSMAD::s_SQL_CHECK_TABLE_TEMPLATE =
+    "SELECT count(*) FROM sqlite_master WHERE type='table' AND NAME='%s';";
 // Название таблицы с описанием систем сбора, включенных в эту зону SMAD
-const char *SMAD::s_SMAD_DESCRIPTION_TABLENAME = "SMAD";
+const char *InternalSMAD::s_SMAD_DESCRIPTION_TABLENAME = "SMAD";
 // Название таблицы с описанием параметров, принадлежащих данной СС
-const char *SMAD::s_SA_DICT_TABLENAME = "DICT";
+const char *InternalSMAD::s_SA_DICT_TABLENAME = "DICT";
 // Название таблицы, аккумулирующей данные от всех систем сбора этой зоны SMAD
-const char *SMAD::s_SA_DATA_TABLENAME = "DATA";
+const char *InternalSMAD::s_SA_DATA_TABLENAME = "DATA";
 
 // ==========================================================================================
-SMAD::SMAD(const char *filename)
+InternalSMAD::InternalSMAD(const char *filename)
  : m_db(NULL),
    m_state(STATE_DISCONNECTED),
+   m_sa_object_type(TYPE_UNKNOWN),
    m_db_err(NULL),
    m_snapshot_filename(NULL),
    m_sa_name(NULL),
    m_sa_reference(0)
 {
-  LOG(INFO) << "Constructor SMAD";
+  LOG(INFO) << "Constructor InternalSMAD";
   m_snapshot_filename = strdup(filename);
 }
 
 // ==========================================================================================
-SMAD::~SMAD()
+InternalSMAD::~InternalSMAD()
 {
   int rc;
 
-  LOG(INFO) << "Destructor SMAD";
+  LOG(INFO) << "Destructor InternalSMAD";
 
   free(m_snapshot_filename); // NB: именно free(), а не delete
   free(m_sa_name); // NB: именно free(), а не delete
 
   if (SQLITE_OK != (rc = sqlite3_close(m_db)))
-    LOG(ERROR) << "Closing SMAD DB: " << rc;
+    LOG(ERROR) << "Closing InternalSMAD DB: " << rc;
 }
 
 // ==========================================================================================
-SMAD::connection_state_t SMAD::connect(const char* sa_name)
+// Подключиться к InternalSMAD в режиме выгрузки данных, справочные таблицы не создаются
+smad_connection_state_t InternalSMAD::attach(const char* sa_name, sa_object_type_t sa_type)
 {
-  const char *fname = "connect";
-  char sql_operator[1000 + 1];
-  int printed;
+  const char *fname = "attach";
   int rc = 0;
 
   m_sa_name = strdup(sa_name);
+  m_sa_object_type = sa_type;
+
   // ------------------------------------------------------------------
-  // Открыть файл SMAD с базой данных SQLite
+  // Открыть файл InternalSMAD с базой данных SQLite
   rc = sqlite3_open_v2(m_snapshot_filename,
                        &m_db,
                        // Если таблица только что создана, проверить наличие
@@ -234,7 +242,48 @@ SMAD::connection_state_t SMAD::connect(const char* sa_name)
                        "unix-dotfile");
   if (rc == SQLITE_OK)
   {
-    LOG(INFO) << fname << ": SMAD file '" << m_snapshot_filename << "' successfuly opened";
+    LOG(INFO) << fname << ": InternalSMAD file '" << m_snapshot_filename << "' successfuly opened";
+    m_state = STATE_OK;
+  }
+  else {
+    LOG(ERROR) << fname << ": opening InternalSMAD file '" << m_snapshot_filename << "' error=" << rc;
+    m_state = STATE_ERROR;
+  }
+
+  if ((STATE_OK == m_state) && (true == get_sa_reference(m_sa_name, m_sa_reference)))
+  {
+    LOG(INFO) << "OK Attach to SA '" << sa_name << "'";
+    m_state = STATE_OK;
+  }
+  else {
+    LOG(ERROR) << "FAIL attach to SA '" << sa_name << "'";
+    m_state = STATE_DISCONNECTED;
+  }
+  return m_state;
+}
+
+// ==========================================================================================
+// Подключиться к InternalSMAD, создав все необходимые таблицы
+smad_connection_state_t InternalSMAD::connect(const char* sa_name, sa_object_type_t sa_type)
+{
+  const char *fname = "connect";
+  char sql_operator[1000 + 1];
+  int printed;
+  int rc = 0;
+
+  m_sa_name = strdup(sa_name);
+  m_sa_object_type = sa_type;
+
+  // ------------------------------------------------------------------
+  // Открыть файл InternalSMAD с базой данных SQLite
+  rc = sqlite3_open_v2(m_snapshot_filename,
+                       &m_db,
+                       // Если таблица только что создана, проверить наличие
+                       SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX,
+                       "unix-dotfile");
+  if (rc == SQLITE_OK)
+  {
+    LOG(INFO) << fname << ": InternalSMAD file '" << m_snapshot_filename << "' successfuly opened";
     m_state = STATE_OK;
 
     // Установить кодировку UTF8
@@ -249,7 +298,7 @@ SMAD::connection_state_t SMAD::connect(const char* sa_name)
       LOG(ERROR) << fname << ": Unable to set FOREIGN_KEYS support: " << m_db_err;
       sqlite3_free(m_db_err);
     }
-    else LOG(INFO) << "Enable FOREIGN_KEYS support for HDB";
+    else LOG(INFO) << "Enable FOREIGN_KEYS support";
 
 
     // Успешное подключение к БД
@@ -263,13 +312,13 @@ SMAD::connection_state_t SMAD::connect(const char* sa_name)
     {
       // Проверить запись о локальной СС.
       // Если её не было ранее, создать новую запись.
-      // Получить идентификатор записи локальной СС в общей таблице.
+      // Получить идентификатор записи локальной СС в общей таблице SMAD
       if (true == get_sa_reference(m_sa_name, m_sa_reference))
       {
         // ------------------------------------------------------------------
         // Всегда заново создавать данные CC, даже если они ранее существовали.
         // Первичной информацией должен быть конфигурационный файл, иначе возможна
-        // ситуация с рассинхронизацией структуры БД SMAD и конфигурационного файла.
+        // ситуация с рассинхронизацией структуры БД InternalSMAD и конфигурационного файла.
         drop_dict(m_sa_name, m_sa_reference);
       }
 
@@ -303,7 +352,7 @@ SMAD::connection_state_t SMAD::connect(const char* sa_name)
   }
   else
   {
-    LOG(ERROR) << fname << ": opening SMAD file '" << m_snapshot_filename << "' error=" << rc;
+    LOG(ERROR) << fname << ": opening InternalSMAD file '" << m_snapshot_filename << "' error=" << rc;
     m_state = STATE_ERROR;
   }
 
@@ -311,11 +360,33 @@ SMAD::connection_state_t SMAD::connect(const char* sa_name)
 }
 
 // ------------------------------------------------------------------
+// Выгрузить данные параметров, имещих флаг модификации с предыдущего опроса
+// Этот список затем используется для сброса флага модификации
+int InternalSMAD::pop(sa_parameters_t& params)
+{
+  sa_parameter_info_t test;
+
+  LOG(INFO) << "Read last acquired parameters";
+
+  params.clear();
+
+  strcpy(test.name, "TEST");
+  test.address = 101;
+  test.type = SA_PARAM_TYPE_TM;
+  test.g_value = 3.141592;
+  test.valid = 1;
+
+  params.push_back(test);
+
+  return 0;
+}
+
+// ------------------------------------------------------------------
 // Всегда заново создавать данные CC, даже если они ранее существовали.
 // Первичной информацией должен быть конфигурационный файл, иначе возможна
-// ситуация с рассинхронизацией структуры БД SMAD и конфигурационного файла.
+// ситуация с рассинхронизацией структуры БД InternalSMAD и конфигурационного файла.
 // Удалить записи о параметрах данной СС из DATA, затем удалить НСИ из DICT
-int SMAD::drop_dict(const char* sa_name, uint64_t sa_ref)
+int InternalSMAD::drop_dict(const char* sa_name, uint64_t sa_ref)
 {
   const char* fname = "drop_dict";
   int rc = -1;
@@ -325,27 +396,42 @@ int SMAD::drop_dict(const char* sa_name, uint64_t sa_ref)
 
   LOG(INFO) << "Drop all '" << sa_name << "' info with SMAD.reference=" << sa_ref;
 
-  sql = "BEGIN;\n";
-  printed = snprintf(sql_operator, 1000,
-                   s_SQL_DELETE_SA_DATA_BY_REF,
-                   sa_ref
-                  );
-  assert(printed < 1000);
-  sql += sql_operator;
-  sql += "\n";
+  sql = "BEGIN;";
 
-  printed = snprintf(sql_operator, 1000,
-                   s_SQL_DELETE_SA_DICT_BY_REF,
-                   sa_ref
-                  );
-  assert(printed < 1000);
-  sql += sql_operator;
+  if (table_existance(s_SA_DATA_TABLENAME)) {
+    printed = snprintf(sql_operator, 1000,
+                     s_SQL_DELETE_SA_DATA_BY_REF,
+                     s_SA_DATA_TABLENAME,
+                     sa_ref
+                    );
+    assert(printed < 1000);
+    sql += "\n";
+    sql += sql_operator;
+  }
+  else {
+    LOG(WARNING) << "Try delete from unexistent table " << s_SA_DATA_TABLENAME;
+  }
+
+  if (table_existance(s_SA_DICT_TABLENAME)) {
+    printed = snprintf(sql_operator, 1000,
+                       s_SQL_DELETE_SA_DICT_BY_REF,
+                       s_SA_DICT_TABLENAME,
+                       sa_ref
+                      );
+    assert(printed < 1000);
+    sql += "\n";
+    sql += sql_operator;
+  }
+  else {
+    LOG(WARNING) << "Try delete from unexistent table " << s_SA_DICT_TABLENAME;
+  }
+
   sql += "\nCOMMIT;";
 
   if (sqlite3_exec(m_db, sql.c_str(), 0, 0, &m_db_err)) {
-      LOG(ERROR) << fname << ": clear all info for SA '" << sa_name
-                 << "': " << m_db_err << " (" << sql << ")";
-      sqlite3_free(m_db_err);
+        LOG(ERROR) << fname << ": clear all info for SA '" << sa_name
+                   << "': " << m_db_err << " (" << sql << ")";
+        sqlite3_free(m_db_err);
   }
   else {
     rc = 0;
@@ -365,7 +451,7 @@ int SMAD::drop_dict(const char* sa_name, uint64_t sa_ref)
 
 // ==========================================================================================
 // Обновить отметку времени в таблице SMAD
-int SMAD::update_last_acq_info()
+int InternalSMAD::update_last_acq_info()
 {
   const char* fname = "update_last_acq_info";
   std::string sql = "BEGIN;\n";
@@ -394,10 +480,10 @@ int SMAD::update_last_acq_info()
 
 
 // ==========================================================================================
-// Занести указанное значение в SMAD до тех пор, пока верхний уровень не заберет его, или
-// не будет превышено время хранения в SMAD.
+// Занести указанное значение в InternalSMAD до тех пор, пока верхний уровень не заберет его,
+// или не будет превышено время хранения в InternalSMAD.
 // Предполагается, что вызывающий контекст переводит режим фиксации траназакции в "MEMORY".
-int SMAD::push(const sa_parameter_info_t& info)
+int InternalSMAD::push(const sa_parameter_info_t& info)
 {
   const char* fname = "push";
   int status = -1;
@@ -491,7 +577,7 @@ int SMAD::push(const sa_parameter_info_t& info)
 }
 
 // ==========================================================================================
-int SMAD::purge(time_t since)
+int InternalSMAD::purge(time_t since)
 {
   int status = -1;
 
@@ -504,7 +590,7 @@ int SMAD::purge(time_t since)
 
 // ===========================================================================
 // Создать соответствующую таблицу, если она ранее не существовала
-bool SMAD::create_table(const char* table_name, const char* create_template)
+bool InternalSMAD::create_table(const char* table_name, const char* create_template)
 {
   const char* fname = "create_table";
   bool created = true;
@@ -535,8 +621,43 @@ bool SMAD::create_table(const char* table_name, const char* create_template)
   return created;
 }
 
+// ===========================================================================
+bool InternalSMAD::table_existance(const char *table_name)
+{
+  int retcode;
+  bool exists = false;
+  sqlite3_stmt* stmt = 0;
+  size_t printed;
+  char sql_operator[MAX_BUFFER_SIZE_FOR_SQL_COMMAND + 1];
+
+  printed = snprintf(sql_operator,
+           MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
+           s_SQL_CHECK_TABLE_TEMPLATE,
+           table_name);
+  assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
+
+  retcode = sqlite3_prepare(m_db, sql_operator, -1, &stmt, 0);
+  if(retcode != SQLITE_OK)
+  {
+    LOG(ERROR) << "Could not execute SELECT";
+    return false;
+  }
+
+  while(sqlite3_step(stmt) == SQLITE_ROW)
+  {
+    exists = (1 == sqlite3_column_int(stmt, 0));
+  }
+  sqlite3_finalize(stmt);
+
+  if (!exists) {
+    LOG(WARNING) << "Table " << table_name << " doesn't exist";
+  }
+
+  return exists;
+}
+
 // ==========================================================================================
-bool SMAD::get_sa_reference(char* system_name, uint64_t& reference)
+bool InternalSMAD::get_sa_reference(char* system_name, uint64_t& reference)
 {
   const char *fname = "get_sa_reference";
   char sql_operator[MAX_BUFFER_SIZE_FOR_SQL_COMMAND + 1];
@@ -576,6 +697,7 @@ bool SMAD::get_sa_reference(char* system_name, uint64_t& reference)
                          s_SQL_INSERT_SMAD_TEMPLATE,
                          s_SMAD_DESCRIPTION_TABLENAME,
                          system_name,
+                         m_sa_object_type,
                          0,
                          1,
                          time(0),
@@ -602,7 +724,7 @@ bool SMAD::get_sa_reference(char* system_name, uint64_t& reference)
     // Прочитать идентификатор искомой СС из таблицы SMAD
     printed = snprintf(sql_operator,
                        MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
-                       s_SQL_SELECT_ID_FROM_SA,
+                       s_SQL_SELECT_SA_ID_FROM_SMAD,
                        s_SMAD_DESCRIPTION_TABLENAME,
                        system_name);
     assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
@@ -638,7 +760,7 @@ bool SMAD::get_sa_reference(char* system_name, uint64_t& reference)
 }
 
 // ===========================================================================
-void SMAD::accelerate(bool speedup)
+void InternalSMAD::accelerate(bool speedup)
 {
   const char* fname = "accelerate";
   const char* sync_FULL = "FULL";
@@ -725,7 +847,7 @@ void SMAD::accelerate(bool speedup)
 }
 
 // ==========================================================================================
-bool SMAD::drop_table(const char* table_name)
+bool InternalSMAD::drop_table(const char* table_name)
 {
   const char* fname = "drop_table";
   bool dropped = true;
@@ -757,7 +879,7 @@ bool SMAD::drop_table(const char* table_name)
 }
 
 // ==========================================================================================
-int SMAD::setup_parameter(sa_parameter_info_t& info)
+int InternalSMAD::setup_parameter(sa_parameter_info_t& info)
 {
   int rc = -1;
   char sql_operator[1000 + 1];

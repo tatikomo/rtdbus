@@ -9,6 +9,7 @@ import "common.proto";
 // =======================================================
 
 // Request identifier
+// NB: поддерживать синхронизацию с типами запросов в "exchange/egsa"
 enum ech_t_ReqId {
     ECH_D_GENCONTROL    = 0;  // general control
     ECH_D_INFOSACQ      = 1;  // global acquisition
@@ -26,12 +27,12 @@ enum ech_t_ReqId {
     ECH_D_INITCMD       = 13; // initialisation of the exchanges
     ECH_D_GCPRIMARY     = 14; // Primary general control
     ECH_D_GCSECOND      = 15; // Secondary general control
-    ECH_D_DIFFPRIMARY   = 16; // Primary differential acquisition
-    ECH_D_DIFFSECOND    = 17; // Secondary differential acquisition
-    ECH_D_INFODIFFUSION = 18; // Information diffusion
-    ECH_D_DELEGATION    = 19; // Process order delegation-end of delegation
-    ECH_D_GCTERTIARY    = 20; // Tertiary general control
-    ECH_D_DIFFTERTIARY  = 21; // Tertiary differential acquisition
+    ECH_D_GCTERTIARY    = 16; // Tertiary general control
+    ECH_D_DIFFPRIMARY   = 17; // Primary differential acquisition
+    ECH_D_DIFFSECOND    = 18; // Secondary differential acquisition
+    ECH_D_DIFFTERTIARY  = 19; // Tertiary differential acquisition
+    ECH_D_INFODIFFUSION = 20; // Information diffusion
+    ECH_D_DELEGATION    = 21; // Process order delegation-end of delegation
 }
 
 // acquisition mode

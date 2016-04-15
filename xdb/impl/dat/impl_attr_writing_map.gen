@@ -58,6 +58,7 @@
   m_attr_writing_func_map.insert(AttrProcessingFuncPair_t("SUPPLIER", &xdb::DatabaseRtapImpl::writeSUPPLIER));
   m_attr_writing_func_map.insert(AttrProcessingFuncPair_t("SUPPLIERMODE", &xdb::DatabaseRtapImpl::writeSUPPLIERMODE));
   m_attr_writing_func_map.insert(AttrProcessingFuncPair_t("SUPPLIERSTATE", &xdb::DatabaseRtapImpl::writeSUPPLIERSTATE));
+  m_attr_writing_func_map.insert(AttrProcessingFuncPair_t("EXPMODE", &xdb::DatabaseRtapImpl::writeEXPMODE));
   m_attr_writing_func_map.insert(AttrProcessingFuncPair_t("SYNTHSTATE", &xdb::DatabaseRtapImpl::writeSYNTHSTATE));
   m_attr_writing_func_map.insert(AttrProcessingFuncPair_t("TSSYNTHETICAL", &xdb::DatabaseRtapImpl::writeTSSYNTHETICAL));
   m_attr_writing_func_map.insert(AttrProcessingFuncPair_t("TYPE", &xdb::DatabaseRtapImpl::writeTYPE));

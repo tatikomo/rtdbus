@@ -7,14 +7,15 @@
 
 // Служебные файлы RTDBUS
 #include "exchange_config.hpp"
-#include "exchange_config_impl.hpp"
+#include "exchange_config_sac.hpp"
+#include "exchange_config_egsa.hpp"
 
-ExchangeConfig* config = NULL;
+AcquisitionSystemConfig* config = NULL;
 const char* config_filename = "BI4500.json";
 
 TEST(TestEXCHANGE, CONFIG)
 {
-  config = new ExchangeConfig(config_filename);
+  config = new AcquisitionSystemConfig(config_filename);
   ASSERT_TRUE(1 != 0);
 
   

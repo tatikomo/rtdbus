@@ -16,21 +16,21 @@
 #include "rapidjson/filereadstream.h"
 
 // Служебные файлы RTDBUS
-#include "exchange_config_impl.hpp"
+#include "exchange_config_sac.hpp"
 
 using namespace rapidjson;
 using namespace std;
 
 
 // ==========================================================================================
-ExchangeConfig::ExchangeConfig(const char* config_filename)
+AcquisitionSystemConfig::AcquisitionSystemConfig(const char* config_filename)
  : m_config_filename(NULL),
    m_config_has_good_format(false),
    m_sa_commands(),
    m_sa_common(),
    m_protocol()
 {
-  const char* fname = "ExchangeConfig()";
+  const char* fname = "AcquisitionSystemConfig()";
   FILE* f_params = NULL;
   struct stat configfile_info;
 
@@ -91,14 +91,14 @@ ExchangeConfig::ExchangeConfig(const char* config_filename)
 }
 
 // ==========================================================================================
-ExchangeConfig::~ExchangeConfig()
+AcquisitionSystemConfig::~AcquisitionSystemConfig()
 {
   free (m_config_filename); // NB: именно free() вместо delete(), как того требуют боги strdup() 
 }
 
 // ==========================================================================================
 // загрузка всех параметров обмена
-int ExchangeConfig::load()
+int AcquisitionSystemConfig::load()
 {
   const char* fname = "load";
   int status = -1;
@@ -150,7 +150,7 @@ int ExchangeConfig::load()
 // загрузка параметров обмена
 // in - параметры к приему от внешней системы
 // out - параметры к передаче в адрес внешней системы
-int ExchangeConfig::load_parameters(sa_parameters_t* in, sa_parameters_t* out)
+int AcquisitionSystemConfig::load_parameters(sa_parameters_t* in, sa_parameters_t* out)
 {
   static const char *fname = "load_parameters";
   bool test_constrains_correct;
@@ -316,7 +316,7 @@ int ExchangeConfig::load_parameters(sa_parameters_t* in, sa_parameters_t* out)
 
 // ==========================================================================================
 // Выполнить проверки возможности указанных ограничений для параметра.
-bool ExchangeConfig::check_constrains(const sa_parameter_info_t& info)
+bool AcquisitionSystemConfig::check_constrains(const sa_parameter_info_t& info)
 {
   bool status = true;
 
@@ -333,7 +333,7 @@ bool ExchangeConfig::check_constrains(const sa_parameter_info_t& info)
 
 // ==========================================================================================
 // загрузка команд управления: раздел PARAMETERS:COMMAND
-int ExchangeConfig::load_commands(sa_commands_t&)
+int AcquisitionSystemConfig::load_commands(sa_commands_t&)
 {
 //  static const char *fname = "load_commands";
   int status = 0;
@@ -343,7 +343,7 @@ int ExchangeConfig::load_commands(sa_commands_t&)
 
 // ==========================================================================================
 // Загрузка основной конфигурации из разделов COMMON, CONFIG, SERVERS
-int ExchangeConfig::load_modbus(sa_protocol_t& protocol)
+int AcquisitionSystemConfig::load_modbus(sa_protocol_t& protocol)
 {
   int status = -1;
 
@@ -361,6 +361,19 @@ int ExchangeConfig::load_modbus(sa_protocol_t& protocol)
       break;
     }
 
+    // Начальные значения
+    protocol.mbus.dubious_value = 0x7FFFF;
+    protocol.mbus.actual_HC_FUNCTION = code_MBUS_TYPE_SUPPORT_HC;
+    protocol.mbus.actual_IC_FUNCTION = code_MBUS_TYPE_SUPPORT_IC;
+    protocol.mbus.actual_HR_FUNCTION = code_MBUS_TYPE_SUPPORT_HR;
+    protocol.mbus.actual_IR_FUNCTION = code_MBUS_TYPE_SUPPORT_IR;
+    protocol.mbus.actual_FSC_FUNCTION = code_MBUS_TYPE_SUPPORT_FSC;
+    protocol.mbus.actual_PSR_FUNCTION = code_MBUS_TYPE_SUPPORT_PSR;
+    protocol.mbus.actual_FHR_FUNCTION = code_MBUS_TYPE_SUPPORT_FHR;
+    protocol.mbus.actual_FP_FUNCTION = code_MBUS_TYPE_SUPPORT_FP;
+    protocol.mbus.actual_DP_FUNCTION = code_MBUS_TYPE_SUPPORT_DP;
+
+    // Действительные значения
     if (modbus_part.HasMember(s_MODBUS_HC_FUNCTION))
       protocol.mbus.actual_HC_FUNCTION = modbus_part[s_MODBUS_HC_FUNCTION].GetInt();
     if (modbus_part.HasMember(s_MODBUS_IC_FUNCTION))
@@ -389,6 +402,8 @@ int ExchangeConfig::load_modbus(sa_protocol_t& protocol)
       protocol.mbus.telecomand_latch_address = modbus_part[s_MODBUS_TELECOMAND_LATCH_ADDRESS].GetInt();
     if (modbus_part.HasMember(s_MODBUS_VALIDITY_OFFSET))
       protocol.mbus.validity_offset = modbus_part[s_MODBUS_VALIDITY_OFFSET].GetInt();
+    if (modbus_part.HasMember(s_MODBUS_DUBIOUS_VALUE))
+      protocol.mbus.dubious_value = modbus_part[s_MODBUS_DUBIOUS_VALUE].GetDouble();
     if (modbus_part.HasMember(s_MODBUS_SLAVE_IDX))
       protocol.mbus.slave_idx = modbus_part[s_MODBUS_SLAVE_IDX].GetInt();
     else protocol.mbus.slave_idx = MODBUS_TCP_SLAVE;
@@ -407,7 +422,8 @@ int ExchangeConfig::load_modbus(sa_protocol_t& protocol)
             << " D_2D_W=" << protocol.mbus.delegation_2dipl_write
             << " D_2S_W=" << protocol.mbus.delegation_2scc_write
             << " T_L_A=" << protocol.mbus.telecomand_latch_address
-            << " V_O=" << protocol.mbus.validity_offset;
+            << " V_O=" << protocol.mbus.validity_offset
+            << " D_V=" << protocol.mbus.dubious_value;
 
     status = 0;
 
@@ -418,7 +434,7 @@ int ExchangeConfig::load_modbus(sa_protocol_t& protocol)
 
 // ==========================================================================================
 // Загрузка основной конфигурации из разделов COMMON, CONFIG, SERVERS
-int ExchangeConfig::load_opc(sa_protocol_t& protocol)
+int AcquisitionSystemConfig::load_opc(sa_protocol_t& protocol)
 {
   int status = -1;
 
@@ -447,7 +463,7 @@ int ExchangeConfig::load_opc(sa_protocol_t& protocol)
 
 // ==========================================================================================
 // Загрузка основной конфигурации из разделов COMMON, CONFIG, SERVERS
-int ExchangeConfig::load_common(sa_common_t& common)
+int AcquisitionSystemConfig::load_common(sa_common_t& common)
 {
   sa_network_address_t server_addr;
   sa_rtu_info_t rtu_info;
@@ -465,14 +481,29 @@ int ExchangeConfig::load_common(sa_common_t& common)
   common.repeat_nb = section[s_COMMON_REPEAT_NB].GetInt();
   common.error_nb = section[s_COMMON_ERROR_NB].GetInt();
   buffer = section[s_COMMON_BYTE_ORDER].GetString();
-  if (0 == buffer.compare("DCBA"))
+  if (0 == buffer.compare(s_COMMON_BYTE_ORDER_DCBA))
     common.byte_order = SA_BYTEORDER_DCBA;
-  else if (0 == buffer.compare("ABCD"))
+  else if (0 == buffer.compare(s_COMMON_BYTE_ORDER_ABCD))
     common.byte_order = SA_BYTEORDER_ABCD;
   else {
     LOG(WARNING) << "Unsupported endianess value: " << buffer << ", will use ABCD";
     common.byte_order = SA_BYTEORDER_ABCD;
   }
+
+  buffer = section[s_COMMON_TYPE].GetString();
+  if (0 == buffer.compare(s_COMMON_TYPE_LOCAL_SA))
+    common.type = TYPE_LOCAL_SA;
+  else if (0 == buffer.compare(s_COMMON_TYPE_ADJACENT))
+    common.type = TYPE_ADJACENT;
+  else if (0 == buffer.compare(s_COMMON_TYPE_UPPER))
+    common.type = TYPE_UPPER;
+  else if (0 == buffer.compare(s_COMMON_TYPE_LOWER))
+    common.type = TYPE_LOWER;
+  else {
+    LOG(FATAL) << "Unsupported sa link type: " << buffer;
+    common.type = TYPE_UNKNOWN;
+  }
+
   common.subtract = section[s_COMMON_SUB].GetInt();
 
   common.name.assign(section[s_COMMON_NAME].GetString());
@@ -600,6 +631,7 @@ int ExchangeConfig::load_common(sa_common_t& common)
             << " timeout=" << common.timeout
             << " #repeats=" << common.repeat_nb
             << " #errors=" << common.error_nb
+            << " type=" << common.type
             << " byte_order=" << common.byte_order
             << " channel=" << common.channel
             << " subtract=" <<  common.subtract

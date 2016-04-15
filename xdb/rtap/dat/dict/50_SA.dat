@@ -7,7 +7,7 @@ S SHORTLABEL         PUB        rtBYTES16
 S LOCALFLAG          PUB        rtLOGICAL      0    
 S STATUS             PUB        rtLOGICAL      0    
 S ALDEST             PUB        rtLOGICAL      
-#S EXPMODE            PUB        rtUINT8        1    
+S EXPMODE            PUB        rtUINT8        1    
 #S SASTATE            PUB        rtUINT8        0    
 S INHIB              PUB        rtLOGICAL      0    
 S ALINHIB            PUB        rtLOGICAL      0    

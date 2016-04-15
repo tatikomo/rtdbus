@@ -35,6 +35,7 @@
 <li>SUPPLIER</li>
 <li>SUPPLIERMODE</li>
 <li>SUPPLIERSTATE</li>
+<li>EXPMODE</li>
 <li>SYNTHSTATE</li>
 <li>DELEGABLE</li>
 <li>PREV_SHIFT_TIME</li>

@@ -5,10 +5,10 @@
     "ERROR_NB":   3,
     "BYTE_ORDER": "ABCD",
     "SUB":        0,
-    "DUBIOUS_VALUE": 999999999.9,
     "NAME":       "/BI4500",
+    "TYPE":       "LOCAL_SA",
     "SMAD":       "DB_LOCAL_SA.sqlite",
-    "CHANNEL":    "MODBUS-TCP",
+    "CHANNEL":    "MODBUS-RTU",
     "TRACE":      4
   },
 
@@ -28,6 +28,7 @@
     "TELECOMAND_LATCH_ADDRESS": 0,
     "VALIDITY_OFFSET":   100,
     "USE_TRANSACTION_SEQUENCE": 1,
+    "DUBIOUS_VALUE": 999999999.9,
     "SLAVE_IDX":  1
   },
 

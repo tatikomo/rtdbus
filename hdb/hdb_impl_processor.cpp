@@ -280,41 +280,6 @@ bool HistoricImpl::Disconnect()
 }
 
 // ===========================================================================
-bool HistoricImpl::is_table_exist(sqlite3 *db, const char *table_name)
-{
-  int retcode;
-  bool exists = false;
-  sqlite3_stmt* stmt = 0;
-  size_t printed;
-  char sql_operator[MAX_BUFFER_SIZE_FOR_SQL_COMMAND + 1];
-
-  printed = snprintf(sql_operator,
-           MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
-           s_SQL_CHECK_TABLE_TEMPLATE,
-           table_name);
-  assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
-
-  retcode = sqlite3_prepare(db, sql_operator, -1, &stmt, 0);
-  if(retcode != SQLITE_OK)
-  {
-    LOG(ERROR) << "Could not execute SELECT";
-    return false;
-  }
-
-  while(sqlite3_step(stmt) == SQLITE_ROW)
-  {
-    exists = (1 == sqlite3_column_int(stmt, 0));
-  }
-  sqlite3_finalize(stmt);
-
-  if (!exists) {
-    LOG(WARNING) << "Table " << table_name << " doesn't exist";
-  }
-
-  return exists;
-}
-
-// ===========================================================================
 // Создать индексы, если они ранее не существовали
 bool HistoricImpl::createIndexes()
 {
@@ -442,11 +407,6 @@ bool HistoricImpl::history_db_connect()
 
       //  Включить поддержку UTF8 и внешних ключей
       enable_features();
-
-/*    if (is_table_exist(m_hist_db, HDB_DATA_TABLENAME)) {
-    }
-    else .c_str()
-    }*/
 
       // Проверить структуру только что открытой БД.
       // Для этого получить из БДРВ список всех параметров ТИ, для которых указано сохранение истории.

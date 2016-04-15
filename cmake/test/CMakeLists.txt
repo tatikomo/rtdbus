@@ -62,8 +62,10 @@ link_directories(${LIBSQLITE_LIBRARIES_DIR})
 
 set (TEST_EXCHANGE_SOURCES
         ${GTEST_INC_DIR}/gtest/gtest.h
-        ${EXCHANGE_CONFIG_DIR}/exchange_config_impl.cpp
-        ${EXCHANGE_CONFIG_DIR}/exchange_config_impl.hpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.cpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.hpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config_sac.cpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config_sac.hpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config.hpp
         ${TEST_RTDBUS_DIR}/exchange_unittest.cpp)
 

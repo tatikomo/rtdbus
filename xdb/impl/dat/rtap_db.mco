@@ -999,6 +999,7 @@ class SA_passport       /* 50 */
   Boolean     ALDEST = FALSE;
   Boolean     ALINHIB = FALSE;
   uint1       TYPE;             // Тип СС (Зонд, FANUC, ELE,...)
+  uint1       EXPMODE;          // Режим работы СС (0 - техобслуживание, 1 - работа)
   Boolean     DELEGABLE = FALSE;// По умолчанию CC не делегирована на управление
   s_shortlabel SUPPLIERMODE;    // Режим работы СС
   s_shortlabel SUPPLIERSTATE;   // Состояние СС

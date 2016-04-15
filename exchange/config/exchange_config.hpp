@@ -9,9 +9,6 @@
 // Общесистемные заголовочные файлы
 #include <vector>
 #include <map>
-//#include <sys/types.h>
-//#include <sys/socket.h>
-//#include <netdb.h>
 
 // Названия разделов конфигурационного файла
 #define s_COMMON        "common"    // общие сведения о работе модуля
@@ -32,8 +29,9 @@
 #define s_AL        "AL"
 // TODO: Убрал точку данного типа вообще из списка параметров. Это и так понятно, что
 // должно где-то храниться состояние самой сиистемы сбора. Для этого предназначена
-// таблица SMAD, где содержится список всех СС, подключенный к данной SQLite БД SMAD.
-#define s_SA        "SA"
+// таблица SMAD во внутренней InternalSMAD, где содержится список всех СС, подключенных
+// к данной SQLite БД.
+//#define s_SA        "SA"
 
 #define s_PARAM_NAME      "NAME"
 #define s_PARAM_INCLUDE   "INCLUDE"
@@ -73,6 +71,13 @@
 #define s_COMMON_REPEAT_NB "REPEAT_NB"  // Количество последовательных попыток передачи данных при сбое
 #define s_COMMON_ERROR_NB  "ERROR_NB"   // Количество последовательных ошибок связи до диагностики разрыва связи
 #define s_COMMON_BYTE_ORDER "BYTE_ORDER"    // Порядок байт СС
+#define s_COMMON_BYTE_ORDER_DCBA "DCBA"
+#define s_COMMON_BYTE_ORDER_ABCD "ABCD"
+#define s_COMMON_TYPE      "TYPE"       // Тип системы сбора -ЛПУ, ЦДП, локальная система автоматизации
+#define s_COMMON_TYPE_LOCAL_SA  "LOCAL_SA"  // Локальная автоматизация (СЛТМ, САУ КЦ, ...)
+#define s_COMMON_TYPE_ADJACENT  "ADJACENT"  // Соседний объект
+#define s_COMMON_TYPE_UPPER "UPPER"         // Вышестоящий уровень
+#define s_COMMON_TYPE_LOWER "LOWER"         // Нижестоящий уровень
 #define s_COMMON_SUB       "SUB"        // Признак необходимости вычитания единицы из адреса 
 #define s_COMMON_NAME      "NAME"       // Тег системы сбора (СС)
 #define s_COMMON_SMAD      "SMAD"       // Название файла SQLite, содержащего данные СС
@@ -94,6 +99,7 @@
 #define s_MODBUS_DELEGATION_2SCC_WRITE      "DELEGATION_2SCC_WRITE"
 #define s_MODBUS_TELECOMAND_LATCH_ADDRESS   "TELECOMAND_LATCH_ADDRESS"
 #define s_MODBUS_VALIDITY_OFFSET            "VALIDITY_OFFSET"
+#define s_MODBUS_DUBIOUS_VALUE              "DUBIOUS_VALUE" // Константа-признак недостоверного значения
 // Раздел "config"
 // Раздел "service", группа MODBUS-TCP
 #define s_SERVICE_HOST   "HOST"     // Адрес сервера
@@ -170,7 +176,57 @@ typedef enum {
 } sa_param_type_t; //mbus_param_type_t
 
 // ---------------------------------------------------------
-// Структура хранения данных в БД SMAD
+// Тип системы сбора
+typedef enum {
+  TYPE_UNKNOWN  = 0,    // Неопределенный тип
+  TYPE_LOCAL_SA = 1,    // Локальная система автоматизации
+  TYPE_LOWER    = 30,   // Подчиненный уровень
+  TYPE_ADJACENT = 31,   // Смежный аналогичный уровень
+  TYPE_UPPER    = 50    // Вышестоящий уровень
+} sa_object_type_t;
+
+// ---------------------------------------------------------
+// Состояние системы сбора
+typedef enum {
+  SA_STATE_UNKNOWN  = -1, // Неопределенное состояние
+  SA_STATE_UNREACH  = 0,  // Недоступна
+  SA_STATE_OPER     = 1,  // Оперативная работа
+  SA_STATE_PRE_OPER = 2   // В процессе инициализации
+} sa_state_t;
+
+
+// ---------------------------------------------------------
+// definition of the nature of a Sac (site of acquisition)
+typedef enum {
+  GOF_D_SAC_NATURE_DIR,
+  GOF_D_SAC_NATURE_DIPL,
+  GOF_D_SAC_NATURE_GEKO,
+  GOF_D_SAC_NATURE_A86,
+  GOF_D_SAC_NATURE_FANUC,
+  GOF_D_SAC_NATURE_SLTM,
+  GOF_D_SAC_NATURE_ZOND,
+  GOF_D_SAC_NATURE_STI,
+  GOF_D_SAC_NATURE_SUPERRTU,
+  GOF_D_SAC_NATURE_GPRI,
+  GOF_D_SAC_NATURE_ESTM,
+  GOF_D_SAC_NATURE_EELE,
+  GOF_D_SAC_NATURE_ESIR,
+  GOF_D_SAC_NATURE_EIMP,
+  GOF_D_SAC_NATURE_EUNK,
+  GOF_D_SAC_NATURE_SDEC,
+  GOF_D_SAC_NATURE_SCCSC
+} gof_t_SacNature;
+
+// ---------------------------------------------------------
+// текущее состояние подключения к SMAD
+typedef enum {
+  STATE_OK      = 1,
+  STATE_DISCONNECTED = 2,
+  STATE_ERROR   = 3
+} smad_connection_state_t;
+
+// ---------------------------------------------------------
+// Структура хранения данных в БД InternalSMAD
 typedef struct {
   char      name[sizeof(wchar_t)*TAG_NAME_MAXLEN + 1]; // название тега
   int       address;    // MODBUS-адрес регистра
@@ -216,7 +272,8 @@ typedef struct {
   int timeout;      // Таймаут ожидания ответа в секундах
   int repeat_nb;    // Количество последовательных попыток передачи данных при сбое
   int error_nb;     // Количество последовательных ошибок связи до диагностики разрыва связи
-  sa_endianess_t byte_order;   // Порядок байт СС
+  sa_endianess_t byte_order;    // Порядок байт СС
+  sa_object_type_t type;        // Тип системы сбора
   int subtract;     // Признак необходимости вычитания единицы из адреса 
   std::string name; // Тег системы сбора (СС)
   std::string smad; // Название файла SQLite, содержащего данные СС
@@ -244,6 +301,7 @@ typedef struct {
   int delegation_2scc_write;
   int telecomand_latch_address;
   int validity_offset;
+  double dubious_value;         // Константа-признак недостоверного значения
 } mbus_common_info_t;
 
 typedef struct {

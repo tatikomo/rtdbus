@@ -5215,6 +5215,29 @@ MCO_RET DatabaseRtapImpl::createSUPPLIERSTATE(PointInDatabase* instance, rtap_db
   return rc;
 }
 
+// ======================== EXPMODE ============================
+// Числовое состояние работы Поставщика - техобслуживание (0) или работа (1)
+MCO_RET DatabaseRtapImpl::createEXPMODE(PointInDatabase* instance, rtap_db::Attrib& attr)
+{
+  static const char *attr_name = RTDB_ATT_EXPMODE;
+  MCO_RET rc = MCO_S_NOTFOUND;
+  Boolean result;
+  uint1   value = atoi(attr.value().c_str());
+
+  switch(instance->objclass())
+  {
+    case SA:
+    rc = instance->passport().sa->EXPMODE_put((value == 0)? 0 : 1);
+    break;
+
+    default:
+    LOG(ERROR) << "'" << attr_name
+               << "' for objclass " << instance->objclass()
+               << " is not supported";
+  }
+  return rc;
+}
+
 // ======================== L_CONSUMER ============================
 // Ссылка на Потребителя
 MCO_RET DatabaseRtapImpl::createL_CONSUMER(PointInDatabase* instance, rtap_db::Attrib& attr)

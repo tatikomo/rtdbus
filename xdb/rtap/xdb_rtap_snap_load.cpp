@@ -67,6 +67,11 @@ int filter(const struct dirent*);
 // ==================================================================
 // Прочитать все содержимое БД, расположенное в виде набора XML-файлов
 // формата XScheme (rtap_db.xsd и rtap_db_dict.xsd)
+//
+// TODO: для работы EGSA требуется оперативно получать сведения об изменениях
+// состояния систем сбора. Необходимо автоматически формировать группу подписки
+// EGSA, содержащую все точки систем сбора (objclass = 50).
+// Тогда модулю EGSA будет достаточно активировать эту группу для работы.
 bool xdb::loadFromXML(RtEnvironment* env, const char* env_path)
 {
   char file_path[400+1];
@@ -91,7 +96,7 @@ bool xdb::loadFromXML(RtEnvironment* env, const char* env_path)
   }
 
   applyClassListToDB(env, dictionary, point_list);
-
+#warning "Автоматически создать группу для EGSA из точек типа \"Система Сбора\""
   status = loadSubscriptionGroups(env, env_path);
   if (!status)
   {
