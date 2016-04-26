@@ -28,6 +28,7 @@ if ("${sysname}" MATCHES "SUNOS")
     else (CMAKE_COMPILER_IS_GNUCC)
 #     add_definitions(-xarch=v9)
       add_definitions(+w2)
+      add_definitions(-pg)
       add_definitions("-Qoption ccfe -complextmplexp")
       add_definitions(-library=stlport4)
       # replace internal gcc function for branch execution prediction

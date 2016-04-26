@@ -67,6 +67,8 @@ typedef enum {
   STATUS_OK_CONNECTED,
   // Не подключён, требуется переподключение
   STATUS_OK_NOT_CONNECTED,
+  // Не подключён, выполняется останов
+  STATUS_OK_SHUTTINGDOWN,
   // Подключён, требуется переподключение
   STATUS_FAIL_NEED_RECONNECTED,
   // Не подключён, переподключение нек удалось

@@ -58,20 +58,26 @@ sa_state_t SystemAcquisition::state()
 // -----------------------------------------------------------------------------------
 int SystemAcquisition::control(int code)
 {
+  int rc = NOK;
+
   // TODO: Передать интерфейсному модулю указанную команду
   LOG(INFO) << "Control SA '" << m_name << "' with " << code << " code";
-  return 0;
+  return rc;
 }
 
 // Прочитать изменившиеся данные
 int SystemAcquisition::pop(sa_parameters_t&)
 {
-  return 0;
+  int rc = NOK;
+  LOG(INFO) << "Pop changed data from SA '" << m_name << "'";
+  return rc;
 }
 
 // Передать в СС указанные значения
 int SystemAcquisition::push(sa_parameters_t&)
 {
-  return 0;
+  int rc = NOK;
+  LOG(INFO) << "Push data to SA '" << m_name << "'";
+  return rc;
 }
 

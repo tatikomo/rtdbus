@@ -212,9 +212,9 @@ typedef enum {
   GOF_D_SAC_NATURE_EELE,
   GOF_D_SAC_NATURE_ESIR,
   GOF_D_SAC_NATURE_EIMP,
-  GOF_D_SAC_NATURE_EUNK,
   GOF_D_SAC_NATURE_SDEC,
-  GOF_D_SAC_NATURE_SCCSC
+  GOF_D_SAC_NATURE_SCCSC,
+  GOF_D_SAC_NATURE_EUNK // NB: должен идти последним элементом
 } gof_t_SacNature;
 
 // ---------------------------------------------------------

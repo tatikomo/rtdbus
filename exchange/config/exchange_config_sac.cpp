@@ -101,13 +101,13 @@ AcquisitionSystemConfig::~AcquisitionSystemConfig()
 int AcquisitionSystemConfig::load()
 {
   const char* fname = "load";
-  int status = -1;
+  int status = NOK;
 
   do {
 
    // загрузка основной конфигурации: разделы COMMON, CONFIG, SERVERS
     status = load_common(m_sa_common);
-    if (-1 == status) {
+    if (NOK == status) {
       LOG(ERROR) << fname << ": Get control configuration";
       break;
     }
@@ -121,25 +121,25 @@ int AcquisitionSystemConfig::load()
         status = load_opc(m_protocol);
         break;
       case SA_MODE_UNKNOWN:
-        status = -1;
+        status = NOK;
         LOG(ERROR) << "Unsupported channel type: " << channel();
     }
 
     // загрузка параметров обмена: разделы PARAMETERS:ACQUISITION, PARAMETERS:TRANSMISSION
     status = load_parameters(&m_sa_parameters_input, &m_sa_parameters_output);
-    if (-1 == status) {
+    if (NOK == status) {
       LOG(ERROR) << fname << ": Get in/out parameters";
       break;
     }
 
     // загрузка команд управления: раздел PARAMETERS:COMMAND
     status = load_commands(m_sa_commands);
-    if (-1 == status) {
+    if (NOK == status) {
       LOG(ERROR) << fname << ": Get command parameters";
       break;
     }
 
-    status = 0;
+    status = OK;
 
   } while(false);
 
@@ -154,7 +154,7 @@ int AcquisitionSystemConfig::load_parameters(sa_parameters_t* in, sa_parameters_
 {
   static const char *fname = "load_parameters";
   bool test_constrains_correct;
-  int status = 0;
+  int status = OK;
   // Значения атрибутов прочитанных из конфигурации параметров
   int include;              // Признак необходимости передачи параметра в БДРВ
   std::string s_type;       // Символьное значения типа параметра
@@ -336,7 +336,7 @@ bool AcquisitionSystemConfig::check_constrains(const sa_parameter_info_t& info)
 int AcquisitionSystemConfig::load_commands(sa_commands_t&)
 {
 //  static const char *fname = "load_commands";
-  int status = 0;
+  int status = OK;
 
   return status;
 }
@@ -345,7 +345,7 @@ int AcquisitionSystemConfig::load_commands(sa_commands_t&)
 // Загрузка основной конфигурации из разделов COMMON, CONFIG, SERVERS
 int AcquisitionSystemConfig::load_modbus(sa_protocol_t& protocol)
 {
-  int status = -1;
+  int status = NOK;
 
   do {
     if (!m_document.HasMember(s_MODBUS)) {
@@ -425,7 +425,7 @@ int AcquisitionSystemConfig::load_modbus(sa_protocol_t& protocol)
             << " V_O=" << protocol.mbus.validity_offset
             << " D_V=" << protocol.mbus.dubious_value;
 
-    status = 0;
+    status = OK;
 
   } while (false);
 
@@ -436,7 +436,7 @@ int AcquisitionSystemConfig::load_modbus(sa_protocol_t& protocol)
 // Загрузка основной конфигурации из разделов COMMON, CONFIG, SERVERS
 int AcquisitionSystemConfig::load_opc(sa_protocol_t& protocol)
 {
-  int status = -1;
+  int status = NOK;
 
   do {
     if (!m_document.HasMember(s_OPC)) {
@@ -454,7 +454,7 @@ int AcquisitionSystemConfig::load_opc(sa_protocol_t& protocol)
 
     protocol.opc.lala = 0;
 
-    status = 0;
+    status = OK;
 
   } while (false);
 
@@ -468,7 +468,7 @@ int AcquisitionSystemConfig::load_common(sa_common_t& common)
   sa_network_address_t server_addr;
   sa_rtu_info_t rtu_info;
   std::string buffer;
-  int status = 0;
+  int status = OK;
   int server_idx = 0;
 
   assert(m_document.HasMember(s_COMMON));
@@ -514,7 +514,7 @@ int AcquisitionSystemConfig::load_common(sa_common_t& common)
   }
   else {
     LOG(FATAL) << "Unsupported SA code: '" << common.name << "'";
-    status = 1;
+    status = NOK;
   }
 
   common.smad.assign(section[s_COMMON_SMAD].GetString());
@@ -529,7 +529,7 @@ int AcquisitionSystemConfig::load_common(sa_common_t& common)
   else {
     common.channel = SA_MODE_UNKNOWN;
     LOG(FATAL) << "Server mode is unknown: " << buffer;
-    status = 1;
+    status = NOK;
   }
 
   if (section.HasMember(s_COMMON_TRACE))
@@ -622,9 +622,8 @@ int AcquisitionSystemConfig::load_common(sa_common_t& common)
   }
   else {
     LOG(ERROR) << "Unsupported SERVICE section format";
-    status = 1;
+    status = NOK;
   }
-
 
   LOG(INFO) << "COMMON " << common.name
             << ": channel=" << common.channel

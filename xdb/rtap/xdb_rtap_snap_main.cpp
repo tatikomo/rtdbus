@@ -33,6 +33,7 @@ int main(int argc, char** argv)
   bool is_translation_given = false;
   char command_name[SERVICE_NAME_MAXLEN + 1];
   int  opt;
+  int  rc = OK;
   RtConnection *connection = NULL;
   RtApplication *app = NULL;
 
@@ -152,12 +153,14 @@ int main(int argc, char** argv)
           case LOAD_FROM_XML:
             if (true == loadFromXML(env, env_path))
               LOG(INFO) << "XML data was successfuly loaded for " << database_name;
+            else rc = NOK;
           break;
 
           case SAVE_TO_XML:
             snprintf(file_path, sizeof(file_path), "%s/%s.dump.xml", env_path, database_name);
             if (true == saveToXML(env, file_path))
               LOG(INFO) << "XML data was successfuly saved for " << database_name;
+            else rc = NOK;
           break;
         }
 
@@ -167,12 +170,13 @@ int main(int argc, char** argv)
       catch (const XMLException& toCatch)
       {
         LOG(ERROR) << "XML engine error :" << toCatch.getMessage();
+        rc = NOK;
       }
 
       delete connection;
       delete app;
   }
 
-  return 0;
+  return (OK == rc)? EXIT_SUCCESS : EXIT_FAILURE;
 }
 

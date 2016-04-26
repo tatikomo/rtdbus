@@ -31,6 +31,7 @@ link_directories(${EXCHANGE_LIB_DIR})
 set (MODULE_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
         ${XDB_COMMON_DIR}/xdb_common.cpp
+        ${TOOLS_DIR}/tool_timer.hpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config.hpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.hpp
         ${EXCHANGE_SMAD_DIR}/exchange_smad_int.hpp
@@ -42,6 +43,10 @@ set (MODULE_SOURCES
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_sa.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_sa.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_main.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_request_base.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_request_cyclic.hpp
         )
 
 #if (CMAKE_COMPILER_IS_GNUCC)
@@ -58,6 +63,7 @@ target_link_libraries(${MODULE_NAME}
     ${EXCHANGE_LIBRARY_NAME}
     ${LIBMODBUS_LIBRARIES}
     ${LIBGLOG_LIBRARIES}
+    ${TOOLS_LIBRARY_NAME}
     ${LIBSQLITE_LIBRARIES}
     ${SYSTEM_EXTERNAL_LIBS})
 

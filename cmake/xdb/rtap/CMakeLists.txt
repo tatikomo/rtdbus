@@ -79,7 +79,6 @@ add_custom_command(
 set (XDB_RTAP_SNAP_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
         ${TOOLS_DIR}/helper.hpp
-        ${TOOLS_DIR}/helper.cpp
         ${XDB_IMPL_DIR}/dat/rtap_db-pskel.hxx
         ${XDB_IMPL_DIR}/dat/rtap_db-pskel.cxx
         ${XDB_IMPL_DIR}/dat/rtap_db-pimpl.hxx
@@ -100,7 +99,6 @@ set (XDB_RTAP_SNAP_SOURCES
 set (XDB_RTAP_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
         ${TOOLS_DIR}/helper.hpp
-        ${TOOLS_DIR}/helper.cpp
         ${MSG_DIR}/msg_message.hpp
         ${XDB_COMMON_DIR}/xdb_common.cpp
         ${XDB_COMMON_DIR}/xdb_common.hpp
@@ -140,6 +138,7 @@ add_library (${XDB_RTAP_LIBRARY_NAME} ${XDB_RTAP_SOURCES})
 target_link_libraries(${XDB_RTAP_LIBRARY_NAME}
     ${MSG_LIBRARY_NAME}
     ${XDB_RTAP_IMPL_LIBRARY_NAME}
+    ${TOOLS_LIBRARY_NAME}
     ${SYSTEM_EXTERNAL_LIBS})
 
 add_executable (${XDB_RTAP_SNAP_NAME} ${XDB_RTAP_SNAP_SOURCES})
@@ -148,6 +147,7 @@ target_link_libraries(${XDB_RTAP_SNAP_NAME}
     ${XDB_RTAP_IMPL_LIBRARY_NAME}
     ${LIBZMQ_LIBRARIES}
     ${LIBGLOG_LIBRARIES}
+    ${TOOLS_LIBRARY_NAME}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${SYSTEM_EXTERNAL_LIBS})
 

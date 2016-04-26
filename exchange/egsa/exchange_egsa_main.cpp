@@ -14,15 +14,18 @@
 
 int main()
 {
+  int rc = NOK;
   EGSA* instance = NULL;
 
   instance = new EGSA();
   LOG(INFO) << "Start EGSA instance";
 
-  int rc = instance->run();
+  if (OK == instance->init()) {
+    rc = instance->run();
+  }
 
   LOG(INFO) << "Finish EGSA instance, rc=" << rc;
 
-  return rc;
+  return (OK == rc)? EXIT_SUCCESS : EXIT_FAILURE;
 }
 

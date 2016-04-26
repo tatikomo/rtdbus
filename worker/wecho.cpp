@@ -1,4 +1,6 @@
-#include <glog/logging.h>
+#include "glog/logging.h"
+
+#include "config.h"
 
 #include "zmq.hpp"
 #include "mdp_zmsg.hpp"
@@ -9,6 +11,7 @@ extern int interrupt_worker;
 
 int Echo::handle_request(mdp::zmsg* request, std::string*& reply_to)
 {
+  int rc = OK;
   assert (request->parts () >= 1);
   LOG(INFO) << "Process new request with " << request->parts() 
     << " parts and reply to " << reply_to;
@@ -21,12 +24,14 @@ int Echo::handle_request(mdp::zmsg* request, std::string*& reply_to)
   request->dump();
   send_to_broker((char*) MDPW_REPORT, NULL, request);
 
-  return 0;
+  return rc;
 }
 
 int main(int argc, char **argv)
 {
+  int rc = OK;
   int verbose = (argc > 1 && (0 == strcmp (argv [1], "-v")));
+
   google::InitGoogleLogging(argv[0]);
 
   try
@@ -48,8 +53,9 @@ int main(int argc, char **argv)
   catch(zmq::error_t err)
   {
     std::cout << "E: " << err.what() << std::endl;
+    rc = NOK;
   }
 
-  return 0;
+  return (OK == rc)? EXIT_SUCCESS : EXIT_FAILURE;
 }
 

@@ -2,6 +2,7 @@ set(WORKER_TESTER wtester)
 set(WORKER_ECHO   wecho)
 set(WORKER_DIGGER wdigger)
 set(WORKER_HISTORIAN whistorian)
+set(WORKER_TIMEKEEPER wtiker)
 
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   set (SYSTEM_EXTERNAL_LIBS
@@ -58,7 +59,6 @@ set (WORKER_ECHO_SOURCES
 set (WORKER_DIGGER_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
         ${TOOLS_DIR}/helper.hpp
-        ${TOOLS_DIR}/helper.cpp
         ${MDP_DIR}/mdp_zmsg.hpp
         ${MDP_DIR}/mdp_common.h
         ${MDP_DIR}/mdp_worker_api.hpp
@@ -82,6 +82,14 @@ set (WORKER_HISTORIAN_SOURCES
         ${WORKER_DIR}/whistorian.cpp
         ${WORKER_DIR}/whistorian.hpp)
 
+set (WORKER_TIMEKEEPER_SOURCES
+        ${CMAKE_SOURCE_DIR}/config.h
+        ${MDP_DIR}/mdp_zmsg.hpp
+        ${MDP_DIR}/mdp_common.h
+        ${MDP_DIR}/mdp_worker_api.hpp
+        ${MSG_DIR}/msg_message.hpp
+        ${WORKER_DIR}/wtimekeeper.cpp
+        ${WORKER_DIR}/wtimekeeper.hpp)
 
 add_custom_command(
         OUTPUT 
@@ -172,6 +180,18 @@ target_link_libraries(${WORKER_DIGGER}
 ##########################################################
 add_executable (${WORKER_HISTORIAN} ${WORKER_HISTORIAN_SOURCES})
 target_link_libraries(${WORKER_HISTORIAN}
+    ${LIBGLOG_LIBRARIES}
+    ${LIBSQLITE_LIBRARIES}
+    ${MDP_LIBRARY_NAME}
+    ${HDB_LIBRARY_NAME}
+    ${XDB_RTAP_LIBRARY_NAME}
+    ${LIBPROTOBUF_LIBRARIES}
+    )
+
+# Сборка TIMEKEEPER - сервера управления и генерации разовых и повторяющихся событий
+##########################################################
+add_executable (${WORKER_TIMEKEEPER} ${WORKER_TIMEKEEPER_SOURCES})
+target_link_libraries(${WORKER_TIMEKEEPER}
     ${LIBGLOG_LIBRARIES}
     ${LIBSQLITE_LIBRARIES}
     ${MDP_LIBRARY_NAME}

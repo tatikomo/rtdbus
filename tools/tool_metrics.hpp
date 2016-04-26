@@ -11,7 +11,7 @@
 #if defined HAVE_CONFIG_H
 #include "config.h"
 #endif
-#include "timer.hpp"
+#include "tool_time.hpp"
 
 // Количество рядов хранения
 #define MAX_NUM_SAMPLES 5

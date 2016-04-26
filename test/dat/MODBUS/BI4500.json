@@ -8,7 +8,7 @@
     "NAME":       "/BI4500",
     "TYPE":       "LOCAL_SA",
     "SMAD":       "DB_LOCAL_SA.sqlite",
-    "CHANNEL":    "MODBUS-RTU",
+    "CHANNEL":    "MODBUS-TCP",
     "TRACE":      4
   },
 

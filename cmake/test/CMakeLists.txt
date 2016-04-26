@@ -34,6 +34,7 @@ include_directories(${MDP_DIR})
 include_directories(${HDB_DIR})
 include_directories(${MSG_DIR})
 include_directories(${RAPIDJSON_INCLUDE_DIR})
+include_directories(${EXCHANGE_EGSA_DIR})
 include_directories(${EXCHANGE_CONFIG_DIR})
 include_directories(${EXCHANGE_MODBUS_DIR})
 include_directories(${EXCHANGE_SMAD_DIR})
@@ -62,16 +63,24 @@ link_directories(${LIBSQLITE_LIBRARIES_DIR})
 
 set (TEST_EXCHANGE_SOURCES
         ${GTEST_INC_DIR}/gtest/gtest.h
-        ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_request_base.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_request_cyclic.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_sa.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_sa.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_init.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_init.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.cpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.hpp
-        ${EXCHANGE_CONFIG_DIR}/exchange_config_sac.cpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.hpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config_sac.hpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config.hpp
         ${TEST_RTDBUS_DIR}/exchange_unittest.cpp)
 
 set (TEST_METRICS_SOURCES
         ${GTEST_INC_DIR}/gtest/gtest.h
-        ${TOOLS_DIR}/tool_metrics.cpp
         ${TOOLS_DIR}/tool_metrics.hpp
         ${TEST_RTDBUS_DIR}/metrics_unittest.cpp)
 
@@ -257,9 +266,12 @@ set_source_files_properties(${XDB_IMPL_DIR}/dat/rtap_db-pskel.hxx
 
 add_executable (${UNITTEST_EXCHANGE} ${TEST_EXCHANGE_SOURCES})
 add_definitions (-D_FUNCTIONAL_TEST)
+add_definitions (-pg)
 target_link_libraries(${UNITTEST_EXCHANGE}
     ${LIBGLOG_LIBRARIES}
     ${GTEST_DIR}/cmake/libgtest.a
+    ${EXCHANGE_LIBRARY_NAME}
+    ${TOOLS_LIBRARY_NAME}
     ${SYSTEM_EXTERNAL_LIBS})
 
 add_executable (${UNITTEST_METRICS} ${TEST_METRICS_SOURCES})
@@ -278,7 +290,6 @@ target_link_libraries(${UNITTEST_DEV_INT}
     ${XDB_BROKER_INTERFACE_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
     ${MSG_LIBRARY_NAME}
-    ${TOOLS_LIBRARY_NAME}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${LIBGLOG_LIBRARIES}
     ${GTEST_DIR}/cmake/libgtest.a
@@ -333,3 +344,5 @@ add_test(NAME DEV_RUN_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECU
 add_test(NAME MESSAGE_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_MESSAGE})
 add_test(NAME METRICS_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_METRICS})
 add_test(NAME CE_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_CE})
+add_test(NAME UNITTEST_EXCHANGE WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_EXCHANGE})
+

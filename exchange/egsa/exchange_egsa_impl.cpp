@@ -4,91 +4,92 @@
 
 // Общесистемные заголовочные файлы
 #include <assert.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 // Служебные заголовочные файлы сторонних утилит
 #include "glog/logging.h"
 
 // Служебные файлы RTDBUS
 #include "exchange_config.hpp"
+#include "exchange_config_egsa.hpp"
 #include "exchange_smad_int.hpp"
 #include "exchange_smad_ext.hpp"
 #include "exchange_egsa_impl.hpp"
-#include "exchange_config_egsa.hpp"
+#include "exchange_egsa_request_cyclic.hpp"
 #include "xdb_common.hpp"
-
-// ==========================================================================================================
-ega_ega_odm_t_RequestEntry EGSA::m_requests_table[] = {
-// Идентификатор запроса
-// |                    Название запроса
-// |                    |                        Приоритет
-// |                    |                        |   Тип объекта - информация, СС, оборудование
-// |                    |                        |   |       Режим сбора - дифференциальный или нет
-// |                    |                        |   |       |              Признак отношения запроса:
-// |                    |                        |   |       |              к технологическим данным (1)
-// |                    |                        |   |       |              к состоянию системы сбора (0)
-// |                    |                        |   |       |              | 
-  {ECH_D_GENCONTROL,    EGA_EGA_D_STRGENCONTROL, 80, ACQSYS, NONDIFF,       true  },
-  {ECH_D_INFOSACQ,      EGA_EGA_D_STRINFOSACQ,   80, ACQSYS, DIFF,          true  },
-  {ECH_D_URGINFOS,      EGA_EGA_D_STRURGINFOS,   80, ACQSYS, DIFF,          true  },
-  {ECH_D_GAZPROCOP,     EGA_EGA_D_STRGAZPROCOP,  80, ACQSYS, NONDIFF,       false },
-  {ECH_D_EQUIPACQ,      EGA_EGA_D_STREQUIPACQ,   80, EQUIP,  NONDIFF,       true  },
-  {ECH_D_ACQSYSACQ,     EGA_EGA_D_STRACQSYSACQ,  80, ACQSYS, NONDIFF,       false },
-  {ECH_D_ALATHRES,      EGA_EGA_D_STRALATHRES,   80, ACQSYS, DIFF,          true  },
-  {ECH_D_TELECMD,       EGA_EGA_D_STRTELECMD,   101, INFO,   NOT_SPECIFIED, true  },
-  {ECH_D_TELEREGU,      EGA_EGA_D_STRTELEREGU,  101, INFO,   NOT_SPECIFIED, true  },
-  {ECH_D_SERVCMD,       EGA_EGA_D_STRSERVCMD,    80, ACQSYS, NOT_SPECIFIED, false },
-  {ECH_D_GLOBDWLOAD,    EGA_EGA_D_STRGLOBDWLOAD, 80, ACQSYS, NOT_SPECIFIED, false },
-  {ECH_D_PARTDWLOAD,    EGA_EGA_D_STRPARTDWLOAD, 80, ACQSYS, NOT_SPECIFIED, false },
-  {ECH_D_GLOBUPLOAD,    EGA_EGA_D_STRGLOBUPLOAD, 80, ACQSYS, NOT_SPECIFIED, false },
-  {ECH_D_INITCMD,       EGA_EGA_D_STRINITCMD,    82, ACQSYS, NOT_SPECIFIED, false },
-  {ECH_D_GCPRIMARY,     EGA_EGA_D_STRGCPRIMARY,  80, ACQSYS, NONDIFF,       true  },
-  {ECH_D_GCSECOND,      EGA_EGA_D_STRGCSECOND,   80, ACQSYS, NONDIFF,       true  },
-  {ECH_D_GCTERTIARY,    EGA_EGA_D_STRGCTERTIARY, 80, ACQSYS, NONDIFF,       true  },
-  {ECH_D_DIFFPRIMARY,   "D_DIFFPRIMARY",         80, ACQSYS, DIFF,          true  },
-  {ECH_D_DIFFSECOND,    "D_DIFFSECONDARY",       80, ACQSYS, DIFF,          true  },
-  {ECH_D_DIFFTERTIARY,  "D_DIFFTRERTIARY",       80, ACQSYS, DIFF,          true  },
-  {ECH_D_INFODIFFUSION, EGA_EGA_D_STRINFOSDIFF,  80, ACQSYS, NONDIFF,       true  },
-  {ECH_D_DELEGATION,    EGA_EGA_D_STRDELEGATION, 80, ACQSYS, NOT_SPECIFIED, true  }
-};
 
 // ==========================================================================================================
 EGSA::EGSA()
   : m_ext_smad(NULL),
     m_config(NULL)
 {
+  m_socket = open("egsa_timers.pipe", S_IFIFO|0666, 0);
+  if (-1 == m_socket) {
+    LOG(ERROR) << "Unable to open socket: " << strerror(errno);
+  }
+  else {
+    LOG(INFO) << "Timers pipe " << (unsigned int)m_socket << " is ready";
+  }
 }
 
 // ==========================================================================================================
 EGSA::~EGSA()
 {
+  if (-1 != m_socket) {
+    LOG(INFO) << "Timers pipe " << (unsigned int)m_socket << " is closed"; 
+  }
+
   detach();
 
   delete m_ext_smad;
   delete m_config;
+
+  for (std::vector<Cycle*>::iterator it = ega_ega_odm_ar_Cycles.begin();
+       it != ega_ega_odm_ar_Cycles.end();
+       it++)
+  {
+    LOG(INFO) << "free cycle " << (*it)->name();
+    delete (*it);
+  }
 }
 
 // ==========================================================================================================
 int EGSA::init()
 {
-  int rc = 0;
+  int rc = NOK;
 
+  // Открыть конфигурацию
+  m_config = new EgsaConfig("egsa.json");
+  // Прочитать информацию по сайтам и циклам
+  m_config->load();
+
+  // Подключиться к своей внутренней памяти SMAD
+  m_ext_smad = new ExternalSMAD(m_config->smad_name().c_str());
+  smad_connection_state_t ext_state = m_ext_smad->connect();
+  LOG(INFO) << "Connect to internal EGSA SMAD code=" << ext_state;
+  rc = (STATE_OK == ext_state)? OK : NOK;
+
+  return rc;
+}
+
+// ==========================================================================================================
+// Подключиться к SMAD систем сбора
+int EGSA::attach_to_sites_smad()
+{
   // TODO: должен быть список подчиненных систем сбора, взять оттуда
   const char* sa_name = "BI4500";
-//  const char* smad_name = "DB_LOCAL_SA.sqlite";
-//  sa_object_type_t sa_type = TYPE_LOCAL_SA;
-
-  m_ext_smad = new ExternalSMAD("EGSA_SMAD.sqlite");
-  smad_connection_state_t ext_state = m_ext_smad->connect();
-  LOG(INFO) << "EGSA init " << ext_state;
-  rc = (STATE_OK == ext_state)? 0 : 1;
-
+  int rc = NOK;
   // TEST - подключиться к SMAD для каждой подчиненной системы
   // 2016/04/13 Пока у нас одна система, для опытов
 #if 1
-  m_config = new EgsaConfig();
 
   SystemAcquisition *sa_instance = new SystemAcquisition(TYPE_LOCAL_SA, GOF_D_SAC_NATURE_EELE, sa_name);
   m_sa_list.insert(std::pair<std::string, SystemAcquisition*>(sa_name, sa_instance));
+  rc = OK;
 
 #else
   InternalSMAD* int_smad = new InternalSMAD(smad_name);
@@ -109,7 +110,7 @@ int EGSA::init()
 // Изменение состояния подключенных систем сбора и отключение от их внутренней SMAD 
 int EGSA::detach()
 {
-  int rc = 0;
+  int rc = NOK;
 
   // TODO: Для всех подчиненных систем сбора:
   // 1. Изменить их состояние SYNTHSTATE на "ОТКЛЮЧЕНО"
@@ -120,19 +121,33 @@ int EGSA::detach()
   {
     LOG(INFO) << "TODO: set " << (*it).first << "." << RTDB_ATT_SYNTHSTATE << " = 0";
     LOG(INFO) << "TODO: datach " << (*it).first << " SMAD";
+    rc = OK;
   }
 
   return rc;
 }
 
 // ==========================================================================================================
+// 1. Дождаться сообщения ADDL о запросе готовности к работе
+// 2. Прочитать конфигурационный файл
+// 3. Инициализация подписки на атрибуты состояний Систем Сбора
+// 4. Ответить на запрос готовности к работе
+//    Если инициализация прошла неуспешно - выйти из программы
+// 5. Дождаться сообщения ADDL о начале штатной работы
+// 6. Цикл до получения сообщения об останове:
+// 6.1. Проверять наступление очередного периода цикла опроса
+// 6.2. Опрашивать пробуждения (?)
+// 6.3. Опрашивать состояния СС
+//
 int EGSA::run()
 {
-  volatile int stop;
+  volatile int status;
 
-  stop = init();
+  if (OK == init()) {
+    status = attach_to_sites_smad();
+  }
 
-  while (!stop)
+  while (OK == status)
   {
     // TODO: пробежаться по всем зарегистрированным системам сбора.
     // Если они в активном состоянии, получить от них даннные
@@ -145,27 +160,30 @@ int EGSA::run()
         case SA_STATE_OPER:
           LOG(INFO) << (*it).first << "state is OPERATIVE";
 
-          (*it).second->pop(m_list);
-
-          for (sa_parameters_t::iterator it = m_list.begin();
-               it != m_list.end();
-               it++)
-          {
-            switch ((*it).type)
+          if (OK == ((*it).second->pop(m_list))) {
+            for (sa_parameters_t::iterator it = m_list.begin();
+                 it != m_list.end();
+                 it++)
             {
-              case SA_PARAM_TYPE_TM:
-                LOG(INFO) << "name:" << (*it).name << " type:" << (*it).type << " g_val:" << (*it).g_value;
-                break;
+              switch ((*it).type)
+              {
+                case SA_PARAM_TYPE_TM:
+                  LOG(INFO) << "name:" << (*it).name << " type:" << (*it).type << " g_val:" << (*it).g_value;
+                  break;
 
-              case SA_PARAM_TYPE_TS:
-              case SA_PARAM_TYPE_TSA:
-              case SA_PARAM_TYPE_AL:
-                LOG(INFO) << "name:" << (*it).name << " type:" << (*it).type << " i_val:" << (*it).i_value;
-                break;
+                case SA_PARAM_TYPE_TS:
+                case SA_PARAM_TYPE_TSA:
+                case SA_PARAM_TYPE_AL:
+                  LOG(INFO) << "name:" << (*it).name << " type:" << (*it).type << " i_val:" << (*it).i_value;
+                  break;
 
-              default:
-                LOG(ERROR) << "name: " << (*it).name << " unsupported type:" << (*it).type;
+                default:
+                  LOG(ERROR) << "name: " << (*it).name << " unsupported type:" << (*it).type;
+              }
             }
+          }
+          else {
+            LOG(ERROR) << "Failure pop changed values";
           }
           break;
 
@@ -189,5 +207,110 @@ int EGSA::run()
     sleep (1);
   }
 
-  return stop;
+  return status;
 }
+
+// ==========================================================================================================
+// Ввести в оборот новый Цикл сбора, вернуть новый размер очереди циклов
+int EGSA::push_cycle(Cycle* _cycle)
+{
+  assert(_cycle);
+  ega_ega_odm_ar_Cycles.push_back(_cycle);
+
+  return ega_ega_odm_ar_Cycles.size();
+}
+
+// ==========================================================================================================
+// Активировать циклы
+// Активация заключается во взведении таймера Timer с требуемой периодичностью, который по достижению срока
+// активации пишет название таймера в ранее объявленный сокет.
+// Основной цикл работы приложения включает select из этого сокета, и в случае появления в нем данных
+// читается название активированного цикла.
+int EGSA::activate_cycles()
+{
+  int rc = 0;
+
+  for (std::vector<Cycle*>::iterator it = ega_ega_odm_ar_Cycles.begin();
+       it != ega_ega_odm_ar_Cycles.end();
+       it++)
+  {
+    rc |= (*it)->activate(m_socket);
+
+    LOG(INFO) << "Activate cycle " << (*it)->name() << ", rc=" << rc;
+  }
+
+  return rc;
+}
+
+// ==========================================================================================================
+// Деактивировать циклы
+int EGSA::deactivate_cycles()
+{
+  int rc = 0;
+
+  for (std::vector<Cycle*>::iterator it = ega_ega_odm_ar_Cycles.begin();
+       it != ega_ega_odm_ar_Cycles.end();
+       it++)
+  {
+    rc |= (*it)->deactivate();
+    LOG(INFO) << "Deactivate cycle " << (*it)->name() << ", rc=" << rc;
+  }
+
+  return rc;
+}
+
+
+// ==========================================================================================================
+// Функция срабатывания при наступлении времени очередного таймера
+int EGSA::trigger()
+{
+  LOG(INFO) << "Trigger callback for cycle";
+  return OK;
+}
+
+// ==========================================================================================================
+// Тестовая функция ожидания срабатывания таймеров в течении заданного времени
+int EGSA::wait(int max_wait_sec)
+{
+  fd_set rfds;
+  struct timeval tv;
+  int retval;
+  char buffer[100 + 1];
+  ssize_t read_sz;
+  ssize_t buffer_sz = 100;
+
+  /* Watch fd[1] to see when it has input. */
+  FD_ZERO(&rfds);
+  FD_SET(m_socket, &rfds);
+
+
+  for (int i=0; i<max_wait_sec; i++) {
+    /* Wait up to one seconds. */
+    tv.tv_sec = 2;
+    tv.tv_usec = 1;
+
+    retval = select(m_socket+1, &rfds, NULL, NULL, &tv);
+    /* Don't rely on the value of tv now! */
+
+    switch(retval) {
+      case -1:
+        perror("select()");
+        break;
+
+      case 0:
+        std::cout << "." << std::flush;
+        break;
+
+      default:
+        read_sz = read(m_socket, buffer, buffer_sz);
+        if (read_sz >= 0) buffer[read_sz] = '\0';
+        else buffer[0] = '\0';
+        LOG(INFO) << "Read " << read_sz << " bytes: " << buffer;
+        /* FD_ISSET(0, &rfds) will be true. */
+    }
+  }
+  std::cout << std::endl;
+
+  return OK;
+}
+// ==========================================================================================================

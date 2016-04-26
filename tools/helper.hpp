@@ -7,7 +7,7 @@
 #include <map>
 #include <bitset>
 
-#include "timer.hpp"
+#include "tool_time.hpp"
 
 #define within(num) (int) ((float) (num) * random () / (RAND_MAX + 1.0))
 

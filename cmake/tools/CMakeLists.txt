@@ -13,8 +13,10 @@ set (TOOLS_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
         ${TOOLS_DIR}/helper.cpp
         ${TOOLS_DIR}/helper.hpp
-        ${TOOLS_DIR}/timer.cpp
-        ${TOOLS_DIR}/timer.hpp
+        ${TOOLS_DIR}/tool_time.cpp
+        ${TOOLS_DIR}/tool_time.hpp
+        ${TOOLS_DIR}/tool_timer.cpp
+        ${TOOLS_DIR}/tool_timer.hpp
         ${TOOLS_DIR}/tool_metrics.cpp
         ${TOOLS_DIR}/tool_metrics.hpp
         )

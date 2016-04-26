@@ -2,7 +2,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include "config.h"
-#include "timer.hpp"
+#include "tool_time.hpp"
 
 int GetTimerValue(timer_mark_t& _timer)
 {

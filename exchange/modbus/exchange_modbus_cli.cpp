@@ -133,7 +133,7 @@ RTDBUS_Modbus_client::~RTDBUS_Modbus_client()
 // TODO: Устранить дублирование - такой же код находится в имитаторе сервера MODBUS
 int RTDBUS_Modbus_client::resolve_addr_info(const char* host_name, const char* port_name, int& port_num)
 {
-  int rc = 0;
+  int rc = OK;
 //  struct addrinfo *servinfo;  // указатель на результаты
   struct addrinfo hints, *res, *p;
   char ipstr[INET6_ADDRSTRLEN];
@@ -147,7 +147,7 @@ int RTDBUS_Modbus_client::resolve_addr_info(const char* host_name, const char* p
   if ((status = getaddrinfo(host_name, port_name, &hints, &res)) != 0) {
     LOG(ERROR) << "Resolving " << host_name << ":" << port_name
                << " - getaddrinfo(): " << gai_strerror(status);
-    rc = -1;
+    rc = NOK;
   }
   else {
       // Имя и порт успешно разрешились, продолжим
@@ -165,12 +165,12 @@ int RTDBUS_Modbus_client::resolve_addr_info(const char* host_name, const char* p
         }
         else { // IPv6
           LOG(ERROR) << "IPv6 for '" << host_name << "' is forbidden";
-          rc = -1;
+          rc = NOK;
         }
       }
       freeaddrinfo(res); // free the linked list
 
-      if (0 == rc) {
+      if (OK == rc) {
         LOG(INFO) << "Resolve '" << host_name << "' as " << ipstr
                   << ", port '" << port_name << "' as " << (unsigned int) port_num;
       }
@@ -204,7 +204,7 @@ client_status_t RTDBUS_Modbus_client::connect()
         //m_status = STATUS_OK_NOT_CONNECTED;
         // Попытаемся найти первый адрес, известный операционной системе
         while ((m_connection_idx < list.size())
-           && (-1 == resolve_addr_info("127.0.0.1" /* list[m_connection_idx].host_name */,
+           && (NOK == resolve_addr_info("127.0.0.1" /* list[m_connection_idx].host_name */,
                                        list[m_connection_idx].port_name,
                                        port_num)))
         {
@@ -283,6 +283,7 @@ client_status_t RTDBUS_Modbus_client::connect()
 }
 
 // ==========================================================================================
+// Код возврата - код ошибки обработки
 client_status_t RTDBUS_Modbus_client::run()
 {
   const char* fname = "run";
@@ -327,7 +328,11 @@ client_status_t RTDBUS_Modbus_client::run()
       switch(m_status) {
           case STATUS_OK_CONNECTED:
             sleep (m_config->timeout());
-            if (g_interrupt) break;
+            if (g_interrupt) {
+              // Прерывание по получении сигнала
+              m_status = STATUS_OK_SHUTTINGDOWN;
+              break;
+            }
             m_status = ask();
             break;
 
@@ -340,7 +345,11 @@ client_status_t RTDBUS_Modbus_client::run()
           case STATUS_OK_NOT_CONNECTED:
             // Повторное подключение, чуть подождем...
             sleep (m_config->timeout());
-            if (g_interrupt) break;
+            if (g_interrupt) {
+              // Прерывание по получении сигнала
+              m_status = STATUS_OK_SHUTTINGDOWN;
+              break;
+            }
             // NB: break пропущен специально
           case STATUS_OK_SMAD_LOAD:
             // попытаться подключиться к очередному серверу после начала работы
@@ -545,7 +554,7 @@ void RTDBUS_Modbus_client::set_validity(int new_validity)
 // TODO: проверить, как работает с включённым "substract = 1"
 int RTDBUS_Modbus_client::parse_response(ModbusOrderDescription& handler, uint8_t* rsp_8, uint16_t* rsp_16)
 {
-  int status = 0;
+  int status = OK;
   address_map_t *address_map = NULL;
 
   m_smad->accelerate(true);
@@ -582,6 +591,7 @@ int RTDBUS_Modbus_client::parse_response(ModbusOrderDescription& handler, uint8_
     default:
       LOG(ERROR) << "Invalid support type:" << handler.SupportType
                  << " for function " << handler.NumberModbusFunction;
+      status = NOK;
       assert (0 == 1);
   }
 
@@ -634,7 +644,7 @@ int RTDBUS_Modbus_client::parse_HR_IR(address_map_t* address_map, ModbusOrderDes
   float          FZnach = USHRT_MAX;// значение регистра, полученное после интерпретации диапазонов
   unsigned short UZnach;
   short          SZnach;
-  int status = -1;
+  int status = NOK;
 
   for (int i = 0; i < handler.QuantityRegisters; i++)
   {
@@ -686,7 +696,7 @@ int RTDBUS_Modbus_client::parse_HR_IR(address_map_t* address_map, ModbusOrderDes
       } // конец проверки, что значение не вышло за допустимый диапазон
 
       // Занести значение в InternalSMAD
-      m_smad->push(item);
+      status = m_smad->push(item);
 
     } // конец блока обработки значения, присутствующего в конфигурации
   } // конец цикла по всем параметрам из конфигурации
@@ -699,7 +709,7 @@ int RTDBUS_Modbus_client::parse_HR_IR(address_map_t* address_map, ModbusOrderDes
 int RTDBUS_Modbus_client::parse_HC_IC(address_map_t* address_map, ModbusOrderDescription& handler, uint8_t* data)
 {
   address_map_t::iterator it;
-  int status = -1;
+  int status = NOK;
 
   for (int i = 0; i < handler.QuantityRegisters; i++)
   {
@@ -721,7 +731,7 @@ int RTDBUS_Modbus_client::parse_HC_IC(address_map_t* address_map, ModbusOrderDes
       item.valid_acq = item.valid = 0; // GOF_D_ACQ_VALID
 
       // Занести значение в InternalSMAD
-      m_smad->push(item);
+      status = m_smad->push(item);
     }
   }
 
@@ -736,7 +746,7 @@ int RTDBUS_Modbus_client::parse_HC_IC(address_map_t* address_map, ModbusOrderDes
 // uint16_t как одну переменную uint32_t, и преобразовать её в тип float.
 int RTDBUS_Modbus_client::parse_FHR(address_map_t*, ModbusOrderDescription&, uint16_t*)
 {
-  int status = -1;
+  int status = NOK;
 
   return status;
 }
@@ -746,7 +756,7 @@ int RTDBUS_Modbus_client::parse_FHR(address_map_t*, ModbusOrderDescription&, uin
 int RTDBUS_Modbus_client::parse_FP(address_map_t* address_map, ModbusOrderDescription& handler, uint16_t* data)
 {
   address_map_t::iterator it;
-  int status = -1;
+  int status = NOK;
   int register_idx = 0;
   union { float f_value; uint16_t i_values[2]; } common;
 
@@ -781,7 +791,7 @@ int RTDBUS_Modbus_client::parse_FP(address_map_t* address_map, ModbusOrderDescri
       // Пример
       //    В цикле m_smad->add_item_to_bunch(item)
       //    Затем m_smad->push_bunch()
-      m_smad->push(item);
+      status = m_smad->push(item);
     }
   }
 
@@ -792,7 +802,7 @@ int RTDBUS_Modbus_client::parse_FP(address_map_t* address_map, ModbusOrderDescri
 // Разобрать буфер ответа на основе типа обработки DP
 int RTDBUS_Modbus_client::parse_DP(address_map_t*, ModbusOrderDescription&, uint16_t*)
 {
-  return -1;
+  return NOK;
 }
 
 // ==========================================================================================
@@ -802,6 +812,7 @@ void RTDBUS_Modbus_client::polish_order(int support_type, int begin_register, Mo
   // По умолчанию один регистр нашего протокола соответствует одному регистру протокола modbus
   int single_register_size_in_uint16 = 1;
   union { uint8_t a_byte[2]; uint16_t a_word; } toto;
+
   order.QuantityRegisters = begin_register - order.StartAddress + 1;
   // Для FHR нужно чётное количество регистров, добавим при необходимости до след. чётного числа
   if (order.NumberModbusFunction == code_MBUS_TYPE_SUPPORT_FHR) {
@@ -870,8 +881,10 @@ void RTDBUS_Modbus_client::polish_order(int support_type, int begin_register, Mo
 
 // ==========================================================================================
 // На основе прочитанных данных построить план запросов к СС
+// Код возврата - количество автоматически построенных запросов
 int RTDBUS_Modbus_client::make_request_plan()
 {
+  int request_qty = 0; // Количество запросов
   const char* fname = "make_request_plan";
 
   LOG(INFO) << fname << ": START";
@@ -884,28 +897,28 @@ int RTDBUS_Modbus_client::make_request_plan()
   mbusDescr[MBUS_TYPE_SUPPORT_FP].actualCode = m_config->modbus_specific().actual_FP_FUNCTION;
   mbusDescr[MBUS_TYPE_SUPPORT_DP].actualCode = m_config->modbus_specific().actual_DP_FUNCTION;
 
-  for(int typesup = MBUS_TYPE_SUPPORT_HC; typesup < MBUS_TYPE_SUPPORT_UNK; typesup++)
+  for (int typesup = MBUS_TYPE_SUPPORT_HC; typesup < MBUS_TYPE_SUPPORT_UNK; typesup++)
   {
     if (mbusDescr[typesup].used)
       LOG(INFO) << m_config->name() << " use TYPE_SUPPORT=" << func_by_type_support[typesup].name
                 << " [" << typesup << "]";
   }
 
-  int result = calculate();
+  request_qty = calculate();
   
-  LOG(INFO) << fname << ": FINISH, #cycles=" << result;
+  LOG(INFO) << fname << ": FINISH, #cycles=" << request_qty;
 
-  return result;
+  return request_qty;
 }
 
 // ==========================================================================================
 int RTDBUS_Modbus_client::read_config()
 {
-  int status = 0;
+  int status = OK;
 
   m_config = new AcquisitionSystemConfig(m_config_filename);
 
-  if (-1 == (status = m_config->load())) {
+  if (NOK == (status = m_config->load())) {
     LOG(ERROR) << "бяка config";
   }
 
@@ -974,7 +987,10 @@ client_status_t RTDBUS_Modbus_client::init_smad_parameters() // загрузка
 // ==========================================================================================
 int RTDBUS_Modbus_client::load_commands() // загрузка команд управления
 {
-  return 0;
+  int rc = NOK;
+
+  LOG(INFO) << "Load commands, rc=" << rc;
+  return rc;
 }
 
 // ==========================================================================================
@@ -1126,7 +1142,8 @@ int main(int argc, char* argv[])
   RTDBUS_Modbus_client *mbus_client = NULL;
   // Название конфигурационного файла локальной тестовой СС
   char config_filename[2000 + 1] = "BI4500.json";
-  int  opt;
+  int opt;
+  int rc = NOK;
 
 #ifndef VERBOSE
   ::google::InitGoogleLogging(argv[0]);
@@ -1163,19 +1180,16 @@ int main(int argc, char* argv[])
   catch_signals();
   mbus_client = new RTDBUS_Modbus_client(config_filename);
 
-  if (0 == mbus_client->run())
-    LOG(INFO) << "DONE";
-  else
-    LOG(ERROR) << "FAIL";
+  rc = mbus_client->run();
 
   delete mbus_client;
 
-  LOG(INFO) << "RTDBUS MODBUS client " << argv[0] << " FINISH";
+  LOG(INFO) << "RTDBUS MODBUS client " << argv[0] << " FINISH, rc=" << rc;
 
 #ifndef VERBOSE
   ::google::ShutdownGoogleLogging();
 #endif
 
-  return 0;
+  return (STATUS_OK_SHUTTINGDOWN == rc)? EXIT_SUCCESS : EXIT_FAILURE;
 }
 

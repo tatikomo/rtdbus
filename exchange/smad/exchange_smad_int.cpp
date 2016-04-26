@@ -364,6 +364,7 @@ smad_connection_state_t InternalSMAD::connect(const char* sa_name, sa_object_typ
 // Этот список затем используется для сброса флага модификации
 int InternalSMAD::pop(sa_parameters_t& params)
 {
+  int rc = NOK;
   sa_parameter_info_t test;
 
   LOG(INFO) << "Read last acquired parameters";
@@ -377,8 +378,9 @@ int InternalSMAD::pop(sa_parameters_t& params)
   test.valid = 1;
 
   params.push_back(test);
+  rc = OK;
 
-  return 0;
+  return rc;
 }
 
 // ------------------------------------------------------------------
@@ -389,7 +391,7 @@ int InternalSMAD::pop(sa_parameters_t& params)
 int InternalSMAD::drop_dict(const char* sa_name, uint64_t sa_ref)
 {
   const char* fname = "drop_dict";
-  int rc = -1;
+  int rc = NOK;
   int printed;
   std::string sql;
   char sql_operator[1000 + 1];
@@ -434,7 +436,7 @@ int InternalSMAD::drop_dict(const char* sa_name, uint64_t sa_ref)
         sqlite3_free(m_db_err);
   }
   else {
-    rc = 0;
+    rc = OK;
 #if (VERBOSE >= 4)
     LOG(INFO) << fname << ": SUCCESS SQL (" << sql << ")";
 #endif
@@ -457,7 +459,7 @@ int InternalSMAD::update_last_acq_info()
   std::string sql = "BEGIN;\n";
   char sql_operator[1000 + 1];
   int printed;
-  int status = -1;
+  int status = NOK;
 
   printed = snprintf(sql_operator, 1000,
                      s_SQL_UPDATE_SMAD_SA_LASTPROBE,
@@ -473,7 +475,7 @@ int InternalSMAD::update_last_acq_info()
     LOG(ERROR) << fname << ": update last acquisition time - " << m_db_err << " (" << sql << ")";
     sqlite3_free(m_db_err);
   }
-  else status = 0;
+  else status = OK;
 
   return status;
 }
@@ -486,7 +488,7 @@ int InternalSMAD::update_last_acq_info()
 int InternalSMAD::push(const sa_parameter_info_t& info)
 {
   const char* fname = "push";
-  int status = -1;
+  int status = NOK;
   std::string sql;
   char sql_operator[1000 + 1];
 
@@ -571,7 +573,7 @@ int InternalSMAD::push(const sa_parameter_info_t& info)
                  << "': " << m_db_err << " (" << sql << ")";
       sqlite3_free(m_db_err);
   }
-  else status = 0;
+  else status = OK;
   
   return status;
 }
@@ -579,7 +581,7 @@ int InternalSMAD::push(const sa_parameter_info_t& info)
 // ==========================================================================================
 int InternalSMAD::purge(time_t since)
 {
-  int status = -1;
+  int status = NOK;
 
   LOG(INFO) << "Purge since " << since;
 
@@ -881,7 +883,7 @@ bool InternalSMAD::drop_table(const char* table_name)
 // ==========================================================================================
 int InternalSMAD::setup_parameter(sa_parameter_info_t& info)
 {
-  int rc = -1;
+  int rc = NOK;
   char sql_operator[1000 + 1];
   std::string sql;
   const char *fname = "setup_parameter";
@@ -966,7 +968,7 @@ int InternalSMAD::setup_parameter(sa_parameter_info_t& info)
   }
   else {
     LOG(INFO) << fname << ": Create point " << info.name;
-    rc = 0; // успешно занеслось в БД
+    rc = OK; // успешно занеслось в БД
   }
 
 #if (VERBOSE > 3)
@@ -1009,7 +1011,7 @@ int InternalSMAD::setup_parameter(sa_parameter_info_t& info)
     }
     else {
       LOG(INFO) << fname << ": Select point '" << info.name << "' reference=" << info.ref;
-      rc = 0; // успешно прочитали ссылку
+      rc = OK; // успешно прочитали ссылку
     }
   }
 

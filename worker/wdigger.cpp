@@ -227,6 +227,11 @@ DiggerWorker::~DiggerWorker()
 
 int DiggerWorker::probe(mdp::zmsg* request)
 {
+  int rc = NOK;
+#if 1
+#warning "DiggerWorker::Probe is temporarly suppressed"
+  return OK;
+#else
   char str_buffer[200];
 
 /*
@@ -266,7 +271,10 @@ int DiggerWorker::probe(mdp::zmsg* request)
 
   LOG(INFO) << "STAT MAX " << str_buffer; */
 //1  request->push_back();
-  return 0;
+  rc = OK;
+#endif
+
+  return rc;
 }
 
 // Нитевой обработчик запросов
@@ -409,6 +417,7 @@ void DiggerWorker::work()
 // NB: Запросы к БД обрабатываются конкурентно, в фоне, нитями DiggerWorker-ов.
 int DiggerWorker::processing(mdp::zmsg* request, std::string &identity)
 {
+  int rc = OK;
   rtdbMsgType msgType;
 
 //  LOG(INFO) << "Process new request with " << request->parts() 
@@ -439,11 +448,13 @@ int DiggerWorker::processing(mdp::zmsg* request, std::string &identity)
 
       default:
         LOG(ERROR) << "Unsupported request type: " << msgType;
+        rc = NOK;
     }
   }
   else
   {
     LOG(ERROR) << "Received letter "<<letter->header()->exchange_id()<<" not valid";
+    rc = NOK;
   }
 
   delete letter;
@@ -451,12 +462,13 @@ int DiggerWorker::processing(mdp::zmsg* request, std::string &identity)
   // Получить отметку времени завершения обработки запроса
   m_metric_center->after();
 
-  return 0;
+  return rc;
 }
 
 // --------------------------------------------------------------------------------
 int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
 {
+  int rc = OK;
   msg::ReadMulti *read_msg = dynamic_cast<msg::ReadMulti*>(letter);
   mdp::zmsg      *response = new mdp::zmsg();
   xdb::DbType_t  given_xdb_type;
@@ -498,6 +510,7 @@ int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
     if (!err.Ok()) {
       // Нет такой точки в БДРВ
       LOG(ERROR) << "Request unexistent point \"" << todo.tag() << "\"";
+      // rc = NOK;
     }
     else
     {
@@ -638,7 +651,8 @@ int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
   response->send (m_worker); //1
 
   delete response;
-  return 0;
+
+  return rc;
 }
 
 // --------------------------------------------------------------------------------
@@ -1702,6 +1716,7 @@ void Digger::proxy_terminate()
 // Сейчас (2015.07.06) эта функция принимает запросы на доступ к БД, но не обрабатывает их.
 int Digger::handle_request(mdp::zmsg* request, std::string*& reply_to)
 {
+  int rc = OK;
   rtdbMsgType msgType;
 
   assert (request->parts () >= 2);
@@ -1729,20 +1744,22 @@ int Digger::handle_request(mdp::zmsg* request, std::string*& reply_to)
 //       break;
 
       case ADG_D_MSG_ASKLIFE:
-       handle_asklife(letter, reply_to);
+       rc = handle_asklife(letter, reply_to);
        break;
 
       default:
        LOG(ERROR) << "Unsupported request type: " << msgType;
+       rc = NOK;
     }
   }
   else
   {
     LOG(ERROR) << "Readed letter "<<letter->header()->exchange_id()<<" not valid";
+    rc = NOK;
   }
 
   delete letter;
-  return 0;
+  return rc;
 }
 
 
@@ -1750,15 +1767,15 @@ int Digger::handle_request(mdp::zmsg* request, std::string*& reply_to)
 // --------------------------------------------------------------------------------
 void Digger::send_exec_result(int exec_val, std::string* reply_to)
 {
-  std::string OK = "хорошо";
-  std::string FAIL = "плохо";
+  std::string s_OK = "хорошо";
+  std::string s_FAIL = "плохо";
   msg::ExecResult *msg_exec_result = 
         dynamic_cast<msg::ExecResult*>(m_message_factory->create(ADG_D_MSG_EXECRESULT));
   mdp::zmsg       *response = new mdp::zmsg();
 
   msg_exec_result->set_destination(*reply_to);
   msg_exec_result->set_exec_result(exec_val);
-  msg_exec_result->set_failure_cause(0, OK);
+  msg_exec_result->set_failure_cause(0, s_OK);
 
   response->push_front(const_cast<std::string&>(msg_exec_result->data()->get_serialized()));
   response->push_front(const_cast<std::string&>(msg_exec_result->header()->get_serialized()));
@@ -1784,6 +1801,7 @@ void Digger::send_exec_result(int exec_val, std::string* reply_to)
 // --------------------------------------------------------------------------------
 int Digger::handle_asklife(msg::Letter* letter, std::string* reply_to)
 {
+  int rc = OK;
   msg::AskLife   *msg_ask_life = static_cast<msg::AskLife*>(letter);
   mdp::zmsg      *response = new mdp::zmsg();
   int exec_val = 1;
@@ -1818,17 +1836,19 @@ int Digger::handle_asklife(msg::Letter* letter, std::string* reply_to)
       
     default:
       LOG(ERROR) << "Unsupported messaging reply type: " << ;
+      rc = NOK;
   }
 #endif
   delete response;
 
-  return 0;
+  return rc;
 }
 
 // --------------------------------------------------------------------------------
 #if !defined _FUNCTIONAL_TEST
 int main(int argc, char **argv)
 {
+  int rc = OK;
   char service_name[SERVICE_NAME_MAXLEN + 1];
   char broker_endpoint[ENDPOINT_MAXLEN + 1];
   bool is_service_name_given = false;
@@ -1865,7 +1885,7 @@ int main(int argc, char **argv)
            fprintf (stderr,
                     "Unknown option character `\\x%x'.\n",
                     optopt);
-         return 1;
+         return EXIT_FAILURE;
 
        default:
          abort ();
@@ -1875,7 +1895,7 @@ int main(int argc, char **argv)
   if (!is_service_name_given)
   {
     std::cout << "Service name not given.\nUse '-s <service>' [-b <broker endpoint>] options.\n";
-    return(1);
+    return EXIT_FAILURE;
   }
 
   try
@@ -1892,13 +1912,15 @@ int main(int argc, char **argv)
   catch(zmq::error_t err)
   {
     LOG(ERROR) << err.what();
+    rc = NOK;
   }
   delete engine;
-  LOG(INFO) << "Finish service " << service_name;
+  LOG(INFO) << "Finish service " << service_name << ", rc=" << rc;
 
   ::google::protobuf::ShutdownProtobufLibrary();
   ::google::ShutdownGoogleLogging();
-  return 0;
+
+  return (OK == rc)? EXIT_SUCCESS : EXIT_FAILURE;
 }
 #endif
 

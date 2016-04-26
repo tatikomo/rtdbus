@@ -1,4 +1,4 @@
-#include <glog/logging.h>
+#include "glog/logging.h"
 #include "google/protobuf/stubs/common.h"
 
 #include "mdp_common.h"
@@ -159,6 +159,7 @@ int main (int argc, char *argv [])
     std::string empty;
     std::string header;
     Broker *broker = NULL;
+    int rc = OK;
 
     ::google::InstallFailureSignalHandler();
     ::google::InitGoogleLogging(argv[0]);
@@ -183,7 +184,8 @@ int main (int argc, char *argv [])
     }
     catch (zmq::error_t err)
     {
-        LOG(ERROR) << err.what();;
+        LOG(ERROR) << err.what();
+        rc = NOK;
     }
 
     if (interrupt_broker)
@@ -195,6 +197,6 @@ int main (int argc, char *argv [])
 
     ::google::protobuf::ShutdownProtobufLibrary();
     ::google::ShutdownGoogleLogging();
-    return 0;
+    return (OK == rc)? EXIT_SUCCESS : EXIT_FAILURE;
 }
 

@@ -32,7 +32,7 @@ mco_size_sig_t file_writer(void*, const void*, mco_size_t);
 #endif
 
 #include "helper.hpp"
-#include "timer.hpp"
+#include "tool_time.hpp"
 #include "dat/broker_db.hpp"
 #include "xdb_impl_database.hpp"
 #include "xdb_impl_db_broker.hpp"

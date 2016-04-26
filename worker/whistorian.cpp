@@ -200,7 +200,7 @@ void HistorianResponder::run()
 int HistorianResponder::processing(mdp::zmsg* request, std::string &identity)
 {
   rtdbMsgType msgType;
-  int code = -1;
+  int rc = OK;
 
 //  LOG(INFO) << "Process new request with " << request->parts() 
 //            << " parts and reply to " << identity;
@@ -217,7 +217,7 @@ int HistorianResponder::processing(mdp::zmsg* request, std::string &identity)
     {
       // Запрос на чтение истории
       case SIG_D_MSG_REQ_HISTORY:
-        code = handle_query_history(letter, &identity);
+        rc = handle_query_history(letter, &identity);
         break;
 
       default:
@@ -229,7 +229,7 @@ int HistorianResponder::processing(mdp::zmsg* request, std::string &identity)
     LOG(ERROR) << "Received letter "<<letter->header()->exchange_id()<<" not valid";
   }
 
-  if (code == -1) {
+  if (NOK == rc) {
     LOG(ERROR) << "Failure processing request: " << msgType;
   }
 
@@ -238,13 +238,14 @@ int HistorianResponder::processing(mdp::zmsg* request, std::string &identity)
   // Получить отметку времени завершения обработки запроса
   // m_metric_center->after();
 
-  return 0;
+  return rc;
 }
 
 // ---------------------------------------------------------------------
 // Обработчик запросов истории от Клиентов
 int HistorianResponder::handle_query_history(msg::Letter* letter, std::string* reply_to)
 {
+  int rc = OK;
   historized_attributes_t info[100];
   bool existance;
   msg::HistoryRequest *msg_req_history = static_cast<msg::HistoryRequest*>(letter);
@@ -274,6 +275,7 @@ int HistorianResponder::handle_query_history(msg::Letter* letter, std::string* r
     if (false == existance) {
       // Нет такой точки в БДРВ
       LOG(ERROR) << "Request history of unexistent point \"" << msg_req_history->tag() << "\"";
+      rc = NOK;
     }
     else LOG(ERROR) << "None selected for point \"" << msg_req_history->tag() << "\""
                     << " started at " << msg_req_history->start_time()
@@ -305,7 +307,7 @@ int HistorianResponder::handle_query_history(msg::Letter* letter, std::string* r
 
   delete response;
 
-  return 0;
+  return rc;
 }
 
 // ---------------------------------------------------------------------
@@ -483,7 +485,7 @@ int Historian::handle_request(mdp::zmsg* request, std::string* reply_to, bool& n
 int Historian::handle_stop(msg::Letter* letter, std::string* reply_to)
 {
   LOG(WARNING) << "Received message not yet supported received: ADG_D_MSG_STOP";
-  return 0;
+  return OK;
 }
 
 // --------------------------------------------------------------------------------
@@ -509,7 +511,7 @@ int Historian::handle_asklife(msg::Letter* letter, std::string* reply_to)
   send_to_broker((char*) MDPW_REPORT, NULL, response);
   delete response;
 
-  return 0;
+  return OK;
 }
 
 // ---------------------------------------------------------------------

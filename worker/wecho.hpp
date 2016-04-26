@@ -10,7 +10,7 @@ class Echo : public mdp::mdwrk
 {
   public:
     Echo(std::string broker, std::string service, int verbose) 
-        : mdwrk(broker, service, verbose) {};
+        : mdwrk(broker, service, 1 /* num threads */) {};
 
     int handle_request(mdp::zmsg*, std::string *&);
 };

@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 #include "helper.hpp"
-#include "timer.hpp"
+#include "tool_time.hpp"
 
 #include "xdb_impl_error.hpp"
 #include "xdb_impl_connection.hpp"

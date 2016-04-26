@@ -61,7 +61,7 @@ RTDBUS_Modbus_server::~RTDBUS_Modbus_server()
 // TODO: Устранить дублирование - такой же код находится в клиенте MODBUS
 int RTDBUS_Modbus_server::resolve_addr_info(const char* host_name, const char* port_name, int& port_num)
 {
-  int rc = 0;
+  int rc = OK;
 //  struct addrinfo *servinfo;  // указатель на результаты
   struct addrinfo hints, *res, *p;
   char ipstr[INET6_ADDRSTRLEN];
@@ -75,7 +75,7 @@ int RTDBUS_Modbus_server::resolve_addr_info(const char* host_name, const char* p
   if ((status = getaddrinfo(host_name, port_name, &hints, &res)) != 0) {
     LOG(ERROR) << "Resolving " << host_name << ":" << port_name
                << " - getaddrinfo(): " << gai_strerror(status);
-    rc = -1;
+    rc = NOK;
   }
   else {
       // Имя и порт успешно разрешились, продолжим
@@ -93,12 +93,12 @@ int RTDBUS_Modbus_server::resolve_addr_info(const char* host_name, const char* p
         }
         else { // IPv6
           LOG(ERROR) << "IPv6 for '" << host_name << "' is forbidden";
-          rc = -1;
+          rc = NOK;
         }
       }
       freeaddrinfo(res); // free the linked list
 
-      if (0 == rc) {
+      if (OK == rc) {
         LOG(INFO) << "Resolve '" << host_name << "' as " << ipstr
                   << ", port '" << port_name << "' as " << (unsigned int) port_num;
       }
@@ -110,16 +110,16 @@ int RTDBUS_Modbus_server::resolve_addr_info(const char* host_name, const char* p
 // ==========================================================================================
 int RTDBUS_Modbus_server::init()
 {
-  int status = 0;
+  int status = OK;
   const char* localhost = "127.0.0.1";
   const std::vector <sa_network_address_t>& list = m_config->server_list();
   int port_num;
 
-  if (0 == (status = load_config())) {
+  if (OK == (status = load_config())) {
 
     switch(m_config->channel()) {
       case SA_MODE_MODBUS_TCP:
-        if (0 == resolve_addr_info(localhost, list[0].port_name, port_num)) {
+        if (OK == resolve_addr_info(localhost, list[0].port_name, port_num)) {
 
           m_ctx = modbus_new_tcp(localhost, port_num);
           if (m_ctx) {
@@ -128,10 +128,10 @@ int RTDBUS_Modbus_server::init()
           }
           else {
             LOG(ERROR) << "Unable to create context:" << modbus_strerror(errno);
-            status = -1;
+            status = NOK;
           }
         }
-        else status = -1;
+        else status = NOK;
         break;
 
       case SA_MODE_MODBUS_RTU:
@@ -148,16 +148,16 @@ int RTDBUS_Modbus_server::init()
         else {
           LOG(ERROR) << "Unable to open device " << m_config->rtu_list()[0].dev_name
                      << " - " << modbus_strerror(errno);
-          status = -1;
+          status = NOK;
         }
         break;
 
       default:
-        status = -1;
+        status = NOK;
     }
   }
 
-  if (-1 != status) {
+  if (OK == status) {
     m_header_length = modbus_get_header_length(m_ctx);
 
     modbus_set_debug(m_ctx, m_debug);
@@ -177,7 +177,7 @@ int RTDBUS_Modbus_server::init()
 
     if (mb_mapping == NULL) {
        LOG(ERROR) << "Failed to allocate the mapping: " << modbus_strerror(errno);
-       status = -1;
+       status = NOK;
     }
   }
 
@@ -188,10 +188,10 @@ int RTDBUS_Modbus_server::init()
 // Прочитать конфигурационный файл
 int RTDBUS_Modbus_server::load_config()
 {
-  int status = 0;
+  int status = OK;
  
   // загрузка всей конфигурации
-  if (0 == (status = m_config->load())) {
+  if (OK == (status = m_config->load())) {
 
     // Подставить действительный код функции, используемый для запросов данных параметров
     m_supply_info[MBUS_TYPE_SUPPORT_HC].actual = m_config->modbus_specific().actual_HC_FUNCTION;
@@ -304,7 +304,7 @@ int RTDBUS_Modbus_server::run()
 {
   int rc;
 
-  if (0 == (rc = init()))
+  if (OK == (rc = init()))
   {
     if (m_config->channel() == SA_MODE_MODBUS_TCP)
     {
@@ -314,21 +314,20 @@ int RTDBUS_Modbus_server::run()
       }
       else {
         LOG(ERROR) << "Unable to listen: " << modbus_strerror(errno);
-        return -1;
+        return NOK;
       }
     }
     else if (m_config->channel() == SA_MODE_MODBUS_RTU)
     {
-        rc = modbus_connect(m_ctx);
-        if (rc == -1)
+        if (modbus_connect(m_ctx) < 0)
         {
           LOG(ERROR) << "Unable to connect: " << modbus_strerror(errno);
-          return -1;
+          return NOK;
         }
     }
     else {
       LOG(ERROR) << "Unsupported channel type: " << m_config->channel();
-      return -1;
+      return NOK;
     }
 
     for (;;) {
@@ -340,12 +339,13 @@ int RTDBUS_Modbus_server::run()
 
         // The connection is not closed on errors which require on reply such as bad CRC in RTU
         if (rc == -1 && errno != EMBBADCRC) {
+            rc = NOK;
             /* Quit */
             break;
         }
 
-        rc = modbus_reply(m_ctx, m_query, rc, mb_mapping);
-        if (rc == -1) {
+        if (modbus_reply(m_ctx, m_query, rc, mb_mapping) < 0) {
+            rc = NOK;
             break;
         }
     }

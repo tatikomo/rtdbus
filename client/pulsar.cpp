@@ -135,6 +135,7 @@ int main (int argc, char *argv [])
   mdp::zmsg *request   = NULL;
   mdp::zmsg *report    = NULL;
   int status;
+  int rc = OK;
   Pulsar    *client    = NULL;
   msg::Letter *letter = NULL;
   msg::MessageFactory *message_factory = NULL;
@@ -384,6 +385,7 @@ int main (int argc, char *argv [])
   catch (zmq::error_t err)
   {
       std::cout << "E: " << err.what() << std::endl;
+      rc = NOK;
   }
   delete message_factory;
   delete client;
@@ -405,6 +407,6 @@ int main (int argc, char *argv [])
   }
 
   ::google::ShutdownGoogleLogging();
-  return 0;
+  return (OK == rc)? EXIT_SUCCESS : EXIT_FAILURE;
 }
 

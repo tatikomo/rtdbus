@@ -970,6 +970,7 @@ int HistoricImpl::store_history_samples(HistorizedInfoMap_t& historized_map, xdb
   int sql_err_code;
   std::string sql;
   int printed;
+  int rc = OK;
   int estimated_sql_operator_size;
   // "(%ld,%d,%d,%g,%d),"
   // strlen("(9999999999,9,1000000,1234567.89,1),\n") = 37
@@ -1041,6 +1042,7 @@ int HistoricImpl::store_history_samples(HistorizedInfoMap_t& historized_map, xdb
 #if (VERBOSE > 7)
       LOG(ERROR) << fname << ": SQL: " << sql;
 #endif
+      rc = NOK;
     } else LOG(INFO) << "Successfully insert " << num_samples << " row(s) for history type=" << store_only_htype;
   }
   else {
@@ -1049,7 +1051,7 @@ int HistoricImpl::store_history_samples(HistorizedInfoMap_t& historized_map, xdb
 
 //  accelerate(false);
 
-  return 0;
+  return rc;
 }
 
 
@@ -1168,7 +1170,8 @@ bool HistoricImpl::make_history_samples_by_type(const xdb::sampler_type_t htype_
 
   if (result) {
     // Занести все историзированные значения в HDB
-    store_history_samples(historized_map, htype_to_store);
+    if (OK != store_history_samples(historized_map, htype_to_store))
+      LOG(ERROR) << fname << ": Unable to save history sample type: " << htype_to_store;
   }
 
   return result;
@@ -1307,6 +1310,7 @@ bool HistoricImpl::load_samples_list_by_type(const xdb::sampler_type_t htype_to_
 
 
 // ===========================================================================
+// Код возврата - количество прочитанных данных
 int HistoricImpl::readValuesFromDataHDB(int         point_id, // Id точки
        xdb::sampler_type_t htype,    // Тип читаемой истории
        time_t      start,       // Начало диапазона читаемой истории
@@ -1315,7 +1319,6 @@ int HistoricImpl::readValuesFromDataHDB(int         point_id, // Id точки
 {
   sqlite3_stmt* stmt = 0;
   char sql_operator[MAX_BUFFER_SIZE_FOR_SQL_COMMAND + 1];
-  int retcode;
   size_t printed;
   int row_count = 0;
 
@@ -1330,9 +1333,7 @@ int HistoricImpl::readValuesFromDataHDB(int         point_id, // Id точки
            finish);
   assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
 
-  retcode = sqlite3_prepare(m_hist_db, sql_operator, -1, &stmt, 0);
-  if(retcode != SQLITE_OK)
-  {
+  if (SQLITE_OK != sqlite3_prepare(m_hist_db, sql_operator, -1, &stmt, 0)) {
     LOG(ERROR) << "Could not execute SELECT";
     return 0;
   }

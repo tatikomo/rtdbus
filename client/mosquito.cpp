@@ -283,7 +283,7 @@ int main (int argc, char *argv [])
   int history_type = xdb::PERIOD_1_MINUTE;
   // Запрос получения истории
   msg::HistoryRequest *history_req = NULL;
-
+  int rc = OK;
   //msg::ProbeMsg   *probe_msg = NULL; Не реализовано
   int opt;
   int verbose;
@@ -667,10 +667,11 @@ int main (int argc, char *argv [])
   catch (zmq::error_t err)
   {
       std::cerr << "E: " << err.what() << std::endl;
+      rc = NOK;
   }
 
   delete mosquito;
-  return 0;
+  return (OK == rc)? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
 #endif

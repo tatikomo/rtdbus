@@ -1,0 +1,56 @@
+{
+    "COMMON": {
+      "SMAD_FILE":  "EGSA_SMAD.sqlite"
+    },
+
+	"SITES": [{
+		"NAME": "/BI4500",
+		"NATURE": "ELE",
+		"AUTO_INIT": 1,
+		"AUTO_GENCONTROL": 1
+	}, {
+		"NAME": "/BI4501",
+		"NATURE": "ELE",
+		"AUTO_INIT": 1,
+		"AUTO_GENCONTROL": 1
+	}, {
+		"NAME": "/K42001",
+		"NATURE": "DIR",
+		"AUTO_INIT": 1,
+		"AUTO_GENCONTROL": 0
+	}],
+
+	"CYCLES": [{
+		"NAME": "GENCONTROL",
+		"PERIOD": 3600,
+		"REQUEST": "A_GENCONTROL",
+		"SITE": [{
+			"NAME": "/BI4500"
+		}, {
+			"NAME": "/BI4501"
+		}]
+	}, {
+		"NAME": "URGINFOS",
+		"PERIOD": 10,
+		"REQUEST": "A_URGINFOS",
+		"SITE": [{
+			"NAME": "/BI4500"
+		}]
+	}, {
+		"NAME": "INFOSACQ",
+		"PERIOD": 10,
+		"REQUEST": "A_INFOSACQ",
+		"SITE": [{
+			"NAME": "/BI4500"
+		}, {
+			"NAME": "/BI4501"
+		}]
+	}, {
+		"NAME": "INFO_DACQ_DIPADJ",
+		"PERIOD": 10,
+		"REQUEST": "A_INFOSACQ",
+		"SITE": [{
+			"NAME": "/K42001"
+		}]
+	}]
+}

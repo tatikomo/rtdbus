@@ -126,6 +126,10 @@
 #define RTDBUS_PATH_OR_ABSTRACT @RTDBUS_PATH_OR_ABSTRACT_VALUE@
 #endif
 
+/* Status code, return code */
+#define OK      100
+#define NOK     101
+
 #ifdef RTDBUS_PATH_OR_ABSTRACT_VALUE
 #undef RTDBUS_PATH_OR_ABSTRACT_VALUE
 #endif

@@ -23,6 +23,8 @@ Tester::~Tester()
 
 int Tester::handle_request(mdp::zmsg* request, std::string*& reply_to)
 {
+  int rc = OK;
+
   assert (request->parts () >= 2);
   LOG(INFO) << "Process new request with " << request->parts() << " parts and reply to " << *reply_to;
 
@@ -48,34 +50,38 @@ int Tester::handle_request(mdp::zmsg* request, std::string*& reply_to)
   else
   {
     LOG(ERROR) << "Readed letter "<<letter->header()->exchange_id()<<" not valid";
+    rc = NOK;
   }
 
   delete letter;
 #endif
 
-  return 0;
+  return rc;
 }
 
 int Tester::handle_rtdbus_message(msg::Letter* letter, 
                                 std::string *reply_to)
 {
-    assert(reply_to != NULL);
-    mdp::zmsg * msg = new mdp::zmsg();
+  int rc = OK;
 
-    /* TODO: поменять местами в заголовке значения полей "Отправитель" и "Получатель" */
-    std::string origin = letter->header()->proc_origin();
-    std::string dest = letter->header()->proc_dest();
+  assert(reply_to != NULL);
+  mdp::zmsg * msg = new mdp::zmsg();
 
-    letter->set_origin(dest.c_str());
-    letter->set_destination(origin.c_str());
+  /* TODO: поменять местами в заголовке значения полей "Отправитель" и "Получатель" */
+  std::string origin = letter->header()->proc_origin();
+  std::string dest = letter->header()->proc_dest();
 
-    msg->push_front(const_cast<std::string&>(letter->data()->get_serialized()));
-    msg->push_front(const_cast<std::string&>(letter->header()->get_serialized()));
-    msg->wrap(reply_to->c_str(), "");
+  letter->set_origin(dest.c_str());
+  letter->set_destination(origin.c_str());
 
-    send_to_broker((char*) MDPW_REPORT, NULL, msg);
-    delete msg;
-    return 0;
+  msg->push_front(const_cast<std::string&>(letter->data()->get_serialized()));
+  msg->push_front(const_cast<std::string&>(letter->header()->get_serialized()));
+  msg->wrap(reply_to->c_str(), "");
+
+  send_to_broker((char*) MDPW_REPORT, NULL, msg);
+  delete msg;
+
+  return rc;
 }
 
 
@@ -83,33 +89,39 @@ int Tester::handle_sell_request(std::string &price,
                                 std::string &volume,
                                 std::string *reply_to)
 {
-    LOG(INFO) << "SELL to '" << reply_to << "' price=" << price << " volume=" << volume;
+  int rc = OK;
 
-    assert(reply_to != NULL);
-    // в ответе д.б. два поля: REPORT_TYPE и VOLUME
-    mdp::zmsg * msg = new mdp::zmsg();
-    msg->push_front((char*)price.c_str());
-    msg->push_front((char*)"SOLD");
-    msg->wrap(reply_to->c_str(), "");
-    send_to_broker((char*) MDPW_REPORT, NULL, msg);
-    delete msg;
-    return 0;
+  LOG(INFO) << "SELL to '" << reply_to << "' price=" << price << " volume=" << volume;
+
+  assert(reply_to != NULL);
+  // в ответе д.б. два поля: REPORT_TYPE и VOLUME
+  mdp::zmsg * msg = new mdp::zmsg();
+  msg->push_front((char*)price.c_str());
+  msg->push_front((char*)"SOLD");
+  msg->wrap(reply_to->c_str(), "");
+  send_to_broker((char*) MDPW_REPORT, NULL, msg);
+  delete msg;
+
+  return rc;
 }
 
 int Tester::handle_buy_request(std::string &price, 
                                std::string &volume,
                                std::string *reply_to)
 {
-    LOG(INFO) << "BUY from '" << reply_to << "' price=" << price << " volume=" << volume;
-    assert(reply_to != NULL);
-    // в ответе д.б. два поля: REPORT_TYPE и VOLUME
-    mdp::zmsg * msg = new mdp::zmsg();
-    msg->push_front((char*)price.c_str());
-    msg->push_front((char*)"BYED");
-    msg->wrap(reply_to->c_str(), "");
-    send_to_broker((char*) MDPW_REPORT, NULL, msg);
-    delete msg;
-    return 0;
+  int rc = OK;
+
+  LOG(INFO) << "BUY from '" << reply_to << "' price=" << price << " volume=" << volume;
+  assert(reply_to != NULL);
+  // в ответе д.б. два поля: REPORT_TYPE и VOLUME
+  mdp::zmsg * msg = new mdp::zmsg();
+  msg->push_front((char*)price.c_str());
+  msg->push_front((char*)"BYED");
+  msg->wrap(reply_to->c_str(), "");
+  send_to_broker((char*) MDPW_REPORT, NULL, msg);
+  delete msg;
+
+  return rc;
 }
 
 /*
@@ -119,6 +131,7 @@ int Tester::handle_buy_request(std::string &price,
 #if !defined _FUNCTIONAL_TEST
 int main(int argc, char **argv)
 {
+  int  rc = OK;
   int  verbose = (argc > 1 && (0 == strcmp (argv [1], "-v")));
   char service_name[SERVICE_NAME_MAXLEN + 1];
   bool is_service_name_given = false;
@@ -189,11 +202,13 @@ int main(int argc, char **argv)
   catch(zmq::error_t err)
   {
     LOG(ERROR) << err.what();
+    rc = NOK;
   }
 
   ::google::protobuf::ShutdownProtobufLibrary();
   ::google::ShutdownGoogleLogging();
-  return 0;
+
+  return (OK == rc)? EXIT_SUCCESS : EXIT_FAILURE;
 }
 #endif
 
