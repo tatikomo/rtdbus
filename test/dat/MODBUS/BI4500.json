@@ -6,7 +6,7 @@
     "BYTE_ORDER": "ABCD",
     "SUB":        0,
     "NAME":       "/BI4500",
-    "TYPE":       "LOCAL_SA",
+    "NATURE":     "ELE",
     "SMAD":       "DB_LOCAL_SA.sqlite",
     "CHANNEL":    "MODBUS-TCP",
     "TRACE":      4

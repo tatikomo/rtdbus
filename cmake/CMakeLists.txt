@@ -265,7 +265,7 @@ set (HIST_DATABASE_LOCALIZATION     "LOCAL")
 set (BROKER_NAME        "BROKER")
 set (RTDB_NAME          "SINF")
 set (HMI_NAME           "HMI")
-set (EXCHANGE_NAME      "ECH")
+set (EXCHANGE_NAME      "EGSA")
 set (HISTORIAN_NAME     "HIST")
 
 # Названия таблиц Исторической БД (HDB)

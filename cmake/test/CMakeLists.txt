@@ -53,9 +53,9 @@ include_directories(${LIBSQLITE_INCLUDE_DIR})
 
 link_directories(${GTEST_DIR}/lib/.libs)
 link_directories(${LIBGLOG_LIBRARIES_DIR})
-link_directories(${MDP_DIR})
-link_directories(${HDB_DIR})
-link_directories(${XDB_BROKER_DIR})
+#link_directories(${MDP_DIR})
+#link_directories(${HDB_DIR})
+#link_directories(${XDB_BROKER_DIR})
 link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
@@ -73,6 +73,8 @@ set (TEST_EXCHANGE_SOURCES
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_init.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_host.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_host.cpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.hpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.hpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config_sac.hpp
@@ -271,6 +273,7 @@ target_link_libraries(${UNITTEST_EXCHANGE}
     ${LIBGLOG_LIBRARIES}
     ${GTEST_DIR}/cmake/libgtest.a
     ${EXCHANGE_LIBRARY_NAME}
+    ${MDP_LIBRARY_NAME}
     ${TOOLS_LIBRARY_NAME}
     ${SYSTEM_EXTERNAL_LIBS})
 

@@ -13,6 +13,8 @@ endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
 include_directories(${LIBGLOG_INCLUDE_DIR})
 include_directories(${TOOLS_DIR})
+include_directories(${MDP_DIR})
+include_directories(${MSG_DIR})
 include_directories(${EXCHANGE_CONFIG_DIR})
 include_directories(${EXCHANGE_SMAD_DIR})
 include_directories(${XDB_COMMON_DIR})
@@ -20,11 +22,16 @@ include_directories(${XDB_COMMON_DIR})
 #include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
 include_directories(${LIBSQLITE_INCLUDE_DIR})
 include_directories(${LIBMODBUS_INCLUDE_DIR})
+include_directories(${LIBPROTOBUF_INCLUDE_DIR})
+include_directories(${LIBCPPZMQ_INCLUDE_DIR})
+include_directories(${LIBZMQ_INCLUDE_DIR})
 include_directories(${RAPIDJSON_INCLUDE_DIR})
 
 link_directories(${LIBMODBUS_LIBRARIES_DIR})
 link_directories(${LIBGLOG_LIBRARIES_DIR})
 link_directories(${LIBSQLITE_LIBRARIES_DIR})
+link_directories(${LIBZMQ_LIBRARIES_DIR})
+link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${EXCHANGE_LIB_DIR})
 #link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 
@@ -37,9 +44,11 @@ set (MODULE_SOURCES
         ${EXCHANGE_SMAD_DIR}/exchange_smad_int.hpp
         ${EXCHANGE_SMAD_DIR}/exchange_smad_ext.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.cpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_init.hpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_init.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_host.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_host.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_init.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_init.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_sa.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_sa.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_main.cpp
@@ -63,7 +72,9 @@ target_link_libraries(${MODULE_NAME}
     ${EXCHANGE_LIBRARY_NAME}
     ${LIBMODBUS_LIBRARIES}
     ${LIBGLOG_LIBRARIES}
+    ${LIBPROTOBUF_LIBRARIES}
     ${TOOLS_LIBRARY_NAME}
+    ${MDP_LIBRARY_NAME}
     ${LIBSQLITE_LIBRARIES}
     ${SYSTEM_EXTERNAL_LIBS})
 

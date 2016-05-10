@@ -70,19 +70,16 @@
 #define s_COMMON_TIMEOUT   "TIMEOUT"    // Таймаут ожидания ответа в секундах
 #define s_COMMON_REPEAT_NB "REPEAT_NB"  // Количество последовательных попыток передачи данных при сбое
 #define s_COMMON_ERROR_NB  "ERROR_NB"   // Количество последовательных ошибок связи до диагностики разрыва связи
-#define s_COMMON_BYTE_ORDER "BYTE_ORDER"    // Порядок байт СС
+#define s_COMMON_BYTE_ORDER      "BYTE_ORDER" // Порядок байт СС
 #define s_COMMON_BYTE_ORDER_DCBA "DCBA"
 #define s_COMMON_BYTE_ORDER_ABCD "ABCD"
-#define s_COMMON_TYPE      "TYPE"       // Тип системы сбора -ЛПУ, ЦДП, локальная система автоматизации
-#define s_COMMON_TYPE_LOCAL_SA  "LOCAL_SA"  // Локальная автоматизация (СЛТМ, САУ КЦ, ...)
-#define s_COMMON_TYPE_ADJACENT  "ADJACENT"  // Соседний объект
-#define s_COMMON_TYPE_UPPER "UPPER"         // Вышестоящий уровень
-#define s_COMMON_TYPE_LOWER "LOWER"         // Нижестоящий уровень
-#define s_COMMON_SUB       "SUB"        // Признак необходимости вычитания единицы из адреса 
-#define s_COMMON_NAME      "NAME"       // Тег системы сбора (СС)
-#define s_COMMON_SMAD      "SMAD"       // Название файла SQLite, содержащего данные СС
-#define s_COMMON_CHANNEL   "CHANNEL"    // Тип канала доступа к серверу, TCP|RTU
-#define s_COMMON_TRACE     "TRACE"      // Глубина трассировки логов
+// TODO: насколько важно знать самой системе сбора свой тип?
+#define s_COMMON_NATURE      "NATURE"   // Тип системы сбора
+#define s_COMMON_SUB         "SUB"      // Признак необходимости вычитания единицы из адреса 
+#define s_COMMON_NAME        "NAME"     // Тег системы сбора (СС)
+#define s_COMMON_SMAD        "SMAD"     // Название файла SQLite, содержащего данные СС
+#define s_COMMON_CHANNEL     "CHANNEL"  // Тип канала доступа к серверу, TCP|RTU
+#define s_COMMON_TRACE       "TRACE"    // Глубина трассировки логов
 // Раздел MODBUS
 #define s_MODBUS_SLAVE_IDX      "SLAVE_IDX"     // Идентификатор ведомого устройства (slave identity)
 #define s_MODBUS_HC_FUNCTION    "HC_FUNCTION"   // Код функции HC
@@ -176,14 +173,14 @@ typedef enum {
 } sa_param_type_t; //mbus_param_type_t
 
 // ---------------------------------------------------------
-// Тип системы сбора
+// Уровень системы сбора
 typedef enum {
-  TYPE_UNKNOWN  = 0,    // Неопределенный тип
-  TYPE_LOCAL_SA = 1,    // Локальная система автоматизации
-  TYPE_LOWER    = 30,   // Подчиненный уровень
-  TYPE_ADJACENT = 31,   // Смежный аналогичный уровень
-  TYPE_UPPER    = 50    // Вышестоящий уровень
-} sa_object_type_t;
+  LEVEL_UNKNOWN  = 0,    // Неопределенный тип
+  LEVEL_LOCAL    = 1,    // Локальная система автоматизации (СЛТМ, САУ КЦ, ...)
+  LEVEL_LOWER    = 30,   // Подчиненный (нижестоящий) уровень
+  LEVEL_ADJACENT = 31,   // Смежный аналогичный уровень (Соседний объект)
+  LEVEL_UPPER    = 50    // Вышестоящий уровень
+} sa_object_level_t;
 
 // ---------------------------------------------------------
 // Состояние системы сбора
@@ -198,7 +195,7 @@ typedef enum {
 // ---------------------------------------------------------
 // definition of the nature of a Sac (site of acquisition)
 typedef enum {
-  GOF_D_SAC_NATURE_DIR,
+  GOF_D_SAC_NATURE_DIR  = 0,
   GOF_D_SAC_NATURE_DIPL,
   GOF_D_SAC_NATURE_GEKO,
   GOF_D_SAC_NATURE_A86,
@@ -273,7 +270,7 @@ typedef struct {
   int repeat_nb;    // Количество последовательных попыток передачи данных при сбое
   int error_nb;     // Количество последовательных ошибок связи до диагностики разрыва связи
   sa_endianess_t byte_order;    // Порядок байт СС
-  sa_object_type_t type;        // Тип системы сбора
+  gof_t_SacNature nature;       // Тип системы сбора
   int subtract;     // Признак необходимости вычитания единицы из адреса 
   std::string name; // Тег системы сбора (СС)
   std::string smad; // Название файла SQLite, содержащего данные СС

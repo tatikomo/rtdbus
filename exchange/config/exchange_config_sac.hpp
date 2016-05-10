@@ -42,6 +42,7 @@ class AcquisitionSystemConfig
     int repeat_nb() { return m_sa_common.repeat_nb; };
     int error_nb()  { return m_sa_common.error_nb; };
     sa_endianess_t byte_order() { return m_sa_common.byte_order; };
+    gof_t_SacNature nature() { return m_sa_common.nature; };
     bool address_subtraction()  { return m_sa_common.subtract; };  // Признак необходимости вычитания единицы из адреса 
     std::string& name() { return m_sa_common.name; };              // Тег системы сбора (СС)
     int trace_level()   { return m_sa_common.trace_level; };       // Глубина трассировки логов

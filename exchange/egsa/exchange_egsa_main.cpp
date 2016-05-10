@@ -1,3 +1,12 @@
+/*
+ * ============================================================================
+ * Процесс обслуживания источников и потребителей информации
+ *
+ * eugeni.gorovoi@gmail.com
+ * 01/04/2016
+ * ============================================================================
+ */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -10,21 +19,59 @@
 
 // Служебные файлы RTDBUS
 #include "exchange_config.hpp"
-#include "exchange_egsa_impl.hpp"
+#include "exchange_egsa_host.hpp"
 
-int main()
+int main(int argc, char *argv[])
 {
   int rc = NOK;
-  EGSA* instance = NULL;
+  int opt;
+  EGSA_Host* instance = NULL;
+  char service_name[SERVICE_NAME_MAXLEN + 1];
+  char broker_endpoint[ENDPOINT_MAXLEN + 1];
 
-  instance = new EGSA();
-  LOG(INFO) << "Start EGSA instance";
+  ::google::InstallFailureSignalHandler();
 
-  if (OK == instance->init()) {
-    rc = instance->run();
+  // Значения по-умолчанию
+  strcpy(broker_endpoint, ENDPOINT_BROKER);
+  strcpy(service_name, EXCHANGE_NAME);
+
+  while ((opt = getopt (argc, argv, "b:s:")) != -1)
+  {
+     switch (opt)
+     {
+       case 'b': // точка подключения к Брокеру
+         strncpy(broker_endpoint, optarg, ENDPOINT_MAXLEN);
+         broker_endpoint[ENDPOINT_MAXLEN] = '\0';
+         break;
+
+       case 's': // название собственной Службы
+         strncpy(service_name, optarg, SERVICE_NAME_MAXLEN);
+         service_name[SERVICE_NAME_MAXLEN] = '\0';
+         break;
+
+       case '?':
+         if (optopt == 'n')
+           fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+         else if (isprint (optopt))
+           fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+         else
+           fprintf (stderr,
+                    "Unknown option character `\\x%x'.\n",
+                    optopt);
+         return 1;
+
+       default:
+         abort ();
+     }
   }
 
-  LOG(INFO) << "Finish EGSA instance, rc=" << rc;
+  instance = new EGSA_Host(broker_endpoint, service_name, 1);
+  LOG(INFO) << "Start host EGSA instance";
+
+  rc = instance->run();
+
+  LOG(INFO) << "Finish host EGSA instance, rc=" << rc;
+  //::google::protobuf::ShutdownProtobufLibrary();
 
   return (OK == rc)? EXIT_SUCCESS : EXIT_FAILURE;
 }

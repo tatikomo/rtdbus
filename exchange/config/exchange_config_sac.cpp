@@ -40,6 +40,7 @@ AcquisitionSystemConfig::AcquisitionSystemConfig(const char* config_filename)
   m_sa_common.repeat_nb = 1;    // Количество последовательных попыток передачи данных при сбое
   m_sa_common.error_nb = 2;     // Количество последовательных ошибок связи до диагностики разрыва связи
   m_sa_common.byte_order = SA_BYTEORDER_ABCD;   // Порядок байт СС
+  m_sa_common.nature = GOF_D_SAC_NATURE_EUNK;   // Неизвестный тип СС
   m_sa_common.subtract = 0;     // Признак необходимости вычитания единицы из адреса 
   m_sa_common.channel = SA_MODE_UNKNOWN;      // Тип канала доступа к серверу, MODBUS-{TCP|RTU}, OPC-UA
   m_sa_common.trace_level = 1;
@@ -105,7 +106,7 @@ int AcquisitionSystemConfig::load()
 
   do {
 
-   // загрузка основной конфигурации: разделы COMMON, CONFIG, SERVERS
+    // загрузка основной конфигурации: разделы COMMON, CONFIG, SERVERS
     status = load_common(m_sa_common);
     if (NOK == status) {
       LOG(ERROR) << fname << ": Get control configuration";
@@ -490,18 +491,9 @@ int AcquisitionSystemConfig::load_common(sa_common_t& common)
     common.byte_order = SA_BYTEORDER_ABCD;
   }
 
-  buffer = section[s_COMMON_TYPE].GetString();
-  if (0 == buffer.compare(s_COMMON_TYPE_LOCAL_SA))
-    common.type = TYPE_LOCAL_SA;
-  else if (0 == buffer.compare(s_COMMON_TYPE_ADJACENT))
-    common.type = TYPE_ADJACENT;
-  else if (0 == buffer.compare(s_COMMON_TYPE_UPPER))
-    common.type = TYPE_UPPER;
-  else if (0 == buffer.compare(s_COMMON_TYPE_LOWER))
-    common.type = TYPE_LOWER;
-  else {
-    LOG(FATAL) << "Unsupported sa link type: " << buffer;
-    common.type = TYPE_UNKNOWN;
+  if (section.HasMember(s_COMMON_NATURE)) {
+    // TODO: process SA NATURE
+    LOG(INFO) << "GEV: Process SA nature: " << section[s_COMMON_NATURE].GetString();
   }
 
   common.subtract = section[s_COMMON_SUB].GetInt();
@@ -630,7 +622,7 @@ int AcquisitionSystemConfig::load_common(sa_common_t& common)
             << " timeout=" << common.timeout
             << " #repeats=" << common.repeat_nb
             << " #errors=" << common.error_nb
-            << " type=" << common.type
+            << " nature=" << common.nature
             << " byte_order=" << common.byte_order
             << " channel=" << common.channel
             << " subtract=" <<  common.subtract

@@ -56,6 +56,10 @@ bool loadXmlContent(RtEnvironment* env,
                     const char* filename,
                     rtap_db::Points&);
 // ------------------------------------------------------------
+// Автоматически создать группу для EGSA из точек типа "Система Сбора"
+bool activateExchangeSubcriptionGroups(RtEnvironment* env,
+                    rtap_db::Points&);
+// ------------------------------------------------------------
 // Загрузить Группы подписки
 bool loadSubscriptionGroups(RtEnvironment* env, const char* env_path);
 // ------------------------------------------------------------
@@ -96,10 +100,15 @@ bool xdb::loadFromXML(RtEnvironment* env, const char* env_path)
   }
 
   applyClassListToDB(env, dictionary, point_list);
-#warning "Автоматически создать группу для EGSA из точек типа \"Система Сбора\""
+ 
+  // Автоматически создать группу для EGSA из точек типа "Система Сбора"
+  status = activateExchangeSubcriptionGroups(env, point_list);
+  if (!status) {
+    LOG(WARNING) << "Activating '" << env->getName() << "' subscription groups for Exchange";
+  }
+
   status = loadSubscriptionGroups(env, env_path);
-  if (!status)
-  {
+  if (!status) {
     LOG(WARNING) << "Load '" << env->getName() << "' subscription groups";
   }
 
@@ -278,6 +287,7 @@ bool loadSubscriptionGroups(RtEnvironment* env, const char *work_env)
   bool status = false;
   struct dirent **namelist;
   int n;
+  RtConnection* conn = NULL;
 
   n = scandir(work_env, &namelist, filter, alphasort);
   if (n < 0)
@@ -286,12 +296,16 @@ bool loadSubscriptionGroups(RtEnvironment* env, const char *work_env)
   }
   else
   {
+    conn = env->getConnection();
+
     while (n--)
     {
-      status = process_group(env->getConnection(), work_env, namelist[n]->d_name);
+      status = process_group(conn, work_env, namelist[n]->d_name);
       free(namelist[n]);
     }
+
     free(namelist);
+    delete conn;
   }
 
   return status;
@@ -432,6 +446,7 @@ void applyDictionariesToDB(RtEnvironment* env, rtap_db_dict::Dictionaries_t& dic
   LOG(INFO) << "Creating CE DICT: " << conn->getLastError().what();
   delete command.tags;
 
+  delete conn;
   //
   // TODO: Эти данные хранить в реляционной СУБД:
   // DICT_OBJCLASS_CODE (элемент XML: )
@@ -485,4 +500,53 @@ void applyClassListToDB(RtEnvironment* env, rtap_db_dict::Dictionaries_t& dict, 
     }
   }
   LOG(INFO) << "Summary processed : " << sum << " point(s)";
+
+  delete conn;
 }
+
+// ==================================================================
+// Автоматически создать группу для EGSA из точек типа "Система Сбора"
+bool activateExchangeSubcriptionGroups(RtEnvironment* env, rtap_db::Points &pl)
+{
+  rtDbCq operation;
+  xdb::Error result;
+  size_t index;
+  bool stat = false;
+  std::vector<std::string> tags_list;
+  std::string sbs_group_name = EXCHANGE_NAME;   // Зарезервированное имя группы
+
+  for (index=0; index<pl.size(); index++)
+  {
+    if (GOF_D_BDR_OBJCLASS_SA == pl[index].objclass()) {
+      LOG(INFO) << "ARM new SA " << pl[index].tag();
+      tags_list.push_back(pl[index].tag());
+    }
+  }
+
+  // Есть системы сбора?
+  if (index) {
+    RtConnection* conn = env->getConnection();
+
+    operation.buffer = static_cast<void*>(&sbs_group_name);
+    // Тип конфигурирования - создание группы подписки
+    operation.action.config = rtCONFIG_ADD_GROUP_SBS;
+    // Название точек, входящих в набор создаваемой группы
+    operation.tags = &tags_list;
+    operation.addrCnt = tags_list.size();
+
+    result = conn->ConfigDatabase(operation);
+    if (!result.Ok()) {
+      LOG(ERROR) << "Configure SBS '" << sbs_group_name << "': " << result.what();
+    }
+    else {
+      stat = true;
+    }
+
+    delete conn;
+  }
+
+  return stat;
+}
+
+// ==================================================================
+

@@ -187,7 +187,7 @@ void HistorianResponder::run()
 
   m_frontend.close();
 
-  // Ресурсы очищаются в локальной ните, деструктору ничего не достанется...
+  // Ресурсы очищаются в локальной нити, деструктору ничего не достанется...
   delete m_message_factory;
   delete m_historic;
 

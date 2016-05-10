@@ -35,6 +35,16 @@ const char* EgsaConfig::s_SECTION_COMMON_NAME_SMAD_FILE  = "SMAD_FILE";
 const char* EgsaConfig::s_SECTION_NAME_SITES_NAME    = "SITES";
 // Название ключа "имя файла SMAD EGSA"
 const char* EgsaConfig::s_SECTION_SITES_NAME_NAME    = "NAME";
+// Уровень в иерархии
+const char* EgsaConfig::s_SECTION_SITES_NAME_LEVEL   = "LEVEL";
+// Уровень в иерархии - локальная АСУ
+const char* EgsaConfig::s_SECTION_SITES_NAME_LEVEL_LOCAL = "LOCAL";
+// Уровень в иерархии - вышестоящая система
+const char* EgsaConfig::s_SECTION_SITES_NAME_LEVEL_UPPER = "UPPER";
+// Уровень в иерархии - соседняя/смежная система
+const char* EgsaConfig::s_SECTION_SITES_NAME_LEVEL_ADJACENT = "ADJACENT";
+// Уровень в иерархии - подчиненная система
+const char* EgsaConfig::s_SECTION_SITES_NAME_LEVEL_LOWER = "LOWER";
 const char* EgsaConfig::s_SECTION_SITES_NAME_NATURE  = "NATURE";
 const char* EgsaConfig::s_SECTION_SITES_NAME_AUTO_INIT       = "AUTO_INIT";
 const char* EgsaConfig::s_SECTION_SITES_NAME_AUTO_GENCONTROL = "AUTO_GENCONTROL";
@@ -232,12 +242,28 @@ int EgsaConfig::load_sites()
         LOG(WARNING) << fname << ": unknown nature label: " << nature;
       }
 
+      std::string level = cycle_item[s_SECTION_SITES_NAME_LEVEL].GetString();
+      if (0 == level.compare(s_SECTION_SITES_NAME_LEVEL_LOCAL))
+        item->level = LEVEL_LOCAL;
+      else if (0 == level.compare(s_SECTION_SITES_NAME_LEVEL_LOWER))
+        item->level = LEVEL_LOWER;
+      else if (0 == level.compare(s_SECTION_SITES_NAME_LEVEL_ADJACENT))
+        item->level = LEVEL_ADJACENT;
+      else if (0 == level.compare(s_SECTION_SITES_NAME_LEVEL_UPPER))
+        item->level = LEVEL_UPPER;
+      else {
+        LOG(ERROR) << fname << ": unsupported " << s_SECTION_SITES_NAME_LEVEL << " value: " << level;
+        item->level = LEVEL_UNKNOWN;
+      }
+
       item->auto_init = cycle_item[s_SECTION_SITES_NAME_AUTO_INIT].GetInt();
       item->auto_gencontrol = cycle_item[s_SECTION_SITES_NAME_AUTO_GENCONTROL].GetInt();
 
       m_sites.insert(std::pair<std::string, egsa_config_site_item_t*>(item->name, item));
 
-      LOG(INFO) << fname << ": load site: " << item->name << " nature=" << item->nature
+      LOG(INFO) << fname << ": load site: " << item->name
+                << " level=" << item->level
+                << " nature=" << item->nature
                 << " auto_init=" << item->auto_init
                 << " auto_gencontrol=" << item->auto_gencontrol;
     }

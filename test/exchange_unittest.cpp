@@ -17,6 +17,7 @@
 AcquisitionSystemConfig* g_sa_config = NULL;
 EgsaConfig* g_egsa_config = NULL;
 EGSA* egsa_instance = NULL;
+zmq::context_t g_ctx(1);
 
 const char* g_sa_config_filename = "BI4500.json";
 const char* g_egsa_config_filename = "egsa.json";
@@ -24,7 +25,7 @@ extern ega_ega_odm_t_RequestEntry g_requests_table[]; // declared in exchange_eg
 
 TEST(TestEXCHANGE, EGSA_CREATE)
 {
-  egsa_instance = new EGSA();
+  egsa_instance = new EGSA(g_ctx);
   EXPECT_TRUE(egsa_instance != NULL);
 
   g_sa_config = new AcquisitionSystemConfig(g_sa_config_filename);
@@ -45,6 +46,7 @@ TEST(TestEXCHANGE, EGSA_CONFIG)
 {
   g_egsa_config->load();
   LOG(INFO) << "load " << g_egsa_config->cycles().size() << " cycles";
+  LOG(INFO) << "load " << g_egsa_config->sites().size() << " sites";
 }
 
 TEST(TestEXCHANGE, EGSA_REQUESTS)
@@ -58,7 +60,7 @@ TEST(TestEXCHANGE, EGSA_REQUESTS)
   EXPECT_TRUE(req_entry_dict == NULL);
 
   // Проверка поиска существующего запроса
-  rc =  get_request_by_name("A_GENCONTROL", req_entry_dict);
+  rc =  get_request_by_name(EGA_EGA_D_STRGENCONTROL, req_entry_dict);
   EXPECT_TRUE(rc == OK);
   EXPECT_TRUE(req_entry_dict != NULL);
   EXPECT_TRUE(req_entry_dict->e_RequestId == ECH_D_GENCONTROL);

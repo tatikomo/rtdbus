@@ -302,7 +302,7 @@ client_status_t RTDBUS_Modbus_client::run()
   m_smad = new InternalSMAD(m_config->smad_filename().c_str());
 
   // Открыть InternalSMAD указанной СС
-  if (STATE_OK != m_smad->connect(m_config->name().c_str(), TYPE_LOCAL_SA)) {
+  if (STATE_OK != m_smad->connect(m_config->name().c_str(), /* nature */ GOF_D_SAC_NATURE_EELE)) {
     LOG(ERROR) << "Unable to continue without InternalSMAD " << m_config->name();
     m_status = STATUS_FATAL_SMAD;
     // NB: m_smad будет удалён в деструкторе

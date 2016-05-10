@@ -28,12 +28,12 @@ class InternalSMAD
 
     // Подключиться к указанной таблице InternalSMAD, создав новую запись для указанной СС
     // NB: используется модулем СС
-    smad_connection_state_t connect(const char*, sa_object_type_t);
+    smad_connection_state_t connect(const char*, gof_t_SacNature);
     // Подключиться к указанной СС, не создавая новых записей
     // NB: используется EGSA
-    smad_connection_state_t attach(const char*, sa_object_type_t);
+    smad_connection_state_t attach(const char*, gof_t_SacNature);
     smad_connection_state_t state() { return m_state; };
-    sa_object_type_t type() { return m_sa_object_type; };
+    gof_t_SacNature nature() { return m_sa_nature; };
     // Занести значение в InternalSMAD
     int push(const sa_parameter_info_t&);
     // Прочитать измененные значения
@@ -114,7 +114,7 @@ class InternalSMAD
 
     sqlite3* m_db;
     smad_connection_state_t  m_state;
-    sa_object_type_t    m_sa_object_type;
+    gof_t_SacNature    m_sa_nature;
     char*    m_db_err;
     char*    m_snapshot_filename;
     char*    m_sa_name;

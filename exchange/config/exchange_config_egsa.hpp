@@ -31,10 +31,11 @@ typedef struct {
 
 // Характеристика одного сайта
 typedef struct {
-  std::string name;
-  int  nature;
-  bool auto_init;
-  bool auto_gencontrol;
+  std::string name; // название
+  int  level;       // место в иерархии - выше/ниже/локальный/смежный
+  int  nature;      // тип СС
+  bool auto_init;   // флаг необходимости проводить инициализацию связи
+  bool auto_gencontrol; // флаг допустимости проведения процедуры сбора данных
 } egsa_config_site_item_t;
 
 // Перечень сайтов со своими характеристиками
@@ -107,6 +108,11 @@ class EgsaConfig {
     static const char*  s_SECTION_NAME_SITES_NAME;
     // Название ключа "имя файла SMAD EGSA"
     static const char*  s_SECTION_SITES_NAME_NAME;
+    static const char*  s_SECTION_SITES_NAME_LEVEL;
+    static const char*  s_SECTION_SITES_NAME_LEVEL_LOCAL;
+    static const char*  s_SECTION_SITES_NAME_LEVEL_UPPER;
+    static const char*  s_SECTION_SITES_NAME_LEVEL_ADJACENT;
+    static const char*  s_SECTION_SITES_NAME_LEVEL_LOWER;
 	static const char*  s_SECTION_SITES_NAME_NATURE;
 	static const char*  s_SECTION_SITES_NAME_AUTO_INIT;
 	static const char*  s_SECTION_SITES_NAME_AUTO_GENCONTROL;

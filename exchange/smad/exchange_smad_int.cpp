@@ -19,7 +19,7 @@
 // ---+-------------+-----------+--------------+
 //  1 | ID          | INTEGER   | generated    |<---+
 //  2 | NAME        | TEXT      |              |    |
-//  3 | TYPE        | INTEGER   |              |    |   // Тип: СС, ЛПУ, ЦДП, ...
+//  3 | NATURE      | INTEGER   | 0            |    |   // Тип СС, ЛПУ, ЦДП,...
 //  4 | STATE       | INTEGER   | 0            |    |
 //  5 | DELEGATION  | INTEGER   | 1            |    |
 //  6 | LAST_PROBE  | TIME      |              |    |   // Когда в последний раз опрашивалась модулем
@@ -62,7 +62,7 @@ const char *InternalSMAD::s_SQL_CREATE_SMAD_TEMPLATE =
     "("
     "ID INTEGER PRIMARY KEY,"       // Уник. идентификатор записи
     "NAME TEXT NOT NULL,"           // Тег СС
-    "TYPE INTEGER DEFAULT 0,"       // Тип системы - локальная СС, смежное ЛПУ, подчиненное ЛПУ, ЦДП, РПУ,..
+    "NATURE INTEGER DEFAULT 0,"     // Тип системы - локальной СС, ЛПУ, ЦДП,..
     "STATE INTEGER DEFAULT 0,"      // Состояние СС { Недоступно(0)|Инициализация(1)|Работа(2) }
     "DELEGATION INTEGER DEFAULT 1," // Режим управления CC { Местный(1)|Дистанционный(0) }
     "LAST_PROBE INTEGER,"           // Время последнего сеанса работы модуля с Системой Сбора
@@ -70,7 +70,7 @@ const char *InternalSMAD::s_SQL_CREATE_SMAD_TEMPLATE =
     ");";
 // Шаблон занесения данных в таблицу SMAD
 const char *InternalSMAD::s_SQL_INSERT_SMAD_TEMPLATE =
-    "INSERT INTO %s (NAME,TYPE,STATE,DELEGATION,LAST_PROBE,MODE) VALUES ('%s',%d,%d,%d,%ld,'%s');";
+    "INSERT INTO %s (NAME,NATURE,STATE,DELEGATION,LAST_PROBE,MODE) VALUES ('%s',%d,%d,%d,%ld,'%s');";
 // Команда создания таблицы НСИ СС в случае, если ранее её не было
 const char *InternalSMAD::s_SQL_CREATE_SA_TEMPLATE =
     "CREATE TABLE IF NOT EXISTS %s "
@@ -199,7 +199,7 @@ const char *InternalSMAD::s_SA_DATA_TABLENAME = "DATA";
 InternalSMAD::InternalSMAD(const char *filename)
  : m_db(NULL),
    m_state(STATE_DISCONNECTED),
-   m_sa_object_type(TYPE_UNKNOWN),
+   m_sa_nature(GOF_D_SAC_NATURE_EUNK),
    m_db_err(NULL),
    m_snapshot_filename(NULL),
    m_sa_name(NULL),
@@ -225,13 +225,13 @@ InternalSMAD::~InternalSMAD()
 
 // ==========================================================================================
 // Подключиться к InternalSMAD в режиме выгрузки данных, справочные таблицы не создаются
-smad_connection_state_t InternalSMAD::attach(const char* sa_name, sa_object_type_t sa_type)
+smad_connection_state_t InternalSMAD::attach(const char* sa_name, gof_t_SacNature sa_nature)
 {
   const char *fname = "attach";
   int rc = 0;
 
   m_sa_name = strdup(sa_name);
-  m_sa_object_type = sa_type;
+  m_sa_nature = sa_nature;
 
   // ------------------------------------------------------------------
   // Открыть файл InternalSMAD с базой данных SQLite
@@ -264,7 +264,7 @@ smad_connection_state_t InternalSMAD::attach(const char* sa_name, sa_object_type
 
 // ==========================================================================================
 // Подключиться к InternalSMAD, создав все необходимые таблицы
-smad_connection_state_t InternalSMAD::connect(const char* sa_name, sa_object_type_t sa_type)
+smad_connection_state_t InternalSMAD::connect(const char* sa_name, gof_t_SacNature sa_nature)
 {
   const char *fname = "connect";
   char sql_operator[1000 + 1];
@@ -272,7 +272,7 @@ smad_connection_state_t InternalSMAD::connect(const char* sa_name, sa_object_typ
   int rc = 0;
 
   m_sa_name = strdup(sa_name);
-  m_sa_object_type = sa_type;
+  m_sa_nature = sa_nature;
 
   // ------------------------------------------------------------------
   // Открыть файл InternalSMAD с базой данных SQLite
@@ -699,7 +699,7 @@ bool InternalSMAD::get_sa_reference(char* system_name, uint64_t& reference)
                          s_SQL_INSERT_SMAD_TEMPLATE,
                          s_SMAD_DESCRIPTION_TABLENAME,
                          system_name,
-                         m_sa_object_type,
+                         m_sa_nature,
                          0,
                          1,
                          time(0),

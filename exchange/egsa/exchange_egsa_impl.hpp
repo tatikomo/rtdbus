@@ -10,27 +10,39 @@
 //#include <assert.h>
 // Служебные заголовочные файлы сторонних утилит
 // Служебные файлы RTDBUS
+#include "mdp_zmsg.hpp"
+#include "mdp_worker_api.hpp"
+#include "msg_message.hpp"
+// Конфигурация
 #include "exchange_config.hpp"
 #include "exchange_config_egsa.hpp"
 // Внешняя память, под управлением EGSA
-#include "exchange_smad_ext.hpp"
+//#include "exchange_smad_ext.hpp"
 #include "exchange_egsa_init.hpp"
-#include "exchange_egsa_sa.hpp"
+//#include "exchange_egsa_sa.hpp"
 
+class ExternalSMAD;
+class EgsaConfig;
+class SystemAcquisition;
 class Cycle;
 class Request;
 
 class EGSA {
   public:
+    static const int PollingTimeout;
     typedef std::map<std::string, SystemAcquisition*> system_acquisition_list_t;
 
-    EGSA();
+    EGSA(zmq::context_t&);
    ~EGSA();
-
+    
+    // Первичная обработка нового запроса
+    int processing(mdp::zmsg*, std::string&);
     // Инициализация, создание/подключение к внутренней SMAD
     int init();
     // Основной рабочий цикл
     int run();
+    // Останов экземпляра
+    int stop();
     // Ввести в оборот новый Цикл сбора
     int push_cycle(Cycle*);
     // Активировать циклы
@@ -41,6 +53,19 @@ class EGSA {
     int wait(int);
 
   private:
+    DISALLOW_COPY_AND_ASSIGN(EGSA);
+    // Телерегулирование
+    // SIG_D_MSG_ECHCTLPRESS
+    // SIG_D_MSG_ECHDIRCTLPRESS
+    int handle_teleregulation(msg::Letter*, std::string*);
+
+    zmq::context_t &m_context;
+    // Входящее соединение от Клиентов
+    zmq::socket_t   m_frontend;
+    // Сигнал к завершению работы
+    volatile static bool m_interrupt;
+    msg::MessageFactory *m_message_factory;
+
     // Экземпляр ExternalSMAD для хранения конфигурации и данных EGSA
     ExternalSMAD *m_ext_smad;
     EgsaConfig   *m_config;

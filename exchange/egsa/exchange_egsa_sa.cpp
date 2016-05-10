@@ -14,25 +14,42 @@
 
 // Служебные файлы RTDBUS
 #include "exchange_config.hpp"
+#include "exchange_config_sac.hpp"
 #include "exchange_smad_int.hpp"
 #include "exchange_egsa_sa.hpp"
 
 // -----------------------------------------------------------------------------------
-// sa_object_type_t - Место в иерархии
+// sa_object_level_t - Место в иерархии
 // gof_t_SacNature - Тип объекта
 // name - код системы сбора
-SystemAcquisition::SystemAcquisition(sa_object_type_t type, gof_t_SacNature nature, const char* name)
-  : m_type(type),
+SystemAcquisition::SystemAcquisition(sa_object_level_t level, gof_t_SacNature nature, const char* name)
+  : m_level(level),
     m_nature(nature),
     m_smad(NULL),
     m_state(SA_STATE_UNKNOWN),
     m_smad_state(STATE_DISCONNECTED)
 {
-  m_name = strdup(name);
-  m_smad = new InternalSMAD("DB_LOCAL_SA.sqlite");
+  std::string sa_config_filename = name;
+  sa_common_t sa_common;
+  AcquisitionSystemConfig* sa_config = NULL;
 
-  if (STATE_OK != (m_smad_state = m_smad->attach(m_name, m_type))) {
-    LOG(ERROR) << "FAIL attach to '" << m_name << "'";
+  m_name = strdup(name);
+  sa_config_filename += ".json";
+
+  // Определить для указанной СС название файла-снимка SMAD
+  sa_config = new AcquisitionSystemConfig(sa_config_filename.c_str());
+  if (NOK == sa_config->load_common(sa_common)) {
+     LOG(ERROR) << "Бяка SA " << m_name << " common config";
+  }
+  else {
+    m_smad = new InternalSMAD(sa_common.smad.c_str());
+
+    if (STATE_OK != (m_smad_state = m_smad->attach(m_name, m_nature))) {
+      LOG(ERROR) << "FAIL attach to '" << m_name << "', file=" << sa_common.smad;
+    }
+    else {
+      LOG(INFO) << "OK attach to  '" << m_name << "', file=" << sa_common.smad;
+    }
   }
 }
 

@@ -19,7 +19,7 @@
 class SystemAcquisition
 {
   public:
-    SystemAcquisition(sa_object_type_t, gof_t_SacNature, const char*);
+    SystemAcquisition(sa_object_level_t, gof_t_SacNature, const char*);
    ~SystemAcquisition();
 
     // Получить состояние СС
@@ -36,7 +36,7 @@ class SystemAcquisition
     // Код СС
     char* m_name;
     // Иерархия СС
-    sa_object_type_t  m_type;
+    sa_object_level_t m_level;
     // Тип СС
     gof_t_SacNature   m_nature;
     // Ссылка на внутреннюю SMAD

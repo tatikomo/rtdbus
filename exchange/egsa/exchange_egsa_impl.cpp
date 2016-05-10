@@ -14,17 +14,28 @@
 #include "glog/logging.h"
 
 // Служебные файлы RTDBUS
+#include "mdp_zmsg.hpp"
+#include "mdp_worker_api.hpp"
+#include "msg_common.h"     // константы запросов SIG_D_MSG_*
 #include "exchange_config.hpp"
 #include "exchange_config_egsa.hpp"
 #include "exchange_smad_int.hpp"
 #include "exchange_smad_ext.hpp"
+#include "exchange_egsa_sa.hpp"
 #include "exchange_egsa_impl.hpp"
 #include "exchange_egsa_request_cyclic.hpp"
 #include "xdb_common.hpp"
 
+extern int interrupt_worker;
+
+volatile bool EGSA::m_interrupt  = false;
+
 // ==========================================================================================================
-EGSA::EGSA()
-  : m_ext_smad(NULL),
+EGSA::EGSA(zmq::context_t& _ctx)
+  : m_context(_ctx),
+    m_frontend(_ctx, ZMQ_ROUTER),
+    m_message_factory(NULL),
+    m_ext_smad(NULL),
     m_config(NULL)
 {
   m_socket = open("egsa_timers.pipe", S_IFIFO|0666, 0);
@@ -71,6 +82,8 @@ int EGSA::init()
   m_ext_smad = new ExternalSMAD(m_config->smad_name().c_str());
   smad_connection_state_t ext_state = m_ext_smad->connect();
   LOG(INFO) << "Connect to internal EGSA SMAD code=" << ext_state;
+
+  // Активировать группу подписки
   rc = (STATE_OK == ext_state)? OK : NOK;
 
   return rc;
@@ -80,15 +93,34 @@ int EGSA::init()
 // Подключиться к SMAD систем сбора
 int EGSA::attach_to_sites_smad()
 {
-  // TODO: должен быть список подчиненных систем сбора, взять оттуда
-  const char* sa_name = "BI4500";
+  // Список подчиненных систем сбора
+  egsa_config_sites_t& sites = m_config->sites();
   int rc = NOK;
   // TEST - подключиться к SMAD для каждой подчиненной системы
-  // 2016/04/13 Пока у нас одна система, для опытов
 #if 1
 
-  SystemAcquisition *sa_instance = new SystemAcquisition(TYPE_LOCAL_SA, GOF_D_SAC_NATURE_EELE, sa_name);
-  m_sa_list.insert(std::pair<std::string, SystemAcquisition*>(sa_name, sa_instance));
+  // По списку известных нам систем сбора создать интерфейсы к их SMAD
+  for (egsa_config_sites_t::iterator it = sites.begin();
+       it != sites.end();
+       it++)
+  {
+    const std::string& sa_name = (*it).second->name;
+    int raw_nature = (*it).second->nature;
+    gof_t_SacNature sa_nature = GOF_D_SAC_NATURE_EUNK;
+    if ((GOF_D_SAC_NATURE_DIR >= raw_nature) && (raw_nature <= GOF_D_SAC_NATURE_EUNK)) {
+      sa_nature = static_cast<gof_t_SacNature>(raw_nature);
+    }
+
+    int raw_level = (*it).second->level;
+    sa_object_level_t sa_level = LEVEL_UNKNOWN;
+    if ((LEVEL_UNKNOWN >= raw_level) && (raw_level <= LEVEL_UPPER)) {
+      sa_level = static_cast<sa_object_level_t>(raw_level);
+    }
+
+    SystemAcquisition *sa_instance = new SystemAcquisition(sa_level, sa_nature, sa_name.c_str());
+    m_sa_list.insert(std::pair<std::string, SystemAcquisition*>(sa_name, sa_instance));
+  }
+
   rc = OK;
 
 #else
@@ -141,11 +173,39 @@ int EGSA::detach()
 //
 int EGSA::run()
 {
+  const char* fname = "run()";
   volatile int status;
+  int mandatory = 1;
+  int linger = 0;
+  int hwm = 100;
+  int send_timeout_msec = SEND_TIMEOUT_MSEC; // 1 sec
+  int recv_timeout_msec = RECV_TIMEOUT_MSEC; // 3 sec
+  zmq::pollitem_t  socket_items[2];
+  mdp::zmsg *request = NULL;
 
   if (OK == init()) {
     status = attach_to_sites_smad();
   }
+
+  LOG(INFO) << fname << ": START";
+  try
+  {
+    // Сокет прямого подключения, выполняется в отдельной нити 
+    // ZMQ_ROUTER_MANDATORY может привести zmq_proxy_steerable к аномальному завершению: rc=-1, errno=113
+    // Наблюдалось в случаях интенсивного обмена с клиентом, если тот аномально завершался.
+    m_frontend.setsockopt(ZMQ_ROUTER_MANDATORY, &mandatory, sizeof (mandatory));
+    m_frontend.bind("tcp://lo:5559" /*ENDPOINT_EXCHG_FRONTEND*/);
+    m_frontend.setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
+    m_frontend.setsockopt(ZMQ_RCVHWM, &hwm, sizeof(hwm));
+    m_frontend.setsockopt(ZMQ_SNDHWM, &hwm, sizeof(hwm));
+    m_frontend.setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
+    m_frontend.setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
+
+    // Сокет для получения запросов по истории
+    socket_items[0].socket = (void*)m_frontend;
+    socket_items[0].fd = 0;
+    socket_items[0].events = ZMQ_POLLIN;
+    socket_items[0].revents = 0;
 
   while (OK == status)
   {
@@ -206,6 +266,22 @@ int EGSA::run()
     }
     sleep (1);
   }
+  }
+  catch(zmq::error_t error)
+  {
+      LOG(ERROR) << fname << ": transport error catch: " << error.what();
+  }
+  catch (std::exception &e)
+  {
+      LOG(ERROR) << fname << ": runtime signal catch: " << e.what();
+  }
+
+  m_frontend.close();
+
+  // Ресурсы очищаются в локальной нити, деструктору ничего не достанется...
+  delete m_message_factory;
+
+  LOG(INFO) << fname << ": STOP";
 
   return status;
 }
@@ -285,6 +361,11 @@ int EGSA::wait(int max_wait_sec)
 
 
   for (int i=0; i<max_wait_sec; i++) {
+    if (interrupt_worker) {
+      LOG(INFO) << "EGSA::wait breaks";
+      break;
+    }
+
     /* Wait up to one seconds. */
     tv.tv_sec = 2;
     tv.tv_usec = 1;
@@ -303,8 +384,7 @@ int EGSA::wait(int max_wait_sec)
 
       default:
         read_sz = read(m_socket, buffer, buffer_sz);
-        if (read_sz >= 0) buffer[read_sz] = '\0';
-        else buffer[0] = '\0';
+        buffer[(read_sz >= 0)? read_sz : 0] = '\0';
         LOG(INFO) << "Read " << read_sz << " bytes: " << buffer;
         /* FD_ISSET(0, &rfds) will be true. */
     }
@@ -313,4 +393,69 @@ int EGSA::wait(int max_wait_sec)
 
   return OK;
 }
+
+// ==========================================================================================================
+// Функция первично обрабатывает полученный запрос.
+// Обслуживаемые запросы перечислены в egsa.mkd
+//
+// NB: Запросы обрабатываются последовательно.
+int EGSA::processing(mdp::zmsg* request, std::string &identity)
+{
+  rtdbMsgType msgType;
+  int rc = OK;
+
+//  LOG(INFO) << "Process new request with " << request->parts() 
+//            << " parts and reply to " << identity;
+
+  // Получить отметку времени начала обработки запроса
+  // m_metric_center->before();
+
+  msg::Letter *letter = m_message_factory->create(request);
+  if (letter->valid())
+  {
+    msgType = letter->header()->usr_msg_type();
+
+    switch(msgType)
+    {
+      // Запрос на телерегулирование
+      case SIG_D_MSG_ECHCTLPRESS:
+      case SIG_D_MSG_ECHDIRCTLPRESS:
+        rc = handle_teleregulation(letter, &identity);
+        break;
+
+      default:
+        LOG(ERROR) << "Unsupported request type: " << msgType;
+    }
+  }
+  else
+  {
+    LOG(ERROR) << "Received letter "<<letter->header()->exchange_id()<<" not valid";
+  }
+
+  if (NOK == rc) {
+    LOG(ERROR) << "Failure processing request: " << msgType;
+  }
+
+  delete letter;
+
+  // Получить отметку времени завершения обработки запроса
+  // m_metric_center->after();
+
+  return rc;
+}
+
+// ==========================================================================================================
+// Останов экземпляра
+int EGSA::stop()
+{
+  LOG(INFO) << "Get request to stop component";
+  interrupt_worker = 1;
+}
+
+// ==========================================================================================================
+int EGSA::handle_teleregulation(msg::Letter*, std::string*)
+{
+  return NOK;
+}
+
 // ==========================================================================================================
