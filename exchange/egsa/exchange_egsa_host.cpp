@@ -29,12 +29,13 @@
 extern int interrupt_worker;
 
 // ==========================================================================================================
-EGSA_Host::EGSA_Host(std::string broker, std::string service, int verbose)
+EGSA_Host::EGSA_Host(std::string& broker, std::string service, int verbose)
   : mdwrk(broker, service, 1),
     m_broker_endpoint(broker),
     m_server_name(service),
     m_egsa_instance(NULL),
     m_egsa_thread(NULL),
+    m_egsa_socket(m_context, ZMQ_DEALER),
     m_message_factory(new msg::MessageFactory(EXCHANGE_NAME)),
     m_socket(-1)
 {
@@ -49,7 +50,30 @@ EGSA_Host::~EGSA_Host()
 // ==========================================================================================================
 int EGSA_Host::init()
 {
+  const char* fname = "init";
   int rc = OK;
+  int linger = 0;
+  int hwm = 100;
+  int send_timeout_msec = SEND_TIMEOUT_MSEC; // 1 sec
+  int recv_timeout_msec = RECV_TIMEOUT_MSEC; // 3 sec
+
+  try {
+    m_egsa_socket.connect(ENDPOINT_EXCHG_FRONTEND);
+    m_egsa_socket.setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
+    m_egsa_socket.setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
+    m_egsa_socket.setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
+    LOG(INFO) << fname << ": binds to EGSA frontend " << ENDPOINT_EXCHG_FRONTEND;
+  }
+  catch(zmq::error_t error)
+  {
+    LOG(ERROR) << fname << ": catch: " << error.what();
+    rc = NOK;
+  }
+  catch (std::exception &e)
+  {
+    LOG(ERROR) << fname << ": catch the signal: " << e.what();
+    rc = NOK;
+  }
 
   return rc;
 }
@@ -98,9 +122,31 @@ int EGSA_Host::handle_request(mdp::zmsg* request, std::string* reply_to, bool& n
 // ==========================================================================================================
 int EGSA_Host::handle_stop(msg::Letter* letter, std::string* reply_to)
 {
-  LOG(WARNING) << "Received message not yet supported received: ADG_D_MSG_STOP";
-  interrupt_worker = 1;
-  return OK;
+  int rc = OK;
+  const char* fname = "handle_stop";
+
+  interrupt_worker = true;
+
+  LOG(WARNING) << "Receive ADG_D_MSG_STOP";
+
+  try
+  {
+    // Отправить сообщение в EGSA о принудительном останове
+    LOG(INFO) << "Send TERMINATE to EGSA";
+    m_egsa_socket.send("TERMINATE", 9, 0);
+  }
+  catch(zmq::error_t error)
+  {
+    LOG(ERROR) << fname << ": catch: " << error.what();
+    rc = NOK;
+  }
+  catch(std::exception &e)
+  {
+    LOG(ERROR) << e.what();
+    rc = NOK;
+  }
+
+  return rc;
 }
 
 // ==========================================================================================================
@@ -150,20 +196,20 @@ int EGSA_Host::run()
   bool get_order_to_stop = false;
   const char* fname = "run()";
 
-  LOG(INFO) << "Start " << fname;
+  LOG(INFO) << fname << ": Start";
   interrupt_worker = false;
 
   try {
-
     // Запустить обработчик запросов от Клиентов на получение истории
-    m_egsa_instance = new EGSA(m_context);
+    m_egsa_instance = new EGSA(m_broker_endpoint, m_context, m_message_factory);
     // Запустить Ответчика
     m_egsa_thread = new std::thread(std::bind(&EGSA::run, m_egsa_instance));
 
     if (OK == init()) {
-      // TODO: Проверить состояние нити EGSA - как прочитался конфигурационный файл, подключение к SMAD, ...
-      rc = OK;
+      // TODO: Проверить состояние нити EGSA - как прочитался конфигурационный файл,
+      // подключение к SMAD, ...
     }
+    else interrupt_worker = true;
 
     while(!interrupt_worker)
     {
@@ -181,7 +227,7 @@ int EGSA_Host::run()
 
           if (get_order_to_stop) {
             LOG(INFO) << fname << " got a shutdown order";
-            interrupt_worker = 1; // order to shutting down
+            interrupt_worker = true; // order to shutting down
           }
 
           delete request;
@@ -189,7 +235,7 @@ int EGSA_Host::run()
         else
         {
           LOG(INFO) << fname << " got a NULL";
-          interrupt_worker = 1; // has been interrupted
+          interrupt_worker = true; // has been interrupted
         }
 
         delete reply_to;

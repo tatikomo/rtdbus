@@ -2981,7 +2981,11 @@ MCO_RET DatabaseRtapImpl::writeL_SA(mco_trans_h& t,
             attr_info->value.dynamic.varchar,
             attr_info->value.dynamic.size,
             point_instance);
-    if (rc) { LOG(ERROR) << "Locating point '"<<attr_info->name<<"', rc=" << rc; setError(rtE_POINT_NOT_FOUND); break; }
+    if (rc) {
+        LOG(ERROR) << "Locating point '"<<attr_info->name<<"', rc=" << rc;
+        setError(rtE_POINT_NOT_FOUND);
+        break;
+    }
 
     // 2. Получить идентификатор экземпляра SA
     rc = point_instance.autoid_get(sa_aid);
@@ -2989,7 +2993,7 @@ MCO_RET DatabaseRtapImpl::writeL_SA(mco_trans_h& t,
 
     // 3. Занести в поле SA_ref данной точки идентификатор SA
     rc = instance.SA_ref_put(sa_aid);
-    if (rc) { LOG(ERROR) << "Locate '"<<attr_info->name<<"' instance, rc="<<rc; break; }
+    if (rc) { LOG(ERROR) << "Put SA '"<<attr_info->name<<"' reference, rc="<<rc; break; }
 
 #if defined VERBOSE
     LOG(INFO) << attr_info->name << " = " << attr_info->value.dynamic.varchar;
@@ -5238,6 +5242,102 @@ MCO_RET DatabaseRtapImpl::createEXPMODE(PointInDatabase* instance, rtap_db::Attr
   return rc;
 }
 
+MCO_RET DatabaseRtapImpl::readEXPMODE(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  static const char *attr_name = RTDB_ATT_EXPMODE;
+  MCO_RET rc = MCO_S_NOTFOUND;
+  autoid_t aid;
+  rtap_db::SA_passport sa_pass;
+  objclass_t objclass;
+  uint1 expmode = 0;
+
+  assert(attr_info);
+
+  do {
+    rc = instance.OBJCLASS_get(objclass);
+    if (rc) { LOG(ERROR) << "Can't get objclass for " << attr_info->name; break; }
+
+    switch(objclass) {
+      case SA:
+        rc = instance.passport_ref_get(aid);
+        if (rc) { LOG(ERROR) << "Can't get passport id for " << attr_info->name; break; }
+
+        rc = rtap_db::SA_passport::autoid::find(t, aid, sa_pass);
+        if (rc) { LOG(ERROR) << "Can't get passport for " << attr_info->name << ", rc=" << rc; break; }
+
+        rc = sa_pass.EXPMODE_get(expmode);
+        if (rc) {
+          LOG(ERROR) << "Reading " << attr_name << " failure (will be assigned to 0), rc=" << rc;
+          expmode = 0;
+        }
+
+        attr_info->value.fixed.val_uint8 = static_cast<uint8_t>(expmode);
+        attr_info->type = AttrTypeDescription[RTDB_ATT_IDX_EXPMODE].type;
+
+#if defined VERBOSE
+        LOG(INFO) << attr_info->name << " = " << (unsigned int)attr_info->value.fixed.val_int8;
+#endif
+        break;
+
+      default:
+        LOG(ERROR) << "Point " <<  attr_info->name << " with objclass "
+                 << objclass << " shouldn't contain " << attr_name;
+    }
+
+  } while(false);
+
+  return rc;
+}
+
+// =0 : Техобслуживание
+// >0 : Работа
+MCO_RET DatabaseRtapImpl::writeEXPMODE(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  static const char *attr_name = RTDB_ATT_EXPMODE;
+  rtap_db::SA_passport sa_pass;
+  autoid_t aid;
+  objclass_t objclass;
+  MCO_RET rc = MCO_S_OK;
+
+  assert(attr_info);
+
+  do {
+    rc = instance.OBJCLASS_get(objclass);
+    if (rc) { LOG(ERROR) << "Can't get objclass for " << attr_info->name; break; }
+
+    switch(objclass) {
+      case SA:
+        rc = instance.passport_ref_get(aid);
+        if (rc) { LOG(ERROR) << "Can't get passport id for " << attr_info->name; break; }
+
+        rc = rtap_db::SA_passport::autoid::find(t, aid, sa_pass);
+        if (rc) {
+          LOG(ERROR) << "Can't get passport for " << attr_info->name << ", rc=" << rc;
+          setError(rtE_POINT_NOT_FOUND);
+          break;
+        }
+
+        rc = sa_pass.EXPMODE_put(attr_info->value.fixed.val_uint8);
+#if defined VERBOSE
+        LOG(INFO) << attr_info->name << " = " << (unsigned int)attr_info->value.fixed.val_int8;
+#endif
+        break;
+
+      default:
+        LOG(ERROR) << "Point " <<  attr_info->name << " with objclass "
+                 << objclass << " shouldn't contain " << attr_name;
+        setError(rtE_POINT_NOT_FOUND);
+    }
+
+    // Ошибки чтения паспорта
+    if (rc)
+      break;
+
+  } while(false);
+
+  return rc;
+}
+
 // ======================== L_CONSUMER ============================
 // Ссылка на Потребителя
 MCO_RET DatabaseRtapImpl::createL_CONSUMER(PointInDatabase* instance, rtap_db::Attrib& attr)
@@ -5374,11 +5474,11 @@ MCO_RET DatabaseRtapImpl::readFUNCTION(mco_trans_h& t, rtap_db::XDBPoint& instan
   {
     attr_info->value.dynamic.size = var_size[attr_info->type];
 
-    rc = instance.passport_ref_get(aid);
-    if (rc) { LOG(ERROR) << "Can't get passport id for " << attr_info->name; break; }
-
     rc = instance.OBJCLASS_get(objclass);
     if (rc) { LOG(ERROR) << "Can't get objclass for " << attr_info->name; break; }
+
+    rc = instance.passport_ref_get(aid);
+    if (rc) { LOG(ERROR) << "Can't get passport id for " << attr_info->name; break; }
 
     switch(objclass)
     {
@@ -5395,7 +5495,7 @@ MCO_RET DatabaseRtapImpl::readFUNCTION(mco_trans_h& t, rtap_db::XDBPoint& instan
 
         rc = va_pass.FUNCTION_get(attr_info->value.dynamic.varchar, attr_info->value.dynamic.size);
 
-      LOG(INFO) << attr_info->name
+        LOG(INFO) << attr_info->name
                  << " objclass:" << objclass
                  << " pass_id:" << aid
                  << " size:" << attr_info->value.dynamic.size
@@ -5489,7 +5589,7 @@ MCO_RET DatabaseRtapImpl::writeFUNCTION(mco_trans_h& t, rtap_db::XDBPoint& insta
 
 // ======================== CONVERTCOEFF ============================
 // Коэффициент конвертации значения
-// TODO: Для чего используется CONVERTCOEFF?
+// TODO: Как используется CONVERTCOEFF?
 MCO_RET DatabaseRtapImpl::createCONVERTCOEFF(PointInDatabase* instance, rtap_db::Attrib& attr)
 {
   static const char *attr_name = RTDB_ATT_CONVERTCOEFF;
@@ -5621,6 +5721,109 @@ MCO_RET DatabaseRtapImpl::createSYNTHSTATE(PointInDatabase* instance, rtap_db::A
                    << "' for objclass " << instance->objclass()
                    << " is not supported";
   }
+  return rc;
+}
+
+// 0 = UNREACHABLE
+// 1 = OPERATIONAL
+// 2 = PRE_OPERATIONAL
+MCO_RET DatabaseRtapImpl::readSYNTHSTATE(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  static const char *attr_name = RTDB_ATT_SYNTHSTATE;
+  MCO_RET rc = MCO_S_NOTFOUND;
+  autoid_t aid;
+  rtap_db::SA_passport sa_pass;
+  objclass_t objclass;
+  SynthState state;
+
+  assert(attr_info);
+
+  do {
+    rc = instance.OBJCLASS_get(objclass);
+    if (rc) { LOG(ERROR) << "Can't get objclass for " << attr_info->name; break; }
+
+    switch(objclass) {
+      case SA:
+        rc = instance.passport_ref_get(aid);
+        if (rc) { LOG(ERROR) << "Can't get passport id for " << attr_info->name; break; }
+
+        rc = rtap_db::SA_passport::autoid::find(t, aid, sa_pass);
+        if (rc) { LOG(ERROR) << "Can't get passport for " << attr_info->name << ", rc=" << rc; break; }
+
+        rc = sa_pass.SYNTHSTATE_get(state);
+        if (rc) {
+          LOG(ERROR) << "Reading " << attr_name << " failure (will be assigned to 0), rc=" << rc;
+          state = SS_UNREACH;
+        }
+
+        attr_info->value.fixed.val_uint8 = static_cast<uint8_t>(state);
+        attr_info->type = AttrTypeDescription[RTDB_ATT_IDX_SYNTHSTATE].type;
+
+#if defined VERBOSE
+        LOG(INFO) << attr_info->name << " = " << (unsigned int)attr_info->value.fixed.val_int8;
+#endif
+        break;
+
+      default:
+        LOG(ERROR) << "Point " <<  attr_info->name << " with objclass "
+                 << objclass << " shouldn't contain " << attr_name;
+    }
+
+  } while(false);
+
+  return rc;
+}
+
+MCO_RET DatabaseRtapImpl::writeSYNTHSTATE(mco_trans_h& t, rtap_db::XDBPoint& instance, AttributeInfo_t* attr_info)
+{
+  static const char *attr_name = RTDB_ATT_SYNTHSTATE;
+  rtap_db::SA_passport sa_pass;
+  autoid_t aid;
+  objclass_t objclass;
+  MCO_RET rc = MCO_S_OK;
+
+  assert(attr_info);
+
+  do {
+    rc = instance.OBJCLASS_get(objclass);
+    if (rc) { LOG(ERROR) << "Can't get objclass for " << attr_info->name; break; }
+
+    switch(objclass) {
+      case SA:
+        rc = instance.passport_ref_get(aid);
+        if (rc) { LOG(ERROR) << "Can't get passport id for " << attr_info->name; break; }
+
+        rc = rtap_db::SA_passport::autoid::find(t, aid, sa_pass);
+        if (rc) {
+          LOG(ERROR) << "Can't get passport for " << attr_info->name << ", rc=" << rc;
+          setError(rtE_POINT_NOT_FOUND);
+          break;
+        }
+
+        if ((SS_UNREACH >= attr_info->value.fixed.val_uint8) && (attr_info->value.fixed.val_uint8 <= SS_PRE_OPER)) {
+          rc = sa_pass.SYNTHSTATE_put(static_cast<SynthState>(attr_info->value.fixed.val_uint8));
+#if defined VERBOSE
+          LOG(INFO) << attr_info->name << " = " << (unsigned int)attr_info->value.fixed.val_int8;
+#endif
+        }
+        else {
+          LOG(ERROR) << "Unsupported " << attr_info->name << " value: "
+                     << (unsigned int)attr_info->value.fixed.val_uint8;
+        }
+        break;
+
+      default:
+        LOG(ERROR) << "Point " <<  attr_info->name << " with objclass "
+                 << objclass << " shouldn't contain " << attr_name;
+        setError(rtE_POINT_NOT_FOUND);
+    }
+
+    // Ошибки чтения паспорта
+    if (rc)
+      break;
+
+  } while(false);
+
   return rc;
 }
 

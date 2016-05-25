@@ -250,6 +250,12 @@ smad_connection_state_t InternalSMAD::attach(const char* sa_name, gof_t_SacNatur
     m_state = STATE_ERROR;
   }
 
+  // NB: Подключение EGSA происходит до запуска модулей систем сбора,
+  // в результате справочные таблицы к этому моменту еще не созданы.
+  // Это необходимо учитывать при попытках чтения данных из подключенного SMAD,
+  // и если идентификатор m_sa_reference равен нулю, попытаться его прочитать заново.
+  // Если после этого идентификатор все еще равен нулю, значит модуль системы сброра
+  // еще не запустился.
   if ((STATE_OK == m_state) && (true == get_sa_reference(m_sa_name, m_sa_reference)))
   {
     LOG(INFO) << "OK Attach to SA '" << sa_name << "'";
@@ -613,12 +619,12 @@ bool InternalSMAD::create_table(const char* table_name, const char* create_templ
 
   if (sqlite3_exec(m_db, sql.c_str(), 0, 0, &m_db_err)) {
       LOG(ERROR) << fname << ": Creating table '" << table_name
-                 << "': " << m_db_err;
+                 << "' if not exist: " << m_db_err;
       created = false;
       sqlite3_free(m_db_err);
       LOG(ERROR) << sql;
   }
-  else LOG(INFO) << "Table '" << table_name << "' successfully created, sql size=" << printed;
+  else LOG(INFO) << "Table '" << table_name << "' creates OK (if not exist), sql size=" << printed;
 
   return created;
 }

@@ -12,9 +12,13 @@
 #include <map>
 #include <string>
 
+#if defined HAVE_CONFIG_H
 #include "config.h"
+#endif
+
 #include "mdp_zmsg.hpp"
 #include "mdp_common.h"
+#include "mdp_helpers.hpp"
 
 namespace mdp {
 
@@ -23,36 +27,24 @@ typedef enum {
   DIRECT     = 2, // Обмен со Службой напрямую
 } ChannelType;
 
-typedef char ServiceName[SERVICE_NAME_MAXLEN + 1];
-
-typedef struct {
-  // Строка подключения к Сервису в формате connect
-  char endpoint_external[ENDPOINT_MAXLEN + 1];
-  // Строка подключения Публикатору Сервиса в формате connect
-  char endpoint_publisher[ENDPOINT_MAXLEN + 1];
-  // Было ли подключение к данной Службе?
-  bool  connected;
-} ServiceInfo;
-
-#ifdef __SUNPRO_CC
-#else
-typedef std::pair <const std::string, ServiceInfo*> ServicesHashPair_t;
-typedef std::map  <const std::string, ServiceInfo*> ServicesHash_t;
-#endif
-typedef ServicesHash_t::iterator ServicesHashIterator_t;
-
 //  Structure of our class
 //  We access these properties only via class methods
 class mdcli {
   public:
    // Индексы сокетов:
    // 0 = Брокера, 1 = Получателя обновления подписок, 2 = Прямого сообщения
-   enum { BROKER_ITEM = 0, SUBSCRIBER_ITEM = 1, SERVICE_ITEM = 2, SOCKET_MAX_COUNT = SERVICE_ITEM + 1 };
-   enum { RECEIVE_FATAL = -1, RECEIVE_OK = 0, RECEIVE_ERROR = 1 };
+   enum { BROKER_ITEM       = 0,
+          SUBSCRIBER_ITEM   = 1,
+          SERVICE_ITEM      = 2,
+          SOCKET_MAX_COUNT  = SERVICE_ITEM + 1 };
+
+   enum { RECEIVE_FATAL     = -1,
+          RECEIVE_OK = 0,
+          RECEIVE_ERROR = 1 };
 
    //  ---------------------------------------------------------------------
    //  Constructor
-   mdcli (std::string broker, int verbose);
+   mdcli (std::string& broker, int verbose);
 
    //  ---------------------------------------------------------------------
    //  Destructor

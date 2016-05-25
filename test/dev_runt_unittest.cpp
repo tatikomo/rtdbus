@@ -38,7 +38,7 @@ using namespace xdb;
 mdp::Digger *digger = NULL;
 mdp::Broker *broker = NULL;
 const char *service_name = RTDB_NAME;
-const char *attributes_connection_to_broker = (const char*) "tcp://localhost:5555";
+std::string attributes_connection_to_broker = ENDPOINT_BROKER;
 const char *BROKER_SNAP_FILE = (const char*) "broker_db.snap";
 
 //  Раздельные признаки останова Брокера, Клиента, Обработчика
@@ -77,7 +77,7 @@ void  Dump(msg::Letter*);
 /*
  * Реализация функций
  */
-Pulsar::Pulsar(const char* broker, int verbose) 
+Pulsar::Pulsar(std::string& broker, int verbose) 
   : mdcli(broker, verbose),
     m_channel(mdp::ChannelType::PERSISTENT)
 {

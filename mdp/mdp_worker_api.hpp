@@ -11,22 +11,36 @@
 #ifndef MDP_WORKER_API_HPP_INCLUDED
 #define MDP_WORKER_API_HPP_INCLUDED
 
+#include <map>
+#include <string>
+
+#if defined HAVE_CONFIG_H
 #include "config.h"
+#endif
+
 #include "mdp_zmsg.hpp"
 #include "mdp_common.h"
+#include "mdp_helpers.hpp"
 
 namespace mdp {
 
 class mdwrk
 {
   public:
-    enum { BROKER_ITEM = 0, WORLD_ITEM = 1};
-    enum { SOCKET_COUNT = 2 };
+    // Первая запись - обязательна, подключение к Брокеру
+    // Вторая запись - желательна, получение сообщений от других серверов подписки
+    // Треться запись - не обязательна.
+    enum { BROKER_ITEM = 0, SUBSCRIBER_ITEM = 1, DIRECT_ITEM = 2 };
+    enum { SOCKET_COUNT = DIRECT_ITEM+1 };
 
     static const int HeartbeatInterval = HEARTBEAT_PERIOD_MSEC;
     //  ---------------------------------------------------------------------
     //  Constructor
-    mdwrk (std::string, std::string, int=1);
+    //  1) Строка подключения к Брокеру
+    //  2) Название Службы
+    //  3) Количество нитей ZMQ (default = 1)
+    //  4) Необходимость создания сокета прямого подключения (default = false)
+    mdwrk (std::string, std::string, int=1, bool=false);
 
     //  ---------------------------------------------------------------------
     //  Destructor
@@ -38,22 +52,26 @@ class mdwrk
     void send_to_broker(const char *command, const char* option, zmsg *_msg);
 
     //  ---------------------------------------------------------------------
+    //  Send message to another Service
+    void send(const std::string& serv_name, zmsg *&request);
+
+    //  ---------------------------------------------------------------------
     //  Connect or reconnect to broker
     void connect_to_broker ();
 
-#if 0
-// NB: заблокируем, т.к. эту заботу сейчас берет на себя DiggerProxy
+    // NB: для службы БДРВ заблокируем, т.к. эту заботу берет на себя DiggerProxy
     //  ---------------------------------------------------------------------
-    //  Connect or reconnect to everyone
     //  Этот сокет используется для обмена "быстрыми" сообщениями, минуя Брокера
     void connect_to_world ();
-#endif
 
     //  ---------------------------------------------------------------------
-    //  Get service endpoint
-    //  Получить строку подключения для своего Сервиса
-    void ask_endpoint();
-
+    //  Методы для работы с другими Службами
+    //  ---------------------------------------------------------------------
+    //  Подключиться к указанной службе на указанную группу
+    int  subscribe_to(const std::string&, const std::string&);
+    int  ask_service_info(const std::string&, char*, int);
+    bool service_info_by_name(const std::string&, ServiceInfo*&);
+    
     //  ---------------------------------------------------------------------
     //  Set heartbeat delay
     void set_heartbeat (int heartbeat);
@@ -74,22 +92,27 @@ class mdwrk
 
     std::string      m_broker_endpoint;
     std::string      m_service;
+    // Информация по сторонним Службам, используемым данным экземпляром
+    ServicesHash_t   m_services_info;
     // Точка подключения 
-    const char     * m_welcome_endpoint;
-    zmq::socket_t  * m_worker;      //  Socket to broker
-    zmq::socket_t  * m_welcome;     //  Socket to subscribe on brokerless messages
+    const char      *m_direct_endpoint;
+    zmq::socket_t   *m_worker;           //  Socket to broker
+    zmq::socket_t   *m_direct;           //  Socket to subscribe on brokerless messages
+    zmq::socket_t   *m_subscriber;
     //  Heartbeat management
     int64_t          m_heartbeat_at_msec;//  When to send HEARTBEAT
-    size_t           m_liveness;    //  How many attempts left
+    size_t           m_liveness;         //  How many attempts left
     int              m_heartbeat_msec;   //  Heartbeat delay, msecs
     int              m_reconnect_msec;   //  Reconnect delay, msecs
     //  Internal state
-    bool             m_expect_reply;//  Zero only at start
-
-    // Хранилище из двух сокетов для работы zmq::poll
+    bool             m_expect_reply;     //  Zero only at start
+    // Хранилище из трёх сокетов для работы zmq::poll
     // [0] подключение к Брокеру
-    // [1] прямое подключение
-    zmq::pollitem_t  m_socket_items[2];
+    // [1] подписка
+    // [2] прямое подключение
+    zmq::pollitem_t  m_socket_items[SOCKET_COUNT];
+
+    bool insert_service_info(const std::string&, ServiceInfo*&);
     // Вернуть строку подключения, если параметр = true - преобразовать для bind()
     const char     * getEndpoint(bool = false) const;
     void             update_heartbeat_sign();

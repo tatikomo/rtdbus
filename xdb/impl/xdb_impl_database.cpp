@@ -977,15 +977,16 @@ const Error& DatabaseImpl::StoreSnapshot(const char* given_file_name)
     /* Backup database */
     if (NULL != (fbak = fopen(fname, "wb")))
     {
-      rc = mco_db_save(static_cast<void*>(fbak), file_writer, m_db);
+      rc = mco_db_save((void*)fbak, file_writer, m_db);
       if (rc)
       {
         LOG(ERROR) << "Unable to save '" << m_name
                    << "' snapshot into '" << fname
                    << "': " << mco_ret_string(rc,NULL);
       }
-    // GEV: valgrind ругается на fbak: Syscall param write(buf) points to uninitialised byte(s)
-    // Возможно, fbak закрывается внутри mco_db_save
+     // GEV: valgrind ругается на fbak: Syscall param write(buf) points to uninitialised byte(s)
+     // Хотя, судя по исходникам, fbak после создания здесь внутри mco_db_save не закрывается,
+     // значит память портится где-то ещё.
      fclose(fbak);
     }
     else
@@ -1000,21 +1001,19 @@ const Error& DatabaseImpl::StoreSnapshot(const char* given_file_name)
    LOG(WARNING) << "Binary snapshot is disabled for this version";
 #endif
 
-#if 1
-    // Попытаться сохранить содержимое в XML-формате eXtremeDB
-    if (m_flags[OF_POS_SAVE_SNAP]) // Допустим снимок
+  // Попытаться сохранить содержимое в XML-формате eXtremeDB
+  if (m_flags[OF_POS_SAVE_SNAP]) // Допустим снимок
+  {
+    snprintf(fname, sizeof(fname)-1, "%s.snap.xml", m_name);
+
+    // Название снимка д.б. в формате "...."
+    const Error &status = SaveAsXML(fname, NULL);
+
+    if (!status.Ok())
     {
-      snprintf(fname, sizeof(fname)-1, "%s.snap.xml", m_name);
-
-      // Название снимка д.б. в формате "...."
-      const Error &status = SaveAsXML(fname, NULL);
-
-      if (!status.Ok())
-      {
-        LOG(ERROR) << "Can't save content in RTDB's XML format";
-      }
+      LOG(ERROR) << "Can't save content in RTDB's XML format";
     }
-#endif
+  }
 
   return getLastError();
 }

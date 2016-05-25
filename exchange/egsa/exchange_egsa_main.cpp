@@ -26,27 +26,29 @@ int main(int argc, char *argv[])
   int rc = NOK;
   int opt;
   EGSA_Host* instance = NULL;
-  char service_name[SERVICE_NAME_MAXLEN + 1];
-  char broker_endpoint[ENDPOINT_MAXLEN + 1];
+  std::string service_name = EXCHANGE_NAME; //[SERVICE_NAME_MAXLEN + 1];
+  std::string broker_endpoint = ENDPOINT_BROKER; //[ENDPOINT_MAXLEN + 1];
 
   ::google::InstallFailureSignalHandler();
 
   // Значения по-умолчанию
-  strcpy(broker_endpoint, ENDPOINT_BROKER);
-  strcpy(service_name, EXCHANGE_NAME);
+//  strcpy(broker_endpoint, ENDPOINT_BROKER);
+//  strcpy(service_name, EXCHANGE_NAME);
 
   while ((opt = getopt (argc, argv, "b:s:")) != -1)
   {
      switch (opt)
      {
        case 'b': // точка подключения к Брокеру
-         strncpy(broker_endpoint, optarg, ENDPOINT_MAXLEN);
-         broker_endpoint[ENDPOINT_MAXLEN] = '\0';
+//         strncpy(broker_endpoint, optarg, ENDPOINT_MAXLEN);
+//         broker_endpoint[ENDPOINT_MAXLEN] = '\0';
+         broker_endpoint.assign(optarg);
          break;
 
        case 's': // название собственной Службы
-         strncpy(service_name, optarg, SERVICE_NAME_MAXLEN);
-         service_name[SERVICE_NAME_MAXLEN] = '\0';
+//         strncpy(service_name, optarg, SERVICE_NAME_MAXLEN);
+//         service_name[SERVICE_NAME_MAXLEN] = '\0';
+         service_name.assign(optarg);
          break;
 
        case '?':

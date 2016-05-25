@@ -26,7 +26,7 @@ class Mosquito: public mdp::mdcli
       MODE_HISTORY_REQ = 5  // режим запроса истории
     } WorkMode_t;
 
-    Mosquito(std::string broker, int verbose, WorkMode_t);
+    Mosquito(std::string& broker, int verbose, WorkMode_t);
    ~Mosquito();
 
     // Вернуть прочитанное из сокета сообщение

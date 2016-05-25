@@ -106,6 +106,11 @@ int AcquisitionSystemConfig::load()
 
   do {
 
+    if (false == m_config_has_good_format) {
+      LOG(WARNING) << fname << ": bad or missing config file " << m_config_filename;
+      break;
+    }
+
     // загрузка основной конфигурации: разделы COMMON, CONFIG, SERVERS
     status = load_common(m_sa_common);
     if (NOK == status) {
@@ -162,6 +167,11 @@ int AcquisitionSystemConfig::load_parameters(sa_parameters_t* in, sa_parameters_
   std::string name;         // Тег БДРВ
   std::string type_support; // Тип обработки параметра
   sa_parameter_info_t info;   // Описание текущего параметра
+
+  if (false == m_config_has_good_format) {
+    LOG(WARNING) << fname << ": bad or missing config file " << m_config_filename;
+    return NOK;
+  }
 
   assert(m_document.HasMember(s_PARAMETERS));
   if (in) in->clear();
@@ -346,7 +356,13 @@ int AcquisitionSystemConfig::load_commands(sa_commands_t&)
 // Загрузка основной конфигурации из разделов COMMON, CONFIG, SERVERS
 int AcquisitionSystemConfig::load_modbus(sa_protocol_t& protocol)
 {
+  const char* fname = "load_modbus";
   int status = NOK;
+
+  if (false == m_config_has_good_format) {
+    LOG(WARNING) << fname << ": bad or missing config file " << m_config_filename;
+    return NOK;
+  }
 
   do {
     if (!m_document.HasMember(s_MODBUS)) {
@@ -437,7 +453,13 @@ int AcquisitionSystemConfig::load_modbus(sa_protocol_t& protocol)
 // Загрузка основной конфигурации из разделов COMMON, CONFIG, SERVERS
 int AcquisitionSystemConfig::load_opc(sa_protocol_t& protocol)
 {
+  const char* fname = "load_opc";
   int status = NOK;
+
+  if (false == m_config_has_good_format) {
+    LOG(WARNING) << fname << ": bad or missing config file " << m_config_filename;
+    return NOK;
+  }
 
   do {
     if (!m_document.HasMember(s_OPC)) {
@@ -466,11 +488,17 @@ int AcquisitionSystemConfig::load_opc(sa_protocol_t& protocol)
 // Загрузка основной конфигурации из разделов COMMON, CONFIG, SERVERS
 int AcquisitionSystemConfig::load_common(sa_common_t& common)
 {
+  const char* fname = "load_common";
   sa_network_address_t server_addr;
   sa_rtu_info_t rtu_info;
   std::string buffer;
   int status = OK;
   int server_idx = 0;
+
+  if (false == m_config_has_good_format) {
+    LOG(WARNING) << fname << ": bad or missing config file " << m_config_filename;
+    return NOK;
+  }
 
   assert(m_document.HasMember(s_COMMON));
   assert(m_document.HasMember(s_SERVICE));

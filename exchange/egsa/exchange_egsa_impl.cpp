@@ -8,7 +8,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <unistd.h>
+#include <unistd.h>     // for 'usleep'
+
+#include <iostream>
+#include <functional>
+#include <queue>
+#include <chrono>
+#include <sys/time.h>   // for 'time_t' and 'struct timeval'
 
 // Служебные заголовочные файлы сторонних утилит
 #include "glog/logging.h"
@@ -17,6 +23,10 @@
 #include "mdp_zmsg.hpp"
 #include "mdp_worker_api.hpp"
 #include "msg_common.h"     // константы запросов SIG_D_MSG_*
+// сообщения общего порядка
+#include "msg_adm.hpp"
+// сообщения по работе с БДРВ
+#include "msg_sinf.hpp"
 #include "exchange_config.hpp"
 #include "exchange_config_egsa.hpp"
 #include "exchange_smad_int.hpp"
@@ -26,17 +36,80 @@
 #include "exchange_egsa_request_cyclic.hpp"
 #include "xdb_common.hpp"
 
-extern int interrupt_worker;
+volatile bool EGSA::m_interrupt = false;
 
-volatile bool EGSA::m_interrupt  = false;
+namespace events
+{
+    struct event
+    {
+        typedef std::function<void()> callback_type;
+        typedef std::chrono::time_point<std::chrono::system_clock> time_type;
+
+        event(const callback_type &cb, const time_type &when)
+            : callback_(cb), when_(when)
+            { }
+
+        void operator()() const
+            { callback_(); }
+
+        callback_type callback_;
+        time_type     when_;
+    };
+
+    struct event_less : public std::less<event>
+    {
+            bool operator()(const event &e1, const event &e2) const
+                {
+                    return (e2.when_ < e1.when_);
+                }
+    };
+
+    std::priority_queue<event, std::vector<event>, event_less> event_queue;
+
+    void add(const event::callback_type &cb, const time_t &when)
+    {
+        auto real_when = std::chrono::system_clock::from_time_t(when);
+
+        event_queue.emplace(cb, real_when);
+    }
+
+    void add(const event::callback_type &cb, const timeval &when)
+    {
+        auto real_when = std::chrono::system_clock::from_time_t(when.tv_sec) +
+                         std::chrono::microseconds(when.tv_usec);
+
+        event_queue.emplace(cb, real_when);
+    }
+
+    void add(const event::callback_type &cb,
+             const std::chrono::time_point<std::chrono::system_clock> &when)
+    {
+        event_queue.emplace(cb, when);
+    }
+
+    void timer()
+    {
+        event::time_type now = std::chrono::system_clock::now();
+
+        while (!event_queue.empty() &&
+               (event_queue.top().when_ < now))
+        {
+            event_queue.top()();
+            event_queue.pop();
+        }
+    }
+}
 
 // ==========================================================================================================
-EGSA::EGSA(zmq::context_t& _ctx)
-  : m_context(_ctx),
-    m_frontend(_ctx, ZMQ_ROUTER),
-    m_message_factory(NULL),
+EGSA::EGSA(std::string& _broker, zmq::context_t& _ctx, msg::MessageFactory* _factory)
+  : mdp::mdwrk(_broker, EXCHANGE_NAME, 1 /* num threads */, true /* use  direct connection */),
+    m_context(_ctx),
+    m_frontend(_ctx, ZMQ_ROUTER),       // Входящие соединения
+    m_signal_socket(_ctx, ZMQ_ROUTER),  // Сообщения от таймеров циклов
+    m_subscriber(_ctx, ZMQ_SUB),        // Подписка от БДРВ на атрибуты точек систем сбора
+    m_message_factory(_factory),
     m_ext_smad(NULL),
-    m_config(NULL)
+    m_egsa_config(NULL)
 {
   m_socket = open("egsa_timers.pipe", S_IFIFO|0666, 0);
   if (-1 == m_socket) {
@@ -57,7 +130,7 @@ EGSA::~EGSA()
   detach();
 
   delete m_ext_smad;
-  delete m_config;
+  delete m_egsa_config;
 
   for (std::vector<Cycle*>::iterator it = ega_ega_odm_ar_Cycles.begin();
        it != ega_ega_odm_ar_Cycles.end();
@@ -72,19 +145,25 @@ EGSA::~EGSA()
 int EGSA::init()
 {
   int rc = NOK;
+  smad_connection_state_t ext_state;
 
   // Открыть конфигурацию
-  m_config = new EgsaConfig("egsa.json");
+  m_egsa_config = new EgsaConfig("egsa.json");
   // Прочитать информацию по сайтам и циклам
-  m_config->load();
+  m_egsa_config->load();
 
   // Подключиться к своей внутренней памяти SMAD
-  m_ext_smad = new ExternalSMAD(m_config->smad_name().c_str());
-  smad_connection_state_t ext_state = m_ext_smad->connect();
-  LOG(INFO) << "Connect to internal EGSA SMAD code=" << ext_state;
+  m_ext_smad = new ExternalSMAD(m_egsa_config->smad_name().c_str());
 
-  // Активировать группу подписки
-  rc = (STATE_OK == ext_state)? OK : NOK;
+  if (STATE_OK == (ext_state = m_ext_smad->connect())) {
+    // Активировать группу подписки
+    if (OK != (rc = activateSBS())) {
+      LOG(ERROR) << "Activating EGSA SBS, code=" << rc;
+    }
+  }
+  else {
+    LOG(INFO) << "Connecting to internal EGSA SMAD, code=" << ext_state;
+  }
 
   return rc;
 }
@@ -94,10 +173,8 @@ int EGSA::init()
 int EGSA::attach_to_sites_smad()
 {
   // Список подчиненных систем сбора
-  egsa_config_sites_t& sites = m_config->sites();
-  int rc = NOK;
+  egsa_config_sites_t& sites = m_egsa_config->sites();
   // TEST - подключиться к SMAD для каждой подчиненной системы
-#if 1
 
   // По списку известных нам систем сбора создать интерфейсы к их SMAD
   for (egsa_config_sites_t::iterator it = sites.begin();
@@ -117,25 +194,21 @@ int EGSA::attach_to_sites_smad()
       sa_level = static_cast<sa_object_level_t>(raw_level);
     }
 
-    SystemAcquisition *sa_instance = new SystemAcquisition(sa_level, sa_nature, sa_name.c_str());
-    m_sa_list.insert(std::pair<std::string, SystemAcquisition*>(sa_name, sa_instance));
+    SystemAcquisition *sa_instance = new SystemAcquisition(
+            m_signal_socket, // сюда идут сигналы от таймеров
+            ega_ega_odm_ar_Cycles,
+            sa_level,
+            sa_nature,
+            sa_name);
+    if (SA_STATE_UNKNOWN != sa_instance->state()) {
+      m_sa_list.insert(std::pair<std::string, SystemAcquisition*>(sa_name, sa_instance));
+    }
+    else {
+      LOG(WARNING) << "Skip SA " << sa_name << ", SMAD state=" << sa_instance->state();
+    }
   }
 
-  rc = OK;
-
-#else
-  InternalSMAD* int_smad = new InternalSMAD(smad_name);
-  smad_connection_state_t int_state = int_smad->attach(sa_name, sa_type);
-  if (STATE_OK == int_state) {
-    m_internal_smad_list.insert(std::pair<std::string, InternalSMAD*>(sa_name, int_smad))
-    LOG(INFO) << "Attach to '" << sa_name << "'";
-  }
-  else {
-    LOG(ERROR) << "Fail attach to '" << sa_name << "'";
-  }
-#endif
-
-  return rc;
+  return OK;
 }
 
 // ==========================================================================================================
@@ -152,7 +225,7 @@ int EGSA::detach()
        it++)
   {
     LOG(INFO) << "TODO: set " << (*it).first << "." << RTDB_ATT_SYNTHSTATE << " = 0";
-    LOG(INFO) << "TODO: datach " << (*it).first << " SMAD";
+    LOG(INFO) << "TODO: detach " << (*it).first << " SMAD";
     rc = OK;
   }
 
@@ -183,89 +256,117 @@ int EGSA::run()
   zmq::pollitem_t  socket_items[2];
   mdp::zmsg *request = NULL;
 
+  // Загрузка конфигурации EGSA
   if (OK == init()) {
+    // Загрузка основной части кофигурации систем сбора
+    // и создание экземпляров InternalSMAD без фактического
+    // подключения, поскольку 
     status = attach_to_sites_smad();
   }
 
-  LOG(INFO) << fname << ": START";
+  LOG(INFO) << fname << ": START, status=" << status;
+
   try
   {
-    // Сокет прямого подключения, выполняется в отдельной нити 
-    // ZMQ_ROUTER_MANDATORY может привести zmq_proxy_steerable к аномальному завершению: rc=-1, errno=113
-    // Наблюдалось в случаях интенсивного обмена с клиентом, если тот аномально завершался.
-    m_frontend.setsockopt(ZMQ_ROUTER_MANDATORY, &mandatory, sizeof (mandatory));
-    m_frontend.bind("tcp://lo:5559" /*ENDPOINT_EXCHG_FRONTEND*/);
-    m_frontend.setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
-    m_frontend.setsockopt(ZMQ_RCVHWM, &hwm, sizeof(hwm));
-    m_frontend.setsockopt(ZMQ_SNDHWM, &hwm, sizeof(hwm));
-    m_frontend.setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
-    m_frontend.setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
+    if (OK == status) {
+      // Сокет для получения запросов, прямого подключения, выполняется в отдельной нити 
+      // ZMQ_ROUTER_MANDATORY может привести zmq_proxy_steerable к аномальному завершению: rc=-1, errno=113
+      // Наблюдалось в случаях интенсивного обмена с клиентом, если тот аномально завершался.
+      m_frontend.setsockopt(ZMQ_ROUTER_MANDATORY, &mandatory, sizeof (mandatory));
+      m_frontend.bind("tcp://lo:5559" /*ENDPOINT_EXCHG_FRONTEND*/);
+      m_frontend.setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
+      m_frontend.setsockopt(ZMQ_RCVHWM, &hwm, sizeof(hwm));
+      m_frontend.setsockopt(ZMQ_SNDHWM, &hwm, sizeof(hwm));
+      m_frontend.setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
+      m_frontend.setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
+      socket_items[0].socket = (void*)m_frontend; // NB: Оператор (void*) необходим
+      socket_items[0].fd = 0;
+      socket_items[0].events = ZMQ_POLLIN;
+      socket_items[0].revents = 0;
 
-    // Сокет для получения запросов по истории
-    socket_items[0].socket = (void*)m_frontend;
-    socket_items[0].fd = 0;
-    socket_items[0].events = ZMQ_POLLIN;
-    socket_items[0].revents = 0;
+      // Сокет для получения сообщений от таймеров
+      m_signal_socket.bind("inproc://egsa_timers");
+      m_signal_socket.setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
+      m_signal_socket.setsockopt(ZMQ_RCVHWM, &hwm, sizeof(hwm));
+      m_signal_socket.setsockopt(ZMQ_SNDHWM, &hwm, sizeof(hwm));
+      m_signal_socket.setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
+      m_signal_socket.setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
+      socket_items[1].socket = (void*)m_signal_socket; // NB: Оператор (void*) необходим
+      socket_items[1].fd = 0;
+      socket_items[1].events = ZMQ_POLLIN;
+      socket_items[1].revents = 0;
+    }
 
-  while (OK == status)
-  {
-    // TODO: пробежаться по всем зарегистрированным системам сбора.
-    // Если они в активном состоянии, получить от них даннные
-    for (system_acquisition_list_t::iterator it = m_sa_list.begin();
-        it != m_sa_list.end();
-        it++)
+    // TODO: отправить подчиненным системам сообщение о запросе готовности
+    fire_ENDALLINIT();
+
+
+    while (!m_interrupt && (OK == status))
     {
-      switch((*it).second->state())
+      // TODO: пробежаться по всем зарегистрированным системам сбора.
+      // Если они в активном состоянии, получить от них даннные
+      for (system_acquisition_list_t::iterator it = m_sa_list.begin();
+          it != m_sa_list.end();
+          it++)
       {
-        case SA_STATE_OPER:
-          LOG(INFO) << (*it).first << "state is OPERATIVE";
+        switch((*it).second->state())
+        {
+          case SA_STATE_OPER:
+            LOG(INFO) << (*it).first << "state is OPERATIVE";
+#if 0
 
-          if (OK == ((*it).second->pop(m_list))) {
-            for (sa_parameters_t::iterator it = m_list.begin();
-                 it != m_list.end();
-                 it++)
-            {
-              switch ((*it).type)
+            if (OK == ((*it).second->pop(m_list))) {
+              for (sa_parameters_t::iterator it = m_list.begin();
+                   it != m_list.end();
+                   it++)
               {
-                case SA_PARAM_TYPE_TM:
-                  LOG(INFO) << "name:" << (*it).name << " type:" << (*it).type << " g_val:" << (*it).g_value;
-                  break;
+                switch ((*it).type)
+                {
+                  case SA_PARAM_TYPE_TM:
+                    LOG(INFO) << "name:" << (*it).name << " type:" << (*it).type << " g_val:" << (*it).g_value;
+                    break;
 
-                case SA_PARAM_TYPE_TS:
-                case SA_PARAM_TYPE_TSA:
-                case SA_PARAM_TYPE_AL:
-                  LOG(INFO) << "name:" << (*it).name << " type:" << (*it).type << " i_val:" << (*it).i_value;
-                  break;
+                  case SA_PARAM_TYPE_TS:
+                  case SA_PARAM_TYPE_TSA:
+                  case SA_PARAM_TYPE_AL:
+                    LOG(INFO) << "name:" << (*it).name << " type:" << (*it).type << " i_val:" << (*it).i_value;
+                    break;
 
-                default:
-                  LOG(ERROR) << "name: " << (*it).name << " unsupported type:" << (*it).type;
+                  default:
+                    LOG(ERROR) << "name: " << (*it).name << " unsupported type:" << (*it).type;
+                }
               }
             }
-          }
-          else {
-            LOG(ERROR) << "Failure pop changed values";
-          }
-          break;
+            else {
+              LOG(ERROR) << "Failure pop changed values";
+            }
+#endif
+            break;
 
-        case SA_STATE_PRE_OPER:
-          LOG(INFO) << (*it).first << "state is PRE OPERATIVE";
-          break;
+          case SA_STATE_PRE_OPER:
+            LOG(INFO) << (*it).first << "state is PRE OPERATIVE";
+            break;
 
-        case SA_STATE_UNREACH:
-          LOG(INFO) << (*it).first << " state is UNREACHABLE";
-          break;
+          case SA_STATE_UNREACH:
+            LOG(INFO) << (*it).first << " state is UNREACHABLE";
+            break;
 
-        case SA_STATE_UNKNOWN:
-          LOG(INFO) << (*it).first << " state is UNKNOWN";
-          break;
+          case SA_STATE_UNKNOWN:
+            LOG(INFO) << (*it).first << " state is UNKNOWN";
+            break;
 
-        default:
-          LOG(ERROR) << (*it).first << " state unsupported: " << (*it).second->state();
-          break;
+          default:
+            LOG(ERROR) << (*it).first << " state unsupported: " << (*it).second->state();
+            break;
+        }
       }
+
+
+
+
+
+      sleep (1);
     }
-    sleep (1);
-  }
   }
   catch(zmq::error_t error)
   {
@@ -277,13 +378,56 @@ int EGSA::run()
   }
 
   m_frontend.close();
+  m_signal_socket.close();
 
   // Ресурсы очищаются в локальной нити, деструктору ничего не достанется...
-  delete m_message_factory;
-
   LOG(INFO) << fname << ": STOP";
 
   return status;
+}
+
+// ==========================================================================================================
+// Отправить всем подчиненным системам запрос готовности, и жидать ответа
+void EGSA::fire_ENDALLINIT()
+{
+  auto now = std::chrono::system_clock::now();
+
+  for (system_acquisition_list_t::iterator it = m_sa_list.begin();
+       it != m_sa_list.end();
+       it++)
+  {
+    switch((*it).second->state())
+    {
+      case SA_STATE_OPER:
+        LOG(WARNING) << "SA " << (*it).first << " state is OPERATIONAL before ENDALLINIT";
+        break;
+
+      case SA_STATE_PRE_OPER:
+        LOG(WARNING) << (*it).first << "state is PRE OPERATIONAL";
+        break;
+
+      case SA_STATE_DISCONNECTED:
+      case SA_STATE_UNKNOWN:
+      case SA_STATE_UNREACH:
+        LOG(INFO) << (*it).first << " state is UNREACHABLE";
+        if ((*it).second->send(ADG_D_MSG_ENDALLINIT)) {
+//1          events::add(std::bind(&SystemAcquisition::check_ENDALLINIT, (*it).second), now + std::chrono::seconds(2));
+        }
+        break;
+
+/*      case SA_STATE_UNKNOWN:
+        LOG(ERROR) << (*it).first << " state is UNKNOWN";
+        break;*/
+    }
+  }
+
+  // TODO: Проверить, кто из СС успел передать сообщение о завершении инициализации
+  int timeout_endallinit = 6;
+  while(--timeout_endallinit) {
+      events::timer();
+      sleep(1);
+  }
+
 }
 
 // ==========================================================================================================
@@ -359,9 +503,8 @@ int EGSA::wait(int max_wait_sec)
   FD_ZERO(&rfds);
   FD_SET(m_socket, &rfds);
 
-
   for (int i=0; i<max_wait_sec; i++) {
-    if (interrupt_worker) {
+    if (m_interrupt) {
       LOG(INFO) << "EGSA::wait breaks";
       break;
     }
@@ -448,8 +591,12 @@ int EGSA::processing(mdp::zmsg* request, std::string &identity)
 // Останов экземпляра
 int EGSA::stop()
 {
+  int rc = OK;
+
   LOG(INFO) << "Get request to stop component";
-  interrupt_worker = 1;
+  m_interrupt = true;
+
+  return rc;
 }
 
 // ==========================================================================================================
@@ -459,3 +606,179 @@ int EGSA::handle_teleregulation(msg::Letter*, std::string*)
 }
 
 // ==========================================================================================================
+// Активация группы подписки точек систем сбора 
+int EGSA::activateSBS()
+{
+  std::string sbs_name = EXCHANGE_NAME;
+  std::string service_name = RTDB_NAME;
+  int rc = NOK;
+  msg::Letter *request = NULL;
+  char service_endpoint[ENDPOINT_MAXLEN + 1] = "";
+  mdp::zmsg* transport_cell;
+  int service_status;   // 200|400|404|501
+  int status_code;
+  // Управление Группами Подписки
+  msg::SubscriptionControl *sbs_ctrl_msg = NULL;
+
+  try {
+      // Инициируем создание сокета получения сообщений от сервера подписки
+      // NB: (2016-05-24) mdp::mdwrk может только регистрировать одну подписку от БДРВ
+      if (0 == (status_code = subscribe_to(RTDB_NAME, sbs_name))) {
+        // Сообщим Службе о готовности к приему данных
+        request = m_message_factory->create(SIG_D_MSG_GRPSBS_CTRL);
+        assert(request);
+        sbs_ctrl_msg = dynamic_cast<msg::SubscriptionControl*>(request);
+        sbs_ctrl_msg->set_name(sbs_name);
+        // TODO: ввести перечисление возможных кодов
+        // Сейчас (2015-10-01) 0 = SUSPEND, 1 = ENABLE
+        sbs_ctrl_msg->set_ctrl(1); // TODO: ввести перечисление возможных кодов
+
+        service_status = ask_service_info(RTDB_NAME, service_endpoint, ENDPOINT_MAXLEN);
+        switch(service_status)
+        {
+          case 200:
+            LOG(INFO) << RTDB_NAME << " status OK, endpoint=" << service_endpoint;
+
+            request->set_destination(service_name);
+            transport_cell = new mdp::zmsg ();
+            transport_cell->push_front(const_cast<std::string&>(request->data()->get_serialized()));
+            transport_cell->push_front(const_cast<std::string&>(request->header()->get_serialized()));
+
+            // Отправить сообщение
+            send (service_name, transport_cell);
+
+            delete transport_cell;
+            delete request;
+
+            // От сервера подписки получить ответ, содержащий начальные значения атрибутов
+            rc = waitSBS();
+            break;
+
+          case 400:
+            LOG(INFO) << service_name << " status BAD_REQUEST : " << service_status;
+            break;
+          case 404:
+            LOG(INFO) << service_name << " status NOT_FOUND : " << service_status;
+            break;
+          case 501:
+            LOG(INFO) << service_name << " status NOT_SUPPORTED : " << service_status;
+            break;
+          default:
+            LOG(INFO) << service_name << " status UNKNOWN : " << service_status;
+        }
+      }
+      else {
+        LOG(ERROR) << "Subscribing failure, status=" << status_code;
+      }
+  }
+  catch(zmq::error_t err)
+  {
+    LOG(ERROR) << err.what();
+  }
+  catch (std::exception &e)
+  {
+    LOG(ERROR) << "catch the signal: " << e.what();
+  }
+
+  return rc;
+}
+
+// ==========================================================================================================
+int EGSA::recv(msg::Letter* &result)
+{
+  int status;
+  mdp::zmsg* req = NULL;
+
+  assert(&result);
+  result = NULL;
+
+//1  status = recv(req);
+
+//1  if (RECEIVE_OK == status)
+  {
+    result = m_message_factory->create(req);
+    delete req;
+  }
+
+  return status;
+}
+
+// ==========================================================================================================
+int EGSA::waitSBS()
+{
+  int rc = NOK;
+  int status;
+  std::string cause_text = "";
+  msg::ExecResult *resp = NULL;
+  msg::Letter *report = NULL;
+  bool stop_receiving = false;
+
+  try
+  {
+    //  Wait for report
+    while (!stop_receiving)
+    {
+      LOG(INFO) << "Try to receive SBS answer";
+
+      status = recv(report);
+      if (report) {
+
+        switch (report->valid())
+        {
+          case false:
+            stop_receiving = true;
+            LOG(INFO) << "Receive broken message";
+            break;
+
+          case true:
+            assert(report);
+            LOG(INFO) << "Receive message:";
+            report->dump();
+
+            if (SIG_D_MSG_READ_MULTI == report->header()->usr_msg_type())
+            {
+              LOG(INFO) << "Got SIG_D_MSG_READ_MULTI response: " << report->header()->usr_msg_type();
+              rc = OK;
+              process_read_response(report);
+              // Для режима подписки это сообщение приходят однократно,
+              // для инициализации начальных значений атрибутов из группы
+            }
+            stop_receiving = true;
+            delete report;
+            break;
+
+          default:
+            LOG(ERROR) << "Бяка в статусе ответа на сообщение о подписке на EGSA";
+        }
+      }
+      else {
+        LOG(ERROR) << "Receive null message, exiting";
+        stop_receiving = true;
+      }
+    }
+  }
+  catch (zmq::error_t err)
+  {
+    LOG(ERROR) << err.what();
+  }
+
+  return rc;
+}
+
+// ==========================================================================================================
+bool EGSA::process_read_response(msg::Letter* report)
+{
+  bool status = false;
+  msg::ReadMulti* response = dynamic_cast<msg::ReadMulti*>(report);
+ 
+  for (std::size_t idx = 0; idx < response->num_items(); idx++)
+  {
+     const msg::Value& attr_val = response->item(idx);
+     LOG(INFO) << attr_val.tag() << " = " << attr_val.as_string() << std::endl;
+  }
+ 
+  return status;
+}
+
+// ==========================================================================================================
+

@@ -29,7 +29,7 @@ class EGSA;
 // Класс-обработчик функций верхнего уровня EGSA - взаимодействие с Брокером
 class EGSA_Host : public mdp::mdwrk {
   public:
-    EGSA_Host(std::string, std::string, int);
+    EGSA_Host(std::string&, std::string, int);
    ~EGSA_Host();
     
     // Обработчик входящих соединений
@@ -51,6 +51,9 @@ class EGSA_Host : public mdp::mdwrk {
     // Нить ответчика на запросы к службе обменов "EGSA"
     EGSA        *m_egsa_instance;
     std::thread *m_egsa_thread;
+
+    // Исходящее соединение для связи с экземпляром EGSA
+    zmq::socket_t m_egsa_socket;
 
     // Фабрика сообщений
     msg::MessageFactory *m_message_factory;

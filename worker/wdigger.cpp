@@ -304,8 +304,8 @@ void DiggerWorker::work()
    m_commands.setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
    m_commands.setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
 
-   LOG(INFO) << "DiggerWorker thread connects to "
-             << ENDPOINT_RTDB_DATA_BACKEND
+   LOG(INFO) << "DiggerWorker thread " << m_thread_id
+             << " connects to " << ENDPOINT_RTDB_DATA_BACKEND
              << ", " << ENDPOINT_RTDB_COMMAND_BACKEND;
 
 
@@ -407,7 +407,7 @@ void DiggerWorker::work()
    delete m_db_connection; m_db_connection = NULL;
    delete m_message_factory; m_message_factory = NULL;
 
-   LOG(INFO) << "DiggerWorker thread is done";
+   LOG(INFO) << "DiggerWorker thread " << m_thread_id << " is done";
    pthread_exit(NULL);
 }
 
@@ -1379,13 +1379,16 @@ void DiggerProxy::run()
       // NB: необходимо использовать оператор (void*) для доступа к внутреннему ptr
       // Перезапустить работу при завершении zmq_proxy_steerable с кодом EHOSTUNREACH=113,
       // это обычно связано с аварийным завершением Клиента в процессе обмена
-      while (rc || (rc == EHOSTUNREACH))
+      while (rc)
       {
         rc = zmq_proxy_steerable ((void*)m_frontend,
                                   (void*)m_backend,
                                   NULL /* C++11: nullptr */,
                                   (void*)m_control);
-	    if (rc == EHOSTUNREACH) LOG(WARNING) << "Restart DiggerProxy after EHOSTUNREACH";
+	    if (rc == EHOSTUNREACH) {
+          LOG(WARNING) << "Restart DiggerProxy after EHOSTUNREACH";
+          rc = 0;
+        }
       }
 
       if (0 == rc)
@@ -1473,7 +1476,7 @@ void DiggerProxy::wait_probe_stop()
 // --------------------------------------------------------------------------------
 Digger::Digger(std::string broker_endpoint, std::string service)
    :
-   mdp::mdwrk(broker_endpoint, service, 1 /* num zmq io threads (default = 1) */),
+   mdp::mdwrk(broker_endpoint, service, 1 /* num zmq io threads (default = 1) */, false /* direct messaging */),
    m_helpers_control(m_context, ZMQ_PUB),
    m_digger_proxy(NULL),
    m_proxy_thread(NULL),
@@ -1555,7 +1558,7 @@ void Digger::run()
     LOG(INFO) << "DiggerProxy starting Main thread";
     m_proxy_thread = new std::thread(std::bind(&DiggerProxy::run, m_digger_proxy));
 
-    LOG(INFO) << "Wait 1 second to DiggerProxy became hot";
+    LOG(INFO) << "Wait a second to became DiggerProxy hot";
     sleep(1);
 
     LOG(INFO) << "DiggerProxy control connecting";

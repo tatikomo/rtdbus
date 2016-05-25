@@ -25,7 +25,7 @@ static unsigned int num_iter = 1200;
 
 
 rtdbExchangeId id_list[MAX_LETTERS];
-Pulsar::Pulsar(const char* broker, int verbose)
+Pulsar::Pulsar(std::string& broker, int verbose)
     :
     mdcli(broker, verbose),
     m_channel(mdp::ChannelType::PERSISTENT) // По умолчанию обмен сообщениями со Службой через Брокер
@@ -154,16 +154,21 @@ int main (int argc, char *argv [])
   mdp::ChannelType channel = mdp::ChannelType::PERSISTENT;
   // По умолчанию обмен сообщениями со Службой через Брокер
   rtdbExchangeId sent_exchange_id;
+  std::string broker_endpoint = ENDPOINT_BROKER;
 
   ::google::InstallFailureSignalHandler();
   ::google::InitGoogleLogging(argv[0]);
 
-  while ((opt = getopt (argc, argv, "vdn:s:t:")) != -1)
+  while ((opt = getopt (argc, argv, "b:vdn:s:t:")) != -1)
   {
      switch (opt)
      {
        case 'v':
          verbose = 1;
+         break;
+
+       case 'b': // точка подключения к Брокеру
+         broker_endpoint.assign(optarg);
          break;
 
        case 'n':
@@ -216,7 +221,7 @@ int main (int argc, char *argv [])
     return(1);
   }
 
-  client = new Pulsar ("tcp://localhost:5555", verbose);
+  client = new Pulsar (broker_endpoint, verbose);
 
   if (!is_type_name_given)
   {

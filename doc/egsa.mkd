@@ -63,8 +63,26 @@ BASIC_NAME = AB_HHISTINFSACQ
 Интерфейсный модуль СС при получении команды проверяет её на выполнимость (наличие/отсутствие делегирования, доступность СС, ...) и отправляет квитанцию с кодом команды. По этому коду команды верхний уровень может проверить её состояние или отменить её.
 
 #Виды систем сбора
-Вид системы сбора приведен в поле "TYPE" раздела "COMMON" конфигурационного файла СС. Они могут быть:
-LOCAL_SA
+Вид системы сбора приведен в поле "NATURE" раздела "COMMON" конфигурационного файла СС. Они задаются в файле exchange_config.hpp в виде перечисления gof_t_SacNature, и могут принимать значения:
+GOF_D_SAC_NATURE_DIR
+GOF_D_SAC_NATURE_DIPL
+GOF_D_SAC_NATURE_GEKO
+GOF_D_SAC_NATURE_A86
+GOF_D_SAC_NATURE_FANUC
+GOF_D_SAC_NATURE_SLTM
+GOF_D_SAC_NATURE_ZOND
+GOF_D_SAC_NATURE_STI
+GOF_D_SAC_NATURE_SUPERRTU
+GOF_D_SAC_NATURE_GPRI
+GOF_D_SAC_NATURE_ESTM
+GOF_D_SAC_NATURE_EELE
+GOF_D_SAC_NATURE_ESIR
+GOF_D_SAC_NATURE_EIMP
+GOF_D_SAC_NATURE_SDEC
+GOF_D_SAC_NATURE_SCCSC
+GOF_D_SAC_NATURE_EUNK
+
+LOCAL
 UPPER
 LOWER
 ADJACENT

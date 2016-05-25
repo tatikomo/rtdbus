@@ -14,6 +14,7 @@
 
 #include "zmq.hpp"
 
+#include <map>
 #include <iostream>
 #include <iomanip>
 #include <string>
@@ -29,6 +30,10 @@
 #include <stdarg.h>
 #include <signal.h>
 
+#if defined HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 //  Bring Windows MSVC up to C99 scratch
 #if (defined (__WINDOWS__))
     typedef unsigned long ulong;
@@ -38,6 +43,19 @@
 
 //  Provide random number from 0..(num-1)
 #define within(num) (int) ((float) (num) * random () / (RAND_MAX + 1.0))
+
+typedef struct {
+  // Строка подключения к Сервису в формате connect
+  char endpoint_external[ENDPOINT_MAXLEN + 1];
+  // Строка подключения Публикатору Сервиса в формате connect
+  char endpoint_publisher[ENDPOINT_MAXLEN + 1];
+  // Было ли подключение к данной Службе?
+  bool  connected;
+} ServiceInfo;
+
+typedef std::pair <const std::string, ServiceInfo*> ServicesHashPair_t;
+typedef std::map  <const std::string, ServiceInfo*> ServicesHash_t;
+typedef ServicesHash_t::iterator ServicesHashIterator_t;
 
 //  Receive 0MQ string from socket and convert into string
 std::string s_recv (zmq::socket_t & socket);

@@ -188,7 +188,8 @@ typedef enum {
   SA_STATE_UNKNOWN  = -1, // Неопределенное состояние
   SA_STATE_UNREACH  = 0,  // Недоступна
   SA_STATE_OPER     = 1,  // Оперативная работа
-  SA_STATE_PRE_OPER = 2   // В процессе инициализации
+  SA_STATE_PRE_OPER = 2,  // В процессе инициализации
+  SA_STATE_DISCONNECTED = 3   // СС заргистрирована, но не подключена
 } sa_state_t;
 
 

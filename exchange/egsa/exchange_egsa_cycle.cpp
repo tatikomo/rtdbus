@@ -20,7 +20,7 @@ class CycleTrigger : public TimerTimeoutHandler
   public:
     CycleTrigger(const std::string&);
     CycleTrigger(const std::string&, int);
-    ~CycleTrigger() {};
+   ~CycleTrigger() {};
 
     void handlerFunction( void );
 

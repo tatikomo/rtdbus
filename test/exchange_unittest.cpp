@@ -16,7 +16,8 @@
 
 AcquisitionSystemConfig* g_sa_config = NULL;
 EgsaConfig* g_egsa_config = NULL;
-EGSA* egsa_instance = NULL;
+EGSA* g_egsa_instance = NULL;
+msg::MessageFactory* g_message_factory = NULL;
 zmq::context_t g_ctx(1);
 
 const char* g_sa_config_filename = "BI4500.json";
@@ -25,26 +26,31 @@ extern ega_ega_odm_t_RequestEntry g_requests_table[]; // declared in exchange_eg
 
 TEST(TestEXCHANGE, EGSA_CREATE)
 {
-  egsa_instance = new EGSA(g_ctx);
-  EXPECT_TRUE(egsa_instance != NULL);
+  std::string broker_endpoint = ENDPOINT_BROKER;
+
+  g_message_factory = new msg::MessageFactory(EXCHANGE_NAME);
+  ASSERT_TRUE(g_message_factory != NULL);
+
+  g_egsa_instance = new EGSA(broker_endpoint, g_ctx, g_message_factory);
+  ASSERT_TRUE(g_egsa_instance != NULL);
 
   g_sa_config = new AcquisitionSystemConfig(g_sa_config_filename);
-  EXPECT_TRUE(g_sa_config != NULL);
+  ASSERT_TRUE(g_sa_config != NULL);
 
   g_egsa_config = new EgsaConfig(g_egsa_config_filename);
-  EXPECT_TRUE(g_egsa_config != NULL);
+  ASSERT_TRUE(g_egsa_config != NULL);
 }
 
 TEST(TestEXCHANGE, SA_CONFIG)
 {
-  g_sa_config->load();
-  LOG(INFO) << "load config";
-
+  int rc = g_sa_config->load();
+  EXPECT_TRUE(OK == rc);
 }
 
 TEST(TestEXCHANGE, EGSA_CONFIG)
 {
-  g_egsa_config->load();
+  int rc = g_egsa_config->load();
+  EXPECT_TRUE(OK == rc);
   LOG(INFO) << "load " << g_egsa_config->cycles().size() << " cycles";
   LOG(INFO) << "load " << g_egsa_config->sites().size() << " sites";
 }
@@ -85,15 +91,15 @@ TEST(TestEXCHANGE, EGSA_CYCLES)
 
       cycle->dump();
       // Передать объект Цикл в подчинение EGSA
-      egsa_instance->push_cycle(cycle);
+      g_egsa_instance->push_cycle(cycle);
     }
   }
 
-  rc = egsa_instance->activate_cycles();
+  rc = g_egsa_instance->activate_cycles();
   EXPECT_TRUE(rc == OK);
 
-  egsa_instance->wait(40);
-  rc = egsa_instance->deactivate_cycles();
+  g_egsa_instance->wait(40);
+  rc = g_egsa_instance->deactivate_cycles();
 }
 
 TEST(TestEXCHANGE, EGSA_FREE)
@@ -101,7 +107,7 @@ TEST(TestEXCHANGE, EGSA_FREE)
   delete g_egsa_config;
   delete g_sa_config;
 
-  delete egsa_instance;
+  delete g_egsa_instance;
 }
 
 int main(int argc, char** argv)

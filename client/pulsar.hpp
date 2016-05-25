@@ -19,7 +19,7 @@ typedef MessageTypesHash_t::iterator MessageTypesHashIterator_t;
 class Pulsar: public mdp::mdcli
 {
   public:
-    Pulsar(const char* broker, int verbose);
+    Pulsar(std::string& broker, int verbose);
     virtual ~Pulsar();
     // Отправить сообщения
     void fire_messages();

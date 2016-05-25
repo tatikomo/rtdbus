@@ -16,7 +16,7 @@
 #include "mosquito.hpp"
 
 // ----------------------------------------------------------
-Mosquito::Mosquito(std::string broker, int verbose, WorkMode_t given_mode)
+Mosquito::Mosquito(std::string& broker, int verbose, WorkMode_t given_mode)
   : mdp::mdcli(broker, verbose),
     m_factory(new msg::MessageFactory("db_mosquito")),
     m_mode(given_mode)
@@ -292,6 +292,7 @@ int main (int argc, char *argv [])
   mdp::ChannelType channel = mdp::ChannelType::DIRECT;
   char one_argument[SERVICE_NAME_MAXLEN + 1] = "";
   char service_endpoint[ENDPOINT_MAXLEN + 1] = "";
+  std::string broker_endpoint = ENDPOINT_BROKER;
   int service_status;   // 200|400|404|501
   // название Сервиса
   std::string service_name;
@@ -302,6 +303,7 @@ int main (int argc, char *argv [])
   int num = 0;
   xdb::AttributeInfo_t attr_info;
   static const char *arguments_template =
+              "-b <broker_address> "
               "-s <service_name> [-v] "
               "[-g <sbs name>] "
               "[-p <point name>] "
@@ -311,13 +313,17 @@ int main (int argc, char *argv [])
               "[-m <%s|%s|%s|%s|%s>]";
   char arguments_out[255];
 
-  while ((opt = getopt (argc, argv, "vs:m:g:t:p:n:h:")) != -1)
+  while ((opt = getopt (argc, argv, "b:vs:m:g:t:p:n:h:")) != -1)
   {
     switch (opt)
     {
         case 'v': // режим подробного вывода
           verbose = 1;
           break;
+
+       case 'b': // точка подключения к Брокеру
+         broker_endpoint.assign(optarg);
+         break;
 
         case 's':
           strncpy(one_argument, optarg, SERVICE_NAME_MAXLEN);
@@ -416,7 +422,7 @@ int main (int argc, char *argv [])
   }
   std::cout << "Will use work mode " << mode << std::endl;
 
-  mosquito = new Mosquito ("tcp://localhost:5555", verbose, mode);
+  mosquito = new Mosquito (broker_endpoint, verbose, mode);
 
   try
   {

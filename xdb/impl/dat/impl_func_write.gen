@@ -298,18 +298,6 @@ MCO_RET DatabaseRtapImpl::writeSUPPLIERSTATE(mco_trans_h&, rtap_db::XDBPoint&, A
   return rc;
 }
 
-MCO_RET DatabaseRtapImpl::writeEXPMODE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
-MCO_RET DatabaseRtapImpl::writeSYNTHSTATE(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
-{
-  MCO_RET rc = MCO_S_OK;
-  return rc;
-}
-
 MCO_RET DatabaseRtapImpl::writeTSSYNTHETICAL(mco_trans_h&, rtap_db::XDBPoint&, AttributeInfo_t*)
 {
   MCO_RET rc = MCO_S_OK;

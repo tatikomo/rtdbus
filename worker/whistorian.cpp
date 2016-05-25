@@ -409,7 +409,7 @@ void HistorianProducer::run()
 
 // ---------------------------------------------------------------------
 Historian::Historian(const std::string& endpoint, const std::string& name) :
-  mdp::mdwrk(endpoint, name, 1 /* num zmq io threads (default = 1) */),
+  mdp::mdwrk(endpoint, name, 1 /* num zmq io threads (default = 1) */, false /* use direct messaging */),
   m_broker_endpoint(endpoint),
   m_server_name(name),
   m_producer(NULL),

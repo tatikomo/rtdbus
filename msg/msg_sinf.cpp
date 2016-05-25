@@ -637,6 +637,9 @@ void Value::flush()
     case xdb::DB_TYPE_LAST:
     case xdb::DB_TYPE_UNDEF:
         // TODO: что делать при попытке сохранения данных неопределенного типа?
+        LOG(ERROR) << "Write undefined type point:" << m_instance.name;
+        //assert(0 == 1);
+
     break;
 
     default:
@@ -771,7 +774,7 @@ void ReadMulti::add(std::string& tag, xdb::DbType_t type, void* val)
     break;
 
     default:
-      LOG(ERROR)<< ": unsupported type " << type;
+      LOG(ERROR)<< tag << ": unsupported type " << type;
     break;
   }
 }

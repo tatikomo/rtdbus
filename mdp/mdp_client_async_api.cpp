@@ -36,7 +36,7 @@ void s_catch_signals ()
  * к Брокеру, создавать подключения к общему сокету Служб.
  * Тип у общих сокетов Служб (m_welcome) => ROUTER
  */
-mdcli::mdcli (std::string broker, int verbose) :
+mdcli::mdcli (std::string& broker, int verbose) :
    m_broker(broker),
    m_context(NULL),
    m_client(NULL),
@@ -181,7 +181,7 @@ bool mdcli::service_info_by_name(const char* serv_name, ServiceInfo *&serv_info)
 
 //  ---------------------------------------------------------------------
 // NB: Фунция insert_service_info сейчас (2015/02/18) вызывается после проверки
-// отсутствия дупликатов в хеше. Возможно, повторная проверка на уникальность излишняя.
+// отсутствия дубликатов в хеше. Возможно, повторная проверка на уникальность излишняя.
 bool mdcli::insert_service_info(const char* serv_name, ServiceInfo *&serv_info)
 {
   bool status = false;
@@ -224,7 +224,7 @@ int mdcli::ask_service_info(const char* service_name, char* service_endpoint, in
 
   // Брокеру - именно для этого Сервиса дай точку входа
   request->push_front(const_cast<char*>(service_name));
-  // второй фрейм запроса - идентификатор ображения к внутренней службе Брокера
+  // второй фрейм запроса - идентификатор обращения к внутренней службе Брокера
   send (mmi_service_get_name, request);
 
   status = recv(report);
@@ -280,8 +280,8 @@ int mdcli::ask_service_info(const char* service_name, char* service_endpoint, in
       }
     }
 
-    LOG(INFO) << "'" << service_name << "' status: " << existance_code
-              << " endpoint: " << service_endpoint;
+    LOG(INFO) << "'" << service_name << "' status=" << existance_code
+              << ", endpoint: " << service_endpoint;
   }
 
   delete request;
@@ -298,23 +298,30 @@ int mdcli::subscript(const std::string& service_name, const std::string& group_n
   int linger = 0;
   int hwm = 100;
 
-  m_subscriber = new zmq::socket_t (*m_context, ZMQ_SUB);
+  try {
+      m_subscriber = new zmq::socket_t (*m_context, ZMQ_SUB);
 
-  // TODO: Получить точку подключения для подписок этой Службы
-  // NB: пока считается, что есть только одна Служба с единственным адресом публикации
+      // TODO: Получить точку подключения для подписок этой Службы
+      // NB: пока считается, что есть только одна Служба с единственным адресом публикации
 
-  m_subscriber->setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
-  m_subscriber->setsockopt(ZMQ_RCVHWM, &hwm, sizeof(hwm));
+      m_subscriber->setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
+      m_subscriber->setsockopt(ZMQ_RCVHWM, &hwm, sizeof(hwm));
 
 #warning "Создать механизм получения Клиентом от Сервиса адреса публикации поддерживаемых ей Групп подписок"
-  m_subscriber->connect(ENDPOINT_SBS_PUBLISHER);
+      m_subscriber->connect(ENDPOINT_SBS_PUBLISHER);
 
-  // Первым фреймом должно идти название группы
-  m_subscriber->setsockopt(ZMQ_SUBSCRIBE, group_name.c_str(), group_name.size());
+      // Первым фреймом должно идти название группы
+      m_subscriber->setsockopt(ZMQ_SUBSCRIBE, group_name.c_str(), group_name.size());
 
-  add_socket_to_pool(m_subscriber, SUBSCRIBER_ITEM);
- 
-  LOG(INFO) << "Subscript to ["<<service_name<<":"<<group_name<<"]";
+      add_socket_to_pool(m_subscriber, SUBSCRIBER_ITEM);
+     
+      LOG(INFO) << "Subscript to ["<<service_name<<":"<<group_name<<"]";
+  }
+  catch(zmq::error_t err)
+  {
+    LOG(ERROR) << err.what();
+    status_code = err.num();
+  }
 
   return status_code;
 }
@@ -603,7 +610,7 @@ int mdcli::send_direct(std::string& service_name, zmsg *&request)
 void mdcli::add_socket_to_pool(zmq::socket_t* socket, int socket_type)
 {
   // по умолчанию ссылаться на первую свободную ячейку в пуле
-  int use_index = m_active_socket_num;
+  int current_slot = m_active_socket_num;
   // Корректен ли переданный в функцию тип сокета
   bool type_is_correct = true;
 
@@ -613,7 +620,7 @@ void mdcli::add_socket_to_pool(zmq::socket_t* socket, int socket_type)
       // Был ли уже создан сокет подписки?
       if (m_subscriber_socket_index)
       { // Да, его индекс не нулевой, используем ранее определенный индекс
-        use_index = m_subscriber_socket_index;
+        current_slot = m_subscriber_socket_index;
         LOG(INFO) << "Update SUBSCRIBER "<<socket<<" at " << m_subscriber_socket_index;
       }
       else
@@ -627,7 +634,7 @@ void mdcli::add_socket_to_pool(zmq::socket_t* socket, int socket_type)
       // Был ли уже создан сокет связи с Клиентами?
       if (m_peer_socket_index)
       { // Да, его индекс не нулевой, используем ранее определенный индекс
-        use_index = m_peer_socket_index;
+        current_slot = m_peer_socket_index;
         LOG(INFO) << "Update SERVICE "<<socket<<" at " << m_peer_socket_index;
       }
       else
@@ -645,11 +652,11 @@ void mdcli::add_socket_to_pool(zmq::socket_t* socket, int socket_type)
   if (type_is_correct)
   {
     // заполним ячейку пула сокетов
-    m_socket_items[use_index].socket = (void*)*socket;// NB: оператор (void*) обязателен!
+    m_socket_items[current_slot].socket = (void*)*socket;// NB: оператор (void*) обязателен!
     // zmq::socket_t::operator (void*) предоставляет доступ к внутреннему представлению zmq_socket_t
-    m_socket_items[use_index].fd = 0;
-    m_socket_items[use_index].events = ZMQ_POLLIN;
-    m_socket_items[use_index].revents = 0;
+    m_socket_items[current_slot].fd = 0;
+    m_socket_items[current_slot].events = ZMQ_POLLIN;
+    m_socket_items[current_slot].revents = 0;
   }
 
   if (m_active_socket_num > SOCKET_MAX_COUNT)
