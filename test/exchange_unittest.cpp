@@ -72,6 +72,7 @@ TEST(TestEXCHANGE, EGSA_REQUESTS)
   EXPECT_TRUE(req_entry_dict->e_RequestId == ECH_D_GENCONTROL);
 }
 
+#if 0
 TEST(TestEXCHANGE, EGSA_CYCLES)
 {
   ega_ega_odm_t_RequestEntry* req_entry_dict = NULL;
@@ -98,8 +99,14 @@ TEST(TestEXCHANGE, EGSA_CYCLES)
   rc = g_egsa_instance->activate_cycles();
   EXPECT_TRUE(rc == OK);
 
-  g_egsa_instance->wait(40);
+  g_egsa_instance->wait(20);
   rc = g_egsa_instance->deactivate_cycles();
+}
+#endif
+
+TEST(TestEXCHANGE, EGSA_RUN)
+{
+  g_egsa_instance->run();
 }
 
 TEST(TestEXCHANGE, EGSA_FREE)

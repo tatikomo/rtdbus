@@ -109,15 +109,16 @@ EGSA::EGSA(std::string& _broker, zmq::context_t& _ctx, msg::MessageFactory* _fac
     m_subscriber(_ctx, ZMQ_SUB),        // Подписка от БДРВ на атрибуты точек систем сбора
     m_message_factory(_factory),
     m_ext_smad(NULL),
+    m_socket(-1),
     m_egsa_config(NULL)
 {
-  m_socket = open("egsa_timers.pipe", S_IFIFO|0666, 0);
+/*  m_socket = open("egsa_timers.pipe", S_IFIFO|0666, 0);
   if (-1 == m_socket) {
     LOG(ERROR) << "Unable to open socket: " << strerror(errno);
   }
   else {
     LOG(INFO) << "Timers pipe " << (unsigned int)m_socket << " is ready";
-  }
+  }*/
 }
 
 // ==========================================================================================================
@@ -392,31 +393,31 @@ void EGSA::fire_ENDALLINIT()
 {
   auto now = std::chrono::system_clock::now();
 
-  for (system_acquisition_list_t::iterator it = m_sa_list.begin();
-       it != m_sa_list.end();
-       it++)
+  for (system_acquisition_list_t::iterator sa = m_sa_list.begin();
+       sa != m_sa_list.end();
+       sa++)
   {
-    switch((*it).second->state())
+    switch((*sa).second->state())
     {
       case SA_STATE_OPER:
-        LOG(WARNING) << "SA " << (*it).first << " state is OPERATIONAL before ENDALLINIT";
+        LOG(WARNING) << "SA " << (*sa).first << " state is OPERATIONAL before ENDALLINIT";
         break;
 
       case SA_STATE_PRE_OPER:
-        LOG(WARNING) << (*it).first << "state is PRE OPERATIONAL";
+        LOG(WARNING) << (*sa).first << "state is PRE OPERATIONAL";
         break;
 
       case SA_STATE_DISCONNECTED:
       case SA_STATE_UNKNOWN:
       case SA_STATE_UNREACH:
-        LOG(INFO) << (*it).first << " state is UNREACHABLE";
-        if ((*it).second->send(ADG_D_MSG_ENDALLINIT)) {
-//1          events::add(std::bind(&SystemAcquisition::check_ENDALLINIT, (*it).second), now + std::chrono::seconds(2));
+        LOG(INFO) << (*sa).first << " state is UNREACHABLE";
+        if ((*sa).second->send(ADG_D_MSG_ENDALLINIT)) {
+//1          events::add(std::bind(&SystemAcquisition::check_ENDALLINIT, (*sa).second), now + std::chrono::seconds(2));
         }
         break;
 
 /*      case SA_STATE_UNKNOWN:
-        LOG(ERROR) << (*it).first << " state is UNKNOWN";
+        LOG(ERROR) << (*sa).first << " state is UNKNOWN";
         break;*/
     }
   }

@@ -380,7 +380,7 @@ int mdwrk::ask_service_info(const std::string& service_name, char* service_endpo
   send_to_broker (mmi_service_get_name, NULL, request);
 
   reply_to = new std::string;
-  if (NULL != (report = mdwrk::recv(reply_to)))
+  if (NULL == (report = mdwrk::recv(reply_to)))
   {
     LOG(ERROR) << "Receiving enpoint failure";
     // Возможно, Брокер не запущен
