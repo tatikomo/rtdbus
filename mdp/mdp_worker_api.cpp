@@ -392,12 +392,13 @@ int mdwrk::ask_service_info(const std::string& service_name, char* service_endpo
     //report->dump();
 
     // MDPC0X
-    std::string client_code = report->pop_front();
+//1    const std::string client_code = report->pop_front();
     // mmi.service
-    std::string service_request  = report->pop_front();
+    const std::string service_request  = report->pop_front();
     assert(service_request.compare(mmi_service_get_name) == 0);
+    const std::string service_name = report->pop_front();
     // 200|404|501
-    std::string existance_code = report->pop_front();
+    const std::string existance_code = report->pop_front();
     service_status_code = atoi(existance_code.c_str());
     // Точка подключения - пока только при получении кода 200
     if (200 == service_status_code)
@@ -531,6 +532,51 @@ mdwrk::recv (std::string *&reply)
             assert (empty.empty() == 1);
 
             std::string header = msg->pop_front ();
+            // Если Служба запрашивала информацию по точке подключения другой Службы,
+            // здесь будет клиентский код.
+          if (header.compare(MDPC_CLIENT) == 0) {
+              // Да, это клиентский код, проверить на запрос точки подключения
+              // Его формат:
+              // [000]
+              // [006] MDPC0X
+              // [001] 02
+              // [006] MDPC0X
+              // [011] mmi.service
+              // [003] {200|404|501}
+              // Если предыдущее поле = 200, то [0XX] <строка с адресом подключения>
+
+              // Новый формат:
+              // [000]
+              // [006] MDPC0X
+              // [001] 02
+              // [006] MDPC0X
+              // [011] mmi.service
+              // [006] <Имя Службы>
+              // [003] {200|404|501}
+              //
+              // mmi.service
+              const char *mmi_service_get_name = "mmi.service";
+              char service_endpoint[60 + 1] = "<none>";
+              const std::string empty = msg->pop_front();
+              const std::string client_code = msg->pop_front();
+              const std::string service_request  = msg->pop_front();
+              const std::string service_name = msg->pop_front();
+              assert(service_request.compare(mmi_service_get_name) == 0);
+              // 200|404|501
+              const std::string existance_code = msg->pop_front();
+              int service_status_code = atoi(existance_code.c_str());
+              // Точка подключения - пока только при получении кода 200
+              if (200 == service_status_code) {
+                std::string endpoint = msg->pop_front();
+                strncpy(service_endpoint, endpoint.c_str(), 60);
+                service_endpoint[60] = '\0';
+                LOG(INFO) << "Reply " << service_name << " endpoint " << service_endpoint;
+              }
+              else {
+                LOG(ERROR) << "Requested service not known";
+              }
+          }
+          else {
             assert (header.compare(MDPW_WORKER) == 0);
 
             std::string command = msg->pop_front ();
@@ -555,6 +601,7 @@ mdwrk::recv (std::string *&reply)
                 msg->dump ();
             }
             delete msg;
+          }
         }
         else if (m_subscriber && (m_socket_items[SUBSCRIBER_ITEM].revents & ZMQ_POLLIN)) // Событие подписки
         {

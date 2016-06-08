@@ -241,12 +241,14 @@ int mdcli::ask_service_info(const char* service_name, char* service_endpoint, in
     //report->dump();
 
     // MDPC0X
-    std::string client_code = report->pop_front();
+    const std::string client_code = report->pop_front();
     // mmi.service
-    std::string service_request  = report->pop_front();
+    const std::string service_request  = report->pop_front();
     assert(service_request.compare(mmi_service_get_name) == 0);
+    // <Название Службы>
+    const std::string service_name_from_msg = report->pop_front();
     // 200|404|501
-    std::string existance_code = report->pop_front();
+    const std::string existance_code = report->pop_front();
     service_status_code = atoi(existance_code.c_str());
     // Точка подключения - пока только при получении кода 200
     if (200 == service_status_code)

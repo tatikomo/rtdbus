@@ -234,7 +234,6 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
     xdb::Letter  *letter = NULL;
     bool     status = false;
     // всегда проверять, есть ли в очереди ранее необслужанные запросы
-    std::string header;
     std::string message_body;
 
     assert (srv);
@@ -300,7 +299,7 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
 //  ---------------------------------------------------------------------
 //  Handle internal service according to 8/MMI specification
 //
-//  TODO: Реализация службы получения информации Клиентами о наличии и атрибутам
+//  Реализация службы получения информации Клиентами о наличии и атрибутам
 //  подключения к Сервисам (реализующим их функциональность Обработчикам)
 //
 //  1. Обработчик Сервиса посылает Брокеру сообщение READY, содержащее
@@ -335,12 +334,14 @@ Broker::service_internal (const std::string& service_name, zmsg *msg)
             (srv->GetSTATE() == xdb::Service::REGISTERED)))
         {
             // Строка подключения Службы
-            msg->body_set("200");
+            msg->body_set(asked_service_frame.c_str());
+            msg->push_back((char*)"200");
             msg->push_back(const_cast<char*>(srv->GetENDPOINT()));
         }
         else
         {
-            msg->body_set("404");
+            msg->body_set(asked_service_frame.c_str());
+            msg->push_back((char*)"404");
         }
   } // end if - команда mmi.service
   else if (service_name.compare("mmi.filter") == 0) {
@@ -617,23 +618,38 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
   /* Зарегистрирован ли Обработчик с данным identity? */
   wrk = m_database->GetWorkerByIdent(sender_identity);
 
-  /*
-   * TODO нужно заменить функцию worker_require()
-   * Нельзя допускать неизвестных обработчиков, они все должны 
-   * принадлежать своему Сервису. Значит, нужно узнать, к какому
-   * Сервису принадлежит сообщение от данного Обработчика.
-   */
-  if (command.compare (MDPW_READY) == 0)
-    status = worker_process_READY(wrk, sender_identity, msg);
-  else if (command.compare (MDPW_REPORT) == 0)
-    status = worker_process_REPORT(wrk, sender_identity, msg);
-  else if (command.compare (MDPW_HEARTBEAT) == 0)
-    status = worker_process_HEARTBEAT(wrk, sender_identity, msg);
-  else if (command.compare (MDPW_DISCONNECT) == 0)
-    status = worker_process_DISCONNECT(wrk, sender_identity, msg);
+  // TODO: В этом месте пришлось использовать костыль - не была предусмотрена отправка
+  // Службой запроса в адрес другой Службы.
+  // Пока для запроса точки подключения используется существующее сообщение из протокола
+  // Клиент-Брокер. Когда команда начинается с ключевой фразы "mmi." - это является
+  // служебным сообщением. Имеющийся протокол подразумевает размещение в этом месте
+  // поля "команда", представляющая из себя один байт кода команды, поэтому приходится
+  // сначала проверять поле "команда" на "mmi.*", чтобы отсечь нарушение протокола обмена
+  if (command.find("mmi.") != std::string::npos) {
+    // Установить обратный адрес
+    msg->wrap (sender_identity.c_str(), EMPTY_FRAME);
+    // Обработать служебное сообщение
+    service_internal (command, msg);
+  }
   else {
-     LOG(ERROR) << "Invalid input message '" << command << "'";
-     msg->dump ();
+      /*
+       * TODO нужно заменить функцию worker_require()
+       * Нельзя допускать неизвестных обработчиков, они все должны
+       * принадлежать своему Сервису. Значит, нужно узнать, к какому
+       * Сервису принадлежит сообщение от данного Обработчика.
+       */
+      if (command.compare (MDPW_READY) == 0)
+        status = worker_process_READY(wrk, sender_identity, msg);
+      else if (command.compare (MDPW_REPORT) == 0)
+        status = worker_process_REPORT(wrk, sender_identity, msg);
+      else if (command.compare (MDPW_HEARTBEAT) == 0)
+        status = worker_process_HEARTBEAT(wrk, sender_identity, msg);
+      else if (command.compare (MDPW_DISCONNECT) == 0)
+        status = worker_process_DISCONNECT(wrk, sender_identity, msg);
+      else {
+         LOG(ERROR) << "Invalid input message '" << command << "'";
+         msg->dump ();
+      }
   }
 
   if (false == status)
