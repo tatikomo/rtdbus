@@ -25,7 +25,7 @@ static unsigned int num_iter = 1200;
 
 
 rtdbExchangeId id_list[MAX_LETTERS];
-Pulsar::Pulsar(std::string& broker, int verbose)
+Pulsar::Pulsar(const std::string& broker, int verbose)
     :
     mdcli(broker, verbose),
     m_channel(mdp::ChannelType::PERSISTENT) // По умолчанию обмен сообщениями со Службой через Брокер

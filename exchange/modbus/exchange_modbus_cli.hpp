@@ -2,16 +2,18 @@
 #define EXCHANGE_MODBUS_CLIENT_IMPL_H
 #pragma once
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 // Общесистемные заголовочные файлы
 #include <map>
 #include <sys/socket.h>
 
 // Служебные заголовочные файлы сторонних утилит
-#include "modbus.h"
-//#include "rapidjson/document.h"
 
 // Служебные файлы RTDBUS
-#include "exchange_config_sac.hpp"
+#include "exchange_config.hpp"
 
 // ===============================================================================================
 
@@ -71,7 +73,7 @@ typedef enum {
   STATUS_OK_SHUTTINGDOWN,
   // Подключён, требуется переподключение
   STATUS_FAIL_NEED_RECONNECTED,
-  // Не подключён, переподключение нек удалось
+  // Не подключён, переподключение не удалось
   STATUS_FAIL_TO_RECONNECT,
   // Нормальное завершение работы
   STATUS_OK_SHUTDOWN,
@@ -116,21 +118,29 @@ typedef struct {
     SReqEGSAAttr            ReqEGSAAttr;
 } SRequest;
 
+class AcquisitionSystemConfig;
+//struct modbus_t;
+
 // ---------------------------------------------------------
 class RTDBUS_Modbus_client {
   public:
     RTDBUS_Modbus_client(const char*);
    ~RTDBUS_Modbus_client();
-    client_status_t connect();
-    client_status_t run();
+    // Подготовительные действия перед работой - чтение конфигурации, инициализация,...
+    client_status_t prepare();
+    // Элементарное действие, зависящее от текущего состояния
+    client_status_t quantum();
+    // Милисекунд ожидания между запросами
+    int timewait();
+    client_status_t status() { return m_status; };
 
   private:
     DISALLOW_COPY_AND_ASSIGN(RTDBUS_Modbus_client);
-    // Итерация запросов сервера СС
-    client_status_t ask();
     // На основе прочитанных данных автоматически построить план запросов к СС и вывести его в лог
     int make_request_plan();
     int calculate();
+    client_status_t ask();
+    client_status_t connect();
     // Разбор буфера ответа от СС на уровне байтов
     int parse_response(ModbusOrderDescription&, uint8_t*, uint16_t*);
     int parse_HC_IC(address_map_t*, ModbusOrderDescription&, uint8_t*);
@@ -167,6 +177,8 @@ class RTDBUS_Modbus_client {
     // Размер заголовка запроса
     int m_header_length;
     // Параметры самого интерфейсного модуля
+    int m_connection_reestablised;
+    int m_num_connection_try;
 
     InternalSMAD    *m_smad;
     // Хранилище соответствия "адрес" - "информация по параметру" для каждого типа обработки,

@@ -17,23 +17,25 @@
 #include "tool_timer.hpp"
 #include "exchange_config.hpp"
 #include "exchange_config_sac.hpp"
-#include "exchange_egsa_cycle.hpp"
 #include "exchange_smad_int.hpp"
+#include "exchange_egsa_cycle.hpp"
 #include "exchange_egsa_sa.hpp"
+#include "exchange_egsa_impl.hpp"
 
 // -----------------------------------------------------------------------------------
+// egsa - доступ к функциям отправки и приёма сообщений
 // sa_object_level_t - Место в иерархии
 // gof_t_SacNature - Тип объекта
 // tag - код системы сбора
-SystemAcquisition::SystemAcquisition(zmq::socket_t& _socket,
-                                     std::vector<Cycle*>& _cycles,
+SystemAcquisition::SystemAcquisition(EGSA* egsa,
                                      sa_object_level_t level,
                                      gof_t_SacNature nature,
                                      const std::string& tag)
-  : m_level(level),
+  : m_egsa(egsa),
+    m_name(tag),
+    m_level(level),
     m_nature(nature),
     m_smad(NULL),
-    m_name(tag),
     m_state(SA_STATE_UNKNOWN),
     m_smad_state(STATE_DISCONNECTED),
     m_timer_CONNECT(NULL),
@@ -77,7 +79,7 @@ SystemAcquisition::SystemAcquisition(zmq::socket_t& _socket,
 #endif
   }
 
-  look_my_cycles(_cycles);
+  look_my_cycles(m_egsa->cycles());
 
   delete sa_config;
 }
@@ -100,7 +102,8 @@ SystemAcquisition::~SystemAcquisition()
 // -----------------------------------------------------------------------------------
 sa_state_t SystemAcquisition::state()
 {
-  // TODO: выбрать состояние СС из внутренней SMAD, никакого кеша
+  // NB: Напрямую полагаться на чтение состояния СС из внутренней SMAD нельзя, т.к.
+  // допустима конфигурация системы, в которой EGSA и СС работают на разных хостах.
   // Во внутренней SMAD интерфейсным модулем заполняются поля:
   // 1. Состояние подключения
   // 2. Время последнего опроса
@@ -114,11 +117,13 @@ int SystemAcquisition::send(int msg_id)
   int rc = OK;
 
   switch(msg_id) {
-    case ADG_D_MSG_ENDALLINIT:
-      end_all_init();
-      break;
+    case ADG_D_MSG_ENDALLINIT:  process_end_all_init(); break;
+    case ADG_D_MSG_ENDINITACK:  process_end_init_acq(); break;
+    case ADG_D_MSG_INIT:        process_init();         break;
+    case ADG_D_MSG_DIFINIT:     process_dif_init();     break;
     default:
       LOG(ERROR) << "Unsupported message (" << msg_id << ") to send to " << m_name;
+      assert(0 == 1);
       rc = NOK;
   }
 
@@ -127,9 +132,9 @@ int SystemAcquisition::send(int msg_id)
 
 // -----------------------------------------------------------------------------------
 // Найти циклы, в которых участвует данная система сбора
-void SystemAcquisition::look_my_cycles(std::vector<Cycle*>& all_cycles)
+void SystemAcquisition::look_my_cycles(const std::vector<Cycle*>& all_cycles)
 {
-  for (std::vector<Cycle*>::iterator it = all_cycles.begin();
+  for (std::vector<Cycle*>::const_iterator it = all_cycles.begin();
        it != all_cycles.end();
        it++)
   {
@@ -148,21 +153,42 @@ void SystemAcquisition::init()
 }
 
 // -----------------------------------------------------------------------------------
-// TODO: послать всем подчиненным системам сообщение о завершении инициализации связи
-// сразу после того, как последняя из них успешно ответила на сообщение об инициализации
-void SystemAcquisition::end_all_init()
+// TODO: послать сообщение об успешном завершении инициализации связи
+// сразу после того, как последняя из CC успешно ответила на сообщение об инициализации
+void SystemAcquisition::process_end_all_init()
 {
 //1  m_timer_ENDALLINIT = new Timer("ENDALLINIT");
-  LOG(INFO) << "Fire ENDALLINIT for " << m_name;
+  m_egsa->send_to(m_name, ADG_D_MSG_ENDALLINIT);
+  LOG(INFO) << "Process ENDALLINIT for " << m_name;
 }
 
+// -----------------------------------------------------------------------------------
+// Запрос состояния завершения инициализации
+void SystemAcquisition::process_end_init_acq()
+{
+  LOG(INFO) << "Process ENDINITACQ for " << m_name;
+}
+
+// -----------------------------------------------------------------------------------
+// Конец инициализации
+void SystemAcquisition::process_init()
+{
+  LOG(INFO) << "Process INIT for " << m_name;
+}
+
+// -----------------------------------------------------------------------------------
+// Запрос завершения инициализации после аварийного завершения
+void SystemAcquisition::process_dif_init()
+{
+  LOG(INFO) << "Process DIFINIT for " << m_name;
+}
 
 // -----------------------------------------------------------------------------------
 // TODO: послать сообщение об завершении связи
 void SystemAcquisition::shutdown()
 {
 //1  m_timer_INIT = new Timer("SHUTDOWN");
-  LOG(INFO) << "Fire SHUTDOWN for " << m_name;
+  LOG(INFO) << "Process SHUTDOWN for " << m_name;
 }
 
 // -----------------------------------------------------------------------------------

@@ -987,6 +987,7 @@ const Error& DatabaseImpl::StoreSnapshot(const char* given_file_name)
      // GEV: valgrind ругается на fbak: Syscall param write(buf) points to uninitialised byte(s)
      // Хотя, судя по исходникам, fbak после создания здесь внутри mco_db_save не закрывается,
      // значит память портится где-то ещё.
+     // Вероятно, mco_db_save может записывать неинициализированные ранее области ОЗУ.
      fclose(fbak);
     }
     else

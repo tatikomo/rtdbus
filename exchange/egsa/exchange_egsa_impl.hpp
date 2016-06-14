@@ -7,6 +7,7 @@
 #endif
 
 // Общесистемные заголовочные файлы
+#include <map>
 #include <vector>
 
 // Служебные заголовочные файлы сторонних утилит
@@ -58,6 +59,10 @@ class EGSA : public mdp::mdwrk {
     int deactivate_cycles();
     // Тестовая функция ожидания срабатывания таймеров в течении заданного времени
     int wait(int);
+    // Доступ к циклам
+    const std::vector<Cycle*>& cycles() { return ega_ega_odm_ar_Cycles; };
+    // Отправка сообщения указанной системе сбора
+    int send_to(const std::string&, int);
 
   private:
     DISALLOW_COPY_AND_ASSIGN(EGSA);
@@ -67,6 +72,16 @@ class EGSA : public mdp::mdwrk {
     // SIG_D_MSG_ECHCTLPRESS
     // SIG_D_MSG_ECHDIRCTLPRESS
     int handle_teleregulation(msg::Letter*, std::string*);
+    // Активация группы подписки точек систем сбора 
+    int activateSBS();
+    // Дождаться ответа на запрос активации группы подписки
+    int waitSBS();
+    // Подключиться к SMAD систем сбора
+    int attach_to_sites_smad();
+    // Изменение состояния подключенных систем сбора и отключение от их внутренней SMAD 
+    int detach();
+    // Функция срабатывания при наступлении времени очередного таймера
+    static int trigger();
 
     zmq::context_t &m_context;
     // Входящее соединение от Клиентов
@@ -101,16 +116,6 @@ class EGSA : public mdp::mdwrk {
     //static ega_ega_odm_t_RequestEntry m_requests_table[/*NBREQUESTS*/]; // ega_ega_odm_ar_Requests
     std::vector<Request*> ega_ega_odm_ar_Requests;
     
-    // Активация группы подписки точек систем сбора 
-    int activateSBS();
-    // Дождаться ответа на запрос активации группы подписки
-    int waitSBS();
-    // Подключиться к SMAD систем сбора
-    int attach_to_sites_smad();
-    // Изменение состояния подключенных систем сбора и отключение от их внутренней SMAD 
-    int detach();
-    // Функция срабатывания при наступлении времени очередного таймера
-    static int trigger();
 };
 
 #endif

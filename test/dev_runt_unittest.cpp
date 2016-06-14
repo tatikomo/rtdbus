@@ -37,8 +37,8 @@ using namespace xdb;
 
 mdp::Digger *digger = NULL;
 mdp::Broker *broker = NULL;
-const char *service_name = RTDB_NAME;
-std::string attributes_connection_to_broker = ENDPOINT_BROKER;
+const std::string service_name = RTDB_NAME;
+const std::string attributes_connection_to_broker = ENDPOINT_BROKER;
 const char *BROKER_SNAP_FILE = (const char*) "broker_db.snap";
 
 //  Раздельные признаки останова Брокера, Клиента, Обработчика
@@ -77,7 +77,7 @@ void  Dump(msg::Letter*);
 /*
  * Реализация функций
  */
-Pulsar::Pulsar(std::string& broker, int verbose) 
+Pulsar::Pulsar(const std::string& broker, int verbose) 
   : mdcli(broker, verbose),
     m_channel(mdp::ChannelType::PERSISTENT)
 {
@@ -230,106 +230,105 @@ client_task (void* /*args*/)
 
     message_factory = new msg::MessageFactory(str_thread_id);
 
-for (iteration = 0; iteration < 2; iteration++)
-{
-    switch(client_test_messages[iteration].msg_type_send)
+    for (iteration = 0; iteration < 2; iteration++)
     {
-      case ADG_D_MSG_ASKLIFE:
-        // ===============================================================================
-        // Проверка прохождения сообщения типа ADG_D_MSG_ASKLIFE
-        // ===============================================================================
-        ask_life = static_cast<msg::AskLife*>(message_factory->create(client_test_messages[iteration].msg_type_send));
-        ask_life->set_destination(service_name);
-
-        //  Send some ADG_D_MSG_ASKLIFE orders
-        request = new mdp::zmsg ();
-
-        ask_life->set_exec_result(10);
-        request->push_front(const_cast<std::string&>(ask_life->data()->get_serialized()));
-        request->push_front(const_cast<std::string&>(ask_life->header()->get_serialized()));
-
-        LOG(INFO) << "CLIENT: Send message type:" << client_test_messages[iteration].msg_type_send
-                  << " id:"<<user_exchange_id++;
-        client->send (service_name, request);
-        wait_response = true;
-
-        delete request;
-        delete ask_life;
-      break;
-
-      case SIG_D_MSG_READ_MULTI:
-        // ===============================================================================
-        // Проверка прохождения сообщения типа SIG_D_MSG_READ_MULTI
-        // ===============================================================================
-        read_multi = static_cast<msg::ReadMulti*>(message_factory->create(client_test_messages[iteration].msg_type_send));
-        read_multi->set_destination(service_name);
-
-        request = new mdp::zmsg ();
-        tag = "/INVT1/TIME_AVAILABLE.DATEHOURM";
-        read_multi->add(tag, xdb::DB_TYPE_UNDEF, NULL);
-        tag = "/INVT1/TIME_AVAILABLE.SHORTLABEL";
-        read_multi->add(tag, xdb::DB_TYPE_UNDEF, NULL);
-
-        request->push_front(const_cast<std::string&>(read_multi->data()->get_serialized()));
-        request->push_front(const_cast<std::string&>(read_multi->header()->get_serialized()));
-
-        LOG(INFO) << "CLIENT: Send message type:" << client_test_messages[iteration].msg_type_send
-                  << " id:"<<user_exchange_id++;
-
-        service_status = client->ask_service_info(service_name, service_endpoint, ENDPOINT_MAXLEN);
-        // Брокер ответил - Служба известна
-        if (service_status == 200)
+        switch(client_test_messages[iteration].msg_type_send)
         {
-          LOG(INFO) << "Endpoint for \"" << service_name << "\" is " << service_endpoint;
-        
-          std::string sname = service_name;
-          client->send (sname, request, mdp::ChannelType::DIRECT);
-          wait_response = true;
+          case ADG_D_MSG_ASKLIFE:
+            // ===============================================================================
+            // Проверка прохождения сообщения типа ADG_D_MSG_ASKLIFE
+            // ===============================================================================
+            ask_life = static_cast<msg::AskLife*>(message_factory->create(client_test_messages[iteration].msg_type_send));
+            ask_life->set_destination(service_name);
+
+            //  Send some ADG_D_MSG_ASKLIFE orders
+            request = new mdp::zmsg ();
+
+            ask_life->set_exec_result(10);
+            request->push_front(const_cast<std::string&>(ask_life->data()->get_serialized()));
+            request->push_front(const_cast<std::string&>(ask_life->header()->get_serialized()));
+
+            LOG(INFO) << "CLIENT: Send message type:" << client_test_messages[iteration].msg_type_send
+                      << " id:"<<user_exchange_id++;
+            client->send (service_name, request);
+            wait_response = true;
+
+            delete request;
+            delete ask_life;
+          break;
+
+          case SIG_D_MSG_READ_MULTI:
+            // ===============================================================================
+            // Проверка прохождения сообщения типа SIG_D_MSG_READ_MULTI
+            // ===============================================================================
+            read_multi = static_cast<msg::ReadMulti*>(message_factory->create(client_test_messages[iteration].msg_type_send));
+            read_multi->set_destination(service_name);
+
+            request = new mdp::zmsg ();
+            tag = "/INVT1/TIME_AVAILABLE.DATEHOURM";
+            read_multi->add(tag, xdb::DB_TYPE_UNDEF, NULL);
+            tag = "/INVT1/TIME_AVAILABLE.SHORTLABEL";
+            read_multi->add(tag, xdb::DB_TYPE_UNDEF, NULL);
+
+            request->push_front(const_cast<std::string&>(read_multi->data()->get_serialized()));
+            request->push_front(const_cast<std::string&>(read_multi->header()->get_serialized()));
+
+            LOG(INFO) << "CLIENT: Send message type:" << client_test_messages[iteration].msg_type_send
+                      << " id:"<<user_exchange_id++;
+
+            service_status = client->ask_service_info(service_name, service_endpoint, ENDPOINT_MAXLEN);
+            // Брокер ответил - Служба известна
+            if (service_status == 200)
+            {
+              LOG(INFO) << "Endpoint for \"" << service_name << "\" is " << service_endpoint;
+            
+              client->send (service_name, request, mdp::ChannelType::DIRECT);
+              wait_response = true;
+            }
+            else
+            {
+              LOG(ERROR) << "Broker response (" << service_status << ") about service \""
+                         << service_name << "\" is not equal to 200";
+              wait_response = false;
+            }
+
+            delete request;
+            delete read_multi;
+          break;
+
+          default:
+            LOG(INFO) << "Unsupported resuest type: " << client_test_messages[iteration].msg_type_send;
+            wait_response = false;
+            // продолжить проверку в соответствии с заданным массивом client_test_messages
+            continue;
         }
-        else
-        {
-          LOG(ERROR) << "Broker response (" << service_status << ") about service \""
-                     << service_name << "\" is not equal to 200";
-          wait_response = false;
-        }
 
-        delete request;
-        delete read_multi;
-      break;
+        count = 0;
 
-      default:
-        LOG(INFO) << "Unsupported resuest type: " << client_test_messages[iteration].msg_type_send;
-        wait_response = false;
-        // продолжить проверку в соответствии с заданным массивом client_test_messages
-        continue;
-    }
-
-    count = 0;
-
-    //  Wait for all trading reports
-    while (wait_response) {
-        status = client->recv (report);
-        if (Pulsar::RECEIVE_OK != status)
-            break;
-        ++count;
-        LOG(INFO) << "Receive message id="<<count<<" from worker";
-        report->dump();
-        assert (report->parts () >= 2);
-        
+        //  Wait for all trading reports
+        while (wait_response) {
+            status = client->recv (report);
+            if (Pulsar::RECEIVE_OK != status)
+                break;
+            ++count;
+            LOG(INFO) << "Receive message id="<<count<<" from worker";
+            report->dump();
+            assert (report->parts () >= 2);
+            
 #if 0
-        mdp_letter = new mdp::Letter(report);
-//        TODO: Доделать разбор сообщений
-        Dump(mdp_letter);
+            mdp_letter = new mdp::Letter(report);
+    //        TODO: Доделать разбор сообщений
+            Dump(mdp_letter);
 
-        delete mdp_letter;
+            delete mdp_letter;
 #else
 #warning    "Дамп сообщений заблокирован"
 #endif
-        delete report;
-    }
-    // Приняли ровно столько, сколько ранее отправили
-    //EXPECT_TRUE(count == 1/*user_exchange_id*/);
-} // end for
+            delete report;
+        }
+        // Приняли ровно столько, сколько ранее отправили
+        //EXPECT_TRUE(count == 1/*user_exchange_id*/);
+    } // end for
   }
   catch (zmq::error_t err)
   {

@@ -17,6 +17,9 @@
 #include "exchange_config.hpp"
 #include "exchange_smad_int.hpp"
 #include "exchange_egsa_cycle.hpp"
+
+class EGSA;
+
 // Состояние Систем Сбора:
 // Конфигурационные файлы (cnf)
 // Способ подключения (comm)
@@ -42,12 +45,11 @@
 class SystemAcquisition
 {
   public:
-    // Сокет - для отправки сообщения в главную нить EGSA о срабатывании таймера
     // Ссылка на массив циклов - для создания у текущего экземпляра только используемых им таймеров и циклов
     // Уровень иерархии объекта - 
     // Тип СС - для учета особенностей работы каждого из известныхт типов
     // Название СС
-    SystemAcquisition(zmq::socket_t&, std::vector<Cycle*>&, sa_object_level_t, gof_t_SacNature, const std::string&);
+    SystemAcquisition(EGSA* egsa, sa_object_level_t, gof_t_SacNature, const std::string&);
    ~SystemAcquisition();
 
     // Получить состояние СС
@@ -58,6 +60,7 @@ class SystemAcquisition
 
   private:
     DISALLOW_COPY_AND_ASSIGN(SystemAcquisition);
+    EGSA* m_egsa; 
     // Код СС
     std::string m_name;
     // Иерархия СС
@@ -81,10 +84,13 @@ class SystemAcquisition
     Timer *m_timer_TELEREGULATION;
 
     // Найти циклы, в которых участвует данная система сбора
-    void look_my_cycles(std::vector<Cycle*>&);
+    void look_my_cycles(const std::vector<Cycle*>&);
     // Послать сообщение инициализации
     void init();
-    void end_all_init();
+    void process_end_all_init(); // Сообщение о завершении инициализации 
+    void process_end_init_acq(); // Запрос состояния завершения инициализации
+    void process_init();         // Конец инициализации
+    void process_dif_init();     // Запрос завершения инициализации после аварийного завершения
     // Отключение
     void shutdown();
     // Выполнить указанное действие с системой сбора

@@ -1,22 +1,29 @@
-#include "glog/logging.h"
-#include "gtest/gtest.h"
-
+// Общесистемные заголовочные файлы
 #include <string>
+#include <vector>
 #include <unistd.h>
 #include <stdint.h>
 #include <stdlib.h>
 
+// Служебные заголовочные файлы сторонних утилит
+#include "glog/logging.h"
+#include "gtest/gtest.h"
+#include "zmq.hpp"
+
 // Служебные файлы RTDBUS
+#include "mdp_zmsg.hpp"
 #include "exchange_config.hpp"
 #include "exchange_config_sac.hpp"
 #include "exchange_config_egsa.hpp"
 #include "exchange_egsa_init.hpp"
 #include "exchange_egsa_impl.hpp"
+#include "exchange_egsa_sa.hpp"
 #include "exchange_egsa_request_cyclic.hpp"
 
 AcquisitionSystemConfig* g_sa_config = NULL;
 EgsaConfig* g_egsa_config = NULL;
 EGSA* g_egsa_instance = NULL;
+SystemAcquisition* g_sa = NULL;
 msg::MessageFactory* g_message_factory = NULL;
 zmq::context_t g_ctx(1);
 
@@ -72,11 +79,10 @@ TEST(TestEXCHANGE, EGSA_REQUESTS)
   EXPECT_TRUE(req_entry_dict->e_RequestId == ECH_D_GENCONTROL);
 }
 
-#if 0
 TEST(TestEXCHANGE, EGSA_CYCLES)
 {
   ega_ega_odm_t_RequestEntry* req_entry_dict = NULL;
-  int rc;
+//  int rc;
 
   for(egsa_config_cycles_t::iterator it = g_egsa_config->cycles().begin();
       it != g_egsa_config->cycles().end();
@@ -84,7 +90,7 @@ TEST(TestEXCHANGE, EGSA_CYCLES)
   {
     // Найти запрос с именем (*it).second->request_name в m_requests_table[]
     if (OK == get_request_by_name((*it).second->request_name, req_entry_dict)) {
-      // Создадим экземпляр Цикла, удалиться он в деструкторе EGSA
+      // Создадим экземпляр Цикла, удалится он в деструкторе EGSA
       Cycle *cycle = new Cycle((*it).first.c_str(),
                                (*it).second->period,
                                req_entry_dict->e_RequestId,
@@ -96,18 +102,52 @@ TEST(TestEXCHANGE, EGSA_CYCLES)
     }
   }
 
+#if 0
   rc = g_egsa_instance->activate_cycles();
   EXPECT_TRUE(rc == OK);
 
   g_egsa_instance->wait(20);
   rc = g_egsa_instance->deactivate_cycles();
-}
 #endif
+}
 
+// Проверка работы класса Системы Сбора
+TEST(TestEXCHANGE, SAC_CREATE)
+{
+  sa_object_level_t level = LEVEL_UNKNOWN;
+  gof_t_SacNature nature = GOF_D_SAC_NATURE_EUNK;
+
+  // Есть хотя бы один хост для тестов
+  ASSERT_TRUE(g_egsa_config->sites().size() > 0);
+
+  const std::string tag = g_egsa_config->sites().begin()->first;
+  int raw_level  = g_egsa_config->sites().begin()->second->level;
+  int raw_nature = g_egsa_config->sites().begin()->second->nature;
+
+  if ((GOF_D_SAC_NATURE_DIR >= raw_nature) && (raw_nature <= GOF_D_SAC_NATURE_EUNK)) {
+    nature = static_cast<gof_t_SacNature>(raw_nature);
+  }
+
+  if ((LEVEL_UNKNOWN >= raw_level) && (raw_level <= LEVEL_UPPER)) {
+    level = static_cast<sa_object_level_t>(raw_level);
+  }
+
+  g_sa = new SystemAcquisition(g_egsa_instance, level, nature, tag);
+  // Начальное состояние СС
+  EXPECT_TRUE(g_sa->state() == SA_STATE_DISCONNECTED);
+  // Послать системе команду инициализации
+  g_sa->send(ADG_D_MSG_ENDALLINIT);
+  // Поскольку это имитация, состояние системы не изменится,
+  // и должен сработать таймер по завершению таймаута
+  EXPECT_TRUE(g_sa->state() == SA_STATE_DISCONNECTED);
+}
+
+#if 0
 TEST(TestEXCHANGE, EGSA_RUN)
 {
   g_egsa_instance->run();
 }
+#endif
 
 TEST(TestEXCHANGE, EGSA_FREE)
 {

@@ -1,11 +1,5 @@
+// Общесистемные заголовочные файлы
 #include <assert.h>
-#include "glog/logging.h"
-#include "google/protobuf/stubs/common.h"
-
-#if defined HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/resource.h>
@@ -16,7 +10,14 @@
 #include <memory>
 #include <functional>
 
-//1 #include "helper.hpp"
+// Служебные заголовочные файлы сторонних утилит
+#include "glog/logging.h"
+#include "google/protobuf/stubs/common.h"
+
+// Служебные файлы RTDBUS
+#if defined HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include "xdb_rtap_application.hpp"
 #include "xdb_rtap_environment.hpp"
 #include "xdb_rtap_connection.hpp"
@@ -118,6 +119,7 @@ bool publish_sbs_impl(std::string& dest_name,
       }
     }
 
+#if 0
     if (SIG_D_MSG_GRPSBS == msg_type)
     {
       // второй фрейм - изменившиеся данные в формате ValueUpdate
@@ -136,6 +138,13 @@ bool publish_sbs_impl(std::string& dest_name,
       // ???
       LOG(INFO) << "GEV: SIG_D_MSG_READ_MULTI, dest_name=" << dest_name;
     }
+#else
+    // второй фрейм - изменившиеся данные в формате ValueUpdate
+    sbs_message.push_front(const_cast<std::string&>(letter->data()->get_serialized()));
+    // первый фрейм - заголовок сообщения
+    sbs_message.push_front(const_cast<std::string&>(letter->header()->get_serialized()));
+    LOG(INFO) << "GEV: msg #" << msg_type << ", dest_name=" << dest_name;
+#endif
 
     sbs_message.wrap(dest_name.c_str(), EMPTY_FRAME);
 
@@ -219,10 +228,11 @@ DiggerWorker::DiggerWorker(zmq::context_t *ctx, int sock_type, xdb::RtEnvironmen
 // --------------------------------------------------------------------------------
 DiggerWorker::~DiggerWorker()
 {
-  LOG(INFO) << "DiggerWorker destroyed";
+  LOG(INFO) << "start DiggerWorker destructor";
   delete m_metric_center;
   delete m_db_connection;
   delete m_message_factory;
+  LOG(INFO) << "finish DiggerWorker destructor";
 }
 
 int DiggerWorker::probe(mdp::zmsg* request)
@@ -435,16 +445,22 @@ int DiggerWorker::processing(mdp::zmsg* request, std::string &identity)
     {
       // Множественное чтение
       case SIG_D_MSG_READ_MULTI:
-        handle_read(letter, identity);
+        rc = handle_read(letter, identity);
         break;
       // Множественная запись
       case SIG_D_MSG_WRITE_MULTI:
-        handle_write(letter, identity);
+        rc = handle_write(letter, identity);
         break;
       // Управление подписками
       case SIG_D_MSG_GRPSBS_CTRL:
-        handle_sbs_ctrl(letter, identity);
+        rc = handle_sbs_ctrl(letter, identity);
         break;
+  #if 0 // Это сообщение должно обрабатываться уровнем выше, в Digger
+      // Сообщение о состоянии
+      case ADG_D_MSG_ASKLIFE:
+        rc = handle_asklife(letter, identity);
+        break;
+  #endif
 
       default:
         LOG(ERROR) << "Unsupported request type: " << msgType;
@@ -860,8 +876,9 @@ DiggerPoller::DiggerPoller(zmq::context_t *ctx, xdb::RtEnvironment* env) :
 
 DiggerPoller::~DiggerPoller()
 {
-  LOG(INFO) << "Destroy DiggerPoller";
+  LOG(INFO) << "start DiggerPoller destructor";
   delete m_message_factory;
+  LOG(INFO) << "finish DiggerPoller destructor";
 }
 
 void DiggerPoller::work()
@@ -1058,7 +1075,8 @@ DiggerProbe::DiggerProbe(zmq::context_t *ctx, xdb::RtEnvironment* env) :
 
 DiggerProbe::~DiggerProbe()
 {
-  LOG(INFO) << "DiggerProbe stop";
+  LOG(INFO) << "start DiggerProbe destructor";
+  LOG(INFO) << "finish DiggerProbe destructor";
 }
 
 bool DiggerProbe::start()
@@ -1313,7 +1331,8 @@ DiggerProxy::DiggerProxy(zmq::context_t *ctx, xdb::RtEnvironment* env) :
 DiggerProxy::~DiggerProxy()
 {
   // NB: Ничего не делать, все ресурсы освобождаются при завершении run()
-  LOG(INFO) << "DiggerProxy destructor";
+  LOG(INFO) << "start DiggerProxy destructor";
+  LOG(INFO) << "finish DiggerProxy destructor";
 }
 
 // --------------------------------------------------------------------------------
@@ -1474,7 +1493,7 @@ void DiggerProxy::wait_probe_stop()
 
 // Класс-расширение штатной Службы для обработки запросов к БДРВ
 // --------------------------------------------------------------------------------
-Digger::Digger(std::string broker_endpoint, std::string service)
+Digger::Digger(const std::string& broker_endpoint, const std::string& service)
    :
    mdp::mdwrk(broker_endpoint, service, 1 /* num zmq io threads (default = 1) */, false /* direct messaging */),
    m_helpers_control(m_context, ZMQ_PUB),
@@ -1852,8 +1871,10 @@ int Digger::handle_asklife(msg::Letter* letter, std::string* reply_to)
 int main(int argc, char **argv)
 {
   int rc = OK;
-  char service_name[SERVICE_NAME_MAXLEN + 1];
-  char broker_endpoint[ENDPOINT_MAXLEN + 1];
+  char given_service_name[SERVICE_NAME_MAXLEN + 1];
+  std::string service_name;
+  char given_broker_endpoint[ENDPOINT_MAXLEN + 1];
+  std::string broker_endpoint = ENDPOINT_BROKER;
   bool is_service_name_given = false;
   int  opt;
   Digger *engine = NULL;
@@ -1861,21 +1882,20 @@ int main(int argc, char **argv)
   ::google::InitGoogleLogging(argv[0]);
   ::google::InstallFailureSignalHandler();
 
-  // Значения по-умолчанию
-  strcpy(broker_endpoint, ENDPOINT_BROKER);
-
   while ((opt = getopt (argc, argv, "b:s:")) != -1)
   {
      switch (opt)
      {
        case 'b': // точка подключения к Брокеру
-         strncpy(broker_endpoint, optarg, ENDPOINT_MAXLEN);
-         broker_endpoint[ENDPOINT_MAXLEN] = '\0';
+         strncpy(given_broker_endpoint, optarg, ENDPOINT_MAXLEN);
+         given_broker_endpoint[ENDPOINT_MAXLEN] = '\0';
+         broker_endpoint.assign(given_broker_endpoint);
          break;
 
        case 's':
-         strncpy(service_name, optarg, SERVICE_NAME_MAXLEN);
-         service_name[SERVICE_NAME_MAXLEN] = '\0';
+         strncpy(given_service_name, optarg, SERVICE_NAME_MAXLEN);
+         given_service_name[SERVICE_NAME_MAXLEN] = '\0';
+         service_name.assign(given_service_name);
          is_service_name_given = true;
          break;
 
@@ -1903,7 +1923,6 @@ int main(int argc, char **argv)
 
   try
   {
-    std::string bro_endpoint(broker_endpoint);
     engine = new Digger(broker_endpoint, service_name);
 
     LOG(INFO) << "Start service " << service_name;

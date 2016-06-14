@@ -11,7 +11,6 @@
 #ifndef MDP_WORKER_API_HPP_INCLUDED
 #define MDP_WORKER_API_HPP_INCLUDED
 
-#include <map>
 #include <string>
 
 #if defined HAVE_CONFIG_H
@@ -31,7 +30,7 @@ class mdwrk
     // Вторая запись - желательна, получение сообщений от других серверов подписки
     // Треться запись - не обязательна.
     enum { BROKER_ITEM = 0, SUBSCRIBER_ITEM = 1, DIRECT_ITEM = 2 };
-    enum { SOCKET_COUNT = DIRECT_ITEM+1 };
+    enum { SOCKETS_COUNT = DIRECT_ITEM+1 };
 
     static const int HeartbeatInterval = HEARTBEAT_PERIOD_MSEC;
     //  ---------------------------------------------------------------------
@@ -40,7 +39,7 @@ class mdwrk
     //  2) Название Службы
     //  3) Количество нитей ZMQ (default = 1)
     //  4) Необходимость создания сокета прямого подключения (default = false)
-    mdwrk (std::string, std::string, int=1, bool=false);
+    mdwrk (const std::string&, const std::string&, int=1, bool=false);
 
     //  ---------------------------------------------------------------------
     //  Destructor
@@ -70,7 +69,7 @@ class mdwrk
     //  Подключиться к указанной службе на указанную группу
     int  subscribe_to(const std::string&, const std::string&);
     int  ask_service_info(const std::string&, char*, int);
-    bool service_info_by_name(const std::string&, ServiceInfo*&);
+    bool service_info_by_name(const std::string&, ServiceInfo_t*&);
     
     //  ---------------------------------------------------------------------
     //  Set heartbeat delay
@@ -92,7 +91,8 @@ class mdwrk
 
     std::string      m_broker_endpoint;
     std::string      m_service;
-    // Информация по сторонним Службам, используемым данным экземпляром
+    // Связка "название Службы" <=> "информация о Службе", ключ хранится копией значения
+    // Список Служб получать анализом данных от ask_service_info
     ServicesHash_t   m_services_info;
     // Точка подключения 
     const char      *m_direct_endpoint;
@@ -110,9 +110,9 @@ class mdwrk
     // [0] подключение к Брокеру
     // [1] подписка
     // [2] прямое подключение
-    zmq::pollitem_t  m_socket_items[SOCKET_COUNT];
+    zmq::pollitem_t  m_socket_items[SOCKETS_COUNT];
 
-    bool insert_service_info(const std::string&, ServiceInfo*&);
+    bool insert_service_info(const std::string&, ServiceInfo_t*&);
     // Вернуть строку подключения, если параметр = true - преобразовать для bind()
     const char     * getEndpoint(bool = false) const;
     void             update_heartbeat_sign();

@@ -109,8 +109,8 @@ EGSA::EGSA(std::string& _broker, zmq::context_t& _ctx, msg::MessageFactory* _fac
     m_subscriber(_ctx, ZMQ_SUB),        // Подписка от БДРВ на атрибуты точек систем сбора
     m_message_factory(_factory),
     m_ext_smad(NULL),
-    m_socket(-1),
-    m_egsa_config(NULL)
+    m_egsa_config(NULL),
+    m_socket(-1)
 {
 /*  m_socket = open("egsa_timers.pipe", S_IFIFO|0666, 0);
   if (-1 == m_socket) {
@@ -196,8 +196,7 @@ int EGSA::attach_to_sites_smad()
     }
 
     SystemAcquisition *sa_instance = new SystemAcquisition(
-            m_signal_socket, // сюда идут сигналы от таймеров
-            ega_ega_odm_ar_Cycles,
+            this,
             sa_level,
             sa_nature,
             sa_name);
@@ -241,7 +240,7 @@ int EGSA::detach()
 //    Если инициализация прошла неуспешно - выйти из программы
 // 5. Дождаться сообщения ADDL о начале штатной работы
 // 6. Цикл до получения сообщения об останове:
-// 6.1. Проверять наступление очередного периода цикла опроса
+// 6.1. Проверять наступление очередного цикла опроса
 // 6.2. Опрашивать пробуждения (?)
 // 6.3. Опрашивать состояния СС
 //
@@ -255,7 +254,7 @@ int EGSA::run()
   int send_timeout_msec = SEND_TIMEOUT_MSEC; // 1 sec
   int recv_timeout_msec = RECV_TIMEOUT_MSEC; // 3 sec
   zmq::pollitem_t  socket_items[2];
-  mdp::zmsg *request = NULL;
+//1  mdp::zmsg *request = NULL;
 
   // Загрузка конфигурации EGSA
   if (OK == init()) {
@@ -391,7 +390,7 @@ int EGSA::run()
 // Отправить всем подчиненным системам запрос готовности, и жидать ответа
 void EGSA::fire_ENDALLINIT()
 {
-  auto now = std::chrono::system_clock::now();
+//1  auto now = std::chrono::system_clock::now();
 
   for (system_acquisition_list_t::iterator sa = m_sa_list.begin();
        sa != m_sa_list.end();
@@ -480,6 +479,20 @@ int EGSA::deactivate_cycles()
   return rc;
 }
 
+// Отправка сообщения указанной системе сбора
+int EGSA::send_to(const std::string& name, int msg_id)
+{
+  msg::Letter* letter = m_message_factory->create(msg_id);
+
+  LOG(INFO) << "Send message #" << msg_id << " to " << name;
+
+  letter->set_destination(name);
+  mdp::zmsg *request = letter->get_zmsg();
+
+  send(name, request);
+
+  return NOK;
+}
 
 // ==========================================================================================================
 // Функция срабатывания при наступлении времени очередного таймера
@@ -687,18 +700,25 @@ int EGSA::activateSBS()
 // ==========================================================================================================
 int EGSA::recv(msg::Letter* &result)
 {
-  int status;
-  mdp::zmsg* req = NULL;
+  int status = OK;
+  mdp::zmsg* report = NULL;
+  std::string *reply_to = NULL;
 
   assert(&result);
   result = NULL;
+  reply_to = new std::string;
 
-//1  status = recv(req);
-
-//1  if (RECEIVE_OK == status)
+  if (NULL == (report = mdwrk::recv(reply_to)))
   {
-    result = m_message_factory->create(req);
-    delete req;
+    LOG(ERROR) << "Receiving failure";
+    // Возможно, Брокер не запущен
+    status = NOK;
+  }
+  else
+  {
+    report->dump();
+    result = m_message_factory->create(report);
+    delete report;
   }
 
   return status;
@@ -710,7 +730,7 @@ int EGSA::waitSBS()
   int rc = NOK;
   int status;
   std::string cause_text = "";
-  msg::ExecResult *resp = NULL;
+  //msg::ExecResult *resp = NULL;
   msg::Letter *report = NULL;
   bool stop_receiving = false;
 
@@ -753,7 +773,7 @@ int EGSA::waitSBS()
         }
       }
       else {
-        LOG(ERROR) << "Receive null message, exiting";
+        LOG(ERROR) << "Receive null message, status=" << status << ", exiting";
         stop_receiving = true;
       }
     }

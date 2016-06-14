@@ -2,6 +2,7 @@ set(WORKER_TESTER wtester)
 set(WORKER_ECHO   wecho)
 set(WORKER_DIGGER wdigger)
 set(WORKER_HISTORIAN whistorian)
+set(WORKER_MBUS_CLI  wmbus_cli)
 set(WORKER_TIMEKEEPER wtiker)
 
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
@@ -24,6 +25,9 @@ include_directories(${LIBCPPZMQ_INCLUDE_DIR})
 include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
 include_directories(${WORKER_DIR})
+include_directories(${EXCHANGE_MODBUS_DIR})
+include_directories(${EXCHANGE_CONFIG_DIR})
+include_directories(${LIBMODBUS_INCLUDE_DIR})
 include_directories(${MDP_DIR})
 include_directories(${MSG_DIR})
 include_directories(${HDB_DIR})
@@ -37,6 +41,7 @@ link_directories(${LIBSQLITE_LIBRARIES_DIR})
 link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
+link_directories(${LIBMODBUS_LIBRARIES_DIR})
 # каталог генерации libmdp.so
 link_directories(${CMAKE_SOURCE_DIR}/../cmake/lib)
 
@@ -81,6 +86,17 @@ set (WORKER_HISTORIAN_SOURCES
         ${MSG_DIR}/msg_message.hpp
         ${WORKER_DIR}/whistorian.cpp
         ${WORKER_DIR}/whistorian.hpp)
+
+set (WORKER_MBUS_CLI_SOURCES
+        ${CMAKE_SOURCE_DIR}/config.h
+        ${MDP_DIR}/mdp_zmsg.hpp
+        ${MDP_DIR}/mdp_common.h
+        ${MDP_DIR}/mdp_worker_api.hpp
+        ${MSG_DIR}/msg_message.hpp
+        ${EXCHANGE_MODBUS_DIR}/exchange_modbus_cli.hpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config.hpp
+        ${WORKER_DIR}/wmbus_cli.cpp
+        ${WORKER_DIR}/wmbus_cli.hpp)
 
 set (WORKER_TIMEKEEPER_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
@@ -185,6 +201,17 @@ target_link_libraries(${WORKER_HISTORIAN}
     ${MDP_LIBRARY_NAME}
     ${HDB_LIBRARY_NAME}
     ${XDB_RTAP_LIBRARY_NAME}
+    ${LIBPROTOBUF_LIBRARIES}
+    )
+
+# Сборка MBUS_CLIENT - службы системы сбора по протоколу MODBUS
+##########################################################
+add_executable (${WORKER_MBUS_CLI} ${WORKER_MBUS_CLI_SOURCES})
+target_link_libraries(${WORKER_MBUS_CLI}
+    ${LIBGLOG_LIBRARIES}
+    ${MDP_LIBRARY_NAME}
+    ${MODBUS_LIBRARY_NAME}
+    ${LIBMODBUS_LIBRARIES}
     ${LIBPROTOBUF_LIBRARIES}
     )
 

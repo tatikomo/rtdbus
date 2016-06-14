@@ -18,6 +18,7 @@
 // Служебные файлы RTDBUS
 #include "exchange_modbus_cli.hpp"
 #include "exchange_smad_int.hpp"
+#include "exchange_config_sac.hpp"
 
 using namespace rapidjson;
 using namespace std;
@@ -87,6 +88,8 @@ RTDBUS_Modbus_client::RTDBUS_Modbus_client(const char* config)
   m_status(STATUS_OK_NOT_CONNECTED),
   m_ctx(NULL),
   m_header_length(0),
+  m_connection_reestablised(0),
+  m_num_connection_try(0),
   m_smad(NULL)
 {
 #if 0
@@ -105,6 +108,7 @@ RTDBUS_Modbus_client::RTDBUS_Modbus_client(const char* config)
   m_pFMessages[2].ReqEGSAAttr.MessageEGSA   = Negsa_initialization;
   m_pFMessages[2].ReqEGSAAttr.SendAccept    = 1;
 #endif
+  catch_signals();
   //LOG(INFO) << "Constructor RTDBUS_Modbus_client";
 }
 
@@ -128,6 +132,12 @@ RTDBUS_Modbus_client::~RTDBUS_Modbus_client()
   modbus_close(m_ctx);
   modbus_free(m_ctx);
 }
+
+// ==========================================================================================
+int RTDBUS_Modbus_client::timewait()
+{
+  return m_config->timeout();
+};
 
 // ==========================================================================================
 // TODO: Устранить дублирование - такой же код находится в имитаторе сервера MODBUS
@@ -267,6 +277,7 @@ client_status_t RTDBUS_Modbus_client::connect()
     // Может быть разной длины, для RTU=256, для TCP=260
     m_header_length = modbus_get_header_length(m_ctx);
     m_status = STATUS_OK_CONNECTED;
+    ++m_connection_reestablised;
   }
   else {
     LOG(ERROR) << "Connection failed: " << modbus_strerror(errno);
@@ -277,19 +288,19 @@ client_status_t RTDBUS_Modbus_client::connect()
       modbus_free(m_ctx);
       m_ctx = NULL;
     }
+    ++m_num_connection_try;
   }
 
   return m_status;
 }
 
 // ==========================================================================================
-// Код возврата - код ошибки обработки
-client_status_t RTDBUS_Modbus_client::run()
+client_status_t RTDBUS_Modbus_client::prepare()
 {
-  const char* fname = "run";
-  //bool stop = false;
-  int connection_reestablised = 0;
-  int num_connection_try = 0;
+  const char* fname = "prepare";
+
+  m_connection_reestablised = 0;
+  m_num_connection_try = 0;
 
   if (0 != read_config())
   {
@@ -319,57 +330,61 @@ client_status_t RTDBUS_Modbus_client::run()
 
   // На основе прочитанных данных построить план запросов к СС
   if (make_request_plan()) {
-
     // Сформировано ненулевое количество запросов - есть смысл поработать
-    LOG(INFO) << fname << ": processing";
-
-    while (!g_interrupt) {
-
-      switch(m_status) {
-          case STATUS_OK_CONNECTED:
-            sleep (m_config->timeout());
-            if (g_interrupt) {
-              // Прерывание по получении сигнала
-              m_status = STATUS_OK_SHUTTINGDOWN;
-              break;
-            }
-            m_status = ask();
-            break;
-
-          case STATUS_FAIL_NEED_RECONNECTED:
-            // Требуется переподключение
-            LOG(WARNING) << "Need to reestablish connection, #try=" << ++connection_reestablised;
-            m_status = connect();
-            break;
-
-          case STATUS_OK_NOT_CONNECTED:
-            // Повторное подключение, чуть подождем...
-            sleep (m_config->timeout());
-            if (g_interrupt) {
-              // Прерывание по получении сигнала
-              m_status = STATUS_OK_SHUTTINGDOWN;
-              break;
-            }
-            // NB: break пропущен специально
-          case STATUS_OK_SMAD_LOAD:
-            // попытаться подключиться к очередному серверу после начала работы
-            LOG(WARNING) << "Try to connect, #try=" << ++num_connection_try;
-            m_status = connect();
-            break;
-
-          case STATUS_FAIL_TO_RECONNECT:
-            LOG(FATAL) << "Unable to reconnect, exiting";
-            g_interrupt = 1;
-            break;
-
-          default:
-            LOG(ERROR) << fname << ": status code=" << m_status;
-            g_interrupt = 1;
-      }
-    }
+    m_status = STATUS_OK_CONNECTED;
   }
   else {
-    LOG(WARNING) << "There are no automatic generated orders, exiting";
+    LOG(FATAL) << "There are no automatic generated orders, exiting";
+    m_status = STATUS_OK_SHUTTINGDOWN;
+  }
+
+  return m_status;
+}
+
+// ==========================================================================================
+// Выполнить действие, определяемое текущим состоянием.
+// После выполнения действия текущее состояние может измениться.
+// Код возврата - код ошибки обработки
+client_status_t RTDBUS_Modbus_client::quantum()
+{
+  const char* fname = "quantum";
+
+  LOG(INFO) << fname << ": processing";
+
+  switch(m_status) {
+      case STATUS_OK_CONNECTED:
+        m_status = ask();
+        break;
+
+      case STATUS_FAIL_NEED_RECONNECTED:
+        // Требуется переподключение
+        LOG(WARNING) << "Need to reestablish connection, #try=" << m_connection_reestablised;
+        m_status = connect();
+        break;
+
+      case STATUS_OK_NOT_CONNECTED:
+        // Повторное подключение, чуть подождем...
+        usleep (m_config->timeout());
+        if (g_interrupt) {
+          // Прерывание по получении сигнала
+          m_status = STATUS_OK_SHUTTINGDOWN;
+          break;
+        }
+        // NB: break пропущен специально
+      case STATUS_OK_SMAD_LOAD:
+        // попытаться подключиться к очередному серверу после начала работы
+        LOG(WARNING) << "Try to connect, #try=" << m_num_connection_try;
+        m_status = connect();
+        break;
+
+      case STATUS_FAIL_TO_RECONNECT:
+        LOG(FATAL) << "Unable to reconnect, exiting";
+        m_status = STATUS_OK_SHUTTINGDOWN;
+        break;
+
+      default:
+        LOG(ERROR) << fname << ": unexpected status code=" << m_status;
+        m_status = STATUS_OK_SHUTTINGDOWN;
   }
 
   return m_status;
@@ -397,6 +412,8 @@ client_status_t RTDBUS_Modbus_client::ask()
     LOG(WARNING) << fname << ": forbidden call while incorrect state:" << m_status;
     return m_status;
   }
+
+  m_connection_reestablised = 0;
 
   for (std::vector<ModbusOrderDescription>::iterator it = m_actual_orders_description.begin();
        it != m_actual_orders_description.end();
@@ -1134,62 +1151,5 @@ int RTDBUS_Modbus_client::calculate()
   }
 
   return m_actual_orders_description.size();
-}
-
-// ==========================================================================================
-int main(int argc, char* argv[])
-{
-  RTDBUS_Modbus_client *mbus_client = NULL;
-  // Название конфигурационного файла локальной тестовой СС
-  char config_filename[2000 + 1] = "BI4500.json";
-  int opt;
-  int rc = NOK;
-
-#ifndef VERBOSE
-  ::google::InitGoogleLogging(argv[0]);
-  ::google::InstallFailureSignalHandler();
-#endif
-
-  LOG(INFO) << "RTDBUS MODBUS client " << argv[0] << " START";
-
-  while ((opt = getopt (argc, argv, "c:")) != -1)
-  {
-     switch (opt)
-     {
-       case 'c': // Конфигурационный файл системы сбора
-         strncpy(config_filename, optarg, 2000);
-         config_filename[2000] = '\0';
-         break;
-
-       case '?':
-         if (optopt == 'n')
-           fprintf (stderr, "Option -%c requires an argument.\n", optopt);
-         else if (isprint (optopt))
-           fprintf (stderr, "Unknown option `-%c'.\n", optopt);
-         else
-           fprintf (stderr,
-                    "Unknown option character `\\x%x'.\n",
-                    optopt);
-         return 1;
-
-       default:
-         abort ();
-     }
-  }
-
-  catch_signals();
-  mbus_client = new RTDBUS_Modbus_client(config_filename);
-
-  rc = mbus_client->run();
-
-  delete mbus_client;
-
-  LOG(INFO) << "RTDBUS MODBUS client " << argv[0] << " FINISH, rc=" << rc;
-
-#ifndef VERBOSE
-  ::google::ShutdownGoogleLogging();
-#endif
-
-  return (STATUS_OK_SHUTTINGDOWN == rc)? EXIT_SUCCESS : EXIT_FAILURE;
 }
 

@@ -51,10 +51,10 @@ typedef struct {
   char endpoint_publisher[ENDPOINT_MAXLEN + 1];
   // Было ли подключение к данной Службе?
   bool  connected;
-} ServiceInfo;
+} ServiceInfo_t;
 
-typedef std::pair <const std::string, ServiceInfo*> ServicesHashPair_t;
-typedef std::map  <const std::string, ServiceInfo*> ServicesHash_t;
+typedef std::pair <const std::string, ServiceInfo_t*> ServicesHashPair_t;
+typedef std::map  <const std::string, ServiceInfo_t*> ServicesHash_t;
 typedef ServicesHash_t::iterator ServicesHashIterator_t;
 
 //  Receive 0MQ string from socket and convert into string

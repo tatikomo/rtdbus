@@ -34,6 +34,7 @@ mco_size_sig_t file_writer(void*, const void*, mco_size_t);
 #include "helper.hpp"
 #include "tool_time.hpp"
 #include "dat/broker_db.hpp"
+#include "xdb_impl_common.h"
 #include "xdb_impl_database.hpp"
 #include "xdb_impl_db_broker.hpp"
 #include "xdb_broker_service.hpp"
@@ -651,8 +652,10 @@ bool DatabaseBrokerImpl::RemoveService(const char *name)
     if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; }
   } while(false);
 
-  if (rc)
+  if (rc) {
+    LOG(WARNING) << "GEV: some issue while removing service " << name << ": " << mco_ret_string(rc, NULL);
     mco_trans_rollback(t);
+  }
 
   return (MCO_S_OK == rc);
 }
@@ -1352,9 +1355,9 @@ bool DatabaseBrokerImpl::ClearServices()
    *      Для каждого вызвать ClearWorkersForService()
    *      Удалить Сервис
    */
-  if (!m_service_list)
+  if (!m_service_list || (m_service_list->size() == 0))
   {
-    // Список Служб еще не инициализирован
+    // Список Служб еще не инициализирован, или пуст
     return true;
   }
 
@@ -1365,10 +1368,12 @@ bool DatabaseBrokerImpl::ClearServices()
     if (true == (status = ClearWorkersForService(srv)))
     {
       status = RemoveService(srv->GetNAME());
+      if (!status)
+        LOG(WARNING) << "Error removing Service " << srv->GetNAME();
     }
     else
     {
-      LOG(ERROR) << "Unable to clear resources for service '"<<srv->GetNAME()<<"'";
+      LOG(ERROR) << "Unable to clear resources for Service '"<<srv->GetNAME()<<"'";
     }
 
     srv = m_service_list->next();

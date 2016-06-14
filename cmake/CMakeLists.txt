@@ -204,11 +204,18 @@ set(XDB_RTAP_IMPL_LIBRARY_NAME   ${RTDBUS_PROJECT_PREFIX}_xrtapi_${RTDBUS_VERSIO
 set(XDB_BROKER_LIBRARY_NAME      ${RTDBUS_PROJECT_PREFIX}_xbrkr_${RTDBUS_VERSION})
 # Низкоуровневые детали работы с БД Брокера
 set(XDB_BROKER_IMPL_LIBRARY_NAME ${RTDBUS_PROJECT_PREFIX}_xbrkri_${RTDBUS_VERSION})
+# Реализация
 set(XDB_RTAP_DIGGER_NAME         ${RTDBUS_PROJECT_PREFIX}_xdig_${RTDBUS_VERSION})
+# Классы сообщений
 set(MSG_LIBRARY_NAME             ${RTDBUS_PROJECT_PREFIX}_zmsg_${RTDBUS_VERSION})
+# Вспомогательные неспецифичные функции
 set(TOOLS_LIBRARY_NAME           ${RTDBUS_PROJECT_PREFIX}_hlpr_${RTDBUS_VERSION})
+# Библиотека для ведения архива значений и работы с ними
 set(HDB_LIBRARY_NAME             ${RTDBUS_PROJECT_PREFIX}_hdb_${RTDBUS_VERSION})
+# Функции для работы с конфигурационными файлами систем сбора и EGSA
 set(EXCHANGE_LIBRARY_NAME        ${RTDBUS_PROJECT_PREFIX}_exchg_${RTDBUS_VERSION})
+# Реализация обертки над MODBUS, содержащая специфичное API для RTDBUS 
+set(MODBUS_LIBRARY_NAME          ${RTDBUS_PROJECT_PREFIX}_mbus_${RTDBUS_VERSION})
 
 OPTION(RTDBUS_BUILD_TESTS "enable unit test code" ON)
 OPTION(RTDBUS_ENABLE_VERBOSE_MODE "Enable additional debug trace" ON)

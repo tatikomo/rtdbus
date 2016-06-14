@@ -36,7 +36,7 @@ void s_catch_signals ()
  * к Брокеру, создавать подключения к общему сокету Служб.
  * Тип у общих сокетов Служб (m_welcome) => ROUTER
  */
-mdcli::mdcli (std::string& broker, int verbose) :
+mdcli::mdcli (const std::string& broker, int verbose) :
    m_broker(broker),
    m_context(NULL),
    m_client(NULL),
@@ -65,7 +65,7 @@ mdcli::~mdcli ()
       (it != m_services_info.end());
       it++)
   {
-     // Освободить занятую под ServiceInfo память
+     // Освободить занятую под ServiceInfo_t память
      delete it->second;
   }
   
@@ -164,7 +164,7 @@ mdcli::set_timeout (int timeout)
 }
 
 //  ---------------------------------------------------------------------
-bool mdcli::service_info_by_name(const char* serv_name, ServiceInfo *&serv_info)
+bool mdcli::service_info_by_name(const char* serv_name, ServiceInfo_t *&serv_info)
 {
   bool status = false;
 
@@ -182,7 +182,7 @@ bool mdcli::service_info_by_name(const char* serv_name, ServiceInfo *&serv_info)
 //  ---------------------------------------------------------------------
 // NB: Фунция insert_service_info сейчас (2015/02/18) вызывается после проверки
 // отсутствия дубликатов в хеше. Возможно, повторная проверка на уникальность излишняя.
-bool mdcli::insert_service_info(const char* serv_name, ServiceInfo *&serv_info)
+bool mdcli::insert_service_info(const char* serv_name, ServiceInfo_t *&serv_info)
 {
   bool status = false;
 
@@ -203,14 +203,14 @@ bool mdcli::insert_service_info(const char* serv_name, ServiceInfo *&serv_info)
 
 //  ---------------------------------------------------------------------
 //  Get the endpoint connecton string for specified service name
-int mdcli::ask_service_info(const char* service_name, char* service_endpoint, int buf_size)
+int mdcli::ask_service_info(const std::string& service_name, char* service_endpoint, int buf_size)
 {
   mdp::zmsg *report  = NULL;
   mdp::zmsg *request = new mdp::zmsg ();
-  const char *mmi_service_get_name = "mmi.service";
+  const std::string mmi_service_get_name = "mmi.service";
   int service_status_code;
   int status;
-  ServiceInfo *service_info;
+  ServiceInfo_t *service_info;
 
   // Хеш соответствий:
   // 1. Имя Службы
@@ -223,7 +223,7 @@ int mdcli::ask_service_info(const char* service_name, char* service_endpoint, in
   service_endpoint[0] = '\0';
 
   // Брокеру - именно для этого Сервиса дай точку входа
-  request->push_front(const_cast<char*>(service_name));
+  request->push_front(const_cast<char*>(service_name.c_str()));
   // второй фрейм запроса - идентификатор обращения к внутренней службе Брокера
   send (mmi_service_get_name, request);
 
@@ -258,14 +258,14 @@ int mdcli::ask_service_info(const char* service_name, char* service_endpoint, in
       service_endpoint[buf_size] = '\0';
 
       // Проверить информацию о такой Службе
-      if (false == service_info_by_name(service_name, service_info))
+      if (false == service_info_by_name(service_name.c_str(), service_info))
       {
         // Служба неизвестна, запомнить информацию
-        service_info = new ServiceInfo; // Удаление в деструкторе
-        memset(service_info, '\0', sizeof(ServiceInfo));
+        service_info = new ServiceInfo_t; // Удаление в деструкторе
+        memset(service_info, '\0', sizeof(ServiceInfo_t));
         strncpy(service_info->endpoint_external, service_endpoint, ENDPOINT_MAXLEN);
         service_info->connected = false;
-        insert_service_info(service_name, service_info);
+        insert_service_info(service_name.c_str(), service_info);
       }
       else
       {
@@ -337,7 +337,7 @@ int mdcli::subscript(const std::string& service_name, const std::string& group_n
 //  would normally make for us
 //  TODO: deprecated, use send (std::string, zmsg*&, ChannelType) instead
 int
-mdcli::send (std::string service, zmsg *&request_p)
+mdcli::send (const std::string& service, zmsg *&request_p)
 {
   int stat = 0;
   assert (request_p);
@@ -380,7 +380,7 @@ mdcli::send (std::string service, zmsg *&request_p)
 //  frame at the start, to create the same envelope that the REQ socket
 //  would normally make for us
 int
-mdcli::send (std::string& service, zmsg *&request_p, ChannelType chan)
+mdcli::send (const std::string& service, zmsg *&request_p, ChannelType chan)
 {
    bool status = true;
 
@@ -416,6 +416,7 @@ mdcli::send (std::string& service, zmsg *&request_p, ChannelType chan)
 
      default:
        LOG(ERROR) << "Unsupported sending type: " << chan;
+       assert(0 == 1);
        status = false;
    }
 
@@ -534,13 +535,13 @@ mdcli::recv (zmsg* &msg)
   return status;
 }
 
-int mdcli::send_direct(std::string& service_name, zmsg *&request)
+int mdcli::send_direct(const std::string& service_name, zmsg *&request)
 {
   int status = 0;
   int hwm = 100;
   int send_timeout_msec = SEND_TIMEOUT_MSEC; // 1 sec
   int recv_timeout_msec = RECV_TIMEOUT_MSEC; // 3 sec
-  ServiceInfo* info;
+  ServiceInfo_t* info;
 
   if (!service_info_by_name(service_name.c_str(), info))
   {

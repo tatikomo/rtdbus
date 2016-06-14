@@ -9,7 +9,7 @@
 #ifndef MDP_CLIENT_ASYNC_API_HPP
 #define MDP_CLIENT_ASYNC_API_HPP
 
-#include <map>
+//#include <map>
 #include <string>
 
 #if defined HAVE_CONFIG_H
@@ -44,7 +44,7 @@ class mdcli {
 
    //  ---------------------------------------------------------------------
    //  Constructor
-   mdcli (std::string& broker, int verbose);
+   mdcli (const std::string& broker, int verbose);
 
    //  ---------------------------------------------------------------------
    //  Destructor
@@ -64,8 +64,8 @@ class mdcli {
 
    //  ---------------------------------------------------------------------
    //  Get the endpoint connecton string for specified service name
-   int ask_service_info(const char* service_name,   // in: имя Службы
-                        char* service_endpoint,     // out: значение точки подключения
+   int ask_service_info(const std::string& service_name,   // in: имя Службы
+                        char* service_endpoint,            // out: значение точки подключения
                         int buf_size /* размер буфера service_endpoint */);
 
    //  ---------------------------------------------------------------------
@@ -80,8 +80,8 @@ class mdcli {
    //  frame at the start, to create the same envelope that the REQ socket
    //  would normally make for us
    //  TODO: deprecated, use send (std::string&, zmsg*&, ChannelType)
-   int send (std::string  service, zmsg *&request_p);
-   int send (std::string& service, zmsg *&request_p, ChannelType);
+   int send (const std::string& service, zmsg *&request_p);
+   int send (const std::string& service, zmsg *&request_p, ChannelType);
 
    //  ---------------------------------------------------------------------
    //  Fill the reply message or NULL if there was no reply. Does not
@@ -111,10 +111,10 @@ class mdcli {
    // Связка "название Службы" <=> "информация о Службе", ключ хранится копией значения
    ServicesHash_t   m_services_info;
    // Получить информацию по Службе с заданным именем.
-   bool service_info_by_name(const char*, ServiceInfo*&);
-   bool insert_service_info(const char*, ServiceInfo*&);
+   bool service_info_by_name(const char*, ServiceInfo_t*&);
+   bool insert_service_info(const char*, ServiceInfo_t*&);
    // Передать DIRECT-сообщение
-   int  send_direct(std::string&, zmsg *&);
+   int  send_direct(const std::string&, zmsg *&);
    // Добавить в пул сокетов m_socket_items для опроса zmq::pool новый сокет
    void add_socket_to_pool(zmq::socket_t*, int);
 };

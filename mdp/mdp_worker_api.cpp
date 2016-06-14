@@ -2,15 +2,18 @@
  * реализация Службы
  */
 
+// Общесистемные заголовочные файлы
 #include <vector>
 #include <thread>
 #include <memory>
 #include <functional>
 
+// Служебные заголовочные файлы сторонних утилит
 #include "zmq.hpp"
-#include "mdp_helpers.hpp"
-
 #include <glog/logging.h>
+
+// Служебные файлы RTDBUS
+#include "mdp_helpers.hpp"
 #include "config.h"
 #include "mdp_common.h"
 #include "mdp_worker_api.hpp"
@@ -74,7 +77,7 @@ static void catch_signals ()
 }
 
 // Базовый экземпляр Службы
-mdwrk::mdwrk (std::string broker_endpoint, std::string service, int num_threads, bool use_direct) :
+mdwrk::mdwrk (const std::string& broker_endpoint, const std::string& service, int num_threads, bool use_direct) :
   m_context(num_threads),
   m_broker_endpoint(broker_endpoint),
   m_service(service),
@@ -96,7 +99,7 @@ mdwrk::mdwrk (std::string broker_endpoint, std::string service, int num_threads,
 
     // Обнулим хранище данных сокетов для zmq::poll
     // Заполняется хранилище в функциях connect_to_*
-    memset (static_cast<void*>(m_socket_items), '\0', sizeof(zmq::pollitem_t) * SOCKET_COUNT);
+    memset (static_cast<void*>(m_socket_items), '\0', sizeof(zmq::pollitem_t) * SOCKETS_COUNT);
 
     // Получить ссылку на динамически выделенную строку с параметрами подключения для bind
     m_direct_endpoint = getEndpoint(true);
@@ -112,12 +115,20 @@ mdwrk::mdwrk (std::string broker_endpoint, std::string service, int num_threads,
 //  Destructor
 mdwrk::~mdwrk ()
 {
-    LOG(INFO) << "start mdwrk destructor";
+  LOG(INFO) << "start mdwrk destructor";
 
-    send_to_broker (MDPW_DISCONNECT, NULL, NULL);
+  send_to_broker (MDPW_DISCONNECT, NULL, NULL);
 
-    try
-    {
+  for(ServicesHashIterator_t it = m_services_info.begin();
+      it != m_services_info.end();
+      it++)
+  {
+     // Освободить занятую под ServiceInfo_t память
+     delete it->second;
+  }
+
+  try
+  {
       LOG(INFO) << "mdwrk destroy m_worker " << m_worker;
       if (m_worker)
       {
@@ -131,19 +142,16 @@ mdwrk::~mdwrk ()
         m_direct->close();
         delete m_direct;
       }
-
-      LOG(INFO) << "WARNING: uncomment to mdwrk destroy context " << &m_context;
-#warning "Временная проверка против падения"
-//1      m_context.close();
-    }
-    catch(zmq::error_t error)
-    {
+      // NB: Контекст m_context закрывается сам при уничтожении экземпляра mdwrk
+  }
+  catch(zmq::error_t error)
+  {
       LOG(ERROR) << "mdwrk destructor: " << error.what();
-    }
+  }
 
-    // Или == NULL, или память выделялась в getEndpoint()
-    delete []m_direct_endpoint;
-    LOG(INFO) << "finish mdwrk destructor";
+  // Или == NULL, или память выделялась в getEndpoint()
+  delete []m_direct_endpoint;
+  LOG(INFO) << "finish mdwrk destructor";
 }
 
 //  ---------------------------------------------------------------------
@@ -329,7 +337,7 @@ int mdwrk::subscribe_to(const std::string& service, const std::string& sbs)
 // Отправить сообщение в адрес сторонней Службы
 void mdwrk::send(const std::string& serv_name, zmsg *&request)
 {
-  ServiceInfo *serv_info = NULL;
+  ServiceInfo_t *serv_info = NULL;
   int rc = 0;
   char service_endpoint[SERVICE_NAME_MAXLEN + 1];
 
@@ -361,7 +369,7 @@ int mdwrk::ask_service_info(const std::string& service_name, char* service_endpo
   mdp::zmsg *request = new mdp::zmsg ();
   const char *mmi_service_get_name = "mmi.service";
   int service_status_code;
-  ServiceInfo *service_info;
+  ServiceInfo_t *service_info;
   std::string *reply_to = NULL;
 
   // Хеш соответствий:
@@ -411,8 +419,8 @@ int mdwrk::ask_service_info(const std::string& service_name, char* service_endpo
       if (false == service_info_by_name(service_name, service_info))
       {
         // Служба неизвестна, запомнить информацию
-        service_info = new ServiceInfo; // Удаление в деструкторе
-        memset(service_info, '\0', sizeof(ServiceInfo));
+        service_info = new ServiceInfo_t; // Удаление в деструкторе
+        memset(service_info, '\0', sizeof(ServiceInfo_t));
         strncpy(service_info->endpoint_external, service_endpoint, ENDPOINT_MAXLEN);
         service_info->connected = false;
         insert_service_info(service_name, service_info);
@@ -444,7 +452,7 @@ int mdwrk::ask_service_info(const std::string& service_name, char* service_endpo
 }
 
 // ==========================================================================================================
-bool mdwrk::service_info_by_name(const std::string& serv_name, ServiceInfo *&serv_info)
+bool mdwrk::service_info_by_name(const std::string& serv_name, ServiceInfo_t *&serv_info)
 {
   bool status = false;
 
@@ -462,7 +470,7 @@ bool mdwrk::service_info_by_name(const std::string& serv_name, ServiceInfo *&ser
 // ==========================================================================================================
 // NB: Фунция insert_service_info сейчас (2015/02/18) вызывается после проверки
 // отсутствия дубликатов в хеше. Возможно, повторная проверка на уникальность излишняя.
-bool mdwrk::insert_service_info(const std::string& serv_name, ServiceInfo *&serv_info)
+bool mdwrk::insert_service_info(const std::string& serv_name, ServiceInfo_t *&serv_info)
 {
   bool status = false;
 

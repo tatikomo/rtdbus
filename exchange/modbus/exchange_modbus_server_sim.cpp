@@ -18,6 +18,7 @@
 
 #include "exchange_modbus_cli.hpp"
 #include "exchange_modbus_server_sim.hpp"
+#include "exchange_config_sac.hpp"
 
 // ==========================================================================================
 RTDBUS_Modbus_server::RTDBUS_Modbus_server(const char* config_filename)
