@@ -16,7 +16,7 @@
 #include "mosquito.hpp"
 
 // ----------------------------------------------------------
-Mosquito::Mosquito(std::string& broker, int verbose, WorkMode_t given_mode)
+Mosquito::Mosquito(const std::string& broker, int verbose, WorkMode_t given_mode)
   : mdp::mdcli(broker, verbose),
     m_factory(new msg::MessageFactory("db_mosquito")),
     m_mode(given_mode)
@@ -298,6 +298,9 @@ int main (int argc, char *argv [])
   std::string service_name;
   bool is_service_name_given = false;
   Mosquito::WorkMode_t mode;
+  // По умолчанию ожидаем реакции на все отправляемые сообщения.
+  // NB: если после отправки какого-либо сообщения не нужно ожидать на него ответа,
+  // установить этот флаг в TRUE
   bool stop_receiving = false;
   std::string input_tag, input_type, input_val;
   int num = 0;
@@ -477,7 +480,9 @@ int main (int argc, char *argv [])
 
       case Mosquito::MODE_PROBE:
       //----------------------------
-        request = NULL; // TODO: 2015/06/30 не реализовано
+        // Запросить состояние Службы
+        request = mosquito->create_message(ADG_D_MSG_ASKLIFE);
+        channel = mdp::ChannelType::DIRECT;
         break;
 
       case Mosquito::MODE_SUBSCRIBE:
@@ -527,15 +532,30 @@ int main (int argc, char *argv [])
     {
       // запросим состояние интересующей Службы
       std::cout << "Checking '" << service_name << "' status " << std::endl;
-      strncpy(one_argument, service_name.c_str(), SERVICE_NAME_MAXLEN);
-      one_argument[SERVICE_NAME_MAXLEN] = '\0';
-      service_status = mosquito->ask_service_info(one_argument/*service_name.c_str()*/, service_endpoint, ENDPOINT_MAXLEN);
+      service_status = mosquito->ask_service_info(service_name, service_endpoint, ENDPOINT_MAXLEN);
 
       switch(service_status)
       {
           case 200:
           std::cout << service_name << " status OK : " << service_status << std::endl;
-          std::cout << "Get point to " << service_endpoint << std::endl;
+          if (service_endpoint[0]) { // получена непустая строка с параметрами прямого подключения
+            std::cout << "Service " << service_name << " has direct endpoint " << service_endpoint << std::endl;
+
+            // NB: некоторые сообщения должны отправляться через Брокера, даже если Служба имеет
+            // возможность прямого подключения. К примеру, ASKLIFE
+            switch (mode) {
+              case Mosquito::MODE_PROBE:
+                channel = mdp::ChannelType::PERSISTENT;
+                break;
+              default:
+                channel = mdp::ChannelType::DIRECT;
+            }
+
+          }
+          else {
+            std::cout << "No direct endpoint, will send throu broker" << std::endl;
+            channel = mdp::ChannelType::PERSISTENT;
+          }
           break;
 
           case 400:
@@ -574,11 +594,12 @@ int main (int argc, char *argv [])
 
     int cause_code = 0;
     std::string cause_text = "";
-    msg::ExecResult *resp = NULL;
+    msg::ExecResult *resp_exec = NULL;
+    msg::AskLife *resp_asklife = NULL;
+    int exec_result_value;
+    bool exec_res_exist;
 
-    stop_receiving = false;
-
-    //  Wait for report
+    // Ждать ответного сообщения?
     while (!stop_receiving)
     {
       status = mosquito->recv (report);
@@ -596,13 +617,23 @@ int main (int argc, char *argv [])
 
             switch(report->header()->usr_msg_type())
             {
-              case ADG_D_MSG_EXECRESULT:
-                resp = dynamic_cast<msg::ExecResult*>(report);
+              case ADG_D_MSG_ASKLIFE:
+                resp_asklife = dynamic_cast<msg::AskLife*>(report);
+                exec_res_exist = resp_asklife->exec_result(exec_result_value);
+                std::cout << "Got ADG_D_MSG_ASKLIFE response: "
+                          << resp_asklife->header()->usr_msg_type()
+                          << " status=" << ((true == exec_res_exist)? 999 : exec_result_value)
+                          << std::endl;
+                stop_receiving = true;
+                break;
 
-                resp->failure_cause(cause_code, cause_text);
+              case ADG_D_MSG_EXECRESULT:
+                resp_exec = dynamic_cast<msg::ExecResult*>(report);
+
+                resp_exec->failure_cause(cause_code, cause_text);
                 std::cout << "Got ADG_D_MSG_EXECRESULT response: "
-                          << resp->header()->usr_msg_type()
-                          << " status=" << resp->exec_result()
+                          << resp_exec->header()->usr_msg_type()
+                          << " status=" << resp_exec->exec_result()
                           << " code=" << cause_code
                           << " text=\"" << cause_text << "\"" << std::endl;
 
