@@ -230,6 +230,7 @@ class Digger : public mdp::mdwrk
 //    int handle_read(msg::Letter*, std::string*);
 //    int handle_write(msg::Letter*, std::string*);
     int handle_asklife(msg::Letter*, std::string*);
+    int handle_stop(msg::Letter*, std::string*);
 
     // Пауза прокси-треда
     void proxy_pause();

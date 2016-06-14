@@ -85,6 +85,11 @@ class SimpleRequest : public Letter
      SimpleRequest(Header*, const std::string& body);
      SimpleRequest(const std::string& head, const std::string& body);
      virtual ~SimpleRequest();
+
+     // Получить значения Состояния из сообщения.
+     // Вернет true, если поле "Состояние" в сообщении есть.
+     bool exec_result(int&);
+     void set_exec_result(int);
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

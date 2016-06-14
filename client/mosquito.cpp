@@ -346,6 +346,8 @@ int main (int argc, char *argv [])
             mode = Mosquito::MODE_WRITE;
           else if (0 == strncmp(one_argument, OPTION_MODE_PROBE, SERVICE_NAME_MAXLEN))
             mode = Mosquito::MODE_PROBE;
+          else if (0 == strncmp(one_argument, OPTION_MODE_STOP, SERVICE_NAME_MAXLEN))
+            mode = Mosquito::MODE_STOP;
           else if (0 == strncmp(one_argument, OPTION_MODE_SUBSCRIBE, SERVICE_NAME_MAXLEN))
             mode = Mosquito::MODE_SUBSCRIBE;
           else if (0 == strncmp(one_argument, OPTION_MODE_HISTORY, SERVICE_NAME_MAXLEN))
@@ -417,6 +419,7 @@ int main (int argc, char *argv [])
              OPTION_MODE_READ,
              OPTION_MODE_WRITE,
              OPTION_MODE_PROBE,
+             OPTION_MODE_STOP,
              OPTION_MODE_SUBSCRIBE,
              OPTION_MODE_HISTORY);
     std::cout << "Service name not given." << std::endl
@@ -485,6 +488,14 @@ int main (int argc, char *argv [])
         channel = mdp::ChannelType::DIRECT;
         break;
 
+      case Mosquito::MODE_STOP:
+      //----------------------------
+        // Запросить останов Службы
+        request = mosquito->create_message(ADG_D_MSG_STOP);
+        channel = mdp::ChannelType::DIRECT;
+        break;
+
+
       case Mosquito::MODE_SUBSCRIBE:
       //----------------------------
         // 1. Инициировать активацию подписки (NB: по умолчанию они все
@@ -542,9 +553,10 @@ int main (int argc, char *argv [])
             std::cout << "Service " << service_name << " has direct endpoint " << service_endpoint << std::endl;
 
             // NB: некоторые сообщения должны отправляться через Брокера, даже если Служба имеет
-            // возможность прямого подключения. К примеру, ASKLIFE
+            // возможность прямого подключения. К примеру, ASKLIFE или Останов Службы
             switch (mode) {
               case Mosquito::MODE_PROBE:
+              case Mosquito::MODE_STOP:
                 channel = mdp::ChannelType::PERSISTENT;
                 break;
               default:
@@ -595,7 +607,7 @@ int main (int argc, char *argv [])
     int cause_code = 0;
     std::string cause_text = "";
     msg::ExecResult *resp_exec = NULL;
-    msg::AskLife *resp_asklife = NULL;
+    msg::SimpleRequest *resp_simple = NULL;
     int exec_result_value;
     bool exec_res_exist;
 
@@ -617,11 +629,21 @@ int main (int argc, char *argv [])
 
             switch(report->header()->usr_msg_type())
             {
+              case ADG_D_MSG_STOP:
+                resp_simple = dynamic_cast<msg::SimpleRequest*>(report);
+                exec_res_exist = resp_simple->exec_result(exec_result_value);
+                std::cout << "Got ADG_D_MSG_STOP response: "
+                          << resp_simple->header()->usr_msg_type()
+                          << " status=" << ((true == exec_res_exist)? 999 : exec_result_value)
+                          << std::endl;
+                stop_receiving = true;
+                break;
+
               case ADG_D_MSG_ASKLIFE:
-                resp_asklife = dynamic_cast<msg::AskLife*>(report);
-                exec_res_exist = resp_asklife->exec_result(exec_result_value);
+                resp_simple = dynamic_cast<msg::SimpleRequest*>(report);
+                exec_res_exist = resp_simple->exec_result(exec_result_value);
                 std::cout << "Got ADG_D_MSG_ASKLIFE response: "
-                          << resp_asklife->header()->usr_msg_type()
+                          << resp_simple->header()->usr_msg_type()
                           << " status=" << ((true == exec_res_exist)? 999 : exec_result_value)
                           << std::endl;
                 stop_receiving = true;

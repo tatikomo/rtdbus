@@ -12,6 +12,7 @@
 #define OPTION_MODE_READ  "read"
 #define OPTION_MODE_WRITE "write"
 #define OPTION_MODE_PROBE "probe"
+#define OPTION_MODE_STOP  "stop"
 #define OPTION_MODE_SUBSCRIBE "sub"
 #define OPTION_MODE_HISTORY   "hist"
 
@@ -19,11 +20,12 @@ class Mosquito: public mdp::mdcli
 {
   public:
     typedef enum {
-      MODE_READ  = 1, // режим чтения из БДРВ
-      MODE_WRITE = 2, // режим записи в БДРВ
-      MODE_PROBE = 3,  // режим тестирования доступа к БДРВ
-      MODE_SUBSCRIBE = 4,   // режим подписки на группу
-      MODE_HISTORY_REQ = 5  // режим запроса истории
+      MODE_READ  = 1,   // режим чтения из БДРВ
+      MODE_WRITE = 2,   // режим записи в БДРВ
+      MODE_PROBE = 3,   // режим тестирования доступности Службы
+      MODE_STOP  = 4,   // режим останова Службы
+      MODE_SUBSCRIBE   = 5, // режим подписки на группу
+      MODE_HISTORY_REQ = 6  // режим запроса истории
     } WorkMode_t;
 
     Mosquito(const std::string& broker, int verbose, WorkMode_t);

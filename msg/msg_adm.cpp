@@ -134,6 +134,33 @@ SimpleRequest::SimpleRequest(const std::string& head, const std::string& body) :
 
 SimpleRequest::~SimpleRequest() {}
 
+bool SimpleRequest::exec_result(int &val)
+{
+  bool exec_result_exist = static_cast<RTDBM::SimpleRequest*>(data()->impl()->instance())->has_exec_result();
+
+  if (exec_result_exist)
+  {
+    val = static_cast<RTDBM::SimpleRequest*>(data()->impl()->instance())->exec_result();
+  }
+  else val = RTDBM::GOF_D_UNDETERMINED;
+
+  return exec_result_exist;
+}
+ 
+void SimpleRequest::set_exec_result(int _new_val)
+{
+  RTDBM::gof_t_ExecResult ex_result;
+
+  if (!RTDBM::gof_t_ExecResult_IsValid(_new_val))
+  {
+    ex_result = RTDBM::GOF_D_UNDETERMINED;
+    //LOG(ERROR) << "Unable to parse gof_t_ExecResult from (" << _new_val << ")";
+  }
+  else ex_result = static_cast<RTDBM::gof_t_ExecResult>(_new_val);
+
+  static_cast<RTDBM::SimpleRequest*>(data()->impl()->mutable_instance())->set_exec_result(ex_result);
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Запуск и останов приложения
 StartStop::StartStop() : Letter(0, 0) {}

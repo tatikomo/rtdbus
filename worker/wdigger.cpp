@@ -1598,7 +1598,7 @@ void Digger::run()
       {
         LOG(INFO) << "Digger::recv() got a message";
 
-        // NB: попробовать передать сообщения от Брокера сразу в очередь DiggerWorker-ам
+        // TODO: попробовать передать сообщения от Брокера сразу в очередь DiggerWorker-ам
         handle_request (request, reply_to);
 
         delete request;
@@ -1769,6 +1769,11 @@ int Digger::handle_request(mdp::zmsg* request, std::string*& reply_to)
        rc = handle_asklife(letter, reply_to);
        break;
 
+      case ADG_D_MSG_STOP:
+       interrupt_worker = 1;
+       rc = handle_stop(letter, reply_to);
+       break;
+
       default:
        LOG(ERROR) << "Unsupported request type: " << msgType;
        rc = NOK;
@@ -1834,7 +1839,7 @@ int Digger::handle_asklife(msg::Letter* letter, std::string* reply_to)
   response->push_front(const_cast<std::string&>(msg_ask_life->header()->get_serialized()));
   response->wrap(reply_to->c_str(), "");
 
-  LOG(INFO) << "Processing asklife from " << *reply_to
+  LOG(INFO) << "Processing ASKLIFE from " << *reply_to
             << " has status:" << msg_ask_life->exec_result(exec_val)
             << " sid:" << msg_ask_life->header()->exchange_id()
             << " iid:" << msg_ask_life->header()->interest_id()
@@ -1861,6 +1866,33 @@ int Digger::handle_asklife(msg::Letter* letter, std::string* reply_to)
       rc = NOK;
   }
 #endif
+  delete response;
+
+  return rc;
+}
+
+// --------------------------------------------------------------------------------
+int Digger::handle_stop(msg::Letter* letter, std::string* reply_to)
+{
+  int rc = OK;
+  msg::SimpleRequest *msg_stop = static_cast<msg::SimpleRequest*>(letter);
+  int exec_val = 1;
+  mdp::zmsg *response = new mdp::zmsg();
+
+  msg_stop->set_exec_result(exec_val);
+
+  response->push_front(const_cast<std::string&>(msg_stop->data()->get_serialized()));
+  response->push_front(const_cast<std::string&>(msg_stop->header()->get_serialized()));
+  response->wrap(reply_to->c_str(), "");
+
+  LOG(INFO) << "Processing STOP from " << *reply_to
+            << " has status:" << msg_stop->exec_result(exec_val)
+            << " sid:" << msg_stop->header()->exchange_id()
+            << " iid:" << msg_stop->header()->interest_id()
+            << " dest:" << msg_stop->header()->proc_dest()
+            << " origin:" << msg_stop->header()->proc_origin();
+
+  send_to_broker((char*) MDPW_REPORT, NULL, response);
   delete response;
 
   return rc;
