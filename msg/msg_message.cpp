@@ -335,6 +335,9 @@ Letter::Letter(rtdbMsgType _type, rtdbExchangeId _id)
   : m_header(new Header()),
     m_data(new Data(_type))
 {
+  if (_id)
+    LOG(WARNING) << "Setting exchange id is not yet realized";
+  // TODO: Проверить необходимость создания экземпляра с явным указанием идентификатора обмена
 //  LOG(INFO) << "Letter::Letter(" << _type << ", " << _id << ")";
 }
  
@@ -461,6 +464,16 @@ rtdbExchangeId Letter::generate_next_exchange_id()
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+mdp::zmsg* Letter::get_zmsg()
+{
+  mdp::zmsg* result = new mdp::zmsg;
+
+  result->push_front(const_cast<std::string&>(data()->get_serialized()));
+  result->push_front(const_cast<std::string&>(header()->get_serialized()));
+  return result;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 void Letter::dump()
 {
   LOG(INFO) << "dump usr_message_type:" << header()->usr_msg_type()
@@ -504,48 +517,31 @@ Letter* MessageFactory::create(rtdbMsgType type)
 
   switch (type)
   {
-    case ADG_D_MSG_EXECRESULT:
-        created = new ExecResult();
-        break;
-    case ADG_D_MSG_ENDINITACK:
-        break;
-    case ADG_D_MSG_INIT:
-        break;
-    case ADG_D_MSG_STOP:
-        break;
-    case ADG_D_MSG_ENDALLINIT:
-        break;
-    case ADG_D_MSG_ASKLIFE:
-        created = new AskLife();
-        break;
-    case ADG_D_MSG_LIVING:
-        break;
-    case ADG_D_MSG_STARTAPPLI:
-        break;
-    case ADG_D_MSG_STOPAPPLI:
-        break;
-    case ADG_D_MSG_ADJTIME:
-        break;
-
-    case SIG_D_MSG_READ_MULTI:
-        created = new ReadMulti();
-        break;
-    case SIG_D_MSG_WRITE_MULTI:
-        created = new WriteMulti();
-        break;
-    case SIG_D_MSG_GRPSBS:
-        created = new SubscriptionEvent();
-        break;
-    case SIG_D_MSG_GRPSBS_CTRL:
-        created = new SubscriptionControl();
-        break;
-    case SIG_D_MSG_REQ_HISTORY:
-        created = new HistoryRequest();
-        break;
+    case ADG_D_MSG_EXECRESULT:      created = new ExecResult();     break;
+    case ADG_D_MSG_ENDINITACK:      created = new SimpleReply(ADG_D_MSG_ENDINITACK);    break;
+    case ADG_D_MSG_LIVING:          created = new SimpleReply(ADG_D_MSG_LIVING);        break;
+    case ADG_D_MSG_INIT:            created = new SimpleRequest(ADG_D_MSG_INIT);        break;
+    case ADG_D_MSG_DIFINIT:         created = new SimpleRequest(ADG_D_MSG_DIFINIT);     break;
+    case ADG_D_MSG_STOP:            created = new SimpleRequest(ADG_D_MSG_STOP);        break;
+    case ADG_D_MSG_ENDALLINIT:      created = new SimpleRequest(ADG_D_MSG_ENDALLINIT);  break;
+    // NB: AskLife сейчас (2016-06-01) по сути тот же SimpleRequest,
+    // но в будущем надеется подрасти и обзавестись атрибутами пожирнее (статистика и т.п.)
+    case ADG_D_MSG_ASKLIFE:         created = new AskLife();        break;
+    case ADG_D_MSG_STARTAPPLI:      created = new StartStop();      break;
+    case ADG_D_MSG_STOPAPPLI:       created = new StartStop();      break;
+    case SIG_D_MSG_READ_MULTI:      created = new ReadMulti();      break;
+    case SIG_D_MSG_WRITE_MULTI:     created = new WriteMulti();     break;
+    case SIG_D_MSG_GRPSBS:          created = new SubscriptionEvent();  break;
+    case SIG_D_MSG_GRPSBS_CTRL:     created = new SubscriptionControl();break;
+    case SIG_D_MSG_REQ_HISTORY:     created = new HistoryRequest(); break;
 
     default:
       LOG(ERROR) << "Unsupported message type " << type; 
+      assert(0 == 1);
   }
+
+  // А ты не забыл создать объект?!
+  assert(created);
 
   // Заполнение полей, имеющих значения не "по-умолчанию"
   created->header()->set_exchange_id(m_exchange_id);
@@ -663,51 +659,25 @@ Letter* MessageFactory::unserialize(const std::string& pb_header, const std::str
 
   switch (user_type)
   {
-    case ADG_D_MSG_EXECRESULT:
-      created = new ExecResult(fresh_header, pb_data);
-      break;
-//    case ADG_D_MSG_ENDINITACK:
-//    break;
-//    case ADG_D_MSG_INIT:
-//    break;
-//    case ADG_D_MSG_STOP:
-//    break;
-//    case ADG_D_MSG_ENDALLINIT:
-//    break;
-    case ADG_D_MSG_ASKLIFE:
-      created = new AskLife(fresh_header, pb_data);
-      break;
-//    case ADG_D_MSG_LIVING:
-//    break;
-//    case ADG_D_MSG_STARTAPPLI:
-//    break;
-//    case ADG_D_MSG_STOPAPPLI:
-//    break;
-//    case ADG_D_MSG_ADJTIME:
-//    break;
-
-    case SIG_D_MSG_READ_MULTI:
-      created = new ReadMulti(fresh_header, pb_data);
-      break;
- 
-    case SIG_D_MSG_WRITE_MULTI:
-      created = new WriteMulti(fresh_header, pb_data);
-      break;
- 
-    case SIG_D_MSG_GRPSBS:
-      created = new SubscriptionEvent(fresh_header, pb_data);
-      break;
-
-    case SIG_D_MSG_GRPSBS_CTRL:
-      created = new SubscriptionControl(fresh_header, pb_data);
-      break;
-
-    case SIG_D_MSG_REQ_HISTORY:
-      created = new HistoryRequest(fresh_header, pb_data);
-      break;
+    case ADG_D_MSG_EXECRESULT:  created = new ExecResult(fresh_header, pb_data);          break;
+    case ADG_D_MSG_ENDINITACK:  created = new SimpleReply(fresh_header, pb_data);         break;
+    case ADG_D_MSG_INIT:        created = new SimpleRequest(fresh_header, pb_data);       break;
+    case ADG_D_MSG_DIFINIT:     created = new SimpleRequest(fresh_header, pb_data);       break;
+    case ADG_D_MSG_STOP:        created = new SimpleRequest(fresh_header, pb_data);       break;
+    case ADG_D_MSG_ENDALLINIT:  created = new SimpleRequest(fresh_header, pb_data);       break;
+    case ADG_D_MSG_ASKLIFE:     created = new AskLife(fresh_header, pb_data);             break;
+    case ADG_D_MSG_LIVING:      created = new SimpleReply(fresh_header, pb_data);         break;
+    case ADG_D_MSG_STARTAPPLI:  created = new StartStop(fresh_header, pb_data);           break;
+    case ADG_D_MSG_STOPAPPLI:   created = new StartStop(fresh_header, pb_data);           break;
+    case SIG_D_MSG_READ_MULTI:  created = new ReadMulti(fresh_header, pb_data);           break;
+    case SIG_D_MSG_WRITE_MULTI: created = new WriteMulti(fresh_header, pb_data);          break;
+    case SIG_D_MSG_GRPSBS:      created = new SubscriptionEvent(fresh_header, pb_data);   break;
+    case SIG_D_MSG_GRPSBS_CTRL: created = new SubscriptionControl(fresh_header, pb_data); break;
+    case SIG_D_MSG_REQ_HISTORY: created = new HistoryRequest(fresh_header, pb_data);      break;
 
     default:
-      LOG(ERROR) << "Unsupported message type " << user_type; 
+      LOG(ERROR) << "Unsupported message type " << user_type;
+      assert(0 == 1);
   }
 
   return created;

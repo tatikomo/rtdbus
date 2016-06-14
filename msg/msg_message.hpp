@@ -7,6 +7,7 @@
 #include "config.h"
 #include "msg_common.h"
 #include "xdb_common.hpp"
+#include "mdp_zmsg.hpp"
 
 namespace msg {
 
@@ -37,6 +38,9 @@ class Letter
     void set_origin(const std::string&);
     void set_destination(const char*);
     void set_destination(const std::string&);
+    // Вернуть новый объект типа mdp::zmsg на основе содержимого Заголовка и Тела сообщения
+    // NB: Вызывающая сторона должна удалить за собой объект-результат
+    mdp::zmsg* get_zmsg();
 
     // признак корректности данных объекта
     bool valid();

@@ -33,10 +33,11 @@ class AskLife : public Letter
      void set_exec_result(int);
 
    private:
- };
+};
  
+////////////////////////////////////////////////////////////////////////////////////////////////////
 class ExecResult : public Letter
- {
+{
    public:
      ExecResult();
      ExecResult(rtdbExchangeId);
@@ -53,7 +54,50 @@ class ExecResult : public Letter
      void set_failure_cause(int, std::string&);
 
    private:
- };
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Типовые ответы:
+//   ADG_D_MSG_ENDINITACK
+//   ADG_D_MSG_LIVING
+class SimpleReply : public Letter
+{
+   public:
+     SimpleReply(int);
+     SimpleReply(int, rtdbExchangeId);
+     SimpleReply(Header*, const std::string& body);
+     SimpleReply(const std::string& head, const std::string& body);
+     virtual ~SimpleReply();
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Типовые запросы:
+//   ADG_D_MSG_INIT
+//   ADG_D_MSG_DIFINIT:
+//   ADG_D_MSG_STOP:
+//   ADG_D_MSG_ENDALLINIT:
+//   ADG_D_MSG_ASKLIFE
+class SimpleRequest : public Letter
+{
+   public:
+     SimpleRequest(int);
+     SimpleRequest(int, rtdbExchangeId);
+     SimpleRequest(Header*, const std::string& body);
+     SimpleRequest(const std::string& head, const std::string& body);
+     virtual ~SimpleRequest();
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Запуск и останов приложения
+class StartStop : public Letter
+{
+   public:
+     StartStop();
+     StartStop(rtdbExchangeId);
+     StartStop(Header*, const std::string& body);
+     StartStop(const std::string& head, const std::string& body);
+     virtual ~StartStop();
+};
 
 } // namespace msg
 

@@ -8,140 +8,140 @@ package RTDBM;
 
 // Код выполнения команды
 enum gof_t_ExecResult {
-	GOF_D_FAILURE       = 0;
-	GOF_D_SUCCESS       = 1;
-	GOF_D_PARTSUCCESS   = 2;
-	GOF_D_UNDETERMINED  = 3;
+  GOF_D_FAILURE       = 0;
+  GOF_D_SUCCESS       = 1;
+  GOF_D_PARTSUCCESS   = 2;
+  GOF_D_UNDETERMINED  = 3;
 }
 
 // Код приянтия команды
 enum gof_t_AcceptResult {
-	GOF_D_ACCEPTED      = 1;
-	GOF_D_REFUSED       = 2;
+  GOF_D_ACCEPTED      = 1;
+  GOF_D_REFUSED       = 2;
 }
 
 // Статус группы подписки
 enum gof_t_SbsOper {
-	GOF_D_SBS_CREATE    = 1;
-	GOF_D_SBS_MODIFY    = 2;
-	GOF_D_SBS_DELETE    = 3;
+  GOF_D_SBS_CREATE    = 1;
+  GOF_D_SBS_MODIFY    = 2;
+  GOF_D_SBS_DELETE    = 3;
 }
 
 // Тип объекта управления
 enum gof_t_TcType {
-	GOF_D_TC_VALVE      = 1;
-	GOF_D_TC_GROUP      = 2;
-	GOF_D_TC_SC         = 3;
-	GOF_D_TC_ATC        = 4;
-	GOF_D_TC_AUX        = 5;
+  GOF_D_TC_VALVE      = 1;
+  GOF_D_TC_GROUP      = 2;
+  GOF_D_TC_SC         = 3;
+  GOF_D_TC_ATC        = 4;
+  GOF_D_TC_AUX        = 5;
 }
 
 // Тип команды управления
 enum gof_t_TcOper {
-    // разрешить дублировать значения констант (в ГОФО есть дубликаты)
-    //option allow_alias = true;
-	GOF_D_TC_ON                         = 1;
-	GOF_D_TC_OFF                        = 2;
-	GOF_D_TC_SC_START_MAIN_LINE         = 3;
-	GOF_D_TC_SC_STOP_MAIN_LINE          = 4;
-	GOF_D_TC_ATC_STOP_NORMAL            = 5;
-	GOF_D_TC_ATC_STOP_URG               = 6; //GOF_D_TC_OFF
-	GOF_D_TC_ATC_START_LOOPING          = 7;
-	GOF_D_TC_ATC_START_MAIN_LINE        = 8;
-	GOF_D_TC_ATC_STOP_MAIN_LINE         = 9;
-	GOF_D_TC_ATC_SWITCH_COLD_REGUL1     = 10;
-	GOF_D_TC_ATC_SWITCH_COLD_REGUL2     = 11;
-	GOF_D_TC_GRC_STOP_NORMAL            = 12; // GOF_D_TC_OFF
-	GOF_D_TC_GRC_STOP_URG_NO_EVAC_GAZ   = 13;
-	GOF_D_TC_GRC_STOP_URG_WITH_EVAC_GAZ = 14;
-	GOF_D_TC_ATC_STOP_URG_NO_EVAC_GAZ   = 15; // GOF_D_TC_GRC_STOP_URG_NO_EVAC_GAZ
-	GOF_D_TC_ATC_STOP_URG_WITH_EVAC_GAZ = 16; // GOF_D_TC_GRC_STOP_URG_WITH_EVAC_GAZ
-	GOF_D_TC_GRC_START_LOOPING          = 17;
-	GOF_D_TC_GRC_START_MAIN_LINE        = 18;
-	GOF_D_TC_AUX_FLOW_REGUL             = 19;
-	GOF_D_TC_AUX_PRESSURE_REGUL         = 20;
-	GOF_D_TC_AUX_START_PUMP             = 21;
-	GOF_D_TC_AUX_STOP_PUMP              = 22;
-	GOF_D_TC_AUX_START_COMPRESSOR       = 23;
-	GOF_D_TC_AUX_STOP_COMPRESSOR        = 24;
-	GOF_D_TC_AUX_STOP_URG_AIRCOOLING    = 25;
-	GOF_D_TC_AUX_START_VENTILATOR       = 26;
-	GOF_D_TC_AUX_STOP_VENTILATOR        = 27;
+  // разрешить дублировать значения констант (в ГОФО есть дубликаты)
+  //option allow_alias = true;
+  GOF_D_TC_ON                         = 1;
+  GOF_D_TC_OFF                        = 2;
+  GOF_D_TC_SC_START_MAIN_LINE         = 3;
+  GOF_D_TC_SC_STOP_MAIN_LINE          = 4;
+  GOF_D_TC_ATC_STOP_NORMAL            = 5;
+  GOF_D_TC_ATC_STOP_URG               = 6; //GOF_D_TC_OFF
+  GOF_D_TC_ATC_START_LOOPING          = 7;
+  GOF_D_TC_ATC_START_MAIN_LINE        = 8;
+  GOF_D_TC_ATC_STOP_MAIN_LINE         = 9;
+  GOF_D_TC_ATC_SWITCH_COLD_REGUL1     = 10;
+  GOF_D_TC_ATC_SWITCH_COLD_REGUL2     = 11;
+  GOF_D_TC_GRC_STOP_NORMAL            = 12; // GOF_D_TC_OFF
+  GOF_D_TC_GRC_STOP_URG_NO_EVAC_GAZ   = 13;
+  GOF_D_TC_GRC_STOP_URG_WITH_EVAC_GAZ = 14;
+  GOF_D_TC_ATC_STOP_URG_NO_EVAC_GAZ   = 15; // GOF_D_TC_GRC_STOP_URG_NO_EVAC_GAZ
+  GOF_D_TC_ATC_STOP_URG_WITH_EVAC_GAZ = 16; // GOF_D_TC_GRC_STOP_URG_WITH_EVAC_GAZ
+  GOF_D_TC_GRC_START_LOOPING          = 17;
+  GOF_D_TC_GRC_START_MAIN_LINE        = 18;
+  GOF_D_TC_AUX_FLOW_REGUL             = 19;
+  GOF_D_TC_AUX_PRESSURE_REGUL         = 20;
+  GOF_D_TC_AUX_START_PUMP             = 21;
+  GOF_D_TC_AUX_STOP_PUMP              = 22;
+  GOF_D_TC_AUX_START_COMPRESSOR       = 23;
+  GOF_D_TC_AUX_STOP_COMPRESSOR        = 24;
+  GOF_D_TC_AUX_STOP_URG_AIRCOOLING    = 25;
+  GOF_D_TC_AUX_START_VENTILATOR       = 26;
+  GOF_D_TC_AUX_STOP_VENTILATOR        = 27;
 }
 
 // Текущий уровень делегирования
 enum gof_t_CmdResponsability {
-	GOF_D_RESP_DIR      = 1;        // Управление с ГТП
-	GOF_D_RESP_DIPL     = 2;        // Управление с ЛПУ
-	GOF_D_RESP_LOCAL    = 3;        // Управление с локального пульта
+  GOF_D_RESP_DIR      = 1;        // Управление с ГТП
+  GOF_D_RESP_DIPL     = 2;        // Управление с ЛПУ
+  GOF_D_RESP_LOCAL    = 3;        // Управление с локального пульта
 }
 
 enum gof_t_InfoAck {
-	GOF_D_ACK_EQPT  = 1;
-	GOF_D_ACK_TI    = 2;
+  GOF_D_ACK_EQPT  = 1;
+  GOF_D_ACK_TI    = 2;
 }
 
 enum gof_t_SaExpMode {
-	GOF_D_EXPMODE_MAINTENANCE = 0;
-	GOF_D_EXPMODE_OPERATIONAL = 1;
+  GOF_D_EXPMODE_MAINTENANCE = 0;
+  GOF_D_EXPMODE_OPERATIONAL = 1;
 }
 
 enum gof_t_InhibElt {
-	GOF_D_INHIB_TI      = 1;
-	GOF_D_INHIB_EQPT    = 2;
-	GOF_D_INHIB_SA      = 3;
+  GOF_D_INHIB_TI      = 1;
+  GOF_D_INHIB_EQPT    = 2;
+  GOF_D_INHIB_SA      = 3;
 }
 
 enum gof_t_InhibType {
-	GOF_D_INHIB_BEG     = 0;
-	GOF_D_INHIB_END     = 1;
+  GOF_D_INHIB_BEG     = 0;
+  GOF_D_INHIB_END     = 1;
 }
 
 enum gof_t_EquipmentType {
-	GOF_D_EQPT_TECHNOLOGIC  = 0;
-	GOF_D_EQPT_SYSTEM       = 1;
+  GOF_D_EQPT_TECHNOLOGIC  = 0;
+  GOF_D_EQPT_SYSTEM       = 1;
 }
 
 enum gof_t_OrigData {
-	GOF_D_ADJ_DIPL      = 0;    // Данные с соседнего ЛПУ
-	GOF_D_LOCAL_DIPL    = 1;    // Локальные данные
+  GOF_D_ADJ_DIPL      = 0;    // Данные с соседнего ЛПУ
+  GOF_D_LOCAL_DIPL    = 1;    // Локальные данные
 }
 
 enum gof_t_AcqInfoValid {
-        GOF_D_ACQ_VALID   = 1;
-        GOF_D_ACQ_MANUAL  = 2;
-        GOF_D_ACQ_INVALID = 3;
+  GOF_D_ACQ_VALID   = 1;
+  GOF_D_ACQ_MANUAL  = 2;
+  GOF_D_ACQ_INVALID = 3;
 }
 
 enum gof_t_SynthState {
-	GOF_D_SYNTHSTATE_UNR    = 0;
-	GOF_D_SYNTHSTATE_OPER   = 1;
-	GOF_D_SYNTHSTATE_PREOP  = 2;
+  GOF_D_SYNTHSTATE_UNR    = 0;
+  GOF_D_SYNTHSTATE_OPER   = 1;
+  GOF_D_SYNTHSTATE_PREOP  = 2;
 }
 
 enum gof_t_AlaListType {
-	GOF_D_OPE_ALA       = 1;
-	GOF_D_NON_OPE_ALA   = 2;
+  GOF_D_OPE_ALA       = 1;
+  GOF_D_NON_OPE_ALA   = 2;
 }
 
 /*
 enum gof_t_PeriodType {
-	GOF_D_PER_NOHISTO   = -1;
-	GOF_D_PER_QH        = 0;
-	GOF_D_PER_HOUR      = 1;
-	GOF_D_PER_DAY       = 2;
-	GOF_D_PER_MONTH     = 3;
-	GOF_D_PER_SAMPLE    = 4;
-	GOF_D_PER_YEAR      = 5;
-	GOF_D_PER_5MN       = 6;
+  GOF_D_PER_NOHISTO   = -1;
+  GOF_D_PER_QH        = 0;
+  GOF_D_PER_HOUR      = 1;
+  GOF_D_PER_DAY       = 2;
+  GOF_D_PER_MONTH     = 3;
+  GOF_D_PER_SAMPLE    = 4;
+  GOF_D_PER_YEAR      = 5;
+  GOF_D_PER_5MN       = 6;
 }
 */
 
 enum gof_t_Phase {
-	GOF_D_INACTIVE      = 0;
-	GOF_D_PRE_OPERATIONAL   = 1;
-	GOF_D_OPERATIONAL   = 2;
-	GOF_D_STANDBY       = 3;
+  GOF_D_INACTIVE      = 0;
+  GOF_D_PRE_OPERATIONAL   = 1;
+  GOF_D_OPERATIONAL   = 2;
+  GOF_D_STANDBY       = 3;
 }
 
 // =======================================================
@@ -160,10 +160,10 @@ message gof_t_StateMode {
 }
 
 message gof_t_InfoValue {
-	required double f_value     = 1;
-	required bool   b_value     = 2;
-	required gof_t_SynthState   e_synth_state   = 3;
-	required gof_t_StateMode    r_state_mode    = 4;
+  required double f_value     = 1;
+  required bool   b_value     = 2;
+  required gof_t_SynthState   e_synth_state   = 3;
+  required gof_t_StateMode    r_state_mode    = 4;
 }
 
 // =======================================================
@@ -197,6 +197,14 @@ message ExecResult {
 // Простейший запрос, типичный для большинства запросов ГОФО
 // =======================================================
 message SimpleRequest {
+  optional gof_t_ExecResult exec_result      = 1;
+}
+
+// =======================================================
+// SimpleReply 
+// Простейший ответ, типичный для большинства ответов ГОФО
+// =======================================================
+message SimpleReply {
   optional gof_t_ExecResult exec_result      = 1;
 }
 

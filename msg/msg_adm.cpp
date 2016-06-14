@@ -112,3 +112,34 @@ void ExecResult::set_failure_cause(int _new_val, std::string& _new_cause)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+SimpleReply::SimpleReply(int type) : Letter(type, 0) {}
+
+SimpleReply::SimpleReply(int type, rtdbExchangeId id) : Letter(type, id) {}
+
+SimpleReply::SimpleReply(Header* head, const std::string& body) : Letter(head, body) {}
+
+SimpleReply::SimpleReply(const std::string& head, const std::string& body) : Letter(head, body) {}
+
+SimpleReply::~SimpleReply() {}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+SimpleRequest::SimpleRequest(int type) : Letter(type, 0) {}
+
+SimpleRequest::SimpleRequest(int type, rtdbExchangeId id) : Letter(type, id) {}
+
+SimpleRequest::SimpleRequest(Header* head, const std::string& body) : Letter(head, body) {}
+
+SimpleRequest::SimpleRequest(const std::string& head, const std::string& body) : Letter(head, body) {}
+
+SimpleRequest::~SimpleRequest() {}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Запуск и останов приложения
+StartStop::StartStop() : Letter(0, 0) {}
+StartStop::StartStop(rtdbExchangeId id) : Letter(0, id) {}
+StartStop::StartStop(Header* head, const std::string& body) : Letter(head, body) {}
+StartStop::StartStop(const std::string& head, const std::string& body) : Letter(head, body) {}
+StartStop::~StartStop() {}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////

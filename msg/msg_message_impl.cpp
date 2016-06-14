@@ -173,9 +173,20 @@ void DataImpl::set_initial_values()
         //static_cast<RTDBM::ExecResult*>(m_protobuf_instance)->set_failure_cause(0);
       break;
 
+      // Типовые ответы
+      case ADG_D_MSG_ENDINITACK:
+      case ADG_D_MSG_LIVING:
+        m_protobuf_instance = new RTDBM::SimpleReply();
+        break;
+
+      // Типовые запросы
+      case ADG_D_MSG_INIT:
+      case ADG_D_MSG_DIFINIT:
+      case ADG_D_MSG_STOP:
+      case ADG_D_MSG_ENDALLINIT:
       case ADG_D_MSG_ASKLIFE:
         m_protobuf_instance = new RTDBM::SimpleRequest();
-      break;
+        break;
 
       case SIG_D_MSG_READ_MULTI:
         m_protobuf_instance = new RTDBM::ReadMulti();
@@ -199,6 +210,7 @@ void DataImpl::set_initial_values()
 
       default:
         LOG(ERROR) << "Unsupported message type: " << m_type;
+        assert(0 == 1);
       break;
     }
     // Значения изменились
