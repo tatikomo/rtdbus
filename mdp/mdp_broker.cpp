@@ -422,6 +422,8 @@ Broker::release (xdb::Worker *&wrk, int disconnect)
   {
     // Возможно получен HEARTBEAT от незарегистрированной Службы.
     // Может быть после перезапуска Брокера без перезапуска Служб.
+    LOG(WARNING) << "Force unknown Service '" << wrk->GetIDENTITY() << "' to reconnect";
+    worker_send (wrk->GetIDENTITY(), MDPW_DISCONNECT, EMPTY_FRAME);
     return false;
   }
 
@@ -588,6 +590,13 @@ Broker::worker_process_HEARTBEAT(xdb::Worker*& worker,
   else
   {
     LOG(ERROR) << "Get HEARTBEAT from unknown worker "<<sender_identity;
+    // Отправить ему сообщение о перерегистрации
+    // NB: За время отсутствия Брокера могло накопиться несколько сообщений HEARTBEAT
+    // от одной и той же Службы. Сейчас это не анализируется, и команда на разрыв связи
+    // выдается на каждое такое сообщение. В процессе перезапуска связи Служба впадает
+    // в паузу на интервал HEARTBEAT, благодаря чему несколько приказов о разрыве связи
+    // от Брокера теряются, и остается только первый из них.
+    worker_send (sender_identity.c_str(), MDPW_DISCONNECT, EMPTY_FRAME);
   }
 
   return status;

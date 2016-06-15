@@ -100,7 +100,7 @@ int SystemAcquisitionModule::run()
     request = NULL;
 
     // NB: Функция recv возвращает только PERSISTENT-сообщения
-    request = recv (reply_to/*, 0*/);
+    request = recv (reply_to, 0);
     if (request)
     {
       LOG(INFO) << fname << ": got a message";
@@ -112,7 +112,7 @@ int SystemAcquisitionModule::run()
     }
     else {
       LOG(INFO) << "Nothing read, sleep";
-      usleep(100000);
+      usleep(200000);
     }
 
   

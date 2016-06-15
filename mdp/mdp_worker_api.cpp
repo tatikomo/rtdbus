@@ -506,7 +506,7 @@ mdwrk::recv (std::string *&reply, int msec_timeout)
 {
   int poll_socket_number = 1;
   // Флаг, было ли превышение таймаута
-  bool timeout_exceeded = false;
+//  bool timeout_exceeded = false;
   // Интервал опроса сокетов
   int poll_interval = m_heartbeat_msec;
   //  Format and send the reply if we were provided one
@@ -525,7 +525,7 @@ mdwrk::recv (std::string *&reply, int msec_timeout)
     // Проверить четыре возможных диапазона таймаута
     if (0 == msec_timeout) { // 1. Равен нулю - немедленный выход в случае отсутствия принимаемых данных
       poll_interval = 0;
-      timeout_exceeded = true;
+//      timeout_exceeded = true;
     }
     else if (0 < msec_timeout) { // 2. Положительное значение - количество милисекунд ожидания
       poll_interval = std::min(msec_timeout, m_heartbeat_msec);
@@ -534,11 +534,11 @@ mdwrk::recv (std::string *&reply, int msec_timeout)
                      << ") exceeds heartbeat (" << m_heartbeat_msec
                      << ") and will be reduced to it";
       }
-      timeout_exceeded = false;
+//      timeout_exceeded = false;
     }
     else if (-1 == msec_timeout) {  // 3. Константа '-1' - неограниченно ожидать приёма сообщения  
       poll_interval = -1;
-      timeout_exceeded = false;
+//      timeout_exceeded = false;
     }
     else {  // 4. Любое другое отрицательное значение - ошибка
       LOG(ERROR) << "Unsupported value for recv timeout: " << msec_timeout;
@@ -654,21 +654,25 @@ mdwrk::recv (std::string *&reply, int msec_timeout)
 
         return msg;
       }
-      else if (poll_interval && (0 == --m_liveness)) { // Ожидание нового запроса завершено по таймауту
+      //1 else if (0 == --m_liveness) { // Ожидание нового запроса завершено по таймауту
+      //2 else if (poll_interval && (0 == --m_liveness)) { // Ожидание нового запроса завершено по таймауту
+      else if (s_clock() > (m_heartbeat_at_msec + (m_heartbeat_msec * HEARTBEAT_LIVENESS))) {
+        // Последний обмен с Брокером был более чем три периода HEARTBEAT назад - переустановить связь
         LOG(INFO) << "timeout, last HEARTBEAT was planned "
                   << s_clock() - m_heartbeat_at_msec << " msec ago, m_liveness=" << m_liveness;
 
-        LOG(WARNING) << "Disconnected from broker - retrying...";
+        LOG(WARNING) << "Disconnected from broker - try to reconnect after " << m_reconnect_msec << " msec...";
 
-        // TODO: в этот период Служба недоступна. Уточнить таймауты!
+        // NB: в этот период (интервал HEARTBEAT) Служба недоступна!
         // см. запись в README от 05.02.2015
         s_sleep (m_reconnect_msec);
         // После подключения к Брокеру сокет связи с ним был пересоздан
         connect_to_broker ();
       }
-      else if (!poll_interval) {
-        LOG(INFO) << "inside recv: " << s_clock() << ", m_liveness="<<m_liveness << " poll_interval=" << poll_interval;
-        break;
+      else {
+        LOG(INFO) << "inside recv: current msec=" << s_clock()
+                  << ", heartbeat_at_msec=" << m_heartbeat_at_msec
+                  << ", poll_interval=" << poll_interval;
       }
 
       if (s_clock () > m_heartbeat_at_msec) {
@@ -676,6 +680,10 @@ mdwrk::recv (std::string *&reply, int msec_timeout)
         update_heartbeat_sign();
         LOG(INFO) << "update next HEARTBEAT event time, m_liveness=" << m_liveness;
       }
+
+      // Для нулевого интервала опроса - только одна итерация цикла
+      if (!poll_interval) break;
+
     } // Конец цикла "пока не получен сигнал/команда на прерывание работы
   } // Конец блока try
   catch(zmq::error_t err)
