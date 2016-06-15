@@ -80,8 +80,13 @@ class mdwrk
     void set_reconnect (int reconnect);
 
     //  ---------------------------------------------------------------------
+    //  Установить таймаут приема значений в милисекундах
+    void set_recv_timeout(int msec);
+
+    //  ---------------------------------------------------------------------
     //  wait for next request and get the address for reply.
-    zmsg * recv (std::string *&reply);
+    //  Таймаут по умолчанию
+    zmsg * recv (std::string *&reply, int msec = HeartbeatInterval);
 
   protected:
     zmq::context_t   m_context;
@@ -104,6 +109,9 @@ class mdwrk
     size_t           m_liveness;         //  How many attempts left
     int              m_heartbeat_msec;   //  Heartbeat delay, msecs
     int              m_reconnect_msec;   //  Reconnect delay, msecs
+    // Значения таймаутов, на передачу и на прием
+    int              m_send_timeout_msec;
+    int              m_recv_timeout_msec;
     //  Internal state
     bool             m_expect_reply;     //  Zero only at start
     // Хранилище из трёх сокетов для работы zmq::poll

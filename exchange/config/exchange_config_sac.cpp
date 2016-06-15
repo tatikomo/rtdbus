@@ -23,8 +23,8 @@ using namespace std;
 
 
 // ==========================================================================================
-AcquisitionSystemConfig::AcquisitionSystemConfig(const char* config_filename)
- : m_config_filename(NULL),
+AcquisitionSystemConfig::AcquisitionSystemConfig(const std::string& config)
+ : m_config_filename(config),
    m_config_has_good_format(false),
    m_sa_commands(),
    m_sa_common(),
@@ -33,8 +33,6 @@ AcquisitionSystemConfig::AcquisitionSystemConfig(const char* config_filename)
   const char* fname = "AcquisitionSystemConfig()";
   FILE* f_params = NULL;
   struct stat configfile_info;
-
-  m_config_filename = strdup(config_filename);
 
   m_sa_common.timeout = 3;      // Таймаут ожидания ответа в секундах
   m_sa_common.repeat_nb = 1;    // Количество последовательных попыток передачи данных при сбое
@@ -58,13 +56,13 @@ AcquisitionSystemConfig::AcquisitionSystemConfig(const char* config_filename)
   m_sa_parameters_output.clear();
 
   // Выделить буфер readBuffer размером с читаемый файл
-  if (-1 == stat(config_filename, &configfile_info)) {
-    LOG(ERROR) << fname << ": Unable to stat() '" << config_filename << "': " << strerror(errno);
+  if (-1 == stat(m_config_filename.c_str(), &configfile_info)) {
+    LOG(ERROR) << fname << ": Unable to stat() '" << m_config_filename << "': " << strerror(errno);
   }
   else {
-    if (NULL != (f_params = fopen(config_filename, "r"))) {
+    if (NULL != (f_params = fopen(m_config_filename.c_str(), "r"))) {
       // Файл открылся успешно, прочитаем содержимое
-      LOG(INFO) << fname << ": size of '" << config_filename << "' is " << configfile_info.st_size;
+      LOG(INFO) << fname << ": size of '" << m_config_filename << "' is " << configfile_info.st_size;
       char *readBuffer = new char[configfile_info.st_size + 1];
 
       FileReadStream is(f_params, readBuffer, configfile_info.st_size + 1);
@@ -79,13 +77,13 @@ AcquisitionSystemConfig::AcquisitionSystemConfig(const char* config_filename)
         m_config_has_good_format = true;
       }
       else {
-        LOG(ERROR) << fname << ": Parsing " << config_filename;
+        LOG(ERROR) << fname << ": Parsing " << m_config_filename;
       }
 
       fclose (f_params);
     } // Конец успешного чтения содержимого файла
     else {
-      LOG(FATAL) << fname << ": Locating config file " << config_filename
+      LOG(FATAL) << fname << ": Locating config file " << m_config_filename
                  << " (" << strerror(errno) << ")";
     }
   } // Конец успешной проверки размера файла
@@ -94,7 +92,6 @@ AcquisitionSystemConfig::AcquisitionSystemConfig(const char* config_filename)
 // ==========================================================================================
 AcquisitionSystemConfig::~AcquisitionSystemConfig()
 {
-  free (m_config_filename); // NB: именно free() вместо delete(), как того требуют боги strdup() 
 }
 
 // ==========================================================================================

@@ -16,7 +16,7 @@
 #include "rapidjson/filereadstream.h"
 
 // Служебные файлы RTDBUS
-#include "exchange_modbus_cli.hpp"
+#include "exchange_sysacq_modbus.hpp"
 #include "exchange_smad_int.hpp"
 #include "exchange_config_sac.hpp"
 
@@ -80,17 +80,11 @@ static void catch_signals ()
 // Аргументы:
 // 1) Флаг активации режима отладки
 // 2) Название системы сбора
-RTDBUS_Modbus_client::RTDBUS_Modbus_client(const char* config)
-: m_config(NULL),
-  m_config_filename(config),
-  m_sa_common(),
+RTDBUS_Modbus_client::RTDBUS_Modbus_client(const std::string& config_filename)
+: SysAcqInterface(config_filename),
   m_connection_idx(0),
-  m_status(STATUS_OK_NOT_CONNECTED),
   m_ctx(NULL),
-  m_header_length(0),
-  m_connection_reestablised(0),
-  m_num_connection_try(0),
-  m_smad(NULL)
+  m_header_length(0)
 {
 #if 0
   /* 
@@ -137,7 +131,17 @@ RTDBUS_Modbus_client::~RTDBUS_Modbus_client()
 int RTDBUS_Modbus_client::timewait()
 {
   return m_config->timeout();
-};
+}
+
+client_status_t RTDBUS_Modbus_client::status()
+{
+  if (g_interrupt) {
+    // Прерывание по получении сигнала
+    LOG(INFO) << "Detect interruption flag";
+    m_status = STATUS_OK_SHUTTINGDOWN;
+  }
+  return m_status;
+}
 
 // ==========================================================================================
 // TODO: Устранить дублирование - такой же код находится в имитаторе сервера MODBUS
@@ -302,7 +306,7 @@ client_status_t RTDBUS_Modbus_client::prepare()
   m_connection_reestablised = 0;
   m_num_connection_try = 0;
 
-  if (0 != read_config())
+  if (NOK == read_config())
   {
       LOG(ERROR) << fname << ": reading configuration files";
       m_status = STATUS_FATAL_CONFIG;
@@ -349,7 +353,7 @@ client_status_t RTDBUS_Modbus_client::quantum()
 {
   const char* fname = "quantum";
 
-  LOG(INFO) << fname << ": processing";
+  LOG(INFO) << fname << ": processing, status=" << m_status;
 
   switch(m_status) {
       case STATUS_OK_CONNECTED:
@@ -357,19 +361,21 @@ client_status_t RTDBUS_Modbus_client::quantum()
         break;
 
       case STATUS_FAIL_NEED_RECONNECTED:
+      case STATUS_OK_NOT_CONNECTED:
         // Требуется переподключение
         LOG(WARNING) << "Need to reestablish connection, #try=" << m_connection_reestablised;
         m_status = connect();
-        break;
+        if (m_status == STATUS_OK_CONNECTED) {
+          m_connection_reestablised = 0;
+        }
 
-      case STATUS_OK_NOT_CONNECTED:
-        // Повторное подключение, чуть подождем...
-        usleep (m_config->timeout());
         if (g_interrupt) {
           // Прерывание по получении сигнала
           m_status = STATUS_OK_SHUTTINGDOWN;
           break;
         }
+        break;
+
         // NB: break пропущен специально
       case STATUS_OK_SMAD_LOAD:
         // попытаться подключиться к очередному серверу после начала работы
@@ -936,7 +942,7 @@ int RTDBUS_Modbus_client::read_config()
   m_config = new AcquisitionSystemConfig(m_config_filename);
 
   if (NOK == (status = m_config->load())) {
-    LOG(ERROR) << "бяка config";
+    LOG(ERROR) << "Loading configuration file '" << m_config_filename << "'";
   }
 
   return status;
@@ -966,7 +972,7 @@ client_status_t RTDBUS_Modbus_client::init_smad_parameters() // загрузка
     LOG(INFO) << "Acquisition item " << ++i;
     sa_parameter_info_t &info = (*itr);
 
-    if (0 == m_smad->setup_parameter(info)) {
+    if (OK == m_smad->setup_parameter(info)) {
       m_status = STATUS_OK_SMAD_LOAD;
       // Запомнить реально собираемые регистры в соответствующих наборах,
       // для последующей идентификации действительных данных в содержимом

@@ -8,6 +8,7 @@
 // Служебные заголовочные файлы сторонних утилит
 #include "glog/logging.h"
 #include "gtest/gtest.h"
+#include "google/protobuf/stubs/common.h"
 #include "zmq.hpp"
 
 // Служебные файлы RTDBUS
@@ -167,7 +168,7 @@ int main(int argc, char** argv)
 
   int retval = RUN_ALL_TESTS();
 
-  //::google::protobuf::ShutdownProtobufLibrary();
+  ::google::protobuf::ShutdownProtobufLibrary();
 //  ::google::ShutdownGoogleLogging();
   return retval;
 }

@@ -8,12 +8,15 @@
 
 // Общесистемные заголовочные файлы
 #include <map>
-#include <sys/socket.h>
+//#include <sys/socket.h>
 
 // Служебные заголовочные файлы сторонних утилит
+#include "modbus.h"
 
 // Служебные файлы RTDBUS
 #include "exchange_config.hpp"
+// Родовой интерфейс работы с Системой сбора
+#include "exchange_sysacq_intf.hpp"
 
 // ===============================================================================================
 
@@ -59,31 +62,6 @@ typedef struct  {
     int SendAccept;  /* send accept if == 1 */
 } SReqEGSAAttr;
 
-// Набор состояний модуля
-typedef enum {
-  // Ещё не подключён, все в порядке
-  STATUS_OK = 1,
-  // Ещё не подключён, InternalSMAD загружена
-  STATUS_OK_SMAD_LOAD,
-  // Подключён, все в порядке
-  STATUS_OK_CONNECTED,
-  // Не подключён, требуется переподключение
-  STATUS_OK_NOT_CONNECTED,
-  // Не подключён, выполняется останов
-  STATUS_OK_SHUTTINGDOWN,
-  // Подключён, требуется переподключение
-  STATUS_FAIL_NEED_RECONNECTED,
-  // Не подключён, переподключение не удалось
-  STATUS_FAIL_TO_RECONNECT,
-  // Нормальное завершение работы
-  STATUS_OK_SHUTDOWN,
-  // Нет возможности продолжать работу из-за проблем с InternalSMAD
-  STATUS_FATAL_SMAD,
-  // Нет возможности продолжать работу из-за проблем с конфигурационными файлами
-  STATUS_FATAL_CONFIG,
-  // Нет возможности продолжать работу из-за проблем с ОС
-  STATUS_FATAL_RUNTIME
-} client_status_t;
 
 /*--------------------------------------------------------------*/
 /* Common part for each request */
@@ -118,13 +96,11 @@ typedef struct {
     SReqEGSAAttr            ReqEGSAAttr;
 } SRequest;
 
-class AcquisitionSystemConfig;
-//struct modbus_t;
 
 // ---------------------------------------------------------
-class RTDBUS_Modbus_client {
+class RTDBUS_Modbus_client : public SysAcqInterface {
   public:
-    RTDBUS_Modbus_client(const char*);
+    RTDBUS_Modbus_client(const std::string&);
    ~RTDBUS_Modbus_client();
     // Подготовительные действия перед работой - чтение конфигурации, инициализация,...
     client_status_t prepare();
@@ -132,7 +108,7 @@ class RTDBUS_Modbus_client {
     client_status_t quantum();
     // Милисекунд ожидания между запросами
     int timewait();
-    client_status_t status() { return m_status; };
+    client_status_t status();
 
   private:
     DISALLOW_COPY_AND_ASSIGN(RTDBUS_Modbus_client);
@@ -165,9 +141,6 @@ class RTDBUS_Modbus_client {
     // -------------------------------------------------------------------
     static MBusFuncDesription mbusDescr[];
 
-    AcquisitionSystemConfig* m_config;
-    const char*     m_config_filename;
-    sa_common_t     m_sa_common;
     // Номер подключения к серверу по порядку в секции SERVICE
     size_t          m_connection_idx;
     // Код состояния модуля
@@ -180,7 +153,6 @@ class RTDBUS_Modbus_client {
     int m_connection_reestablised;
     int m_num_connection_try;
 
-    InternalSMAD    *m_smad;
     // Хранилище соответствия "адрес" - "информация по параметру" для каждого типа обработки,
     // что требуется для поиска интересующих регистров в составе ответа при его разборе.
     address_map_t m_HC_map;

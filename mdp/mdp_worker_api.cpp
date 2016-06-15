@@ -89,6 +89,8 @@ mdwrk::mdwrk (const std::string& broker_endpoint, const std::string& service, in
   m_liveness(HEARTBEAT_LIVENESS),
   m_heartbeat_msec(HeartbeatInterval), //  msecs
   m_reconnect_msec(HeartbeatInterval), //  msecs
+  m_send_timeout_msec(SEND_TIMEOUT_MSEC),
+  m_recv_timeout_msec(RECV_TIMEOUT_MSEC),
   m_expect_reply(false)
 {
     s_version_assert (3, 2);
@@ -186,8 +188,6 @@ void mdwrk::send_to_broker(const char *command, const char* option, zmsg *_msg)
 void mdwrk::connect_to_broker ()
 {
     int linger = 0;
-    int send_timeout_msec = SEND_TIMEOUT_MSEC;
-    int recv_timeout_msec = RECV_TIMEOUT_MSEC;
 
     if (m_worker) {
         // Пересоздание сокета без обновления таблицы m_socket_items
@@ -198,8 +198,8 @@ void mdwrk::connect_to_broker ()
     }
     m_worker = new zmq::socket_t (m_context, ZMQ_DEALER);
     m_worker->setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
-    m_worker->setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
-    m_worker->setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
+    m_worker->setsockopt(ZMQ_SNDTIMEO, &m_send_timeout_msec, sizeof(m_send_timeout_msec));
+    m_worker->setsockopt(ZMQ_RCVTIMEO, &m_recv_timeout_msec, sizeof(m_recv_timeout_msec));
     // GEV 22/01/2015: ZMQ_IDENTITY добавлено для теста
     m_worker->setsockopt (ZMQ_IDENTITY, m_service.c_str(), m_service.size());
     m_worker->connect (m_broker_endpoint.c_str());
@@ -292,6 +292,13 @@ mdwrk::set_heartbeat (int heartbeat)
     m_heartbeat_msec = heartbeat;
 }
 
+//  ---------------------------------------------------------------------
+//  Установить таймаут приема значений в милисекундах
+void mdwrk::set_recv_timeout(int msec)
+{
+  LOG(INFO) << "Set new recv timeout to " << msec << " msec";
+  m_recv_timeout_msec = msec;
+}
 
 //  ---------------------------------------------------------------------
 //  Set reconnect delay
@@ -368,7 +375,7 @@ int mdwrk::ask_service_info(const std::string& service_name, char* service_endpo
   mdp::zmsg *report  = NULL;
   mdp::zmsg *request = new mdp::zmsg ();
   const char *mmi_service_get_name = "mmi.service";
-  int service_status_code;
+  int service_status_code = 404;
   ServiceInfo_t *service_info;
   std::string *reply_to = NULL;
 
@@ -492,10 +499,16 @@ bool mdwrk::insert_service_info(const std::string& serv_name, ServiceInfo_t *&se
 //  ---------------------------------------------------------------------
 //  Send reply, if any, to broker and wait for next request.
 //  If reply is not NULL, a pointer to client's address is filled in.
+//  Второй параметр - количество милисекунд ожидания получения сообщения,
+//  превышение данного значения приводит к выходу из функции.
 zmsg *
-mdwrk::recv (std::string *&reply)
+mdwrk::recv (std::string *&reply, int msec_timeout)
 {
   int poll_socket_number = 1;
+  // Флаг, было ли превышение таймаута
+  bool timeout_exceeded = false;
+  // Интервал опроса сокетов
+  int poll_interval = m_heartbeat_msec;
   //  Format and send the reply if we were provided one
   assert (reply || !m_expect_reply);
 
@@ -508,148 +521,163 @@ mdwrk::recv (std::string *&reply)
     // Если используется сокет прямого подключения, пытаемся читать с него данные
     if (m_direct)
       poll_socket_number++;
+  
+    // Проверить четыре возможных диапазона таймаута
+    if (0 == msec_timeout) { // 1. Равен нулю - немедленный выход в случае отсутствия принимаемых данных
+      poll_interval = 0;
+      timeout_exceeded = true;
+    }
+    else if (0 < msec_timeout) { // 2. Положительное значение - количество милисекунд ожидания
+      poll_interval = std::min(msec_timeout, m_heartbeat_msec);
+      if (msec_timeout > m_heartbeat_msec) {
+        LOG(WARNING) << "Given poll timeout (" << msec_timeout
+                     << ") exceeds heartbeat (" << m_heartbeat_msec
+                     << ") and will be reduced to it";
+      }
+      timeout_exceeded = false;
+    }
+    else if (-1 == msec_timeout) {  // 3. Константа '-1' - неограниченно ожидать приёма сообщения  
+      poll_interval = -1;
+      timeout_exceeded = false;
+    }
+    else {  // 4. Любое другое отрицательное значение - ошибка
+      LOG(ERROR) << "Unsupported value for recv timeout: " << msec_timeout;
+      assert(0 == 1);
+    }
 
     m_expect_reply = true;
     while (!interrupt_worker)
     {
-        // NB: m_direct также создается и в DiggerProxy, что может привести к ошибке 'Address already in use'
-        zmq::poll (m_socket_items, poll_socket_number, m_heartbeat_msec);
+      // NB: m_direct также создается и в DiggerProxy, что может привести к ошибке 'Address already in use'
+      zmq::poll (m_socket_items, poll_socket_number, poll_interval /*m_heartbeat_msec*/);
 
-        if (m_socket_items[BROKER_ITEM].revents & ZMQ_POLLIN) {
-            zmsg *msg = new zmsg(*m_worker);
+	  if (m_socket_items[BROKER_ITEM].revents & ZMQ_POLLIN) {
+        zmsg *msg = new zmsg(*m_worker);
 
-            LOG(INFO) << "New message from broker:";
-            msg->dump ();
+        LOG(INFO) << "New message from broker:";
+        msg->dump ();
 
-            update_heartbeat_sign();
+        update_heartbeat_sign();
 
-            //  Don't try to handle errors, just assert noisily
-            assert (msg->parts () >= 3);
+        //  Don't try to handle errors, just assert noisily
+        assert (msg->parts () >= 3);
 
-            /* 
-             * NB: если в zmsg [GEV:генерация GUID] закомментирована проверка 
-             * на количество фреймов в сообщении (=5),
-             * то в этом случае empty будет равен
-             * [011] @0000000000
-             * и assert сработает на непустую строку.
-             *
-             * Во случае, если принятое сообщение не первое от данного Обработчика,
-             * empty будет действительно пустым.
-             */
-            std::string empty = msg->pop_front ();
-            assert (empty.empty() == 1);
+        /* 
+         * NB: если в zmsg [GEV:генерация GUID] закомментирована проверка 
+         * на количество фреймов в сообщении (=5),
+         * то в этом случае empty будет равен
+         * [011] @0000000000
+         * и assert сработает на непустую строку.
+         *
+         * Во случае, если принятое сообщение не первое от данного Обработчика,
+         * empty будет действительно пустым.
+         */
+        std::string empty = msg->pop_front ();
+        assert (empty.empty() == 1);
 
-            std::string header = msg->pop_front ();
-            // Если Служба запрашивала информацию по точке подключения другой Службы,
-            // здесь будет клиентский код.
-          if (header.compare(MDPC_CLIENT) == 0) {
-              // Да, это клиентский код, проверить на запрос точки подключения
-              // Его формат:
-              // [000]
-              // [006] MDPC0X
-              // [001] 02
-              // [006] MDPC0X
-              // [011] mmi.service
-              // [003] {200|404|501}
-              // Если предыдущее поле = 200, то [0XX] <строка с адресом подключения>
-
-              // Новый формат:
-              // [000]
-              // [006] MDPC0X
-              // [001] 02
-              // [006] MDPC0X
-              // [011] mmi.service
-              // [006] <Имя Службы>
-              // [003] {200|404|501}
-              //
-              // mmi.service
-              const char *mmi_service_get_name = "mmi.service";
-              char service_endpoint[60 + 1] = "<none>";
-              const std::string empty = msg->pop_front();
-              const std::string client_code = msg->pop_front();
-              const std::string service_request  = msg->pop_front();
-              const std::string service_name = msg->pop_front();
-              assert(service_request.compare(mmi_service_get_name) == 0);
-              // 200|404|501
-              const std::string existance_code = msg->pop_front();
-              int service_status_code = atoi(existance_code.c_str());
-              // Точка подключения - пока только при получении кода 200
-              if (200 == service_status_code) {
-                std::string endpoint = msg->pop_front();
-                strncpy(service_endpoint, endpoint.c_str(), 60);
-                service_endpoint[60] = '\0';
-                LOG(INFO) << "Reply " << service_name << " endpoint " << service_endpoint;
-              }
-              else {
-                LOG(ERROR) << "Requested service not known";
-              }
+        std::string header = msg->pop_front ();
+        // Если Служба запрашивала информацию по точке подключения другой Службы,
+        // здесь будет клиентский код.
+        if (header.compare(MDPC_CLIENT) == 0) {
+          // Да, это клиентский код, проверить на запрос точки подключения
+          // Новый формат:
+          // [000]
+          // [006] MDPC0X
+          // [001] 02
+          // [006] MDPC0X
+          // [011] mmi.service
+          // [006] <Имя Службы>
+          // [003] {200|404|501}
+		  // Если предыдущее поле = 200, то:
+		  // [0XX] <строка с адресом подключения>
+          const char *mmi_service_get_name = "mmi.service";
+          char service_endpoint[ENDPOINT_MAXLEN + 1] = "<none>";
+          const std::string empty = msg->pop_front();
+          const std::string client_code = msg->pop_front();
+          const std::string service_request  = msg->pop_front();
+          const std::string service_name = msg->pop_front();
+          assert(service_request.compare(mmi_service_get_name) == 0);
+          // 200|404|501
+          const std::string existance_code = msg->pop_front();
+          int service_status_code = atoi(existance_code.c_str());
+          // Точка подключения - пока только при получении кода 200
+          if (200 == service_status_code) {
+            std::string endpoint = msg->pop_front();
+            strncpy(service_endpoint, endpoint.c_str(), ENDPOINT_MAXLEN);
+            service_endpoint[ENDPOINT_MAXLEN] = '\0';
+            LOG(INFO) << "Reply " << service_name << " endpoint " << service_endpoint;
           }
           else {
-            assert (header.compare(MDPW_WORKER) == 0);
-
-            std::string command = msg->pop_front ();
-            if (command.compare (MDPW_REQUEST) == 0) {
-                //  We should pop and save as many addresses as there are
-                //  up to a null part, but for now, just save one...
-                char *frame_reply = msg->unwrap ();
-                (*reply).assign(frame_reply);
-                delete[] frame_reply;
-                return msg;     //  We have a request to process
-            }
-            else if (command.compare (MDPW_HEARTBEAT) == 0) {
-                LOG(INFO) << "HEARTBEAT from broker, m_liveness=" << m_liveness;
-                //  Do nothing for heartbeats
-            }
-            else if (command.compare (MDPW_DISCONNECT) == 0) {
-                // После подключения к Брокеру сокет связи с ним был пересоздан
-                connect_to_broker ();
-            }
-            else {
-                LOG(ERROR) << "Receive invalid message " << (int) *(command.c_str());
-                msg->dump ();
-            }
-            delete msg;
+            LOG(ERROR) << "Requested service not known";
           }
-        }
-        else if (m_subscriber && (m_socket_items[SUBSCRIBER_ITEM].revents & ZMQ_POLLIN)) // Событие подписки
-        {
-            zmsg *msg = new zmsg(*m_subscriber);
+        } // Конец проверки сообщения от Клиента
+        else { // Сообщение от Брокера
+          assert (header.compare(MDPW_WORKER) == 0);
 
-            LOG(INFO) << "New subscription event: ";
-            msg->dump ();
+          std::string command = msg->pop_front ();
+          if (command.compare (MDPW_REQUEST) == 0) {
+              //  We should pop and save as many addresses as there are
+              //  up to a null part, but for now, just save one...
+              char *frame_reply = msg->unwrap ();
+              (*reply).assign(frame_reply);
+              delete[] frame_reply;
+              return msg;     //  We have a request to process
+          }
+          else if (command.compare (MDPW_HEARTBEAT) == 0) {
+              LOG(INFO) << "HEARTBEAT from broker, m_liveness=" << m_liveness;
+              //  Do nothing for heartbeats
+          }
+          else if (command.compare (MDPW_DISCONNECT) == 0) {
+              // После подключения к Брокеру сокет связи с ним был пересоздан
+              connect_to_broker ();
+          }
+          else {
+              LOG(ERROR) << "Receive invalid message " << (int) *(command.c_str());
+              msg->dump ();
+          }
+          delete msg;
+        } // Конец обработки сообщения от Брокера
+      } // Конец проверки активности на сокете Брокера
+      else if (m_subscriber && (m_socket_items[SUBSCRIBER_ITEM].revents & ZMQ_POLLIN)) { // Событие подписки
+        zmsg *msg = new zmsg(*m_subscriber);
 
-            return msg;
-        }
-        else if (m_direct && (m_socket_items[DIRECT_ITEM].revents & ZMQ_POLLIN)) // Событие на общем сокете
-        {
-            zmsg *msg = new zmsg(*m_direct);
+        LOG(INFO) << "New subscription event: ";
+        msg->dump ();
 
-            LOG(INFO) << "New message from world:";
-            msg->dump ();
+        return msg;
+      }
+      else if (m_direct && (m_socket_items[DIRECT_ITEM].revents & ZMQ_POLLIN)) { // Событие на общем сокете
+        zmsg *msg = new zmsg(*m_direct);
 
-            return msg;
-        }
-        else // Ожидание нового запроса завершено по таймауту
-        if (--m_liveness == 0) {
-            LOG(INFO) << "timeout, last HEARTBEAT was planned "
-                      << s_clock() - m_heartbeat_at_msec << " msec ago, m_liveness=" << m_liveness;
+        LOG(INFO) << "New message from world:";
+        msg->dump ();
 
-            LOG(WARNING) << "Disconnected from broker - retrying...";
+        return msg;
+      }
+      else if (poll_interval && (0 == --m_liveness)) { // Ожидание нового запроса завершено по таймауту
+        LOG(INFO) << "timeout, last HEARTBEAT was planned "
+                  << s_clock() - m_heartbeat_at_msec << " msec ago, m_liveness=" << m_liveness;
 
-            // TODO: в этот период Служба недоступна. Уточнить таймауты!
-            // см. запись в README от 05.02.2015
-            s_sleep (m_reconnect_msec);
-            // После подключения к Брокеру сокет связи с ним был пересоздан
-            connect_to_broker ();
-        }
+        LOG(WARNING) << "Disconnected from broker - retrying...";
 
-        if (s_clock () > m_heartbeat_at_msec) {
-            send_to_broker ((char*)MDPW_HEARTBEAT, NULL, NULL);
-            update_heartbeat_sign();
-            LOG(INFO) << "update next HEARTBEAT event time, m_liveness=" << m_liveness;
-        }
-    }
-  }
+        // TODO: в этот период Служба недоступна. Уточнить таймауты!
+        // см. запись в README от 05.02.2015
+        s_sleep (m_reconnect_msec);
+        // После подключения к Брокеру сокет связи с ним был пересоздан
+        connect_to_broker ();
+      }
+      else if (!poll_interval) {
+        LOG(INFO) << "inside recv: " << s_clock() << ", m_liveness="<<m_liveness << " poll_interval=" << poll_interval;
+        break;
+      }
+
+      if (s_clock () > m_heartbeat_at_msec) {
+        send_to_broker ((char*)MDPW_HEARTBEAT, NULL, NULL);
+        update_heartbeat_sign();
+        LOG(INFO) << "update next HEARTBEAT event time, m_liveness=" << m_liveness;
+      }
+    } // Конец цикла "пока не получен сигнал/команда на прерывание работы
+  } // Конец блока try
   catch(zmq::error_t err)
   {
     LOG(ERROR) << err.what();
@@ -662,7 +690,7 @@ mdwrk::recv (std::string *&reply)
   }
 
   if (interrupt_worker)
-      LOG(WARNING) << "Interrupt received, killing worker...";
+    LOG(WARNING) << "Interrupt received, killing worker...";
 
   return NULL;
 }

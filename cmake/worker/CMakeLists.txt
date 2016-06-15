@@ -2,7 +2,7 @@ set(WORKER_TESTER wtester)
 set(WORKER_ECHO   wecho)
 set(WORKER_DIGGER wdigger)
 set(WORKER_HISTORIAN whistorian)
-set(WORKER_MBUS_CLI  wmbus_cli)
+set(WORKER_SYSACQ_CLI wsysacq_cli)
 set(WORKER_TIMEKEEPER wtiker)
 
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
@@ -25,7 +25,7 @@ include_directories(${LIBCPPZMQ_INCLUDE_DIR})
 include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
 include_directories(${WORKER_DIR})
-include_directories(${EXCHANGE_MODBUS_DIR})
+include_directories(${EXCHANGE_SA_DIR})
 include_directories(${EXCHANGE_CONFIG_DIR})
 include_directories(${LIBMODBUS_INCLUDE_DIR})
 include_directories(${MDP_DIR})
@@ -87,16 +87,16 @@ set (WORKER_HISTORIAN_SOURCES
         ${WORKER_DIR}/whistorian.cpp
         ${WORKER_DIR}/whistorian.hpp)
 
-set (WORKER_MBUS_CLI_SOURCES
+set (WORKER_SYSACQ_CLI_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
         ${MDP_DIR}/mdp_zmsg.hpp
         ${MDP_DIR}/mdp_common.h
         ${MDP_DIR}/mdp_worker_api.hpp
         ${MSG_DIR}/msg_message.hpp
-        ${EXCHANGE_MODBUS_DIR}/exchange_modbus_cli.hpp
+        ${EXCHANGE_SA_DIR}/exchange_sysacq_modbus.hpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config.hpp
-        ${WORKER_DIR}/wmbus_cli.cpp
-        ${WORKER_DIR}/wmbus_cli.hpp)
+        ${WORKER_DIR}/wsysacq_cli.cpp
+        ${WORKER_DIR}/wsysacq_cli.hpp)
 
 set (WORKER_TIMEKEEPER_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
@@ -204,10 +204,10 @@ target_link_libraries(${WORKER_HISTORIAN}
     ${LIBPROTOBUF_LIBRARIES}
     )
 
-# Сборка MBUS_CLIENT - службы системы сбора по протоколу MODBUS
+# Сборка SYSACQ_CLIENT - службы системы сбора
 ##########################################################
-add_executable (${WORKER_MBUS_CLI} ${WORKER_MBUS_CLI_SOURCES})
-target_link_libraries(${WORKER_MBUS_CLI}
+add_executable (${WORKER_SYSACQ_CLI} ${WORKER_SYSACQ_CLI_SOURCES})
+target_link_libraries(${WORKER_SYSACQ_CLI}
     ${LIBGLOG_LIBRARIES}
     ${MDP_LIBRARY_NAME}
     ${MODBUS_LIBRARY_NAME}

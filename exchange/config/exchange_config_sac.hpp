@@ -8,6 +8,7 @@
 
 // Общесистемные заголовочные файлы
 #include <vector>
+#include <string>
 
 // Служебные заголовочные файлы сторонних утилит
 #include "glog/logging.h"
@@ -20,7 +21,7 @@
 class AcquisitionSystemConfig
 {
   public:
-    AcquisitionSystemConfig(const char*);
+    AcquisitionSystemConfig(const std::string&);
    ~AcquisitionSystemConfig();
 
     // Загрузка конфига целиком
@@ -61,8 +62,8 @@ class AcquisitionSystemConfig
 
   private:
     DISALLOW_COPY_AND_ASSIGN(AcquisitionSystemConfig);
-    char   *m_config_filename;
-    bool    m_config_has_good_format;
+    std::string m_config_filename;
+    bool        m_config_has_good_format;
     rapidjson::Document m_document;
     sa_parameters_t m_sa_parameters_input;
     sa_parameters_t m_sa_parameters_output;
