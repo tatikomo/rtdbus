@@ -79,9 +79,9 @@ const rtdbMsgType ECH_D_MSG_INT_REQUEST                 = GOF_D_BASE_MSG_ECH + 1
 /* define for the replies from ESEN to EGSA  message type */
 const rtdbMsgType ECH_D_MSG_INT_REPLY                   = GOF_D_BASE_MSG_ECH + 2;
 /* define for the requests from acu_proc1 to acu_proc2 message type           */
-const rtdbMsgType ACU_D_MSG_INT_REQUEST                 = GOF_D_BASE_MSG_ECH + 21;
+//const rtdbMsgType ACU_D_MSG_INT_REQUEST                 = GOF_D_BASE_MSG_ECH + 21;
 /* define for the replies from acu_proc2 to acu_proc1  message type           */
-const rtdbMsgType ACU_D_MSG_INT_REPLY                   = GOF_D_BASE_MSG_ECH + 22;
+//const rtdbMsgType ACU_D_MSG_INT_REPLY                   = GOF_D_BASE_MSG_ECH + 22;
 
 /*==============================*/
 /* Exchanged messages with SINF */

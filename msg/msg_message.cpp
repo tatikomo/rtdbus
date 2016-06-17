@@ -357,8 +357,14 @@ Letter::Letter(Header* head_pb, const std::string& body_str)
 Letter::Letter(const std::string& head_str, const std::string& body_str)
   : m_header(new Header(head_str))
 {
-  // TODO: отбрасывать сообщения с более новым протоколом
-  //assert(m_header->protocol_version() == m_version_message_system);
+#if 0
+  // Отбрасывать сообщения с более новым протоколом
+  if (m_header->protocol_version() != m_version_message_system) {
+    LOG(ERROR) << "Current protocol version (" << m_version_message_system
+               << ") did not equal given protocol version  (" << m_header->protocol_version() << ")";
+  }
+  assert(m_header->protocol_version() == m_version_message_system);
+#endif
 
   m_data = new Data(m_header->usr_msg_type(), body_str);
 }
@@ -479,6 +485,8 @@ void Letter::dump()
   LOG(INFO) << "dump usr_message_type:" << header()->usr_msg_type()
             << " exchange_id:" << header()->exchange_id()
             << " interest_id:" << header()->interest_id()
+            << " origin:"      << header()->proc_origin()
+            << " destination:" << header()->proc_dest()
             << " time_mark:"   << header()->time_mark();
 }
 
@@ -536,7 +544,7 @@ Letter* MessageFactory::create(rtdbMsgType type)
     case SIG_D_MSG_REQ_HISTORY:     created = new HistoryRequest(); break;
 
     default:
-      LOG(ERROR) << "Unsupported message type " << type; 
+      LOG(ERROR) << "Unsupported message type: " << type; 
       assert(0 == 1);
   }
 

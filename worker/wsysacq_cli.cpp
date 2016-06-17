@@ -184,18 +184,37 @@ int SystemAcquisitionModule::handle_request(mdp::zmsg* request, std::string*& re
   {
     msgType = letter->header()->usr_msg_type();
 
+    // Здесь следует обрабатывать только запросы общего характера, не требующие подключения к БД
+    // К ним относятся все запросы, влияющие на общее функционирование и управление.
     switch(msgType)
     {
-      // Здесь следует обрабатывать только запросы общего характера, не требующие подключения к БД
-      // К ним относятся все запросы, влияющие на общее функционирование и управление.
-      case ADG_D_MSG_ASKLIFE:
-       rc = handle_asklife(letter, reply_to);
-       break;
+      // -----------------------------------------------------------------------------------
+      // Группа сообщений, которые могут быть получены в любой момент
+      case ADG_D_MSG_ASKLIFE:   // Запрос "Жив"
+        rc = handle_asklife(letter, reply_to);
+        break;
+      case ADG_D_MSG_STOP:      // Запрос останова работы
+        rc = handle_stop(letter, reply_to);
+        break;
 
-      case ADG_D_MSG_STOP:
-       rc = handle_stop(letter, reply_to);
-       break;
+      // -----------------------------------------------------------------------------------
+      // Группа сообщений, которые допустимо принимать только ДО завершения инициализации
+      case ADG_D_MSG_INIT:      // Запрос выполнения первоначальной иницициализации данным модулем
+      case ADG_D_MSG_DIFINIT:   // Запрос выполнения иницициализации данным модулем после рестарта 
+        rc = handle_init(letter, reply_to);
+        break;
+      case ADG_D_MSG_ENDALLINIT:// Сообщение об общем завершении инициализации
+        rc = handle_end_all_init(letter, reply_to);
+        break;
 
+      // -----------------------------------------------------------------------------------
+      // Группа сообщений, которые могут быть получены только ПОСЛЕ завершения инициализации
+      case ECH_D_MSG_INT_REQUEST:   // Запрос на доступ к данным
+        rc = handle_internal_request(letter, reply_to);
+        break;
+
+      // -----------------------------------------------------------------------------------
+      // Неподдерживаемые сообщения
       default:
        LOG(ERROR) << "Unsupported request type: " << msgType;
        rc = NOK;
@@ -212,29 +231,78 @@ int SystemAcquisitionModule::handle_request(mdp::zmsg* request, std::string*& re
 }
 
 // --------------------------------------------------------------------------------
+// Запрос выполнения иницициализации
+int SystemAcquisitionModule::handle_init(msg::Letter* letter, std::string* reply_to)
+{
+  int rc = NOK;
+  LOG(ERROR) << "Not yet realized";
+  return rc;
+}
+
+// --------------------------------------------------------------------------------
+// Сообщение об общем завершении инициализации
+int SystemAcquisitionModule::handle_end_all_init(msg::Letter* letter, std::string* reply_to)
+{
+  int rc = NOK;
+  LOG(ERROR) << "Not yet realized";
+  return rc;
+}
+
+// --------------------------------------------------------------------------------
+// Запрос на доступ к данным
+int SystemAcquisitionModule::handle_internal_request(msg::Letter* letter, std::string* reply_to)
+{
+  int rc = OK;
+  msg::SimpleRequest* simple_req = static_cast<msg::SimpleRequest*>(letter);
+  const rtdbMsgType usr_type = simple_req->header()->usr_msg_type();
+
+  switch (usr_type) {
+     case ADG_D_MSG_EXECRESULT :
+     case ADG_D_MSG_LIVING     :
+     case ADG_D_MSG_ENDINITACK :
+       LOG(INFO) << "Got usr msg type #" << usr_type;
+
+       break;
+
+     case ECH_D_MSG_INT_REPLY :
+       LOG(INFO) << "Got usr msg type #" << usr_type << " [ECH_D_MSG_INT_REPLY]";
+       break;
+
+      default :
+        rc = NOK;
+  }
+  return rc;
+}
+
+// --------------------------------------------------------------------------------
 int SystemAcquisitionModule::handle_asklife(msg::Letter* letter, std::string* reply_to)
 {
   int rc = OK;
   msg::AskLife   *msg_ask_life = static_cast<msg::AskLife*>(letter);
-  mdp::zmsg      *response = new mdp::zmsg();
-  int exec_val = 1;
+  msg::SimpleReply *simple_reply = static_cast<msg::SimpleReply*>(m_message_factory->create(ADG_D_MSG_LIVING));
 
-  msg_ask_life->set_exec_result(exec_val);
+  simple_reply->header()->set_exchange_id(msg_ask_life->header()->exchange_id());
+  simple_reply->header()->set_interest_id(msg_ask_life->header()->interest_id() + 1); // TODO: Возможно ли переполнение?
+  simple_reply->header()->set_proc_dest(*reply_to);
 
-  response->push_front(const_cast<std::string&>(msg_ask_life->data()->get_serialized()));
-  response->push_front(const_cast<std::string&>(msg_ask_life->header()->get_serialized()));
+  mdp::zmsg *response = simple_reply->get_zmsg();
   response->wrap(reply_to->c_str(), "");
 
-  LOG(INFO) << "Processing ASKLIFE from " << *reply_to
-            << " has status:" << msg_ask_life->exec_result(exec_val)
-            << " sid:" << msg_ask_life->header()->exchange_id()
-            << " iid:" << msg_ask_life->header()->interest_id()
-            << " dest:" << msg_ask_life->header()->proc_dest()
-            << " origin:" << msg_ask_life->header()->proc_origin();
+  LOG(INFO) << "Got ASKLIFE "
+            << " sid:"    << msg_ask_life->header()->exchange_id()
+            << " iid:"    << msg_ask_life->header()->interest_id()
+            << " origin:" << msg_ask_life->header()->proc_origin()
+            << " dest:"   << msg_ask_life->header()->proc_dest();
+  LOG(INFO) << "Send LIVING "
+            << " sid:"    << simple_reply->header()->exchange_id()
+            << " iid:"    << simple_reply->header()->interest_id()
+            << " origin:" << simple_reply->header()->proc_origin()
+            << " dest:"   << simple_reply->header()->proc_dest();
 
   send_to_broker((char*) MDPW_REPORT, NULL, response);
 
   delete response;
+  delete simple_reply;
 
   return rc;
 }

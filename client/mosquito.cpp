@@ -601,12 +601,12 @@ int main (int argc, char *argv [])
       mosquito->send (service_name, transport_cell, channel);
     }
     delete transport_cell;
-    delete request;
 
     int cause_code = 0;
     std::string cause_text = "";
-    msg::ExecResult *resp_exec = NULL;
-    msg::SimpleRequest *resp_simple = NULL;
+    msg::ExecResult     *resp_exec = NULL;
+    msg::SimpleRequest  *request_simple = NULL;
+    msg::SimpleReply    *reply_simple = NULL;
     int exec_result_value;
     bool exec_res_exist;
 
@@ -629,21 +629,32 @@ int main (int argc, char *argv [])
             switch(report->header()->usr_msg_type())
             {
               case ADG_D_MSG_STOP:
-                resp_simple = dynamic_cast<msg::SimpleRequest*>(report);
-                exec_res_exist = resp_simple->exec_result(exec_result_value);
+                request_simple = dynamic_cast<msg::SimpleRequest*>(report);
+                exec_res_exist = request_simple->exec_result(exec_result_value);
                 std::cout << "Got ADG_D_MSG_STOP response: "
-                          << resp_simple->header()->usr_msg_type()
-                          << " status=" << ((true == exec_res_exist)? 999 : exec_result_value)
+                          << request_simple->header()->usr_msg_type()
+                          << " status=" << ((true == exec_res_exist)? exec_result_value : 999)
                           << std::endl;
                 stop_receiving = true;
                 break;
 
-              case ADG_D_MSG_ASKLIFE:
-                resp_simple = dynamic_cast<msg::SimpleRequest*>(report);
-                exec_res_exist = resp_simple->exec_result(exec_result_value);
+              case ADG_D_MSG_ASKLIFE:   // TODO: Москит не должен получать это сообщение
+                // Это может быть неверным ответом адресата на посланный нами ADG_D_MSG_ASKLIFE
+                request_simple = dynamic_cast<msg::SimpleRequest*>(report);
+                exec_res_exist = request_simple->exec_result(exec_result_value);
                 std::cout << "Got ADG_D_MSG_ASKLIFE response: "
-                          << resp_simple->header()->usr_msg_type()
-                          << " status=" << ((true == exec_res_exist)? 999 : exec_result_value)
+                          << request_simple->header()->usr_msg_type()
+                          << " status=" << ((true == exec_res_exist)? exec_result_value : 999)
+                          << std::endl;
+                stop_receiving = true;
+                break;
+
+              case ADG_D_MSG_LIVING:    // Ответ на ASKLIFE
+                reply_simple = dynamic_cast<msg::SimpleReply*>(report);
+                std::cout << "Got ADG_D_MSG_LIVING response: "
+                          << reply_simple->header()->usr_msg_type()
+                          << " sent: " << request->header()->time_mark()
+                          << " recv: " << reply_simple->header()->time_mark()
                           << std::endl;
                 stop_receiving = true;
                 break;
@@ -721,6 +732,11 @@ int main (int argc, char *argv [])
           LOG(ERROR) << "Unexpected recv() return code: " << status;
       } // конец switch-проверки статуса recv()
     }  // конец цикла ожидания нового сообщения
+
+    // Удалим отправленный запрос тут, чтобы иметь возможность сравнить
+    // его атрибуты с атрибутами полученного ответа
+    delete request;
+
   } // конец блока try{}
   catch (zmq::error_t err)
   {

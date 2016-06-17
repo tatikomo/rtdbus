@@ -37,8 +37,12 @@ class SystemAcquisitionModule : public mdwrk {
     // Нить подчиненного интерфейса с Системой Сбора
     std::thread* m_servant_thread;
 
+    // Внутренние обработчики полученных внешних запросов
     int handle_asklife(msg::Letter*, std::string*);
     int handle_stop(msg::Letter*, std::string*);
+    int handle_init(msg::Letter*, std::string*);
+    int handle_end_all_init(msg::Letter*, std::string*);
+    int handle_internal_request(msg::Letter*, std::string*);
 };
 
 }; // end namespace
