@@ -1,5 +1,16 @@
-#include <glog/logging.h>
+// =====================================================================
+//
+// =====================================================================
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
+// Общесистемные заголовочные файлы
+
+// Служебные заголовочные файлы сторонних утилит
+#include "glog/logging.h"
+
+// Служебные файлы RTDBUS
 #include "config.h"
 #include "mdp_zmsg.hpp"
 #include "mdp_client_async_api.hpp"

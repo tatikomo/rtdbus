@@ -1,10 +1,14 @@
 //
 //  Send ASKLIFE to PROCESS example.
+//
 
+// Общесистемные заголовочные файлы
 #include <string>
-#include <google/protobuf/stubs/common.h>
-#include <glog/logging.h>
+// Служебные заголовочные файлы сторонних утилит
+#include "google/protobuf/stubs/common.h"
+#include "glog/logging.h"
 
+// Служебные файлы RTDBUS
 #include "config.h"
 
 #include "mdp_common.h"

@@ -1,8 +1,12 @@
-#include <glog/logging.h>
+// Общесистемные заголовочные файлы
 #include <assert.h>
 #include <iostream>
 #include <string.h>
 
+// Служебные заголовочные файлы сторонних утилит
+#include "glog/logging.h"
+
+// Служебные файлы RTDBUS
 #include "config.h"
 #include "mdp_zmsg.hpp"
 #include "msg_common.h"
