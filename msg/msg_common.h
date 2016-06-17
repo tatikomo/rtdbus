@@ -8,7 +8,7 @@ typedef uint32_t rtdbExchangeId;/* системный(служебный) иде
 typedef uint32_t rtdbPid;       /* идентификатор процесса-отправителя */
 typedef uint16_t rtdbMsgType;   /* тип сообщения */
 
-typedef char rtdbProcessId[40]; /* имя процесса. TODO: размерность */
+typedef char rtdbProcessId[SERVICE_NAME_MAXLEN + 1]; /* имя процесса */
 
 /* системный тип служебных сообщений */
 #define CORE_MESSAGE_TYPE       1

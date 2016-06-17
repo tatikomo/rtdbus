@@ -4,6 +4,7 @@
 
 // Общесистемные заголовочные файлы
 #include <assert.h>
+#include <thread>
 
 // Служебные заголовочные файлы сторонних утилит
 #include "glog/logging.h"
@@ -34,8 +35,10 @@ SystemAcquisitionModule::SystemAcquisitionModule(const std::string& broker_endpo
                        const std::string& config_filename)  // Название конфигурационного файла локальной тестовой СС
  : mdwrk(broker_endpoint, service, true),
    m_impl(NULL),
+   m_to_slave(m_context, ZMQ_PAIR),
    m_status(0),
-   m_message_factory(new msg::MessageFactory(service.c_str()))
+   m_message_factory(new msg::MessageFactory(service.c_str())),
+   m_servant_thread(NULL)
 {
   LOG(INFO) << "create new system acquisition worker";
   // TODO: На основании конфигурационного файла определить, что за тип у данной системы сбора
@@ -55,7 +58,7 @@ SystemAcquisitionModule::SystemAcquisitionModule(const std::string& broker_endpo
 
   switch(common_data.nature) {
     case GOF_D_SAC_NATURE_EELE:
-      m_impl = new RTDBUS_Modbus_client(config_filename);
+      m_impl = new RTDBUS_Modbus_client(config_filename, &m_context);
       break;
     default:
       LOG(FATAL) << "Unsupported System Acquisition type: " << common_data.nature;
@@ -66,6 +69,8 @@ SystemAcquisitionModule::SystemAcquisitionModule(const std::string& broker_endpo
   set_recv_timeout(1000000); // 1 sec
   // Изменения активизируются после нового подключения к Брокеру
   connect_to_broker();
+
+  m_to_slave.bind(s_SA_INTERNAL_EXCHANGE_ENDPOINT);
 }
 
 // --------------------------------------------------------------------------------
@@ -73,6 +78,7 @@ SystemAcquisitionModule::~SystemAcquisitionModule()
 {
   LOG(INFO) << "start system acquisition destructor";
   delete m_impl;
+  m_to_slave.close();
   delete m_message_factory;
   LOG(INFO) << "finish system acquisition destructor";
 }
@@ -92,29 +98,30 @@ int SystemAcquisitionModule::run()
 
   interrupt_worker = 0;
 
+#if (VERBOSE > 2)
+  LOG(INFO) << fname << ": start";
+#endif
+  // Запустить нить интерфейса
+  m_servant_thread = new std::thread(std::bind(&SysAcqInterface::run, m_impl));
+
   // Ожидание завершения работы
   while (!interrupt_worker
      && (STATUS_OK_SHUTTINGDOWN != (status = m_impl->status())))
   {
-    LOG(INFO) << fname << ": ready";
     request = NULL;
 
     // NB: Функция recv возвращает только PERSISTENT-сообщения
-    request = recv (reply_to, 0);
+    request = recv (reply_to);
     if (request)
     {
+#if (VERBOSE > 5)
       LOG(INFO) << fname << ": got a message";
+#endif
 
       handle_request (request, reply_to);
 
       delete request;
-//      delete reply_to;
     }
-    else {
-      LOG(INFO) << "Nothing read, sleep";
-      usleep(200000);
-    }
-
   
 #if 0
     if (old_status != m_impl->status()) {
@@ -145,19 +152,20 @@ int SystemAcquisitionModule::run()
           LOG(WARNING) << "Unsupported combination: " << old_status << " and " << new_status;
       }
     }
-#else
-    // Добавить очередь событий
-    // Формирование задержек с помощью sleep ведет к потере входящих сообщений от Брокера и Клиентов,
-    // в то же время скорость обращения внутреннего цикла сбора информации не совпадает с требуемой
-    // скоростью опроса СС.
-    // В очередь сообщений добавляются такие события:
-    // 1. Наступление очередного периода опроса
-    // 2. Создание нового запроса на подключение к СС
-    // 3. ????
     //
 #endif
   }
 
+  delete reply_to;
+
+  // Остановить нить подчиненного интерфейса СС
+  m_impl->stop();
+  m_servant_thread->join();
+  delete m_servant_thread;
+
+#if (VERBOSE > 2)
+  LOG(INFO) << fname << ": finish";
+#endif
   return status;
 }
 
@@ -185,7 +193,6 @@ int SystemAcquisitionModule::handle_request(mdp::zmsg* request, std::string*& re
        break;
 
       case ADG_D_MSG_STOP:
-       interrupt_worker = 1;
        rc = handle_stop(letter, reply_to);
        break;
 
@@ -240,6 +247,9 @@ int SystemAcquisitionModule::handle_stop(msg::Letter* letter, std::string* reply
   int exec_val = 1;
   mdp::zmsg *response = new mdp::zmsg();
 
+  // Отправить в сокет to_slave команду завершения работы
+  m_to_slave.send("STOP", 4, 0);
+  
   msg_stop->set_exec_result(exec_val);
 
   response->push_front(const_cast<std::string&>(msg_stop->data()->get_serialized()));
@@ -255,6 +265,8 @@ int SystemAcquisitionModule::handle_stop(msg::Letter* letter, std::string* reply
 
   send_to_broker((char*) MDPW_REPORT, NULL, response);
   delete response;
+
+  interrupt_worker = 1;
 
   return rc;
 }

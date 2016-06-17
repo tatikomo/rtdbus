@@ -1,6 +1,11 @@
-#include <glog/logging.h>
+// Общесистемные заголовочные файлы
 
+// Служебные заголовочные файлы сторонних утилит
+#include "glog/logging.h"
 #include "zmq.hpp"
+
+// Служебные файлы RTDBUS
+#include "config.h"
 #include "helper.hpp"
 #include "mdp_zmsg.hpp"
 #include "mdp_worker_api.hpp"

@@ -8,10 +8,10 @@
 
 // Общесистемные заголовочные файлы
 #include <map>
-//#include <sys/socket.h>
 
 // Служебные заголовочные файлы сторонних утилит
 #include "modbus.h"
+#include "zmq.hpp"
 
 // Служебные файлы RTDBUS
 #include "exchange_config.hpp"
@@ -100,8 +100,15 @@ typedef struct {
 // ---------------------------------------------------------
 class RTDBUS_Modbus_client : public SysAcqInterface {
   public:
-    RTDBUS_Modbus_client(const std::string&);
+    RTDBUS_Modbus_client(const std::string&, zmq::context_t* = NULL);
    ~RTDBUS_Modbus_client();
+    // Основной рабочий цикл
+    void run();
+    void stop();
+    // Обработка сигнала "ИНИЦИАЛИЗАЦИЯ"
+    void process_INIT();
+    // Обработка сигнала "ЗАВЕРШЕНИЕ РАБОТЫ"
+    void process_STOP();
     // Подготовительные действия перед работой - чтение конфигурации, инициализация,...
     client_status_t prepare();
     // Элементарное действие, зависящее от текущего состояния
@@ -146,7 +153,7 @@ class RTDBUS_Modbus_client : public SysAcqInterface {
     // Код состояния модуля
     client_status_t m_status;
 
-    modbus_t *m_ctx;
+    modbus_t *m_modbus_context;
     // Размер заголовка запроса
     int m_header_length;
     // Параметры самого интерфейсного модуля

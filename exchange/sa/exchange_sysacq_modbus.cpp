@@ -11,14 +11,17 @@
 // Служебные заголовочные файлы сторонних утилит
 #include "glog/logging.h"
 #include "modbus.h"
+#include "zmq.hpp"
 #include "rapidjson/reader.h"
 #include "rapidjson/document.h"
 #include "rapidjson/filereadstream.h"
 
 // Служебные файлы RTDBUS
+#include "tool_events.hpp"
 #include "exchange_sysacq_modbus.hpp"
 #include "exchange_smad_int.hpp"
 #include "exchange_config_sac.hpp"
+#include "exchange_config.hpp"
 
 using namespace rapidjson;
 using namespace std;
@@ -80,10 +83,11 @@ static void catch_signals ()
 // Аргументы:
 // 1) Флаг активации режима отладки
 // 2) Название системы сбора
-RTDBUS_Modbus_client::RTDBUS_Modbus_client(const std::string& config_filename)
-: SysAcqInterface(config_filename),
+RTDBUS_Modbus_client::RTDBUS_Modbus_client(const std::string& config_filename, zmq::context_t* ctx)
+: SysAcqInterface(config_filename, ctx),
   m_connection_idx(0),
-  m_ctx(NULL),
+  m_status(),
+  m_modbus_context(NULL),
   m_header_length(0)
 {
 #if 0
@@ -109,7 +113,7 @@ RTDBUS_Modbus_client::RTDBUS_Modbus_client(const std::string& config_filename)
 // ==========================================================================================
 RTDBUS_Modbus_client::~RTDBUS_Modbus_client()
 {
-  //LOG(INFO) << "Destructor RTDBUS_Modbus_client, ctx="<< m_ctx;
+  //LOG(INFO) << "Destructor RTDBUS_Modbus_client, ctx="<< m_modbus_context;
   // Освободить SMAD, отключившись от него
   delete m_smad;
 
@@ -123,8 +127,8 @@ RTDBUS_Modbus_client::~RTDBUS_Modbus_client()
 
   delete m_config;
 
-  modbus_close(m_ctx);
-  modbus_free(m_ctx);
+  modbus_close(m_modbus_context);
+  modbus_free(m_modbus_context);
 }
 
 // ==========================================================================================
@@ -203,10 +207,10 @@ client_status_t RTDBUS_Modbus_client::connect()
 
   // Если это повторное подключение после неуспешной работы
   if (STATUS_FAIL_NEED_RECONNECTED == m_status) {
-    if (m_ctx) {
-      modbus_close(m_ctx);
-      modbus_free(m_ctx);
-      m_ctx = NULL;
+    if (m_modbus_context) {
+      modbus_close(m_modbus_context);
+      modbus_free(m_modbus_context);
+      m_modbus_context = NULL;
     }
   }
 
@@ -232,8 +236,8 @@ client_status_t RTDBUS_Modbus_client::connect()
           // Нашли первую пару хост-порт, которые известны системе
           LOG(INFO) << "Connecting to " << list[m_connection_idx].host_name << ":" << (unsigned int) port_num;
 
-          m_ctx = modbus_new_tcp("127.0.0.1" /* list[m_connection_idx].host_name */, port_num);
-          if (NULL == m_ctx) {
+          m_modbus_context = modbus_new_tcp("127.0.0.1" /* list[m_connection_idx].host_name */, port_num);
+          if (NULL == m_modbus_context) {
             LOG(ERROR) << fname << ": modbus_new_tcp - " << modbus_strerror(errno);
           }
         }
@@ -256,12 +260,12 @@ client_status_t RTDBUS_Modbus_client::connect()
                 << (unsigned int) m_config->rtu_list()[0].nbit << ":"
                 << (unsigned char)m_config->rtu_list()[0].parity << ":"
                 << (unsigned int) m_config->rtu_list()[0].flow_control;
-      m_ctx = modbus_new_rtu(m_config->rtu_list()[0].dev_name,
+      m_modbus_context = modbus_new_rtu(m_config->rtu_list()[0].dev_name,
                              m_config->rtu_list()[0].speed,
                              m_config->rtu_list()[0].parity,
                              m_config->rtu_list()[0].nbit,
                              m_config->rtu_list()[0].flow_control);
-      if (NULL == m_ctx) {
+      if (NULL == m_modbus_context) {
         LOG(ERROR) << fname << ": modbus_new_rtu - " << modbus_strerror(errno);
       }
       break;
@@ -270,16 +274,16 @@ client_status_t RTDBUS_Modbus_client::connect()
       LOG(ERROR) << fname << ": unsupported mode: " << m_config->channel(); 
   }
 
-  if (m_ctx && (0 == modbus_connect(m_ctx))) {
-    modbus_set_debug(m_ctx, TRUE);
+  if (m_modbus_context && (0 == modbus_connect(m_modbus_context))) {
+    modbus_set_debug(m_modbus_context, TRUE);
 
     // Установка таймаута
     response_timeout.tv_sec = m_config->timeout();
     response_timeout.tv_usec = 0;
-    modbus_set_response_timeout(m_ctx, response_timeout.tv_sec, response_timeout.tv_usec);
+    modbus_set_response_timeout(m_modbus_context, response_timeout.tv_sec, response_timeout.tv_usec);
 
     // Может быть разной длины, для RTU=256, для TCP=260
-    m_header_length = modbus_get_header_length(m_ctx);
+    m_header_length = modbus_get_header_length(m_modbus_context);
     m_status = STATUS_OK_CONNECTED;
     ++m_connection_reestablised;
   }
@@ -288,9 +292,9 @@ client_status_t RTDBUS_Modbus_client::connect()
     m_status = STATUS_OK_NOT_CONNECTED;
     // Подключиться не получилось, поэтому освободим память,
     // выделенную в modbus_new_tcp() или modbus_new_rtu()
-    if (!m_ctx) {
-      modbus_free(m_ctx);
-      m_ctx = NULL;
+    if (!m_modbus_context) {
+      modbus_free(m_modbus_context);
+      m_modbus_context = NULL;
     }
     ++m_num_connection_try;
   }
@@ -435,7 +439,7 @@ client_status_t RTDBUS_Modbus_client::ask()
               << " quantity:" << (unsigned int) (*it).QuantityRegisters
               << " bytes:" << (unsigned int) (*it).SizeRequestedPayload;
 
-    if (-1 == modbus_set_slave(m_ctx, (*it).IdModbusServer))
+    if (-1 == modbus_set_slave(m_modbus_context, (*it).IdModbusServer))
     {
         LOG(WARNING) << "Setting slave identity to " << (unsigned int) (*it).IdModbusServer;
     }
@@ -463,7 +467,7 @@ client_status_t RTDBUS_Modbus_client::ask()
     switch((*it).NumberModbusFunction) {
       case code_MBUS_TYPE_SUPPORT_HC:   // 1
         do {
-          nb = modbus_read_bits(m_ctx,
+          nb = modbus_read_bits(m_modbus_context,
                                (*it).StartAddress,
                                (*it).QuantityRegisters,
                                rsp_8);
@@ -476,7 +480,7 @@ client_status_t RTDBUS_Modbus_client::ask()
 
       case code_MBUS_TYPE_SUPPORT_IC:   // 2
         do {
-          nb = modbus_read_input_bits(m_ctx,
+          nb = modbus_read_input_bits(m_modbus_context,
                                (*it).StartAddress,
                                (*it).QuantityRegisters,
                                rsp_8);
@@ -488,7 +492,7 @@ client_status_t RTDBUS_Modbus_client::ask()
 
       case code_MBUS_TYPE_SUPPORT_HR:   // 3
         do {
-          nb = modbus_read_registers(m_ctx,
+          nb = modbus_read_registers(m_modbus_context,
                                (*it).StartAddress,
                                num_uint16_registers_to_read, //1 (*it).QuantityRegisters,
                                rsp_16);
@@ -500,7 +504,7 @@ client_status_t RTDBUS_Modbus_client::ask()
 
       case code_MBUS_TYPE_SUPPORT_IR:   // 4
         do {
-          nb = modbus_read_input_registers(m_ctx,
+          nb = modbus_read_input_registers(m_modbus_context,
                                (*it).StartAddress,
                                num_uint16_registers_to_read, //1 (*it).QuantityRegisters,
                                rsp_16);
@@ -516,7 +520,7 @@ client_status_t RTDBUS_Modbus_client::ask()
       case code_MBUS_TYPE_SUPPORT_DP:   // 105
         do {
           // Поскольку функция нестандартная, посылаем "сырой" заранее сформированный запрос
-          nb = modbus_send_raw_request(m_ctx,
+          nb = modbus_send_raw_request(m_modbus_context,
                              (*it).RequestPayload,
                              6 * sizeof(uint8_t));
           if (-1 == nb) {
@@ -525,7 +529,7 @@ client_status_t RTDBUS_Modbus_client::ask()
           else {
             // Попытаемся получить ответ на запрос
             // Признак "хорошего" ответа - ненулевой код ответа и верное количество прочитанных байт
-            nb = modbus_receive_confirmation(m_ctx, rsp_8);
+            nb = modbus_receive_confirmation(m_modbus_context, rsp_8);
             if (-1 == nb) {
               LOG(ERROR) << "Unable to receive response, #fails=" << ++nb_fail;
             }
@@ -1157,5 +1161,107 @@ int RTDBUS_Modbus_client::calculate()
   }
 
   return m_actual_orders_description.size();
+}
+
+// ==========================================================================================
+// Основной цикл работы интерфейса СС
+// Подключиться к сокету команд верхнего уровня
+// Подключиться к низовой СС
+// В бесконечном цикле:
+//  1. получать команды от верхнего уровня
+//  2. планировать выполнение действий по сбору/управлению подчиненной СС
+void RTDBUS_Modbus_client::run()
+{
+  const char* fname = "run";
+  // Индикатор, получили ли мы сообщение в текущем цикле чтения из сокета from_master
+  bool got_message = false;
+  zmq::socket_t from_master(*m_zmq_context, ZMQ_PAIR);
+  // Всего один сокет для прослушивания
+  zmq::pollitem_t items[] = {{(void*)&from_master, 0, ZMQ_POLLIN, 0}};
+  std::string command;
+
+  LOG(INFO) << fname << ": start";
+  // Подключиться к контрольному сокету для получения команд от управляющего интерфейса
+  from_master.connect(s_SA_INTERNAL_EXCHANGE_ENDPOINT);
+
+  items[0].socket = (void*)from_master;  // NB: (void*) нужен для доступа к внутр. идентификатору
+  items[0].fd = 0;
+  items[0].events = ZMQ_POLLIN;
+  items[0].revents = 0;
+
+  while(!g_interrupt) {
+    got_message = false;
+    zmq::poll (items, 1, 0 /* DONTWAIT */);
+
+	if (items[0].revents & ZMQ_POLLIN) {
+      zmq::message_t msg;
+      from_master.recv(&msg);
+      command.assign(static_cast<char*>(msg.data()), msg.size());
+      LOG(INFO) << fname << ": got message: '" << command << "'";
+      // Добавить очередь событий
+      // В очередь сообщений добавляются такие события:
+      // 1. Наступление очередного периода опроса
+      // 2. Создание нового запроса на подключение к СС
+      // 3. ????
+
+      if (0 == command.compare("STOP")) {
+        // завершение работы
+        LOG(INFO) << "Call STOP";
+        events::add(std::bind(&RTDBUS_Modbus_client::process_STOP, this), std::chrono::system_clock::now());
+        g_interrupt = 1;
+      }
+      else if (0 == command.compare("INIT")) {
+        LOG(INFO) << "Call INIT";
+        events::add(std::bind(&RTDBUS_Modbus_client::process_INIT, this), std::chrono::system_clock::now());
+        got_message = true;
+      }
+      else {
+        LOG(ERROR) << "Unexpected command: '" << command << "'";
+      }
+    }
+
+    events::timer();
+
+    if (!got_message) {
+      // Нет сообщений - займемся плановыми делами
+      usleep(100000);
+    }
+  }
+
+  // Выполнить оставшиеся события
+  events::timer();
+
+  // Закрываем сокет управления
+  from_master.close();
+
+  LOG(INFO) << fname << ": finish " << g_interrupt;
+  return;
+}
+
+// ==========================================================================================
+// Вызов этого метода приводит к останову нити.
+// Чтобы при этом успели сработать оставшиеся в очереди события,
+// добавляется пауза в 1/10 секунды. Это нужно, чтобы переключить контекст на нить
+// RTDBUS_Modbus_client::run(), в которой и вызываются обработчики событий.
+void RTDBUS_Modbus_client::stop()
+{
+  LOG(INFO) << "Got a fast STOP command";
+  // Переключиться на короткое время в нить RTDBUS_Modbus_client::run()
+  // Без этой паузы нить завершается сразу.
+  // Это не критично, но лучше дать отработать финальным событиям
+  usleep(100000);
+  // Выставить флаг завершения бесконечного цикла в RTDBUS_Modbus_client::run()
+  g_interrupt = 1;
+}
+// ==========================================================================================
+void RTDBUS_Modbus_client::process_INIT()
+{
+  LOG(INFO) << "Event: INIT";
+}
+
+// ==========================================================================================
+void RTDBUS_Modbus_client::process_STOP()
+{
+  LOG(INFO) << "Event: STOP";
 }
 

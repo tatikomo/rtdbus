@@ -12,10 +12,10 @@
 #endif
 
 // Общесистемные заголовочные файлы
-//#include <map>
 #include <string>
 
 // Служебные заголовочные файлы сторонних утилит
+#include "zmq.hpp"
 
 // Служебные файлы RTDBUS
 #include "exchange_config.hpp"
@@ -55,16 +55,21 @@ class InternalSMAD;
 // =============================================================================================
 class SysAcqInterface {
   public:
-    SysAcqInterface(const std::string& filename) 
+    SysAcqInterface(const std::string& filename, zmq::context_t* ctx = NULL)
     : m_config_filename(filename),
       m_status(STATUS_OK_NOT_CONNECTED),
       m_config(NULL),
       m_sa_common(),
       m_smad(NULL),
       m_connection_reestablised(0),
-      m_num_connection_try(0)
+      m_num_connection_try(0),
+      m_zmq_context(ctx)
       {};
     virtual ~SysAcqInterface() {};
+    virtual void run() = 0;
+    virtual void stop() = 0;
+    virtual void process_INIT() = 0;
+    virtual void process_STOP() = 0;
     // Подготовительные действия перед работой - чтение конфигурации, инициализация,...
     virtual client_status_t prepare() = 0;
     // Элементарное действие, зависящее от текущего состояния
@@ -81,6 +86,7 @@ class SysAcqInterface {
     InternalSMAD   *m_smad;
     int             m_connection_reestablised;
     int             m_num_connection_try;
+    zmq::context_t *m_zmq_context;
 };
 // =============================================================================================
 

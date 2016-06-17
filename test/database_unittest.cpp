@@ -1632,7 +1632,7 @@ TEST(TestHIST, HIST_ACCESS)
   // Номер порта БД хранения предыстории
   bool history_db_connected = false;
 
-  strcpy(history_db_filename, HISTDB_SNAP_FILENAME);
+  strcpy(history_db_filename, HISTORY_DB_FILENAME);
 
   historic = new HistoricImpl(env, history_db_filename);
 

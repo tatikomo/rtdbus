@@ -60,8 +60,6 @@
 #cmakedefine ENDPOINT_SBS_PUBLISHER   "@ENDPOINT_SBS_PUBLISHER@"
 /* historian server */
 #cmakedefine ENDPOINT_HIST_FRONTEND   "@ENDPOINT_HIST_FRONTEND@"
-/* historian database snapshot filename */
-#cmakedefine HISTDB_SNAP_FILENAME     "@HISTDB_SNAP_FILENAME@"
 
 /* Predefined service names */
 #cmakedefine BROKER_NAME        "@BROKER_NAME@"

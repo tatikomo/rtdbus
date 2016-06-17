@@ -10,6 +10,8 @@
 #include <vector>
 #include <map>
 
+// Название сокета для связи между общим интерфейсом СС и интерфейсом её реализации
+#define s_SA_INTERNAL_EXCHANGE_ENDPOINT "inproc://sys_acq_control"
 // Названия разделов конфигурационного файла
 #define s_COMMON        "common"    // общие сведения о работе модуля
 #define s_MODBUS        "modbus"    // сведения, специфичные для работы протокола MODBUS
