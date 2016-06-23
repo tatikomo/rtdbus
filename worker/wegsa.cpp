@@ -16,38 +16,33 @@
 
 // Служебные заголовочные файлы сторонних утилит
 #include "glog/logging.h"
+#include "google/protobuf/stubs/common.h"
 
 // Служебные файлы RTDBUS
 #include "exchange_config.hpp"
-#include "exchange_egsa_host.hpp"
+#include "exchange_egsa_impl.hpp"
 
 int main(int argc, char *argv[])
 {
   int rc = NOK;
   int opt;
-  EGSA_Host* instance = NULL;
-  std::string service_name = EXCHANGE_NAME; //[SERVICE_NAME_MAXLEN + 1];
-  std::string broker_endpoint = ENDPOINT_BROKER; //[ENDPOINT_MAXLEN + 1];
-
-  ::google::InstallFailureSignalHandler();
-
+  EGSA* instance = NULL;
   // Значения по-умолчанию
-//  strcpy(broker_endpoint, ENDPOINT_BROKER);
-//  strcpy(service_name, EXCHANGE_NAME);
+  std::string service_name = EXCHANGE_NAME;
+  std::string broker_endpoint = ENDPOINT_BROKER;
+
+  ::google::InitGoogleLogging(argv[0]);
+  ::google::InstallFailureSignalHandler();
 
   while ((opt = getopt (argc, argv, "b:s:")) != -1)
   {
      switch (opt)
      {
        case 'b': // точка подключения к Брокеру
-//         strncpy(broker_endpoint, optarg, ENDPOINT_MAXLEN);
-//         broker_endpoint[ENDPOINT_MAXLEN] = '\0';
          broker_endpoint.assign(optarg);
          break;
 
        case 's': // название собственной Службы
-//         strncpy(service_name, optarg, SERVICE_NAME_MAXLEN);
-//         service_name[SERVICE_NAME_MAXLEN] = '\0';
          service_name.assign(optarg);
          break;
 
@@ -67,13 +62,15 @@ int main(int argc, char *argv[])
      }
   }
 
-  instance = new EGSA_Host(broker_endpoint, service_name, 1);
+  instance = new EGSA(broker_endpoint, service_name/*, 1*/);
   LOG(INFO) << "Start host EGSA instance";
 
   rc = instance->run();
 
   LOG(INFO) << "Finish host EGSA instance, rc=" << rc;
-  //::google::protobuf::ShutdownProtobufLibrary();
+
+  ::google::protobuf::ShutdownProtobufLibrary();
+  ::google::ShutdownGoogleLogging();
 
   return (OK == rc)? EXIT_SUCCESS : EXIT_FAILURE;
 }

@@ -86,7 +86,8 @@ static void catch_signals ()
 RTDBUS_Modbus_client::RTDBUS_Modbus_client(const std::string& config_filename, zmq::context_t* ctx)
 : SysAcqInterface(config_filename, ctx),
   m_connection_idx(0),
-  m_status(),
+  m_status(STATUS_OK_NOT_CONNECTED),
+  m_sign_ready(false),
   m_modbus_context(NULL),
   m_header_length(0)
 {
@@ -1175,6 +1176,7 @@ void RTDBUS_Modbus_client::run()
   const char* fname = "run";
   // Индикатор, получили ли мы сообщение в текущем цикле чтения из сокета from_master
   bool got_message = false;
+  int iter = 0;
   zmq::socket_t from_master(*m_zmq_context, ZMQ_PAIR);
   // Всего один сокет для прослушивания
   zmq::pollitem_t items[] = {{(void*)&from_master, 0, ZMQ_POLLIN, 0}};
@@ -1220,6 +1222,13 @@ void RTDBUS_Modbus_client::run()
       }
     }
 
+// Отладка!!!!
+    if (5 == ++iter) {
+      LOG(WARNING) << "This is SPARTA!!! Fire the INIT reception signal by myself!"
+      events::add(std::bind(&RTDBUS_Modbus_client::process_INIT, this), std::chrono::system_clock::now());
+    }
+// Отладка!!!!
+
     events::timer();
 
     if (!got_message) {
@@ -1256,12 +1265,65 @@ void RTDBUS_Modbus_client::stop()
 // ==========================================================================================
 void RTDBUS_Modbus_client::process_INIT()
 {
+  auto now = std::chrono::system_clock::now();
+
   LOG(INFO) << "Event: INIT";
+  m_sign_ready = true;
+
+  // Поставить в очередь циклы из конфигурации для данной Системы Сбора:
+  // GENCONTROL
+  // ACQSYSACQ
+  // ...
+  // Первым делом получить состояние Системы Сбора
+  events::add(std::bind(&RTDBUS_Modbus_client::do_ACQSYSACQ,  this), now);
+  // Следом, если СС в оперативном режиме, получить весь набор данных
+  events::add(std::bind(&RTDBUS_Modbus_client::do_GENCONTROL, this), now + std::chrono::seconds(1));
+  events::add(std::bind(&RTDBUS_Modbus_client::do_URGINFOS,   this), now + std::chrono::seconds(5));
+  events::add(std::bind(&RTDBUS_Modbus_client::do_INFOSACQ,   this), now + std::chrono::seconds(2));
 }
 
 // ==========================================================================================
 void RTDBUS_Modbus_client::process_STOP()
 {
   LOG(INFO) << "Event: STOP";
+  m_sign_ready = true;
+}
+
+// ==========================================================================================
+// Обработчик авто-инициированного цикла ADG_D_MSG_GENCONTROL
+void RTDBUS_Modbus_client::do_GENCONTROL()
+{
+  auto now = std::chrono::system_clock::now();
+  LOG(INFO) << "Do GENCONTROL";
+  events::add(std::bind(&RTDBUS_Modbus_client::do_GENCONTROL, this), now + std::chrono::seconds(60));
+}
+
+// ==========================================================================================
+// Обработчик авто-инициированного цикла ADG_D_MSG_GENCONTROL
+void RTDBUS_Modbus_client::do_ACQSYSACQ()
+{
+  auto now = std::chrono::system_clock::now();
+  LOG(INFO) << "Do ACQSYSACQ";
+  // TODO: Если СС в оперативном режиме, дадим разрешение на получение данных
+  m_status = STATUS_OK_CONNECTED; // NB: для отладки
+  events::add(std::bind(&RTDBUS_Modbus_client::do_ACQSYSACQ,  this), now + std::chrono::seconds(10));
+}
+
+// ==========================================================================================
+// Обработчик авто-инициированного цикла ADG_D_MSG_GENCONTROL
+void RTDBUS_Modbus_client::do_URGINFOS()
+{
+  auto now = std::chrono::system_clock::now();
+  LOG(INFO) << "Do URGINFOS";
+  events::add(std::bind(&RTDBUS_Modbus_client::do_URGINFOS,   this), now + std::chrono::seconds(5));
+}
+
+// ==========================================================================================
+// Обработчик авто-инициированного цикла ADG_D_MSG_GENCONTROL
+void RTDBUS_Modbus_client::do_INFOSACQ()
+{
+  auto now = std::chrono::system_clock::now();
+  LOG(INFO) << "Do INFOSACQ";
+  events::add(std::bind(&RTDBUS_Modbus_client::do_INFOSACQ,   this), now + std::chrono::seconds(2));
 }
 

@@ -73,8 +73,8 @@ set (TEST_EXCHANGE_SOURCES
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_init.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.cpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_host.hpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_host.cpp
+#        ${EXCHANGE_EGSA_DIR}/exchange_egsa_host.hpp
+#        ${EXCHANGE_EGSA_DIR}/exchange_egsa_host.cpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.hpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.hpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config_sac.hpp

@@ -79,6 +79,12 @@ class SysAcqInterface {
     client_status_t status() { return m_status; };
 
   protected:
+    // Обработчики инициированных самостоятельно циклов
+    virtual void do_GENCONTROL() = 0;
+    virtual void do_ACQSYSACQ() = 0;
+    virtual void do_URGINFOS() = 0;
+    virtual void do_INFOSACQ() = 0;
+
     std::string     m_config_filename;
     client_status_t m_status;
     AcquisitionSystemConfig* m_config;

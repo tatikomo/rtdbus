@@ -25,8 +25,6 @@ AcquisitionSystemConfig* g_sa_config = NULL;
 EgsaConfig* g_egsa_config = NULL;
 EGSA* g_egsa_instance = NULL;
 SystemAcquisition* g_sa = NULL;
-msg::MessageFactory* g_message_factory = NULL;
-zmq::context_t g_ctx(1);
 
 const char* g_sa_config_filename = "BI4500.json";
 const char* g_egsa_config_filename = "egsa.json";
@@ -35,11 +33,9 @@ extern ega_ega_odm_t_RequestEntry g_requests_table[]; // declared in exchange_eg
 TEST(TestEXCHANGE, EGSA_CREATE)
 {
   std::string broker_endpoint = ENDPOINT_BROKER;
+  std::string service_name = EXCHANGE_NAME;
 
-  g_message_factory = new msg::MessageFactory(EXCHANGE_NAME);
-  ASSERT_TRUE(g_message_factory != NULL);
-
-  g_egsa_instance = new EGSA(broker_endpoint, g_ctx, g_message_factory);
+  g_egsa_instance = new EGSA(broker_endpoint, service_name);
   ASSERT_TRUE(g_egsa_instance != NULL);
 
   g_sa_config = new AcquisitionSystemConfig(g_sa_config_filename);

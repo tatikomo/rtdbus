@@ -124,6 +124,11 @@ class RTDBUS_Modbus_client : public SysAcqInterface {
     int calculate();
     client_status_t ask();
     client_status_t connect();
+    // Обработчики авто-инициированных циклов
+    void do_GENCONTROL();
+    void do_ACQSYSACQ();
+    void do_URGINFOS();
+    void do_INFOSACQ();
     // Разбор буфера ответа от СС на уровне байтов
     int parse_response(ModbusOrderDescription&, uint8_t*, uint16_t*);
     int parse_HC_IC(address_map_t*, ModbusOrderDescription&, uint8_t*);
@@ -152,6 +157,8 @@ class RTDBUS_Modbus_client : public SysAcqInterface {
     size_t          m_connection_idx;
     // Код состояния модуля
     client_status_t m_status;
+    // Признак завершения инициализации
+    bool            m_sign_ready;
 
     modbus_t *m_modbus_context;
     // Размер заголовка запроса

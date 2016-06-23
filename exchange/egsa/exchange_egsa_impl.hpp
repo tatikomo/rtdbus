@@ -14,13 +14,11 @@
 // Служебные файлы RTDBUS
 #include "mdp_zmsg.hpp"
 #include "mdp_worker_api.hpp"
-//#include "mdp_client_async_api.hpp"
 #include "msg_message.hpp"
 // Конфигурация
 #include "exchange_config.hpp"
 #include "exchange_config_egsa.hpp"
 // Внешняя память, под управлением EGSA
-//#include "exchange_smad_ext.hpp"
 #include "exchange_egsa_init.hpp"
 //#include "exchange_egsa_sa.hpp"
 
@@ -36,7 +34,7 @@ class EGSA : public mdp::mdwrk {
     static const int PollingTimeout;
     typedef std::map<std::string, SystemAcquisition*> system_acquisition_list_t;
 
-    EGSA(std::string&, zmq::context_t&, msg::MessageFactory*);
+    EGSA(const std::string&, const std::string&);
    ~EGSA();
     
     // Первичная обработка нового запроса
@@ -50,7 +48,10 @@ class EGSA : public mdp::mdwrk {
     // Останов экземпляра
     int stop();
     // Получить новое сообщение
-    int recv(msg::Letter*&);
+    // Второй параметр - количество милисекунд ожидания получения сообщения.
+    // =  0 - разовое чтение сообщений, немедленный выход в случае отсутствия таковых
+    // >  0 - время ожидания нового сообщения в милисекундах, от 1 до HEARTBEAT-интервала
+    int recv(msg::Letter*&, int = 1000);
     // Ввести в оборот новый Цикл сбора
     int push_cycle(Cycle*);
     // Активировать циклы
@@ -61,8 +62,6 @@ class EGSA : public mdp::mdwrk {
     int wait(int);
     // Доступ к циклам
     const std::vector<Cycle*>& cycles() { return ega_ega_odm_ar_Cycles; };
-    // Отправка сообщения указанной системе сбора
-    int send_to(const std::string&, int);
 
   private:
     DISALLOW_COPY_AND_ASSIGN(EGSA);
@@ -83,12 +82,10 @@ class EGSA : public mdp::mdwrk {
     // Функция срабатывания при наступлении времени очередного таймера
     static int trigger();
 
-    zmq::context_t &m_context;
-    // Входящее соединение от Клиентов
-    zmq::socket_t   m_frontend;
     // Входящее соединение от Таймеров
     zmq::socket_t   m_signal_socket;
-    zmq::socket_t   m_subscriber;
+    // Набор для zmq::poll
+    //zmq::pollitem_t m_socket_items[2];
     // Сигнал к завершению работы
     volatile static bool m_interrupt;
     msg::MessageFactory *m_message_factory;
