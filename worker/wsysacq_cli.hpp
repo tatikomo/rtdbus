@@ -18,6 +18,17 @@ class SysAcqInterface;
 
 namespace mdp {
 
+enum {
+  STATE_INIT_NONE               = 0,
+  STATE_INIT_OK                 = 1,
+  STATE_INIT_FAIL               = 2,
+  STATE_CONNECTING              = 3,
+  STATE_CONNECTED               = 4,
+  STATE_CONNECTED_ACQUIRE       = 5,
+  STATE_CONNECTED_MAINTENANCE   = 5,
+  STATE_CONNECTED_DELEGATE      = 7
+    };
+
 class SystemAcquisitionModule : public mdwrk {
   public:
     SystemAcquisitionModule(const std::string&, const std::string&, const std::string&);
@@ -43,6 +54,10 @@ class SystemAcquisitionModule : public mdwrk {
     int handle_init(msg::Letter*, std::string*);
     int handle_end_all_init(msg::Letter*, std::string*);
     int handle_internal_request(msg::Letter*, std::string*);
+    // Ответ сообщением на простейшие запросы, в ответе только числовой код
+    int response_as_simple_reply(msg::Letter*, std::string*, int);
+    // Ответ сообщением EXEC_RESULT на запросы, в ответе числовой код (обязательно) и строка (возможно)
+    int response_as_exec_result(msg::Letter*, std::string*, int, const std::string&);
 };
 
 }; // end namespace
