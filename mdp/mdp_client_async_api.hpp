@@ -22,11 +22,6 @@
 
 namespace mdp {
 
-typedef enum {
-  PERSISTENT = 1, // Обмен через Брокера
-  DIRECT     = 2, // Обмен со Службой напрямую
-} ChannelType;
-
 //  Structure of our class
 //  We access these properties only via class methods
 class mdcli {

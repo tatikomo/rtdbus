@@ -53,6 +53,11 @@ typedef struct {
   bool  connected;
 } ServiceInfo_t;
 
+typedef enum {
+  PERSISTENT = 1, // Обмен через Брокера
+  DIRECT     = 2, // Обмен со Службой напрямую
+} ChannelType;
+
 typedef std::pair <const std::string, ServiceInfo_t*> ServicesHashPair_t;
 typedef std::map  <const std::string, ServiceInfo_t*> ServicesHash_t;
 typedef ServicesHash_t::iterator ServicesHashIterator_t;

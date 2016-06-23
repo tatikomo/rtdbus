@@ -639,6 +639,8 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
     msg->wrap (sender_identity.c_str(), EMPTY_FRAME);
     // Обработать служебное сообщение
     service_internal (command, msg);
+    // Правда, успешно?
+    status = true;
   }
   else {
       /*
@@ -663,8 +665,9 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
 
   if (false == status)
   {
-    if (wrk)
+    if (wrk) {
       LOG(ERROR) << "Processing message from worker " << wrk->GetIDENTITY();
+    }
     else
     {
       LOG(ERROR) << "Processing message from unknown worker";
