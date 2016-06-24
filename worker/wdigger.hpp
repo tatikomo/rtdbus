@@ -244,7 +244,7 @@ class Digger : public mdp::mdwrk
   private:
     DISALLOW_COPY_AND_ASSIGN(Digger);
     // отправить адресату сообщение о статусе исполнения команды
-    void send_exec_result(int, std::string*);
+    int response_as_exec_result(msg::Letter*, std::string*, int code, const std::string&);
 
     zmq::socket_t       m_helpers_control;    //  "tcp://" socket to control proxy helpers
     DiggerProxy        *m_digger_proxy; 

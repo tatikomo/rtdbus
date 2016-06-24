@@ -176,6 +176,7 @@ void DataImpl::set_initial_values()
       // Типовые ответы
       case ADG_D_MSG_ENDINITACK:
       case ADG_D_MSG_LIVING:
+      case ECH_D_MSG_INT_REPLY:
         m_protobuf_instance = new RTDBM::SimpleReply();
         break;
 

@@ -104,7 +104,7 @@ bool ExecResult::failure_cause(int& code, std::string& text)
   return failure_cause_exist;
 }
 
-void ExecResult::set_failure_cause(int _new_val, std::string& _new_cause)
+void ExecResult::set_failure_cause(int _new_val, const std::string& _new_cause)
 {
   static_cast<RTDBM::ExecResult*>(data()->impl()->mutable_instance())->mutable_failure_cause()->set_error_code(_new_val);
   static_cast<RTDBM::ExecResult*>(data()->impl()->mutable_instance())->mutable_failure_cause()->set_error_text(_new_cause);

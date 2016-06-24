@@ -1224,7 +1224,7 @@ void RTDBUS_Modbus_client::run()
 
 // Отладка!!!!
     if (5 == ++iter) {
-      LOG(WARNING) << "This is SPARTA!!! Fire the INIT reception signal by myself!"
+      LOG(WARNING) << "This is SPARTA!!! Fire the INIT reception signal by myself!";
       events::add(std::bind(&RTDBUS_Modbus_client::process_INIT, this), std::chrono::system_clock::now());
     }
 // Отладка!!!!

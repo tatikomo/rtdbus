@@ -38,11 +38,11 @@ class EGSA : public mdp::mdwrk {
    ~EGSA();
     
     // Первичная обработка нового запроса
-    int processing(mdp::zmsg*, std::string&);
+    int processing(mdp::zmsg*, const std::string&);
     // Обработка сообщения о чтении значений БДРВ (включая ответ группы подписки)
     bool process_read_response(msg::Letter*);
     // Инициализация, создание/подключение к внутренней SMAD
-    int init();
+    bool init();
     // Основной рабочий цикл
     int run();
     // Останов экземпляра
@@ -67,14 +67,21 @@ class EGSA : public mdp::mdwrk {
     DISALLOW_COPY_AND_ASSIGN(EGSA);
     // Отправить всем подчиненным системам запрос готовности
     void fire_ENDALLINIT();
+    // --------------------------------------------------------------------------
+    // Обслуживание запросов:
+    // SIG_D_MSG_READ_MULTI - ответ на множественное чтение данных (первый пакет от группы подписки)
+    int handle_read_multiple(msg::Letter*, const std::string&);
+    // SIG_D_MSG_GRPSBS - порция обновления данных от группы подписки
+    int handle_sbs_update(msg::Letter*, const std::string&);
     // Телерегулирование
     // SIG_D_MSG_ECHCTLPRESS
     // SIG_D_MSG_ECHDIRCTLPRESS
-    int handle_teleregulation(msg::Letter*, std::string*);
+    int handle_teleregulation(msg::Letter*, const std::string&);
+    // --------------------------------------------------------------------------
     // Активация группы подписки точек систем сбора 
-    int activateSBS();
+    bool activateSBS();
     // Дождаться ответа на запрос активации группы подписки
-    int waitSBS();
+    bool waitSBS();
     // Подключиться к SMAD систем сбора
     int attach_to_sites_smad();
     // Изменение состояния подключенных систем сбора и отключение от их внутренней SMAD 
@@ -86,8 +93,6 @@ class EGSA : public mdp::mdwrk {
     zmq::socket_t   m_signal_socket;
     // Набор для zmq::poll
     //zmq::pollitem_t m_socket_items[2];
-    // Сигнал к завершению работы
-    volatile static bool m_interrupt;
     msg::MessageFactory *m_message_factory;
 
     // Экземпляр ExternalSMAD для хранения конфигурации и данных EGSA

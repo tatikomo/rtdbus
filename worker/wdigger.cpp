@@ -143,12 +143,14 @@ bool publish_sbs_impl(std::string& dest_name,
     sbs_message.push_front(const_cast<std::string&>(letter->data()->get_serialized()));
     // первый фрейм - заголовок сообщения
     sbs_message.push_front(const_cast<std::string&>(letter->header()->get_serialized()));
-    LOG(INFO) << "GEV: msg #" << msg_type << ", dest_name=" << dest_name;
+    LOG(INFO) << "Send SBS msg (type #" << msg_type << ") to " << dest_name;
 #endif
 
     sbs_message.wrap(dest_name.c_str(), EMPTY_FRAME);
 
-    //1 sbs_message.dump();
+#if (VERBOSE > 8)
+    sbs_message.dump();
+#endif
     // публикация набора
     sbs_message.send(pub_socket);
 
@@ -490,6 +492,9 @@ int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
   xdb::DbType_t  given_xdb_type;
 #if (VERBOSE > 2)
   struct tm result_time;
+  time_t given_time;
+  char s_date[D_DATE_FORMAT_LEN + 1];
+  char buffer[D_DATE_FORMAT_W_MSEC_LEN + 1];
 #endif
   // удалить
   std::string delme_name;
@@ -753,7 +758,7 @@ int DiggerWorker::handle_sbs_ctrl(msg::Letter* letter, std::string& identity)
   // NB: В качестве первого сообщения от сервера групп подписок используется SIG_D_MSG_READ_MULTI,
   // для различения двух стадий - однократной инициализации (1) от DiggerWorker (SIG_D_MSG_READ_MULTI
   // по тому же каналу, что и полученный запрос), и периодических обновлений (2) от DiggerPoller
-  // (SIG_D_MSG_SBSGRP по каналу PUB-SUB).
+  // (SIG_D_MSG_GRPSBS по каналу PUB-SUB).
 
   // 1 ======================================
   sbs_name.assign(sbs_ctrl_msg->name());
@@ -819,7 +824,6 @@ void DiggerWorker::send_exec_result(int exec_val, std::string& identity)
   std::string message_FAIL;
   msg::ExecResult *msg_exec_result = 
         dynamic_cast<msg::ExecResult*>(m_message_factory->create(ADG_D_MSG_EXECRESULT));
-  mdp::zmsg       *response = new mdp::zmsg();
 
   msg_exec_result->set_destination(identity);
   msg_exec_result->set_exec_result(exec_val);
@@ -836,8 +840,13 @@ void DiggerWorker::send_exec_result(int exec_val, std::string& identity)
     break;
   }
 
+#if 0
+  mdp::zmsg *response = new mdp::zmsg();
   response->push_front(const_cast<std::string&>(msg_exec_result->data()->get_serialized()));
   response->push_front(const_cast<std::string&>(msg_exec_result->header()->get_serialized()));
+#else
+  mdp::zmsg *response = msg_exec_result->get_zmsg();
+#endif
   response->wrap(identity.c_str(), "");
 
 /*  std::cout << "Send ExecResult to " << identity
@@ -1562,6 +1571,7 @@ Digger::~Digger()
 void Digger::run()
 {
   interrupt_worker = false;
+  bool timeout = false;
 
   try
   {
@@ -1583,17 +1593,18 @@ void Digger::run()
     LOG(INFO) << "DiggerProxy control connecting";
     m_helpers_control.bind("tcp://lo:5557" /*ENDPOINT_RTDB_PROXY_CTRL*/);
 
+    std::string *reply_to = new std::string;
     // Ожидание завершения работы Прокси
     while (!interrupt_worker)
     {
-      std::string *reply_to = new std::string;
+      timeout = false;
       mdp::zmsg   *request  = NULL;
 
       LOG(INFO) << "Digger::recv() ready";
       // NB: Функция recv возвращает только PERSISTENT-сообщения,
       // DIRECT-сообщения передаются в DiggerProxy, а тот пересылает их DiggerWorker-ам
       // Чтение DIRECT-сокета заблокировано в zmq::poll функции mdwrk::recv()
-      request = recv (reply_to);
+      request = recv (reply_to, 1000, &timeout);
       if (request)
       {
         LOG(INFO) << "Digger::recv() got a message";
@@ -1605,11 +1616,17 @@ void Digger::run()
       }
       else
       {
-        LOG(INFO) << "Digger::recv() got a NULL";
-        interrupt_worker = true; // Worker has been interrupted
+        if (timeout) {
+          // Все в порядке, продолжим
+          continue;
+        }
+        else {
+          LOG(INFO) << "Digger::recv() got a NULL";
+          interrupt_worker = true; // Worker has been interrupted
+        }
       }
-      delete reply_to;
     }
+    delete reply_to;
 
     cleanup();
 
@@ -1769,7 +1786,6 @@ int Digger::handle_request(mdp::zmsg* request, std::string*& reply_to)
        break;
 
       case ADG_D_MSG_STOP:
-       interrupt_worker = 1;
        rc = handle_stop(letter, reply_to);
        break;
 
@@ -1789,83 +1805,35 @@ int Digger::handle_request(mdp::zmsg* request, std::string*& reply_to)
 }
 
 
-// отправить адресату сообщение о статусе исполнения команды
-// --------------------------------------------------------------------------------
-void Digger::send_exec_result(int exec_val, std::string* reply_to)
-{
-  std::string s_OK = "хорошо";
-  std::string s_FAIL = "плохо";
-  msg::ExecResult *msg_exec_result = 
-        dynamic_cast<msg::ExecResult*>(m_message_factory->create(ADG_D_MSG_EXECRESULT));
-  mdp::zmsg       *response = new mdp::zmsg();
-
-  msg_exec_result->set_destination(*reply_to);
-  msg_exec_result->set_exec_result(exec_val);
-  msg_exec_result->set_failure_cause(0, s_OK);
-
-  response->push_front(const_cast<std::string&>(msg_exec_result->data()->get_serialized()));
-  response->push_front(const_cast<std::string&>(msg_exec_result->header()->get_serialized()));
-  response->wrap(reply_to->c_str(), "");
-
-  LOG(INFO) << "Send ExecResult to " << *reply_to
-            << " with status:" << msg_exec_result->exec_result()
-            << " sid:" << msg_exec_result->header()->exchange_id()
-            << " iid:" << msg_exec_result->header()->interest_id()
-            << " dest:" << msg_exec_result->header()->proc_dest()
-            << " origin:" << msg_exec_result->header()->proc_origin();
-
-  delete msg_exec_result;
-#warning "replace send_to_broker(msg::zmsg*) to send(msg::Letter*)"
-  // TODO: Для упрощения обработки сообщения не следует создавать zmsg и заполнять его
-  // данными из Letter, а сразу напрямую отправлять Letter потребителю.
-  // Возможно, следует указать тип передачи - прямой или через брокер.
-  send_to_broker((char*) MDPW_REPORT, NULL, response);
-
-  delete response;
-}
-
 // --------------------------------------------------------------------------------
 int Digger::handle_asklife(msg::Letter* letter, std::string* reply_to)
 {
   int rc = OK;
-  msg::AskLife   *msg_ask_life = static_cast<msg::AskLife*>(letter);
-  mdp::zmsg      *response = new mdp::zmsg();
-  int exec_val = 1;
+  msg::SimpleReply *simple_reply = static_cast<msg::SimpleReply*>(m_message_factory->create(ADG_D_MSG_LIVING));
 
-  msg_ask_life->set_exec_result(exec_val);
+  assert(letter->header()->usr_msg_type() == ADG_D_MSG_ASKLIFE);
+  simple_reply->header()->set_exchange_id(letter->header()->exchange_id());
+  simple_reply->header()->set_interest_id(letter->header()->interest_id() + 1); // TODO: Возможно ли переполнение?
+  simple_reply->header()->set_proc_dest(*reply_to);
 
-  response->push_front(const_cast<std::string&>(msg_ask_life->data()->get_serialized()));
-  response->push_front(const_cast<std::string&>(msg_ask_life->header()->get_serialized()));
+  mdp::zmsg *response = simple_reply->get_zmsg();
   response->wrap(reply_to->c_str(), "");
 
-  LOG(INFO) << "Processing ASKLIFE from " << *reply_to
-            << " has status:" << msg_ask_life->exec_result(exec_val)
-            << " sid:" << msg_ask_life->header()->exchange_id()
-            << " iid:" << msg_ask_life->header()->interest_id()
-            << " dest:" << msg_ask_life->header()->proc_dest()
-            << " origin:" << msg_ask_life->header()->proc_origin();
+  LOG(INFO) << "Got ASKLIFE "
+            << " sid:"    << letter->header()->exchange_id()
+            << " iid:"    << letter->header()->interest_id()
+            << " origin:" << letter->header()->proc_origin()
+            << " dest:"   << letter->header()->proc_dest();
+  LOG(INFO) << "Send LIVING "
+            << " sid:"    << simple_reply->header()->exchange_id()
+            << " iid:"    << simple_reply->header()->interest_id()
+            << " origin:" << simple_reply->header()->proc_origin()
+            << " dest:"   << simple_reply->header()->proc_dest();
 
-#if 0
-  // TODO: Т.к. запрос мог поступить не только от Брокера, но и напрямую от Клиента,
-  // то здесь выбрать нужного получателя ответа.
-  switch(m_
-  {
-    case DIRECT:
-      send_direct((char*) MDPW_REPORT, NULL, response);
-      break;
+  send_to_broker((char*) MDPW_REPORT, NULL, response);
 
-    case PERSISTENT:
-#endif
-      send_to_broker((char*) MDPW_REPORT, NULL, response);
-#if 0
-      break;
-      
-    default:
-      LOG(ERROR) << "Unsupported messaging reply type: " << ;
-      rc = NOK;
-  }
-#endif
   delete response;
+  delete simple_reply;
 
   return rc;
 }
@@ -1874,25 +1842,47 @@ int Digger::handle_asklife(msg::Letter* letter, std::string* reply_to)
 int Digger::handle_stop(msg::Letter* letter, std::string* reply_to)
 {
   int rc = OK;
-  msg::SimpleRequest *msg_stop = static_cast<msg::SimpleRequest*>(letter);
   int exec_val = 1;
-  mdp::zmsg *response = new mdp::zmsg();
+  const std::string s_OK = "хорошо";
+  const std::string s_FAIL = "плохо";
 
-  msg_stop->set_exec_result(exec_val);
+  if (1 == exec_val)
+    rc = response_as_exec_result(letter, reply_to, exec_val, s_OK);
+  else
+    rc = response_as_exec_result(letter, reply_to, exec_val, s_FAIL);
 
-  response->push_front(const_cast<std::string&>(msg_stop->data()->get_serialized()));
-  response->push_front(const_cast<std::string&>(msg_stop->header()->get_serialized()));
+  interrupt_worker = 1;
+
+  return rc;
+}
+
+// --------------------------------------------------------------------------------
+// Ответ сообщением EXEC_RESULT на запросы, в ответе числовой код (обязательно) и строка (возможно)
+// (сообщение о статусе исполнения команды)
+int Digger::response_as_exec_result(msg::Letter* letter,
+                                    std::string* reply_to,
+                                    int code,
+                                    const std::string& note)
+{
+  //const rtdbMsgType usr_type = letter->header()->usr_msg_type();
+  msg::ExecResult *exec_reply = static_cast<msg::ExecResult*>(m_message_factory->create(ADG_D_MSG_EXECRESULT));
+  int rc = OK;
+
+  exec_reply->header()->set_exchange_id(letter->header()->exchange_id());
+  exec_reply->header()->set_interest_id(letter->header()->interest_id() + 1); // TODO: Возможно ли переполнение?
+  exec_reply->header()->set_proc_dest(*reply_to);
+  if (!note.empty())
+    exec_reply->set_failure_cause(code, note);
+  else
+    exec_reply->set_exec_result(code);
+
+  mdp::zmsg *response = exec_reply->get_zmsg();
   response->wrap(reply_to->c_str(), "");
 
-  LOG(INFO) << "Processing STOP from " << *reply_to
-            << " has status:" << msg_stop->exec_result(exec_val)
-            << " sid:" << msg_stop->header()->exchange_id()
-            << " iid:" << msg_stop->header()->interest_id()
-            << " dest:" << msg_stop->header()->proc_dest()
-            << " origin:" << msg_stop->header()->proc_origin();
-
   send_to_broker((char*) MDPW_REPORT, NULL, response);
+
   delete response;
+  delete exec_reply;
 
   return rc;
 }

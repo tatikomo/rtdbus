@@ -29,8 +29,8 @@ class mdwrk
     // Первая запись - обязательна, подключение к Брокеру
     // Вторая запись - желательна, получение сообщений от других серверов подписки
     // Треться запись - не обязательна.
-    enum { BROKER_ITEM = 0, SUBSCRIBER_ITEM = 1, DIRECT_ITEM = 2 };
-    enum { SOCKETS_COUNT = DIRECT_ITEM+1 };
+    enum { BROKER_ITEM = 0, SUBSCRIBER_ITEM = 1, DIRECT_ITEM = 2, PEER_ITEM = 3 };
+    enum { SOCKETS_COUNT = PEER_ITEM + 1 };
 
     static const int HeartbeatInterval = HEARTBEAT_PERIOD_MSEC;
     //  ---------------------------------------------------------------------
@@ -52,7 +52,7 @@ class mdwrk
 
     //  ---------------------------------------------------------------------
     //  Send message to another Service
-    void send(const std::string& serv_name, zmsg *&request);
+    bool send_to(const std::string& serv_name, zmsg *&request, ChannelType = DIRECT);
 
     //  ---------------------------------------------------------------------
     //  Connect or reconnect to broker
@@ -67,17 +67,17 @@ class mdwrk
     //  Методы для работы с другими Службами
     //  ---------------------------------------------------------------------
     //  Подключиться к указанной службе на указанную группу
-    int  subscribe_to(const std::string&, const std::string&);
-    int  ask_service_info(const std::string&, char*, int);
+    bool subscribe_to(const std::string&, const std::string&);
+    bool ask_service_info(const std::string&, ServiceInfo_t*&);
     bool service_info_by_name(const std::string&, ServiceInfo_t*&);
     
     //  ---------------------------------------------------------------------
     //  Set heartbeat delay
-    void set_heartbeat (int heartbeat);
+    void set_heartbeat (int heartbeat_msec);
 
     //  ---------------------------------------------------------------------
     //  Set reconnect delay
-    void set_reconnect (int reconnect);
+    void set_reconnect (int reconnect_msec);
 
     //  ---------------------------------------------------------------------
     //  Установить таймаут приема значений в милисекундах
@@ -85,8 +85,15 @@ class mdwrk
 
     //  ---------------------------------------------------------------------
     //  wait for next request and get the address for reply.
-    //  Таймаут по умолчанию
-    zmsg * recv (std::string *&reply, int msec = HeartbeatInterval);
+    //  Параметры:
+    //  1) Указатель на строку, содержащую идентификатор процесса-клиента
+    //  2) Таймаут в милисекундах, по умолчанию равно периоду HEARTBEAT
+    //  3) Адрес булевой переменной, содержащей признак завершения операции чтения по таймауту
+    //
+    //  Результат: Возвращается указатель на полученное сообщение.
+    //  Если чтение завершено по таймауту, возвращается NULL,
+    //  и значение булевой переменной становится равно TRUE.
+    zmsg * recv (std::string *&reply, int msec = HeartbeatInterval, bool* = NULL);
 
   protected:
     zmq::context_t   m_context;
@@ -101,15 +108,17 @@ class mdwrk
     ServicesHash_t   m_services_info;
     // Точка подключения 
     const char      *m_direct_endpoint;
-    zmq::socket_t   *m_worker;           //  Socket to broker
-    zmq::socket_t   *m_direct;           //  Socket to subscribe on brokerless messages
-    zmq::socket_t   *m_subscriber;
+    zmq::socket_t   *m_worker;           //  Исходящий канал до Брокера
+    zmq::socket_t   *m_peer;             //  Исходящий канал до других Служб = new zmq::socket_t(*m_context, ZMQ_DEALER)
+    zmq::socket_t   *m_direct;           //  Входящий канал для получения прямых (brokerless) сообщений
+    zmq::socket_t   *m_subscriber;       //  Входящий канал для получения сообщений о подписках
     //  Heartbeat management
-    int64_t          m_heartbeat_at_msec;//  When to send HEARTBEAT
-    size_t           m_liveness;         //  How many attempts left
+    int              m_heartbeat_at_msec;//  When to send HEARTBEAT
+    int              m_liveness;         //  How many attempts left
     int              m_heartbeat_msec;   //  Heartbeat delay, msecs
     int              m_reconnect_msec;   //  Reconnect delay, msecs
-    // Значения таймаутов, на передачу и на прием
+    // Значения таймаутов, на передачу и на прием.
+    // Формат параметров - int (смотри спецификацию zmq::socket_t setsockopt())
     int              m_send_timeout_msec;
     int              m_recv_timeout_msec;
     //  Internal state
@@ -120,10 +129,17 @@ class mdwrk
     // [2] прямое подключение
     zmq::pollitem_t  m_socket_items[SOCKETS_COUNT];
 
+    // Запомнить соответствие "Название Службы" <=> "Строка подключения"
     bool insert_service_info(const std::string&, ServiceInfo_t*&);
     // Вернуть строку подключения, если параметр = true - преобразовать для bind()
     const char     * getEndpoint(bool = false) const;
     void             update_heartbeat_sign();
+    // Создать структуры для обмена с другими Службами
+    void             create_peering_to_services();
+    // Точка входа в разбор ответов Брокера
+    void             process_internal_report(const std::string&, zmsg*);
+    // Обработка ответа от Брокера с точкой подключения к другой Службе
+    void             process_endpoint_info(zmsg*);
 };
 
 } //namespace mdp
