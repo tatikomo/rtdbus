@@ -1021,7 +1021,7 @@ TEST(TestDiggerDATABASE, READ_SBS)
   char s_val[100];
   uint16_t  update_val = 0;
   unsigned int iteration, item;
-  AttributeMapIterator_t it;
+  AttributeMap_t::iterator it;
   Error status;
   std::string kd4005="KD4005_SS";
 
@@ -1054,7 +1054,7 @@ TEST(TestDiggerDATABASE, READ_SBS)
             << std::endl;
         for(it = points_list.at(item)->attributes.begin();
             it != points_list.at(item)->attributes.end();
-            it++ )
+            ++it)
         {
           switch((*it).second.type)
           {
@@ -1171,9 +1171,9 @@ TEST(TestDiggerDATABASE, CATCH_SBS)
   // точек (/KD4001/GOV022) входит в две группы сразу
   EXPECT_EQ(sbs_map.size(), 2);
 
-  for (map_id_name_t::iterator it = sbs_map.begin();
+  for (map_id_name_t::const_iterator it = sbs_map.begin();
        it != sbs_map.end();
-       it++)
+       ++it)
   {
     LOG(INFO) << it->first << ":'" << it->second << "'";
 
@@ -1522,7 +1522,7 @@ TEST(TestTools, LOAD_CLASSES)
             << "(" << pool->size() << ")" << std::endl;
 #endif
 
-        for (xdb::AttributeMapIterator_t it=pool->begin(); it!=pool->end(); ++it)
+        for (xdb::AttributeMap_t::const_iterator it = pool->begin(); it != pool->end(); ++it)
         {
             sprintf(msg_info, "\"%s\" : %02d", 
                 it->second.name.c_str(), it->second.type);

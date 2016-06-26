@@ -49,6 +49,8 @@ link_directories(${LIBMODBUS_LIBRARIES_DIR})
 # каталог генерации libmdp.so
 link_directories(${CMAKE_SOURCE_DIR}/../cmake/lib)
 
+add_definitions(-DVERBOSE=6)
+
 set (WORKER_TESTER_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
         ${MDP_DIR}/mdp_zmsg.hpp
@@ -114,8 +116,6 @@ set (WORKER_EGSA_SOURCES
         ${EXCHANGE_SMAD_DIR}/exchange_smad_ext.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.hpp
-#        ${EXCHANGE_EGSA_DIR}/exchange_egsa_host.cpp
-#        ${EXCHANGE_EGSA_DIR}/exchange_egsa_host.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_init.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_init.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_sa.hpp

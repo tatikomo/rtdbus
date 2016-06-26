@@ -130,12 +130,12 @@ class RTDBUS_Modbus_client : public SysAcqInterface {
     void do_URGINFOS();
     void do_INFOSACQ();
     // Разбор буфера ответа от СС на уровне байтов
-    int parse_response(ModbusOrderDescription&, uint8_t*, uint16_t*);
-    int parse_HC_IC(address_map_t*, ModbusOrderDescription&, uint8_t*);
-    int parse_HR_IR(address_map_t*, ModbusOrderDescription&, uint16_t*);
-    int parse_FHR(address_map_t*, ModbusOrderDescription&, uint16_t*);
-    int parse_FP(address_map_t*, ModbusOrderDescription&, uint16_t*);
-    int parse_DP(address_map_t*, ModbusOrderDescription&, uint16_t*);
+    int parse_response(const ModbusOrderDescription&, uint8_t*, uint16_t*);
+    int parse_HC_IC(address_map_t*, const ModbusOrderDescription&, uint8_t*);
+    int parse_HR_IR(address_map_t*, const ModbusOrderDescription&, uint16_t*);
+    int parse_FHR(address_map_t*, const ModbusOrderDescription&, uint16_t*);
+    int parse_FP(address_map_t*, const ModbusOrderDescription&, uint16_t*);
+    int parse_DP(address_map_t*, const ModbusOrderDescription&, uint16_t*);
     void set_validity(int);
 
     int read_config();     // Точка входа в функции загрузки конфигурационных файлов

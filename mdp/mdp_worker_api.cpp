@@ -122,9 +122,9 @@ mdwrk::~mdwrk ()
 
   send_to_broker (MDPW_DISCONNECT, NULL, NULL);
 
-  for(ServicesHashIterator_t it = m_services_info.begin();
+  for(ServicesHash_t::const_iterator it = m_services_info.begin();
       it != m_services_info.end();
-      it++)
+      ++it)
   {
      // Освободить занятую под ServiceInfo_t память
      delete it->second;
@@ -522,10 +522,8 @@ bool mdwrk::service_info_by_name(const std::string& serv_name, ServiceInfo_t *&s
 {
   bool status = false;
 
-  ServicesHashIterator_t it;
-  it = m_services_info.find(serv_name);
-  if (it != m_services_info.end())
-  {
+  const ServicesHash_t::const_iterator it = m_services_info.find(serv_name);
+  if (it != m_services_info.end()) {
     serv_info = it->second;
     status = true;
   }

@@ -136,7 +136,7 @@ void SystemAcquisition::look_my_cycles(const std::vector<Cycle*>& all_cycles)
 {
   for (std::vector<Cycle*>::const_iterator it = all_cycles.begin();
        it != all_cycles.end();
-       it++)
+       ++it)
   {
     LOG(INFO) << "look cycle " << (*it)->name();
   }

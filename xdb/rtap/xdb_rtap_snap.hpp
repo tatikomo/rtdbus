@@ -219,7 +219,7 @@ bool initFieldTable(std::string&, char*[], int);
 
 bool GetDbTypeFromString(std::string&, DbType_t&);
 
-const char* GetDbNameFromType(DbType_t& db_t);
+const char* GetDbNameFromType(const DbType_t& db_t);
 
 } // namespace xdb
 

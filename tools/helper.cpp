@@ -17,7 +17,6 @@
 #include <iterator>
 
 #include "helper.hpp"
-typedef Options::iterator OptionIterator;
 
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 char buf[4000];
@@ -189,10 +188,8 @@ bool getOption(Options* _options, const std::string& key, int& val)
 
   assert(_options);
 
-  OptionIterator p = _options->find(key);
-
-  if (p != _options->end())
-  {
+  const Options::const_iterator p = _options->find(key);
+  if (p != _options->end()) {
     val = p->second;
     status = true;
     //std::cout << "Found '"<<key<<"' option=" << p->second << std::endl;
@@ -206,10 +203,8 @@ bool setOption(Options* _options, const std::string& key, int val)
 
   assert(_options);
 
-  OptionIterator p = _options->find(key);
-
-  if (p != _options->end())
-  {
+  const Options::const_iterator p = _options->find(key);
+  if (p != _options->end()) {
     val = p->second;
 //    std::cout << "Replace '" << key
 //              << "' old value " << p->second

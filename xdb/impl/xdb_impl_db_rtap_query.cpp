@@ -183,7 +183,7 @@ MCO_RET DatabaseRtapImpl::queryPointsOfSpecifiedClass (mco_db_h& handler, rtDbCq
   int compare_result = 0;
   // Входной параметр - адрес хеша с выходными данными
   map_id_name_t *points_map = static_cast<map_id_name_t*>(info.buffer);
-  map_id_name_t::iterator points_map_iterator;
+//  map_id_name_t::iterator points_map_iterator;
   // Ай-яй-яй! Стыдно должно быть передавать тип объекта через значение несоответствующего аргумента!
   objclass_t objclass_needed = static_cast<objclass_t>(info.addrCnt);
   // Буфер для чтения значения тега Точки
@@ -293,7 +293,7 @@ MCO_RET DatabaseRtapImpl::querySbsArmedGroup (mco_db_h& handler, rtDbCq& info)
   uint2 sbs_name_size = LABEL_MAXLEN;
 
   map_id_name_t *sbs_map = static_cast<map_id_name_t*>(info.buffer);
-  map_id_name_t::iterator sbs_map_iterator;
+//  const map_id_name_t::iterator sbs_map_iterator;
 
   assert(info.buffer);
 
@@ -365,7 +365,8 @@ MCO_RET DatabaseRtapImpl::querySbsArmedGroup (mco_db_h& handler, rtDbCq& info)
                    if (rc) { LOG(ERROR) << "Get point id from SBS_GROUPS_ITEM, rc=" << rc; break; }
 
                    // Если идентификатор данной группы не известен, запоминаем ее
-                   if ((sbs_map_iterator = sbs_map->find(sbs_aid)) == sbs_map->end())
+                   const map_id_name_t::const_iterator sbs_map_iterator = sbs_map->find(sbs_aid);
+                   if (sbs_map_iterator == sbs_map->end())
                    {
                      // Получить название группы
                      rc = SBS_GROUPS_STAT_autoid_find(t, sbs_aid, &sbs_stat_instance);
@@ -463,7 +464,9 @@ MCO_RET DatabaseRtapImpl::querySbsDisarmSelectedPoints(mco_db_h& handler, rtDbCq
     rc = mco_trans_start(handler, MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
     if (rc) { LOG(ERROR) << "Starting transaction, rc=" << rc; break; }
 
-    for (auto it = selected_points->begin(); it != selected_points->end(); it++)
+    for (std::unordered_set<std::string>::const_iterator it = selected_points->begin();
+         it != selected_points->end();
+         ++it)
     {
       rc = XDBPoint_SK_by_tag_find(t,
                                    (*it).c_str(),
@@ -528,7 +531,7 @@ MCO_RET DatabaseRtapImpl::querySbsPoints(mco_db_h& handler, rtDbCq& info, TypeOf
   int compare_id_result = 0;
   char point_name[TAG_NAME_MAXLEN + 1];
   uint2 point_name_size = TAG_NAME_MAXLEN;
-  map_id_name_t::iterator sbs_map_iterator;
+  const map_id_name_t::iterator sbs_map_iterator;
   map_id_name_t *sbs_map = NULL;
   MCO_TRANS_TYPE trans_type = MCO_READ_ONLY;
   SubscriptionPoints_t* points_list = NULL; // Используется для rtQUERY_SBS_READ_POINTS_ARMED
@@ -758,7 +761,7 @@ MCO_RET DatabaseRtapImpl::queryPointsWithHistory (mco_db_h& handler, rtDbCq& inf
   HistoryType htype = PER_NONE;
   // Входной параметр - адрес хеша с выходными данными
   map_name_id_t *points_map = static_cast<map_name_id_t*>(info.buffer);
-  map_name_id_t::iterator points_map_iterator;
+//  map_name_id_t::iterator points_map_iterator;
   // Буфер для чтения значения тега Точки
   const uint2 tag_size = sizeof(wchar_t)*TAG_NAME_MAXLEN;
   char tag[tag_size + 1];

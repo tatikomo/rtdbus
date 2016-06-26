@@ -611,20 +611,19 @@ int HistoricImpl::calcDifferences(map_history_info_t& whole,  /* входящи�
                     map_history_info_t& part,   /* входящий пересекающий набор тегов */
                     map_history_info_t& result) /* исходящий набор пересечения */
 {
-  map_history_info_t::iterator it;
-  map_history_info_t::iterator lookup;
 
-  for (it = whole.begin(); it != whole.end(); it++) {
-
+  for (map_history_info_t::const_iterator it = whole.begin();
+       it != whole.end();
+       ++it)
+  {
     // Найти Тег из первого множества во втором множестве
-    lookup = part.find((*it).first);
+    const map_history_info_t::const_iterator lookup = part.find((*it).first);
     if (lookup == part.end())
     {
       // Не нашли
       result.insert(*it);
       LOG(INFO) << "differ : " << (*it).first;
     }
-
   }
 
   return result.size();
@@ -709,9 +708,9 @@ int HistoricImpl::createPointsDictHDB(map_history_info_t& points_to_create)
     assert (printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
     sql += sql_operator;
 
-    for (map_history_info_t::iterator it = points_to_create.begin();
+    for (map_history_info_t::const_iterator it = points_to_create.begin();
          it != points_to_create.end();
-         it++)
+         ++it)
     {
       // если не последняя запись, добавить символ ','
       printed = snprintf(sql_operator,
@@ -765,9 +764,9 @@ int HistoricImpl::deletePointsDataHDB(map_history_info_t& points_to_delete)
     // Начать транзакцию
     sql = "BEGIN;\n";
 
-    for (map_history_info_t::iterator it = points_to_delete.begin();
+    for (map_history_info_t::const_iterator it = points_to_delete.begin();
          it != points_to_delete.end();
-         it++)
+         ++it)
     {
       LOG(INFO) << "delete all: " << idx+1 << "\t " << (*it).first
                 << "\ttag_id=" << (*it).second.tag_id;
@@ -830,9 +829,9 @@ int HistoricImpl::deletePointsDictHDB(map_history_info_t& points_to_delete)
     // Начать транзакцию
     sql = "BEGIN;\n";
 
-    for (map_history_info_t::iterator it = points_to_delete.begin();
+    for (map_history_info_t::const_iterator it = points_to_delete.begin();
          it != points_to_delete.end();
-         it++)
+         ++it)
     {
       LOG(INFO) << "delete: " << idx+1 << "\t " << (*it).first
                 << "\ttag_id=" << (*it).second.tag_id
@@ -905,9 +904,9 @@ bool HistoricImpl::rtdb_get_info_historized_points()
 
   // Сконвертировать данные из формата словаря БДРВ "Тег" <-> "Глубина истории"
   // в формат "Тег" <-> { "Глубина истории", "Идентификатор тега в HDB" }
-  for (xdb::map_name_id_t::iterator it = m_raw_actual_rtdb_points.begin();
+  for (xdb::map_name_id_t::const_iterator it = m_raw_actual_rtdb_points.begin();
        it != m_raw_actual_rtdb_points.end();
-       it++)
+       ++it)
   {
      info.tag_id = 0; // пустое значение, т.к. из БДРВ приходит только глубина истории и тег.
      info.history_type = (*it).second;
@@ -979,7 +978,8 @@ int HistoricImpl::store_history_samples(HistorizedInfoMap_t& historized_map, xdb
   if (historized_map.size() > 0) { // Есть данные к сохранению
 
     estimated_sql_operator_size = ((historized_map.size() * 37) + 100);
-    sql.reserve(estimated_sql_operator_size);
+    // Уменьшим потребление памяти, оставив ровно столько, сколько нужно для хранения
+    sql.resize(estimated_sql_operator_size);
 
     // Команда на открытие транзакции
     // TODO: если сохраняемых элементов много, следует разбить их сохранение на несколько транзакций
@@ -993,9 +993,9 @@ int HistoricImpl::store_history_samples(HistorizedInfoMap_t& historized_map, xdb
     sql += sql_operator;
 
     // Генерация SQL-запроса на вставку новых элементов в таблицу данных HDB
-    for(HistorizedInfoMap_t::iterator it = historized_map.begin();
+    for(HistorizedInfoMap_t::const_iterator it = historized_map.begin();
         it != historized_map.end();
-        it++)
+        ++it)
     {
       // Сохранить только те семплы, которые укладываются в допустимый тип
       if ((*it).second.info.history_type >= store_only_htype)
@@ -1060,11 +1060,10 @@ int HistoricImpl::store_history_samples(HistorizedInfoMap_t& historized_map, xdb
 // Кэш НСИ - в наборе m_actual_hist_points
 int HistoricImpl::getPointIdFromDictHDB(const char* pname)
 {
-  map_history_info_t::iterator lookup;
   int id = 0; // по умолчанию - ничего не найдено
 
 //  LOG(INFO) << "GEV: getPointIdFromDictHDB '" << pname << "', actual_hist_points.size=" << m_actual_hist_points.size();
-  lookup = m_actual_hist_points.find(pname);
+  const map_history_info_t::const_iterator lookup = m_actual_hist_points.find(pname);
   if (lookup != m_actual_hist_points.end())
   {
     // Нашли
@@ -1096,7 +1095,7 @@ bool HistoricImpl::make_history_samples_by_type(const xdb::sampler_type_t htype_
   xdb::Error status;
   HistorizedInfoMap_t historized_map;
   historized_attributes_t historized_info;
-  xdb::map_name_id_t::iterator it = m_raw_actual_rtdb_points.begin();
+  xdb::map_name_id_t::const_iterator it = m_raw_actual_rtdb_points.begin();
   //xdb::sampler_type_t previous_htype;
 
   if (xdb::PERIOD_1_MINUTE == htype_to_store) {
@@ -1153,7 +1152,7 @@ bool HistoricImpl::make_history_samples_by_type(const xdb::sampler_type_t htype_
 
         } // Конец блока успешного чтения атрибута VAL
 
-        it++; // переход к следующему тегу
+        ++it; // переход к следующему тегу
 
       } // Конец блока кода чтения всех тегов из списка
 
@@ -1252,7 +1251,7 @@ bool HistoricImpl::load_samples_list_by_type(const xdb::sampler_type_t htype_to_
   time_t period_finish = period_start;
   time_t delta = period_start;
   std::string sql;
-  xdb::map_name_id_t::iterator it = m_raw_actual_rtdb_points.begin();
+  xdb::map_name_id_t::const_iterator it = m_raw_actual_rtdb_points.begin();
   historized_attributes_t historized_info;
 
   while (it != m_raw_actual_rtdb_points.end()) {
@@ -1300,8 +1299,8 @@ bool HistoricImpl::load_samples_list_by_type(const xdb::sampler_type_t htype_to_
       period_finish += delta;
     }
 
-    it++;
-  } while (false);
+    ++it;
+  }
 
   LOG(INFO) << "I " << fname << ": load " << last_sample_num << " history records with type " << htype_to_load;
 

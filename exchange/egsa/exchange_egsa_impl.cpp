@@ -71,7 +71,7 @@ EGSA::~EGSA()
 
   for (std::vector<Cycle*>::iterator it = ega_ega_odm_ar_Cycles.begin();
        it != ega_ega_odm_ar_Cycles.end();
-       it++)
+       ++it)
   {
     LOG(INFO) << "free cycle " << (*it)->name();
     delete (*it);
@@ -112,9 +112,9 @@ int EGSA::attach_to_sites_smad()
   // TEST - подключиться к SMAD для каждой подчиненной системы
 
   // По списку известных нам систем сбора создать интерфейсы к их SMAD
-  for (egsa_config_sites_t::iterator it = sites.begin();
+  for (egsa_config_sites_t::const_iterator it = sites.begin();
        it != sites.end();
-       it++)
+       ++it)
   {
     const std::string& sa_name = (*it).second->name;
     int raw_nature = (*it).second->nature;
@@ -157,9 +157,9 @@ int EGSA::detach()
   // TODO: Для всех подчиненных систем сбора:
   // 1. Изменить их состояние SYNTHSTATE на "ОТКЛЮЧЕНО"
   // 2. Отключиться от их внутренней SMAD
-  for (system_acquisition_list_t::iterator it = m_sa_list.begin();
+  for (system_acquisition_list_t::const_iterator it = m_sa_list.begin();
        it != m_sa_list.end();
-       it++)
+       ++it)
   {
     LOG(INFO) << "TODO: set " << (*it).first << "." << RTDB_ATT_SYNTHSTATE << " = 0";
     LOG(INFO) << "TODO: detach " << (*it).first << " SMAD";
@@ -287,9 +287,9 @@ int EGSA::run()
     {
       // TODO: пробежаться по всем зарегистрированным системам сбора.
       // Если они в активном состоянии, получить от них даннные
-      for (system_acquisition_list_t::iterator it = m_sa_list.begin();
+      for (system_acquisition_list_t::const_iterator it = m_sa_list.begin();
           it != m_sa_list.end();
-          it++)
+          ++it)
       {
         switch((*it).second->state())
         {
@@ -298,9 +298,9 @@ int EGSA::run()
 #if 0
 
             if (OK == ((*it).second->pop(m_list))) {
-              for (sa_parameters_t::iterator it = m_list.begin();
+              for (sa_parameters_t::const_iterator it = m_list.begin();
                    it != m_list.end();
-                   it++)
+                   ++it)
               {
                 switch ((*it).type)
                 {
@@ -387,9 +387,9 @@ void EGSA::fire_ENDALLINIT()
 
   simple_request = static_cast<msg::SimpleRequest*>(m_message_factory->create(ADG_D_MSG_ENDALLINIT));
 
-  for (system_acquisition_list_t::iterator sa = m_sa_list.begin();
+  for (system_acquisition_list_t::const_iterator sa = m_sa_list.begin();
        sa != m_sa_list.end();
-       sa++)
+       ++sa)
   {
     LOG(INFO) << "Send ENDALLINIT to " << (*sa).first;
 
@@ -470,7 +470,7 @@ int EGSA::activate_cycles()
 
   for (std::vector<Cycle*>::iterator it = ega_ega_odm_ar_Cycles.begin();
        it != ega_ega_odm_ar_Cycles.end();
-       it++)
+       ++it)
   {
     rc |= (*it)->activate(m_socket);
 
@@ -488,7 +488,7 @@ int EGSA::deactivate_cycles()
 
   for (std::vector<Cycle*>::iterator it = ega_ega_odm_ar_Cycles.begin();
        it != ega_ega_odm_ar_Cycles.end();
-       it++)
+       ++it)
   {
     rc |= (*it)->deactivate();
     LOG(INFO) << "Deactivate cycle " << (*it)->name() << ", rc=" << rc;

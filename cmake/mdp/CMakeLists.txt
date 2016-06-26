@@ -38,6 +38,8 @@ else (CMAKE_COMPILER_IS_GNUCC)
 add_definitions (-library=stlport4)
 endif (CMAKE_COMPILER_IS_GNUCC)
 
+add_definitions (-DVERBOSE=6)
+
 add_custom_command(
         OUTPUT
         ${MSG_DIR}/proto/rtdbus.pb.cc

@@ -63,10 +63,9 @@ void Pulsar::init()
 rtdbMsgType Pulsar::getMsgTypeByName(std::string& type_name)
 {
   rtdbMsgType found = MESSAGE_TYPE_UNKNOWN;
-  MessageTypesHashIterator_t it;
 
   std::cout << "looking \"" << type_name << "\" message" << std::endl;
-  it = m_msg_type_hash.find(type_name);
+  const MessageTypesHash_t::const_iterator it = m_msg_type_hash.find(type_name);
   if (it != m_msg_type_hash.end())
   {
     found = it->second;

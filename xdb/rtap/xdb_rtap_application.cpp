@@ -22,6 +22,7 @@ RtApplication::RtApplication(const char* _name)
   : m_impl(new ApplicationImpl(_name)),
     m_initialized(false)
 {
+  // Установить вместимость списка Сред - не более четырёх
   m_env_list.reserve(4);
 }
 
@@ -227,8 +228,13 @@ void RtApplication::registerEnvironment(RtEnvironment* _new_env)
 {
   if (!isEnvironmentRegistered(_new_env->getName()))
   {
-    LOG(INFO) << "Register environment " << _new_env->getName();
-    m_env_list.push_back(_new_env);
+    if (m_env_list.size() <= 4) {
+      LOG(INFO) << "Register environment " << _new_env->getName();
+      m_env_list.push_back(_new_env);
+    }
+    else {
+      LOG(ERROR) << "Exceed environments list capacity (4) while insert " << _new_env->getName();
+    }
   }
   else
   {

@@ -119,9 +119,9 @@ RTDBUS_Modbus_client::~RTDBUS_Modbus_client()
   delete m_smad;
 
   // Удалить информацию по запросам
-  for (std::vector<ModbusOrderDescription>::iterator it = m_actual_orders_description.begin();
+  for (std::vector<ModbusOrderDescription>::const_iterator it = m_actual_orders_description.begin();
        it != m_actual_orders_description.end();
-       it++)
+       ++it)
   {
     delete [] (*it).RequestPayload;
   }
@@ -426,9 +426,9 @@ client_status_t RTDBUS_Modbus_client::ask()
 
   m_connection_reestablised = 0;
 
-  for (std::vector<ModbusOrderDescription>::iterator it = m_actual_orders_description.begin();
+  for (std::vector<ModbusOrderDescription>::const_iterator it = m_actual_orders_description.begin();
        it != m_actual_orders_description.end();
-       it++)
+       ++it)
   {
     LOG(INFO) << "processing #" << ++idx << "/" << m_actual_orders_description.size()
               << " order, function:" << (unsigned int) (*it).NumberModbusFunction
@@ -580,7 +580,7 @@ void RTDBUS_Modbus_client::set_validity(int new_validity)
 // ==========================================================================================
 // Разбор буфера ответа от СС на уровне байтов
 // TODO: проверить, как работает с включённым "substract = 1"
-int RTDBUS_Modbus_client::parse_response(ModbusOrderDescription& handler, uint8_t* rsp_8, uint16_t* rsp_16)
+int RTDBUS_Modbus_client::parse_response(const ModbusOrderDescription& handler, uint8_t* rsp_8, uint16_t* rsp_16)
 {
   int status = OK;
   address_map_t *address_map = NULL;
@@ -666,12 +666,12 @@ int RTDBUS_Modbus_client::parse_response(ModbusOrderDescription& handler, uint8_
 // Особенностью обработки полученных данных является то, что они представляют из себя смещения
 // по шкале инженерного диапазона от 0 до 65535, и для получения физической величины требуется
 // провести их нормализацию на основе физического диапазона и смещения по инженерной шкале.
-int RTDBUS_Modbus_client::parse_HR_IR(address_map_t* address_map, ModbusOrderDescription& handler, uint16_t* data)
+int RTDBUS_Modbus_client::parse_HR_IR(address_map_t* address_map, const ModbusOrderDescription& handler, uint16_t* data)
 {
-  address_map_t::iterator it;
   float          FZnach = USHRT_MAX;// значение регистра, полученное после интерпретации диапазонов
   unsigned short UZnach;
   short          SZnach;
+  address_map_t::iterator it;
   int status = NOK;
 
   for (int i = 0; i < handler.QuantityRegisters; i++)
@@ -734,7 +734,7 @@ int RTDBUS_Modbus_client::parse_HR_IR(address_map_t* address_map, ModbusOrderDes
 
 // ==========================================================================================
 // Разобрать буфер ответа на основе типа обработки HC и IC.
-int RTDBUS_Modbus_client::parse_HC_IC(address_map_t* address_map, ModbusOrderDescription& handler, uint8_t* data)
+int RTDBUS_Modbus_client::parse_HC_IC(address_map_t* address_map, const ModbusOrderDescription& handler, uint8_t* data)
 {
   address_map_t::iterator it;
   int status = NOK;
@@ -772,7 +772,7 @@ int RTDBUS_Modbus_client::parse_HC_IC(address_map_t* address_map, ModbusOrderDes
 // 32-х бит передаётся в виде двух последовательных 16-ти битовых регистров. Таким образом,
 // для получения значения необходимо интерпретировать две последовательно расположенные ячейки
 // uint16_t как одну переменную uint32_t, и преобразовать её в тип float.
-int RTDBUS_Modbus_client::parse_FHR(address_map_t*, ModbusOrderDescription&, uint16_t*)
+int RTDBUS_Modbus_client::parse_FHR(address_map_t*, const ModbusOrderDescription&, uint16_t*)
 {
   int status = NOK;
 
@@ -781,7 +781,7 @@ int RTDBUS_Modbus_client::parse_FHR(address_map_t*, ModbusOrderDescription&, uin
 
 // ==========================================================================================
 // Разобрать буфер ответа на основе типа обработки FP
-int RTDBUS_Modbus_client::parse_FP(address_map_t* address_map, ModbusOrderDescription& handler, uint16_t* data)
+int RTDBUS_Modbus_client::parse_FP(address_map_t* address_map, const ModbusOrderDescription& handler, uint16_t* data)
 {
   address_map_t::iterator it;
   int status = NOK;
@@ -828,7 +828,7 @@ int RTDBUS_Modbus_client::parse_FP(address_map_t* address_map, ModbusOrderDescri
 
 // ==========================================================================================
 // Разобрать буфер ответа на основе типа обработки DP
-int RTDBUS_Modbus_client::parse_DP(address_map_t*, ModbusOrderDescription&, uint16_t*)
+int RTDBUS_Modbus_client::parse_DP(address_map_t*, const ModbusOrderDescription&, uint16_t*)
 {
   return NOK;
 }
@@ -970,12 +970,12 @@ client_status_t RTDBUS_Modbus_client::init_smad_parameters() // загрузка
   m_smad->accelerate(true);
 
   int i = 0;
-  for (sa_parameters_t::iterator itr = m_config->acquisitions().begin();
-       itr != m_config->acquisitions().end();
-       itr++)
+  for (sa_parameters_t::iterator it = m_config->acquisitions().begin();
+       it != m_config->acquisitions().end();
+       ++it)
   {
     LOG(INFO) << "Acquisition item " << ++i;
-    sa_parameter_info_t &info = (*itr);
+    sa_parameter_info_t &info = (*it);
 
     if (OK == m_smad->setup_parameter(info)) {
       m_status = STATUS_OK_SMAD_LOAD;
@@ -1066,9 +1066,9 @@ int RTDBUS_Modbus_client::calculate()
       useful_registers_in_order = 0;
 
       // В порядке возрастания адресов информацию по параметрам данного типа обработки 
-      for (address_map_t::iterator it = address_map->begin();
+      for (address_map_t::const_iterator it = address_map->begin();
            it !=  address_map->end();
-           it++)
+           ++it)
       {
           // Не читать новые данные, если они остались от предыдущего запроса в связи с его переполнением
           if (order_state != END) {
@@ -1149,9 +1149,9 @@ int RTDBUS_Modbus_client::calculate()
   } // Конец поочерёдной проверки всех типов обработки
 
   int idx = 0;
-  for (std::vector<ModbusOrderDescription>::iterator it = m_actual_orders_description.begin();
+  for (std::vector<ModbusOrderDescription>::const_iterator it = m_actual_orders_description.begin();
        it != m_actual_orders_description.end();
-       it++)
+       ++it)
   {
       LOG(INFO) << "#" << ++idx << "/" << m_actual_orders_description.size()
                 << " order, function:" << (unsigned int) (*it).NumberModbusFunction

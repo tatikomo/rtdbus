@@ -83,7 +83,6 @@ typedef enum {
 
 typedef std::pair <const std::string, ServiceInfo_t*> ServicesHashPair_t;
 typedef std::map  <const std::string, ServiceInfo_t*> ServicesHash_t;
-typedef ServicesHash_t::iterator ServicesHashIterator_t;
 
 //  Receive 0MQ string from socket and convert into string
 std::string s_recv (zmq::socket_t & socket);

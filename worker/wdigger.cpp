@@ -178,9 +178,9 @@ void release_point_info(xdb::PointDescription_t* info)
   assert(info);
 
   // Почистить память, выделенную для атрибутов
-  for(xdb::AttributeMapIterator_t it = info->attributes.begin();
+  for(xdb::AttributeMap_t::const_iterator it = info->attributes.begin();
       it != info->attributes.end();
-      it++)
+      ++it)
   {
 #warning "проверить вероятность двойного удаления value.dynamic"
       switch((*it).second.type)
@@ -732,8 +732,8 @@ int DiggerWorker::handle_sbs_ctrl(msg::Letter* letter, std::string& identity)
   xdb::rtDbCq operation;
   xdb::Error result;
   xdb::SubscriptionPoints_t points_list;
-  xdb::SubscriptionPoints_t::iterator it_points;
-  xdb::AttributeMap_t::iterator it_attr;
+//  xdb::SubscriptionPoints_t::iterator it_points;
+//  xdb::AttributeMap_t::iterator it_attr;
   int list_size = 1;
   std::string sbs_name;
   // Полученное сообщение
@@ -904,7 +904,7 @@ void DiggerPoller::work()
   // Итератор названий групп подписки
   xdb::map_id_name_t::iterator it_sbs;
   // Итератор модифицированных тегов атрибутов, участвующих в подписке
-  xdb::map_id_name_t::iterator it_points;
+//  xdb::map_id_name_t::iterator it_points;
   // Список элементарных записей чтения
   xdb::SubscriptionPoints_t points_list;
   // Набор опубликованных точек, для которых после нужно было скинуть флаг модификации 
@@ -973,16 +973,16 @@ void DiggerPoller::work()
               // для указанной группы списка tags.
               // А пока собираем общий список переданных точек, чтобы всем им разом
               // снять признак модификации.
-              for(xdb::SubscriptionPoints_t::iterator it = points_list.begin();
+              for(xdb::SubscriptionPoints_t::const_iterator it = points_list.begin();
                   it != points_list.end();
-                  it++)
+                  ++it)
               {
                 sbs_points_ready_to_clear_modif_flags.insert((*it)->tag);
               }
             }
 
             // Освободить ресурсы info_all
-            for (xdb::SubscriptionPoints_t::iterator it_info = points_list.begin();
+            for (xdb::SubscriptionPoints_t::const_iterator it_info = points_list.begin();
                  it_info != points_list.end();
                  it_info++)
             {
@@ -1201,7 +1201,7 @@ void DiggerProbe::shutdown_workers()
       while (threads_to_join)
       {
         LOG(INFO) << "Wait to join " << threads_to_join << " DiggerWorkers";
-        for (std::vector<std::thread*>::iterator it = m_worker_thread.begin();
+        for (std::vector<std::thread*>::const_iterator it = m_worker_thread.begin();
              it != m_worker_thread.end();
              ++it)
         {

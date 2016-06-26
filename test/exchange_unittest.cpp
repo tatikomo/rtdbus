@@ -81,9 +81,9 @@ TEST(TestEXCHANGE, EGSA_CYCLES)
   ega_ega_odm_t_RequestEntry* req_entry_dict = NULL;
 //  int rc;
 
-  for(egsa_config_cycles_t::iterator it = g_egsa_config->cycles().begin();
+  for(egsa_config_cycles_t::const_iterator it = g_egsa_config->cycles().begin();
       it != g_egsa_config->cycles().end();
-      it++)
+      ++it)
   {
     // Найти запрос с именем (*it).second->request_name в m_requests_table[]
     if (OK == get_request_by_name((*it).second->request_name, req_entry_dict)) {
