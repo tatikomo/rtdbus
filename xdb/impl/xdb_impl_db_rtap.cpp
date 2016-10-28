@@ -1074,7 +1074,6 @@ const Error& DatabaseRtapImpl::read(mco_db_h& handle, xdb::AttributeInfo_t* info
   rtap_db::XDBPoint instance;
   mco_trans_h t;
   bool func_found;
-  AttrProcessingFuncMapIterator_t it;
   MCO_RET rc = MCO_S_OK;
 
   assert(info);
@@ -1100,7 +1099,7 @@ const Error& DatabaseRtapImpl::read(mco_db_h& handle, xdb::AttributeInfo_t* info
       if (rc) { LOG(ERROR) << "Locating point '" << point_name << "', rc=" << rc; setError(rtE_POINT_NOT_FOUND); break; }
 
       func_found = false;
-      it = m_attr_reading_func_map.find(attr_name);
+      AttrProcessingFuncMap_t::const_iterator it = m_attr_reading_func_map.find(attr_name);
       if (it != m_attr_reading_func_map.end())
       {
           func_found = true;
@@ -1304,7 +1303,6 @@ MCO_RET DatabaseRtapImpl::LoadPointInfo(mco_db_h& handle,
   bool read_func_found;
   objclass_t objclass;
   AttributeInfo_t attr_info;
-  AttrProcessingFuncMapIterator_t it;
   MCO_RET rc;
 
   rc = MCO_S_OK;
@@ -1334,7 +1332,8 @@ MCO_RET DatabaseRtapImpl::LoadPointInfo(mco_db_h& handle,
       read_func_found = false;
       // info.list[idx] это индекс атрибута
       // AttrTypeDescription[индекс].name это название атрибута
-      it = m_attr_reading_func_map.find(AttrTypeDescription[/*RTDB_ATT_IDX_...*/info.list[idx]].name);
+      AttrProcessingFuncMap_t::const_iterator it =
+            m_attr_reading_func_map.find(AttrTypeDescription[/*RTDB_ATT_IDX_...*/info.list[idx]].name);
       //attributes_for_subscription_group[idx]);
       if (it != m_attr_reading_func_map.end())
       {
@@ -1666,9 +1665,9 @@ MCO_RET DatabaseRtapImpl::createGroup(mco_db_h& handler, rtDbCq& info)
                   << " in SBS_GROUPS_STAT as '" << *sbs_name << "'";
 
         // Найти и запомнить идентификаторы тегов элементов группы
-        for (std::vector<std::string>::iterator it = info.tags->begin();
+        for (std::vector<std::string>::const_iterator it = info.tags->begin();
              it < info.tags->end();
-             it++)
+             ++it)
         {
           // 2. Создать запись в таблице SBS_GROUPS_ITEM
           rc = sbs_item_instance.create(t);
@@ -2432,7 +2431,6 @@ const Error& DatabaseRtapImpl::write(mco_db_h& handle, AttributeInfo_t* info)
   rtap_db::XDBPoint instance;
   mco_trans_h t;
   bool func_found;
-  AttrProcessingFuncMapIterator_t it;
   MCO_RET rc = MCO_S_OK;
 
   assert(info);
@@ -2460,7 +2458,7 @@ const Error& DatabaseRtapImpl::write(mco_db_h& handle, AttributeInfo_t* info)
 
       //LOG(INFO) << "We found point \"" << point_name;
       func_found = false;
-      it = m_attr_writing_func_map.find(attr_name);
+      const AttrProcessingFuncMap_t::const_iterator it = m_attr_writing_func_map.find(attr_name);
       if (it != m_attr_writing_func_map.end())
       {
           func_found = true;
@@ -2531,7 +2529,6 @@ MCO_RET DatabaseRtapImpl::createPoint(PointInDatabase* instance)
   // атрибута из перечня известных?
   bool func_found;
   unsigned int attr_idx;
-  AttrCreatingFuncMapIterator_t it;
 
   setError(rtE_RUNTIME_ERROR);
 
@@ -2564,7 +2561,8 @@ MCO_RET DatabaseRtapImpl::createPoint(PointInDatabase* instance)
         attr_idx++)
     {
       func_found = false;
-      it = m_attr_creating_func_map.find(instance->attribute(attr_idx).name());
+      AttrCreatingFuncMap_t::const_iterator it =
+            m_attr_creating_func_map.find(instance->attribute(attr_idx).name());
 
       if (it != m_attr_creating_func_map.end())
       {
@@ -5225,7 +5223,7 @@ MCO_RET DatabaseRtapImpl::createEXPMODE(PointInDatabase* instance, rtap_db::Attr
 {
   static const char *attr_name = RTDB_ATT_EXPMODE;
   MCO_RET rc = MCO_S_NOTFOUND;
-  Boolean result;
+//  Boolean result;
   uint1   value = atoi(attr.value().c_str());
 
   switch(instance->objclass())
@@ -6597,9 +6595,9 @@ bool DatabaseRtapImpl::AttrFuncMapInit()
 #include "dat/impl_attr_writing_map.gen"
 
 #if 0
-  for (AttrProcessingFuncMapIterator_t it = m_attr_creating_func_map.begin();
+  for (AttrProcessingFuncMap_t::const_iterator it = m_attr_creating_func_map.begin();
        it != m_attr_creating_func_map.end();
-       it++)
+       ++it)
   {
     LOG(INFO) << "GEV: attr='" << it->first << "' func=" << it->second;
   }

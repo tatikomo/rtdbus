@@ -308,22 +308,40 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
 //  3. При получении служебного сообщения mmi.service от Клиента Брокер
 //  отправляет ему признак существования Службы и атрибуты доступа к ней (endpoint)
 void
-Broker::service_internal (const std::string& service_name, zmsg *msg)
+Broker::service_internal (const std::string& service_name, zmsg *msg, source_request_t request_source)
 {
   xdb::Service *srv = NULL;
+  std::string uid;
+  std::string empty;
+  std::string ss;
+  std::string asked_service_frame;
 
   assert(msg && msg->parts() >= 2);
 
   if (service_name.compare("mmi.service") == 0) {
-        // Имя искомого Сервиса идет следующим фреймом
-        //
-        // std::string asked_service_frame = msg->pop_front(); - не нарушаем структуру сообщения:
-        // [0] @<UUID> (Идентификатор)
-        // [1] "" (пустой кадр)
-        // [2] <Название Службы>
-        assert(msg && msg->parts() == 3);
-        std::string asked_service_frame = *msg->get_part(2);
-        LOG(INFO) << "GET request 'mmi.service' for '" << asked_service_frame << "'";
+        switch(request_source) {
+          case SOURCE_CLIENT:
+            // [011] @006B8B4567
+            // [000] 
+            // [004] SINF
+            assert(msg && msg->parts() == 3);
+            uid = msg->pop_front();
+            empty = msg->pop_front();
+            asked_service_frame = msg->pop_front();
+            break;
+
+          case SOURCE_WORKER:
+            //  [004] EGSA
+            //  [000] 
+            //  [011] mmi.service
+            //  [004] SINF
+            assert(msg && msg->parts() == 4);
+            uid = msg->pop_front();
+            empty = msg->pop_front();
+            ss = msg->pop_front();
+            asked_service_frame = msg->pop_front();
+            break;
+        }
         srv = m_database->GetServiceByName(asked_service_frame);
 
         // Если Сервис известен и у него есть активные Обработчики
@@ -374,20 +392,23 @@ Broker::service_internal (const std::string& service_name, zmsg *msg)
         msg->body_set("501");
   }
 
-  //  Remove & save client return envelope and insert the
-  //  protocol header and service name, then rewrap envelope.
-  //  TODO msg::unwrap() returns reference to memory that may be deleted by msg::pop_front()
-  const char* client = msg->unwrap();
-
-  msg->wrap(MDPC_CLIENT, service_name.c_str());
-  msg->push_front(const_cast<char*>(MDPC_REPORT));
-  msg->push_front(const_cast<char*>(MDPC_CLIENT));
-  msg->wrap (client, EMPTY_FRAME);
-  if (m_verbose)
-    msg->dump();
+  msg->push_front(const_cast<char*>(service_name.c_str()));
+  switch(request_source) {
+    case SOURCE_CLIENT:
+      // Для ответа на запрос Клиента нужно включать идентификатор MDPC_CLIENT
+      msg->push_front(const_cast<char*>(MDPC_REPORT));
+      msg->push_front(const_cast<char*>(MDPC_CLIENT));
+      break;
+    case SOURCE_WORKER:
+      // Для ответа на запрос Службы тут включается MDPW_WORKER
+      msg->push_front(const_cast<char*>(MDPW_REPORT));
+      msg->push_front(const_cast<char*>(MDPW_WORKER));
+      break;
+  }
+  msg->wrap (uid.c_str(), EMPTY_FRAME);
+ 
   msg->send (*m_socket);
 
-  delete [] client;
   delete srv;
 }
 
@@ -516,6 +537,43 @@ Broker::worker_process_READY(xdb::Worker*& worker,
 
 //  ---------------------------------------------------------------------
 bool 
+Broker::worker_process_REQUEST(xdb::Worker*& worker,
+                              const std::string& sender_identity,
+                              zmsg *msg)
+{
+  bool status = false;
+//  xdb::Service *service = NULL;
+//  xdb::Letter  *letter = NULL;
+//  xdb::Letter::State    letter_state;
+
+  // Начальный фрейм - название команды
+  const std::string command = *msg->get_part(0);
+//  if (m_verbose)
+  LOG(INFO) << "Get REQUEST '" << command << "' from '" << sender_identity
+            << "' worker=" << worker->GetIDENTITY();
+
+  // Когда команда начинается с ключевой фразы "mmi." - это является
+  // служебным сообщением. Имеющийся протокол подразумевает размещение в этом месте
+  // поля "команда", представляющая из себя один байт кода команды, поэтому приходится
+  // сначала проверять поле "команда" на "mmi.*", чтобы отсечь нарушение протокола обмена
+  if (command.find("mmi.") != std::string::npos) {
+    // Установить обратный адрес
+    msg->wrap (sender_identity.c_str(), EMPTY_FRAME);
+    // Обработать служебное сообщение
+    service_internal (command, msg, SOURCE_WORKER);
+    // Правда, успешно?
+    status = true;
+  }
+  else {
+    LOG(ERROR) << "Unknown request from " << sender_identity;
+    msg->dump();
+  }
+
+  return status;
+}
+
+//  ---------------------------------------------------------------------
+bool 
 Broker::worker_process_REPORT(xdb::Worker*& worker,
                               const std::string& sender_identity,
                               zmsg *msg)
@@ -620,51 +678,39 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
   xdb::Worker  *wrk = NULL;
 //  xdb::Service *service = NULL;
 
-  assert (msg && msg->parts() >= 1);     //  At least, command
+  assert (msg && msg->parts() >= 1);     //  Как минимум, команда
   assert (sender_identity.size() > 0);
 
   std::string command = msg->pop_front();
   /* Зарегистрирован ли Обработчик с данным identity? */
   wrk = m_database->GetWorkerByIdent(sender_identity);
 
-  // TODO: В этом месте пришлось использовать костыль - не была предусмотрена отправка
-  // Службой запроса в адрес другой Службы.
-  // Пока для запроса точки подключения используется существующее сообщение из протокола
-  // Клиент-Брокер. Когда команда начинается с ключевой фразы "mmi." - это является
-  // служебным сообщением. Имеющийся протокол подразумевает размещение в этом месте
-  // поля "команда", представляющая из себя один байт кода команды, поэтому приходится
-  // сначала проверять поле "команда" на "mmi.*", чтобы отсечь нарушение протокола обмена
-  if (command.find("mmi.") != std::string::npos) {
-    // Установить обратный адрес
-    msg->wrap (sender_identity.c_str(), EMPTY_FRAME);
-    // Обработать служебное сообщение
-    service_internal (command, msg);
-  }
+  /*
+   * TODO нужно заменить функцию worker_require()
+   * Нельзя допускать неизвестных обработчиков, они все должны
+   * принадлежать своему Сервису. Значит, нужно узнать, к какому
+   * Сервису принадлежит сообщение от данного Обработчика.
+   */
+  if (command.compare (MDPW_READY) == 0)
+    status = worker_process_READY(wrk, sender_identity, msg);
+  else if (command.compare (MDPW_REQUEST) == 0)
+    status = worker_process_REQUEST(wrk, sender_identity, msg);
+  else if (command.compare (MDPW_REPORT) == 0)
+    status = worker_process_REPORT(wrk, sender_identity, msg);
+  else if (command.compare (MDPW_HEARTBEAT) == 0)
+    status = worker_process_HEARTBEAT(wrk, sender_identity, msg);
+  else if (command.compare (MDPW_DISCONNECT) == 0)
+    status = worker_process_DISCONNECT(wrk, sender_identity, msg);
   else {
-      /*
-       * TODO нужно заменить функцию worker_require()
-       * Нельзя допускать неизвестных обработчиков, они все должны
-       * принадлежать своему Сервису. Значит, нужно узнать, к какому
-       * Сервису принадлежит сообщение от данного Обработчика.
-       */
-      if (command.compare (MDPW_READY) == 0)
-        status = worker_process_READY(wrk, sender_identity, msg);
-      else if (command.compare (MDPW_REPORT) == 0)
-        status = worker_process_REPORT(wrk, sender_identity, msg);
-      else if (command.compare (MDPW_HEARTBEAT) == 0)
-        status = worker_process_HEARTBEAT(wrk, sender_identity, msg);
-      else if (command.compare (MDPW_DISCONNECT) == 0)
-        status = worker_process_DISCONNECT(wrk, sender_identity, msg);
-      else {
-         LOG(ERROR) << "Invalid input message '" << command << "'";
-         msg->dump ();
-      }
+    LOG(ERROR) << "Invalid input message '" << command << "'";
+    msg->dump ();
   }
 
   if (false == status)
   {
-    if (wrk)
+    if (wrk) {
       LOG(ERROR) << "Processing message from worker " << wrk->GetIDENTITY();
+    }
     else
     {
       LOG(ERROR) << "Processing message from unknown worker";
@@ -852,7 +898,7 @@ Broker::client_msg (const std::string& sender, zmsg *msg)
         // Установить обратный адрес
         msg->wrap (sender.c_str(), EMPTY_FRAME);
         // Да, т.к. имя Сервиса начинается с ключевой фразы "mmi."
-        service_internal (service_frame, msg);
+        service_internal (service_frame, msg, SOURCE_CLIENT);
     }
     else // Нет, это запрос общего порядка 
     {
@@ -914,9 +960,8 @@ Broker::start_brokering()
 //       LOG(INFO) << "wait polling use m_socket " << m_socket;
        zmq::poll (items, 1, Broker::PollInterval);
 
-       // Можно не посылать HEARTBEAT если от службы
-       // было получено любое сообщение, датированное в пределах
-       // интервала опроса HEARTBEAT_INTERVAL.
+       // Можно не посылать HEARTBEAT, если от службы было получено любое
+       // сообщение, датированное в пределах интервала опроса HEARTBEAT_INTERVAL.
        if (items [0].revents & ZMQ_POLLIN) {
            zmsg *msg = new zmsg(*m_socket);
            if (m_verbose) {

@@ -32,7 +32,7 @@ rtdbExchangeId id_list[MAX_LETTERS];
 Pulsar::Pulsar(const std::string& broker, int verbose)
     :
     mdcli(broker, verbose),
-    m_channel(mdp::ChannelType::PERSISTENT) // По умолчанию обмен сообщениями со Службой через Брокер
+    m_channel(ChannelType::PERSISTENT) // По умолчанию обмен сообщениями со Службой через Брокер
 {
   usleep(500000); // Подождать 0.5 сек, чтобы ZMQ успело физически подключиться к Брокеру
 
@@ -63,10 +63,9 @@ void Pulsar::init()
 rtdbMsgType Pulsar::getMsgTypeByName(std::string& type_name)
 {
   rtdbMsgType found = MESSAGE_TYPE_UNKNOWN;
-  MessageTypesHashIterator_t it;
 
   std::cout << "looking \"" << type_name << "\" message" << std::endl;
-  it = m_msg_type_hash.find(type_name);
+  const MessageTypesHash_t::const_iterator it = m_msg_type_hash.find(type_name);
   if (it != m_msg_type_hash.end())
   {
     found = it->second;
@@ -80,11 +79,11 @@ void Pulsar::fire_messages()
 {
   switch(m_channel)
   {
-    case mdp::ChannelType::DIRECT:
+    case ChannelType::DIRECT:
     fire_direct();
     break;
 
-    case  mdp::ChannelType::PERSISTENT:
+    case  ChannelType::PERSISTENT:
     fire_persistent();
     break;
 
@@ -155,7 +154,7 @@ int main (int argc, char *argv [])
   char service_endpoint[ENDPOINT_MAXLEN + 1];
   // Указано название Службы
   bool is_service_name_given = false;
-  mdp::ChannelType channel = mdp::ChannelType::PERSISTENT;
+  ChannelType channel = ChannelType::PERSISTENT;
   // По умолчанию обмен сообщениями со Службой через Брокер
   rtdbExchangeId sent_exchange_id;
   std::string broker_endpoint = ENDPOINT_BROKER;
@@ -185,7 +184,7 @@ int main (int argc, char *argv [])
          break;
 
        case 'd': // Direct - прямые сообщения в адрес Службы
-         channel = mdp::ChannelType::DIRECT;
+         channel = ChannelType::DIRECT;
          break;
 
        case 's':

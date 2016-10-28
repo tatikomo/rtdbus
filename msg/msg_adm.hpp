@@ -51,7 +51,7 @@ class ExecResult : public Letter
      // Получить значения структуры из сообщения.
      // Вернет true, если структура в сообщении есть, и заполнит параметры значениями.
      bool failure_cause(int&, std::string&);
-     void set_failure_cause(int, std::string&);
+     void set_failure_cause(int, const std::string&);
 
    private:
 };

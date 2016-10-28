@@ -136,7 +136,7 @@ void SystemAcquisition::look_my_cycles(const std::vector<Cycle*>& all_cycles)
 {
   for (std::vector<Cycle*>::const_iterator it = all_cycles.begin();
        it != all_cycles.end();
-       it++)
+       ++it)
   {
     LOG(INFO) << "look cycle " << (*it)->name();
   }
@@ -158,7 +158,7 @@ void SystemAcquisition::init()
 void SystemAcquisition::process_end_all_init()
 {
 //1  m_timer_ENDALLINIT = new Timer("ENDALLINIT");
-  m_egsa->send_to(m_name, ADG_D_MSG_ENDALLINIT);
+//  m_egsa->send_to(m_name, ADG_D_MSG_ENDALLINIT);
   LOG(INFO) << "Process ENDALLINIT for " << m_name;
 }
 

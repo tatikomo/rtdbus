@@ -46,7 +46,6 @@ typedef std::map<std::string, int> Options;
 typedef std::pair<const std::string, int> Pair;
 typedef std::map<const std::string, int> Options;
 #endif
-typedef Options::iterator OptionIterator;
 
 // Получить значение указанной опции из массива опций
 bool  getOption(Options*, const std::string&, int&);

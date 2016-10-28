@@ -44,18 +44,45 @@
 //  Provide random number from 0..(num-1)
 #define within(num) (int) ((float) (num) * random () / (RAND_MAX + 1.0))
 
+// https://ru.wikipedia.org/wiki/%D0%A1%D0%BF%D0%B8%D1%81%D0%BE%D0%BA_%D0%BA%D0%BE%D0%B4%D0%BE%D0%B2_%D1%81%D0%BE%D1%81%D1%82%D0%BE%D1%8F%D0%BD%D0%B8%D1%8F_HTTP
+typedef enum {
+  // "Хорошая" часть
+  SERVICE_SUCCESS_OK        = 200,
+  SERVICE_SUCCESS_CREATED   = 201,
+  SERVICE_SUCCESS_ACCEPTED  = 202,
+  //
+  SERVICE_REDIRECTION_MULTIPLE    = 300,
+  SERVICE_REDIRECTION_PERMANENTLY = 301,
+  SERVICE_REDIRECTION_TEMPORARILY = 302,
+  // "Плохая" часть
+  SERVICE_ERROR_BAD_REQUEST       = 400,
+  SERVICE_ERROR_UNAUTHORIZED      = 401,
+  SERVICE_ERROR_FORBIDDEN         = 403,
+  SERVICE_ERROR_NOT_FOUND         = 404,
+  SERVICE_ERROR_NOT_ALLOWED       = 405,
+  // Серверная часть
+  SERVICE_SERVER_ERROR_INTERNAL   = 500,
+  SERVICE_SERVER_ERROR_NOT_IMPLEMENTED = 501
+} service_status_t;
+
 typedef struct {
   // Строка подключения к Сервису в формате connect
   char endpoint_external[ENDPOINT_MAXLEN + 1];
   // Строка подключения Публикатору Сервиса в формате connect
   char endpoint_publisher[ENDPOINT_MAXLEN + 1];
+  // Текущее состояние Службы: 200,404,500,...
+  service_status_t status_code;
   // Было ли подключение к данной Службе?
   bool  connected;
 } ServiceInfo_t;
 
+typedef enum {
+  PERSISTENT = 1, // Обмен через Брокера
+  DIRECT     = 2, // Обмен со Службой напрямую
+} ChannelType;
+
 typedef std::pair <const std::string, ServiceInfo_t*> ServicesHashPair_t;
 typedef std::map  <const std::string, ServiceInfo_t*> ServicesHash_t;
-typedef ServicesHash_t::iterator ServicesHashIterator_t;
 
 //  Receive 0MQ string from socket and convert into string
 std::string s_recv (zmq::socket_t & socket);

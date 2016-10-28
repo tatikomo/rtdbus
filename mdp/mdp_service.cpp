@@ -114,12 +114,13 @@ Service::enable_command (const std::string& command)
     // попробуем найти полученную команду в списке заблокированных
     for(std::vector<std::string>::iterator it = m_blacklist.begin();
         it != m_blacklist.end();
-        it++) {
-           if (*it == command) {
-               // удалим элемент, тем самым разрешив ранее заблокированную команду
-               it = m_blacklist.erase(it)-1;
-               break;
-           }
+        ++it)
+    {
+      if (*it == command) {
+        // удалим элемент, тем самым разрешив ранее заблокированную команду
+        it = m_blacklist.erase(it)-1;
+        break;
+      }
     }
 }
 
@@ -129,13 +130,14 @@ Service::disable_command (const std::string& command)
     bool exist = false;
 
     // попробуем найти полученную команду в списке заблокированных
-    for(std::vector<std::string>::iterator it = m_blacklist.begin();
+    for(std::vector<std::string>::const_iterator it = m_blacklist.begin();
         it != m_blacklist.end();
-        it++) {
-           if (*it == command) {
-               exist = true;
-               break;
-           }
+        ++it)
+    {
+      if (*it == command) {
+        exist = true;
+        break;
+      }
     }
 
     // в списке отсуствует -> добавим
@@ -151,13 +153,14 @@ Service::is_command_enabled (const std::string& command)
     bool exist = false;
 
     // попробуем найти полученную команду в списке заблокированных
-    for(std::vector<std::string>::iterator it = m_blacklist.begin();
+    for(std::vector<std::string>::const_iterator it = m_blacklist.begin();
         it != m_blacklist.end();
-        it++) {
-           if (*it == command) {
-               exist = true;
-               break;
-           }
+        ++it)
+    {
+      if (*it == command) {
+        exist = true;
+        break;
+      }
     }
 
     return !exist;

@@ -25,6 +25,13 @@ class zmsg
 {
  public:
 
+   typedef enum {
+     BROKER     = 1,
+     SUBSCRIBER = 2,
+     DIRECT     = 3,
+     PEER       = 4
+   } msg_source_t;
+
    zmsg();
 
    //  --------------------------------------------------------------------------
@@ -102,9 +109,15 @@ class zmsg
 
    void dump();
 
+   // Источник получения сообщения определяется тем сокетом, откуда оно прочиталось
+   // Это могут быть: Брокер, Подписка, Службы, Клиенты 
+   void set_source(msg_source_t _src) { m_source = _src; };
+   msg_source_t get_source() { return m_source; };
+
  private:
    DISALLOW_COPY_AND_ASSIGN(zmsg);
    std::vector<std::string> m_part_data;
+   msg_source_t             m_source;
 };
 
 } //namespace mdp

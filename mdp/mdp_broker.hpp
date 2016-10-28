@@ -25,6 +25,7 @@ class Broker {
    static const int PollInterval = HEARTBEAT_PERIOD_MSEC/3;
    static const int HeartbeatInterval = HEARTBEAT_PERIOD_MSEC;
    static const int HeartbeatExpiration = HEARTBEAT_PERIOD_MSEC * HEARTBEAT_LIVENESS;
+   typedef enum { SOURCE_CLIENT, SOURCE_WORKER } source_request_t;
    //  ---------------------------------------------------------------------
    //  Constructor for broker object
    Broker (bool verbose);
@@ -70,7 +71,7 @@ class Broker {
    //  ---------------------------------------------------------------------
    //  Handle internal service according to 8/MMI specification
    void
-   service_internal (const std::string& service_name, zmsg *msg);
+   service_internal (const std::string& service_name, zmsg *msg, source_request_t);
 
    //  ---------------------------------------------------------------------
    //  Creates worker if necessary
@@ -144,6 +145,7 @@ class Broker {
 
     /* Обработка соответствующих команд, полученных от Обработчиков */
     bool worker_process_READY(xdb::Worker*&, const std::string&, zmsg*);
+    bool worker_process_REQUEST(xdb::Worker*&, const std::string&, zmsg*);
     bool worker_process_REPORT(xdb::Worker*&, const std::string&, zmsg*);
     bool worker_process_HEARTBEAT(xdb::Worker*&, const std::string&, zmsg*);
     bool worker_process_DISCONNECT(xdb::Worker*&, const std::string&, zmsg*);

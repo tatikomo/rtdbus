@@ -205,11 +205,11 @@ int RTDBUS_Modbus_server::load_config()
 
     // определить границы параметров
     int i = 0;
-    for (sa_parameters_t::iterator itr = m_config->acquisitions().begin();
-         itr != m_config->acquisitions().end();
-         itr++)
+    for (sa_parameters_t::const_iterator it = m_config->acquisitions().begin();
+         it != m_config->acquisitions().end();
+         ++it)
     {
-      const sa_parameter_info_t &info = (*itr);
+      const sa_parameter_info_t &info = (*it);
       LOG(INFO) << ++i << "/" << m_config->acquisitions().size()
             << " "
             << info.name << ":"
@@ -528,11 +528,11 @@ void RTDBUS_Modbus_server::simulate_values()
 {
  // int i = 0;
 
-    for (sa_parameters_t::iterator itr = m_config->acquisitions().begin();
-         itr != m_config->acquisitions().end();
-         itr++)
+    for (sa_parameters_t::const_iterator it = m_config->acquisitions().begin();
+         it != m_config->acquisitions().end();
+         ++it)
     {
-      const sa_parameter_info_t &info = (*itr);
+      const sa_parameter_info_t &info = (*it);
 #if 0
       LOG(INFO) << ++i << "/" << m_config->acquisitions().size()
             << " "

@@ -36,7 +36,6 @@ typedef std::map  <std::string, DbType_t> DbTypesHash_t;
 typedef std::pair <const std::string, DbType_t> DbTypesHashPair_t;
 typedef std::map  <const std::string, DbType_t> DbTypesHash_t;
 #endif
-typedef DbTypesHash_t::iterator DbTypesHashIterator_t;
 
 typedef std::map  <std::string, int> DbPointsTypeHash_t;
 typedef std::pair <std::string, int> DbPointsTypeHashPair_t;
@@ -525,7 +524,7 @@ bool getAttrValue(DbType_t db_type,
 
 // Экранировать символы '&', '<', '>' на '&amp;', '&lt;', '&gt'
 // перед использованием строки в составе XML
-std::string getValueAsString(AttributeInfo_t* attr_info, bool masquerade)
+std::string getValueAsString(const AttributeInfo_t* attr_info, bool masquerade)
 {
   std::string s_val;
   std::stringstream ss;
@@ -659,12 +658,12 @@ std::string& xdb::dump_point(
     std::string& dump)
 {
     // Получить доступ к Атрибутам из шаблонных файлов Классов
-    AttributeMap_t         *attributes_template;
-    AttributeInfo_t        *element;
-    AttributeMapIterator_t  it_given;
-    std::stringstream       class_item_presentation;
-    AttributeMapIterator_t  it_attr_pool;
-    std::string             univname;
+    AttributeMap_t    *attributes_template;
+    const AttributeInfo_t   *element;
+    std::stringstream  class_item_presentation;
+    std::string        univname;
+    AttributeMap_t::const_iterator it_given;
+    AttributeMap_t::iterator it_attr_pool;
 
     if (class_idx == GOF_D_BDR_OBJCLASS_UNUSED)
     {
@@ -695,8 +694,8 @@ std::string& xdb::dump_point(
 
         class_item_presentation << "  <rtdb:Tag>"<< univname <<"</rtdb:Tag>" << std::endl;
 
-        for (AttributeMapIterator_t it=attributes_template->begin();
-             it!=attributes_template->end();
+        for (AttributeMap_t::const_iterator it = attributes_template->begin();
+             it != attributes_template->end();
              ++it)
         {
           // TODO: удалить проверку UNIVNAME и OBJCLASS после редактирования словарей ??_*.dat
@@ -1371,14 +1370,13 @@ void skipStr(char* laChaine)
 bool xdb::GetDbTypeFromString(std::string& s_t, DbType_t& db_t)
 {
   bool status = false;
-  DbTypesHashIterator_t it;
 
   db_t = DB_TYPE_UNDEF;
 
-  it = dbTypesHash.find(s_t);
+  const DbTypesHash_t::const_iterator it = dbTypesHash.find(s_t);
   if (it != dbTypesHash.end())
   {
-    db_t= it->second;
+    db_t = it->second;
     status = true;
   }
 
@@ -1387,7 +1385,7 @@ bool xdb::GetDbTypeFromString(std::string& s_t, DbType_t& db_t)
 
 // На входе код типа БДРВ, на выходе строковое представление типа, 
 // согласно шаблону AttributeType файла rtap_db.xsd
-const char* xdb::GetDbNameFromType(DbType_t& db_t)
+const char* xdb::GetDbNameFromType(const DbType_t& db_t)
 {
   assert((DB_TYPE_UNDEF < db_t) && (db_t < DB_TYPE_LAST));
   assert(DbTypeDescription[db_t].code == db_t);

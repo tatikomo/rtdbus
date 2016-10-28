@@ -377,9 +377,9 @@ bool process_group(RtConnection *conn, const char* work_env, const char* file_na
           tags_list.push_back(x);
         }
 #else
-        for (std::unordered_set <std::string>::iterator it=sbs_points_set.begin();
+        for (std::unordered_set <std::string>::const_iterator it=sbs_points_set.begin();
              it != sbs_points_set.end();
-             it++)
+             ++it)
         {
           tags_list.push_back(*it);
         }

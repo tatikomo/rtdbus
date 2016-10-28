@@ -8,13 +8,12 @@ using namespace xdb;
 bool getOption(const Options& _options, const std::string& key, int& val)
 {
   bool status = false;
-  OptionIterator p = _options.find(key);
+  const OptionIterator p = _options.find(key);
 
-  if (p != _options.end())
-  {
+  if (p != _options.end()) {
     val = p->second;
     status = true;
-    std::cout << "Found '"<<key<<"' option=" << p->second << std::endl;
+    // std::cout << "Found '"<<key<<"' option=" << p->second << std::endl;
   }
   return status;
 }
@@ -22,15 +21,14 @@ bool getOption(const Options& _options, const std::string& key, int& val)
 bool setOption(const Options& _options, const std::string& key, int val)
 {
   bool status = false;
-  OptionIterator p = _options.find(key);
+  const OptionIterator p = _options.find(key);
 
-  if (p != _options.end())
-  {
+  if (p != _options.end()) {
     val = p->second;
     status = true;
-    std::cout << "Replace '" << key
-              << "' old value " << p->second
-              << " with " << val << std::endl;
+//    std::cout << "Replace '" << key
+//              << "' old value " << p->second
+//              << " with " << val << std::endl;
   }
   else
   {

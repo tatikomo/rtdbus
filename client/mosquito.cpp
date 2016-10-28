@@ -289,7 +289,7 @@ int main (int argc, char *argv [])
   int verbose;
   int status; // код завершения функции чтения сообщения
   // прямые сообщения в адрес Сервиса
-  mdp::ChannelType channel = mdp::ChannelType::DIRECT;
+  ChannelType channel = ChannelType::DIRECT;
   char one_argument[SERVICE_NAME_MAXLEN + 1] = "";
   char service_endpoint[ENDPOINT_MAXLEN + 1] = "";
   std::string broker_endpoint = ENDPOINT_BROKER;
@@ -485,14 +485,14 @@ int main (int argc, char *argv [])
       //----------------------------
         // Запросить состояние Службы
         request = mosquito->create_message(ADG_D_MSG_ASKLIFE);
-        channel = mdp::ChannelType::PERSISTENT;
+        channel = ChannelType::PERSISTENT;
         break;
 
       case Mosquito::MODE_STOP:
       //----------------------------
         // Запросить останов Службы
         request = mosquito->create_message(ADG_D_MSG_STOP);
-        channel = mdp::ChannelType::PERSISTENT;
+        channel = ChannelType::PERSISTENT;
         break;
 
 
@@ -557,15 +557,15 @@ int main (int argc, char *argv [])
             switch (mode) {
               case Mosquito::MODE_PROBE:
               case Mosquito::MODE_STOP:
-                channel = mdp::ChannelType::PERSISTENT;
+                channel = ChannelType::PERSISTENT;
                 break;
               default:
-                channel = mdp::ChannelType::DIRECT;
+                channel = ChannelType::DIRECT;
             }
           } // конец блока обработки непустого ответа точки подключения
           else {
             std::cout << "No direct endpoint, will send throu broker" << std::endl;
-            channel = mdp::ChannelType::PERSISTENT;
+            channel = ChannelType::PERSISTENT;
           }
           break;
 

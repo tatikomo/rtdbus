@@ -72,9 +72,9 @@ mdcli::mdcli (const std::string& broker, int verbose) :
 //  Destructor
 mdcli::~mdcli ()
 {
-  for(ServicesHashIterator_t it = m_services_info.begin();
+  for(ServicesHash_t::const_iterator it = m_services_info.begin();
       (it != m_services_info.end());
-      it++)
+      ++it)
   {
      // Освободить занятую под ServiceInfo_t память
      delete it->second;
@@ -179,10 +179,8 @@ bool mdcli::service_info_by_name(const char* serv_name, ServiceInfo_t *&serv_inf
 {
   bool status = false;
 
-  ServicesHashIterator_t it;
-  it = m_services_info.find(serv_name);
-  if (it != m_services_info.end())
-  {
+  const ServicesHash_t::const_iterator it = m_services_info.find(serv_name);
+  if (it != m_services_info.end()) {
     serv_info = it->second;
     status = true;
   }
@@ -249,13 +247,11 @@ int mdcli::ask_service_info(const std::string& service_name, char* service_endpo
   else
   {
     LOG(INFO) << "Receive enpoint's response";
-    //report->dump();
+    report->dump();
 
-    // MDPC0X
-    const std::string client_code = report->pop_front();
-    // mmi.service
-    const std::string service_request  = report->pop_front();
-    assert(service_request.compare(mmi_service_get_name) == 0);
+    // Название команды
+    const std::string command = report->pop_front();
+    assert(0 == command.compare("mmi.service"));
     // <Название Службы>
     const std::string service_name_from_msg = report->pop_front();
     // 200|404|501
@@ -456,14 +452,6 @@ mdcli::recv (zmsg* &msg)
   try
   {
     zmq::poll (m_socket_items, m_active_socket_num, m_timeout); // 2500 msec => 2.5 sec
-
-/*    LOG(INFO) << "GEV: mdcli::recv #"<<m_active_socket_num
-              << ": brok[0]=" <<m_client     << ": " << m_socket_items [BROKER_ITEM].revents
-                                                  << " " << m_socket_items [BROKER_ITEM].fd
-              << ", subs["<<m_subscriber_socket_index<<"]=" <<m_subscriber << ": " << m_socket_items [m_subscriber_socket_index].revents
-                                                  << " " << m_socket_items [m_subscriber_socket_index].fd
-              << ", peer["<<m_peer_socket_index<<"]="       <<m_peer       << ": " << m_socket_items [m_peer_socket_index].revents
-                                                  << " " << m_socket_items [m_peer_socket_index].fd;*/
 
     // PERSISTENT-сообщение (через Брокер)
     if (m_socket_items[BROKER_ITEM].revents & ZMQ_POLLIN) {

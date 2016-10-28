@@ -180,7 +180,7 @@ class MessageFactory
     Letter* unserialize(const std::string&, const std::string&);
 
     // Статичные методы для работы с конвертацией для атрибутов "Символьный тип" <=> "числовой тип"
-    static const char* GetDbNameFromType(xdb::DbType_t& db_t);
+    static const char* GetDbNameFromType(const xdb::DbType_t& db_t);
     static bool GetDbTypeFromString(/* IN */ std::string& s_t, /* OUT */ xdb::DbType_t& db_t);
 
   private:

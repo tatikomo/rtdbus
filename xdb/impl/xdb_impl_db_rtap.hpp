@@ -155,9 +155,6 @@ typedef std::map  <const std::string, AttributeCreatingFunc_t> AttrCreatingFuncM
 typedef std::pair <const std::string, AttributeProcessingFunc_t> AttrProcessingFuncPair_t;
 typedef std::map  <const std::string, AttributeProcessingFunc_t> AttrProcessingFuncMap_t;
 #endif
-typedef AttrCreatingFuncMap_t::iterator AttrCreatingFuncMapIterator_t;
-typedef AttrProcessingFuncMap_t::iterator AttrProcessingFuncMapIterator_t;
-
 
 void errhandler(MCO_RET);
 void extended_errhandler(MCO_RET errcode, const char* file, int line);

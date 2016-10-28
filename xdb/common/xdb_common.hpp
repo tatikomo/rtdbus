@@ -788,7 +788,6 @@ typedef std::pair <std::string, AttributeInfo_t> AttributeMapPair_t;
 typedef std::map  <const std::string, AttributeInfo_t> AttributeMap_t;
 typedef std::pair <const std::string, AttributeInfo_t> AttributeMapPair_t;
 #endif
-typedef AttributeMap_t::iterator AttributeMapIterator_t;
 
 /* общие сведения по точке базы данных */
 typedef struct

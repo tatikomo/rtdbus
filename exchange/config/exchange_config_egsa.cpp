@@ -134,7 +134,7 @@ EgsaConfig::~EgsaConfig()
 
   for (egsa_config_cycles_t::iterator it = m_cycles.begin();
        it != m_cycles.end();
-       it++)
+       ++it)
   {
     LOG(INFO) << "Free cycle " << ++idx;
     delete (*it).second;
@@ -143,7 +143,7 @@ EgsaConfig::~EgsaConfig()
   idx = 0;
   for (egsa_config_sites_t::iterator it = m_sites.begin();
        it != m_sites.end();
-       it++)
+       ++it)
   {
     LOG(INFO) << "Free site " << ++idx;
     delete (*it).second;

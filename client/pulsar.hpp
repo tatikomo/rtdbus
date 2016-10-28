@@ -14,7 +14,6 @@ typedef enum {
 
 typedef std::map  <const std::string, rtdbMsgType> MessageTypesHash_t;
 typedef std::pair <const std::string, rtdbMsgType> MessageTypesHashPair_t;
-typedef MessageTypesHash_t::iterator MessageTypesHashIterator_t;
 
 class Pulsar: public mdp::mdcli
 {
@@ -34,7 +33,7 @@ class Pulsar: public mdp::mdcli
     // Инициализация структур
     void init();
 
-    mdp::ChannelType m_channel;
+    ChannelType m_channel;
     MessageTypesHash_t m_msg_type_hash;
 };
 

@@ -28,7 +28,6 @@ typedef std::map  <std::string, xdb::DbType_t> DbTypesHash_t;
 typedef std::pair <const std::string, xdb::DbType_t> DbTypesHashPair_t;
 typedef std::map  <const std::string, xdb::DbType_t> DbTypesHash_t;
 #endif
-typedef DbTypesHash_t::iterator DbTypesHashIterator_t;
 
 // Соответствие между симв. названием и числовым кодом атрибута
 static DbTypesHash_t *g_dbTypesHash = NULL;
@@ -707,14 +706,12 @@ Letter* MessageFactory::unserialize(const std::string& pb_header, const std::str
 bool MessageFactory::GetDbTypeFromString(std::string& s_t, xdb::DbType_t& db_t)
 {
   bool status = false;
-  DbTypesHashIterator_t it;
 
   db_t = xdb::DB_TYPE_UNDEF;
 
-  it = g_dbTypesHash->find(s_t);
-  if (it != g_dbTypesHash->end())
-  {
-    db_t= it->second;
+  const DbTypesHash_t::const_iterator it = g_dbTypesHash->find(s_t);
+  if (it != g_dbTypesHash->end()) {
+    db_t = it->second;
     status = true;
   }
 
@@ -723,7 +720,7 @@ bool MessageFactory::GetDbTypeFromString(std::string& s_t, xdb::DbType_t& db_t)
 
 // На входе код типа БДРВ, на выходе строковое представление типа, 
 // согласно шаблону AttributeType файла rtap_db.xsd
-const char* MessageFactory::GetDbNameFromType(xdb::DbType_t& db_t)
+const char* MessageFactory::GetDbNameFromType(const xdb::DbType_t& db_t)
 {
   assert((xdb::DB_TYPE_UNDEF < db_t) && (db_t < xdb::DB_TYPE_LAST));
   assert(xdb::DbTypeDescription[db_t].code == db_t);

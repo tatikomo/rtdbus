@@ -79,7 +79,7 @@ void  Dump(msg::Letter*);
  */
 Pulsar::Pulsar(const std::string& broker, int verbose) 
   : mdcli(broker, verbose),
-    m_channel(mdp::ChannelType::PERSISTENT)
+    m_channel(ChannelType::PERSISTENT)
 {
   LOG(INFO) << "Create pulsar instance";
 }
@@ -282,7 +282,7 @@ client_task (void* /*args*/)
             {
               LOG(INFO) << "Endpoint for \"" << service_name << "\" is " << service_endpoint;
             
-              client->send (service_name, request, mdp::ChannelType::DIRECT);
+              client->send (service_name, request, ChannelType::DIRECT);
               wait_response = true;
             }
             else
