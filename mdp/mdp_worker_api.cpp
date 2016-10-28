@@ -83,6 +83,7 @@ mdwrk::mdwrk (const std::string& broker_endpoint, const std::string& service, in
   m_service(service),
   m_direct_endpoint(NULL),
   m_worker(NULL),
+  m_peer(NULL),
   m_direct(NULL),
   m_subscriber(NULL),
   m_heartbeat_at_msec(0),
@@ -121,9 +122,9 @@ mdwrk::~mdwrk ()
 
   send_to_broker (MDPW_DISCONNECT, NULL, NULL);
 
-  for(ServicesHashIterator_t it = m_services_info.begin();
+  for(ServicesHash_t::const_iterator it = m_services_info.begin();
       it != m_services_info.end();
-      it++)
+      ++it)
   {
      // Освободить занятую под ServiceInfo_t память
      delete it->second;
@@ -131,19 +132,15 @@ mdwrk::~mdwrk ()
 
   try
   {
-      LOG(INFO) << "mdwrk destroy m_worker " << m_worker;
-      if (m_worker)
-      {
-        m_worker->close();
-        delete m_worker;
-      }
+      // NB: При удалении экземпляров zmq::socket_t их соединение
+      // закрывается автоматически
+      LOG(INFO) << "mdwrk destroy tunnel " << m_worker << " to Broker";
+      delete m_worker;
+      LOG(INFO) << "mdwrk destroy tunnel " << m_peer << " to other Services";
+      delete m_peer;
+      LOG(INFO) << "mdwrk destroy direct tunnel " << m_direct;
+      delete m_direct;
 
-      LOG(INFO) << "mdwrk destroy m_direct " << m_direct;
-      if (m_direct)
-      {
-        m_direct->close();
-        delete m_direct;
-      }
       // NB: Контекст m_context закрывается сам при уничтожении экземпляра mdwrk
   }
   catch(zmq::error_t error)
@@ -171,14 +168,18 @@ void mdwrk::send_to_broker(const char *command, const char* option, zmsg *_msg)
     msg->push_front ((char*)MDPW_WORKER);
     msg->push_front ((char*)"");
 
-    LOG(INFO) << "Sending " << mdpw_commands [(int) *command] << " to broker";
+    assert((0 <= command[0]) && (command[0] <= 5));
+    LOG(INFO) << "Sending " << mdpw_commands [static_cast<int>(*command)] << " to broker";
+#if (VERBOSE > 5)
     msg->dump ();
+#endif
 
-    if (m_worker)
-    {
+    if (m_worker) {
       msg->send (*m_worker);
     }
-    else LOG(ERROR) << "send_to_broker() to uninitialized socket";
+    else {
+      LOG(ERROR) << "send_to_broker() to uninitialized socket";
+    }
 
     delete msg;
 }
@@ -197,9 +198,9 @@ void mdwrk::connect_to_broker ()
         delete m_worker;
     }
     m_worker = new zmq::socket_t (m_context, ZMQ_DEALER);
-    m_worker->setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
-    m_worker->setsockopt(ZMQ_SNDTIMEO, &m_send_timeout_msec, sizeof(m_send_timeout_msec));
-    m_worker->setsockopt(ZMQ_RCVTIMEO, &m_recv_timeout_msec, sizeof(m_recv_timeout_msec));
+    m_worker->setsockopt(ZMQ_LINGER, &linger, sizeof (int));
+    m_worker->setsockopt(ZMQ_SNDTIMEO, &m_send_timeout_msec, sizeof(int));
+    m_worker->setsockopt(ZMQ_RCVTIMEO, &m_recv_timeout_msec, sizeof(int));
     // GEV 22/01/2015: ZMQ_IDENTITY добавлено для теста
     m_worker->setsockopt (ZMQ_IDENTITY, m_service.c_str(), m_service.size());
     m_worker->connect (m_broker_endpoint.c_str());
@@ -223,6 +224,8 @@ void mdwrk::connect_to_broker ()
     }
     else
     {
+#warning "getEndpoint will newer returns NULL"
+      // TODO: удалить ветку 'else' кода после проверки работы с заранее неизвестными Службами
       LOG(WARNING) << "Service '" << m_service << "' has no information about external endpoint";
       msg->push_front (const_cast<char*>(EMPTY_FRAME));
     }
@@ -247,7 +250,8 @@ void mdwrk::connect_to_world ()
   try
   {
     if (m_direct) {
-        m_direct->close();
+        // При удалении экземпляра zmq::socket_t соединение закрывается автоматически
+        //A m_direct->close();
         delete m_direct;
     }
 
@@ -288,9 +292,10 @@ void mdwrk::connect_to_world ()
 //  ---------------------------------------------------------------------
 //  Set heartbeat delay
 void
-mdwrk::set_heartbeat (int heartbeat)
+mdwrk::set_heartbeat (int msec)
 {
-    m_heartbeat_msec = heartbeat;
+  LOG(INFO) << "Set heartbeat interval to " << msec << " msec";
+  m_heartbeat_msec = msec;
 }
 
 //  ---------------------------------------------------------------------
@@ -304,21 +309,21 @@ void mdwrk::set_recv_timeout(int msec)
 //  ---------------------------------------------------------------------
 //  Set reconnect delay
 void
-mdwrk::set_reconnect (int reconnect)
+mdwrk::set_reconnect (int msec)
 {
-    m_reconnect_msec = reconnect;
+  LOG(INFO) << "Set reconnect interval to " << msec << " msec";
+  m_reconnect_msec = msec;
 }
 
 //  ---------------------------------------------------------------------
 //  Подключиться к указанной службе
-int mdwrk::subscribe_to(const std::string& service, const std::string& sbs)
+bool mdwrk::subscribe_to(const std::string& service, const std::string& sbs)
 {
-  int status_code = 0;
+  bool status = true;
   int linger = 0;
   int hwm = 100;
 
   try {
-    LOG(ERROR) << "Subscribing to " << service << ":" << sbs;
 
     if (!m_subscriber) {
       m_subscriber = new zmq::socket_t (m_context, ZMQ_SUB);
@@ -331,54 +336,157 @@ int mdwrk::subscribe_to(const std::string& service, const std::string& sbs)
 
     // Первым фреймом должно идти название группы
     m_subscriber->setsockopt(ZMQ_SUBSCRIBE, sbs.c_str(), sbs.size());
+
+    LOG(INFO) << "Subscribe to " << service << ":" << sbs;
   }
   catch(zmq::error_t err)
   {
-    LOG(ERROR) << err.what();
-    status_code = err.num();
+    LOG(ERROR) << "Subscribing to " << service << ":" << sbs << " - " << err.what();
+    status = false;
   }
 
-  return status_code;
+  return status;
 }
 
 // ==========================================================================================================
 // Отправить сообщение в адрес сторонней Службы
-void mdwrk::send(const std::string& serv_name, zmsg *&request)
+// Коды возврата
+// OK - Служба известна, сообщение отправлено в очередь на пересылку
+// NOK - Служба неизвестна, отправка сообщения невозможна
+bool mdwrk::send_to(const std::string& service_name, mdp::zmsg *&request, ChannelType channel)
 {
-  ServiceInfo_t *serv_info = NULL;
-  int rc = 0;
-  char service_endpoint[SERVICE_NAME_MAXLEN + 1];
+  ServiceInfo_t *service_info = NULL;
+  bool status = false;
 
-  LOG(INFO) << "Send message to service " << serv_name;
+  switch (channel) {
+    case PERSISTENT: // ----------------------------------------------------------------------
+       //  Prefix request with protocol frames
+       //  Frame 0: empty (REQ emulation)
+       //  Frame 1: "MDPCxy" (six bytes, MDP/Client x.y)
+       //  Frame 2: Service name (printable string)
+       request->push_front (const_cast<char*>(service_name.c_str())); // frame 2
+       request->push_front (const_cast<char*>(MDPC_CLIENT));       // frame 1
+       request->push_front (const_cast<char*>(""));                // frame 0
+       request->send (*m_worker);
+       break;
 
-  // Проверить, есть ли информация по данному Сервису в кеше
-  if (false == service_info_by_name(serv_name, serv_info)) {
-    // Кеш не знает такой службы, запросим её
-    if (0 == (rc = ask_service_info(serv_name, service_endpoint, SERVICE_NAME_MAXLEN))) {
-      // Успешно получили от Брокера информацию по подключению к указанной Службе
-    }
-    else {
-      LOG(ERROR) << "Can't get service '" << serv_name << "' endpoint, rc=" << rc;
-    }
+     case DIRECT: // ----------------------------------------------------------------------
+       // Если Служба известна, и у нее есть точка подключения, проверить -
+       //   было ли подключение к прямому соединению с данной Службой.
+       //   Если было - отправить сообщение на ранее сохраненный прямой сокет.
+       //   Если нет - подключить клиентский сокет к точке подключения данной Службы
+
+       // Проверить, есть ли информация по данному Сервису в кеше
+       if (false == service_info_by_name(service_name, service_info)) {
+         // Кеш не знает такой службы, запросим её у Брокера
+         if ((ask_service_info(service_name, service_info)
+         /* && (SERVICE_SUCCESS_OK == service_info->status_code)*/)) {
+           LOG(INFO) << "GEV: " << service_name << " status=" << service_info->status_code;
+           // Успешно получили от Брокера информацию по подключению к указанной Службе.
+           // Она зарегистрирована в Брокере и находится в активном состоянии.
+
+           // -----------------------------------------------------------
+           // Подключить m_peer к конечной точке указанного Сервиса
+           // Создадим, если ранее не было, сокет для связи с другими Службами
+           if (!m_peer) {
+             create_peering_to_services();
+           }
+           LOG(INFO) << "Connects first time to " << service_info->endpoint_external;
+           m_peer->connect(service_info->endpoint_external);
+           service_info->connected = true;
+
+           // -----------------------------------------------------------
+           // Обернули сообщение в конверт с обратным адресом
+           request->wrap(m_service.c_str(), EMPTY_FRAME);
+           request->send(*m_peer);
+
+           LOG(INFO) << "Send first message to " << service_name
+                     << " at " << service_info->endpoint_external;
+           status = true;
+         }
+         else {
+           LOG(ERROR) << "Can't get service '" << service_name << "' endpoint";
+         }
+       }
+       else {
+         // Кеш знает о данной Службе
+         if (false == service_info->connected) { // Но мы еще не были подключены к ней
+           
+           // -----------------------------------------------------------
+           // (2) - Подключить m_peer к конечной точке указанного Сервиса
+           // Создадим, если ранее не было, сокет для связи с другими Службами
+           if (!m_peer) {
+             create_peering_to_services();
+           }
+           LOG(INFO) << "Connects time to " << service_info->endpoint_external;
+           m_peer->connect(service_info->endpoint_external);
+           service_info->connected = true;
+         }
+         // -----------------------------------------------------------
+         // (3) Обернули сообщение в конверт с обратным адресом
+         request->wrap(m_service.c_str(), EMPTY_FRAME);
+         request->send(*m_peer);
+
+         LOG(INFO) << "Send message to service " << service_name
+                   << " at " << service_info->endpoint_external;
+         status = true;
+       }
+       break;
+
+     default: // ----------------------------------------------------------------------
+       LOG(ERROR) << "Unsupported message sending channel: " << channel;
+       assert(0 == 1);
   }
-  else {
-    // Кеш знает о данной Службе (serv_info)
-#warning "2016-05-24 Продолжить отсюда"
-    request->send(*m_direct);
-  }
 
+  return status;
+}
+
+// ==========================================================================================================
+// Создать структуры для обмена с другими Службами
+void mdwrk::create_peering_to_services()
+{
+//  int mandatory = 1;
+//  int linger = 0;
+  int hwm = 100;
+  int send_timeout_msec = SEND_TIMEOUT_MSEC; // 1 sec
+  int recv_timeout_msec = RECV_TIMEOUT_MSEC; // 3 sec
+
+  // Сокет не должен быть создан ранее
+  assert(!m_peer);
+
+  // Типы сокетов: ZMQ_DEALER - Клиент, ZMQ_DEALER - Сервер
+  m_peer = new zmq::socket_t(m_context, ZMQ_DEALER);
+
+  LOG(INFO) << "Created DIRECT messaging socket with identity " << m_service;
+
+  m_peer->setsockopt(ZMQ_IDENTITY, m_service.c_str(), m_service.size());
+  m_peer->setsockopt(ZMQ_RCVHWM, &hwm, sizeof(hwm));
+  m_peer->setsockopt(ZMQ_SNDHWM, &hwm, sizeof(hwm));
+  m_peer->setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
+  m_peer->setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
+
+  // Инициализация записей для zmq::poll для точки входа ответов других Служб
+  m_socket_items[PEER_ITEM].socket = (void*)*m_peer;
+  m_socket_items[PEER_ITEM].fd = 0;
+  m_socket_items[PEER_ITEM].events = ZMQ_POLLIN;
+  m_socket_items[PEER_ITEM].revents = 0;
 }
 
 // ==========================================================================================================
 //  Get the endpoint connecton string for specified service name
-int mdwrk::ask_service_info(const std::string& service_name, char* service_endpoint, int buf_size)
+//  Если Служба найдена, по адресу ServiceInfo_t* передается информация о ней
+//  Код возврата:
+//  true - Служба известна
+//  false - Нет информации о Службе с указанным названием
+bool mdwrk::ask_service_info(const std::string& service_name, ServiceInfo_t*& service_info)
 {
   mdp::zmsg *report  = NULL;
   mdp::zmsg *request = new mdp::zmsg ();
   const char *mmi_service_get_name = "mmi.service";
-  int service_status_code = 404;
-  ServiceInfo_t *service_info;
-  std::string *reply_to = NULL;
+//1  std::string *reply_to = NULL;
+  std::string reply_to;
+  std::string* p_reply_to = &reply_to;
+  bool exists = false;
 
   // Хеш соответствий:
   // 1. Имя Службы
@@ -386,77 +494,29 @@ int mdwrk::ask_service_info(const std::string& service_name, char* service_endpo
   // Для каждой новой Службы выполняется новый connect()
   //-----------------------------------------------------------------
 
-  assert(service_endpoint);
   LOG(INFO) << "Ask BROKER about '"<< service_name <<"' endpoint";
-  service_endpoint[0] = '\0';
 
   // Брокеру - именно для этого Сервиса дай точку входа
   request->push_front(const_cast<char*>(service_name.c_str()));
+  request->push_front(const_cast<char*>(mmi_service_get_name));
   // второй фрейм запроса - идентификатор обращения к внутренней службе Брокера
-  send_to_broker (mmi_service_get_name, NULL, request);
+  send_to_broker (MDPW_REQUEST, NULL, request);
+  // ============================================================
+  // NB: вся дальнейшая обработка происходит внутри mdwrk::recv()
+  // ============================================================
 
-  reply_to = new std::string;
-  if (NULL == (report = mdwrk::recv(reply_to)))
-  {
-    LOG(ERROR) << "Receiving enpoint failure";
-    // Возможно, Брокер не запущен
-    service_status_code = 0;
-  }
-  else
-  {
-    LOG(INFO) << "Receive enpoint's response";
-    //report->dump();
+//1  reply_to = new std::string;
+  // NB: Ответ разбирается внутри recv(), и mdwrk::recv ничего не возвращает
+  report = recv(p_reply_to, 1000);
 
-    // MDPC0X
-//1    const std::string client_code = report->pop_front();
-    // mmi.service
-    const std::string service_request  = report->pop_front();
-    assert(service_request.compare(mmi_service_get_name) == 0);
-    const std::string service_name = report->pop_front();
-    // 200|404|501
-    const std::string existance_code = report->pop_front();
-    service_status_code = atoi(existance_code.c_str());
-    // Точка подключения - пока только при получении кода 200
-    if (200 == service_status_code)
-    {
-      std::string endpoint = report->pop_front();
-      strncpy(service_endpoint, endpoint.c_str(), buf_size);
-      service_endpoint[buf_size] = '\0';
+  // Проверить, пропала ли информация о точке подключения уже в справочник
+  exists = service_info_by_name(service_name, service_info);
 
-      // Проверить информацию о такой Службе
-      if (false == service_info_by_name(service_name, service_info))
-      {
-        // Служба неизвестна, запомнить информацию
-        service_info = new ServiceInfo_t; // Удаление в деструкторе
-        memset(service_info, '\0', sizeof(ServiceInfo_t));
-        strncpy(service_info->endpoint_external, service_endpoint, ENDPOINT_MAXLEN);
-        service_info->connected = false;
-        insert_service_info(service_name, service_info);
-      }
-      else
-      {
-        // Служба известна => проверить, обновился ли endpoint?
-        if (strncmp(service_info->endpoint_external, service_endpoint, ENDPOINT_MAXLEN))
-        {
-          // Есть изменения
-          // TODO: что делать со значением точки подключения к Службе?
-          // Нормальная ли это ситуация?
-          LOG(WARNING) << "Endpoint for service '" << service_name
-                       << "' was changed from " << service_info->endpoint_external
-                       << " to " << service_endpoint;
-        }
-      }
-    }
-
-    LOG(INFO) << "'" << service_name << "' status=" << existance_code
-              << ", endpoint: " << service_endpoint;
-  }
-
-  delete reply_to;
+//1  delete reply_to;
   delete request;
   delete report;
 
-  return service_status_code;
+  return exists;
 }
 
 // ==========================================================================================================
@@ -464,10 +524,8 @@ bool mdwrk::service_info_by_name(const std::string& serv_name, ServiceInfo_t *&s
 {
   bool status = false;
 
-  ServicesHashIterator_t it;
-  it = m_services_info.find(serv_name);
-  if (it != m_services_info.end())
-  {
+  const ServicesHash_t::const_iterator it = m_services_info.find(serv_name);
+  if (it != m_services_info.end()) {
     serv_info = it->second;
     status = true;
   }
@@ -476,6 +534,7 @@ bool mdwrk::service_info_by_name(const std::string& serv_name, ServiceInfo_t *&s
 }
 
 // ==========================================================================================================
+// Запомнить соответствие "Название Службы" <=> "Строка подключения"
 // NB: Фунция insert_service_info сейчас (2015/02/18) вызывается после проверки
 // отсутствия дубликатов в хеше. Возможно, повторная проверка на уникальность излишняя.
 bool mdwrk::insert_service_info(const std::string& serv_name, ServiceInfo_t *&serv_info)
@@ -492,22 +551,27 @@ bool mdwrk::insert_service_info(const std::string& serv_name, ServiceInfo_t *&se
   }
   else
   {
-    LOG(ERROR) << "Try to duplicate service '" << serv_name << "' info";
+    LOG(WARNING) << "Try to duplicate service '" << serv_name << "' info";
+    // TODO: Обновить информацию?
   }
   return status;
 }
 
-//  ---------------------------------------------------------------------
+// ==========================================================================================================
 //  Send reply, if any, to broker and wait for next request.
 //  If reply is not NULL, a pointer to client's address is filled in.
 //  Второй параметр - количество милисекунд ожидания получения сообщения,
 //  превышение данного значения приводит к выходу из функции.
+//
+//  NB: Ненулевое msec_timeout должно завершать mdwrk::recv по истечению
+//  этого значения времени с ответом NULL.
 zmsg *
-mdwrk::recv (std::string *&reply, int msec_timeout)
+mdwrk::recv (std::string *&reply, int msec_timeout, bool* timeout_sign)
 {
   int poll_socket_number = 1;
   // Интервал опроса сокетов
   int poll_interval = m_heartbeat_msec;
+  int time_to_finish = 0;
   //  Format and send the reply if we were provided one
   assert (reply || !m_expect_reply);
 
@@ -520,133 +584,138 @@ mdwrk::recv (std::string *&reply, int msec_timeout)
     // Если используется сокет прямого подключения, пытаемся читать с него данные
     if (m_direct)
       poll_socket_number++;
+
+    // Если используется сокет обмена со сторонними Службами, на него могут приходить
+    // ответы на запросы текущей Службы
+    if (m_peer)
+      poll_socket_number++;
   
     // Проверить четыре возможных диапазона таймаута
     if (0 == msec_timeout) { // 1. Равен нулю - немедленный выход в случае отсутствия принимаемых данных
       poll_interval = 0;
+      // Закончить recv() немедленно после проверки превышения текущего времени
+      time_to_finish = 0;
     }
     else if (0 < msec_timeout) { // 2. Положительное значение - количество милисекунд ожидания
       poll_interval = std::min(msec_timeout, m_heartbeat_msec);
+      // Отметка времени, по достижении которой выйти из recv()
+      time_to_finish = s_clock() + poll_interval;
       if (msec_timeout > m_heartbeat_msec) {
         LOG(WARNING) << "Given poll timeout (" << msec_timeout
                      << ") exceeds heartbeat (" << m_heartbeat_msec
                      << ") and will be reduced to it";
       }
     }
-    else if (-1 == msec_timeout) {  // 3. Константа '-1' - неограниченно ожидать приёма сообщения  
-      poll_interval = -1;
-    }
     else {  // 4. Любое другое отрицательное значение - ошибка
       LOG(ERROR) << "Unsupported value for recv timeout: " << msec_timeout;
       assert(0 == 1);
     }
 
+    interrupt_worker = 0;
     m_expect_reply = true;
     while (!interrupt_worker)
     {
-      // NB: m_direct также создается и в DiggerProxy, что может привести к ошибке 'Address already in use'
-      zmq::poll (m_socket_items, poll_socket_number, poll_interval /*m_heartbeat_msec*/);
+      // NB: Нельзя для zmq::poll использовать значение '-1', поскольку в этом случае
+      // перестанут выдаваться сообщения HEARTBEAT, т.к. операционная система не
+      // вернет управления из poll() до поступления данных.
+      zmq::poll (m_socket_items, poll_socket_number, poll_interval);
 
 	  if (m_socket_items[BROKER_ITEM].revents & ZMQ_POLLIN) {
         zmsg *msg = new zmsg(*m_worker);
 
-        LOG(INFO) << "New message from broker:";
+        // Отметить сообщение как "получено от Брокера"
+        msg->set_source(BROKER);
+        LOG(INFO) << "New message from broker";
+#if (VERBOSE > 5)
         msg->dump ();
-
+#endif
         update_heartbeat_sign();
 
         //  Don't try to handle errors, just assert noisily
         assert (msg->parts () >= 3);
 
-        /* 
-         * NB: если в zmsg [GEV:генерация GUID] закомментирована проверка 
-         * на количество фреймов в сообщении (=5),
-         * то в этом случае empty будет равен
-         * [011] @0000000000
-         * и assert сработает на непустую строку.
-         *
-         * Во случае, если принятое сообщение не первое от данного Обработчика,
-         * empty будет действительно пустым.
-         */
+        // NB: если в zmsg [GEV:генерация GUID] закомментирована проверка 
+        // на количество фреймов в сообщении (=5),
+        // то в этом случае empty будет равен
+        // [011] @0000000000
+        // и assert сработает на непустую строку.
+        //
+        // Во случае, если принятое сообщение не первое от данного Обработчика,
+        // empty будет действительно пустым.
         std::string empty = msg->pop_front ();
         assert (empty.empty() == 1);
 
         std::string header = msg->pop_front ();
-        // Если Служба запрашивала информацию по точке подключения другой Службы,
-        // здесь будет клиентский код.
-        if (header.compare(MDPC_CLIENT) == 0) {
-          // Да, это клиентский код, проверить на запрос точки подключения. Формат:
-          // [000]
-          // [006] MDPC0X
-          // [001] 02
-          // [006] MDPC0X
-          // [011] mmi.service
-          // [006] <Имя Службы>
-          // [003] {200|404|501}
-		  // Если предыдущее поле = 200, то:
-		  // [0XX] <строка с адресом подключения>
-          const char *mmi_service_get_name = "mmi.service";
-          char service_endpoint[ENDPOINT_MAXLEN + 1] = "<none>";
-          const std::string empty = msg->pop_front();
-          const std::string client_code = msg->pop_front();
-          const std::string service_request  = msg->pop_front();
-          const std::string service_name = msg->pop_front();
-          assert(service_request.compare(mmi_service_get_name) == 0);
-          // 200|404|501
-          const std::string existance_code = msg->pop_front();
-          int service_status_code = atoi(existance_code.c_str());
-          // Точка подключения - пока только при получении кода 200
-          if (200 == service_status_code) {
-            std::string endpoint = msg->pop_front();
-            strncpy(service_endpoint, endpoint.c_str(), ENDPOINT_MAXLEN);
-            service_endpoint[ENDPOINT_MAXLEN] = '\0';
-            LOG(INFO) << "Reply " << service_name << " endpoint " << service_endpoint;
-          }
-          else {
-            LOG(ERROR) << "Requested service not known";
-          }
-        } // Конец проверки сообщения от Клиента
-        else { // Сообщение от Брокера
-          assert (header.compare(MDPW_WORKER) == 0);
+        assert (header.compare(MDPW_WORKER) == 0);
 
-          std::string command = msg->pop_front ();
-          if (command.compare (MDPW_REQUEST) == 0) {
-              //  We should pop and save as many addresses as there are
-              //  up to a null part, but for now, just save one...
-              char *frame_reply = msg->unwrap ();
-              (*reply).assign(frame_reply);
-              delete[] frame_reply;
-              return msg;     //  We have a request to process
-          }
-          else if (command.compare (MDPW_HEARTBEAT) == 0) {
-              LOG(INFO) << "HEARTBEAT from broker, m_liveness=" << m_liveness;
-              //  Do nothing for heartbeats
-          }
-          else if (command.compare (MDPW_DISCONNECT) == 0) {
-              // После подключения к Брокеру сокет связи с ним был пересоздан
-              connect_to_broker ();
-          }
-          else {
-              LOG(ERROR) << "Receive invalid message " << (int) *(command.c_str());
-              msg->dump ();
-          }
-          delete msg;
-        } // Конец обработки сообщения от Брокера
+        std::string command = msg->pop_front ();
+        if (command.compare (MDPW_REQUEST) == 0) {
+            //  We should pop and save as many addresses as there are
+            //  up to a null part, but for now, just save one...
+            char *frame_reply = msg->unwrap ();
+            (*reply).assign(frame_reply);
+            delete[] frame_reply;
+            return msg;     //  We have a request to process
+        }
+        else if (command.compare (MDPW_REPORT) == 0) {
+            LOG(INFO) << "REPORT from broker";
+            // TODO: Обработать возможные oтветы от Брокера:
+            // 1) Значение точки подключения другой Службы
+            // 2) Состояние кластера?
+            // 3) ...
+            std::string report_type = msg->pop_front ();
+            if (report_type.find("mmi.") != std::string::npos) {
+               process_internal_report(report_type, msg);
+            }
+            else {
+              LOG(ERROR) << "Unsupported report type: " << report_type;
+            }
+        }
+        else if (command.compare (MDPW_HEARTBEAT) == 0) {
+            LOG(INFO) << "HEARTBEAT from broker, m_liveness=" << m_liveness;
+            //  Do nothing for heartbeats
+        }
+        else if (command.compare (MDPW_DISCONNECT) == 0) {
+            // После подключения к Брокеру сокет связи с ним был пересоздан
+            connect_to_broker ();
+        }
+        else {
+            LOG(ERROR) << "Receive invalid message " << (int) *(command.c_str());
+            msg->dump ();
+        }
+        delete msg;
+
       } // Конец проверки активности на сокете Брокера
       else if (m_subscriber && (m_socket_items[SUBSCRIBER_ITEM].revents & ZMQ_POLLIN)) { // Событие подписки
         zmsg *msg = new zmsg(*m_subscriber);
 
-        LOG(INFO) << "New subscription event: ";
+        msg->set_source(SUBSCRIBER);
+        LOG(INFO) << "New subscription event";
+#if (VERBOSE > 5)
         msg->dump ();
-
+#endif
         return msg;
       }
       else if (m_direct && (m_socket_items[DIRECT_ITEM].revents & ZMQ_POLLIN)) { // Событие на общем сокете
         zmsg *msg = new zmsg(*m_direct);
 
-        LOG(INFO) << "New message from world:";
+        // Отметить сообщение как "получено напрямую от Клиента"
+        msg->set_source(DIRECT);
+        LOG(INFO) << "New message from world";
+#if (VERBOSE > 5)
         msg->dump ();
+#endif
+        return msg;
+      }
+      else if (m_peer && (m_socket_items[PEER_ITEM].revents & ZMQ_POLLIN)) { // Событие на сокете для ответов от других Служб
+        zmsg *msg = new zmsg(*m_peer);
 
+        // Отметить сообщение как "получено от других Служб"
+        msg->set_source(PEER);
+        LOG(INFO) << "New response from other services";
+#if (VERBOSE > 5)
+        msg->dump ();
+#endif
         return msg;
       }
       else if (s_clock() > (m_heartbeat_at_msec + (m_heartbeat_msec * m_liveness))) {
@@ -669,8 +738,16 @@ mdwrk::recv (std::string *&reply, int msec_timeout)
         LOG(INFO) << "update next HEARTBEAT event time, m_liveness=" << m_liveness;
       }
 
+      // Ну всё уже проверили, осталось проверить - выходить из цикла или нет
       // Для нулевого интервала опроса - только одна итерация цикла
-      if (!poll_interval) break;
+      // Для ненулевого значения - выход по превышению маркера времени
+      //A LOG(INFO) << "GEV time_to_finish=" << time_to_finish << ", s_clock=" << s_clock();
+      if (s_clock() > time_to_finish) {
+        // Если нам передали адрес флага, вернем его значение
+        if (timeout_sign)
+          *timeout_sign = true; // Ничего не получено, возвратить признак таймаута
+        break;
+      }
 
     } // Конец цикла "пока не получен сигнал/команда на прерывание работы
   } // Конец блока try
@@ -691,6 +768,7 @@ mdwrk::recv (std::string *&reply, int msec_timeout)
   return NULL;
 }
 
+// ==========================================================================================================
 // Обновить значения атрибутов, отвечающих за время выдачи HEARBEAT Брокеру
 // Вызывается после успешной явной отправки HEARTBEAT, или в процессе нормального 
 // обмена сообщениями между Службой и Брокером, т.к. успешность этого процесса 
@@ -704,6 +782,84 @@ void mdwrk::update_heartbeat_sign()
   m_liveness = HEARTBEAT_LIVENESS;
 }
 
+// ==========================================================================================================
+// Точка входа в разбор ответов Брокера
+void mdwrk::process_internal_report(const std::string& report_type, zmsg* msg)
+{
+  // [2016-06-24] Пока только единственная обработка сообщения о другой Службе
+  if (report_type.compare("mmi.service") == 0) {
+    // Пришла информация по другой Службе
+    process_endpoint_info(msg);
+  }
+  else {
+    LOG(ERROR) << "Unsupported report type for internal service: " << report_type;
+  }
+}
+
+// ==========================================================================================================
+// Обработка ответа от Брокера с информацией о другой Службе
+void mdwrk::process_endpoint_info(zmsg *msg)
+{
+  // Пример:
+  // [006] <Имя Службы>
+  // [003] {200|404|501}
+  // Если предыдущее поле = 200, то:
+  // [0XX] <строка с адресом подключения>
+  const std::string service_name = msg->pop_front();
+  const std::string existance_code = msg->pop_front();
+  int service_status_code = atoi(existance_code.c_str()); // 200|404|501
+  std::string endpoint;
+  ServiceInfo_t *service_info = NULL;
+  bool registered = service_info_by_name(service_name, service_info);
+
+  switch(service_status_code) {
+    case SERVICE_SUCCESS_OK:
+      // Точка подключения - пока только при получении кода 200
+      endpoint = msg->pop_front();
+      LOG(INFO) << "Got '" << service_name << "' endpoint " << endpoint;
+
+      // Проверить информацию о такой Службе
+      if (!registered)
+      {
+            // Служба неизвестна, запомнить информацию
+            service_info = new ServiceInfo_t; // Удаление в деструкторе
+            memset(service_info, '\0', sizeof(ServiceInfo_t));
+            strncpy(service_info->endpoint_external, endpoint.c_str(), ENDPOINT_MAXLEN);
+            service_info->endpoint_external[ENDPOINT_MAXLEN] = '\0';
+            service_info->connected = false;
+            service_info->status_code = SERVICE_SUCCESS_OK;
+            if (!insert_service_info(service_name, service_info))
+              delete service_info; // Не удалось поместить информацию в хранилище
+      }
+      else
+      {
+            // Служба известна => проверить, обновился ли endpoint?
+            if (strncmp(service_info->endpoint_external, endpoint.c_str(), ENDPOINT_MAXLEN))
+            {
+              // Есть изменения
+              // TODO: что делать с новым значением точки подключения к Службе? Переподключить m_peer?
+              LOG(WARNING) << "Endpoint for service '" << service_name
+                           << "' was changed from " << service_info->endpoint_external
+                           << " to " << endpoint;
+            }
+      }
+      break;
+
+    case SERVICE_ERROR_NOT_FOUND:
+      LOG(ERROR) << "Requested service '" << service_name << "' not registered";
+      if (registered) {
+        service_info->status_code = SERVICE_ERROR_NOT_FOUND;
+        // TODO: Удалить из словаря такие записи, занимающие место в ОЗУ?
+      }
+      break;
+
+    default:
+      LOG(ERROR) << "Unexpected state " << service_status_code
+                 << " of requested service '" << service_name << "'";
+  }
+}
+
+// ==========================================================================================================
 // Получить точку подключения для нашего Сервиса
 const char* mdwrk::getEndpoint(bool convertation_asked) const
 {
@@ -744,6 +900,15 @@ const char* mdwrk::getEndpoint(bool convertation_asked) const
     }
   }
 
+  if (!endpoint) {
+    LOG(WARNING) << "Service '" << m_service << "' has no information about external endpoint";
+    // Сервис не имеет заранее известной строки подключения
+    endpoint = new char[ENDPOINT_MAXLEN + 1];
+    // Будет пустая строка
+    endpoint[0] = '\0';
+  }
+
   return endpoint;
 }
 
+// ==========================================================================================================
