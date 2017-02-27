@@ -13,7 +13,11 @@
 #include "glog/logging.h"
 
 // Служебные файлы RTDBUS
+#if defined HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include "mdp_helpers.hpp"
+#include "mdp_zmsg.hpp"
 #include "config.h"
 #include "mdp_common.h"
 #include "mdp_worker_api.hpp"
@@ -42,11 +46,11 @@ typedef struct {
 // TODO: вывести соответствия между Службой и её точкой входа в общую конфигурацию
 //
 ServiceEndpoint_t Endpoints[] = { // NB: Копия структуры в файле xdb_impl_db_broker.cpp
-  {BROKER_NAME, ENDPOINT_BROKER /* tcp://localhost:5555 */, ""}, // Сам Брокер (BROKER_ENDPOINT_IDX)
-  {RTDB_NAME,   ENDPOINT_RTDB_FRONTEND  /* tcp://localhost:5556 */, ""}, // Информационный сервер БДРВ
-  {HMI_NAME,    ENDPOINT_HMI_FRONTEND   /* tcp://localhost:5558 */, ""}, // Сервер отображения
-  {EXCHANGE_NAME,  ENDPOINT_EXCHG_FRONTEND /* tcp://localhost:5559 */, ""}, // Сервер обменов
-  {HISTORIAN_NAME, ENDPOINT_HIST_FRONTEND  /* tcp://localhost:5561 */, ""}, // Сервер архивирования и накопления предыстории
+  {BROKER_NAME,     ENDPOINT_BROKER /* tcp://localhost:5555 */, ""}, // Сам Брокер (BROKER_ENDPOINT_IDX)
+  {RTDB_NAME,       ENDPOINT_RTDB_FRONTEND  /* tcp://localhost:5556 */, ""}, // Информационный сервер БДРВ
+  {HMI_NAME,        ENDPOINT_HMI_FRONTEND   /* tcp://localhost:5558 */, ""}, // Сервер отображения
+  {EXCHANGE_NAME,   ENDPOINT_EXCHG_FRONTEND /* tcp://localhost:5559 */, ""}, // Сервер обменов
+  {HISTORIAN_NAME,  ENDPOINT_HIST_FRONTEND  /* tcp://localhost:5561 */, ""}, // Сервер архивирования и накопления предыстории
   {"", "", ""}  // Последняя запись
 };
 
@@ -79,8 +83,8 @@ static void catch_signals ()
 // Базовый экземпляр Службы
 mdwrk::mdwrk (const std::string& broker_endpoint, const std::string& service, int num_threads, bool use_direct) :
   m_context(num_threads),
-  m_broker_endpoint(broker_endpoint),
   m_service(service),
+  m_broker_endpoint(broker_endpoint),
   m_direct_endpoint(NULL),
   m_worker(NULL),
   m_peer(NULL),
@@ -104,7 +108,7 @@ mdwrk::mdwrk (const std::string& broker_endpoint, const std::string& service, in
     // Заполняется хранилище в функциях connect_to_*
     memset (static_cast<void*>(m_socket_items), '\0', sizeof(zmq::pollitem_t) * SOCKETS_COUNT);
 
-    // Получить ссылку на динамически выделенную строку с параметрами подключения для bind
+    // Получить ссылку на статически выделенную строку с параметрами подключения для bind
     m_direct_endpoint = getEndpoint(true);
 
     connect_to_broker ();
@@ -148,8 +152,6 @@ mdwrk::~mdwrk ()
       LOG(ERROR) << "mdwrk destructor: " << error.what();
   }
 
-  // Или == NULL, или память выделялась в getEndpoint()
-  delete []m_direct_endpoint;
   LOG(INFO) << "finish mdwrk destructor";
 }
 
@@ -218,17 +220,7 @@ void mdwrk::connect_to_broker ()
     // Внесены изменения из-за необходимости передачи значения точки подключения 
     zmsg *msg = new zmsg ();
     const char* endp = getEndpoint(false);
-    if (endp)
-    {
-      msg->push_front (const_cast<char*>(endp));
-    }
-    else
-    {
-#warning "getEndpoint will newer returns NULL"
-      // TODO: удалить ветку 'else' кода после проверки работы с заранее неизвестными Службами
-      LOG(WARNING) << "Service '" << m_service << "' has no information about external endpoint";
-      msg->push_front (const_cast<char*>(EMPTY_FRAME));
-    }
+    msg->push_front (const_cast<char*>(endp));
 
     msg->push_front (const_cast<char*>(m_service.c_str()));
     send_to_broker((char*)MDPW_READY, NULL, msg);
@@ -624,7 +616,7 @@ mdwrk::recv (std::string *&reply, int msec_timeout, bool* timeout_sign)
         zmsg *msg = new zmsg(*m_worker);
 
         // Отметить сообщение как "получено от Брокера"
-        msg->set_source(BROKER);
+        msg->set_source(zmsg::BROKER);
         LOG(INFO) << "New message from broker";
 #if (VERBOSE > 5)
         msg->dump ();
@@ -689,7 +681,7 @@ mdwrk::recv (std::string *&reply, int msec_timeout, bool* timeout_sign)
       else if (m_subscriber && (m_socket_items[SUBSCRIBER_ITEM].revents & ZMQ_POLLIN)) { // Событие подписки
         zmsg *msg = new zmsg(*m_subscriber);
 
-        msg->set_source(SUBSCRIBER);
+        msg->set_source(zmsg::SUBSCRIBER);
         LOG(INFO) << "New subscription event";
 #if (VERBOSE > 5)
         msg->dump ();
@@ -700,7 +692,7 @@ mdwrk::recv (std::string *&reply, int msec_timeout, bool* timeout_sign)
         zmsg *msg = new zmsg(*m_direct);
 
         // Отметить сообщение как "получено напрямую от Клиента"
-        msg->set_source(DIRECT);
+        msg->set_source(zmsg::DIRECT);
         LOG(INFO) << "New message from world";
 #if (VERBOSE > 5)
         msg->dump ();
@@ -711,7 +703,7 @@ mdwrk::recv (std::string *&reply, int msec_timeout, bool* timeout_sign)
         zmsg *msg = new zmsg(*m_peer);
 
         // Отметить сообщение как "получено от других Служб"
-        msg->set_source(PEER);
+        msg->set_source(zmsg::PEER);
         LOG(INFO) << "New response from other services";
 #if (VERBOSE > 5)
         msg->dump ();
@@ -902,10 +894,9 @@ const char* mdwrk::getEndpoint(bool convertation_asked) const
 
   if (!endpoint) {
     LOG(WARNING) << "Service '" << m_service << "' has no information about external endpoint";
-    // Сервис не имеет заранее известной строки подключения
-    endpoint = new char[ENDPOINT_MAXLEN + 1];
-    // Будет пустая строка
-    endpoint[0] = '\0';
+    // Сервис не имеет заранее известной строки подключения,
+    // entry_idx ссылается на пустую строку
+    endpoint = Endpoints[entry_idx].endpoint_default; // Нет
   }
 
   return endpoint;

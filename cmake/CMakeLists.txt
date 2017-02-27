@@ -115,6 +115,12 @@ if(NOT LIBGLOG_FOUND)
     return()
 endif(NOT LIBGLOG_FOUND)
 
+find_package(XERCES-C)
+if(NOT XERCESC_FOUND)
+    message(SEND_ERROR "Failed to find XERCES-C facility")
+    return()
+endif(NOT XERCESC_FOUND)
+
 find_package(LIBSQLITE)
 if(NOT LIBSQLITE_FOUND)
     message(SEND_ERROR "Failed to find SQLite facility")
@@ -262,6 +268,7 @@ set (ENDPOINT_HMI_FRONTEND          "tcp://localhost:5558")
 set (ENDPOINT_EXCHG_FRONTEND        "tcp://localhost:5559")
 set (ENDPOINT_SBS_PUBLISHER         "tcp://localhost:5560")
 set (ENDPOINT_HIST_FRONTEND         "tcp://localhost:5561")
+
 set (HISTDB_SNAP_FILENAME           "hdb.sqlite3")
 # Локальное или удаленное расположение БДРВ для службы Архивирования.
 # Значение LOCAL - БДРВ расположена на тем же сервере, можно получать данные локально
@@ -382,7 +389,7 @@ endif(RTDBUS_GCOV_ENABLED)
 
 if (RTDBUS_ENABLE_VERBOSE_MODE)
     message("NOTE: building with verbose mode increases library size, may slightly increase security risk, and decreases performance.")
-    add_definitions(-DVERBOSE)
+    add_definitions(-DVERBOSE=9)
 endif(RTDBUS_ENABLE_VERBOSE_MODE)
 
 if(NOT RTDBUS_DISABLE_ASSERTS)
@@ -393,3 +400,20 @@ if (RTDBUS_DISABLE_CHECKS)
     message("NOTE: building without checks for arguments passed to public API makes it harder to debug apps using RTDBUS, but will slightly decrease RTDBUS library size and _very_ slightly improve performance.")
 endif(RTDBUS_DISABLE_CHECKS)
 MESSAGE(" ")
+
+# Generate TAGS file
+add_custom_target(
+  tags ALL
+  DEPENDS "${RTDBUS_SOURCE_DIR}/tags"
+  WORKING_DIRECTORY ${RTDBUS_SOURCE_DIR}
+)
+
+add_custom_command(
+  OUTPUT "${RTDBUS_SOURCE_DIR}/tags"
+  COMMAND "/usr/bin/ctags" "-R"
+  WORKING_DIRECTORY ${RTDBUS_SOURCE_DIR}
+  COMMENT "Generating TAGS file for VIM"
+  VERBATIM
+)
+
+

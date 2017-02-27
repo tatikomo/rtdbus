@@ -9,6 +9,7 @@
 // Общесистемные заголовочные файлы
 #include <map>
 #include <vector>
+#include <thread>
 
 // Служебные заголовочные файлы сторонних утилит
 // Служебные файлы RTDBUS
@@ -40,15 +41,29 @@ class EGSA : public mdp::mdwrk {
     // Основной рабочий цикл
     int run();
 
+    // Получить набор циклов, в которых участвует заданная СС
+    std::vector<Cycle*>   *get_Cycles_for_SA(const std::string&);
+    // Получить набор запросов, зарегистрированных за данной СС
+    std::vector<Request*> *get_Request_for_SA(const std::string&);
+
+    // Ввести в оборот новый Цикл сбора
+    int push_cycle(Cycle*);
+
   private:
     DISALLOW_COPY_AND_ASSIGN(EGSA);
     
+    // Запуск Интерфейса второго уровня
+    int implementation();
+
+    int handle_asklife(msg::Letter*, const std::string&);
+    int handle_stop(msg::Letter*, const std::string&);
+
     // Первичная обработка нового запроса
-    int processing(mdp::zmsg*, const std::string&);
+    int processing(mdp::zmsg*, const std::string&, bool&);
     // Обработка сообщения о чтении значений БДРВ (включая ответ группы подписки)
-    bool process_read_response(msg::Letter*);
+    int process_read_response(msg::Letter*);
     // Инициализация, создание/подключение к внутренней SMAD
-    bool init();
+    int init();
     // Останов экземпляра
     int stop();
     // Получить новое сообщение
@@ -56,8 +71,6 @@ class EGSA : public mdp::mdwrk {
     // =  0 - разовое чтение сообщений, немедленный выход в случае отсутствия таковых
     // >  0 - время ожидания нового сообщения в милисекундах, от 1 до HEARTBEAT-интервала
     int recv(msg::Letter*&, int = 1000);
-    // Ввести в оборот новый Цикл сбора
-    int push_cycle(Cycle*);
     // Активировать циклы
     int activate_cycles();
     // Деактивировать циклы
@@ -81,9 +94,9 @@ class EGSA : public mdp::mdwrk {
     int handle_teleregulation(msg::Letter*, const std::string&);
     // --------------------------------------------------------------------------
     // Активация группы подписки точек систем сбора 
-    bool activateSBS();
+    int activateSBS();
     // Дождаться ответа на запрос активации группы подписки
-    bool waitSBS();
+    int waitSBS();
     // Подключиться к SMAD систем сбора
     int attach_to_sites_smad();
     // Изменение состояния подключенных систем сбора и отключение от их внутренней SMAD 
@@ -96,6 +109,11 @@ class EGSA : public mdp::mdwrk {
     // Набор для zmq::poll
     //zmq::pollitem_t m_socket_items[2];
     msg::MessageFactory *m_message_factory;
+    // Сокет обмена сообщениями с Интерфейсом второго уровня
+    zmq::socket_t   m_backend_socket;
+    // Нить подчиненного интерфейса
+    std::thread*    m_servant_thread;
+
 
     // Экземпляр ExternalSMAD для хранения конфигурации и данных EGSA
     ExternalSMAD *m_ext_smad;

@@ -1,14 +1,18 @@
-#include <pthread.h>
-#include <syscall.h>
-#include <string>
-#include "gtest/gtest.h"
-#include "glog/logging.h"
-#include "google/protobuf/stubs/common.h"
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
+// Общесистемные заголовочные файлы
+#include <pthread.h>
+#include <syscall.h>
+#include <string>
+
+// Служебные заголовочные файлы сторонних утилит
+#include "gtest/gtest.h"
+#include "glog/logging.h"
+#include "google/protobuf/stubs/common.h"
+
+// Служебные файлы RTDBUS
 #include "helper.hpp"
 
 #include "mdp_zmsg.hpp"
@@ -18,7 +22,6 @@
 #include "mdp_client_async_api.hpp"
 #include "mdp_proxy.hpp"
 
-using namespace xdb;
 #include "xdb_broker.hpp"
 #include "xdb_impl_db_broker.hpp"
 #include "xdb_rtap_application.hpp"
@@ -34,6 +37,8 @@ using namespace xdb;
 #include "msg_message.hpp"
 #include "msg_adm.hpp"
 #include "msg_sinf.hpp"
+
+using namespace xdb;
 
 mdp::Digger *digger = NULL;
 mdp::Broker *broker = NULL;
@@ -479,21 +484,21 @@ TEST(TestProxy, BROKER_RUNTIME)
 
   /* Дождаться завершения работы Клиента */
   code = pthread_join (client, NULL);
-  EXPECT_TRUE(code == 0);
+  EXPECT_EQ(code, 0);
 
   // Остановить Обработчика
   interrupt_worker = 1;
   /* Дождаться завершения работы Обработчика */
   usleep(1000000);
   code = pthread_join(worker, NULL);
-  EXPECT_TRUE(code == 0);
+  EXPECT_EQ(code, 0);
 
   // Остановить Брокера
   interrupt_broker = 1;
   /* Дождаться завершения работы Брокера */
   usleep(100000);
   code = pthread_join(broker, NULL);
-  EXPECT_TRUE(code == 0);
+  EXPECT_EQ(code, 0);
   LOG(INFO) << "TestProxy BROKER_RUNTIME stop";
 }
 

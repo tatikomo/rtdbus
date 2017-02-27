@@ -52,11 +52,11 @@ using namespace xdb;
 #include "dat/broker_db.hpp"
 
 ServiceEndpoint_t Endpoints[] = { // NB: Копия структуры в файле mdp_worker_api.cpp
-  {BROKER_NAME, ENDPOINT_BROKER /* tcp://localhost:5555 */, ""}, // Сам Брокер (BROKER_ENDPOINT_IDX)
-  {RTDB_NAME,   ENDPOINT_RTDB_FRONTEND  /* tcp://localhost:5556 */, ""}, // Информационный сервер БДРВ
-  {HMI_NAME,    ENDPOINT_HMI_FRONTEND   /* tcp://localhost:5558 */, ""}, // Сервер отображения
-  {EXCHANGE_NAME,  ENDPOINT_EXCHG_FRONTEND /* tcp://localhost:5559 */, ""}, // Сервер обменов
-  {HISTORIAN_NAME, ENDPOINT_HIST_FRONTEND  /* tcp://localhost:5561 */, ""}, // Сервер архивирования и накопления предыстории
+  {BROKER_NAME,     ENDPOINT_BROKER /* tcp://localhost:5555 */, ""}, // Сам Брокер (BROKER_ENDPOINT_IDX)
+  {RTDB_NAME,       ENDPOINT_RTDB_FRONTEND  /* tcp://localhost:5556 */, ""}, // Информационный сервер БДРВ
+  {HMI_NAME,        ENDPOINT_HMI_FRONTEND   /* tcp://localhost:5558 */, ""}, // Сервер отображения
+  {EXCHANGE_NAME,   ENDPOINT_EXCHG_FRONTEND /* tcp://localhost:5559 */, ""}, // Сервер обменов
+  {HISTORIAN_NAME,  ENDPOINT_HIST_FRONTEND  /* tcp://localhost:5561 */, ""}, // Сервер архивирования и накопления предыстории
   {"", "", ""}  // Последняя запись
 };
 // Запись о точке подключения к Брокеру д.б. первой

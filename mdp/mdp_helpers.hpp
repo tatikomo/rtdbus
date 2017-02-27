@@ -24,7 +24,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <assert.h>
-#include <pthread.h>
+//#include <pthread.h>
 #include <stdlib.h>        // random()  RAND_MAX
 #include <stdio.h>
 #include <stdarg.h>

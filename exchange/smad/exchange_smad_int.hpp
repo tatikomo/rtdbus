@@ -23,15 +23,15 @@ class InternalSMAD
 {
   public:
     // ПОдключиться к указанному снимку БД
-    InternalSMAD(const char*);
+    InternalSMAD(const char*, gof_t_SacNature, const char*);
    ~InternalSMAD();
 
     // Подключиться к указанной таблице InternalSMAD, создав новую запись для указанной СС
     // NB: используется модулем СС
-    smad_connection_state_t connect(const char*, gof_t_SacNature);
+    smad_connection_state_t connect();
     // Подключиться к указанной СС, не создавая новых записей
     // NB: используется EGSA
-    smad_connection_state_t attach(const char*, gof_t_SacNature);
+    smad_connection_state_t attach(const char*);
     smad_connection_state_t state() { return m_state; };
     gof_t_SacNature nature() { return m_sa_nature; };
     // Занести значение в InternalSMAD

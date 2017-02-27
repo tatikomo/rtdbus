@@ -5,7 +5,7 @@
 #endif
 
 #include <assert.h>
-#include <pthread.h>
+//#include <pthread.h>
 #include <sys/time.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -18,8 +18,9 @@
 
 #include "helper.hpp"
 
-static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 char buf[4000];
+/*
+static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void LogError(int rc,
             const char *functionName,
@@ -115,6 +116,7 @@ void LogInfo(
   ;
 #endif
 }
+*/
 
 void hex_dump(const std::string& data)
 {

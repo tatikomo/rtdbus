@@ -19,6 +19,7 @@
 #include "exchange_egsa_cycle.hpp"
 
 class EGSA;
+class Cycle;
 
 // Состояние Систем Сбора:
 // Конфигурационные файлы (cnf)
@@ -73,6 +74,8 @@ class SystemAcquisition
     sa_state_t        m_state;
     // Состояние подключения к внутренней SMAD
     smad_connection_state_t m_smad_state;
+    // Циклы СС
+    std::vector<Cycle*>* m_cycles;
 
     // Набор таймеров внутренних событий
     Timer *m_timer_CONNECT;
@@ -84,7 +87,7 @@ class SystemAcquisition
     Timer *m_timer_TELEREGULATION;
 
     // Найти циклы, в которых участвует данная система сбора
-    void look_my_cycles(const std::vector<Cycle*>&);
+    std::vector<Cycle*>* look_my_cycles();
     // Послать сообщение инициализации
     void init();
     void process_end_all_init(); // Сообщение о завершении инициализации 

@@ -1,9 +1,8 @@
 #include <assert.h>
-#include <xercesc/util/PlatformUtils.hpp>
-
 #include <unordered_set>
 
 #include "glog/logging.h"
+#include "xercesc/util/PlatformUtils.hpp"
 
 #if defined HAVE_CONFIG_H
 #include "config.h"

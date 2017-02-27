@@ -18,11 +18,6 @@
 // Служебные файлы RTDBUS
 #include "exchange_config.hpp"
 
-typedef struct {
-  int nature_code;
-  std::string designation;
-} map_nature_dict_t;
-
 // ==========================================================================================
 // Общая информация
 typedef struct {
@@ -128,9 +123,6 @@ class EgsaConfig {
 	static const char*  s_SECTION_CYCLES_NAME_SITE_NAME;
     egsa_config_cycles_t m_cycles;
 
-    static const map_nature_dict_t m_nature_dict[];
-    // По символьному наименованию типа СС вернуть его числовой код (из массива m_nature_dict)
-    int get_nature_code_by_name(const std::string&);
 };
 
 #endif

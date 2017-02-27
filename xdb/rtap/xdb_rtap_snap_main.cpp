@@ -1,8 +1,8 @@
 #include <stdio.h> // stderr
 #include <stdlib.h> // abort()
-#include <xercesc/util/PlatformUtils.hpp>
 
 #include "glog/logging.h"
+#include "xercesc/util/PlatformUtils.hpp"
 
 #if defined HAVE_CONFIG_H
 #include "config.h"

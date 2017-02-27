@@ -4,15 +4,14 @@
 #include <stdlib.h> // putenv
 #include <stdio.h>  // fprintf
 
-#include <xercesc/util/PlatformUtils.hpp>
-
 #include "glog/logging.h"
 #include "gtest/gtest.h"
+#include "xercesc/util/PlatformUtils.hpp"
+#include "sqlite3.h"
 
 #if defined HAVE_CONFIG_H
 #include "config.h"
 #endif
-#include "sqlite3.h"
 
 #include "xdb_common.hpp"
 

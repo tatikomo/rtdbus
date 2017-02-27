@@ -4,7 +4,7 @@
 #include <string>
 #include <signal.h>
 #include <time.h>
-#include <pthread.h>
+//#include <pthread.h>
 
 #define CLOCKID CLOCK_REALTIME
 //#define SIG SIGUSR1

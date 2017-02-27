@@ -18,6 +18,7 @@
 #include "zmq.hpp"
 
 // Служебные файлы RTDBUS
+#include "msg_message.hpp"
 #include "exchange_config.hpp"
 
 // =============================================================================================
@@ -53,40 +54,55 @@ class AcquisitionSystemConfig;
 class InternalSMAD;
 
 // =============================================================================================
+// Базовый интерфейс взаимодействия с СС, безотносительно ее типа
+// Реализация базовых функций интерфейса EGSA <=> SA
+//
+// TODO реализация таймеров для управления деятельностью СС
+// К примеру, получив команду инициализации связи, модуль должен инициировать циклы:
+// 1) таймаут подключения
+// 2) получение данных общего сбора
+// 3) получение второстепенных данных
+// 4) передача данных
 class SysAcqInterface {
   public:
-    SysAcqInterface(const std::string& filename, zmq::context_t* ctx = NULL)
-    : m_config_filename(filename),
-      m_status(STATUS_OK_NOT_CONNECTED),
-      m_config(NULL),
-      m_sa_common(),
-      m_smad(NULL),
-      m_connection_reestablised(0),
-      m_num_connection_try(0),
-      m_zmq_context(ctx)
-      {};
-    virtual ~SysAcqInterface() {};
+    // Принимает код СС и ссылку на контекст (для связи с фронтендом)
+    SysAcqInterface(const std::string&,
+                    zmq::context_t&,
+                    AcquisitionSystemConfig&);
+    virtual ~SysAcqInterface();
     virtual void run() = 0;
     virtual void stop() = 0;
-    virtual void process_INIT() = 0;
-    virtual void process_STOP() = 0;
+    virtual client_status_t connect() = 0;
+    virtual client_status_t disconnect() = 0;
+
+    // Точка входа обработки внешнего запроса 
+    int handle_request(mdp::zmsg*, std::string*&);
+
     // Подготовительные действия перед работой - чтение конфигурации, инициализация,...
-    virtual client_status_t prepare() = 0;
+    virtual client_status_t prepare() { return STATUS_FATAL_RUNTIME; };
     // Элементарное действие, зависящее от текущего состояния
-    virtual client_status_t quantum() = 0;
-    // Милисекунд ожидания между запросами
-    int timewait() { return 0; };
-    client_status_t status() { return m_status; };
+    virtual client_status_t quantum() { return STATUS_FATAL_RUNTIME; };
+    client_status_t status()          { return m_status; };
+    const std::string& service_name() { return m_service_name; };
 
   protected:
-    std::string     m_config_filename;
+    // Обработчики инициированных самостоятельно циклов
+    virtual void do_GENCONTROL() = 0;
+    virtual void do_ACQSYSACQ() = 0;
+    virtual void do_URGINFOS() = 0;
+    virtual void do_INFOSACQ() = 0;
+
     client_status_t m_status;
-    AcquisitionSystemConfig* m_config;
+    AcquisitionSystemConfig& m_config;
     sa_common_t     m_sa_common;
     InternalSMAD   *m_smad;
-    int             m_connection_reestablised;
+    std::string     m_service_name;
+    int             m_connection_restored;
     int             m_num_connection_try;
-    zmq::context_t *m_zmq_context;
+    // Контекст от фронтенда mdwrk 
+    zmq::context_t &m_zmq_context;
+    // сокет связи с фронтендом
+    zmq::socket_t  *m_zmq_frontend;
 };
 // =============================================================================================
 

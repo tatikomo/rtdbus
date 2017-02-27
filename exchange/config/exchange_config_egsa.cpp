@@ -22,6 +22,7 @@
 // Служебные файлы RTDBUS
 #include "exchange_config.hpp"
 #include "exchange_config_egsa.hpp"
+#include "exchange_config_nature.hpp"
 
 using namespace rapidjson;
 using namespace std;
@@ -56,26 +57,6 @@ const char* EgsaConfig::s_SECTION_CYCLES_NAME_PERIOD = "PERIOD";
 const char* EgsaConfig::s_SECTION_CYCLES_NAME_REQUEST= "REQUEST";
 const char* EgsaConfig::s_SECTION_CYCLES_NAME_SITE   = "SITE";
 const char* EgsaConfig::s_SECTION_CYCLES_NAME_SITE_NAME = "NAME";
-
-const map_nature_dict_t EgsaConfig::m_nature_dict[] = {
-  { GOF_D_SAC_NATURE_DIR,   "DIR"   },
-  { GOF_D_SAC_NATURE_DIPL,  "DIPL"  },
-  { GOF_D_SAC_NATURE_GEKO,  "GEKO"  },
-  { GOF_D_SAC_NATURE_A86,   "A86"   },
-  { GOF_D_SAC_NATURE_FANUC, "FANUC" },
-  { GOF_D_SAC_NATURE_SLTM,  "SLTM"  },
-  { GOF_D_SAC_NATURE_ZOND,  "ZOND"  },
-  { GOF_D_SAC_NATURE_STI,   "STI"   },
-  { GOF_D_SAC_NATURE_SUPERRTU, "SUPER" },
-  { GOF_D_SAC_NATURE_GPRI,  "GPRI"  },
-  { GOF_D_SAC_NATURE_ESTM,  "STM"   },
-  { GOF_D_SAC_NATURE_EELE,  "ELE"   },
-  { GOF_D_SAC_NATURE_ESIR,  "SIR"   },
-  { GOF_D_SAC_NATURE_EIMP,  "IMP"   },
-  { GOF_D_SAC_NATURE_SDEC,  "SDEC"  },
-  { GOF_D_SAC_NATURE_SCCSC, "SCCSC" },
-  { GOF_D_SAC_NATURE_EUNK,  "UNK"   }
-};
 
 // ==========================================================================================
 EgsaConfig::EgsaConfig(const char* config_filename)
@@ -238,7 +219,7 @@ int EgsaConfig::load_sites()
 
       item->name = cycle_item[s_SECTION_CYCLES_NAME_NAME].GetString();
       const std::string nature = cycle_item[s_SECTION_SITES_NAME_NATURE].GetString();
-      if  (GOF_D_SAC_NATURE_EUNK == (item->nature = get_nature_code_by_name(nature))) {
+      if  (GOF_D_SAC_NATURE_EUNK == (item->nature = SacNature::get_natureid_by_name(nature))) {
         LOG(WARNING) << fname << ": unknown nature label: " << nature;
       }
 
@@ -312,19 +293,4 @@ int EgsaConfig::load()
 }
 
 // ==========================================================================================
-// По символьному наименованию типа СС вернуть его числовой код (из массива m_nature_dict)
-int EgsaConfig::get_nature_code_by_name(const std::string& nature_designation)
-{
-  int nature_code = GOF_D_SAC_NATURE_EUNK;
-
-  for (int idx=0; idx < GOF_D_SAC_NATURE_EUNK; idx++) {
-    if (0 == nature_designation.compare(m_nature_dict[idx].designation)) {
-      nature_code = m_nature_dict[idx].nature_code;
-      LOG(INFO) << nature_designation << " code=" << nature_code << ", idx=" << idx;
-      break;
-    }
-  }
-  
-  return nature_code;
-}
 

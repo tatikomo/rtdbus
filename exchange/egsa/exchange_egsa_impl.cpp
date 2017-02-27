@@ -14,6 +14,7 @@
 #include <functional>
 #include <queue>
 #include <chrono>
+#include <thread>
 #include <sys/time.h>   // for 'time_t' and 'struct timeval'
 
 // Служебные заголовочные файлы сторонних утилит
@@ -44,6 +45,7 @@ EGSA::EGSA(const std::string& _broker, const std::string& _service)
   : mdp::mdwrk(_broker, _service, 1 /* num threads */, true /* use  direct connection */),
     m_signal_socket(m_context, ZMQ_ROUTER),  // Сообщения от таймеров циклов
     m_message_factory(new msg::MessageFactory(EXCHANGE_NAME)),
+    m_backend_socket(m_context, ZMQ_DEALER), // Сокет обмена сообщениями с Интерфейсом второго уровня
     m_ext_smad(NULL),
     m_egsa_config(NULL),
     m_socket(-1) // TODO: удалить, планируется использовать events вместо таймеров
@@ -79,9 +81,14 @@ EGSA::~EGSA()
 }
 
 // ==========================================================================================================
-bool EGSA::init()
+int EGSA::init()
 {
-  bool status = false;
+  const char* fname = "EGSA::init"; 
+  int status = NOK;
+  int linger = 0;
+  int hwm = 100;
+  int send_timeout_msec = SEND_TIMEOUT_MSEC; // 1 sec
+  int recv_timeout_msec = RECV_TIMEOUT_MSEC; // 3 sec
   smad_connection_state_t ext_state;
 
   // Открыть конфигурацию
@@ -95,7 +102,28 @@ bool EGSA::init()
   if (STATE_OK == (ext_state = m_ext_smad->connect())) {
     // Активировать группу подписки
     status = activateSBS();
-  }
+
+    if (OK == status) {
+      try {
+#warning "GEV inproc socket, what first: connect() or bind()"
+        m_backend_socket.connect(ENDPOINT_EXCHG_FRONTEND);
+        m_backend_socket.setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
+        m_backend_socket.setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
+        m_backend_socket.setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
+        LOG(INFO) << fname << ": connect to EGSA backend " << ENDPOINT_EXCHG_FRONTEND;
+      }
+      catch(zmq::error_t error)
+      {
+        LOG(ERROR) << fname << ": catch: " << error.what();
+        status = NOK;
+      }
+      catch (std::exception &e)
+      {
+        LOG(ERROR) << fname << ": catch the signal: " << e.what();
+        status = NOK;
+      }
+    } // end if SBS activated normally
+  } // end if external smad connected normally
   else {
     LOG(ERROR) << "Connecting to internal EGSA SMAD, code=" << ext_state;
   }
@@ -170,6 +198,38 @@ int EGSA::detach()
 }
 
 // ==========================================================================================================
+// Интерфейс реализации второго уровня
+// Отвечает за взаимодействие с интерфейсными модулями систем сбора и смежными объектами
+int EGSA::implementation()
+{
+  const char* fname = "EGSA::implementation";
+  int status = OK;
+
+  try {
+
+    while(!interrupt_worker) {
+      LOG(INFO) << fname;
+      sleep (1);
+    }
+
+  }
+  catch(zmq::error_t error)
+  {
+    LOG(ERROR) << fname << ": catch: " << error.what();
+    status = NOK;
+  }
+  catch (std::exception &e)
+  {
+    LOG(ERROR) << fname << ": catch the signal: " << e.what();
+    status = NOK;
+  }
+
+  m_backend_socket.close();
+
+  return status;
+}
+
+// ==========================================================================================================
 // 1. Дождаться сообщения ADDL о запросе готовности к работе
 // 2. Прочитать конфигурационный файл
 // 3. Инициализация подписки на атрибуты состояний Систем Сбора
@@ -184,7 +244,7 @@ int EGSA::detach()
 int EGSA::run()
 {
   const char* fname = "run";
-  bool status = false;
+  int status = NOK;
 //  int mandatory = 1;
 //  int linger = 0;
 //  int hwm = 100;
@@ -192,6 +252,8 @@ int EGSA::run()
 //  int recv_timeout_msec = RECV_TIMEOUT_MSEC; // 3 sec
   bool recv_timeout = false;
   std::string *reply_to = new std::string;
+  // Устанавливается флаг в случае получения команды на "Останов" из-вне
+  bool get_order_to_stop = false;
 //1  mdp::zmsg *request = NULL;
 
   interrupt_worker = true;
@@ -200,17 +262,18 @@ int EGSA::run()
 
   // Загрузка конфигурации EGSA
   if (init()) {
-    // Загрузка основной части кофигурации систем сбора
-    // и создание экземпляров InternalSMAD без фактического
-    // подключения, поскольку 
-    status = attach_to_sites_smad();
+    // Загрузка основной части кофигурации систем сбора и создание экземпляров
+    // InternalSMAD без фактического подключения
+    if (OK == (status = attach_to_sites_smad()))
+      interrupt_worker = false;
   }
-
-  if (status)
-    interrupt_worker = false;
 
   try
   {
+
+    // Запустить нить интерфейса
+    m_servant_thread = new std::thread(std::bind(&EGSA::implementation, this));
+
 #if 0
     if (OK == status) {
       // Сокет для получения запросов, прямого подключения, выполняется в отдельной нити 
@@ -258,7 +321,12 @@ int EGSA::run()
       {
         LOG(INFO) << "EGSA::recv() got a message";
 
-        processing(request, *reply_to);
+        processing(request, *reply_to, get_order_to_stop);
+
+        if (get_order_to_stop) {
+          LOG(INFO) << fname << " got a shutdown order";
+          interrupt_worker = true; // order to shutting down
+        }
 
         delete request;
       }
@@ -273,6 +341,9 @@ int EGSA::run()
         }
       }
     }
+
+    m_servant_thread->join();
+    delete m_servant_thread;
 
     delete reply_to;
 //    cleanup();
@@ -350,11 +421,15 @@ int EGSA::run()
   }
   catch(zmq::error_t error)
   {
-      LOG(ERROR) << fname << ": transport error catch: " << error.what();
+    LOG(ERROR) << fname << ": transport error catch: " << error.what();
+    interrupt_worker = true;
+    status = NOK;
   }
   catch (std::exception &e)
   {
-      LOG(ERROR) << fname << ": runtime signal catch: " << e.what();
+    LOG(ERROR) << fname << ": runtime signal catch: " << e.what();
+    interrupt_worker = true;
+    status = NOK;
   }
 
 //  m_frontend.close();
@@ -367,12 +442,13 @@ int EGSA::run()
 }
 
 // ==========================================================================================================
-// Отправить всем подчиненным системам запрос готовности, и жидать ответа
+// Отправить всем подчиненным системам запрос готовности, и ожидать ответа
 void EGSA::fire_ENDALLINIT()
 {
 #if (VERBOSE > 5)
   const char *fname = "fire_ENDALLINIT";
 #endif
+  bool stop_status;
   msg::SimpleRequest *simple_request = NULL;
 //  msg::SimpleReply   *simple_reply = NULL;
   mdp::zmsg          *send_msg  = NULL;
@@ -436,7 +512,7 @@ void EGSA::fire_ENDALLINIT()
       LOG(INFO) << fname << ": got a message from " << reply_to;
 #endif
 
-      processing (recv_msg, *reply_to);
+      processing (recv_msg, *reply_to, stop_status);
 
       delete recv_msg;
     }
@@ -556,7 +632,7 @@ int EGSA::wait(int max_wait_sec)
 // Обслуживаемые запросы перечислены в egsa.mkd
 //
 // NB: Запросы обрабатываются последовательно.
-int EGSA::processing(mdp::zmsg* request, const std::string &identity)
+int EGSA::processing(mdp::zmsg* request, const std::string &identity, bool& need_to_stop)
 {
   rtdbMsgType msgType;
   int rc = OK;
@@ -588,6 +664,11 @@ int EGSA::processing(mdp::zmsg* request, const std::string &identity)
       case SIG_D_MSG_ECHCTLPRESS:
       case SIG_D_MSG_ECHDIRCTLPRESS:
         rc = handle_teleregulation(letter, identity);
+        break;
+
+      case ADG_D_MSG_STOP:
+        rc = handle_stop(letter, identity);
+        need_to_stop = true;
         break;
 
       default:
@@ -646,11 +727,11 @@ int EGSA::handle_sbs_update(msg::Letter*, const std::string& origin)
 
 // ==========================================================================================================
 // Активация группы подписки точек систем сбора 
-bool EGSA::activateSBS()
+int EGSA::activateSBS()
 {
   std::string sbs_name = EXCHANGE_NAME;
   std::string rtdb_service_name = RTDB_NAME;
-  bool status = false;
+  int status = NOK;
   msg::Letter *request = NULL;
   mdp::zmsg* transport_cell;
   // Управление Группами Подписки
@@ -734,9 +815,9 @@ int EGSA::recv(msg::Letter* &result, int timeout_msec)
 
 // ==========================================================================================================
 // Ожидать получение сообщения SIG_D_MSG_READ_MULTI с первоначальными данными по группе подписки EGSA
-bool EGSA::waitSBS()
+int EGSA::waitSBS()
 {
-  bool status = false;
+  int status = NOK;
   std::string cause_text = "";
   //msg::ExecResult *resp = NULL;
   msg::Letter *report = NULL;
@@ -793,9 +874,9 @@ bool EGSA::waitSBS()
 
 // ==========================================================================================================
 // Обработка полученных по подписке от БДРВ данных
-bool EGSA::process_read_response(msg::Letter* report)
+int EGSA::process_read_response(msg::Letter* report)
 {
-  bool status = true;
+  int status = OK;
   msg::ReadMulti* response = dynamic_cast<msg::ReadMulti*>(report);
  
   for (std::size_t idx = 0; idx < response->num_items(); idx++)
@@ -808,4 +889,94 @@ bool EGSA::process_read_response(msg::Letter* report)
 }
 
 // ==========================================================================================================
+int EGSA::handle_asklife(msg::Letter* letter, const std::string& identity)
+{
+  msg::AskLife   *msg_ask_life = static_cast<msg::AskLife*>(letter);
+  mdp::zmsg      *response = new mdp::zmsg();
+  int exec_val = 1;
 
+  msg_ask_life->set_exec_result(exec_val);
+
+  response->push_front(const_cast<std::string&>(msg_ask_life->data()->get_serialized()));
+  response->push_front(const_cast<std::string&>(msg_ask_life->header()->get_serialized()));
+  response->wrap(identity.c_str(), EMPTY_FRAME);
+
+  LOG(INFO) << "Processing asklife from " << identity
+            << " has status:" << msg_ask_life->exec_result(exec_val)
+            << " sid:" << msg_ask_life->header()->exchange_id()
+            << " iid:" << msg_ask_life->header()->interest_id()
+            << " dest:" << msg_ask_life->header()->proc_dest()
+            << " origin:" << msg_ask_life->header()->proc_origin();
+
+  send_to_broker((char*) MDPW_REPORT, NULL, response);
+  delete response;
+
+  return OK;
+}
+
+// ==========================================================================================================
+int EGSA::handle_stop(msg::Letter* letter, const std::string& identity)
+{
+  int rc = OK;
+  const char* fname = "handle_stop";
+
+  interrupt_worker = true;
+
+  LOG(WARNING) << "Receive ADG_D_MSG_STOP";
+
+  try
+  {
+    // Отправить сообщение в EGSA о принудительном останове
+    LOG(INFO) << "Send TERMINATE to EGSA";
+    m_backend_socket.send("TERMINATE", 9, 0);
+
+    // TODO: Послать отправителю сообщение EXEC_RESULT
+    LOG(INFO) << "TODO: send EXEC_RESULT to " << identity;
+    // GEV send_to_broker((char*) MDPW_REPORT, NULL, response);
+  }
+  catch(zmq::error_t error)
+  {
+    LOG(ERROR) << fname << ": catch: " << error.what();
+    rc = NOK;
+  }
+  catch(std::exception &e)
+  {
+    LOG(ERROR) << e.what();
+    rc = NOK;
+  }
+
+  return rc;
+}
+
+// ==========================================================================================================
+// Получить набор циклов, в которых участвует заданная СС
+std::vector<Cycle*> *EGSA::get_Cycles_for_SA(const std::string& sa_name)
+{
+  std::vector<Cycle*> *search_result = NULL;
+
+  for (std::vector<Cycle*>::const_iterator it = ega_ega_odm_ar_Cycles.begin();
+       it != ega_ega_odm_ar_Cycles.end();
+       ++it)
+  {
+    // Если указанная СС участвует в данном цикле
+    if ((*it)->exist_for_SA(sa_name)) {
+
+      // Создать вектор с циклами, если это не было сделано ранее
+      if (!search_result) search_result = new std::vector<Cycle*>;
+      search_result->push_back(*it);
+    }
+
+    LOG(INFO) << sa_name << ": found cycle " << (*it)->name();
+  }
+
+  return search_result;
+}
+
+// ==========================================================================================================
+// Получить набор запросов, зарегистрированных за данной СС
+std::vector<Request*> *EGSA::get_Request_for_SA(const std::string& sa_name)
+{
+  return NULL;
+}
+
+// ==========================================================================================================

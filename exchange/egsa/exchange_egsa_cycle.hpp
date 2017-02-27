@@ -59,7 +59,8 @@ class Cycle {
     int activate(int);
     // Деактивировать цикл, остановив его таймер
     int deactivate();
-
+    // Проверить, зарегистрирована ли указанная СС в данном Цикле
+    bool exist_for_SA(const std::string&);
     std::vector<acq_site_state_t>& sites() { return m_AcqSites; };
 
     Cycle(const char* _name, int _period, ech_t_ReqId _linked_req, cycle_family_t _family)

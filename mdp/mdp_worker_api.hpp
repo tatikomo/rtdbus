@@ -97,14 +97,14 @@ class mdwrk
 
   protected:
     zmq::context_t   m_context;
+    // Название Службы
+    std::string      m_service;
 
   private:
     DISALLOW_COPY_AND_ASSIGN(mdwrk);
 
     // Точка подключения к Брокеру
     std::string      m_broker_endpoint;
-    // Название Службы
-    std::string      m_service;
     // Связка "название Службы" <=> "информация о Службе", ключ хранится копией значения
     // Список Служб получать анализом данных от ask_service_info
     ServicesHash_t   m_services_info;

@@ -196,16 +196,17 @@ const char *InternalSMAD::s_SA_DICT_TABLENAME = "DICT";
 const char *InternalSMAD::s_SA_DATA_TABLENAME = "DATA";
 
 // ==========================================================================================
-InternalSMAD::InternalSMAD(const char *filename)
+InternalSMAD::InternalSMAD(const char* sa_name, gof_t_SacNature sa_nature, const char *filename)
  : m_db(NULL),
    m_state(STATE_DISCONNECTED),
-   m_sa_nature(GOF_D_SAC_NATURE_EUNK),
+   m_sa_nature(sa_nature),
    m_db_err(NULL),
    m_snapshot_filename(NULL),
    m_sa_name(NULL),
    m_sa_reference(0)
 {
   LOG(INFO) << "Constructor InternalSMAD";
+  m_sa_name = strdup(sa_name);
   m_snapshot_filename = strdup(filename);
 }
 
@@ -225,13 +226,12 @@ InternalSMAD::~InternalSMAD()
 
 // ==========================================================================================
 // Подключиться к InternalSMAD в режиме выгрузки данных, справочные таблицы не создаются
-smad_connection_state_t InternalSMAD::attach(const char* sa_name, gof_t_SacNature sa_nature)
+// Используется модулем EGSA
+smad_connection_state_t InternalSMAD::attach(const char* sa_name)
 {
   const char *fname = "attach";
   int rc = 0;
 
-  m_sa_name = strdup(sa_name);
-  m_sa_nature = sa_nature;
 
   // ------------------------------------------------------------------
   // Открыть файл InternalSMAD с базой данных SQLite
@@ -270,15 +270,13 @@ smad_connection_state_t InternalSMAD::attach(const char* sa_name, gof_t_SacNatur
 
 // ==========================================================================================
 // Подключиться к InternalSMAD, создав все необходимые таблицы
-smad_connection_state_t InternalSMAD::connect(const char* sa_name, gof_t_SacNature sa_nature)
+// Используется модулем СС
+smad_connection_state_t InternalSMAD::connect()
 {
   const char *fname = "connect";
   char sql_operator[1000 + 1];
   int printed;
   int rc = 0;
-
-  m_sa_name = strdup(sa_name);
-  m_sa_nature = sa_nature;
 
   // ------------------------------------------------------------------
   // Открыть файл InternalSMAD с базой данных SQLite
@@ -807,38 +805,35 @@ void InternalSMAD::accelerate(bool speedup)
   // PRAGMA synchronous = FULL;
   // PRAGMA journal_mode = DELETE;
 
-  switch (speedup) {
-      case true:
-        printed = snprintf(sql_operator_journal,
-                           MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
-                           pragma_set_journal_mode_template,
-        // Ослабить нагрузку на диск, журнал не будет скидываться в файл после каждой операции
-                           journal_MEMORY);
-        //                   journal_OFF);
-        assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
+  if (speedup) {
+      printed = snprintf(sql_operator_journal,
+                         MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
+                         pragma_set_journal_mode_template,
+      // Ослабить нагрузку на диск, журнал не будет скидываться в файл после каждой операции
+                         journal_MEMORY);
+      //                   journal_OFF);
+      assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
 
-        printed = snprintf(sql_operator_synchronous,
-                           MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
-                           pragma_set_synchronous_template,
-        // Поднять производительность за счёт отказа от полной гарантии консистентности данных
-        //                   sync_NORM);
-                           sync_OFF);
-        assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
-        break;
+      printed = snprintf(sql_operator_synchronous,
+                         MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
+                         pragma_set_synchronous_template,
+      // Поднять производительность за счёт отказа от полной гарантии консистентности данных
+      //                   sync_NORM);
+                         sync_OFF);
+      assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
+  }
+  else {
+      printed = snprintf(sql_operator_journal,
+                         MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
+                         pragma_set_journal_mode_template,
+                         journal_DELETE);
+      assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
 
-      case false:
-        printed = snprintf(sql_operator_journal,
-                           MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
-                           pragma_set_journal_mode_template,
-                           journal_DELETE);
-        assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
-
-        printed = snprintf(sql_operator_synchronous,
-                           MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
-                           pragma_set_synchronous_template,
-                           sync_FULL);
-        assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
-        break;
+      printed = snprintf(sql_operator_synchronous,
+                         MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
+                         pragma_set_synchronous_template,
+                         sync_FULL);
+      assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
   }
 
   if (sqlite3_exec(m_db, sql_operator_journal, 0, 0, &m_db_err)) {

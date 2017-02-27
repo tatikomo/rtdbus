@@ -22,77 +22,93 @@
 #include "mdp_worker_api.hpp"
 #include "exchange_sysacq_intf.hpp"
 #include "exchange_sysacq_modbus.hpp"
-//#include "exchange_config_sac.hpp"
+#include "exchange_config_sac.hpp"
 #include "wsysacq_cli.hpp"
 
 using namespace mdp;
 
 extern volatile int interrupt_worker;
 
-// --------------------------------------------------------------------------------
-SystemAcquisitionModule::SystemAcquisitionModule(const std::string& broker_endpoint,  // Точка подключения к Брокеру
-                       const std::string& service,          // Название Службы
-                       const std::string& config_filename)  // Название конфигурационного файла локальной тестовой СС
- : mdwrk(broker_endpoint, service, true),
-   m_impl(NULL),
-   m_to_slave(m_context, ZMQ_PAIR),
-   m_status(0),
-   m_message_factory(new msg::MessageFactory(service.c_str())),
-   m_servant_thread(NULL)
-{
-  LOG(INFO) << "create new system acquisition worker";
-  // TODO: На основании конфигурационного файла определить, что за тип у данной системы сбора
-#warning "TODO: determine the given SA type by it's config file"
-
-  // Значения общих характеристик Системы Сбора
-  sa_common_t common_data;
 #if 0
-  // Класс для разбора конфигурационных файлов
-  AcquisitionSystemConfig config(config_filename);
-  // Прочесть общие харатеристики
-  config.load_common(common_data);
-#else
-  // NB: Сейчас пока считаем, что это всегда будет MODBUS
-  common_data.nature = GOF_D_SAC_NATURE_EELE;
+    int run();
+    int stop();
+  private:
+    // Подчиненный интерфейс системы сбора
+    SysAcqInterface *m_impl;
+    // Сокет связи с подчиненным интерфейсом системы сбора
+    zmq::socket_t    m_slave;
+    // Внутреннее состояние
+    int m_status;
+    // Фабрика сообщений
+    msg::MessageFactory *m_message_factory;
+    // Нить подчиненного интерфейса с Системой Сбора
+    std::thread* m_servant_thread;
 #endif
 
+
+// --------------------------------------------------------------------------------
+SA_Module_Instance::SA_Module_Instance(const std::string& broker_endpoint,  // Точка подключения к Брокеру
+                                       const std::string& service)          // Название Службы
+ : mdwrk(broker_endpoint, service, 1 /* num threads */, true /* use direct connection */),
+   m_impl(NULL),
+   m_slave(m_context, ZMQ_PAIR),
+   m_status(STATUS_OK),
+   m_servant_thread(NULL),
+   m_config(NULL),
+   m_message_factory(NULL)
+{
+  // Значения общих характеристик Системы Сбора
+  sa_common_t common_data;
+  // Класс для разбора конфигурационных файлов
+  m_config = new AcquisitionSystemConfig(service + ".json");
+
+  // Прочесть общие характеристики
+  m_config->load_common(common_data);
+
+  LOG(INFO) << "create new system acquisition worker";
+
+  // В зависимости от полученного типа системы сбора
+  // будет создаваться соответствующий экземпляр.
   switch(common_data.nature) {
     case GOF_D_SAC_NATURE_EELE:
-      m_impl = new RTDBUS_Modbus_client(config_filename, &m_context);
+      m_impl = new Modbus_Client_Interface(service, m_context, *m_config);
       break;
     default:
       LOG(FATAL) << "Unsupported System Acquisition type: " << common_data.nature;
       assert(0 == 1);
   }
 
+  m_message_factory = new msg::MessageFactory(service.c_str());
   // Изменить время таймаута приема сообщения
   set_recv_timeout(1000000); // 1 sec
   // Изменения активизируются после нового подключения к Брокеру
   connect_to_broker();
-
-  m_to_slave.bind(s_SA_INTERNAL_EXCHANGE_ENDPOINT);
+  // Подключение к SysAcqInterface::run
+  m_slave.bind(s_SA_INTERNAL_EXCHANGE_ENDPOINT);
 }
 
 // --------------------------------------------------------------------------------
-SystemAcquisitionModule::~SystemAcquisitionModule()
+SA_Module_Instance::~SA_Module_Instance()
 {
   LOG(INFO) << "start system acquisition destructor";
-  delete m_impl;
-  m_to_slave.close();
   delete m_message_factory;
+  delete m_config;
+  delete m_impl;
+  m_slave.close();
   LOG(INFO) << "finish system acquisition destructor";
 }
 
 // --------------------------------------------------------------------------------
 // Нельзя устраивать задержки с помощью sleep, поскольку в это время процесс не получает
 // сообщения Брокера и Клиентов, что ведет к нарушению работы.
-int SystemAcquisitionModule::run()
+int SA_Module_Instance::run()
 {
+#if (VERBOSE > 2)
   const char* fname = "run";
+#endif
+  // Фабрика сообщений
+
   int status = m_impl->prepare();
-  int old_status = 255;
-  int new_status = 255;
-  bool status_changed = false;
   std::string *reply_to = new std::string;
   mdp::zmsg *request  = NULL;
 
@@ -110,7 +126,7 @@ int SystemAcquisitionModule::run()
   {
     request = NULL;
 
-    // NB: Функция recv возвращает только PERSISTENT-сообщения
+    // Получить входящие сообщения (Брокер, другие Службы, Подписка,...)
     request = recv (reply_to);
     if (request)
     {
@@ -118,42 +134,15 @@ int SystemAcquisitionModule::run()
       LOG(INFO) << fname << ": got a message";
 #endif
 
+      // Продолжить локальную обработку в соответствии с типом полученного сообщения
+      // Если сообщение не перехватывается интерфейсом верхнего уровня,
+      // передать его через сокет slave в интерфейс нижнего уровня.
       handle_request (request, reply_to);
 
       delete request;
     }
   
-#if 0
-    if (old_status != m_impl->status()) {
-      old_status = m_impl->status();
-      status_changed = true;
-    }
-
-    status = m_impl->quantum();
-
-    if (status_changed) {
-      new_status = m_impl->status();
-      switch(new_status) {
-        case STATUS_FAIL_NEED_RECONNECTED:
-        case STATUS_OK_NOT_CONNECTED:
-          if (old_status == new_status) {
-            // подождать секунду, идет переподключение
-            sleep(1);
-          }
-          break;
-
-        case STATUS_OK_CONNECTED:
-          usleep(100000);
-          if (old_status == new_status)
-            status_changed = false;
-          break;
-
-        default:
-          LOG(WARNING) << "Unsupported combination: " << old_status << " and " << new_status;
-      }
-    }
-    //
-#endif
+//1    status = m_impl->quantum();
   }
 
   delete reply_to;
@@ -170,7 +159,197 @@ int SystemAcquisitionModule::run()
 }
 
 // --------------------------------------------------------------------------------
-int SystemAcquisitionModule::handle_request(mdp::zmsg* request, std::string*& reply_to)
+int SA_Module_Instance::stop()
+{
+  // Отправить в сокет slave команду завершения работы
+  m_slave.send("STOP", 4, 0);
+  return OK;
+}
+
+// --------------------------------------------------------------------------------
+// Запрос останова работы
+// Ответ: ADG_D_MSG_EXECRESULT
+int SA_Module_Instance::handle_stop(msg::Letter* letter, std::string* reply_to)
+{
+  int rc;
+  int code;
+  std::string message;
+
+  LOG(ERROR) << "Got ADG_D_MSG_STOP";
+
+  // Остановить нить SysAcqInterface::run()
+  stop();
+  code = 1;
+  message.assign("<OK>");
+
+  rc = response_as_exec_result(letter, reply_to, code, message);
+
+  interrupt_worker = 1;
+
+  return rc;
+}
+
+
+// --------------------------------------------------------------------------------
+// Запрос выполнения иницициализации
+// Ответ: ADG_D_MSG_EXECRESULT
+int SA_Module_Instance::handle_init(msg::Letter* letter, std::string* reply_to)
+{
+  int rc;
+  int code;
+  std::string message;
+
+  LOG(ERROR) << "Got ADG_D_MSG_INIT";
+
+  switch(m_status) {
+    case STATUS_OK:
+      // LoadSMAD()
+    case STATUS_OK_SMAD_LOAD: // Ещё не подключён, InternalSMAD загружена
+    case STATUS_OK_NOT_CONNECTED: // Не подключён, требуется переподключение
+      LOG(INFO) << "Ready to init";
+      code = 1;
+      message.assign("<OK>");
+      break;
+
+    case STATUS_OK_CONNECTED: // Подключён, все в порядке
+      LOG(INFO) << "Disconnect, ready to init";
+      // Disconnect()
+      code = 1;
+      message.assign("<OK>");
+      break;
+
+    default:
+      code = 0;
+      message.assign("<FAILURE>");
+  }
+
+  rc = response_as_exec_result(letter, reply_to, code, message);
+
+  return rc;
+}
+
+// --------------------------------------------------------------------------------
+// Сообщение об общем завершении инициализации
+// Ответ: ADG_D_MSG_ENDINITACK
+int SA_Module_Instance::handle_end_all_init(msg::Letter* letter, std::string* reply_to)
+{
+  int rc;
+  int code;
+  std::string message;
+
+  LOG(ERROR) << "Got ADG_D_MSG_ENDINITACK";
+
+  switch(m_status) {
+    case STATUS_OK_NOT_CONNECTED:
+      if (OK == (m_status = m_impl->connect())) {
+        LOG(INFO) << "Connection successful";
+        message.assign("<OK>");
+      }
+      else {
+        LOG(INFO) << "Connection failure";
+        message.assign("<FAILURE>");
+      }
+      code = m_status;
+      break;
+
+    default:
+      LOG(WARNING) << "Try to finish initialization on currentrly wrong status:" << m_status;
+      code = m_status;
+      message.assign("<FAILURE>");
+  }
+
+  rc = response_as_exec_result(letter, reply_to, code, message);
+
+  return rc;
+}
+
+// --------------------------------------------------------------------------------
+// Ответ сообщением на простейшие запросы, в ответе только числовой код
+int SA_Module_Instance::response_as_simple_reply(msg::Letter* letter, std::string* reply_to, int code)
+{
+  int rc = OK;
+  msg::SimpleReply *simple_reply;
+
+  switch(letter->header()->usr_msg_type())
+  {
+    case ADG_D_MSG_ENDALLINIT:
+      simple_reply = static_cast<msg::SimpleReply*>(m_message_factory->create(ADG_D_MSG_ENDINITACK));
+      break;
+    case ADG_D_MSG_ASKLIFE:
+      simple_reply = static_cast<msg::SimpleReply*>(m_message_factory->create(ADG_D_MSG_LIVING));
+      break;
+    default:
+      LOG(ERROR) << "Message type #" << letter->header()->usr_msg_type()
+                 << " can't be interpreted as SIMPLE_REQUEST";
+      assert(0 == 1);
+  }
+
+  simple_reply->header()->set_exchange_id(letter->header()->exchange_id());
+  // TODO: Возможно ли переполнение?
+  simple_reply->header()->set_interest_id(letter->header()->interest_id() + 1);
+  simple_reply->header()->set_proc_dest(*reply_to);
+
+  mdp::zmsg *response = simple_reply->get_zmsg();
+  response->wrap(reply_to->c_str(), "");
+
+  LOG(INFO) << "Got SIMPLE_REQUEST #" << letter->header()->usr_msg_type()
+            << " sid:"    << letter->header()->exchange_id()
+            << " iid:"    << letter->header()->interest_id()
+            << " origin:" << letter->header()->proc_origin()
+            << " dest:"   << letter->header()->proc_dest();
+  LOG(INFO) << "Send SIMPLE_REPLY #" << simple_reply->header()->usr_msg_type()
+            << " sid:"    << simple_reply->header()->exchange_id()
+            << " iid:"    << simple_reply->header()->interest_id()
+            << " origin:" << simple_reply->header()->proc_origin()
+            << " dest:"   << simple_reply->header()->proc_dest();
+
+  send_to_broker((char*) MDPW_REPORT, NULL, response);
+
+  delete response;
+  delete simple_reply;
+
+  return rc;
+
+}
+
+// --------------------------------------------------------------------------------
+// Ответ сообщением EXEC_RESULT на запросы, в ответе числовой код (обязательно) и строка (возможно)
+int SA_Module_Instance::response_as_exec_result(msg::Letter* letter,
+                                             std::string* reply_to,
+                                             int code,
+                                             const std::string& note)
+{
+  //const rtdbMsgType usr_type = letter->header()->usr_msg_type();
+  msg::ExecResult *exec_reply =
+    static_cast<msg::ExecResult*>(m_message_factory->create(ADG_D_MSG_EXECRESULT));
+  int rc = OK;
+
+  exec_reply->header()->set_exchange_id(letter->header()->exchange_id());
+  // TODO: Возможно ли переполнение?
+  exec_reply->header()->set_interest_id(letter->header()->interest_id() + 1);
+  exec_reply->header()->set_proc_dest(*reply_to);
+  if (!note.empty())
+    exec_reply->set_failure_cause(code, note);
+  else
+    exec_reply->set_exec_result(code);
+
+  mdp::zmsg *response = exec_reply->get_zmsg();
+  response->wrap(reply_to->c_str(), "");
+
+  send_to_broker((char*) MDPW_REPORT, NULL, response);
+
+  delete response;
+  delete exec_reply;
+
+  return rc;
+}
+
+// --------------------------------------------------------------------------------
+// Локальная предварительная обработка сообщений из внешнего мира
+// После определения типа запроса:
+// - если запрос обработывается на локальном уровне - выполнить его
+// - если запрос не перехватывается локально - его обработкой занимается SysAcqInterface
+int SA_Module_Instance::handle_request(mdp::zmsg* request, std::string* reply_to)
 {
   int rc = OK;
   rtdbMsgType msgType;
@@ -190,10 +369,10 @@ int SystemAcquisitionModule::handle_request(mdp::zmsg* request, std::string*& re
     {
       // -----------------------------------------------------------------------------------
       // Группа сообщений, которые могут быть получены в любой момент
-      case ADG_D_MSG_ASKLIFE:   // Запрос "Жив"
+      case ADG_D_MSG_ASKLIFE:   // Запрос "Жив", ответ ADG_D_MSG_LIVING
         rc = handle_asklife(letter, reply_to);
         break;
-      case ADG_D_MSG_STOP:      // Запрос останова работы
+      case ADG_D_MSG_STOP:      // Запрос останова работы, ответ ADG_D_MSG_EXECRESULT
         rc = handle_stop(letter, reply_to);
         break;
 
@@ -201,16 +380,19 @@ int SystemAcquisitionModule::handle_request(mdp::zmsg* request, std::string*& re
       // Группа сообщений, которые допустимо принимать только ДО завершения инициализации
       case ADG_D_MSG_INIT:      // Запрос выполнения первоначальной иницициализации данным модулем
       case ADG_D_MSG_DIFINIT:   // Запрос выполнения иницициализации данным модулем после рестарта 
-        rc = handle_init(letter, reply_to);
+        rc = handle_init(letter, reply_to); // Ответ ADG_D_MSG_EXECRESULT
         break;
       case ADG_D_MSG_ENDALLINIT:// Сообщение об общем завершении инициализации
-        rc = handle_end_all_init(letter, reply_to);
+        rc = handle_end_all_init(letter, reply_to); // Ответ ADG_D_MSG_ENDINITACK
         break;
 
       // -----------------------------------------------------------------------------------
-      // Группа сообщений, которые могут быть получены только ПОСЛЕ завершения инициализации
-      case ECH_D_MSG_INT_REQUEST:   // Запрос на доступ к данным
-        rc = handle_internal_request(letter, reply_to);
+      case ECH_D_MSG_INT_REQUEST:   // Специфичные запросы передаются интерфейсу SysAcqInterface
+        //1 rc = handle_request(letter, reply_to);
+        // а) Разобрать, что это за запрос
+        // б) Сформировать запрос соответствующего типа в адрес Интерфейса второго уровня
+        // в) Периодически опрашивать сокет Интерфейса второго уровня до истечения таймаута
+        //    или получения ответа
         break;
 
       // -----------------------------------------------------------------------------------
@@ -231,68 +413,26 @@ int SystemAcquisitionModule::handle_request(mdp::zmsg* request, std::string*& re
 }
 
 // --------------------------------------------------------------------------------
-// Запрос выполнения иницициализации
-int SystemAcquisitionModule::handle_init(msg::Letter* letter, std::string* reply_to)
-{
-  int rc = NOK;
-  LOG(ERROR) << "Not yet realized";
-  return rc;
-}
-
-// --------------------------------------------------------------------------------
-// Сообщение об общем завершении инициализации
-int SystemAcquisitionModule::handle_end_all_init(msg::Letter* letter, std::string* reply_to)
-{
-  int rc = NOK;
-  LOG(ERROR) << "Not yet realized";
-  return rc;
-}
-
-// --------------------------------------------------------------------------------
-// Запрос на доступ к данным
-int SystemAcquisitionModule::handle_internal_request(msg::Letter* letter, std::string* reply_to)
+int SA_Module_Instance::handle_asklife(msg::Letter* letter, std::string* reply_to)
 {
   int rc = OK;
-  msg::SimpleRequest* simple_req = static_cast<msg::SimpleRequest*>(letter);
-  const rtdbMsgType usr_type = simple_req->header()->usr_msg_type();
+  msg::SimpleReply *simple_reply =
+    static_cast<msg::SimpleReply*>(m_message_factory->create(ADG_D_MSG_LIVING));
 
-  switch (usr_type) {
-     case ADG_D_MSG_EXECRESULT :
-     case ADG_D_MSG_LIVING     :
-     case ADG_D_MSG_ENDINITACK :
-       LOG(INFO) << "Got usr msg type #" << usr_type;
-
-       break;
-
-     case ECH_D_MSG_INT_REPLY :
-       LOG(INFO) << "Got usr msg type #" << usr_type << " [ECH_D_MSG_INT_REPLY]";
-       break;
-
-      default :
-        rc = NOK;
-  }
-  return rc;
-}
-
-// --------------------------------------------------------------------------------
-int SystemAcquisitionModule::handle_asklife(msg::Letter* letter, std::string* reply_to)
-{
-  int rc = OK;
-  msg::AskLife   *msg_ask_life = static_cast<msg::AskLife*>(letter);
-  msg::SimpleReply *simple_reply = static_cast<msg::SimpleReply*>(m_message_factory->create(ADG_D_MSG_LIVING));
-
-  simple_reply->header()->set_exchange_id(msg_ask_life->header()->exchange_id());
-  simple_reply->header()->set_interest_id(msg_ask_life->header()->interest_id() + 1); // TODO: Возможно ли переполнение?
+  assert(letter->header()->usr_msg_type() == ADG_D_MSG_ASKLIFE);
+  simple_reply->header()->set_exchange_id(letter->header()->exchange_id());
+  // TODO: Возможно ли переполнение?
+  simple_reply->header()->set_interest_id(letter->header()->interest_id() + 1);
   simple_reply->header()->set_proc_dest(*reply_to);
 
   mdp::zmsg *response = simple_reply->get_zmsg();
   response->wrap(reply_to->c_str(), "");
 
   LOG(INFO) << "Got ASKLIFE "
-            << " sid:"    << msg_ask_life->header()->exchange_id()
-            << " iid:"    << msg_ask_life->header()->interest_id()
-            << " origin:" << msg_ask_life->header()->proc_origin()
-            << " dest:"   << msg_ask_life->header()->proc_dest();
+            << " sid:"    << letter->header()->exchange_id()
+            << " iid:"    << letter->header()->interest_id()
+            << " origin:" << letter->header()->proc_origin()
+            << " dest:"   << letter->header()->proc_dest();
   LOG(INFO) << "Send LIVING "
             << " sid:"    << simple_reply->header()->exchange_id()
             << " iid:"    << simple_reply->header()->interest_id()
@@ -308,33 +448,27 @@ int SystemAcquisitionModule::handle_asklife(msg::Letter* letter, std::string* re
 }
 
 // --------------------------------------------------------------------------------
-int SystemAcquisitionModule::handle_stop(msg::Letter* letter, std::string* reply_to)
+// Запрос на доступ к данным
+int SA_Module_Instance::handle_internal_request(msg::Letter* letter, std::string* reply_to)
 {
   int rc = OK;
-  msg::SimpleRequest *msg_stop = static_cast<msg::SimpleRequest*>(letter);
-  int exec_val = 1;
-  mdp::zmsg *response = new mdp::zmsg();
+  msg::SimpleReply *simple_reply =
+      static_cast<msg::SimpleReply*>(m_message_factory->create(ECH_D_MSG_INT_REPLY));
 
-  // Отправить в сокет to_slave команду завершения работы
-  m_to_slave.send("STOP", 4, 0);
-  
-  msg_stop->set_exec_result(exec_val);
+  assert(letter->header()->usr_msg_type() == ECH_D_MSG_INT_REQUEST);
 
-  response->push_front(const_cast<std::string&>(msg_stop->data()->get_serialized()));
-  response->push_front(const_cast<std::string&>(msg_stop->header()->get_serialized()));
+  simple_reply->header()->set_exchange_id(letter->header()->exchange_id());
+  // TODO: Возможно ли переполнение?
+  simple_reply->header()->set_interest_id(letter->header()->interest_id() + 1);
+  simple_reply->header()->set_proc_dest(*reply_to);
+
+  mdp::zmsg *response = simple_reply->get_zmsg();
   response->wrap(reply_to->c_str(), "");
 
-  LOG(INFO) << "Processing STOP from " << *reply_to
-            << " has status:" << msg_stop->exec_result(exec_val)
-            << " sid:" << msg_stop->header()->exchange_id()
-            << " iid:" << msg_stop->header()->interest_id()
-            << " dest:" << msg_stop->header()->proc_dest()
-            << " origin:" << msg_stop->header()->proc_origin();
-
   send_to_broker((char*) MDPW_REPORT, NULL, response);
-  delete response;
 
-  interrupt_worker = 1;
+  delete response;
+  delete simple_reply;
 
   return rc;
 }
@@ -354,15 +488,13 @@ int main(int argc, char* argv[])
   std::string service_name = "BI4001";
   bool is_service_name_given = false;
   std::string config_name = "BI4001.json";
-  bool is_config_name_given = false;
   int opt;
   int verbose = 0;
-  SystemAcquisitionModule* client = NULL;
+  SA_Module_Instance* client = NULL;
   static const char *arguments_out =
               "[-b <broker_address>] "
               "[-s <service_name>] "
-              "[-v] "
-              "-c <config file> ";
+              "[-v] ";
 
   while ((opt = getopt (argc, argv, "b:vs:c:")) != -1)
   {
@@ -373,17 +505,11 @@ int main(int argc, char* argv[])
          break;
 
        case 'b': // точка подключения к Брокеру
-         broker_endpoint.assign(optarg);
-         break;
-
-       case 'c': // имя файла конфигурации
-         is_config_name_given = true;
-         config_name.assign(optarg);
-         std::cout << "Config is \"" << config_name << "\"" << std::endl;
+         broker_endpoint.assign(optarg, SERVICE_NAME_MAXLEN);
          break;
 
        case 's':
-         service_name.assign(optarg);
+         service_name.assign(optarg, SERVICE_NAME_MAXLEN);
          is_service_name_given = true;
          std::cout << "Service is \"" << service_name << "\"" << std::endl;
          break;
@@ -405,27 +531,23 @@ int main(int argc, char* argv[])
     }
   }
 
-  if (!is_config_name_given) {
-    if (is_service_name_given) {
-      config_name = service_name + ".json";
-    }
+  if (is_service_name_given) {
+    config_name = service_name + ".json";
+
     if (!exist(config_name)) {
-      std::cerr << "Must support configuration file!" << std::endl;
+      std::cerr << "Configuration file '" << config_name << "' is missing" << std::endl;
       return EXIT_FAILURE;
     }
   }
-
-  if (!is_service_name_given) {
-    // TODO: Если не было предоставлено, достать его из конфигурационного файла.
-    // NB: а пока поругаемся и выйдем.
-    std::cerr << "Must support service name!" << std::endl;
+  else {
+    std::cerr << "Must support service name" << std::endl;
     return EXIT_FAILURE;
   }
 
   ::google::InitGoogleLogging(argv[0]);
   ::google::InstallFailureSignalHandler();
 
-  client = new SystemAcquisitionModule(broker_endpoint, service_name, config_name);
+  client = new SA_Module_Instance(broker_endpoint, service_name);
 
   client->run();
 

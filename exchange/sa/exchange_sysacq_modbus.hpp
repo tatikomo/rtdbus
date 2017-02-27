@@ -11,10 +11,10 @@
 
 // Служебные заголовочные файлы сторонних утилит
 #include "modbus.h"
-#include "zmq.hpp"
 
 // Служебные файлы RTDBUS
 #include "exchange_config.hpp"
+#include "mdp_worker_api.hpp"
 // Родовой интерфейс работы с Системой сбора
 #include "exchange_sysacq_intf.hpp"
 
@@ -98,10 +98,13 @@ typedef struct {
 
 
 // ---------------------------------------------------------
-class RTDBUS_Modbus_client : public SysAcqInterface {
+// Реализация интерфейса EGSA <=> SA для MODBUS клиента
+class Modbus_Client_Interface : public SysAcqInterface {
   public:
-    RTDBUS_Modbus_client(const std::string&, zmq::context_t* = NULL);
-   ~RTDBUS_Modbus_client();
+    Modbus_Client_Interface(const std::string&, // Название Сервиса
+                            zmq::context_t&,    // Ссылка на родительский ZMQ контекст
+                            AcquisitionSystemConfig&);  // Ссылка на конфигурационные файлы
+   ~Modbus_Client_Interface();
     // Основной рабочий цикл
     void run();
     void stop();
@@ -117,20 +120,32 @@ class RTDBUS_Modbus_client : public SysAcqInterface {
     int timewait();
     client_status_t status();
 
+    // Точка входа обработки внешнего запроса 
+    int handle_request(mdp::zmsg*, std::string*&);
+    // Подключится к серверу Системы Сбора
+    client_status_t connect();
+    // Отключиться от Системы Сбора, закрыть соединение
+    client_status_t disconnect();
+
   private:
-    DISALLOW_COPY_AND_ASSIGN(RTDBUS_Modbus_client);
+    DISALLOW_COPY_AND_ASSIGN(Modbus_Client_Interface);
     // На основе прочитанных данных автоматически построить план запросов к СС и вывести его в лог
     int make_request_plan();
     int calculate();
     client_status_t ask();
-    client_status_t connect();
+    // Обработчики авто-инициированных циклов
+    void do_GENCONTROL();
+    void do_ACQSYSACQ();
+    void do_URGINFOS();
+    void do_INFOSACQ();
+
     // Разбор буфера ответа от СС на уровне байтов
-    int parse_response(ModbusOrderDescription&, uint8_t*, uint16_t*);
-    int parse_HC_IC(address_map_t*, ModbusOrderDescription&, uint8_t*);
-    int parse_HR_IR(address_map_t*, ModbusOrderDescription&, uint16_t*);
-    int parse_FHR(address_map_t*, ModbusOrderDescription&, uint16_t*);
-    int parse_FP(address_map_t*, ModbusOrderDescription&, uint16_t*);
-    int parse_DP(address_map_t*, ModbusOrderDescription&, uint16_t*);
+    int parse_response(const ModbusOrderDescription&, uint8_t*, uint16_t*);
+    int parse_HC_IC(address_map_t*, const ModbusOrderDescription&, uint8_t*);
+    int parse_HR_IR(address_map_t*, const ModbusOrderDescription&, uint16_t*);
+    int parse_FHR(address_map_t*, const ModbusOrderDescription&, uint16_t*);
+    int parse_FP(address_map_t*, const ModbusOrderDescription&, uint16_t*);
+    int parse_DP(address_map_t*, const ModbusOrderDescription&, uint16_t*);
     void set_validity(int);
 
     int read_config();     // Точка входа в функции загрузки конфигурационных файлов
@@ -150,8 +165,8 @@ class RTDBUS_Modbus_client : public SysAcqInterface {
 
     // Номер подключения к серверу по порядку в секции SERVICE
     size_t          m_connection_idx;
-    // Код состояния модуля
-    client_status_t m_status;
+    // Признак завершения инициализации
+    bool            m_sign_ready;
 
     modbus_t *m_modbus_context;
     // Размер заголовка запроса

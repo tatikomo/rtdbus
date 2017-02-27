@@ -38,6 +38,7 @@ SystemAcquisition::SystemAcquisition(EGSA* egsa,
     m_smad(NULL),
     m_state(SA_STATE_UNKNOWN),
     m_smad_state(STATE_DISCONNECTED),
+    m_cycles(NULL),
     m_timer_CONNECT(NULL),
     m_timer_RESPONSE(NULL),
     m_timer_INIT(NULL),
@@ -64,7 +65,7 @@ SystemAcquisition::SystemAcquisition(EGSA* egsa,
      LOG(ERROR) << "Unable to parse SA " << m_name << " common config";
   }
   else {
-    m_smad = new InternalSMAD(sa_common.smad.c_str());
+    m_smad = new InternalSMAD(sa_common.name.c_str(), sa_common.nature, sa_common.smad.c_str());
 
     // TODO: подключаться к InternalSMAD только после успешной инициализации модуля данной СС
     m_state = SA_STATE_DISCONNECTED;
@@ -79,7 +80,7 @@ SystemAcquisition::SystemAcquisition(EGSA* egsa,
 #endif
   }
 
-  look_my_cycles(m_egsa->cycles());
+  m_cycles = look_my_cycles();
 
   delete sa_config;
 }
@@ -89,6 +90,7 @@ SystemAcquisition::~SystemAcquisition()
 {
   LOG(INFO) << "Destructor SA " << m_name;
   delete m_smad;
+  delete m_cycles;
 
   delete m_timer_CONNECT;
   delete m_timer_RESPONSE;
@@ -132,14 +134,24 @@ int SystemAcquisition::send(int msg_id)
 
 // -----------------------------------------------------------------------------------
 // Найти циклы, в которых участвует данная система сбора
-void SystemAcquisition::look_my_cycles(const std::vector<Cycle*>& all_cycles)
+std::vector<Cycle*>* SystemAcquisition::look_my_cycles()
 {
-  for (std::vector<Cycle*>::const_iterator it = all_cycles.begin();
-       it != all_cycles.end();
+  std::vector<Cycle*> *cycles = NULL;
+
+  cycles = m_egsa->get_Cycles_for_SA(m_name);
+
+  if (!cycles) {
+    LOG(WARNING) << "SA " << m_name << " hasn't any cycles";
+  }
+
+  for (std::vector<Cycle*>::const_iterator it = cycles->begin();
+       it != cycles->end();
        ++it)
   {
-    LOG(INFO) << "look cycle " << (*it)->name();
+    LOG(INFO) << "local cycle: " << (*it)->name();
   }
+
+  return cycles;
 }
 
 // -----------------------------------------------------------------------------------

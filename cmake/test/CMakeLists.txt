@@ -51,7 +51,7 @@ include_directories(${LIBCPPZMQ_INCLUDE_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})
 include_directories(${LIBSQLITE_INCLUDE_DIR})
 
-link_directories(${GTEST_DIR}/lib/.libs)
+link_directories(${GTEST_DIR}/../googlemock/gtest)
 link_directories(${LIBGLOG_LIBRARIES_DIR})
 #link_directories(${MDP_DIR})
 #link_directories(${HDB_DIR})
@@ -73,8 +73,6 @@ set (TEST_EXCHANGE_SOURCES
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_init.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.cpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_host.hpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_host.cpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.hpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.hpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config_sac.hpp
@@ -271,7 +269,7 @@ add_definitions (-D_FUNCTIONAL_TEST)
 add_definitions (-pg)
 target_link_libraries(${UNITTEST_EXCHANGE}
     ${LIBGLOG_LIBRARIES}
-    ${GTEST_DIR}/cmake/libgtest.a
+    ${GTEST_DIR}/../googlemock/make/gtest/libgtest.a
     ${EXCHANGE_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
     ${TOOLS_LIBRARY_NAME}
@@ -282,7 +280,7 @@ add_definitions (-D_FUNCTIONAL_TEST)
 target_link_libraries(${UNITTEST_METRICS}
     ${TOOLS_LIBRARY_NAME}
     ${LIBGLOG_LIBRARIES}
-    ${GTEST_DIR}/cmake/libgtest.a
+    ${GTEST_DIR}/../googlemock/make/gtest/libgtest.a
     ${SYSTEM_EXTERNAL_LIBS})
 
 add_executable (${UNITTEST_DEV_INT} ${TEST_DEV_INTERNAL_SOURCES})
@@ -295,7 +293,7 @@ target_link_libraries(${UNITTEST_DEV_INT}
     ${MSG_LIBRARY_NAME}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${LIBGLOG_LIBRARIES}
-    ${GTEST_DIR}/cmake/libgtest.a
+    ${GTEST_DIR}/../googlemock/make/gtest/libgtest.a
     ${SYSTEM_EXTERNAL_LIBS})
 
 add_executable (${UNITTEST_DEV_RUN} ${TEST_DEV_RUNTIME_SOURCES})
@@ -308,7 +306,7 @@ target_link_libraries(${UNITTEST_DEV_RUN}
     ${MSG_LIBRARY_NAME}
     ${LIBPROTOBUF_LIBRARIES}
     ${LIBGLOG_LIBRARIES}
-    ${GTEST_DIR}/cmake/libgtest.a
+    ${GTEST_DIR}/../googlemock/make/gtest/libgtest.a
     ${SYSTEM_EXTERNAL_LIBS})
 
 add_executable (${UNITTEST_DATABASE} ${TEST_DATABASE_SOURCES})
@@ -321,7 +319,7 @@ target_link_libraries(${UNITTEST_DATABASE}
     ${LIBPROTOBUF_LIBRARIES}
     ${LIBGLOG_LIBRARIES}
     ${LIBSQLITE_LIBRARIES}
-    ${GTEST_DIR}/cmake/libgtest.a
+    ${GTEST_DIR}/../googlemock/make/gtest/libgtest.a
     ${SYSTEM_EXTERNAL_LIBS})
 
 add_executable (${UNITTEST_MESSAGE} ${TEST_MSG_SOURCES})
@@ -332,13 +330,13 @@ target_link_libraries(${UNITTEST_MESSAGE}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${LIBPROTOBUF_LIBRARIES}
     ${LIBGLOG_LIBRARIES}
-    ${GTEST_DIR}/cmake/libgtest.a
+    ${GTEST_DIR}/../googlemock/make/gtest/libgtest.a
     ${SYSTEM_EXTERNAL_LIBS})
 
 add_executable (${UNITTEST_CE} ${TEST_CE_SOURCES})
 target_link_libraries(${UNITTEST_CE}
     ${LIBGLOG_LIBRARIES}
-    ${GTEST_DIR}/cmake/libgtest.a
+    ${GTEST_DIR}/../googlemock/make/gtest/libgtest.a
     ${SYSTEM_EXTERNAL_LIBS})
 
 add_test(NAME DATABASE_TEST WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${EXECUTABLE_OUTPUT_PATH}/${UNITTEST_DATABASE})

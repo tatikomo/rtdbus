@@ -17,6 +17,7 @@
 
 // Служебные файлы RTDBUS
 #include "exchange_config_sac.hpp"
+#include "exchange_config_nature.hpp"
 
 using namespace rapidjson;
 using namespace std;
@@ -518,7 +519,9 @@ int AcquisitionSystemConfig::load_common(sa_common_t& common)
 
   if (section.HasMember(s_COMMON_NATURE)) {
     // TODO: process SA NATURE
-    LOG(INFO) << "GEV: Process SA nature: " << section[s_COMMON_NATURE].GetString();
+    const std::string& config_nature = section[s_COMMON_NATURE].GetString();
+    common.nature = SacNature::get_natureid_by_name(config_nature);
+    LOG(INFO) << "GEV: Process SA nature " << config_nature << ", id=" << common.nature;
   }
 
   common.subtract = section[s_COMMON_SUB].GetInt();

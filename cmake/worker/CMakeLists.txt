@@ -3,6 +3,7 @@ set(WORKER_ECHO   wecho)
 set(WORKER_DIGGER wdigger)
 set(WORKER_HISTORIAN whistorian)
 set(WORKER_SYSACQ_CLI wsysacq_cli)
+set(WORKER_EGSA wegsa)
 set(WORKER_TIMEKEEPER wtiker)
 
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
@@ -14,8 +15,9 @@ if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   include_directories("/usr/local/include")
 else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # LINUX
-#  set (SYSTEM_EXTERNAL_LIBS
-#        pthread)
+  #set (SYSTEM_EXTERNAL_LIBS
+  #      rt
+  #      pthread)
 endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
 include_directories(${LIBGLOG_INCLUDE_DIR})
@@ -24,9 +26,13 @@ include_directories(${LIBZMQ_INCLUDE_DIR})
 include_directories(${LIBCPPZMQ_INCLUDE_DIR})
 include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
+include_directories(${RAPIDJSON_INCLUDE_DIR})
+include_directories(${XERCESC_INCLUDE_DIR})
 include_directories(${WORKER_DIR})
 include_directories(${EXCHANGE_SA_DIR})
+include_directories(${EXCHANGE_SMAD_DIR})
 include_directories(${EXCHANGE_CONFIG_DIR})
+include_directories(${EXCHANGE_EGSA_DIR})
 include_directories(${LIBMODBUS_INCLUDE_DIR})
 include_directories(${MDP_DIR})
 include_directories(${MSG_DIR})
@@ -38,12 +44,15 @@ include_directories(${TOOLS_DIR})
 
 link_directories(${LIBGLOG_LIBRARIES_DIR})
 link_directories(${LIBSQLITE_LIBRARIES_DIR})
+link_directories(${XERCESC_LIBRARIES_DIR})
 link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 link_directories(${LIBMODBUS_LIBRARIES_DIR})
 # каталог генерации libmdp.so
 link_directories(${CMAKE_SOURCE_DIR}/../cmake/lib)
+
+add_definitions(-DVERBOSE=6)
 
 set (WORKER_TESTER_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
@@ -97,6 +106,28 @@ set (WORKER_SYSACQ_CLI_SOURCES
         ${EXCHANGE_CONFIG_DIR}/exchange_config.hpp
         ${WORKER_DIR}/wsysacq_cli.cpp
         ${WORKER_DIR}/wsysacq_cli.hpp)
+
+set (WORKER_EGSA_SOURCES
+        ${CMAKE_SOURCE_DIR}/config.h
+        ${XDB_COMMON_DIR}/xdb_common.cpp
+        ${TOOLS_DIR}/tool_timer.hpp
+        ${TOOLS_DIR}/tool_events.hpp
+        ${WORKER_DIR}/wegsa.cpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config.hpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.hpp
+        ${EXCHANGE_SMAD_DIR}/exchange_smad_int.hpp
+        ${EXCHANGE_SMAD_DIR}/exchange_smad_ext.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_init.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_init.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_sa.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_sa.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_request_base.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_request_cyclic.hpp
+        )
 
 set (WORKER_TIMEKEEPER_SOURCES
         ${CMAKE_SOURCE_DIR}/config.h
@@ -175,7 +206,8 @@ target_link_libraries(${WORKER_ECHO}
     ${TOOLS_LIBRARY_NAME}
     ${SYSTEM_EXTERNAL_LIBS}
     ${LIBGLOG_LIBRARIES}
-    ${LIBZMQ_LIBRARIES})
+    ${LIBZMQ_LIBRARIES}
+    )
 
 #add_definitions(-fpermissive)
 # Сборка DIGGER - сервера БДРВ
@@ -188,14 +220,17 @@ target_link_libraries(${WORKER_DIGGER}
     ${TOOLS_LIBRARY_NAME}
     ${LIBEXTREMEDB_LIBRARIES_ALL}
     ${LIBPROTOBUF_LIBRARIES}
+    ${XERCESC_LIBRARIES_NAME}
     ${SYSTEM_EXTERNAL_LIBS}
     ${LIBGLOG_LIBRARIES}
-    ${LIBZMQ_LIBRARIES})
+    ${LIBZMQ_LIBRARIES}
+    )
 
 # Сборка HISTORIAN - сервера накопления и выдачи архивных данных
 ##########################################################
 add_executable (${WORKER_HISTORIAN} ${WORKER_HISTORIAN_SOURCES})
 target_link_libraries(${WORKER_HISTORIAN}
+    ${XERCESC_LIBRARIES_NAME}
     ${LIBGLOG_LIBRARIES}
     ${LIBSQLITE_LIBRARIES}
     ${MDP_LIBRARY_NAME}
@@ -209,10 +244,25 @@ target_link_libraries(${WORKER_HISTORIAN}
 add_executable (${WORKER_SYSACQ_CLI} ${WORKER_SYSACQ_CLI_SOURCES})
 target_link_libraries(${WORKER_SYSACQ_CLI}
     ${LIBGLOG_LIBRARIES}
+    "pthread"
     ${MDP_LIBRARY_NAME}
     ${MODBUS_LIBRARY_NAME}
     ${LIBMODBUS_LIBRARIES}
     ${LIBPROTOBUF_LIBRARIES}
+    )
+
+# Сборка EGSA - модуль диспетчеризации Системами Сбора
+add_executable (${WORKER_EGSA} ${WORKER_EGSA_SOURCES})
+target_link_libraries(${WORKER_EGSA}
+    "pthread"
+    ${EXCHANGE_LIBRARY_NAME}
+    ${LIBMODBUS_LIBRARIES}
+    ${LIBGLOG_LIBRARIES}
+    ${LIBPROTOBUF_LIBRARIES}
+    ${TOOLS_LIBRARY_NAME}
+    ${MDP_LIBRARY_NAME}
+    ${LIBSQLITE_LIBRARIES}
+    ${SYSTEM_EXTERNAL_LIBS}
     )
 
 # Сборка TIMEKEEPER - сервера управления и генерации разовых и повторяющихся событий
