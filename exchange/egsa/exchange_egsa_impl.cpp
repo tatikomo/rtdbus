@@ -70,6 +70,7 @@ EGSA::~EGSA()
 
   delete m_ext_smad;
   delete m_egsa_config;
+  delete m_message_factory;
 
   for (std::vector<Cycle*>::iterator it = ega_ega_odm_ar_Cycles.begin();
        it != ega_ega_odm_ar_Cycles.end();

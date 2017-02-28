@@ -125,6 +125,7 @@ mdwrk::~mdwrk ()
   LOG(INFO) << "start mdwrk destructor";
 
   send_to_broker (MDPW_DISCONNECT, NULL, NULL);
+  delete[] m_direct_endpoint;
 
   for(ServicesHash_t::const_iterator it = m_services_info.begin();
       it != m_services_info.end();
@@ -219,7 +220,7 @@ void mdwrk::connect_to_broker ()
     // Register service with broker
     // Внесены изменения из-за необходимости передачи значения точки подключения 
     zmsg *msg = new zmsg ();
-    const char* endp = getEndpoint(false);
+    const char* endp = getEndpoint();
     msg->push_front (const_cast<char*>(endp));
 
     msg->push_front (const_cast<char*>(m_service.c_str()));
@@ -853,6 +854,8 @@ void mdwrk::process_endpoint_info(zmsg *msg)
 
 // ==========================================================================================================
 // Получить точку подключения для нашего Сервиса
+// NB: если запрашивается конвертация строки подключения, возвращаемая строка выделяется
+// в куче динамически, и память под её нужно будет освободить на вызвавшей стороне.
 const char* mdwrk::getEndpoint(bool convertation_asked) const
 {
   int entry_idx = 0; // =0 вместо -1, чтобы пропустить нулевой индекс (Брокера)
