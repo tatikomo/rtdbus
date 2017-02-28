@@ -48,6 +48,15 @@ class EGSA : public mdp::mdwrk {
 
     // Ввести в оборот новый Цикл сбора
     int push_cycle(Cycle*);
+    // Активировать циклы
+    int activate_cycles();
+    // Деактивировать циклы
+    int deactivate_cycles();
+    // Тестовая функция ожидания срабатывания таймеров в течении заданного времени
+    int wait(int);
+
+    // Первичная обработка нового запроса
+    int processing(mdp::zmsg*, const std::string&, bool&);
 
   private:
     DISALLOW_COPY_AND_ASSIGN(EGSA);
@@ -55,11 +64,6 @@ class EGSA : public mdp::mdwrk {
     // Запуск Интерфейса второго уровня
     int implementation();
 
-    int handle_asklife(msg::Letter*, const std::string&);
-    int handle_stop(msg::Letter*, const std::string&);
-
-    // Первичная обработка нового запроса
-    int processing(mdp::zmsg*, const std::string&, bool&);
     // Обработка сообщения о чтении значений БДРВ (включая ответ группы подписки)
     int process_read_response(msg::Letter*);
     // Инициализация, создание/подключение к внутренней SMAD
@@ -71,17 +75,9 @@ class EGSA : public mdp::mdwrk {
     // =  0 - разовое чтение сообщений, немедленный выход в случае отсутствия таковых
     // >  0 - время ожидания нового сообщения в милисекундах, от 1 до HEARTBEAT-интервала
     int recv(msg::Letter*&, int = 1000);
-    // Активировать циклы
-    int activate_cycles();
-    // Деактивировать циклы
-    int deactivate_cycles();
-    // Тестовая функция ожидания срабатывания таймеров в течении заданного времени
-    int wait(int);
     // Доступ к циклам
     const std::vector<Cycle*>& cycles() { return ega_ega_odm_ar_Cycles; };
 
-    // Отправить всем подчиненным системам запрос готовности
-    void fire_ENDALLINIT();
     // --------------------------------------------------------------------------
     // Обслуживание запросов:
     // SIG_D_MSG_READ_MULTI - ответ на множественное чтение данных (первый пакет от группы подписки)
@@ -92,6 +88,13 @@ class EGSA : public mdp::mdwrk {
     // SIG_D_MSG_ECHCTLPRESS
     // SIG_D_MSG_ECHDIRCTLPRESS
     int handle_teleregulation(msg::Letter*, const std::string&);
+    int handle_end_all_init(msg::Letter*, const std::string&);
+    int handle_asklife(msg::Letter*, const std::string&);
+    int handle_stop(msg::Letter*, const std::string&);
+
+    // Отправить всем подчиненным системам запрос готовности
+    void fire_ENDALLINIT();
+
     // --------------------------------------------------------------------------
     // Активация группы подписки точек систем сбора 
     int activateSBS();

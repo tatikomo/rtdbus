@@ -21,6 +21,8 @@
 #include "exchange_egsa_sa.hpp"
 #include "exchange_egsa_request_cyclic.hpp"
 
+#include "proto/rtdbus.pb.h"
+
 AcquisitionSystemConfig* g_sa_config = NULL;
 EgsaConfig* g_egsa_config = NULL;
 EGSA* g_egsa_instance = NULL;
@@ -29,6 +31,76 @@ SystemAcquisition* g_sa = NULL;
 const char* g_sa_config_filename = "BI4500.json";
 const char* g_egsa_config_filename = "egsa.json";
 extern ega_ega_odm_t_RequestEntry g_requests_table[]; // declared in exchange_egsa_impl.cpp
+
+// Создать корректно заполненные сообщения нужного типа для тестирования реакции EGSA
+mdp::zmsg* create_message_by_type(const std::string& dest,
+                            const std::string& origin,
+                            int msg_type,
+                            int exch_id = 1000,
+                            int interest_id = 0)
+{
+  mdp::zmsg*         message = NULL;
+  RTDBM::Header      pb_header;
+  RTDBM::ExecResult  pb_exec_result_request;
+  RTDBM::SimpleRequest  pb_simple_request;
+  std::string        pb_serialized_header;
+  std::string        pb_serialized_request;
+  std::string        error_text("пусто");
+  bool               ready = true;
+
+  // Постоянные поля заголовка сообщения
+  pb_header.set_protocol_version(1);
+  pb_header.set_exchange_id(exch_id);
+  pb_header.set_interest_id(interest_id);
+  pb_header.set_source_pid(9999);
+  pb_header.set_proc_dest(dest.c_str());
+  pb_header.set_proc_origin(origin);
+  pb_header.set_sys_msg_type(100);
+  pb_header.set_time_mark(time(0));
+
+  switch(msg_type) {
+    case ADG_D_MSG_EXECRESULT:
+      pb_header.set_usr_msg_type(ADG_D_MSG_EXECRESULT);
+      pb_exec_result_request.set_exec_result(RTDBM::GOF_D_PARTSUCCESS);
+      pb_exec_result_request.mutable_failure_cause()->set_error_code(0);
+      pb_exec_result_request.mutable_failure_cause()->set_error_text(error_text);
+
+      pb_header.SerializeToString(&pb_serialized_header);
+      pb_exec_result_request.SerializeToString(&pb_serialized_request);
+      break;
+
+    case ADG_D_MSG_ENDALLINIT:
+      pb_header.set_usr_msg_type(ADG_D_MSG_ENDALLINIT);
+      pb_simple_request.set_exec_result(RTDBM::GOF_D_PARTSUCCESS);
+
+      pb_header.SerializeToString(&pb_serialized_header);
+      pb_simple_request.SerializeToString(&pb_serialized_request);
+      break;
+
+    case ADG_D_MSG_STOP:
+      pb_header.set_usr_msg_type(ADG_D_MSG_STOP);
+      pb_simple_request.set_exec_result(RTDBM::GOF_D_PARTSUCCESS);
+
+      pb_header.SerializeToString(&pb_serialized_header);
+      pb_simple_request.SerializeToString(&pb_serialized_request);
+      break;
+
+    default:
+      LOG(ERROR) << "Unable to create message type: " << msg_type;
+      ready = false;
+  }
+
+  if (ready) {
+    message = new mdp::zmsg();
+
+    message->push_front(pb_serialized_request);
+    message->push_front(pb_serialized_header);
+    message->push_front(const_cast<char*>(EMPTY_FRAME));
+    message->push_front(const_cast<char*>(origin.c_str()));
+  }
+
+  return message;
+}
 
 TEST(TestEXCHANGE, EGSA_CREATE)
 {
@@ -55,8 +127,12 @@ TEST(TestEXCHANGE, EGSA_CONFIG)
 {
   int rc = g_egsa_config->load();
   EXPECT_TRUE(OK == rc);
+
   LOG(INFO) << "load " << g_egsa_config->cycles().size() << " cycles";
+  EXPECT_TRUE(g_egsa_config->cycles().size() == 4);
+
   LOG(INFO) << "load " << g_egsa_config->sites().size() << " sites";
+  EXPECT_TRUE(g_egsa_config->sites().size() == 3);
 }
 
 TEST(TestEXCHANGE, EGSA_REQUESTS)
@@ -76,10 +152,11 @@ TEST(TestEXCHANGE, EGSA_REQUESTS)
   EXPECT_TRUE(req_entry_dict->e_RequestId == ECH_D_GENCONTROL);
 }
 
+// Подготовить полную информацию по циклам, включая связанные с этими циклами сайты
 TEST(TestEXCHANGE, EGSA_CYCLES)
 {
   ega_ega_odm_t_RequestEntry* req_entry_dict = NULL;
-//  int rc;
+  int rc;
 
   for(egsa_config_cycles_t::const_iterator it = g_egsa_config->cycles().begin();
       it != g_egsa_config->cycles().end();
@@ -93,6 +170,15 @@ TEST(TestEXCHANGE, EGSA_CYCLES)
                                req_entry_dict->e_RequestId,
                                CYCLE_NORMAL);
 
+      // Для данного цикла получить все использующие его сайты
+      for(std::vector <std::string>::const_iterator its = (*it).second->sites.begin();
+          its != (*it).second->sites.end();
+          ++its) {
+        cycle->register_SA((*its));
+      }
+      //
+      //
+      //
       cycle->dump();
       // Передать объект Цикл в подчинение EGSA
       g_egsa_instance->push_cycle(cycle);
@@ -100,11 +186,13 @@ TEST(TestEXCHANGE, EGSA_CYCLES)
   }
 
 #if 0
+  LOG(INFO) << "BEGIN cycles activates testing";
   rc = g_egsa_instance->activate_cycles();
   EXPECT_TRUE(rc == OK);
 
-  g_egsa_instance->wait(20);
+  g_egsa_instance->wait(10);
   rc = g_egsa_instance->deactivate_cycles();
+  LOG(INFO) << "END cycles activates testing";
 #endif
 }
 
@@ -145,6 +233,34 @@ TEST(TestEXCHANGE, EGSA_RUN)
   g_egsa_instance->run();
 }
 #endif
+
+TEST(TestEXCHANGE, EGSA_ENDALLINIT)
+{
+//  msg::Letter* message_end_all_init = NULL;
+  const std::string identity = "RTDBUS_BROKER";
+  mdp::zmsg * message_end_all_init = create_message_by_type("EGSA", "TEST", ADG_D_MSG_ENDALLINIT);
+  bool is_stop = false;
+
+  EXPECT_TRUE(message_end_all_init != NULL);
+  g_egsa_instance->processing(message_end_all_init, identity, is_stop);
+
+  EXPECT_TRUE(is_stop == false);
+//  g_egsa_instance->handle_end_all_init(message_end_all_init, identity);
+}
+
+TEST(TestEXCHANGE, EGSA_STOP)
+{
+  //msg::Letter* message_stop = NULL;
+  const std::string identity = "RTDBUS_BROKER";
+  mdp::zmsg * message_stop = create_message_by_type("EGSA", "TEST", ADG_D_MSG_STOP);
+  bool is_stop = false;
+
+  EXPECT_TRUE(message_stop != NULL);
+  g_egsa_instance->processing(message_stop, identity, is_stop);
+
+  //g_egsa_instance->handle_stop(message_stop, identity);
+  EXPECT_TRUE(is_stop == true);
+}
 
 TEST(TestEXCHANGE, EGSA_FREE)
 {

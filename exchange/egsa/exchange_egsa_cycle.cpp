@@ -99,18 +99,45 @@ int Cycle::deactivate()
 bool Cycle::exist_for_SA(const std::string& sa_name)
 {
   bool found = false;
-  std::vector<acq_site_state_t>::const_iterator it = m_AcqSites.begin();
 
-  // Проверить все связанные СС
-  while((it != m_AcqSites.end()) || (!found))
-  {
-    if (0 == sa_name.compare((*it).site)) {
-      LOG(INFO) << "found cycle: " << m_CycleName << "for " << sa_name;
-
+  // Ищем, если есть список сайтов не пуст
+  if (m_AcqSites.size() > 0) {
+    // Проверить все связанные СС
+    for (std::vector<acq_site_state_t>::const_iterator it = m_AcqSites.begin();
+         it != m_AcqSites.end();
+         ++it) {
+      // Если найдена СС, имеющая этот цикл
+      if (0 == sa_name.compare((*it).site)) {
+        LOG(INFO) << "found cycle: " << m_CycleName << " for " << sa_name;
+        found = true;
+        break;
+      }
     }
-    ++it;
   }
+
+  return found;
 }
 
 // ===================================================================================================
+// Зарегистрировать указанную СС в этом Цикле
+int Cycle::register_SA(const std::string& sa_name)
+{
+  acq_site_state_t info;
+  int rc = NOK;
+
+  if (!exist_for_SA(sa_name)) {
+
+    strncpy(info.site, sa_name.c_str(), TAG_NAME_MAXLEN);
+    info.HCpuLoadReqState = 0; // GEV: определить значение по умолчанию!
+    m_AcqSites.push_back(info);
+    LOG(INFO) << "Link SA " << sa_name << " with cycle " << m_CycleName;
+    rc = OK;
+  }
+  else {
+    LOG(WARNING) << "Try to register in " << m_CycleName << " already known SA: " << sa_name;
+  }
+
+  return rc;
+}
+
 // ===================================================================================================

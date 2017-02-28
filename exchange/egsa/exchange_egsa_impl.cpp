@@ -601,7 +601,7 @@ int EGSA::wait(int max_wait_sec)
     }
 
     /* Wait up to one seconds. */
-    tv.tv_sec = 2;
+    tv.tv_sec = 1;
     tv.tv_usec = 1;
 
     retval = select(m_socket+1, &rfds, NULL, NULL, &tv);
@@ -651,6 +651,15 @@ int EGSA::processing(mdp::zmsg* request, const std::string &identity, bool& need
 
     switch(msgType)
     {
+      case ADG_D_MSG_ASKLIFE:
+        rc = handle_asklife(letter, identity);
+        break;
+
+      // Завершение инициализации
+      case ADG_D_MSG_ENDALLINIT:
+        rc = handle_end_all_init(letter, identity);
+        break;
+
       // Чтение данных
       case SIG_D_MSG_READ_MULTI:
         rc = handle_read_multiple(letter, identity);
@@ -703,6 +712,17 @@ int EGSA::stop()
   interrupt_worker = true;
 
   return rc;
+}
+
+// ==========================================================================================================
+int EGSA::handle_end_all_init(msg::Letter*, const std::string& origin)
+{
+  const char* fname = "EGSA::handle_end_all_init";
+
+  LOG(INFO) << fname << ": BEGIN (from " << origin << ")";
+  activate_cycles();
+  LOG(INFO) << fname << ": END";
+  return OK;
 }
 
 // ==========================================================================================================
@@ -920,10 +940,10 @@ int EGSA::handle_stop(msg::Letter* letter, const std::string& identity)
 {
   int rc = OK;
   const char* fname = "handle_stop";
+  msg::ExecResult *exec_reply = static_cast<msg::ExecResult*>(m_message_factory->create(ADG_D_MSG_EXECRESULT));
 
+  LOG(INFO) << fname << ": BEGIN ADG_D_MSG_STOP from " << identity;
   interrupt_worker = true;
-
-  LOG(WARNING) << "Receive ADG_D_MSG_STOP";
 
   try
   {
@@ -931,9 +951,26 @@ int EGSA::handle_stop(msg::Letter* letter, const std::string& identity)
     LOG(INFO) << "Send TERMINATE to EGSA";
     m_backend_socket.send("TERMINATE", 9, 0);
 
-    // TODO: Послать отправителю сообщение EXEC_RESULT
-    LOG(INFO) << "TODO: send EXEC_RESULT to " << identity;
-    // GEV send_to_broker((char*) MDPW_REPORT, NULL, response);
+    //1 deactivate_cycles();
+
+    // TODO: Проверить, что все ресурсы освобождены, а нити остановлены
+    exec_reply->header()->set_exchange_id(letter->header()->exchange_id());
+    // TODO: Возможно ли переполнение?
+    exec_reply->header()->set_interest_id(letter->header()->interest_id() + 1);
+    exec_reply->header()->set_proc_dest(identity);
+    if (OK == rc) 
+      exec_reply->set_exec_result(1);
+    else
+      exec_reply->set_failure_cause(0, "GEV");
+
+    mdp::zmsg *response = exec_reply->get_zmsg();
+    response->wrap(identity.c_str(), "");
+
+    // Послать отправителю сообщение EXEC_RESULT
+    LOG(INFO) << "Send EXEC_RESULT to " << identity;
+    send_to_broker((char*) MDPW_REPORT, NULL, response);
+
+    delete response;
   }
   catch(zmq::error_t error)
   {
@@ -946,6 +983,10 @@ int EGSA::handle_stop(msg::Letter* letter, const std::string& identity)
     rc = NOK;
   }
 
+  delete exec_reply;
+
+  LOG(INFO) << fname << ": END ADG_D_MSG_STOP";
+
   return rc;
 }
 
@@ -955,19 +996,22 @@ std::vector<Cycle*> *EGSA::get_Cycles_for_SA(const std::string& sa_name)
 {
   std::vector<Cycle*> *search_result = NULL;
 
+  // СС может быть заявлена в нескольких циклах, проверить их все
   for (std::vector<Cycle*>::const_iterator it = ega_ega_odm_ar_Cycles.begin();
        it != ega_ega_odm_ar_Cycles.end();
        ++it)
   {
-    // Если указанная СС участвует в данном цикле
+    LOG(INFO) << sa_name << ":" << (*it)->name();
+    // Если указанная СС заявлена в данном цикле
     if ((*it)->exist_for_SA(sa_name)) {
+
+      LOG(INFO) << sa_name << ": found cycle " << (*it)->name();
 
       // Создать вектор с циклами, если это не было сделано ранее
       if (!search_result) search_result = new std::vector<Cycle*>;
       search_result->push_back(*it);
     }
 
-    LOG(INFO) << sa_name << ": found cycle " << (*it)->name();
   }
 
   return search_result;

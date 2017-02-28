@@ -185,7 +185,7 @@ int EgsaConfig::load_cycles()
       {
         const Value::Object& site_item = itr->GetObject();
         const std::string site_name = site_item[s_SECTION_CYCLES_NAME_SITE_NAME].GetString();
-        LOG(INFO) << fname << ": load cycle " << item->name
+        LOG(INFO) << fname << ": " << item->name
                   << " period=" << item->period
                   << " req_name=" << item->request_name
                   << " [" << (++idx) << "] " << site_name;
@@ -206,6 +206,8 @@ int EgsaConfig::load_sites()
   const char* fname = "load_sites";
   egsa_config_site_item_t *item;
   int rc = OK;
+
+  LOG(INFO) << fname << ": CALL";
 
   // Получение данных по конфигурации Сайтов
   Value& section = m_document[s_SECTION_NAME_SITES_NAME];
@@ -242,7 +244,7 @@ int EgsaConfig::load_sites()
 
       m_sites.insert(std::pair<std::string, egsa_config_site_item_t*>(item->name, item));
 
-      LOG(INFO) << fname << ": load site: " << item->name
+      LOG(INFO) << fname << ": " << item->name
                 << " level=" << item->level
                 << " nature=" << item->nature
                 << " auto_init=" << item->auto_init
@@ -251,7 +253,8 @@ int EgsaConfig::load_sites()
   }
   else rc = NOK;
 
-  LOG(INFO) << fname << ": CALL";
+  LOG(INFO) << fname << ": FINISH";
+
   return rc;
 }
 
@@ -261,6 +264,8 @@ int EgsaConfig::load()
 {
   const char* fname = "load";
   int status = NOK;
+
+  LOG(INFO) << fname << ": CALL";
 
   do {
 
@@ -288,6 +293,8 @@ int EgsaConfig::load()
     status = OK;
 
   } while(false);
+
+  LOG(INFO) << fname << ": FINISH";
 
   return status;
 }

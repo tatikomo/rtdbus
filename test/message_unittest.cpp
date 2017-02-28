@@ -2,11 +2,15 @@
 #include "config.h"
 #endif
 
+// Общесистемные заголовочные файлы
 #include <string>
-#include <google/protobuf/stubs/common.h>
+
+// Служебные заголовочные файлы сторонних утилит
+#include "google/protobuf/stubs/common.h"
 #include "gtest/gtest.h"
 #include "glog/logging.h"
 
+// Служебные файлы RTDBUS
 #include "helper.hpp"
 #include "mdp_zmsg.hpp"
 #include "mdp_common.h"

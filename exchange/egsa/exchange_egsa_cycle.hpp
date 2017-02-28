@@ -41,7 +41,7 @@ typedef struct {
   // Тег сайта
   char site[TAG_NAME_MAXLEN + 1];
   // State indicator of the high CPU loading request: 1-> request treated, 0-> request to treat
-  int HCpuLoadReqState;
+  int HCpuLoadReqState; // TODO: определить допустимые значения
 } acq_site_state_t;
 
 class Timer;
@@ -61,6 +61,9 @@ class Cycle {
     int deactivate();
     // Проверить, зарегистрирована ли указанная СС в данном Цикле
     bool exist_for_SA(const std::string&);
+    // Зарегистрировать указанную СС в этом Цикле
+    int register_SA(const std::string&);
+    // Список сайтов
     std::vector<acq_site_state_t>& sites() { return m_AcqSites; };
 
     Cycle(const char* _name, int _period, ech_t_ReqId _linked_req, cycle_family_t _family)
