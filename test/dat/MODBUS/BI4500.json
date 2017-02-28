@@ -5,7 +5,7 @@
     "ERROR_NB":   3,
     "BYTE_ORDER": "ABCD",
     "SUB":        0,
-    "NAME":       "/BI4500",
+    "NAME":       "BI4500",
     "NATURE":     "ELE",
     "SMAD":       "DB_LOCAL_SA.sqlite",
     "CHANNEL":    "MODBUS-TCP",

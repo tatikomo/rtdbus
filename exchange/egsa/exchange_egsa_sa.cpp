@@ -26,13 +26,13 @@
 // egsa - доступ к функциям отправки и приёма сообщений
 // sa_object_level_t - Место в иерархии
 // gof_t_SacNature - Тип объекта
-// tag - код системы сбора
+// name - название системы сбора, без лидирующего символа '/'
 SystemAcquisition::SystemAcquisition(EGSA* egsa,
                                      sa_object_level_t level,
                                      gof_t_SacNature nature,
-                                     const std::string& tag)
+                                     const std::string& name)
   : m_egsa(egsa),
-    m_name(tag),
+    m_name(name),
     m_level(level),
     m_nature(nature),
     m_smad(NULL),
@@ -51,9 +51,8 @@ SystemAcquisition::SystemAcquisition(EGSA* egsa,
   sa_common_t sa_common;
   AcquisitionSystemConfig* sa_config = NULL;
 
-  // Пропустим первый символ "/" тега
-  assert(m_name.find("/") == 0);
-  m_name.erase(0, 1);
+  // Имя СС не может содержать символа "/"
+  assert(m_name.find("/") == std::string::npos);
 
   sa_config_filename.assign(m_name);
 
@@ -136,19 +135,18 @@ int SystemAcquisition::send(int msg_id)
 // Найти циклы, в которых участвует данная система сбора
 std::vector<Cycle*>* SystemAcquisition::look_my_cycles()
 {
-  std::vector<Cycle*> *cycles = NULL;
+  std::vector<Cycle*> *cycles;
 
-  cycles = m_egsa->get_Cycles_for_SA(m_name);
-
-  if (!cycles) {
-    LOG(WARNING) << "SA " << m_name << " hasn't any cycles";
+  if (NULL != (cycles = m_egsa->get_Cycles_for_SA(m_name))) {
+    for (std::vector<Cycle*>::const_iterator it = cycles->begin();
+         it != cycles->end();
+         ++it)
+    {
+      LOG(INFO) << "local cycle: " << (*it)->name();
+    }
   }
-
-  for (std::vector<Cycle*>::const_iterator it = cycles->begin();
-       it != cycles->end();
-       ++it)
-  {
-    LOG(INFO) << "local cycle: " << (*it)->name();
+  else {
+    LOG(WARNING) << "SA " << m_name << " hasn't any cycles";
   }
 
   return cycles;

@@ -4,19 +4,19 @@
     },
 
 	"SITES": [{
-		"NAME": "/BI4001",
+		"NAME": "BI4001",
 		"LEVEL": "LOCAL",
 		"NATURE": "ELE",
 		"AUTO_INIT": 1,
 		"AUTO_GENCONTROL": 1
 	}, {
-		"NAME": "/BI4002",
+		"NAME": "BI4002",
 		"LEVEL": "LOCAL",
 		"NATURE": "ELE",
 		"AUTO_INIT": 1,
 		"AUTO_GENCONTROL": 1
 	}, {
-		"NAME": "/K42001",
+		"NAME": "K42001",
 		"LEVEL": "UPPER",
 		"NATURE": "DIR",
 		"AUTO_INIT": 1,
@@ -28,32 +28,32 @@
 		"PERIOD": 36,
 		"REQUEST": "A_GENCONTROL",
 		"SITE": [{
-			"NAME": "/BI4001"
+			"NAME": "BI4001"
 		}, {
-			"NAME": "/BI4002"
+			"NAME": "BI4002"
 		}]
 	}, {
 		"NAME": "URGINFOS",
 		"PERIOD": 5,
 		"REQUEST": "A_URGINFOS",
 		"SITE": [{
-			"NAME": "/BI4001"
+			"NAME": "BI4001"
 		}]
 	}, {
 		"NAME": "INFOSACQ",
 		"PERIOD": 2,
 		"REQUEST": "A_INFOSACQ",
 		"SITE": [{
-			"NAME": "/BI4001"
+			"NAME": "BI4001"
 		}, {
-			"NAME": "/BI4002"
+			"NAME": "BI4002"
 		}]
 	}, {
 		"NAME": "INFO_DACQ_DIPADJ",
 		"PERIOD": 3,
 		"REQUEST": "A_INFOSACQ",
 		"SITE": [{
-			"NAME": "/K42001"
+			"NAME": "K42001"
 		}]
 	}]
 }

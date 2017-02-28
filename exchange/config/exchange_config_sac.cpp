@@ -528,13 +528,12 @@ int AcquisitionSystemConfig::load_common(sa_common_t& common)
 
   common.name.assign(section[s_COMMON_NAME].GetString());
   if (!common.name.empty() && common.name[0] == '/') {
+    LOG(WARNING) << "Unsupported SA code: '" << common.name << "', trim leading symbol";
     // Удалить лидирующий символ '/'
     common.name.erase(0, 1);
-    LOG(INFO) << "SA code " << common.name << " is OK";
   }
   else {
-    LOG(FATAL) << "Unsupported SA code: '" << common.name << "'";
-    status = NOK;
+    LOG(INFO) << "SA code " << common.name << " is OK";
   }
 
   common.smad.assign(section[s_COMMON_SMAD].GetString());
