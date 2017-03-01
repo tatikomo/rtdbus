@@ -185,12 +185,12 @@ TEST(TestEXCHANGE, EGSA_CYCLES)
     }
   }
 
-#if 0
+#if 1
   LOG(INFO) << "BEGIN cycles activates testing";
   rc = g_egsa_instance->activate_cycles();
   EXPECT_TRUE(rc == OK);
 
-  g_egsa_instance->wait(10);
+  g_egsa_instance->wait(20);
   rc = g_egsa_instance->deactivate_cycles();
   LOG(INFO) << "END cycles activates testing";
 #endif
@@ -245,9 +245,18 @@ TEST(TestEXCHANGE, EGSA_ENDALLINIT)
   g_egsa_instance->processing(message_end_all_init, identity, is_stop);
 
   EXPECT_TRUE(is_stop == false);
+ 
 //  g_egsa_instance->handle_end_all_init(message_end_all_init, identity);
+  LOG(INFO) << "\t:start waiting events (10 sec)";
+  int i=1000;
+  while (--i) {
+    usleep(10000);
+    g_egsa_instance->tick_tack();
+  }
+  LOG(INFO) << "\t:finish waiting events";
 }
 
+#if 0
 TEST(TestEXCHANGE, EGSA_STOP)
 {
   //msg::Letter* message_stop = NULL;
@@ -261,6 +270,7 @@ TEST(TestEXCHANGE, EGSA_STOP)
   //g_egsa_instance->handle_stop(message_stop, identity);
   EXPECT_TRUE(is_stop == true);
 }
+#endif
 
 TEST(TestEXCHANGE, EGSA_FREE)
 {

@@ -55,6 +55,7 @@ class Cycle {
     cycle_family_t family() { return m_CycleFamily; };
     // Название цикла
     const char* name() { return m_CycleName; };
+    int period() { return m_CyclePeriod; };
     // Активировать цикл, взведя его таймер
     int activate(int);
     // Деактивировать цикл, остановив его таймер

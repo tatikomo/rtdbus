@@ -25,23 +25,23 @@ class CycleTrigger : public TimerTimeoutHandler
     void handlerFunction( void );
 
   private:
-    std::string m_message;
+    std::string m_cycle_name;
     int m_fd;
 };
 
 // ===================================================================================================
 CycleTrigger::CycleTrigger(const std::string& cycle_name)
-  : m_message(cycle_name)
+  : m_cycle_name(cycle_name)
 {
-//  LOG(INFO) << "New trigger for " << m_message << ", no descriptor";
+//  LOG(INFO) << "New trigger for " << m_cycle_name << ", no descriptor";
 }
 
 // ===================================================================================================
 CycleTrigger::CycleTrigger(const std::string& cycle_name, int fd)
-  : m_message(cycle_name),
+  : m_cycle_name(cycle_name),
     m_fd(fd)
 {
-//  LOG(INFO) << "New trigger for " << m_message << ", fd=" << (int)m_fd;
+//  LOG(INFO) << "New trigger for " << m_cycle_name << ", fd=" << (int)m_fd;
 }
 
 // ===================================================================================================
@@ -49,15 +49,15 @@ void CycleTrigger::handlerFunction( void )
 {
   ssize_t ssz;
 
-  LOG(INFO) << "time handler invoked: " << m_message << " to fd=" << (int)m_fd;
+  LOG(INFO) << "time handler invoked: " << m_cycle_name << " to fd=" << (int)m_fd;
 
-  if (m_message.size() >= PIPE_BUF) {
-    LOG(WARNING) << "Message size (" << m_message.size() << ") is exceed atomic buffer size:" << PIPE_BUF;
+  if (m_cycle_name.size() >= PIPE_BUF) {
+    LOG(WARNING) << "Message size (" << m_cycle_name.size() << ") is exceed atomic buffer size:" << PIPE_BUF;
   }
 
-  ssz = write(m_fd, m_message.c_str(), m_message.size());
-  if (ssz != m_message.size()) {
-    LOG(ERROR) << "write less (" << ssz << ") than " << m_message.size() << " bytes to fd="
+  ssz = write(m_fd, m_cycle_name.c_str(), m_cycle_name.size());
+  if (ssz != m_cycle_name.size()) {
+    LOG(ERROR) << "write less (" << ssz << ") than " << m_cycle_name.size() << " bytes to fd="
                << m_fd <<": " << strerror(errno);
   }
 }

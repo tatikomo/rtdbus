@@ -5,22 +5,28 @@
 #include <sys/time.h>   // for 'time_t' and 'struct timeval'
 #include <unistd.h>     // for 'usleep'
 
+/////////////////////////////////////////////////////////////////////////////////////////
+// Callback один на все события, и для различия разных циклов в нем указан код цикла
+/////////////////////////////////////////////////////////////////////////////////////////
+
 namespace events
 {
     struct event
     {
-        typedef std::function<void()> callback_type;
+        typedef std::function<void(int,int)> callback_type;
         typedef std::chrono::time_point<std::chrono::system_clock> time_type;
 
-        event(const callback_type &cb, const time_type &when)
-            : callback_(cb), when_(when)
+        event(const callback_type &cb, const time_type &when, const int cid, const int sid)
+            : callback_(cb), when_(when), cycle_id_(cid), sa_id_(sid)
             { }
 
         void operator()() const
-            { callback_(); }
+            { callback_(cycle_id_, sa_id_); }
 
         callback_type callback_;
         time_type     when_;
+        int           cycle_id_;    // Номер Цикла
+        int           sa_id_;       // Номер СС
     };
 
     struct event_less : public std::less<event>
@@ -37,7 +43,7 @@ namespace events
     {
         auto real_when = std::chrono::system_clock::from_time_t(when);
 
-        event_queue.emplace(cb, real_when);
+        event_queue.emplace(cb, real_when, -1, -1);
     }
 
     void add(const event::callback_type &cb, const timeval &when)
@@ -45,13 +51,13 @@ namespace events
         auto real_when = std::chrono::system_clock::from_time_t(when.tv_sec) +
                          std::chrono::microseconds(when.tv_usec);
 
-        event_queue.emplace(cb, real_when);
+        event_queue.emplace(cb, real_when, -1, -1);
     }
 
     void add(const event::callback_type &cb,
              const std::chrono::time_point<std::chrono::system_clock> &when)
     {
-        event_queue.emplace(cb, when);
+        event_queue.emplace(cb, when, -1, -1);
     }
 
     void timer()

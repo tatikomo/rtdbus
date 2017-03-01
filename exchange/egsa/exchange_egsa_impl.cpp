@@ -324,6 +324,9 @@ int EGSA::run()
 
         processing(request, *reply_to, get_order_to_stop);
 
+        // Обработка очередного цикла из очереди
+        events::timer();
+
         if (get_order_to_stop) {
           LOG(INFO) << fname << " got a shutdown order";
           interrupt_worker = true; // order to shutting down
@@ -442,6 +445,11 @@ int EGSA::run()
   return status;
 }
 
+void EGSA::tick_tack()
+{
+  events::timer();
+}
+
 // ==========================================================================================================
 // Отправить всем подчиненным системам запрос готовности, и ожидать ответа
 void EGSA::fire_ENDALLINIT()
@@ -540,43 +548,95 @@ int EGSA::push_cycle(Cycle* _cycle)
 // читается название активированного цикла.
 int EGSA::activate_cycles()
 {
-  int rc = 0;
+  auto now = std::chrono::system_clock::now();
+  int cycle_idx = 0;
 
   for (std::vector<Cycle*>::iterator it = ega_ega_odm_ar_Cycles.begin();
        it != ega_ega_odm_ar_Cycles.end();
        ++it)
   {
-    rc |= (*it)->activate(m_socket);
+    LOG(INFO) << "Activate cycle id:" << cycle_idx
+              << " period: " << (*it)->period()
+              << " (sec), name: " << (*it)->name();
 
-    LOG(INFO) << "Activate cycle " << (*it)->name() << ", rc=" << rc;
+    // Связать триггер с объектом, идентификаторами Цикла и Системы Сбора
+    events::add(std::bind(&EGSA::trigger, this, cycle_idx++, 100),
+                now /*+ std::chrono::seconds((*it)->period())*/); // Время активации: сейчас (+ период цикла?)
   }
 
-  return rc;
+  return OK;
 }
 
 // ==========================================================================================================
 // Деактивировать циклы
 int EGSA::deactivate_cycles()
 {
-  int rc = 0;
+  int cycle_idx = 0;
 
   for (std::vector<Cycle*>::iterator it = ega_ega_odm_ar_Cycles.begin();
        it != ega_ega_odm_ar_Cycles.end();
        ++it)
   {
-    rc |= (*it)->deactivate();
-    LOG(INFO) << "Deactivate cycle " << (*it)->name() << ", rc=" << rc;
+    LOG(INFO) << "Deactivate cycle id " << cycle_idx++ << ": " << (*it)->name();
   }
 
-  return rc;
+  return OK;
 }
 
 // ==========================================================================================================
 // Функция срабатывания при наступлении времени очередного таймера
-int EGSA::trigger()
+// На входе получет порядковые номера Цикла и СС из ega_ega_odm_ar_Cycles
+// Для каждой СС периоды Циклов одинаковы, но свое время начала.
+// sa_id == -1 означает, что Цикл общий для всех его СС.
+void EGSA::trigger(int cycle_id, int sa_id)
 {
-  LOG(INFO) << "Trigger callback for cycle";
-  return OK;
+  int rc = OK;
+  int delta_sec;
+
+  assert(cycle_id < ega_ega_odm_ar_Cycles.size());
+  LOG(INFO) << "Trigger callback for cycle id: " << cycle_id
+            << ": " << ega_ega_odm_ar_Cycles.at(cycle_id)->name()
+            << " SA id: " << sa_id;
+
+  switch(cycle_id)
+  {
+    case 0:
+      delta_sec = 1;
+      break;
+
+    case 1:
+      delta_sec = 2;
+      break;
+
+    case 2:
+      delta_sec = 3;
+      break;
+
+    case 3:
+      delta_sec = 4;
+      break;
+
+
+    default:
+      LOG(ERROR) << "Unsupported cycle_id: " << cycle_id;
+      rc = NOK;
+  }
+
+  if (OK == rc) {
+    LOG(INFO) << "Reactivate cycle " << ega_ega_odm_ar_Cycles.at(cycle_id)->name();
+
+    auto now = std::chrono::system_clock::now();
+    events::add(std::bind(&EGSA::trigger, this, cycle_id, 100),
+                now + std::chrono::seconds(ega_ega_odm_ar_Cycles.at(cycle_id)->period()));
+
+#if 0
+    auto next = now + std::chrono::seconds(delta_sec);
+    time_t tt_now    = std::chrono::system_clock::to_time_t ( now );
+    time_t tt_future = std::chrono::system_clock::to_time_t ( next );
+    LOG(INFO) << "now is: " << ctime(&tt_now);
+    LOG(INFO) << "future is: " << ctime(&tt_future);
+#endif
+  }
 }
 
 // ==========================================================================================================
@@ -613,10 +673,12 @@ int EGSA::wait(int max_wait_sec)
         break;
 
       case 0:
+        events::timer();
         std::cout << "." << std::flush;
         break;
 
       default:
+        events::timer();
         read_sz = read(m_socket, buffer, buffer_sz);
         buffer[(read_sz >= 0)? read_sz : 0] = '\0';
         LOG(INFO) << "Read " << read_sz << " bytes: " << buffer;
@@ -722,6 +784,7 @@ int EGSA::handle_end_all_init(msg::Letter*, const std::string& origin)
   LOG(INFO) << fname << ": BEGIN (from " << origin << ")";
   activate_cycles();
   LOG(INFO) << fname << ": END";
+
   return OK;
 }
 
@@ -951,7 +1014,7 @@ int EGSA::handle_stop(msg::Letter* letter, const std::string& identity)
     LOG(INFO) << "Send TERMINATE to EGSA";
     m_backend_socket.send("TERMINATE", 9, 0);
 
-    //1 deactivate_cycles();
+    deactivate_cycles();
 
     // TODO: Проверить, что все ресурсы освобождены, а нити остановлены
     exec_reply->header()->set_exchange_id(letter->header()->exchange_id());

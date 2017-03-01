@@ -57,6 +57,7 @@ class EGSA : public mdp::mdwrk {
 
     // Первичная обработка нового запроса
     int processing(mdp::zmsg*, const std::string&, bool&);
+    void tick_tack();
 
   private:
     DISALLOW_COPY_AND_ASSIGN(EGSA);
@@ -105,7 +106,7 @@ class EGSA : public mdp::mdwrk {
     // Изменение состояния подключенных систем сбора и отключение от их внутренней SMAD 
     int detach();
     // Функция срабатывания при наступлении времени очередного таймера
-    static int trigger();
+    void trigger(int, int);
 
     // Входящее соединение от Таймеров
     zmq::socket_t   m_signal_socket;
