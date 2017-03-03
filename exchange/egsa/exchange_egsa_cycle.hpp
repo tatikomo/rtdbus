@@ -44,8 +44,8 @@ typedef struct {
   int HCpuLoadReqState; // TODO: определить допустимые значения
 } acq_site_state_t;
 
-class Timer;
-class CycleTrigger;
+//class Timer;
+//class CycleTrigger;
 
 class Cycle {
   public:
@@ -56,10 +56,12 @@ class Cycle {
     // Название цикла
     const char* name() { return m_CycleName; };
     int period() { return m_CyclePeriod; };
+#if 0
     // Активировать цикл, взведя его таймер
     int activate(int);
     // Деактивировать цикл, остановив его таймер
     int deactivate();
+#endif
     // Проверить, зарегистрирована ли указанная СС в данном Цикле
     bool exist_for_SA(const std::string&);
     // Зарегистрировать указанную СС в этом Цикле
@@ -70,9 +72,9 @@ class Cycle {
     Cycle(const char* _name, int _period, ech_t_ReqId _linked_req, cycle_family_t _family)
       : m_CycleFamily(_family),
         m_CyclePeriod(_period),
-        m_LinkedRequest(_linked_req),
+        m_LinkedRequest(_linked_req) /*,
         m_CycleTimer(NULL),
-        m_CycleTrigger(NULL)
+        m_CycleTrigger(NULL)*/
         
     {
       strncpy(m_CycleName, _name, EGA_EGA_D_LGCYCLENAME);
@@ -99,8 +101,8 @@ class Cycle {
 	ech_t_ReqId     m_LinkedRequest;
     // identifiers of the concerned acquisition sites
 	std::vector<acq_site_state_t> m_AcqSites;
-	Timer*          m_CycleTimer;
-    CycleTrigger*   m_CycleTrigger;
+	//Timer*          m_CycleTimer;
+    //CycleTrigger*   m_CycleTrigger;
 
   private:
 

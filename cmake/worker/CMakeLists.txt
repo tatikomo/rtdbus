@@ -121,6 +121,8 @@ set (WORKER_EGSA_SOURCES
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_init.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_init.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_sa.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_sa.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.cpp

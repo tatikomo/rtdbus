@@ -133,11 +133,13 @@ int SystemAcquisition::send(int msg_id)
 
 // -----------------------------------------------------------------------------------
 // Найти циклы, в которых участвует данная система сбора
+// NB: удалить возвращаемый объект после использования
 std::vector<Cycle*>* SystemAcquisition::look_my_cycles()
 {
-  std::vector<Cycle*> *cycles;
+  std::vector<Cycle*> *cycles = NULL;
 
   if (NULL != (cycles = m_egsa->get_Cycles_for_SA(m_name))) {
+    // NB: cycles создан в куче, далить после использования
     for (std::vector<Cycle*>::const_iterator it = cycles->begin();
          it != cycles->end();
          ++it)

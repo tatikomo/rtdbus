@@ -34,6 +34,7 @@
 #include "exchange_smad_int.hpp"
 #include "exchange_smad_ext.hpp"
 #include "exchange_egsa_sa.hpp"
+#include "exchange_egsa_site.hpp"
 #include "exchange_egsa_impl.hpp"
 #include "exchange_egsa_request_cyclic.hpp"
 #include "xdb_common.hpp"
@@ -72,8 +73,8 @@ EGSA::~EGSA()
   delete m_egsa_config;
   delete m_message_factory;
 
-  for (std::vector<Cycle*>::iterator it = ega_ega_odm_ar_Cycles.begin();
-       it != ega_ega_odm_ar_Cycles.end();
+  for (std::vector<Cycle*>::iterator it = m_ega_ega_odm_ar_Cycles.begin();
+       it != m_ega_ega_odm_ar_Cycles.end();
        ++it)
   {
     LOG(INFO) << "free cycle " << (*it)->name();
@@ -92,10 +93,8 @@ int EGSA::init()
   int recv_timeout_msec = RECV_TIMEOUT_MSEC; // 3 sec
   smad_connection_state_t ext_state;
 
-  // Открыть конфигурацию
-  m_egsa_config = new EgsaConfig("egsa.json");
-  // Прочитать информацию по сайтам и циклам
-  m_egsa_config->load();
+  // Инициализировать массивы Сайтов и Циклов
+  init_sites();
 
   // Подключиться к своей внутренней памяти SMAD
   m_ext_smad = new ExternalSMAD(m_egsa_config->smad_name().c_str());
@@ -133,16 +132,71 @@ int EGSA::init()
 }
 
 // ==========================================================================================================
-// Подключиться к SMAD систем сбора
-int EGSA::attach_to_sites_smad()
+#warning "Зачем дублировать в m_ega_ega_odm_ar_AcqSites информацию из m_egsa_config->sites() ?"
+int EGSA::init_sites()
 {
-  // Список подчиненных систем сбора
-  egsa_config_sites_t& sites = m_egsa_config->sites();
-  // TEST - подключиться к SMAD для каждой подчиненной системы
+  int rc = OK;
+  AcqSiteEntry* entry = NULL;
+
+  // Открыть конфигурацию
+  m_egsa_config = new EgsaConfig("egsa.json");
+
+  // Прочитать информацию по сайтам и циклам
+  m_egsa_config->load();
 
   // По списку известных нам систем сбора создать интерфейсы к их SMAD
-  for (egsa_config_sites_t::const_iterator it = sites.begin();
-       it != sites.end();
+  for (egsa_config_sites_t::const_iterator it = m_egsa_config->sites().begin();
+       it != m_egsa_config->sites().end();
+       ++it)
+  {
+    /*
+    int raw_nature = (*it).second->nature;
+    gof_t_SacNature sa_nature = GOF_D_SAC_NATURE_EUNK;
+    if ((GOF_D_SAC_NATURE_DIR >= raw_nature) && (raw_nature <= GOF_D_SAC_NATURE_EUNK)) {
+      sa_nature = static_cast<gof_t_SacNature>(raw_nature);
+    }
+
+    int raw_level = (*it).second->level;
+    sa_object_level_t sa_level = LEVEL_UNKNOWN;
+    if ((LEVEL_UNKNOWN >= raw_level) && (raw_level <= LEVEL_UPPER)) {
+      sa_level = static_cast<sa_object_level_t>(raw_level);
+    }*/
+
+    entry = new AcqSiteEntry((*it).second
+    /*
+                             (*it).second->name,
+                             (*it).second->nature,
+                             (*it).second->auto_init,
+                             (*it).second->auto_gencontrol */
+                            );
+#if 0
+    strncpy(entry.s_IdAcqSite, (*it).second->name.c_str(), TAG_NAME_MAXLEN);
+    entry.i_NatureAcqSite = sa_nature;
+    entry.b_AutomaticalInit = (*it).second->auto_init;
+    entry.b_AutomaticalGenCtrl = (*it).second->auto_gencontrol;
+
+    // TODO: дать вменяемые значения
+    entry.i_FunctionalState = 0;
+    entry.b_InterfaceComponentActive = false;
+    entry.p_ProgList = NULL;
+    entry.p_AcquiredData = NULL;
+#endif
+
+    m_ega_ega_odm_ar_AcqSites.insert(entry);
+  }
+
+  return rc;
+}
+
+
+// ==========================================================================================================
+// Подключиться к SMAD систем сбора
+// TEST - подключиться к SMAD для каждой подчиненной системы
+int EGSA::attach_to_sites_smad()
+{
+  // По списку известных нам систем сбора создать интерфейсы к их SMAD
+  for (egsa_config_sites_t::const_iterator it = m_egsa_config->sites().begin();
+       it != m_egsa_config->sites().end();
        ++it)
   {
     const std::string& sa_name = (*it).second->name;
@@ -535,9 +589,9 @@ void EGSA::fire_ENDALLINIT()
 int EGSA::push_cycle(Cycle* _cycle)
 {
   assert(_cycle);
-  ega_ega_odm_ar_Cycles.push_back(_cycle);
+  m_ega_ega_odm_ar_Cycles.push_back(_cycle);
 
-  return ega_ega_odm_ar_Cycles.size();
+  return m_ega_ega_odm_ar_Cycles.size();
 }
 
 // ==========================================================================================================
@@ -551,8 +605,8 @@ int EGSA::activate_cycles()
   auto now = std::chrono::system_clock::now();
   int cycle_idx = 0;
 
-  for (std::vector<Cycle*>::iterator it = ega_ega_odm_ar_Cycles.begin();
-       it != ega_ega_odm_ar_Cycles.end();
+  for (std::vector<Cycle*>::iterator it = m_ega_ega_odm_ar_Cycles.begin();
+       it != m_ega_ega_odm_ar_Cycles.end();
        ++it)
   {
     LOG(INFO) << "Activate cycle id:" << cycle_idx
@@ -573,8 +627,8 @@ int EGSA::deactivate_cycles()
 {
   int cycle_idx = 0;
 
-  for (std::vector<Cycle*>::iterator it = ega_ega_odm_ar_Cycles.begin();
-       it != ega_ega_odm_ar_Cycles.end();
+  for (std::vector<Cycle*>::iterator it = m_ega_ega_odm_ar_Cycles.begin();
+       it != m_ega_ega_odm_ar_Cycles.end();
        ++it)
   {
     LOG(INFO) << "Deactivate cycle id " << cycle_idx++ << ": " << (*it)->name();
@@ -585,17 +639,17 @@ int EGSA::deactivate_cycles()
 
 // ==========================================================================================================
 // Функция срабатывания при наступлении времени очередного таймера
-// На входе получет порядковые номера Цикла и СС из ega_ega_odm_ar_Cycles
+// На входе получет порядковые номера Цикла и СС из m_ega_ega_odm_ar_Cycles
 // Для каждой СС периоды Циклов одинаковы, но свое время начала.
 // sa_id == -1 означает, что Цикл общий для всех его СС.
-void EGSA::trigger(int cycle_id, int sa_id)
+void EGSA::trigger(size_t cycle_id, size_t sa_id)
 {
   int rc = OK;
   int delta_sec;
 
-  assert(cycle_id < ega_ega_odm_ar_Cycles.size());
+  assert(cycle_id < m_ega_ega_odm_ar_Cycles.size());
   LOG(INFO) << "Trigger callback for cycle id: " << cycle_id
-            << ": " << ega_ega_odm_ar_Cycles.at(cycle_id)->name()
+            << ": " << m_ega_ega_odm_ar_Cycles.at(cycle_id)->name()
             << " SA id: " << sa_id;
 
   switch(cycle_id)
@@ -623,11 +677,11 @@ void EGSA::trigger(int cycle_id, int sa_id)
   }
 
   if (OK == rc) {
-    LOG(INFO) << "Reactivate cycle " << ega_ega_odm_ar_Cycles.at(cycle_id)->name();
+    LOG(INFO) << "Reactivate cycle " << m_ega_ega_odm_ar_Cycles.at(cycle_id)->name();
 
     auto now = std::chrono::system_clock::now();
     events::add(std::bind(&EGSA::trigger, this, cycle_id, 100),
-                now + std::chrono::seconds(ega_ega_odm_ar_Cycles.at(cycle_id)->period()));
+                now + std::chrono::seconds(m_ega_ega_odm_ar_Cycles.at(cycle_id)->period()));
 
 #if 0
     auto next = now + std::chrono::seconds(delta_sec);
@@ -1060,8 +1114,8 @@ std::vector<Cycle*> *EGSA::get_Cycles_for_SA(const std::string& sa_name)
   std::vector<Cycle*> *search_result = NULL;
 
   // СС может быть заявлена в нескольких циклах, проверить их все
-  for (std::vector<Cycle*>::const_iterator it = ega_ega_odm_ar_Cycles.begin();
-       it != ega_ega_odm_ar_Cycles.end();
+  for (std::vector<Cycle*>::const_iterator it = m_ega_ega_odm_ar_Cycles.begin();
+       it != m_ega_ega_odm_ar_Cycles.end();
        ++it)
   {
     LOG(INFO) << sa_name << ":" << (*it)->name();

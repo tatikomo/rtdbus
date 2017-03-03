@@ -21,7 +21,7 @@
 #include "exchange_config_egsa.hpp"
 // Внешняя память, под управлением EGSA
 #include "exchange_egsa_init.hpp"
-//#include "exchange_egsa_sa.hpp"
+#include "exchange_egsa_site.hpp"
 
 class ExternalSMAD;
 class EgsaConfig;
@@ -46,6 +46,15 @@ class EGSA : public mdp::mdwrk {
     // Получить набор запросов, зарегистрированных за данной СС
     std::vector<Request*> *get_Request_for_SA(const std::string&);
 
+    //============================================================================
+#ifdef _FUNCTIONAL_TEST
+    // Если собирается тест, вынести эти функции в публичный доступ
+  public:
+#else
+    // Если собирается рабочая версия, спрятать эти функции в приватный доступ
+  private:
+#endif
+    AcqSiteList& get_sites() { return m_ega_ega_odm_ar_AcqSites; };
     // Ввести в оборот новый Цикл сбора
     int push_cycle(Cycle*);
     // Активировать циклы
@@ -54,21 +63,24 @@ class EGSA : public mdp::mdwrk {
     int deactivate_cycles();
     // Тестовая функция ожидания срабатывания таймеров в течении заданного времени
     int wait(int);
+    // Инициализация, создание/подключение к внутренней SMAD
+    int init();
+    // Инициализация внутренних массивов СС
+    int init_sites();
 
     // Первичная обработка нового запроса
     int processing(mdp::zmsg*, const std::string&, bool&);
     void tick_tack();
+    //============================================================================
 
   private:
     DISALLOW_COPY_AND_ASSIGN(EGSA);
-    
+
     // Запуск Интерфейса второго уровня
     int implementation();
 
     // Обработка сообщения о чтении значений БДРВ (включая ответ группы подписки)
     int process_read_response(msg::Letter*);
-    // Инициализация, создание/подключение к внутренней SMAD
-    int init();
     // Останов экземпляра
     int stop();
     // Получить новое сообщение
@@ -77,7 +89,7 @@ class EGSA : public mdp::mdwrk {
     // >  0 - время ожидания нового сообщения в милисекундах, от 1 до HEARTBEAT-интервала
     int recv(msg::Letter*&, int = 1000);
     // Доступ к циклам
-    const std::vector<Cycle*>& cycles() { return ega_ega_odm_ar_Cycles; };
+    const std::vector<Cycle*>& cycles() { return m_ega_ega_odm_ar_Cycles; };
 
     // --------------------------------------------------------------------------
     // Обслуживание запросов:
@@ -106,7 +118,7 @@ class EGSA : public mdp::mdwrk {
     // Изменение состояния подключенных систем сбора и отключение от их внутренней SMAD 
     int detach();
     // Функция срабатывания при наступлении времени очередного таймера
-    void trigger(int, int);
+    void trigger(size_t, size_t);
 
     // Входящее соединение от Таймеров
     zmq::socket_t   m_signal_socket;
@@ -132,15 +144,15 @@ class EGSA : public mdp::mdwrk {
     //static ega_ega_odm_t_GeneralData ega_ega_odm_r_GeneralData;
 
     // Acquisition Sites Table
-    //static ega_ega_odm_t_AcqSiteEntry ega_ega_odm_ar_AcqSites[ECH_D_MAXNBSITES];
+    AcqSiteList m_ega_ega_odm_ar_AcqSites;
 	
     // Cyclic Operations Table
     //static ega_ega_odm_t_CycleEntity ega_ega_odm_ar_Cycles[NBCYCLES];
-    std::vector<Cycle*> ega_ega_odm_ar_Cycles;
+    std::vector<Cycle*> m_ega_ega_odm_ar_Cycles;
 
     // Request Table - перенёс в exchange_egsa_init.cpp
     //static ega_ega_odm_t_RequestEntry m_requests_table[/*NBREQUESTS*/]; // ega_ega_odm_ar_Requests
-    std::vector<Request*> ega_ega_odm_ar_Requests;
+    std::vector<Request*> m_ega_ega_odm_ar_Requests;
 };
 
 #endif

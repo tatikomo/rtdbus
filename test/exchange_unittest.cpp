@@ -33,6 +33,7 @@ const char* g_egsa_config_filename = "egsa.json";
 extern ega_ega_odm_t_RequestEntry g_requests_table[]; // declared in exchange_egsa_impl.cpp
 
 // Создать корректно заполненные сообщения нужного типа для тестирования реакции EGSA
+// NB: Удалить возвращаемый объект после использования
 mdp::zmsg* create_message_by_type(const std::string& dest,
                             const std::string& origin,
                             int msg_type,
@@ -190,7 +191,7 @@ TEST(TestEXCHANGE, EGSA_CYCLES)
   rc = g_egsa_instance->activate_cycles();
   EXPECT_TRUE(rc == OK);
 
-  g_egsa_instance->wait(20);
+  g_egsa_instance->wait(16);
   rc = g_egsa_instance->deactivate_cycles();
   LOG(INFO) << "END cycles activates testing";
 #endif
@@ -227,6 +228,53 @@ TEST(TestEXCHANGE, SAC_CREATE)
   EXPECT_TRUE(g_sa->state() == SA_STATE_DISCONNECTED);
 }
 
+TEST(TestEXCHANGE, EGSA_SITES)
+{
+  // В тестовом файле только три записи
+  const AcqSiteEntry check_data[] = {
+    // Имя
+    // |        Тип
+    // |        |                      AUTO_INIT
+    // |        |                      |  AUTO_GENCONTROL
+    // |        |                      |  |
+    { "BI4001", GOF_D_SAC_NATURE_EELE, 1, 1 },
+    { "BI4002", GOF_D_SAC_NATURE_EELE, 1, 1 },
+    { "K42001", GOF_D_SAC_NATURE_DIR,  1, 0 }
+  };
+
+  g_egsa_instance->init_sites();
+
+  AcqSiteList& sites_list = g_egsa_instance->get_sites();
+
+  for (size_t i=0; i < sites_list.size(); i++) {
+    const AcqSiteEntry* entry = sites_list[i];
+
+    switch(i) {
+      case 0:
+      case 1:
+      case 2:
+        EXPECT_TRUE(0 == strcmp(entry->name(), check_data[i].name()));
+        entry = sites_list[check_data[i].name()];
+        ASSERT_TRUE(NULL != entry);
+
+        LOG(INFO) << entry->name()
+                  << "; nature=" << entry->nature()
+                  << "; auto_init=" << entry->auto_i()
+                  << "; auto_gc=" << entry->auto_gc();
+
+        EXPECT_TRUE(0 == strcmp(entry->name(), check_data[i].name()));
+        EXPECT_TRUE(check_data[i].nature()  == entry->nature());
+        EXPECT_TRUE(check_data[i].auto_i()  == entry->auto_i());
+        EXPECT_TRUE(check_data[i].auto_gc() == entry->auto_gc());
+        break;
+
+      default:
+        LOG(FATAL) << "Loaded SITES more than 3";
+        ASSERT_TRUE(0 == 1);
+    }
+  }
+}
+
 #if 0
 TEST(TestEXCHANGE, EGSA_RUN)
 {
@@ -246,6 +294,7 @@ TEST(TestEXCHANGE, EGSA_ENDALLINIT)
 
   EXPECT_TRUE(is_stop == false);
  
+#if 0
 //  g_egsa_instance->handle_end_all_init(message_end_all_init, identity);
   LOG(INFO) << "\t:start waiting events (10 sec)";
   int i=1000;
@@ -254,6 +303,9 @@ TEST(TestEXCHANGE, EGSA_ENDALLINIT)
     g_egsa_instance->tick_tack();
   }
   LOG(INFO) << "\t:finish waiting events";
+#endif
+
+  delete message_end_all_init;
 }
 
 #if 0
@@ -269,6 +321,8 @@ TEST(TestEXCHANGE, EGSA_STOP)
 
   //g_egsa_instance->handle_stop(message_stop, identity);
   EXPECT_TRUE(is_stop == true);
+
+  delete message_stop;
 }
 #endif
 
@@ -276,6 +330,7 @@ TEST(TestEXCHANGE, EGSA_FREE)
 {
   delete g_egsa_config;
   delete g_sa_config;
+  delete g_sa;
 
   delete g_egsa_instance;
 }

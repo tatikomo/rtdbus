@@ -19,22 +19,24 @@
 #include "exchange_config.hpp"
 
 // ==========================================================================================
+// Приведенные структуры данных используются для первоначальной загрузки данных из конфигурации.
+// Далее эта информация, включая дополнительные атрибуты СС, используется при работе Службы.
 // Общая информация
 typedef struct {
   std::string smad_filename;
 } egsa_common_t;
 
-// Характеристика одного сайта
+// Характеристика одного сайта, содержащиеся в конфигурационном файле
 typedef struct {
-  std::string name; // название
-  int  level;       // место в иерархии - выше/ниже/локальный/смежный
-  int  nature;      // тип СС
-  bool auto_init;   // флаг необходимости проводить инициализацию связи
-  bool auto_gencontrol; // флаг допустимости проведения процедуры сбора данных
+  std::string name;         // название
+  sa_object_level_t level;  // место в иерархии - выше/ниже/локальный/смежный
+  gof_t_SacNature nature;   // тип СС
+  bool auto_init;           // флаг необходимости проводить инициализацию связи
+  bool auto_gencontrol;     // флаг допустимости проведения процедуры сбора данных
 } egsa_config_site_item_t;
 
 // Перечень сайтов со своими характеристиками
-typedef std::map<std::string, egsa_config_site_item_t*> egsa_config_sites_t;
+typedef std::map<const std::string, egsa_config_site_item_t*> egsa_config_sites_t;
 
 // Характеристика одного цикла из конфигурации
 typedef struct {
@@ -45,7 +47,7 @@ typedef struct {
 } egsa_config_cycle_info_t;
 
 // Перечень циклов
-typedef std::map<std::string, egsa_config_cycle_info_t*> egsa_config_cycles_t;
+typedef std::map<const std::string, egsa_config_cycle_info_t*> egsa_config_cycles_t;
 
 // ==========================================================================================
 // Разбор конфигурационных файлов:

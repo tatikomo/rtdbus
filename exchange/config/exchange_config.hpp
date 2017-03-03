@@ -191,7 +191,9 @@ typedef enum {
   SA_STATE_UNREACH  = 0,  // Недоступна
   SA_STATE_OPER     = 1,  // Оперативная работа
   SA_STATE_PRE_OPER = 2,  // В процессе инициализации
-  SA_STATE_DISCONNECTED = 3   // СС заргистрирована, но не подключена
+  SA_STATE_INHIBITED    = 3,    // СС в состоянии запрета работы
+  SA_STATE_FAULT        = 4,    // СС в сбойном состоянии
+  SA_STATE_DISCONNECTED = 5     // СС не подключена
 } sa_state_t;
 
 
@@ -199,22 +201,22 @@ typedef enum {
 // definition of the nature of a Sac (site of acquisition)
 typedef enum {
   GOF_D_SAC_NATURE_DIR  = 0,
-  GOF_D_SAC_NATURE_DIPL,
-  GOF_D_SAC_NATURE_GEKO,
-  GOF_D_SAC_NATURE_A86,
-  GOF_D_SAC_NATURE_FANUC,
-  GOF_D_SAC_NATURE_SLTM,
-  GOF_D_SAC_NATURE_ZOND,
-  GOF_D_SAC_NATURE_STI,
-  GOF_D_SAC_NATURE_SUPERRTU,
-  GOF_D_SAC_NATURE_GPRI,
-  GOF_D_SAC_NATURE_ESTM,
-  GOF_D_SAC_NATURE_EELE,
-  GOF_D_SAC_NATURE_ESIR,
-  GOF_D_SAC_NATURE_EIMP,
-  GOF_D_SAC_NATURE_SDEC,
-  GOF_D_SAC_NATURE_SCCSC,
-  GOF_D_SAC_NATURE_EUNK // NB: должен идти последним элементом
+  GOF_D_SAC_NATURE_DIPL,    // 1
+  GOF_D_SAC_NATURE_GEKO,    // 2
+  GOF_D_SAC_NATURE_A86,     // 3
+  GOF_D_SAC_NATURE_FANUC,   // 4
+  GOF_D_SAC_NATURE_SLTM,    // 5
+  GOF_D_SAC_NATURE_ZOND,    // 6
+  GOF_D_SAC_NATURE_STI,     // 7
+  GOF_D_SAC_NATURE_SUPERRTU,// 8
+  GOF_D_SAC_NATURE_GPRI,    // 9
+  GOF_D_SAC_NATURE_ESTM,    // 10
+  GOF_D_SAC_NATURE_EELE,    // 11
+  GOF_D_SAC_NATURE_ESIR,    // 12
+  GOF_D_SAC_NATURE_EIMP,    // 13
+  GOF_D_SAC_NATURE_SDEC,    // 14
+  GOF_D_SAC_NATURE_SCCSC,   // 15
+  GOF_D_SAC_NATURE_EUNK     // 16 (NB: должен идти последним элементом)
 } gof_t_SacNature;
 
 // ---------------------------------------------------------

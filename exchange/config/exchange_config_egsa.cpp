@@ -242,7 +242,7 @@ int EgsaConfig::load_sites()
       item->auto_init = cycle_item[s_SECTION_SITES_NAME_AUTO_INIT].GetInt();
       item->auto_gencontrol = cycle_item[s_SECTION_SITES_NAME_AUTO_GENCONTROL].GetInt();
 
-      m_sites.insert(std::pair<std::string, egsa_config_site_item_t*>(item->name, item));
+      m_sites[item->name] = item;
 
       LOG(INFO) << fname << ": " << item->name
                 << " level=" << item->level

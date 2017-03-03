@@ -13,10 +13,10 @@ namespace events
 {
     struct event
     {
-        typedef std::function<void(int,int)> callback_type;
+        typedef std::function<void(size_t,size_t)> callback_type;
         typedef std::chrono::time_point<std::chrono::system_clock> time_type;
 
-        event(const callback_type &cb, const time_type &when, const int cid, const int sid)
+        event(const callback_type &cb, const time_type &when, size_t cid, size_t sid)
             : callback_(cb), when_(when), cycle_id_(cid), sa_id_(sid)
             { }
 
@@ -25,8 +25,8 @@ namespace events
 
         callback_type callback_;
         time_type     when_;
-        int           cycle_id_;    // Номер Цикла
-        int           sa_id_;       // Номер СС
+        size_t        cycle_id_;    // Номер Цикла
+        size_t        sa_id_;       // Номер СС
     };
 
     struct event_less : public std::less<event>
@@ -43,7 +43,7 @@ namespace events
     {
         auto real_when = std::chrono::system_clock::from_time_t(when);
 
-        event_queue.emplace(cb, real_when, -1, -1);
+        event_queue.emplace(cb, real_when, 0, 0);
     }
 
     void add(const event::callback_type &cb, const timeval &when)
@@ -51,13 +51,13 @@ namespace events
         auto real_when = std::chrono::system_clock::from_time_t(when.tv_sec) +
                          std::chrono::microseconds(when.tv_usec);
 
-        event_queue.emplace(cb, real_when, -1, -1);
+        event_queue.emplace(cb, real_when, 0, 0);
     }
 
     void add(const event::callback_type &cb,
              const std::chrono::time_point<std::chrono::system_clock> &when)
     {
-        event_queue.emplace(cb, when, -1, -1);
+        event_queue.emplace(cb, when, 0, 0);
     }
 
     void timer()

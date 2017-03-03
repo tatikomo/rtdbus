@@ -113,7 +113,7 @@ typedef enum {
 // Acquisition Site Entry Structure
 typedef struct {
   // identifier of the acquisition site (name)
-  char s_IdAcqSite[20 + 1];
+  char s_IdAcqSite[SERVICE_NAME_MAXLEN + 1];
 
   // nature of the acquisition site (acquisition system, adjacent DIPL)
   gof_t_SacNature i_NatureAcqSite;

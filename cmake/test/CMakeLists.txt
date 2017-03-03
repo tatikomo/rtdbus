@@ -67,6 +67,8 @@ set (TEST_EXCHANGE_SOURCES
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_request_base.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_request_cyclic.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_sa.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_sa.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_init.hpp
