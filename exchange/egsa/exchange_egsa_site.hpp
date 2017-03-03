@@ -16,55 +16,33 @@
 // Конфигурация
 // Внешняя память, под управлением EGSA
 #include "exchange_egsa_init.hpp"
+#include "exchange_egsa_sa.hpp"
 #include "exchange_config_egsa.hpp"
 #include "exchange_config.hpp"
 
-class SystemAcquisition;
+class EGSA;
 
 // ==============================================================================
 // Acquisition Site Entry Structure
 class AcqSiteEntry {
   public:
-    AcqSiteEntry(const std::string& name, gof_t_SacNature nature, int ai, int agc)
-    : m_NatureAcqSite(nature),
-      m_AutomaticalInit(ai),
-      m_AutomaticalGenCtrl(agc),
-      m_FunctionalState(SA_STATE_UNKNOWN),
-      m_Level(LEVEL_LOCAL),
-      m_InterfaceComponentActive(false),
-      m_ProgList(NULL),
-      m_AcquiredData(NULL)
-    {
-      strncpy(m_IdAcqSite, name.c_str(), TAG_NAME_MAXLEN);
-    };
-
-    AcqSiteEntry(const char* name, gof_t_SacNature nature, int ai, int agc)
-    : m_NatureAcqSite(nature),
-      m_AutomaticalInit(ai),
-      m_AutomaticalGenCtrl(agc),
-      m_FunctionalState(SA_STATE_UNKNOWN),
-      m_Level(LEVEL_LOCAL),
-      m_InterfaceComponentActive(false),
-      m_ProgList(NULL),
-      m_AcquiredData(NULL)
-    {
-      strncpy(m_IdAcqSite, name, TAG_NAME_MAXLEN);
-    };
-
-    AcqSiteEntry(const egsa_config_site_item_t* entry)
-    : m_NatureAcqSite(entry->nature),
+    AcqSiteEntry(EGSA* egsa, const egsa_config_site_item_t* entry)
+    : m_egsa(egsa),
+      m_NatureAcqSite(entry->nature),
       m_AutomaticalInit(entry->auto_init),
       m_AutomaticalGenCtrl(entry->auto_gencontrol),
       m_FunctionalState(SA_STATE_UNKNOWN),
       m_Level(entry->level),
       m_InterfaceComponentActive(false),
-      m_ProgList(NULL),
-      m_AcquiredData(NULL)
+      m_sa_instance(NULL)
     {
       strncpy(m_IdAcqSite, entry->name.c_str(), TAG_NAME_MAXLEN);
     };
 
-   ~AcqSiteEntry() {};
+   ~AcqSiteEntry()
+    {
+      delete m_sa_instance;
+    };
 
     const char* name()      const { return m_IdAcqSite; };
     gof_t_SacNature nature()const { return m_NatureAcqSite; };
@@ -73,7 +51,16 @@ class AcqSiteEntry {
     sa_state_t  state()     const { return m_FunctionalState; };
     sa_object_level_t level() const { return m_Level; };
 
+    // TODO: СС и EGSA могут работать на разных хостах, в этом случае подключение EGSA к smad СС
+    // не получит доступа к реальным данным от СС. Их придется EGSA туда заносить самостоятельно.
+    int attach_smad();
+    int detach_smad();
+
   private:
+    // Для доступа SystemAcquisition к объекту egsa ?
+    // TODO: А нужен ли тут вообще SystemAcquisition? Может слить его с AcqSiteEntry?
+    EGSA* m_egsa;
+
     // identifier of the acquisition site (name)
     char m_IdAcqSite[TAG_NAME_MAXLEN + 1];
 
@@ -106,10 +93,10 @@ class AcqSiteEntry {
 
     SystemAcquisition* m_sa_instance;
     // requests in progress list access
-    void* m_ProgList;
+    //void* m_ProgList;
 
     // acquired data access
-    void* m_AcquiredData;
+    //void* m_AcquiredData;
 };
 
 // ==============================================================================

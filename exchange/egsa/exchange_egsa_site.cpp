@@ -11,9 +11,29 @@
 #include "glog/logging.h"
 
 // Служебные файлы RTDBUS
-// Конфигурация
-// Внешняя память, под управлением EGSA
 #include "exchange_egsa_site.hpp"
+#include "exchange_egsa_impl.hpp"
+#include "exchange_egsa_sa.hpp"
+
+// ==============================================================================
+// TODO: СС и EGSA могут работать на разных хостах, в этом случае подключение EGSA к smad СС
+// не получит доступа к реальным данным от СС. Их придется EGSA туда заносить самостоятельно.
+int AcqSiteEntry::attach_smad()
+{
+  m_sa_instance = new SystemAcquisition(m_egsa, this);
+
+  return OK;
+}
+
+// ==============================================================================
+int AcqSiteEntry::detach_smad()
+{
+  int rc = NOK;
+
+  LOG(WARNING) << "Not implemented";
+
+  return rc;
+}
 
 // ==============================================================================
 AcqSiteList::AcqSiteList()

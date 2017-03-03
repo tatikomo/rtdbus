@@ -200,47 +200,48 @@ TEST(TestEXCHANGE, EGSA_CYCLES)
 // Проверка работы класса Системы Сбора
 TEST(TestEXCHANGE, SAC_CREATE)
 {
-  sa_object_level_t level = LEVEL_UNKNOWN;
-  gof_t_SacNature nature = GOF_D_SAC_NATURE_EUNK;
+  egsa_config_site_item_t new_item;
 
-  // Есть хотя бы один хост для тестов
+  // Есть хотя бы один хост для тестов?
   ASSERT_TRUE(g_egsa_config->sites().size() > 0);
 
-  const std::string tag = g_egsa_config->sites().begin()->first;
-  int raw_level  = g_egsa_config->sites().begin()->second->level;
-  int raw_nature = g_egsa_config->sites().begin()->second->nature;
+  // да - его и возьмём
+  new_item.name.assign(g_egsa_config->sites().begin()->first);
+  new_item.nature   = g_egsa_config->sites().begin()->second->nature;
+  new_item.level    = g_egsa_config->sites().begin()->second->level;
+  new_item.auto_init= g_egsa_config->sites().begin()->second->auto_init;
+  new_item.auto_gencontrol = g_egsa_config->sites().begin()->second->auto_gencontrol;
+  AcqSiteEntry new_sac_info(g_egsa_instance, &new_item);
 
-  if ((GOF_D_SAC_NATURE_DIR >= raw_nature) && (raw_nature <= GOF_D_SAC_NATURE_EUNK)) {
-    nature = static_cast<gof_t_SacNature>(raw_nature);
-  }
-
-  if ((LEVEL_UNKNOWN >= raw_level) && (raw_level <= LEVEL_UPPER)) {
-    level = static_cast<sa_object_level_t>(raw_level);
-  }
-
-  g_sa = new SystemAcquisition(g_egsa_instance, level, nature, tag);
+  g_sa = new SystemAcquisition(g_egsa_instance, &new_sac_info);
   // Начальное состояние СС
-  EXPECT_TRUE(g_sa->state() == SA_STATE_DISCONNECTED);
+  EXPECT_TRUE(g_sa->state() == SA_STATE_UNKNOWN);
   // Послать системе команду инициализации
   g_sa->send(ADG_D_MSG_ENDALLINIT);
   // Поскольку это имитация, состояние системы не изменится,
   // и должен сработать таймер по завершению таймаута
-  EXPECT_TRUE(g_sa->state() == SA_STATE_DISCONNECTED);
+  EXPECT_TRUE(g_sa->state() == SA_STATE_UNKNOWN);
 }
 
+#if 1
 TEST(TestEXCHANGE, EGSA_SITES)
 {
-  // В тестовом файле только три записи
-  const AcqSiteEntry check_data[] = {
+  const egsa_config_site_item_t config_item[] = {
     // Имя
-    // |        Тип
-    // |        |                      AUTO_INIT
-    // |        |                      |  AUTO_GENCONTROL
-    // |        |                      |  |
-    { "BI4001", GOF_D_SAC_NATURE_EELE, 1, 1 },
-    { "BI4002", GOF_D_SAC_NATURE_EELE, 1, 1 },
-    { "K42001", GOF_D_SAC_NATURE_DIR,  1, 0 }
+    // |        Уровень
+    // |        |            Тип
+    // |        |            |                      AUTO_INIT
+    // |        |            |                      |     AUTO_GENCONTROL
+    // |        |            |                      |     |
+    { "BI4001", LEVEL_LOCAL, GOF_D_SAC_NATURE_EELE, true, true  },
+    { "BI4002", LEVEL_LOCAL, GOF_D_SAC_NATURE_EELE, true, true  },
+    { "K42001", LEVEL_UPPER, GOF_D_SAC_NATURE_DIR,  true, false }
   };
+  // В тестовом файле только три записи
+  const AcqSiteEntry* check_data[3];
+  check_data[0] = new AcqSiteEntry(g_egsa_instance, &config_item[0]);
+  check_data[1] = new AcqSiteEntry(g_egsa_instance, &config_item[1]);
+  check_data[2] = new AcqSiteEntry(g_egsa_instance, &config_item[2]);
 
   g_egsa_instance->init_sites();
 
@@ -253,8 +254,8 @@ TEST(TestEXCHANGE, EGSA_SITES)
       case 0:
       case 1:
       case 2:
-        EXPECT_TRUE(0 == strcmp(entry->name(), check_data[i].name()));
-        entry = sites_list[check_data[i].name()];
+        EXPECT_TRUE(0 == strcmp(entry->name(), check_data[i]->name()));
+        entry = sites_list[check_data[i]->name()];
         ASSERT_TRUE(NULL != entry);
 
         LOG(INFO) << entry->name()
@@ -262,10 +263,10 @@ TEST(TestEXCHANGE, EGSA_SITES)
                   << "; auto_init=" << entry->auto_i()
                   << "; auto_gc=" << entry->auto_gc();
 
-        EXPECT_TRUE(0 == strcmp(entry->name(), check_data[i].name()));
-        EXPECT_TRUE(check_data[i].nature()  == entry->nature());
-        EXPECT_TRUE(check_data[i].auto_i()  == entry->auto_i());
-        EXPECT_TRUE(check_data[i].auto_gc() == entry->auto_gc());
+        EXPECT_TRUE(0 == strcmp(entry->name(), check_data[i]->name()));
+        EXPECT_TRUE(check_data[i]->nature()  == entry->nature());
+        EXPECT_TRUE(check_data[i]->auto_i()  == entry->auto_i());
+        EXPECT_TRUE(check_data[i]->auto_gc() == entry->auto_gc());
         break;
 
       default:
@@ -274,6 +275,7 @@ TEST(TestEXCHANGE, EGSA_SITES)
     }
   }
 }
+#endif
 
 #if 0
 TEST(TestEXCHANGE, EGSA_RUN)

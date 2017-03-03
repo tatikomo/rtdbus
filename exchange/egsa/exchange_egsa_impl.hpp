@@ -118,7 +118,7 @@ class EGSA : public mdp::mdwrk {
     // Изменение состояния подключенных систем сбора и отключение от их внутренней SMAD 
     int detach();
     // Функция срабатывания при наступлении времени очередного таймера
-    void trigger(size_t, size_t);
+    void cycle_trigger(size_t, size_t);
 
     // Входящее соединение от Таймеров
     zmq::socket_t   m_signal_socket;
@@ -134,6 +134,7 @@ class EGSA : public mdp::mdwrk {
     // Экземпляр ExternalSMAD для хранения конфигурации и данных EGSA
     ExternalSMAD *m_ext_smad;
     EgsaConfig   *m_egsa_config;
+    // TODO заменить все моменты использования m_sa_list на m_ega_ega_odm_ar_AcqSites
     system_acquisition_list_t m_sa_list;
     // Хранилище изменивших своё значение параметров, используется для всех СС
     sa_parameters_t m_list;

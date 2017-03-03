@@ -20,6 +20,7 @@
 
 class EGSA;
 class Cycle;
+class AcqSiteEntry;
 
 // Состояние Систем Сбора:
 // Конфигурационные файлы (cnf)
@@ -50,7 +51,7 @@ class SystemAcquisition
     // Уровень иерархии объекта - 
     // Тип СС - для учета особенностей работы каждого из известныхт типов
     // Название СС
-    SystemAcquisition(EGSA* egsa, sa_object_level_t, gof_t_SacNature, const std::string&);
+    SystemAcquisition(EGSA*, AcqSiteEntry*);
    ~SystemAcquisition();
 
     // Получить состояние СС
@@ -61,19 +62,11 @@ class SystemAcquisition
 
   private:
     DISALLOW_COPY_AND_ASSIGN(SystemAcquisition);
-    EGSA* m_egsa; 
-    // Код СС
-    std::string m_name;
-    // Иерархия СС
-    sa_object_level_t m_level;
-    // Тип СС
-    gof_t_SacNature   m_nature;
+    EGSA* m_egsa;
+    // Ссылка в EGSA на данные состояния СС, доступные локально
+    AcqSiteEntry* m_info;
     // Ссылка на внутреннюю SMAD
     InternalSMAD     *m_smad;
-    // Состояние СС
-    sa_state_t        m_state;
-    // Состояние подключения к внутренней SMAD
-    smad_connection_state_t m_smad_state;
     // Циклы СС
     std::vector<Cycle*>* m_cycles;
 
