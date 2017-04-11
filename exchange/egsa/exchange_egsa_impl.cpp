@@ -354,17 +354,17 @@ int EGSA::run()
     {
       // TODO: пробежаться по всем зарегистрированным системам сбора.
       // Если они в активном состоянии, получить от них даннные
-      for (system_acquisition_list_t::const_iterator it = m_sa_list.begin();
-          it != m_sa_list.end();
-          ++it)
+      for (idx = 0; idx < m_ega_ega_odm_ar_AcqSites.size(); idx++)
       {
-        switch((*it).second->state())
+        sa = AcqSiteList[idx];
+
+        switch(sa->state())
         {
           case SA_STATE_OPER:
-            LOG(INFO) << (*it).first << "state is OPERATIVE";
+            LOG(INFO) << sa->name() << "state is OPERATIVE";
 #if 0
 
-            if (OK == ((*it).second->pop(m_list))) {
+            if (OK == (sa->pop(m_list))) {
               for (sa_parameters_t::const_iterator it = m_list.begin();
                    it != m_list.end();
                    ++it)
@@ -393,19 +393,19 @@ int EGSA::run()
             break;
 
           case SA_STATE_PRE_OPER:
-            LOG(INFO) << (*it).first << "state is PRE OPERATIVE";
+            LOG(INFO) << sa->name() << "state is PRE OPERATIVE";
             break;
 
           case SA_STATE_UNREACH:
-            LOG(INFO) << (*it).first << " state is UNREACHABLE";
+            LOG(INFO) << sa->name() << " state is UNREACHABLE";
             break;
 
           case SA_STATE_UNKNOWN:
-            LOG(INFO) << (*it).first << " state is UNKNOWN";
+            LOG(INFO) << sa->name() << " state is UNKNOWN";
             break;
 
           default:
-            LOG(ERROR) << (*it).first << " state unsupported: " << (*it).second->state();
+            LOG(ERROR) << sa->name() << " state unsupported: " << sa->state();
             break;
         }
       }
@@ -458,51 +458,58 @@ void EGSA::fire_ENDALLINIT()
   mdp::zmsg          *send_msg  = NULL;
   mdp::zmsg          *recv_msg  = NULL;
   std::string        *reply_to = new std::string;
+  AcqSiteEntry       *sa;
 //1  auto now = std::chrono::system_clock::now();
 
   LOG(INFO) << "Start sending ENDALLINIT to all SA";
 
   simple_request = static_cast<msg::SimpleRequest*>(m_message_factory->create(ADG_D_MSG_ENDALLINIT));
 
-  for (system_acquisition_list_t::const_iterator sa = m_sa_list.begin();
-       sa != m_sa_list.end();
-       ++sa)
+  for (size_t idx = 0; idx < m_ega_ega_odm_ar_AcqSites.size(); idx++)
   {
-    LOG(INFO) << "Send ENDALLINIT to " << (*sa).first;
+    sa = m_ega_ega_odm_ar_AcqSites[idx];
+    assert(sa);
 
-    simple_request->header()->set_proc_dest((*sa).first);
+    switch(sa->state())
+    {
+      case SA_STATE_UNREACH: // Недоступна
+        LOG(INFO) << sa->name() << " state is UNREACHABLE";
+        break;
+
+      case SA_STATE_OPER:    // Оперативная работа
+        LOG(WARNING) << sa->name() << " state is OPERATIONAL before ENDALLINIT";
+        break;
+
+      case SA_STATE_PRE_OPER:// В процессе инициализации
+        LOG(WARNING) << sa->name() << " state is PRE OPERATIONAL";
+        break;
+
+      case SA_STATE_INHIBITED:      // СС в состоянии запрета работы
+      case SA_STATE_FAULT:          // СС в сбойном состоянии
+      case SA_STATE_DISCONNECTED:   // СС не подключена
+        break;
+
+
+      case SA_STATE_UNKNOWN: // Неопределенное состояние
+      default:
+        LOG(ERROR) << sa->name() << " is in unsupported state:" << sa->state();
+        break;
+    }
+
+    LOG(INFO) << "Send ENDALLINIT to " << sa->name();
+
+    simple_request->header()->set_proc_dest(sa->name());
     send_msg = simple_request->get_zmsg();
-    send_msg->wrap((*sa).first.c_str(), "");
+    send_msg->wrap(sa->name(), "");
 
     send_to_broker((char*) MDPW_REPORT, NULL, send_msg);
-  }
 
 #if 0
-    switch((*sa).second->state())
-    {
-      case SA_STATE_OPER:
-        LOG(WARNING) << "SA " << (*sa).first << " state is OPERATIONAL before ENDALLINIT";
-        break;
-
-      case SA_STATE_PRE_OPER:
-        LOG(WARNING) << (*sa).first << "state is PRE OPERATIONAL";
-        break;
-
-      case SA_STATE_DISCONNECTED:
-      case SA_STATE_UNKNOWN:
-      case SA_STATE_UNREACH:
-        LOG(INFO) << (*sa).first << " state is UNREACHABLE";
-        if ((*sa).second->send(ADG_D_MSG_ENDALLINIT)) {
-//1          events::add(std::bind(&SystemAcquisition::check_ENDALLINIT, (*sa).second), now + std::chrono::seconds(2));
-        }
-        break;
-
-/*      case SA_STATE_UNKNOWN:
-        LOG(ERROR) << (*sa).first << " state is UNKNOWN";
-        break;*/
+    if (sa->send(ADG_D_MSG_ENDALLINIT)) {
+      events::add(std::bind(&SystemAcquisition::check_ENDALLINIT, sa), now + std::chrono::seconds(2));
     }
-  }
 #endif
+  }
 
   // TODO: Проверить, кто из СС успел передать сообщение о завершении инициализации
   int steps = 6;
@@ -546,10 +553,12 @@ int EGSA::activate_cycles()
   auto now = std::chrono::system_clock::now();
   int cycle_idx = 0;
 
-  for (std::vector<Cycle*>::iterator it = m_ega_ega_odm_ar_Cycles.begin();
-       it != m_ega_ega_odm_ar_Cycles.end();
-       ++it)
+#if 0
+  for (size_t site_id = 0;
+       site_id < m_ega_ega_odm_ar_AcqSites.size();
+       site_id++)
   {
+
     LOG(INFO) << "Activate cycle id:" << cycle_idx
               << " period: " << (*it)->period()
               << " (sec), name: " << (*it)->name();
@@ -558,6 +567,7 @@ int EGSA::activate_cycles()
     events::add(std::bind(&EGSA::cycle_trigger, this, cycle_idx++, 100),
                 now /*+ std::chrono::seconds((*it)->period())*/); // Время активации: сейчас (+ период цикла?)
   }
+#endif
 
   return OK;
 }
@@ -773,6 +783,13 @@ int EGSA::stop()
 }
 
 // ==========================================================================================================
+// Источник: сторожевая схема
+// Условия получения: завершение инициализации Обменов
+// Результат: старт нормальной работы Обменов
+//
+// Порядок выполнения процедуры:
+// 1) Для каждой системы сбора - активация циклов
+// 2) Отправка ответа EXEC_RESULT по завершению этапа
 int EGSA::handle_end_all_init(msg::Letter*, const std::string& origin)
 {
   const char* fname = "EGSA::handle_end_all_init";

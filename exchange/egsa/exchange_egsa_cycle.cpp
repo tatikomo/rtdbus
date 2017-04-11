@@ -55,8 +55,10 @@ void CycleTrigger::handlerFunction( void )
     LOG(WARNING) << "Message size (" << m_cycle_name.size() << ") is exceed atomic buffer size:" << PIPE_BUF;
   }
 
-  ssz = write(m_fd, m_cycle_name.c_str(), m_cycle_name.size());
-  if (ssz != m_cycle_name.size()) {
+  if (-1 == (ssz = write(m_fd, m_cycle_name.c_str(), m_cycle_name.size()))) {
+    LOG(ERROR) << "write to " << m_fd <<": " << strerror(errno);
+  }
+  else if (ssz < m_cycle_name.size()) {
     LOG(ERROR) << "write less (" << ssz << ") than " << m_cycle_name.size() << " bytes to fd="
                << m_fd <<": " << strerror(errno);
   }

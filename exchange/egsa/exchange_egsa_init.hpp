@@ -90,16 +90,16 @@ typedef enum {
 #define EGA_EGA_D_STRGAZPROCOP  "A_GAZPROCOP"   // gaz volume count    (none differential)
 #define EGA_EGA_D_STREQUIPACQ   "A_EQUIPACQ"    // equipment           (none differential)
 #define EGA_EGA_D_STRACQSYSACQ  "A_ACQSYSACQ"   // SATO informations   (none differential)
-#define EGA_EGA_D_STRTELECMD    "P_TELECMD"	    // telecommande
+#define EGA_EGA_D_STRTELECMD    "P_TELECMD"	    // telecommand
 #define EGA_EGA_D_STRTELEREGU   "P_TELEREGU"    // teleregulation
 #define EGA_EGA_D_STRSERVCMD    "S_SERVCMD"	    // SATO service command
 #define EGA_EGA_D_STRGLOBDWLOAD "C_GLOBDWLOAD"  // global downloading
 #define EGA_EGA_D_STRPARTDWLOAD "C_PARTDWLOAD"  // partial downloading
 #define EGA_EGA_D_STRGLOBUPLOAD "C_GLOBUPLOAD"  // global uploading
-#define EGA_EGA_D_STRINITCMD    "I_INITCMD"	    // initialisation
-#define EGA_EGA_D_STRGCPRIMARY  "A_GCPRIMARY"   // prim. general control (none differential)
-#define EGA_EGA_D_STRGCSECOND   "A_GCSECOND"    // sec. general control  (none differential)
-#define EGA_EGA_D_STRGCTERTIARY "A_GCTERTIARY"  // tert. general control (none differential)
+#define EGA_EGA_D_STRINITCMD    "I_INITCMD"	    // initialization
+#define EGA_EGA_D_STRGCPRIMARY  "A_GCPRIMARY"   // primary general control  (none differential)
+#define EGA_EGA_D_STRGCSECOND   "A_GCSECOND"    // secondary general control(none differential)
+#define EGA_EGA_D_STRGCTERTIARY "A_GCTERTIARY"  // tertiary general control (none differential)
 #define EGA_EGA_D_STRIAPRIMARY  "A_IAPRIMARY"   // acq.prim.informations    (differential)
 #define EGA_EGA_D_STRIASECOND   "A_IASECOND"    // acq.sec. informations    (differential)
 #define EGA_EGA_D_STRIATERTIARY "A_IATERTIARY"  // acq.tert. informations   (differential)
@@ -107,7 +107,7 @@ typedef enum {
 #define EGA_EGA_D_STRDIFFPRIMARY  "D_DIFFPRIMARY"   // diffusion primary
 #define EGA_EGA_D_STRDIFFSECOND   "D_DIFFSECONDARY" // diffusion secondary
 #define EGA_EGA_D_STRDIFFTERTIARY "D_DIFFTERTIARY"  // diffusion tertiary
-#define EGA_EGA_D_STRDELEGATION   "P_DELEGATION"    // delegation tele cmd
+#define EGA_EGA_D_STRDELEGATION   "P_DELEGATION"    // delegation telecommand
 
 // ==============================================================================
 // Acquisition Site Entry Structure
@@ -165,8 +165,8 @@ typedef struct {
   // или к состоянию самой системы сбора как опрашиваемого объекта (2)
   bool  b_Requestprocess;
   // Включенные в данный запрос подзапросы
-#warning "Включенные запросы вероятно не используются"
-//  ega_ega_t_Requests r_IncludingRequests;
+  ech_t_ReqId   r_IncludingRequests[10];
+  //ega_ega_t_Requests r_IncludingRequests;
 } ega_ega_odm_t_RequestEntry;
 
 

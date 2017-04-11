@@ -46,8 +46,27 @@ typedef struct {
   std::vector <std::string> sites;
 } egsa_config_cycle_info_t;
 
+// Характеристика одного Запроса из конфигурации
+//     {
+//     "OBJECT": "A",
+//     "MODE": "DIFF",
+//     "INCLUDED_REQUESTS": [
+//      { "NAME": "URGINFOS" },
+//      { "NAME": "ALATHRES" }
+//      ]
+//
+typedef struct {
+  std::string name;
+  char priority;// 1..127
+  char object;  // {A|I}
+  char mode;    // {DIFF|NONDIFF}
+  std::vector <std::string> included_requests;
+} egsa_config_request_info_t;
+
 // Перечень циклов
 typedef std::map<const std::string, egsa_config_cycle_info_t*> egsa_config_cycles_t;
+// Перечень типов Запросов
+typedef std::map<const std::string, egsa_config_request_info_t*> egsa_config_requests_t;
 
 // ==========================================================================================
 // Разбор конфигурационных файлов:
@@ -62,6 +81,13 @@ typedef std::map<const std::string, egsa_config_cycle_info_t*> egsa_config_cycle
 //     PERIOD - периодичность инициации данного цикла
 //     REQUEST - название запроса, связанного с этим циклом
 //     Последовательность SITE от 0..N - название объекта, обрабатываемого в данном цикле
+//
+//   EGA_REQUESTS - перечень характеристик запросов, используемых в Циклах
+//     NAME - название запроса
+//     PRIORITY - уровень приоритета (255 - минимальный, 1 - максимальный)
+//     OBJECT - sA, Equipment, Info
+//     MODE
+//     INCLUDED_REQUESTS
 //
 //   TODO: перенести данные из ESG_SAHOST в EGA_SITES
 //   ESG_SAHOST - связь между тегами БДРВ объектов и их физическими хостами
@@ -79,8 +105,10 @@ class EgsaConfig {
     int load_common();
     // Загрузка информации о циклах
     int load_cycles();
-    // Загрузка информации о запросах
+    // Загрузка информации о сайтах
     int load_sites();
+    // Загрузка информации о запросах
+    int load_requests();
     // Вернуть название внутренней SMAD для EGSA
     const std::string& smad_name();
     // Загруженные циклы
@@ -124,6 +152,17 @@ class EgsaConfig {
 	static const char*  s_SECTION_CYCLES_NAME_SITE;
 	static const char*  s_SECTION_CYCLES_NAME_SITE_NAME;
     egsa_config_cycles_t m_cycles;
+
+    // Секция "REQUESTS" конфигурационного файла ==============================
+    // Название секции
+    static const char*  s_SECTION_NAME_REQUESTS_NAME;
+    static const char*  s_SECTION_REQUESTS_NAME_NAME;
+    static const char*  s_SECTION_REQUESTS_NAME_PRIORITY;
+    static const char*  s_SECTION_REQUESTS_NAME_OBJECT;
+    static const char*  s_SECTION_REQUESTS_NAME_MODE;
+    static const char*  s_SECTION_REQUESTS_NAME_INC_REQ;
+    static const char*  s_SECTION_REQUESTS_NAME_INC_REQ_NAME;
+    egsa_config_requests_t m_requests;
 
 };
 

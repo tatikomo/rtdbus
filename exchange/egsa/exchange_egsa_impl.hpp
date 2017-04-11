@@ -33,7 +33,6 @@ class EGSA : public mdp::mdwrk {
   public:
     enum { BROKER_ITEM = 0, SUBSCRIBER_ITEM = 1, SERVICE_ITEM = 2, SOCKET_MAX_COUNT = SERVICE_ITEM + 1 };
     static const int PollingTimeout;
-    typedef std::map<std::string, SystemAcquisition*> system_acquisition_list_t;
 
     EGSA(const std::string&, const std::string&);
    ~EGSA();
@@ -134,8 +133,6 @@ class EGSA : public mdp::mdwrk {
     // Экземпляр ExternalSMAD для хранения конфигурации и данных EGSA
     ExternalSMAD *m_ext_smad;
     EgsaConfig   *m_egsa_config;
-    // TODO заменить все моменты использования m_sa_list на m_ega_ega_odm_ar_AcqSites
-    system_acquisition_list_t m_sa_list;
     // Хранилище изменивших своё значение параметров, используется для всех СС
     sa_parameters_t m_list;
     // Сокет получения данных

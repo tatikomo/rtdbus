@@ -198,7 +198,9 @@ target_link_libraries(${WORKER_TESTER}
     ${LIBPROTOBUF_LIBRARIES}
     ${SYSTEM_EXTERNAL_LIBS}
     ${LIBGLOG_LIBRARIES}
-    ${LIBZMQ_LIBRARIES})
+    ${LIBZMQ_LIBRARIES}
+    -lpthread
+    )
 
 # Сборка ECHO
 ##########################################################
@@ -209,6 +211,7 @@ target_link_libraries(${WORKER_ECHO}
     ${SYSTEM_EXTERNAL_LIBS}
     ${LIBGLOG_LIBRARIES}
     ${LIBZMQ_LIBRARIES}
+    -lpthread
     )
 
 #add_definitions(-fpermissive)

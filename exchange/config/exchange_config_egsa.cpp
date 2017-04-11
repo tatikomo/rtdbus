@@ -57,7 +57,15 @@ const char* EgsaConfig::s_SECTION_CYCLES_NAME_PERIOD = "PERIOD";
 const char* EgsaConfig::s_SECTION_CYCLES_NAME_REQUEST= "REQUEST";
 const char* EgsaConfig::s_SECTION_CYCLES_NAME_SITE   = "SITE";
 const char* EgsaConfig::s_SECTION_CYCLES_NAME_SITE_NAME = "NAME";
-
+// Секция "REQUESTS" конфигурационного файла ==============================
+// Название секции
+const char* EgsaConfig::s_SECTION_NAME_REQUESTS_NAME            = "REQUESTS";
+const char* EgsaConfig::s_SECTION_REQUESTS_NAME_NAME            = "NAME";
+const char* EgsaConfig::s_SECTION_REQUESTS_NAME_PRIORITY        = "PRIORITY";
+const char* EgsaConfig::s_SECTION_REQUESTS_NAME_OBJECT          = "OBJECT";
+const char* EgsaConfig::s_SECTION_REQUESTS_NAME_MODE            = "MODE";
+const char* EgsaConfig::s_SECTION_REQUESTS_NAME_INC_REQ         = "INCLUDED_REQUESTS";
+const char* EgsaConfig::s_SECTION_REQUESTS_NAME_INC_REQ_NAME    = "NAME";
 // ==========================================================================================
 EgsaConfig::EgsaConfig(const char* config_filename)
  : m_config_filename(NULL),
@@ -127,6 +135,15 @@ EgsaConfig::~EgsaConfig()
        ++it)
   {
     LOG(INFO) << "Free site " << ++idx;
+    delete (*it).second;
+  }
+
+  idx = 0;
+  for (egsa_config_requests_t::iterator it = m_requests.begin();
+       it != m_requests.end();
+       ++it)
+  {
+    LOG(INFO) << "Free request " << ++idx;
     delete (*it).second;
   }
 }
@@ -219,7 +236,7 @@ int EgsaConfig::load_sites()
 
       item = new egsa_config_site_item_t;
 
-      item->name = cycle_item[s_SECTION_CYCLES_NAME_NAME].GetString();
+      item->name = cycle_item[s_SECTION_SITES_NAME_NAME].GetString();
       const std::string nature = cycle_item[s_SECTION_SITES_NAME_NATURE].GetString();
       if  (GOF_D_SAC_NATURE_EUNK == (item->nature = SacNature::get_natureid_by_name(nature))) {
         LOG(WARNING) << fname << ": unknown nature label: " << nature;
@@ -259,6 +276,94 @@ int EgsaConfig::load_sites()
 }
 
 // ==========================================================================================
+// Загрузка информации о запросах
+// Обязательные поля в файле:
+// NAME : string
+// PRIORITY : integer
+// OBJECT : string
+// необязательные поля:
+// MODE : string
+// INCLUDED_REQUEST : array
+int EgsaConfig::load_requests()
+{
+  const char* fname = "load_requests";
+  egsa_config_request_info_t *item;
+  int rc = NOK;
+
+  LOG(INFO) << fname << ": CALL";
+
+
+  // Получение данных по конфигурации Запросов
+  Value& section = m_document[s_SECTION_NAME_REQUESTS_NAME];
+  if (section.IsArray())
+  {
+    for (Value::ValueIterator itr = section.Begin(); itr != section.End(); ++itr)
+    {
+      // Получили доступ к очередному элементу Циклов
+      const Value::Object& request_item = itr->GetObject();
+
+      item = new egsa_config_request_info_t;
+      // Значения по умолчанию
+      item->priority = 127;
+      item->object = 'I';
+      item->mode = 'N';
+
+      item->name = request_item[s_SECTION_REQUESTS_NAME_NAME].GetString();
+      item->priority = request_item[s_SECTION_REQUESTS_NAME_PRIORITY].GetInt();
+      const std::string& s_object = request_item[s_SECTION_REQUESTS_NAME_OBJECT].GetString();
+      if (0 == s_object.compare("I")) {
+        item->object = 'I';
+      }
+      else if (0 == s_object.compare("A")) {
+        item->object = 'A';
+      }
+      else {
+        LOG(WARNING) << "Unsupported value '" << s_object << "' as OBJECT";
+      }
+
+      // Далее следуют необязательные поля
+      if (request_item.HasMember(s_SECTION_REQUESTS_NAME_MODE)) {
+        const std::string& s_mode = request_item[s_SECTION_REQUESTS_NAME_MODE].GetString();
+        if (0 == s_mode.compare("DIFF")) {
+          item->mode = 'D';
+        }
+        else if (0 == s_mode.compare("NONDIFF")) {
+          item->mode = 'N';
+        }
+        else {
+          LOG(WARNING) << "Unsupported value '" << s_mode << "' as MODE";
+        }
+        LOG(INFO) << item->name << ":" << (unsigned int)item->priority << ":" << s_object << ":" << s_mode;
+      }
+      else {
+        LOG(INFO) << item->name << ":" << (unsigned int)item->priority << ":" << s_object;
+      }
+
+      if (request_item.HasMember(s_SECTION_REQUESTS_NAME_INC_REQ)) {
+        // Прочитать массив сайтов, поместить их в m_cycles.sites
+        Value& req_list = request_item[s_SECTION_REQUESTS_NAME_INC_REQ];
+        int idx = 0;
+        for (Value::ValueIterator itr = req_list.Begin(); itr != req_list.End(); ++itr)
+        {
+          const Value::Object& incl_req_item = itr->GetObject();
+          const std::string incl_req_name = incl_req_item[s_SECTION_REQUESTS_NAME_INC_REQ_NAME].GetString();
+          LOG(INFO) << fname << ": " << item->name
+                    << " priority=" << (unsigned int)item->priority
+                    << " object=" << (unsigned int)item->object
+                    << " mode=" << (unsigned int)item->mode
+                    << " incl_req_names "
+                    << " [" << (++idx) << "] " << incl_req_name;
+          item->included_requests.push_back(incl_req_name);
+        }
+      }
+      m_requests.insert(std::pair<std::string, egsa_config_request_info_t*>(item->name, item));
+    }
+  }
+
+  return rc;
+}
+
+// ==========================================================================================
 // загрузка всех параметров обмена: разделы COMMON, SITES, CYCLES
 int EgsaConfig::load()
 {
@@ -290,6 +395,12 @@ int EgsaConfig::load()
       break;
     }
 
+    // загрузка параметров Запросов
+    status = load_requests();
+    if (NOK == status) {
+       LOG(ERROR) << fname << ": Get requests";
+       break;
+    }
     status = OK;
 
   } while(false);

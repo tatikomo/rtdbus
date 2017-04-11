@@ -26,7 +26,7 @@
 	"CYCLES": [{
 		"NAME": "GENCONTROL",
 		"PERIOD": 36,
-		"REQUEST": "A_GENCONTROL",
+		"REQUEST": "GENCONTROL",
 		"SITE": [{
 			"NAME": "BI4001"
 		}, {
@@ -35,14 +35,14 @@
 	}, {
 		"NAME": "URGINFOS",
 		"PERIOD": 5,
-		"REQUEST": "A_URGINFOS",
+		"REQUEST": "URGINFOS",
 		"SITE": [{
 			"NAME": "BI4001"
 		}]
 	}, {
 		"NAME": "INFOSACQ",
 		"PERIOD": 2,
-		"REQUEST": "A_INFOSACQ",
+		"REQUEST": "INFOSACQ",
 		"SITE": [{
 			"NAME": "BI4001"
 		}, {
@@ -51,9 +51,106 @@
 	}, {
 		"NAME": "INFO_DACQ_DIPADJ",
 		"PERIOD": 3,
-		"REQUEST": "A_INFOSACQ",
+		"REQUEST": "INFOSACQ",
 		"SITE": [{
 			"NAME": "K42001"
 		}]
+	}],
+
+    "REQUESTS": [{
+		"NAME": "GENCONTROL",
+		"PRIORITY": 80,
+		"OBJECT": "A",
+		"MODE": "NONDIFF",
+		"INCLUDED_REQUESTS": [{
+			"NAME": "INFOSACQ"
+		}, {
+			"NAME": "URGINFOS"
+		}, {
+			"NAME": "ALATHRES"
+		}, {
+			"NAME": "GCPRIMARY"
+		}, {
+			"NAME": "GCSECOND"
+		}, {
+			"NAME": "GCTERTIARY"
+		}, {
+			"NAME": "IAPRIMARY"
+		}, {
+			"NAME": "IASECOND"
+		}, {
+			"NAME": "IATERTIARY"
+		}]
+	}, {
+		"NAME": "URGINFOS",
+		"PRIORITY": 80,
+		"OBJECT": "A",
+		"MODE": "NONDIFF"
+	}, {
+		"NAME": "INFOSACQ",
+		"PRIORITY": 80,
+		"OBJECT": "A",
+		"MODE": "DIFF",
+		"INCLUDED_REQUESTS": [{
+			"NAME": "URGINFOS"
+		}, {
+			"NAME": "ALATHRES"
+		}]
+	}, {
+		"NAME": "ALATHRES",
+		"PRIORITY": 80,
+		"OBJECT": "A",
+		"MODE": "DIFF"
+	}, {
+		"NAME": "GCPRIMARY",
+		"PRIORITY": 80,
+		"OBJECT": "A",
+		"MODE": "NONDIFF"
+	}, {
+		"NAME": "GCSECOND",
+		"PRIORITY": 80,
+		"OBJECT": "A",
+		"MODE": "NONDIFF"
+	}, {
+		"NAME": "GCTERTIARY",
+		"PRIORITY": 80,
+		"OBJECT": "A",
+		"MODE": "NONDIFF"
+	}, {
+		"NAME": "IAPRIMARY",
+		"PRIORITY": 80,
+		"OBJECT": "A",
+		"MODE": "DIFF"
+	}, {
+		"NAME": "IASECOND",
+		"PRIORITY": 80,
+		"OBJECT": "A",
+		"MODE": "NONDIFF"
+	}, {
+		"NAME": "IATERTIARY",
+		"PRIORITY": 80,
+		"OBJECT": "A",
+		"MODE": "NONDIFF"
+	}, {
+		"NAME": "INFODIFF",
+		"PRIORITY": 80,
+		"OBJECT": "A",
+		"MODE": "NONDIFF"
+	}, {
+		"NAME": "TELECMD",
+		"PRIORITY": 101,
+		"OBJECT": "I"
+	}, {
+		"NAME": "TELEREGU",
+		"PRIORITY": 101,
+		"OBJECT": "I"
+	}, {
+		"NAME": "SERVCMD",
+		"PRIORITY": 80,
+		"OBJECT": "A"
+	}, {
+		"NAME": "INITCMD",
+		"PRIORITY": 82,
+		"OBJECT": "A"
 	}]
 }

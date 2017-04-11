@@ -142,7 +142,7 @@ TEST(TestEXCHANGE, EGSA_REQUESTS)
   int rc;
 
   // Проверка поиска несуществующего запроса
-  rc =  get_request_by_name("unexistant_cycle", req_entry_dict);
+  rc =  get_request_by_name("unexistant_request", req_entry_dict);
   EXPECT_TRUE(rc == NOK);
   EXPECT_TRUE(req_entry_dict == NULL);
 
@@ -274,6 +274,10 @@ TEST(TestEXCHANGE, EGSA_SITES)
         ASSERT_TRUE(0 == 1);
     }
   }
+
+  delete check_data[0];
+  delete check_data[1];
+  delete check_data[2];
 }
 #endif
 

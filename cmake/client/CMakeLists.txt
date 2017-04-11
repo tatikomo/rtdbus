@@ -8,8 +8,8 @@ if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
         uuid)
 else ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # LINUX
-#  set (SYSTEM_EXTERNAL_LIBS
-#        pthread)
+  set (SYSTEM_EXTERNAL_LIBS
+        pthread)
 endif ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
 
 include_directories(${LIBGLOG_INCLUDE_DIR})

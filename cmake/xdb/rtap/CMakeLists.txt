@@ -24,6 +24,7 @@ include_directories(${XDB_IMPL_DIR})
 include_directories(${XDB_IMPL_DIR}/dat)
 include_directories(${LIBPROTOBUF_INCLUDE_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})
+include_directories(${XERCESC_INCLUDE_DIR})
 # Заголовочные файлы нужны при включении xdb_impl_database
 include_directories(${LIBEXTREMEDB_INCLUDE_DIR})
 
@@ -31,6 +32,7 @@ link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${LIBGLOG_LIBRARIES_DIR})
 link_directories(${LIBZMQ_LIBRARIES_DIR})
+link_directories(${XERCESC_LIBRARIES_DIR})
 
 add_custom_command(
         OUTPUT 
