@@ -111,10 +111,12 @@ class EgsaConfig {
     int load_requests();
     // Вернуть название внутренней SMAD для EGSA
     const std::string& smad_name();
-    // Загруженные циклы
+    // Загруженные Циклы
     egsa_config_cycles_t& cycles() { return m_cycles; };
-    // Загруженные сайты
+    // Загруженные Сайты
     egsa_config_sites_t& sites() { return m_sites; };
+    // Загруженные Запросы
+    egsa_config_requests_t& requests() { return m_requests; };
 
   private:
     rapidjson::Document m_document;
@@ -164,6 +166,8 @@ class EgsaConfig {
     static const char*  s_SECTION_REQUESTS_NAME_INC_REQ_NAME;
     egsa_config_requests_t m_requests;
 
+    static const char*  s_CYCLENAME_1;
+    static const char*  s_CYCLENAME_2;
 };
 
 #endif

@@ -108,7 +108,10 @@ class AcqSiteList {
 
     int attach_to_smad(const char*);
     int detach_from_smad(const char*);
+    // Отключиться от SMAD
     int detach();
+    // Очистить ресурсы`
+    int release();
     void insert(AcqSiteEntry*);
     size_t size() const { return m_items.size(); };
 

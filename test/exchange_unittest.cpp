@@ -24,12 +24,11 @@
 #include "proto/rtdbus.pb.h"
 
 AcquisitionSystemConfig* g_sa_config = NULL;
-EgsaConfig* g_egsa_config = NULL;
 EGSA* g_egsa_instance = NULL;
 SystemAcquisition* g_sa = NULL;
+AcqSiteEntry *g_new_sac_info = NULL;
 
 const char* g_sa_config_filename = "BI4500.json";
-const char* g_egsa_config_filename = "egsa.json";
 extern ega_ega_odm_t_RequestEntry g_requests_table[]; // declared in exchange_egsa_impl.cpp
 
 // Создать корректно заполненные сообщения нужного типа для тестирования реакции EGSA
@@ -113,9 +112,6 @@ TEST(TestEXCHANGE, EGSA_CREATE)
 
   g_sa_config = new AcquisitionSystemConfig(g_sa_config_filename);
   ASSERT_TRUE(g_sa_config != NULL);
-
-  g_egsa_config = new EgsaConfig(g_egsa_config_filename);
-  ASSERT_TRUE(g_egsa_config != NULL);
 }
 
 TEST(TestEXCHANGE, SA_CONFIG)
@@ -126,14 +122,19 @@ TEST(TestEXCHANGE, SA_CONFIG)
 
 TEST(TestEXCHANGE, EGSA_CONFIG)
 {
-  int rc = g_egsa_config->load();
+  int rc = g_egsa_instance->load_config();
   EXPECT_TRUE(OK == rc);
 
-  LOG(INFO) << "load " << g_egsa_config->cycles().size() << " cycles";
-  EXPECT_TRUE(g_egsa_config->cycles().size() == 4);
+  ASSERT_TRUE(g_egsa_instance->config());
 
-  LOG(INFO) << "load " << g_egsa_config->sites().size() << " sites";
-  EXPECT_TRUE(g_egsa_config->sites().size() == 3);
+  LOG(INFO) << "load " << g_egsa_instance->config()->cycles().size() << " cycles";
+  EXPECT_TRUE(g_egsa_instance->config()->cycles().size() == 4);
+
+  LOG(INFO) << "load " << g_egsa_instance->config()->sites().size() << " sites";
+  EXPECT_TRUE(g_egsa_instance->config()->sites().size() == 3);
+
+  LOG(INFO) << "load " << g_egsa_instance->config()->requests().size() << " requests";
+  EXPECT_TRUE(g_egsa_instance->config()->requests().size() == 15);
 }
 
 TEST(TestEXCHANGE, EGSA_REQUESTS)
@@ -154,21 +155,88 @@ TEST(TestEXCHANGE, EGSA_REQUESTS)
 }
 
 // Подготовить полную информацию по циклам, включая связанные с этими циклами сайты
+// ГТП:
+// GCP_PGACQ_DIPL   =   основной цикл сбора информации (1 час)
+//      Запросы:
+//          A_GCPRIMARY
+//
+// GCS_SGACQ_DIPL   =   вторичный цикл сбора (8 часов)
+//      Запросы:
+//          A_GCSECOND
+//
+// INFO_DACQ_DIPL   =   ? (15 минут)
+//      Запросы:
+//          A_INFOSACQ
+//
+// ЛПУ:
+// GENCONTROL       =   Общий сбор данных (1 час)
+//      Запросы:
+//          A_GENCONTROL
+//
+// URGINFOS         =   Опрос срочными данными (тревоги?) (10 минут)
+//      Запросы:
+//          A_URGINFOS
+//
+// INFOSACQ         =   Опрос состояния Системы Сбора (1 минута)
+//      Запросы:
+//          A_INFOSACQ
+//
+// INFO_DACQ_DIPADJ =   Опрос данных смежных ЛПУ (10 секунд)
+//      Запросы:
+//          A_INFOSACQ
+//
+//
+// Циклы согласно отчету Конфигуратора:
+//   'GENCONTROL'       DIPL general
+//   'URGINFOS'         DIPL urgency
+//   'INFOSACQ_URG'     DIPL urgency
+//   'INFOSACQ'         infosacq
+//   'INFO_DACQ_DIPADJ' DIPL differ
+//   'GEN_GACQ_DIPADJ'  DIPL globale
+//   'GCP_PGACQ_DIPL'   DIR principal globale
+//   'GCS_SGACQ_DIPL'   DIPL secondary globale
+//   'INFO_DACQ_DIPL'   DIR differ
+//   'IAPRIMARY'        iaprimary (also SA)
+//   'IASECOND'         iasecondary (also SA)
+//   'SERVCMD'          service command (also SA)
+//   'INFODIFF'         info diffusion (also SA)
+//   'ACQSYSACQ'        acquise system acquisition (also SA)
+//   'GCT_TGACQ_DIPL'   tertiary
+//
+// 2 SA : SAs sending binary informations (cycle 3)
+// 3 SA : SAs sending serious binary informations (cycle 1 and 2)
+// 4 SA : SAs sending not serious binary_informations (cycle 2)
+// 5 : adjacent DIPLs sending informations (cycle 5,7)
+// 6 DIR  : DIPLs sending primary informations to the DIR (cycle 11)
+// 7 DIR  : DIPLs sending secondary informations to the DIR (cycle 12)
+// 8 DIR  : DIPLs sending (in differential mode) primary/secondary informations to the DIR
+// 9 DIR  : acquisition (in tertiaire mode) informations the DIPLs
+// 1 DIPL : adjacent DIPLs Diffusion des informations en mode differentiel des DIPLs_adjacent
+// 2 DIPL : DIPLs sending primary informations in differential mode to the DIR
+// 3 DIPL : DIPLs sending secondary informations in differential mode to the DIR
+// 4 DIPL : DIPLs sending tertiary informations in differential mode to the DIR
+//
 TEST(TestEXCHANGE, EGSA_CYCLES)
 {
   ega_ega_odm_t_RequestEntry* req_entry_dict = NULL;
   int rc;
 
-  for(egsa_config_cycles_t::const_iterator it = g_egsa_config->cycles().begin();
-      it != g_egsa_config->cycles().end();
+  for(egsa_config_cycles_t::const_iterator it = g_egsa_instance->config()->cycles().begin();
+      it != g_egsa_instance->config()->cycles().end();
       ++it)
   {
+#if 0
     // Найти запрос с именем (*it).second->request_name в m_requests_table[]
     if (OK == get_request_by_name((*it).second->request_name, req_entry_dict)) {
+#endif
       // Создадим экземпляр Цикла, удалится он в деструкторе EGSA
       Cycle *cycle = new Cycle((*it).first.c_str(),
                                (*it).second->period,
+#if 0
                                req_entry_dict->e_RequestId,
+#else
+                               ECH_D_GENCONTROL,
+#endif
                                CYCLE_NORMAL);
 
       // Для данного цикла получить все использующие его сайты
@@ -183,18 +251,25 @@ TEST(TestEXCHANGE, EGSA_CYCLES)
       cycle->dump();
       // Передать объект Цикл в подчинение EGSA
       g_egsa_instance->push_cycle(cycle);
+#if 0
     }
+#endif
   }
 
-#if 1
   LOG(INFO) << "BEGIN cycles activates testing";
   rc = g_egsa_instance->activate_cycles();
   EXPECT_TRUE(rc == OK);
 
-  g_egsa_instance->wait(16);
+//  g_egsa_instance->wait(16);
+  for (int i=0; i<20; i++) {
+    std::cout << ".";
+    fflush(stdout);
+    g_egsa_instance->tick_tack();
+    sleep(1);
+  }
+  std::cout << std::endl;
   rc = g_egsa_instance->deactivate_cycles();
   LOG(INFO) << "END cycles activates testing";
-#endif
 }
 
 // Проверка работы класса Системы Сбора
@@ -203,17 +278,19 @@ TEST(TestEXCHANGE, SAC_CREATE)
   egsa_config_site_item_t new_item;
 
   // Есть хотя бы один хост для тестов?
-  ASSERT_TRUE(g_egsa_config->sites().size() > 0);
+  ASSERT_TRUE(g_egsa_instance->config()->sites().size() > 0);
 
   // да - его и возьмём
-  new_item.name.assign(g_egsa_config->sites().begin()->first);
-  new_item.nature   = g_egsa_config->sites().begin()->second->nature;
-  new_item.level    = g_egsa_config->sites().begin()->second->level;
-  new_item.auto_init= g_egsa_config->sites().begin()->second->auto_init;
-  new_item.auto_gencontrol = g_egsa_config->sites().begin()->second->auto_gencontrol;
-  AcqSiteEntry new_sac_info(g_egsa_instance, &new_item);
+  new_item.name.assign(g_egsa_instance->config()->sites().begin()->first);
+  new_item.nature   = g_egsa_instance->config()->sites().begin()->second->nature;
+  new_item.level    = g_egsa_instance->config()->sites().begin()->second->level;
+  new_item.auto_init= g_egsa_instance->config()->sites().begin()->second->auto_init;
+  new_item.auto_gencontrol = g_egsa_instance->config()->sites().begin()->second->auto_gencontrol;
 
-  g_sa = new SystemAcquisition(g_egsa_instance, &new_sac_info);
+  g_new_sac_info = new AcqSiteEntry(g_egsa_instance, &new_item);
+  // NB: AcqSiteEntry должен существовать на момент удаления SystemAcquisition
+  g_sa = new SystemAcquisition(g_egsa_instance, g_new_sac_info);
+
   // Начальное состояние СС
   EXPECT_TRUE(g_sa->state() == SA_STATE_UNKNOWN);
   // Послать системе команду инициализации
@@ -223,7 +300,6 @@ TEST(TestEXCHANGE, SAC_CREATE)
   EXPECT_TRUE(g_sa->state() == SA_STATE_UNKNOWN);
 }
 
-#if 1
 TEST(TestEXCHANGE, EGSA_SITES)
 {
   const egsa_config_site_item_t config_item[] = {
@@ -243,9 +319,8 @@ TEST(TestEXCHANGE, EGSA_SITES)
   check_data[1] = new AcqSiteEntry(g_egsa_instance, &config_item[1]);
   check_data[2] = new AcqSiteEntry(g_egsa_instance, &config_item[2]);
 
-  g_egsa_instance->init_sites();
-
   AcqSiteList& sites_list = g_egsa_instance->get_sites();
+  LOG(INFO) << "EGSA_SITES loads " << sites_list.size() << " sites";
 
   for (size_t i=0; i < sites_list.size(); i++) {
     const AcqSiteEntry* entry = sites_list[i];
@@ -270,7 +345,7 @@ TEST(TestEXCHANGE, EGSA_SITES)
         break;
 
       default:
-        LOG(FATAL) << "Loaded SITES more than 3";
+        LOG(FATAL) << "Loaded SITES more than 3: " << i;
         ASSERT_TRUE(0 == 1);
     }
   }
@@ -279,7 +354,6 @@ TEST(TestEXCHANGE, EGSA_SITES)
   delete check_data[1];
   delete check_data[2];
 }
-#endif
 
 #if 0
 TEST(TestEXCHANGE, EGSA_RUN)
@@ -290,18 +364,16 @@ TEST(TestEXCHANGE, EGSA_RUN)
 
 TEST(TestEXCHANGE, EGSA_ENDALLINIT)
 {
-//  msg::Letter* message_end_all_init = NULL;
   const std::string identity = "RTDBUS_BROKER";
   mdp::zmsg * message_end_all_init = create_message_by_type("EGSA", "TEST", ADG_D_MSG_ENDALLINIT);
   bool is_stop = false;
 
   EXPECT_TRUE(message_end_all_init != NULL);
-  g_egsa_instance->processing(message_end_all_init, identity, is_stop);
-
+//1  int prc = g_egsa_instance->processing(message_end_all_init, identity, is_stop);
+//1  EXPECT_TRUE(prc == OK);
   EXPECT_TRUE(is_stop == false);
  
-#if 0
-//  g_egsa_instance->handle_end_all_init(message_end_all_init, identity);
+#if 1
   LOG(INFO) << "\t:start waiting events (10 sec)";
   int i=1000;
   while (--i) {
@@ -334,9 +406,9 @@ TEST(TestEXCHANGE, EGSA_STOP)
 
 TEST(TestEXCHANGE, EGSA_FREE)
 {
-  delete g_egsa_config;
   delete g_sa_config;
   delete g_sa;
+  delete g_new_sac_info;
 
   delete g_egsa_instance;
 }

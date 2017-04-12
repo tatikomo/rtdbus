@@ -53,9 +53,14 @@ class EGSA : public mdp::mdwrk {
     // Если собирается рабочая версия, спрятать эти функции в приватный доступ
   private:
 #endif
+    // Доступ к конфигурации
+    EgsaConfig* config() { return m_egsa_config; };
+    // Доступ к Сайтам
     AcqSiteList& get_sites() { return m_ega_ega_odm_ar_AcqSites; };
+    // Доступ к циклам
+    const std::vector<Cycle*>& cycles() { return m_ega_ega_odm_ar_Cycles; };
     // Ввести в оборот новый Цикл сбора
-    int push_cycle(Cycle*);
+    size_t push_cycle(Cycle*);
     // Активировать циклы
     int activate_cycles();
     // Деактивировать циклы
@@ -64,8 +69,8 @@ class EGSA : public mdp::mdwrk {
     int wait(int);
     // Инициализация, создание/подключение к внутренней SMAD
     int init();
-    // Инициализация внутренних массивов СС
-    int init_sites();
+    // Инициализация внутренних массивов
+    int load_config();
 
     // Первичная обработка нового запроса
     int processing(mdp::zmsg*, const std::string&, bool&);
@@ -87,8 +92,6 @@ class EGSA : public mdp::mdwrk {
     // =  0 - разовое чтение сообщений, немедленный выход в случае отсутствия таковых
     // >  0 - время ожидания нового сообщения в милисекундах, от 1 до HEARTBEAT-интервала
     int recv(msg::Letter*&, int = 1000);
-    // Доступ к циклам
-    const std::vector<Cycle*>& cycles() { return m_ega_ega_odm_ar_Cycles; };
 
     // --------------------------------------------------------------------------
     // Обслуживание запросов:

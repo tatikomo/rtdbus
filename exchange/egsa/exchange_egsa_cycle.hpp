@@ -56,6 +56,7 @@ class Cycle {
     // Название цикла
     const char* name() { return m_CycleName; };
     int period() { return m_CyclePeriod; };
+    int id() { return m_CycleId; };
 #if 0
     // Активировать цикл, взведя его таймер
     int activate(int);
@@ -69,9 +70,11 @@ class Cycle {
     // Список сайтов
     std::vector<acq_site_state_t>& sites() { return m_AcqSites; };
 
+    // TODO: Проверить, нужен ли m_LinkedRequest
     Cycle(const char* _name, int _period, ech_t_ReqId _linked_req, cycle_family_t _family)
       : m_CycleFamily(_family),
         m_CyclePeriod(_period),
+        m_CycleId(0),
         m_LinkedRequest(_linked_req) /*,
         m_CycleTimer(NULL),
         m_CycleTrigger(NULL)*/
@@ -96,6 +99,8 @@ class Cycle {
 	cycle_family_t  m_CycleFamily;
     // Цикличность в секундах
 	int             m_CyclePeriod;
+    // Идентификатор
+    int             m_CycleId;
     // Ассоциированный запрос
     // request associated to be transmitted to the acquisition site
 	ech_t_ReqId     m_LinkedRequest;

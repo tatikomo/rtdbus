@@ -117,3 +117,16 @@ AcqSiteEntry* AcqSiteList::operator[](const std::size_t idx)
 }
 
 // ==============================================================================
+// Освободить все ресурсы
+int AcqSiteList::release()
+{
+  for (std::vector<AcqSiteEntry*>::iterator it = m_items.begin();
+       it != m_items.end();
+       ++it)
+  {
+    LOG(INFO) << "release site " << (*it)->name();
+    delete (*it);
+  }
+  m_site_map.clear();
+}
+// ==============================================================================

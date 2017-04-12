@@ -66,6 +66,9 @@ const char* EgsaConfig::s_SECTION_REQUESTS_NAME_OBJECT          = "OBJECT";
 const char* EgsaConfig::s_SECTION_REQUESTS_NAME_MODE            = "MODE";
 const char* EgsaConfig::s_SECTION_REQUESTS_NAME_INC_REQ         = "INCLUDED_REQUESTS";
 const char* EgsaConfig::s_SECTION_REQUESTS_NAME_INC_REQ_NAME    = "NAME";
+// Допустимые значения названий Циклов
+const char* EgsaConfig::s_CYCLENAME_1   = "1";
+const char* EgsaConfig::s_CYCLENAME_2   = "2";
 // ==========================================================================================
 EgsaConfig::EgsaConfig(const char* config_filename)
  : m_config_filename(NULL),
@@ -288,7 +291,7 @@ int EgsaConfig::load_requests()
 {
   const char* fname = "load_requests";
   egsa_config_request_info_t *item;
-  int rc = NOK;
+  int rc = OK;
 
   LOG(INFO) << fname << ": CALL";
 
@@ -319,6 +322,7 @@ int EgsaConfig::load_requests()
       }
       else {
         LOG(WARNING) << "Unsupported value '" << s_object << "' as OBJECT";
+        rc = NOK;
       }
 
       // Далее следуют необязательные поля
@@ -332,6 +336,7 @@ int EgsaConfig::load_requests()
         }
         else {
           LOG(WARNING) << "Unsupported value '" << s_mode << "' as MODE";
+          rc = NOK;
         }
         LOG(INFO) << item->name << ":" << (unsigned int)item->priority << ":" << s_object << ":" << s_mode;
       }

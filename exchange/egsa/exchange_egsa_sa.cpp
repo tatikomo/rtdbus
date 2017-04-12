@@ -28,6 +28,7 @@
 // sa_object_level_t - Место в иерархии
 // gof_t_SacNature - Тип объекта
 // name - название системы сбора, без лидирующего символа '/'
+// NB: AcqSiteEntry(entry) должен существовать на момент удаления SystemAcquisition
 SystemAcquisition::SystemAcquisition(EGSA* egsa,
                                      AcqSiteEntry* entry)
   : m_egsa(egsa),

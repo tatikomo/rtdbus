@@ -94,7 +94,7 @@ int EGSA::init()
   smad_connection_state_t ext_state;
 
   // Инициализировать массивы Сайтов и Циклов
-  init_sites();
+  load_config();
 
   // Подключиться к своей внутренней памяти SMAD
   m_ext_smad = new ExternalSMAD(m_egsa_config->smad_name().c_str());
@@ -133,9 +133,18 @@ int EGSA::init()
 
 // ==========================================================================================================
 #warning "Зачем дублировать в m_ega_ega_odm_ar_AcqSites информацию из m_egsa_config->sites() ?"
-int EGSA::init_sites()
+int EGSA::load_config()
 {
   int rc = OK;
+
+  // Была ли ранее уже загружена конфигурация?
+  if (m_egsa_config) {
+    // Была - очистим старые данные и перечитаем её
+    LOG(INFO) << "Reload configuration";
+
+    delete m_egsa_config;
+    m_ega_ega_odm_ar_AcqSites.release();
+  }
 
   // Открыть конфигурацию
   m_egsa_config = new EgsaConfig("egsa.json");
@@ -534,7 +543,7 @@ void EGSA::fire_ENDALLINIT()
 
 // ==========================================================================================================
 // Ввести в оборот новый Цикл сбора, вернуть новый размер очереди циклов
-int EGSA::push_cycle(Cycle* _cycle)
+size_t EGSA::push_cycle(Cycle* _cycle)
 {
   assert(_cycle);
   m_ega_ega_odm_ar_Cycles.push_back(_cycle);
@@ -544,30 +553,30 @@ int EGSA::push_cycle(Cycle* _cycle)
 
 // ==========================================================================================================
 // Активировать циклы
-// Активация заключается во взведении таймера Timer с требуемой периодичностью, который по достижению срока
-// активации пишет название таймера в ранее объявленный сокет.
-// Основной цикл работы приложения включает select из этого сокета, и в случае появления в нем данных
-// читается название активированного цикла.
 int EGSA::activate_cycles()
 {
   auto now = std::chrono::system_clock::now();
   int cycle_idx = 0;
 
-#if 0
-  for (size_t site_id = 0;
-       site_id < m_ega_ega_odm_ar_AcqSites.size();
-       site_id++)
+  for (std::vector<Cycle*>::iterator cit = m_ega_ega_odm_ar_Cycles.begin();
+       cit != m_ega_ega_odm_ar_Cycles.end();
+       ++cit)
   {
-
-    LOG(INFO) << "Activate cycle id:" << cycle_idx
-              << " period: " << (*it)->period()
-              << " (sec), name: " << (*it)->name();
+    LOG(INFO) << "GEV " << (*cit)->name() << " " << (*cit)->sites().size();
+    // Для каждого Цикла активировать столько экземпляров, сколько в нем объявлено Сайтов
+    for (std::vector<acq_site_state_t>::iterator sit = (*cit)->sites().begin();
+         sit != (*cit)->sites().end();
+         ++sit)
+    {
+    LOG(INFO) << "Activate cycle: " << (*cit)->name()
+              << " period: " << (*cit)->period()
+              << " (sec), SA: " << (*sit).site;
 
     // Связать триггер с объектом, идентификаторами Цикла и Системы Сбора
-    events::add(std::bind(&EGSA::cycle_trigger, this, cycle_idx++, 100),
+    events::add(std::bind(&EGSA::cycle_trigger, this, (*cit)->id(), 100),
                 now /*+ std::chrono::seconds((*it)->period())*/); // Время активации: сейчас (+ период цикла?)
+    }
   }
-#endif
 
   return OK;
 }
@@ -598,50 +607,35 @@ void EGSA::cycle_trigger(size_t cycle_id, size_t sa_id)
   int rc = OK;
   int delta_sec;
 
-  assert(cycle_id < m_ega_ega_odm_ar_Cycles.size());
-  LOG(INFO) << "Trigger callback for cycle id: " << cycle_id
-            << ": " << m_ega_ega_odm_ar_Cycles.at(cycle_id)->name()
-            << " SA id: " << sa_id;
+  LOG(INFO) << "\tGEV cycle id=" << cycle_id << " size=" << m_ega_ega_odm_ar_Cycles.size();
+  assert(cycle_id <= m_ega_ega_odm_ar_Cycles.size());
+  LOG(INFO) << "Trigger callback for cycle id=" << cycle_id
+            << " " << m_ega_ega_odm_ar_Cycles.at(cycle_id)->name()
+            << " SA id=" << sa_id;
 
-  switch(cycle_id)
-  {
-    case 0:
-      delta_sec = 1;
-      break;
+  if ((0 <= cycle_id) && (cycle_id < m_ega_ega_odm_ar_Cycles.size())) {
+    delta_sec = m_ega_ega_odm_ar_Cycles.at(cycle_id)->period();
 
-    case 1:
-      delta_sec = 2;
-      break;
-
-    case 2:
-      delta_sec = 3;
-      break;
-
-    case 3:
-      delta_sec = 4;
-      break;
-
-
-    default:
-      LOG(ERROR) << "Unsupported cycle_id: " << cycle_id;
-      rc = NOK;
-  }
-
-  if (OK == rc) {
+    if (OK == rc) {
 #if VERBOSE>6
-    LOG(INFO) << "Reactivate cycle " << m_ega_ega_odm_ar_Cycles.at(cycle_id)->name();
+      LOG(INFO) << "Reactivate cycle " << m_ega_ega_odm_ar_Cycles.at(cycle_id)->name();
 #endif
-    auto now = std::chrono::system_clock::now();
-    events::add(std::bind(&EGSA::cycle_trigger, this, cycle_id, 100),
-                now + std::chrono::seconds(m_ega_ega_odm_ar_Cycles.at(cycle_id)->period()));
+      auto now = std::chrono::system_clock::now();
+      events::add(std::bind(&EGSA::cycle_trigger, this, cycle_id, 100),
+                  now + std::chrono::seconds(m_ega_ega_odm_ar_Cycles.at(cycle_id)->period()));
 
-#if 0
-    auto next = now + std::chrono::seconds(delta_sec);
-    time_t tt_now    = std::chrono::system_clock::to_time_t ( now );
-    time_t tt_future = std::chrono::system_clock::to_time_t ( next );
-    LOG(INFO) << "now is: " << ctime(&tt_now);
-    LOG(INFO) << "future is: " << ctime(&tt_future);
+#if 1
+      auto next = now + std::chrono::seconds(delta_sec);
+      time_t tt_now    = std::chrono::system_clock::to_time_t ( now );
+      time_t tt_future = std::chrono::system_clock::to_time_t ( next );
+      LOG(INFO) << "now is: " << ctime(&tt_now);
+      LOG(INFO) << "future is: " << ctime(&tt_future);
 #endif
+    }
+  }
+  else {
+      LOG(ERROR) << "Unsupported cycle_id=" << cycle_id << " for SA id=" << sa_id;
+      rc = NOK;
   }
 }
 
@@ -713,7 +707,7 @@ int EGSA::processing(mdp::zmsg* request, const std::string &identity, bool& need
   // m_metric_center->before();
 
   msg::Letter *letter = m_message_factory->create(request);
-  if (letter->valid())
+  if (letter && letter->valid())
   {
     msgType = letter->header()->usr_msg_type();
 
