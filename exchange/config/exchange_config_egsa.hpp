@@ -69,11 +69,11 @@ typedef std::map<const std::string, egsa_config_site_item_t*> egsa_config_sites_
 
 // Характеристика одного цикла из конфигурации
 typedef struct {
-  std::string name;
-  cycle_id_t id;
-  int period;
-  std::string request_name;
-  std::vector <std::string> sites;
+  std::string name; // Название Цикла, берется из файла конфигурации
+  cycle_id_t id;    // Числовой уникальный идентификатор Цикла, берется из таблицы связи "Имя"<->"ID"
+  int period;       // Период активации в секундах
+  std::string request_name;         // TODO: непонятно назначение связанного с Циклом Запроса
+  std::vector <std::string> sites;  // Список Сайтов, задействованных в Цикле, берется из конфигурации
 } egsa_config_cycle_info_t;
 
 // Характеристика одного Запроса из конфигурации

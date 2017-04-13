@@ -9,6 +9,52 @@
 // Callback один на все события, и для различия разных циклов в нем указан код цикла
 /////////////////////////////////////////////////////////////////////////////////////////
 
+#if 0
+// http://stackoverflow.com/questions/19467485/how-to-remove-element-not-at-top-from-priority-queue
+//
+template<typename T>
+class custom_priority_queue : public std::priority_queue<T, std::vector<T>>
+{
+  public:
+
+      bool remove(const T& value) {
+        auto it = std::find(this->c.begin(), this->c.end(), value);
+        if (it != this->c.end()) {
+            this->c.erase(it);
+            std::make_heap(this->c.begin(), this->c.end(), this->comp);
+            return true;
+       }
+       else {
+        return false;
+       }
+ }
+};
+
+void main()
+{
+   custom_priority_queue<int> queue;
+
+   queue.push(10);
+   queue.push(2);
+   queue.push(4);
+   queue.push(6);
+   queue.push(3);
+
+   queue.remove(6);
+
+   while (!queue.empty())
+   {
+      std::cout << queue.top();
+      queue.pop();
+
+      if (!queue.empty())
+      {
+        std::cout << ", ";
+      }
+   }
+
+ }
+#endif
 namespace events
 {
     struct event
@@ -31,10 +77,10 @@ namespace events
 
     struct event_less : public std::less<event>
     {
-            bool operator()(const event &e1, const event &e2) const
-                {
-                    return (e2.when_ < e1.when_);
-                }
+        bool operator()(const event &e1, const event &e2) const
+        {
+            return (e2.when_ < e1.when_);
+        }
     };
 
     std::priority_queue<event, std::vector<event>, event_less> event_queue;
@@ -67,6 +113,20 @@ namespace events
         event_queue.pop();
       }
     }
+
+/*
+    bool remove(const event& ev) {
+      auto it = std::find(event_queue.begin(), event_queue.end(), ev);
+      if (it != event_queue.end()) {
+            event_queue.erase(it);
+            std::make_heap(event_queue.begin(), event_queue.end(), event_less);
+            return true;
+      }
+      else {
+        return false;
+      }
+    }
+*/
 
     void timer()
     {

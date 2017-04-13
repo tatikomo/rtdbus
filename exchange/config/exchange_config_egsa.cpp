@@ -267,7 +267,7 @@ int EgsaConfig::load_cycles()
         m_cycles.insert(std::pair<std::string, egsa_config_cycle_info_t*>(cycle_info->name, cycle_info));
       }
       else {
-        LOG(ERROR) << "Skip unknown cycle name: " << possible_cycle_name;
+        LOG(ERROR) << "Skip unsupported cycle name: " << possible_cycle_name;
       }
     }
   }
@@ -282,7 +282,6 @@ int EgsaConfig::load_sites()
   const char* fname = "load_sites";
   egsa_config_site_item_t *item;
   int rc = OK;
-  size_t site_idx = 0;
 
   LOG(INFO) << fname << ": CALL";
 
@@ -318,7 +317,6 @@ int EgsaConfig::load_sites()
 
       item->auto_init = cycle_item[s_SECTION_SITES_NAME_AUTO_INIT].GetInt();
       item->auto_gencontrol = cycle_item[s_SECTION_SITES_NAME_AUTO_GENCONTROL].GetInt();
-      //item->id = site_idx++;
 
       m_sites[item->name] = item;
 
@@ -396,7 +394,7 @@ int EgsaConfig::load_requests()
           LOG(WARNING) << "Unsupported value '" << s_mode << "' as MODE";
           rc = NOK;
         }
-        LOG(INFO) << item->name << ":" << (unsigned int)item->priority << ":" << s_object << ":" << s_mode;
+       // LOG(INFO) << item->name << ":" << (unsigned int)item->priority << ":" << s_object << ":" << s_mode;
       }
       else {
         LOG(INFO) << item->name << ":" << (unsigned int)item->priority << ":" << s_object;

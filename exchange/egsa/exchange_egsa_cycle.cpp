@@ -11,6 +11,7 @@
 #include "glog/logging.h"
 
 // Служебные файлы RTDBUS
+#include "exchange_egsa_site.hpp"
 #include "exchange_egsa_cycle.hpp"
 #include "tool_timer.hpp"
 
@@ -96,7 +97,6 @@ int Cycle::deactivate()
   m_CycleTimer->stop();
   return OK;
 }
-#endif
 
 // ===================================================================================================
 // Проверить, зарегистрирована ли указанная СС в данном Цикле
@@ -105,13 +105,13 @@ bool Cycle::exist_for_SA(const std::string& sa_name)
   bool found = false;
 
   // Ищем, если есть список сайтов не пуст
-  if (m_AcqSites.size() > 0) {
+  if (site_list.size() > 0) {
     // Проверить все связанные СС
-    for (std::vector<acq_site_state_t>::const_iterator it = m_AcqSites.begin();
-         it != m_AcqSites.end();
-         ++it) {
+    for (std::vector<AcqSiteEntry*>::const_iterator sit = m_AcqSites.begin();
+         sit != m_AcqSites.end();
+         ++sit) {
       // Если найдена СС, имеющая этот цикл
-      if (0 == sa_name.compare((*it).site)) {
+      if (0 == sa_name.compare((*sit)->name())) {
         LOG(INFO) << "found cycle: " << m_CycleName << " for " << sa_name;
         found = true;
         break;
@@ -121,25 +121,22 @@ bool Cycle::exist_for_SA(const std::string& sa_name)
 
   return found;
 }
+#endif
 
 // ===================================================================================================
 // Зарегистрировать указанную СС в этом Цикле
-int Cycle::register_SA(const std::string& sa_name)
+int Cycle::link(AcqSiteEntry* site)
 {
-  acq_site_state_t info;
   int rc = NOK;
 
-  if (!exist_for_SA(sa_name)) {
-
-    strncpy(info.site, sa_name.c_str(), TAG_NAME_MAXLEN);
-    info.id = m_AcqSites.size();
-    info.HCpuLoadReqState = 0; // GEV: определить значение по умолчанию!
-    m_AcqSites.push_back(info);
-    LOG(INFO) << "Link SA " << sa_name << " with cycle " << m_CycleName;
+  // Добавить Сайт, если он ранее уже не был добавлен
+  if (!m_SiteList[site->name()]) {
+    m_SiteList.insert(site);
+    //LOG(INFO) << "Link " << site->name() << " with cycle " << m_CycleName;
     rc = OK;
   }
   else {
-    LOG(WARNING) << "Try to register in " << m_CycleName << " already known SA: " << sa_name;
+    LOG(WARNING) << "Try to register in " << m_CycleName << " already known SA: " << site->name();
   }
 
   return rc;

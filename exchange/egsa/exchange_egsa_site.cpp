@@ -96,20 +96,44 @@ int AcqSiteList::detach_from_smad(const char* name)
 // ==============================================================================
 void AcqSiteList::insert(AcqSiteEntry* the_new_one)
 {
-  // Занести новый элемент в массив, и запомнить его индекс
-  const int new_item_idx = m_items.size();
-
   m_items.push_back(the_new_one);
-  // Связать название СС и полученный недавно индекс
-  m_site_map[the_new_one->name()] = new_item_idx;
 }
 
 // ==============================================================================
 // Вернуть элемент по имени Сайта
 AcqSiteEntry* AcqSiteList::operator[](const char* name)
 {
-  size_t idx = m_site_map[name];
-  AcqSiteEntry* entry = m_items.at(idx);
+  AcqSiteEntry *entry = NULL;
+
+  for(std::vector<AcqSiteEntry*>::const_iterator it = m_items.begin();
+      it != m_items.end();
+      ++it)
+  {
+    if (0 == std::strcmp((*it)->name(), name)) {
+      entry = (*it);
+      break;
+    }
+  }
+
+  return entry;
+}
+
+// ==============================================================================
+// Вернуть элемент по имени Сайта
+AcqSiteEntry* AcqSiteList::operator[](const std::string& name)
+{
+  AcqSiteEntry *entry = NULL;
+
+  for(std::vector<AcqSiteEntry*>::const_iterator it = m_items.begin();
+      it != m_items.end();
+      ++it)
+  {
+    if (0 == name.compare((*it)->name())) {
+      entry = (*it);
+      break;
+    }
+  }
+
   return entry;
 }
 
@@ -135,5 +159,7 @@ int AcqSiteList::release()
     delete (*it);
   }
   m_site_map.clear();
+
+  return OK;
 }
 // ==============================================================================

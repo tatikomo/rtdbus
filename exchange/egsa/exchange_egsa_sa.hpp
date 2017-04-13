@@ -68,7 +68,7 @@ class SystemAcquisition
     // Ссылка на внутреннюю SMAD
     InternalSMAD     *m_smad;
     // Циклы СС
-    std::vector<Cycle*>* m_cycles;
+//    std::vector<Cycle*>* m_cycles;
 
     // Набор таймеров внутренних событий
     Timer *m_timer_CONNECT;
@@ -80,7 +80,7 @@ class SystemAcquisition
     Timer *m_timer_TELEREGULATION;
 
     // Найти циклы, в которых участвует данная система сбора
-    std::vector<Cycle*>* look_my_cycles();
+//    std::vector<Cycle*>* look_my_cycles();
     // Послать сообщение инициализации
     void init();
     void process_end_all_init(); // Сообщение о завершении инициализации 

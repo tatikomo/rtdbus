@@ -164,17 +164,40 @@ int EGSA::load_config()
   // очередь актуальных Запросов.
 
   // 1) Создать объект-список Сайтов
-  for (egsa_config_sites_t::const_iterator it = m_egsa_config->sites().begin();
-       it != m_egsa_config->sites().end();
-       ++it)
+  for (egsa_config_sites_t::const_iterator sit = config()->sites().begin();
+       sit != config()->sites().end();
+       ++sit)
   {
-   // (*it).second->id = m_ega_ega_odm_ar_AcqSites.size();
+    AcqSiteEntry* site = new AcqSiteEntry(this, (*sit).second);
 #warning "Проверь, нужен ли доступ к EGSA внутри AcqSiteEntry"
-    m_ega_ega_odm_ar_AcqSites.insert(new AcqSiteEntry(this, (*it).second));
+    m_ega_ega_odm_ar_AcqSites.insert(site);
   }
-
   // 2) Создать список Циклов
+  for(egsa_config_cycles_t::const_iterator cit = config()->cycles().begin();
+      cit != config()->cycles().end();
+      ++cit)
+  {
+      // Создадим экземпляр Цикла, удалится он в деструкторе EGSA
+      Cycle *cycle = new Cycle((*cit).first.c_str(),
+                               (*cit).second->period,
+                               (*cit).second->id,
+                               CYCLE_NORMAL);
 
+      // Для данного цикла получить все использующие его сайты
+      for(std::vector <std::string>::const_iterator sit = (*cit).second->sites.begin();
+          sit != (*cit).second->sites.end();
+          ++sit)
+      {
+        // Найти AcqSiteEntry для текущей SA в m_ega_ega_odm_ar_AcqSites
+        AcqSiteEntry* site = m_ega_ega_odm_ar_AcqSites[(*sit)];
+        cycle->link(site);
+      }
+      //
+      cycle->dump();
+
+      // Ввести в оборот новый Цикл сбора, вернуть новый размер очереди циклов
+      m_ega_ega_odm_ar_Cycles.insert(cycle);
+  }
 
   return rc;
 }
@@ -557,21 +580,11 @@ void EGSA::fire_ENDALLINIT()
 }
 
 // ==========================================================================================================
-// Ввести в оборот новый Цикл сбора, вернуть новый размер очереди циклов
-size_t EGSA::push_cycle(Cycle* _cycle)
-{
-  assert(_cycle);
-  m_ega_ega_odm_ar_Cycles.insert(_cycle);
-
-  return m_ega_ega_odm_ar_Cycles.size();
-}
-
-// ==========================================================================================================
 // Активировать циклы
 int EGSA::activate_cycles()
 {
   auto now = std::chrono::system_clock::now();
-  int cycle_idx = 0;
+  int site_idx; // Порядковый номер Сайта в списке для данного Цикла
 
   // Пройти по всем возможным Циклам
   for (size_t idx = ID_CYCLE_GENCONTROL; idx < ID_CYCLE_UNKNOWN; idx++)
@@ -581,18 +594,16 @@ int EGSA::activate_cycles()
 
     if (cycle) {
       // Для каждого Цикла активировать столько экземпляров, сколько в нем объявлено Сайтов
-      for (std::vector<acq_site_state_t>::iterator sit = cycle->sites().begin();
-           sit != cycle->sites().end();
-           ++sit)
+      for (size_t sid = 0, site_idx = 0; sid < cycle->sites().size(); sid++, site_idx++)
       {
-      LOG(INFO) << "Activate cycle: " << cycle->name()
-                << " id=" << cycle->id()
-                << " period=" << cycle->period()
-                << " (sec), SA: " << (*sit).site << " id=" << (*sit).id;
+        LOG(INFO) << "Activate cycle: " << cycle->name()
+                  << " id=" << cycle->id()
+                  << " period=" << cycle->period()
+                  << " SA: " << cycle->sites()[sid]->name() << " id=" << site_idx;
 
-      // Связать триггер с объектом, идентификаторами Цикла и Системы Сбора
-      events::add(std::bind(&EGSA::cycle_trigger, this, cycle->id(), (*sit).id),
-                  now /*+ std::chrono::seconds((*it)->period())*/); // Время активации: сейчас (+ период цикла?)
+        // Связать триггер с объектом, идентификаторами Цикла и Системы Сбора
+        events::add(std::bind(&EGSA::cycle_trigger, this, cycle->id(), site_idx),
+                    now /*+ std::chrono::seconds((*it)->period())*/); // Время активации: сейчас (+ период цикла?)
       }
     }
     else {
@@ -620,19 +631,18 @@ int EGSA::deactivate_cycles()
 
 // ==========================================================================================================
 // Функция срабатывания при наступлении времени очередного таймера
-// На входе получет порядковые номера Цикла и СС из m_ega_ega_odm_ar_Cycles
-// Для каждой СС периоды Циклов одинаковы, но свое время начала.
+// На входе
+// cycle_id : идентификатор номера Цикла из m_ega_ega_odm_ar_Cycles
+// sa_id    : локальный идентификатор СС для этого Цикла (NB: они не совпадают с id из m_ega_ega_odm_ar_Sites)
+// Для каждой СС периоды Циклов одинаковы, но время начала индивидуально.
 // sa_id == -1 означает, что Цикл общий для всех его СС.
 void EGSA::cycle_trigger(size_t cycle_id, size_t sa_id)
 {
   int rc = OK;
   int delta_sec;
 
-  //LOG(WARNING) << "cycle: " << m_ega_ega_odm_ar_Cycles.size() << ":" << cycle_id;
-  //LOG(WARNING) << "site: " << m_ega_ega_odm_ar_AcqSites.size() << ":" << sa_id;
-
-  AcqSiteEntry *site = m_ega_ega_odm_ar_AcqSites[sa_id];
   Cycle *cycle = m_ega_ega_odm_ar_Cycles[cycle_id];
+  AcqSiteEntry *site = cycle->sites()[sa_id];
   
   assert(site);
   assert(cycle);
@@ -1087,6 +1097,7 @@ int EGSA::handle_stop(msg::Letter* letter, const std::string& identity)
   return rc;
 }
 
+#if 0
 // ==========================================================================================================
 // Получить набор циклов, в которых участвует заданная СС
 std::vector<Cycle*> *EGSA::get_Cycles_for_SA(const std::string& sa_name)
@@ -1094,7 +1105,7 @@ std::vector<Cycle*> *EGSA::get_Cycles_for_SA(const std::string& sa_name)
   std::vector<Cycle*> *search_result = NULL;
 
   // СС может быть заявлена в нескольких циклах, проверить их все
-  for (int idx = 0; idx < m_ega_ega_odm_ar_Cycles.size(); idx++)
+  for (size_t idx = 0; idx < m_ega_ega_odm_ar_Cycles.size(); idx++)
   {
     //LOG(INFO) << sa_name << ":" << (*it)->name();
     Cycle* cycle = m_ega_ega_odm_ar_Cycles[idx];
@@ -1120,4 +1131,5 @@ std::vector<Request*> *EGSA::get_Request_for_SA(const std::string& sa_name)
   return NULL;
 }
 
+#endif
 // ==========================================================================================================

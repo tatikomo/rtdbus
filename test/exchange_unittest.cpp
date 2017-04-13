@@ -222,52 +222,19 @@ TEST(TestEXCHANGE, EGSA_CYCLES)
 //  ega_ega_odm_t_RequestEntry* req_entry_dict = NULL;
   int rc;
 
-  LOG(INFO) << "echo " << g_egsa_instance->config()->cycles().size();
-
-  for(egsa_config_cycles_t::const_iterator it = g_egsa_instance->config()->cycles().begin();
-      it != g_egsa_instance->config()->cycles().end();
-      ++it)
-  {
-#if 0
-    // Найти запрос с именем (*it).second->request_name в m_requests_table[]
-    if (OK == get_request_by_name((*it).second->request_name, req_entry_dict)) {
-#endif
-      // Создадим экземпляр Цикла, удалится он в деструкторе EGSA
-      Cycle *cycle = new Cycle((*it).first.c_str(),
-                               (*it).second->period,
-                               (*it).second->id,
-                               CYCLE_NORMAL);
-
-      // Для данного цикла получить все использующие его сайты
-      for(std::vector <std::string>::const_iterator its = (*it).second->sites.begin();
-          its != (*it).second->sites.end();
-          ++its)
-      {
-        cycle->register_SA((*its));
-      }
-      //
-      //
-      //
-      cycle->dump();
-      // Передать объект Цикл в подчинение EGSA
-      g_egsa_instance->push_cycle(cycle);
-#if 0
-    }
-#endif
-  }
-
   LOG(INFO) << "BEGIN cycles activates testing";
   rc = g_egsa_instance->activate_cycles();
   EXPECT_TRUE(rc == OK);
 
-//  g_egsa_instance->wait(16);
+  g_egsa_instance->wait(16);
+  /*
   for (int i=0; i<20; i++) {
     std::cout << ".";
     fflush(stdout);
     g_egsa_instance->tick_tack();
     sleep(1);
   }
-  std::cout << std::endl;
+  std::cout << std::endl;*/
   rc = g_egsa_instance->deactivate_cycles();
   LOG(INFO) << "END cycles activates testing";
 }
@@ -363,6 +330,7 @@ TEST(TestEXCHANGE, EGSA_RUN)
 }
 #endif
 
+/*
 TEST(TestEXCHANGE, EGSA_ENDALLINIT)
 {
   const std::string identity = "RTDBUS_BROKER";
@@ -370,8 +338,6 @@ TEST(TestEXCHANGE, EGSA_ENDALLINIT)
   bool is_stop = false;
 
   EXPECT_TRUE(message_end_all_init != NULL);
-//1  int prc = g_egsa_instance->processing(message_end_all_init, identity, is_stop);
-//1  EXPECT_TRUE(prc == OK);
   EXPECT_TRUE(is_stop == false);
  
 #if 1
@@ -386,6 +352,7 @@ TEST(TestEXCHANGE, EGSA_ENDALLINIT)
 
   delete message_end_all_init;
 }
+*/
 
 #if 0
 TEST(TestEXCHANGE, EGSA_STOP)

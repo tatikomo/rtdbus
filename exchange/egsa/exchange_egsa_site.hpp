@@ -9,18 +9,17 @@
 // Общесистемные заголовочные файлы
 #include <vector>
 #include <map>
-#include <cstring>
 
 // Служебные заголовочные файлы сторонних утилит
 // Служебные файлы RTDBUS
 // Конфигурация
 // Внешняя память, под управлением EGSA
 #include "exchange_egsa_init.hpp"
-#include "exchange_egsa_sa.hpp"
 #include "exchange_config_egsa.hpp"
 #include "exchange_config.hpp"
 
 class EGSA;
+class SystemAcquisition;
 
 // ==============================================================================
 // Acquisition Site Entry Structure
@@ -122,6 +121,8 @@ class AcqSiteList {
 
     // Вернуть элемент по имени Сайта
     AcqSiteEntry* operator[](const char*);
+    // Вернуть элемент по имени Сайта
+    AcqSiteEntry* operator[](const std::string&);
     // Вернуть элемент по индексу
     AcqSiteEntry* operator[](const std::size_t);
 
@@ -130,10 +131,10 @@ class AcqSiteList {
     struct map_cmp_str {
       // Оператор сравнения строк в m_site_map.
       // Иначе происходит арифметическое сравнение значений указателей, но не содержимого строк
-      bool operator()(char const *a, char const *b) { return std::strcmp(a, b) < 0; }
+      bool operator()(const std::string& a, const std::string& b) { return a.compare(b) < 0; }
     };
     // Связь между названием СС и её данными
-    typedef std::map<const char*, size_t, map_cmp_str> system_acquisition_list_t;
+    typedef std::map<const std::string, size_t, map_cmp_str> system_acquisition_list_t;
 
     std::vector<AcqSiteEntry*> m_items;
     // Связь между названием СС и её индексом в m_items

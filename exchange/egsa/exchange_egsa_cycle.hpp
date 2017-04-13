@@ -6,11 +6,17 @@
 #include "config.h"
 #endif
 
-#include <string.h>
+// Общесистемные заголовочные файлы
 #include <iostream>
+#include <vector>
+#include <string>
 
+// Служебные заголовочные файлы сторонних утилит
+
+// Служебные файлы RTDBUS
 #include "exchange_egsa_init.hpp"
 #include "exchange_config_egsa.hpp"
+#include "exchange_egsa_site.hpp"
 
 #if 0
 // ==============================================================================
@@ -36,7 +42,6 @@ typedef struct {
 	bool            ab_HCpuLoadReqState[ECH_D_MAXNBSITES];
 	Timer*          r_CycleTimer;
 } ega_ega_odm_t_CycleEntity; // GEV =/= ega_ega_odm_t_CycleEntry
-#endif
 
 typedef struct {
   // Тег сайта
@@ -45,11 +50,27 @@ typedef struct {
   // State indicator of the high CPU loading request: 1-> request treated, 0-> request to treat
   int HCpuLoadReqState; // TODO: определить допустимые значения
 } acq_site_state_t;
+#endif
 
 //class Timer;
 //class CycleTrigger;
 
 class Cycle {
+
+  protected:
+    // name of the cyclic operation
+	char            m_CycleName[EGA_EGA_D_LGCYCLENAME+1];
+    // family of the cyle : normal or high CPU loading
+	cycle_family_t  m_CycleFamily;
+    // Цикличность в секундах
+	int             m_CyclePeriod;
+    // Идентификатор
+    cycle_id_t      m_CycleId;
+    // identifiers of the concerned acquisition sites
+	AcqSiteList     m_SiteList;
+	//Timer*          m_CycleTimer;
+    //CycleTrigger*   m_CycleTrigger;
+    //
   public:
     ~Cycle();
 
@@ -66,48 +87,45 @@ class Cycle {
     int deactivate();
 #endif
     // Проверить, зарегистрирована ли указанная СС в данном Цикле
-    bool exist_for_SA(const std::string&);
+    //bool exist_for_SA(const std::string&);
     // Зарегистрировать указанную СС в этом Цикле
-    int register_SA(const std::string&);
+    int link(AcqSiteEntry*);
     // Список сайтов
-    std::vector<acq_site_state_t>& sites() { return m_AcqSites; };
+    AcqSiteList& sites() { return m_SiteList; };
 
+    // Конструктор экземпляра "Цикл"
+    // Все параметры проверяются на корректность при чтении из конфигурационного файла
+    // _name    : название Цикла, читается из конфигурации
+    // _period  : интервалы между активациями
+    // _id      : уникальный числовой идентификатор Цикла
+    // _family  : тип Цикла
     Cycle(const char* _name, int _period, cycle_id_t _id, cycle_family_t _family)
       : m_CycleFamily(_family),
         m_CyclePeriod(_period),
         m_CycleId(_id)
         /*m_CycleTimer(NULL),
         m_CycleTrigger(NULL)*/
-        
     {
       strncpy(m_CycleName, _name, EGA_EGA_D_LGCYCLENAME);
       m_CycleName[EGA_EGA_D_LGCYCLENAME] = '\0';
 
-      m_AcqSites.clear();
+      //m_SiteList.clear();
     };
 
     void dump() {
       std::cout << "Cycle name:" << m_CycleName << " family:" << (int)m_CycleFamily
-                << " period:" << (int)m_CyclePeriod << " id:" << (int)m_CycleId
-                << std::endl;
+                << " period:" << (int)m_CyclePeriod << " id:" << (int)m_CycleId << " ";
+      if (m_SiteList.size()) {
+        std::cout << "sites: " << m_SiteList.size() << " [";
+        for(size_t i=0; i < m_SiteList.size(); i++) {
+          std::cout << " " << m_SiteList[i]->name();
+        }
+        std::cout << " ]";
+      }
+      std::cout << std::endl;
     };
 
-  protected:
-    // name of the cyclic operation
-	char            m_CycleName[EGA_EGA_D_LGCYCLENAME+1];
-    // family of the cyle : normal or high CPU loading
-	cycle_family_t  m_CycleFamily;
-    // Цикличность в секундах
-	int             m_CyclePeriod;
-    // Идентификатор
-    cycle_id_t      m_CycleId;
-    // identifiers of the concerned acquisition sites
-	std::vector<acq_site_state_t> m_AcqSites;
-	//Timer*          m_CycleTimer;
-    //CycleTrigger*   m_CycleTrigger;
-
   private:
-
 };
 
 class CycleList

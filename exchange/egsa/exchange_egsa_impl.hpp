@@ -43,9 +43,9 @@ class EGSA : public mdp::mdwrk {
     int run();
 
     // Получить набор циклов, в которых участвует заданная СС
-    std::vector<Cycle*>   *get_Cycles_for_SA(const std::string&);
+//    std::vector<Cycle*>   *get_Cycles_for_SA(const std::string&);
     // Получить набор запросов, зарегистрированных за данной СС
-    std::vector<Request*> *get_Request_for_SA(const std::string&);
+//    std::vector<Request*> *get_Request_for_SA(const std::string&);
 
     //============================================================================
 #ifdef _FUNCTIONAL_TEST

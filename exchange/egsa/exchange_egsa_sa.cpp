@@ -34,7 +34,7 @@ SystemAcquisition::SystemAcquisition(EGSA* egsa,
   : m_egsa(egsa),
     m_info(entry),
     m_smad(NULL),
-    m_cycles(NULL),
+//    m_cycles(NULL),
     m_timer_CONNECT(NULL),
     m_timer_RESPONSE(NULL),
     m_timer_INIT(NULL),
@@ -74,7 +74,7 @@ SystemAcquisition::SystemAcquisition(EGSA* egsa,
 #endif
   }
 
-  m_cycles = look_my_cycles();
+//  m_cycles = look_my_cycles();
 
   delete sa_config;
 }
@@ -84,7 +84,7 @@ SystemAcquisition::~SystemAcquisition()
 {
   LOG(INFO) << "Destructor SA " << m_info->name();
   delete m_smad;
-  delete m_cycles;
+//  delete m_cycles;
 
   delete m_timer_CONNECT;
   delete m_timer_RESPONSE;
@@ -126,6 +126,7 @@ int SystemAcquisition::send(int msg_id)
   return rc;
 }
 
+#if 0
 // -----------------------------------------------------------------------------------
 // Найти циклы, в которых участвует данная система сбора
 // NB: удалить возвращаемый объект после использования
@@ -148,6 +149,7 @@ std::vector<Cycle*>* SystemAcquisition::look_my_cycles()
 
   return cycles;
 }
+#endif
 
 // -----------------------------------------------------------------------------------
 // TODO: послать сообщение об инициализации каждой системе
