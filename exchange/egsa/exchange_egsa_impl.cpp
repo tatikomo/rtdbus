@@ -36,6 +36,7 @@
 #include "exchange_egsa_sa.hpp"
 #include "exchange_egsa_site.hpp"
 #include "exchange_egsa_impl.hpp"
+#include "exchange_egsa_request.hpp"
 #include "exchange_egsa_request_cyclic.hpp"
 #include "xdb_common.hpp"
 
@@ -72,14 +73,6 @@ EGSA::~EGSA()
   delete m_ext_smad;
   delete m_egsa_config;
   delete m_message_factory;
-
-  for (std::vector<Cycle*>::iterator it = m_ega_ega_odm_ar_Cycles.begin();
-       it != m_ega_ega_odm_ar_Cycles.end();
-       ++it)
-  {
-    LOG(INFO) << "free cycle " << (*it)->name();
-    delete (*it);
-  }
 }
 
 // ==========================================================================================================
@@ -132,7 +125,11 @@ int EGSA::init()
 }
 
 // ==========================================================================================================
-#warning "Зачем дублировать в m_ega_ega_odm_ar_AcqSites информацию из m_egsa_config->sites() ?"
+// На входе информация из конфигурационного файла. Она может содержать неотсортированные данные.
+// То есть m_egsa_config->load() выполняет первый проход по обработке информации - проверяет ее на
+// корректность и загружает все в символьном виде (названия Циклов, Сайтов и типов Запросов)
+// Второй проход обработки заключается в переходе от символьного представления НСИ к идентификаторам
+// и ссылкам, для ускорения работы
 int EGSA::load_config()
 {
   int rc = OK;
@@ -144,7 +141,11 @@ int EGSA::load_config()
 
     delete m_egsa_config;
     m_ega_ega_odm_ar_AcqSites.release();
+    // Sites.release();
+    // Requests.release();
   }
+
+  m_ega_ega_odm_ar_AcqSites.set_egsa(this);
 
   // Открыть конфигурацию
   m_egsa_config = new EgsaConfig("egsa.json");
@@ -152,14 +153,28 @@ int EGSA::load_config()
   // Прочитать информацию по сайтам и циклам
   m_egsa_config->load();
 
-  // По списку известных нам систем сбора создать интерфейсы к их SMAD
+
+  // Сейчас загружены списки актуальных Циклов, Запросов, Сайтов:
+  // m_egsa_config->sites()
+  // m_egsa_config->cycles()
+  // m_egsa_config->requests()
+  //
+  // TODO: сформировать БД, содержащую все используемые Циклы, каждый из
+  // которых содержит ссылки на Сайты, которые в свою очередь содержат
+  // очередь актуальных Запросов.
+
+  // 1) Создать объект-список Сайтов
   for (egsa_config_sites_t::const_iterator it = m_egsa_config->sites().begin();
        it != m_egsa_config->sites().end();
        ++it)
   {
+   // (*it).second->id = m_ega_ega_odm_ar_AcqSites.size();
 #warning "Проверь, нужен ли доступ к EGSA внутри AcqSiteEntry"
     m_ega_ega_odm_ar_AcqSites.insert(new AcqSiteEntry(this, (*it).second));
   }
+
+  // 2) Создать список Циклов
+
 
   return rc;
 }
@@ -546,7 +561,7 @@ void EGSA::fire_ENDALLINIT()
 size_t EGSA::push_cycle(Cycle* _cycle)
 {
   assert(_cycle);
-  m_ega_ega_odm_ar_Cycles.push_back(_cycle);
+  m_ega_ega_odm_ar_Cycles.insert(_cycle);
 
   return m_ega_ega_odm_ar_Cycles.size();
 }
@@ -558,23 +573,30 @@ int EGSA::activate_cycles()
   auto now = std::chrono::system_clock::now();
   int cycle_idx = 0;
 
-  for (std::vector<Cycle*>::iterator cit = m_ega_ega_odm_ar_Cycles.begin();
-       cit != m_ega_ega_odm_ar_Cycles.end();
-       ++cit)
+  // Пройти по всем возможным Циклам
+  for (size_t idx = ID_CYCLE_GENCONTROL; idx < ID_CYCLE_UNKNOWN; idx++)
   {
-    LOG(INFO) << "GEV " << (*cit)->name() << " " << (*cit)->sites().size();
-    // Для каждого Цикла активировать столько экземпляров, сколько в нем объявлено Сайтов
-    for (std::vector<acq_site_state_t>::iterator sit = (*cit)->sites().begin();
-         sit != (*cit)->sites().end();
-         ++sit)
-    {
-    LOG(INFO) << "Activate cycle: " << (*cit)->name()
-              << " period: " << (*cit)->period()
-              << " (sec), SA: " << (*sit).site;
+    // Вернет экземпляр, если таковой Цикл используется
+    Cycle* cycle = m_ega_ega_odm_ar_Cycles[idx];
 
-    // Связать триггер с объектом, идентификаторами Цикла и Системы Сбора
-    events::add(std::bind(&EGSA::cycle_trigger, this, (*cit)->id(), 100),
-                now /*+ std::chrono::seconds((*it)->period())*/); // Время активации: сейчас (+ период цикла?)
+    if (cycle) {
+      // Для каждого Цикла активировать столько экземпляров, сколько в нем объявлено Сайтов
+      for (std::vector<acq_site_state_t>::iterator sit = cycle->sites().begin();
+           sit != cycle->sites().end();
+           ++sit)
+      {
+      LOG(INFO) << "Activate cycle: " << cycle->name()
+                << " id=" << cycle->id()
+                << " period=" << cycle->period()
+                << " (sec), SA: " << (*sit).site << " id=" << (*sit).id;
+
+      // Связать триггер с объектом, идентификаторами Цикла и Системы Сбора
+      events::add(std::bind(&EGSA::cycle_trigger, this, cycle->id(), (*sit).id),
+                  now /*+ std::chrono::seconds((*it)->period())*/); // Время активации: сейчас (+ период цикла?)
+      }
+    }
+    else {
+      LOG(ERROR) << "Skip missing cycle id=" << idx;
     }
   }
 
@@ -587,12 +609,11 @@ int EGSA::deactivate_cycles()
 {
   int cycle_idx = 0;
 
-  for (std::vector<Cycle*>::iterator it = m_ega_ega_odm_ar_Cycles.begin();
-       it != m_ega_ega_odm_ar_Cycles.end();
-       ++it)
-  {
-    LOG(INFO) << "Deactivate cycle id " << cycle_idx++ << ": " << (*it)->name();
+  for (size_t idx = ID_CYCLE_GENCONTROL; idx < ID_CYCLE_UNKNOWN; idx++) {
+    if (m_ega_ega_odm_ar_Cycles[idx])
+      LOG(INFO) << "Deactivate cycle id=" << idx << ": " << m_ega_ega_odm_ar_Cycles[idx]->name();
   }
+  events::clear();
 
   return OK;
 }
@@ -607,27 +628,33 @@ void EGSA::cycle_trigger(size_t cycle_id, size_t sa_id)
   int rc = OK;
   int delta_sec;
 
-  LOG(INFO) << "\tGEV cycle id=" << cycle_id << " size=" << m_ega_ega_odm_ar_Cycles.size();
-  assert(cycle_id <= m_ega_ega_odm_ar_Cycles.size());
-  LOG(INFO) << "Trigger callback for cycle id=" << cycle_id
-            << " " << m_ega_ega_odm_ar_Cycles.at(cycle_id)->name()
-            << " SA id=" << sa_id;
+  //LOG(WARNING) << "cycle: " << m_ega_ega_odm_ar_Cycles.size() << ":" << cycle_id;
+  //LOG(WARNING) << "site: " << m_ega_ega_odm_ar_AcqSites.size() << ":" << sa_id;
 
-  if ((0 <= cycle_id) && (cycle_id < m_ega_ega_odm_ar_Cycles.size())) {
-    delta_sec = m_ega_ega_odm_ar_Cycles.at(cycle_id)->period();
+  AcqSiteEntry *site = m_ega_ega_odm_ar_AcqSites[sa_id];
+  Cycle *cycle = m_ega_ega_odm_ar_Cycles[cycle_id];
+  
+  assert(site);
+  assert(cycle);
+
+  LOG(INFO) << "Trigger callback for cycle id=" << cycle_id << " (" << cycle->name() << ") "
+            << " SA id=" << sa_id << " (" << site->name() << ")";
+
+  if ((ID_CYCLE_GENCONTROL <= cycle_id) && (cycle_id < ID_CYCLE_UNKNOWN)) {
+    delta_sec = cycle->period();
 
     if (OK == rc) {
-#if VERBOSE>6
-      LOG(INFO) << "Reactivate cycle " << m_ega_ega_odm_ar_Cycles.at(cycle_id)->name();
-#endif
+//#if VERBOSE>6
+      LOG(INFO) << "Reactivate cycle " << cycle->name() << " (" << cycle_id << "," << sa_id << ")";
+//#endif
       auto now = std::chrono::system_clock::now();
-      events::add(std::bind(&EGSA::cycle_trigger, this, cycle_id, 100),
-                  now + std::chrono::seconds(m_ega_ega_odm_ar_Cycles.at(cycle_id)->period()));
+      events::add(std::bind(&EGSA::cycle_trigger, this, cycle_id, sa_id),
+                  now + std::chrono::seconds(cycle->period()));
 
-#if 1
       auto next = now + std::chrono::seconds(delta_sec);
       time_t tt_now    = std::chrono::system_clock::to_time_t ( now );
       time_t tt_future = std::chrono::system_clock::to_time_t ( next );
+#if VERBOSE>6
       LOG(INFO) << "now is: " << ctime(&tt_now);
       LOG(INFO) << "future is: " << ctime(&tt_future);
 #endif
@@ -1067,19 +1094,18 @@ std::vector<Cycle*> *EGSA::get_Cycles_for_SA(const std::string& sa_name)
   std::vector<Cycle*> *search_result = NULL;
 
   // СС может быть заявлена в нескольких циклах, проверить их все
-  for (std::vector<Cycle*>::const_iterator it = m_ega_ega_odm_ar_Cycles.begin();
-       it != m_ega_ega_odm_ar_Cycles.end();
-       ++it)
+  for (int idx = 0; idx < m_ega_ega_odm_ar_Cycles.size(); idx++)
   {
     //LOG(INFO) << sa_name << ":" << (*it)->name();
+    Cycle* cycle = m_ega_ega_odm_ar_Cycles[idx];
     // Если указанная СС заявлена в данном цикле
-    if ((*it)->exist_for_SA(sa_name)) {
+    if (cycle && cycle->exist_for_SA(sa_name)) {
 
       //LOG(INFO) << sa_name << ": found cycle " << (*it)->name();
 
       // Создать вектор с циклами, если это не было сделано ранее
       if (!search_result) search_result = new std::vector<Cycle*>;
-      search_result->push_back(*it);
+      search_result->push_back(cycle);
     }
 
   }

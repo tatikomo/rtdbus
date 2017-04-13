@@ -37,6 +37,7 @@ int AcqSiteEntry::detach_smad()
 
 // ==============================================================================
 AcqSiteList::AcqSiteList()
+ : m_egsa(NULL)
 {
 }
 
@@ -50,6 +51,12 @@ AcqSiteList::~AcqSiteList()
     LOG(INFO) << "free site " << (*it)->name();
     delete (*it);
   }
+}
+
+// ==============================================================================
+void AcqSiteList::set_egsa(EGSA* egsa)
+{
+  m_egsa = egsa;
 }
 
 // ==============================================================================

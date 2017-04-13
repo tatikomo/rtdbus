@@ -19,6 +19,7 @@
 #include "exchange_egsa_init.hpp"
 #include "exchange_egsa_impl.hpp"
 #include "exchange_egsa_sa.hpp"
+#include "exchange_egsa_request.hpp"
 #include "exchange_egsa_request_cyclic.hpp"
 
 #include "proto/rtdbus.pb.h"
@@ -218,8 +219,10 @@ TEST(TestEXCHANGE, EGSA_REQUESTS)
 //
 TEST(TestEXCHANGE, EGSA_CYCLES)
 {
-  ega_ega_odm_t_RequestEntry* req_entry_dict = NULL;
+//  ega_ega_odm_t_RequestEntry* req_entry_dict = NULL;
   int rc;
+
+  LOG(INFO) << "echo " << g_egsa_instance->config()->cycles().size();
 
   for(egsa_config_cycles_t::const_iterator it = g_egsa_instance->config()->cycles().begin();
       it != g_egsa_instance->config()->cycles().end();
@@ -232,17 +235,14 @@ TEST(TestEXCHANGE, EGSA_CYCLES)
       // Создадим экземпляр Цикла, удалится он в деструкторе EGSA
       Cycle *cycle = new Cycle((*it).first.c_str(),
                                (*it).second->period,
-#if 0
-                               req_entry_dict->e_RequestId,
-#else
-                               ECH_D_GENCONTROL,
-#endif
+                               (*it).second->id,
                                CYCLE_NORMAL);
 
       // Для данного цикла получить все использующие его сайты
       for(std::vector <std::string>::const_iterator its = (*it).second->sites.begin();
           its != (*it).second->sites.end();
-          ++its) {
+          ++its)
+      {
         cycle->register_SA((*its));
       }
       //
@@ -304,6 +304,7 @@ TEST(TestEXCHANGE, EGSA_SITES)
 {
   const egsa_config_site_item_t config_item[] = {
     // Имя
+    // |        
     // |        Уровень
     // |        |            Тип
     // |        |            |                      AUTO_INIT
@@ -319,7 +320,7 @@ TEST(TestEXCHANGE, EGSA_SITES)
   check_data[1] = new AcqSiteEntry(g_egsa_instance, &config_item[1]);
   check_data[2] = new AcqSiteEntry(g_egsa_instance, &config_item[2]);
 
-  AcqSiteList& sites_list = g_egsa_instance->get_sites();
+  AcqSiteList& sites_list = g_egsa_instance->sites();
   LOG(INFO) << "EGSA_SITES loads " << sites_list.size() << " sites";
 
   for (size_t i=0; i < sites_list.size(); i++) {

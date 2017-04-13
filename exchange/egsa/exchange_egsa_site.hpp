@@ -33,6 +33,7 @@ class AcqSiteEntry {
       m_AutomaticalGenCtrl(entry->auto_gencontrol),
       m_FunctionalState(SA_STATE_UNKNOWN),
       m_Level(entry->level),
+      // m_Id(entry->id),
       m_InterfaceComponentActive(false),
       m_sa_instance(NULL)
     {
@@ -49,6 +50,7 @@ class AcqSiteEntry {
     bool        auto_i()    const { return m_AutomaticalInit; };
     bool        auto_gc()   const { return m_AutomaticalGenCtrl; };
     sa_state_t  state()     const { return m_FunctionalState; };
+    // size_t      id()        const { return m_Id; };
     sa_object_level_t level() const { return m_Level; };
 
     // TODO: СС и EGSA могут работать на разных хостах, в этом случае подключение EGSA к smad СС
@@ -88,6 +90,8 @@ class AcqSiteEntry {
 
     sa_object_level_t m_Level;
 
+    // size_t m_Id;
+
     // interface component state : active / stopped (TRUE / FALSE)
     bool m_InterfaceComponentActive;
 
@@ -114,6 +118,7 @@ class AcqSiteList {
     int release();
     void insert(AcqSiteEntry*);
     size_t size() const { return m_items.size(); };
+    void set_egsa(EGSA*);
 
     // Вернуть элемент по имени Сайта
     AcqSiteEntry* operator[](const char*);
@@ -121,6 +126,7 @@ class AcqSiteList {
     AcqSiteEntry* operator[](const std::size_t);
 
   private:
+    EGSA* m_egsa;
     struct map_cmp_str {
       // Оператор сравнения строк в m_site_map.
       // Иначе происходит арифметическое сравнение значений указателей, но не содержимого строк

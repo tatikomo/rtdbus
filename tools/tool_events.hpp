@@ -60,6 +60,14 @@ namespace events
         event_queue.emplace(cb, when, 0, 0);
     }
 
+    void clear()
+    {
+      while (!event_queue.empty())
+      {
+        event_queue.pop();
+      }
+    }
+
     void timer()
     {
         event::time_type now = std::chrono::system_clock::now();

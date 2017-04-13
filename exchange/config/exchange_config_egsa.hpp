@@ -26,9 +26,38 @@ typedef struct {
   std::string smad_filename;
 } egsa_common_t;
 
+// Набор допустимых идентификаторов Цикла
+typedef enum {
+  ID_CYCLE_GENCONTROL       = 0,
+  ID_CYCLE_URGINFOS         = 1,
+  ID_CYCLE_INFOSACQ_URG     = 2,
+  ID_CYCLE_INFOSACQ         = 3,
+  ID_CYCLE_INFO_DACQ_DIPADJ = 4,
+  ID_CYCLE_GEN_GACQ_DIPADJ  = 5,
+  ID_CYCLE_GCP_PGACQ_DIPL   = 6,
+  ID_CYCLE_GCS_SGACQ_DIPL   = 7,
+  ID_CYCLE_INFO_DACQ_DIPL   = 8,
+  ID_CYCLE_IAPRIMARY        = 9,
+  ID_CYCLE_IASECOND         = 10,
+  ID_CYCLE_SERVCMD          = 11,
+  ID_CYCLE_INFODIFF         = 12,
+  ID_CYCLE_ACQSYSACQ        = 13,
+  ID_CYCLE_GCT_TGACQ_DIPL   = 14,
+  ID_CYCLE_UNKNOWN          = 15   // Последняя запись, неизвестный цикл
+} cycle_id_t;
+
+const int ID_CYCLE_MAX = ID_CYCLE_UNKNOWN + 1;
+
+// Статическая связка между идентификатором Цикла (его порядковым номером) и его названием
+typedef struct {
+  cycle_id_t  cycle_id;     // Идентификаторы Циклов
+  const char *cycle_name;   // Ссылка на константные названия Циклов
+} cycle_dictionary_item_t;
+
 // Характеристика одного сайта, содержащиеся в конфигурационном файле
 typedef struct {
   std::string name;         // название
+  // size_t id;                // идентификатор
   sa_object_level_t level;  // место в иерархии - выше/ниже/локальный/смежный
   gof_t_SacNature nature;   // тип СС
   bool auto_init;           // флаг необходимости проводить инициализацию связи
@@ -41,6 +70,7 @@ typedef std::map<const std::string, egsa_config_site_item_t*> egsa_config_sites_
 // Характеристика одного цикла из конфигурации
 typedef struct {
   std::string name;
+  cycle_id_t id;
   int period;
   std::string request_name;
   std::vector <std::string> sites;
@@ -119,6 +149,8 @@ class EgsaConfig {
     egsa_config_requests_t& requests() { return m_requests; };
 
   private:
+    cycle_id_t get_cycle_id_by_name(const std::string&);
+
     rapidjson::Document m_document;
     char   *m_config_filename;
     bool    m_config_has_good_format;
@@ -166,8 +198,23 @@ class EgsaConfig {
     static const char*  s_SECTION_REQUESTS_NAME_INC_REQ_NAME;
     egsa_config_requests_t m_requests;
 
-    static const char*  s_CYCLENAME_1;
-    static const char*  s_CYCLENAME_2;
+    static const char*  s_CYCLENAME_GENCONTROL;
+    static const char*  s_CYCLENAME_URGINFOS;
+    static const char*  s_CYCLENAME_INFOSACQ_URG;
+    static const char*  s_CYCLENAME_INFOSACQ;
+    static const char*  s_CYCLENAME_INFO_DACQ_DIPADJ;
+    static const char*  s_CYCLENAME_GEN_GACQ_DIPADJ;
+    static const char*  s_CYCLENAME_GCP_PGACQ_DIPL;
+    static const char*  s_CYCLENAME_GCS_SGACQ_DIPL;
+    static const char*  s_CYCLENAME_INFO_DACQ_DIPL;
+    static const char*  s_CYCLENAME_IAPRIMARY;
+    static const char*  s_CYCLENAME_IASECOND;
+    static const char*  s_CYCLENAME_SERVCMD;
+    static const char*  s_CYCLENAME_INFODIFF;
+    static const char*  s_CYCLENAME_ACQSYSACQ;
+    static const char*  s_CYCLENAME_GCT_TGACQ_DIPL;
+
+    static cycle_dictionary_item_t g_cycle_dictionary[ID_CYCLE_MAX];
 };
 
 #endif

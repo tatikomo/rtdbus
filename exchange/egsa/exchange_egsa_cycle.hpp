@@ -10,6 +10,7 @@
 #include <iostream>
 
 #include "exchange_egsa_init.hpp"
+#include "exchange_config_egsa.hpp"
 
 #if 0
 // ==============================================================================
@@ -40,6 +41,7 @@ typedef struct {
 typedef struct {
   // Тег сайта
   char site[TAG_NAME_MAXLEN + 1];
+  size_t id;
   // State indicator of the high CPU loading request: 1-> request treated, 0-> request to treat
   int HCpuLoadReqState; // TODO: определить допустимые значения
 } acq_site_state_t;
@@ -70,13 +72,11 @@ class Cycle {
     // Список сайтов
     std::vector<acq_site_state_t>& sites() { return m_AcqSites; };
 
-    // TODO: Проверить, нужен ли m_LinkedRequest
-    Cycle(const char* _name, int _period, ech_t_ReqId _linked_req, cycle_family_t _family)
+    Cycle(const char* _name, int _period, cycle_id_t _id, cycle_family_t _family)
       : m_CycleFamily(_family),
         m_CyclePeriod(_period),
-        m_CycleId(0),
-        m_LinkedRequest(_linked_req) /*,
-        m_CycleTimer(NULL),
+        m_CycleId(_id)
+        /*m_CycleTimer(NULL),
         m_CycleTrigger(NULL)*/
         
     {
@@ -88,7 +88,7 @@ class Cycle {
 
     void dump() {
       std::cout << "Cycle name:" << m_CycleName << " family:" << (int)m_CycleFamily
-                << " period:" << (int)m_CyclePeriod << " linked_req:" << (int)m_LinkedRequest
+                << " period:" << (int)m_CyclePeriod << " id:" << (int)m_CycleId
                 << std::endl;
     };
 
@@ -100,10 +100,7 @@ class Cycle {
     // Цикличность в секундах
 	int             m_CyclePeriod;
     // Идентификатор
-    int             m_CycleId;
-    // Ассоциированный запрос
-    // request associated to be transmitted to the acquisition site
-	ech_t_ReqId     m_LinkedRequest;
+    cycle_id_t      m_CycleId;
     // identifiers of the concerned acquisition sites
 	std::vector<acq_site_state_t> m_AcqSites;
 	//Timer*          m_CycleTimer;
@@ -111,6 +108,20 @@ class Cycle {
 
   private:
 
+};
+
+class CycleList
+{
+  public:
+    CycleList();
+   ~CycleList();
+    size_t insert(Cycle*);
+    size_t size() { return m_Cycles.size(); };
+    Cycle* operator[](size_t);
+    Cycle* operator[](const std::string&);
+
+  private:
+    std::vector<Cycle*> m_Cycles;
 };
 
 #endif

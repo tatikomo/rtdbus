@@ -67,8 +67,41 @@ const char* EgsaConfig::s_SECTION_REQUESTS_NAME_MODE            = "MODE";
 const char* EgsaConfig::s_SECTION_REQUESTS_NAME_INC_REQ         = "INCLUDED_REQUESTS";
 const char* EgsaConfig::s_SECTION_REQUESTS_NAME_INC_REQ_NAME    = "NAME";
 // Допустимые значения названий Циклов
-const char* EgsaConfig::s_CYCLENAME_1   = "1";
-const char* EgsaConfig::s_CYCLENAME_2   = "2";
+const char* EgsaConfig::s_CYCLENAME_GENCONTROL       = "GENCONTROL";
+const char* EgsaConfig::s_CYCLENAME_URGINFOS         = "URGINFOS";
+const char* EgsaConfig::s_CYCLENAME_INFOSACQ_URG     = "INFOSACQ_URG";
+const char* EgsaConfig::s_CYCLENAME_INFOSACQ         = "INFOSACQ";
+const char* EgsaConfig::s_CYCLENAME_INFO_DACQ_DIPADJ = "INFO_DACQ_DIPADJ";
+const char* EgsaConfig::s_CYCLENAME_GEN_GACQ_DIPADJ  = "GEN_GACQ_DIPADJ";
+const char* EgsaConfig::s_CYCLENAME_GCP_PGACQ_DIPL   = "GCS_SGACQ_DIPL";
+const char* EgsaConfig::s_CYCLENAME_GCS_SGACQ_DIPL   = "GCS_SGACQ_DIPL";
+const char* EgsaConfig::s_CYCLENAME_INFO_DACQ_DIPL   = "INFO_DACQ_DIPL";
+const char* EgsaConfig::s_CYCLENAME_IAPRIMARY        = "IAPRIMARY";
+const char* EgsaConfig::s_CYCLENAME_IASECOND         = "IASECOND";
+const char* EgsaConfig::s_CYCLENAME_SERVCMD          = "SERVCMD";
+const char* EgsaConfig::s_CYCLENAME_INFODIFF         = "INFODIFF";
+const char* EgsaConfig::s_CYCLENAME_ACQSYSACQ        = "ACQSYSACQ";
+const char* EgsaConfig::s_CYCLENAME_GCT_TGACQ_DIPL   = "GCT_TGACQ_DIPL";
+
+cycle_dictionary_item_t EgsaConfig::g_cycle_dictionary[] = {
+  { ID_CYCLE_GENCONTROL,        EgsaConfig::s_CYCLENAME_GENCONTROL      },
+  { ID_CYCLE_URGINFOS,          EgsaConfig::s_CYCLENAME_URGINFOS        },
+  { ID_CYCLE_INFOSACQ_URG,      EgsaConfig::s_CYCLENAME_INFOSACQ_URG    },
+  { ID_CYCLE_INFOSACQ,          EgsaConfig::s_CYCLENAME_INFOSACQ        },
+  { ID_CYCLE_INFO_DACQ_DIPADJ,  EgsaConfig::s_CYCLENAME_INFO_DACQ_DIPADJ},
+  { ID_CYCLE_GEN_GACQ_DIPADJ,   EgsaConfig::s_CYCLENAME_GEN_GACQ_DIPADJ },
+  { ID_CYCLE_GCP_PGACQ_DIPL,    EgsaConfig::s_CYCLENAME_GCP_PGACQ_DIPL  },
+  { ID_CYCLE_GCS_SGACQ_DIPL,    EgsaConfig::s_CYCLENAME_GCS_SGACQ_DIPL  },
+  { ID_CYCLE_INFO_DACQ_DIPL,    EgsaConfig::s_CYCLENAME_INFO_DACQ_DIPL  },
+  { ID_CYCLE_IAPRIMARY,         EgsaConfig::s_CYCLENAME_IAPRIMARY       },
+  { ID_CYCLE_IASECOND,          EgsaConfig::s_CYCLENAME_IASECOND        },
+  { ID_CYCLE_SERVCMD,           EgsaConfig::s_CYCLENAME_SERVCMD         },
+  { ID_CYCLE_INFODIFF,          EgsaConfig::s_CYCLENAME_INFODIFF        },
+  { ID_CYCLE_ACQSYSACQ,         EgsaConfig::s_CYCLENAME_ACQSYSACQ       },
+  { ID_CYCLE_GCT_TGACQ_DIPL,    EgsaConfig::s_CYCLENAME_GCT_TGACQ_DIPL  },
+  { ID_CYCLE_UNKNOWN,           NULL                                    }
+};
+
 // ==========================================================================================
 EgsaConfig::EgsaConfig(const char* config_filename)
  : m_config_filename(NULL),
@@ -178,10 +211,26 @@ int EgsaConfig::load_common()
 }
 
 // ==========================================================================================
+cycle_id_t EgsaConfig::get_cycle_id_by_name(const std::string& look_name)
+{
+  cycle_id_t look_id = ID_CYCLE_UNKNOWN;
+
+  for(int idx = ID_CYCLE_GENCONTROL; idx < ID_CYCLE_UNKNOWN; idx++) {
+    if (0 == look_name.compare(0, TAG_NAME_MAXLEN, g_cycle_dictionary[idx].cycle_name))  {
+      look_id = static_cast<cycle_id_t>(idx);
+      break;
+    }
+  }
+
+  return look_id;
+}
+
+// ==========================================================================================
 int EgsaConfig::load_cycles()
 {
   const char* fname = "load_cycles";
-  egsa_config_cycle_info_t *item;
+  egsa_config_cycle_info_t *cycle_info = NULL;
+  cycle_id_t cycle_id = ID_CYCLE_UNKNOWN;
   int rc = OK;
 
   // Получение данных по конфигурации Циклов
@@ -192,27 +241,34 @@ int EgsaConfig::load_cycles()
       // Получили доступ к очередному элементу Циклов
       const Value::Object& cycle_item = itr->GetObject();
 
-      item = new egsa_config_cycle_info_t;
+      const std::string possible_cycle_name = cycle_item[s_SECTION_CYCLES_NAME_NAME].GetString();
+      if (ID_CYCLE_UNKNOWN != (cycle_id = get_cycle_id_by_name(possible_cycle_name))) {
+        cycle_info = new egsa_config_cycle_info_t;
 
-      item->name = cycle_item[s_SECTION_CYCLES_NAME_NAME].GetString();
-      item->period = cycle_item[s_SECTION_CYCLES_NAME_PERIOD].GetInt();
-      item->request_name = cycle_item[s_SECTION_CYCLES_NAME_REQUEST].GetString();
+        cycle_info->name = possible_cycle_name;
+        cycle_info->id = cycle_id;
+        cycle_info->period = cycle_item[s_SECTION_CYCLES_NAME_PERIOD].GetInt();
+        cycle_info->request_name = cycle_item[s_SECTION_CYCLES_NAME_REQUEST].GetString();
 
-      // Прочитать массив сайтов, поместить их в m_cycles.sites
-      Value& site_list = cycle_item[s_SECTION_CYCLES_NAME_SITE];
-      int idx = 0;
-      for (Value::ValueIterator itr = site_list.Begin(); itr != site_list.End(); ++itr)
-      {
-        const Value::Object& site_item = itr->GetObject();
-        const std::string site_name = site_item[s_SECTION_CYCLES_NAME_SITE_NAME].GetString();
-        LOG(INFO) << fname << ": " << item->name
-                  << " period=" << item->period
-                  << " req_name=" << item->request_name
-                  << " [" << (++idx) << "] " << site_name;
-        item->sites.push_back(site_name);
+        // Прочитать массив сайтов, поместить их в m_cycles.sites
+        Value& site_list = cycle_item[s_SECTION_CYCLES_NAME_SITE];
+        int idx = 0;
+        for (Value::ValueIterator itr = site_list.Begin(); itr != site_list.End(); ++itr)
+        {
+          const Value::Object& site_item = itr->GetObject();
+          const std::string site_name = site_item[s_SECTION_CYCLES_NAME_SITE_NAME].GetString();
+          LOG(INFO) << fname << ": " << cycle_info->name
+                    << " period=" << cycle_info->period
+                    << " req_name=" << cycle_info->request_name
+                    << " [" << (++idx) << "] " << site_name;
+          cycle_info->sites.push_back(site_name);
+        }
+
+        m_cycles.insert(std::pair<std::string, egsa_config_cycle_info_t*>(cycle_info->name, cycle_info));
       }
-
-      m_cycles.insert(std::pair<std::string, egsa_config_cycle_info_t*>(item->name, item));
+      else {
+        LOG(ERROR) << "Skip unknown cycle name: " << possible_cycle_name;
+      }
     }
   }
   else rc = NOK;
@@ -226,6 +282,7 @@ int EgsaConfig::load_sites()
   const char* fname = "load_sites";
   egsa_config_site_item_t *item;
   int rc = OK;
+  size_t site_idx = 0;
 
   LOG(INFO) << fname << ": CALL";
 
@@ -261,6 +318,7 @@ int EgsaConfig::load_sites()
 
       item->auto_init = cycle_item[s_SECTION_SITES_NAME_AUTO_INIT].GetInt();
       item->auto_gencontrol = cycle_item[s_SECTION_SITES_NAME_AUTO_GENCONTROL].GetInt();
+      //item->id = site_idx++;
 
       m_sites[item->name] = item;
 

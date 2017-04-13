@@ -65,18 +65,22 @@ link_directories(${LIBSQLITE_LIBRARIES_DIR})
 
 set (TEST_EXCHANGE_SOURCES
         ${GTEST_INC_DIR}/gtest/gtest.h
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.cpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_request.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_request.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_request_base.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_request_cyclic.hpp
+        ${EXCHANGE_SMAD_DIR}/exchange_smad_int.hpp
+        ${EXCHANGE_SMAD_DIR}/exchange_smad_ext.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_init.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_init.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_sa.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_sa.cpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_init.hpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_init.cpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.hpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.hpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.hpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.hpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config_sac.hpp

@@ -115,6 +115,8 @@ set (WORKER_EGSA_SOURCES
         ${WORKER_DIR}/wegsa.cpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config.hpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_request.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_request.cpp
         ${EXCHANGE_SMAD_DIR}/exchange_smad_int.hpp
         ${EXCHANGE_SMAD_DIR}/exchange_smad_ext.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.cpp

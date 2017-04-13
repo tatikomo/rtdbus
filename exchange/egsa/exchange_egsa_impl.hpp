@@ -22,6 +22,8 @@
 // Внешняя память, под управлением EGSA
 #include "exchange_egsa_init.hpp"
 #include "exchange_egsa_site.hpp"
+#include "exchange_egsa_cycle.hpp"
+#include "exchange_egsa_request.hpp"
 
 class ExternalSMAD;
 class EgsaConfig;
@@ -56,9 +58,11 @@ class EGSA : public mdp::mdwrk {
     // Доступ к конфигурации
     EgsaConfig* config() { return m_egsa_config; };
     // Доступ к Сайтам
-    AcqSiteList& get_sites() { return m_ega_ega_odm_ar_AcqSites; };
-    // Доступ к циклам
-    const std::vector<Cycle*>& cycles() { return m_ega_ega_odm_ar_Cycles; };
+    AcqSiteList& sites() { return m_ega_ega_odm_ar_AcqSites; };
+    // Доступ к Циклам
+    CycleList& cycles() { return m_ega_ega_odm_ar_Cycles; };
+    // Доступ к Запросам
+    RequestList& requests() { return m_ega_ega_odm_ar_Requests; };
     // Ввести в оборот новый Цикл сбора
     size_t push_cycle(Cycle*);
     // Активировать циклы
@@ -149,11 +153,12 @@ class EGSA : public mdp::mdwrk {
 	
     // Cyclic Operations Table
     //static ega_ega_odm_t_CycleEntity ega_ega_odm_ar_Cycles[NBCYCLES];
-    std::vector<Cycle*> m_ega_ega_odm_ar_Cycles;
+    CycleList   m_ega_ega_odm_ar_Cycles;
 
     // Request Table - перенёс в exchange_egsa_init.cpp
     //static ega_ega_odm_t_RequestEntry m_requests_table[/*NBREQUESTS*/]; // ega_ega_odm_ar_Requests
-    std::vector<Request*> m_ega_ega_odm_ar_Requests;
+    RequestList m_ega_ega_odm_ar_Requests;
+    //std::vector<Request*> m_ega_ega_odm_ar_Requests;
 };
 
 #endif

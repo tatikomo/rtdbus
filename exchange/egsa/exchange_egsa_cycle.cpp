@@ -132,6 +132,7 @@ int Cycle::register_SA(const std::string& sa_name)
   if (!exist_for_SA(sa_name)) {
 
     strncpy(info.site, sa_name.c_str(), TAG_NAME_MAXLEN);
+    info.id = m_AcqSites.size();
     info.HCpuLoadReqState = 0; // GEV: определить значение по умолчанию!
     m_AcqSites.push_back(info);
     LOG(INFO) << "Link SA " << sa_name << " with cycle " << m_CycleName;
@@ -142,6 +143,61 @@ int Cycle::register_SA(const std::string& sa_name)
   }
 
   return rc;
+}
+
+// ===================================================================================================
+CycleList::CycleList()
+{
+}
+
+// ===================================================================================================
+CycleList::~CycleList()
+{
+  for (std::vector<Cycle*>::iterator it = m_Cycles.begin(); it != m_Cycles.end(); ++it)
+  {
+    LOG(INFO) << "free cycle " << (*it)->name();
+    delete (*it);
+  }
+}
+
+// ===================================================================================================
+size_t CycleList::insert(Cycle* new_cycle)
+{
+  m_Cycles.push_back(new_cycle);
+}
+
+// ===================================================================================================
+// Вернуть экземпляр Цикла с указанным числовым идентификатором 
+Cycle* CycleList::operator[](size_t idx)
+{
+  Cycle *look = NULL;
+
+  for (std::vector<Cycle*>::const_iterator it = m_Cycles.begin(); it != m_Cycles.end(); ++it)
+  {
+    if ((*it)->id() == idx) {
+      look = (*it);
+      break;
+    }
+  }
+
+  return look;
+}
+
+// ===================================================================================================
+// Вернуть экземпляр Цикла с указанным названием
+Cycle* CycleList::operator[](const std::string& name)
+{
+  Cycle *look = NULL;
+
+  for (std::vector<Cycle*>::const_iterator it = m_Cycles.begin(); it != m_Cycles.end(); ++it)
+  {
+    if (0 == name.compare((*it)->name())) {
+      look = (*it);
+      break;
+    }
+  }
+
+  return look;
 }
 
 // ===================================================================================================
