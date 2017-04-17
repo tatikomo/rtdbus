@@ -161,27 +161,30 @@ EgsaConfig::~EgsaConfig()
        it != m_cycles.end();
        ++it)
   {
-    LOG(INFO) << "Free cycle " << ++idx;
+    LOG(INFO) << "Free cycle " << ++idx << " " << (*it).first;
     delete (*it).second;
   }
+  m_cycles.clear();
 
   idx = 0;
   for (egsa_config_sites_t::iterator it = m_sites.begin();
        it != m_sites.end();
        ++it)
   {
-    LOG(INFO) << "Free site " << ++idx;
+    LOG(INFO) << "Free site " << ++idx << " " << (*it).first;
     delete (*it).second;
   }
+  m_sites.clear();
 
   idx = 0;
   for (egsa_config_requests_t::iterator it = m_requests.begin();
        it != m_requests.end();
        ++it)
   {
-    LOG(INFO) << "Free request " << ++idx;
+    LOG(INFO) << "Free request " << ++idx << " " << (*it).first;
     delete (*it).second;
   }
+  m_requests.clear();
 }
 
 // ==========================================================================================

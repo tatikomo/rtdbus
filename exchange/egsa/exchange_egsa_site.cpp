@@ -37,6 +37,160 @@ int AcqSiteEntry::detach_smad()
 }
 
 // ==============================================================================
+#warning "Продолжить тут - Реализовать машину состояний CC"
+// Изменение состояния СС вызывают изменения в очереди Запросов
+// TODO: Реализовать машину состояний
+sa_state_t AcqSiteEntry::change_state_to(sa_state_t new_state)
+{
+  bool state_changed = false;
+
+  switch (m_FunctionalState) {  // Старое состояние
+    // --------------------------------------------------------------------------
+    case SA_STATE_UNKNOWN:  // Неопределено
+    // --------------------------------------------------------------------------
+
+      switch(new_state) {
+        // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+        case SA_STATE_UNREACH:
+          state_changed = true;
+          // TODO: удалить возможно оставшиеся в очереди Запросы
+        case SA_STATE_UNKNOWN:
+          m_FunctionalState = new_state;
+          break;
+        // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+        case SA_STATE_OPER:
+          state_changed = true;
+          // TODO: активировать запросы данных для этой СС
+          // activate_cycle()
+          break;
+        // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+        case SA_STATE_PRE_OPER:
+          state_changed = true;
+          // TODO: активировать запросы на инициализацию связи с этой СС
+          break;
+        // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+        case SA_STATE_INHIBITED:
+        case SA_STATE_FAULT:
+        case SA_STATE_DISCONNECTED:
+          state_changed = true;
+          // TODO: удалить возможно оставшиеся в очереди Запросы
+          break;
+        // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+      }
+
+      break;
+
+    // --------------------------------------------------------------------------
+    case SA_STATE_UNREACH:  // Недоступна
+    // --------------------------------------------------------------------------
+      switch(new_state) {
+        // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+        case SA_STATE_UNREACH:
+          state_changed = true;
+          // TODO: удалить возможно оставшиеся в очереди Запросы
+        case SA_STATE_UNKNOWN:
+          m_FunctionalState = new_state;
+          break;
+        // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+        case SA_STATE_OPER:
+          state_changed = true;
+          // TODO: активировать запросы данных для этой СС
+          // activate_cycle()
+          break;
+        // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+        case SA_STATE_PRE_OPER:
+          state_changed = true;
+          // TODO: активировать запросы на инициализацию связи с этой СС
+          break;
+        // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+        case SA_STATE_INHIBITED:
+        case SA_STATE_FAULT:
+        case SA_STATE_DISCONNECTED:
+          state_changed = true;
+          // TODO: удалить возможно оставшиеся в очереди Запросы
+          break;
+        // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+      }
+      break;
+
+    // --------------------------------------------------------------------------
+    case SA_STATE_OPER:     // Оперативная работа
+    // --------------------------------------------------------------------------
+      switch(new_state) {
+        case SA_STATE_UNKNOWN: break;
+        case SA_STATE_UNREACH: break;
+        case SA_STATE_OPER: break;
+        case SA_STATE_PRE_OPER: break;
+        case SA_STATE_INHIBITED: break;
+        case SA_STATE_FAULT: break;
+        case SA_STATE_DISCONNECTED: break;
+      }
+      break;
+
+    // --------------------------------------------------------------------------
+    case SA_STATE_PRE_OPER: // В процессе инициализации
+    // --------------------------------------------------------------------------
+      switch(new_state) {
+        case SA_STATE_UNKNOWN: break;
+        case SA_STATE_UNREACH: break;
+        case SA_STATE_OPER: break;
+        case SA_STATE_PRE_OPER: break;
+        case SA_STATE_INHIBITED: break;
+        case SA_STATE_FAULT: break;
+        case SA_STATE_DISCONNECTED: break;
+      }
+      break;
+
+    // --------------------------------------------------------------------------
+    case SA_STATE_INHIBITED:// в запрете работы
+    // --------------------------------------------------------------------------
+      switch(new_state) {
+        case SA_STATE_UNKNOWN: break;
+        case SA_STATE_UNREACH: break;
+        case SA_STATE_OPER: break;
+        case SA_STATE_PRE_OPER: break;
+        case SA_STATE_INHIBITED: break;
+        case SA_STATE_FAULT: break;
+        case SA_STATE_DISCONNECTED: break;
+      }
+
+      break;
+
+    // --------------------------------------------------------------------------
+    case SA_STATE_FAULT:    // сбой
+    // --------------------------------------------------------------------------
+      switch(new_state) {
+        case SA_STATE_UNKNOWN: break;
+        case SA_STATE_UNREACH: break;
+        case SA_STATE_OPER: break;
+        case SA_STATE_PRE_OPER: break;
+        case SA_STATE_INHIBITED: break;
+        case SA_STATE_FAULT: break;
+        case SA_STATE_DISCONNECTED: break;
+      }
+      break;
+
+    // --------------------------------------------------------------------------
+    case SA_STATE_DISCONNECTED: // не подключена
+    // --------------------------------------------------------------------------
+      switch(new_state) {
+        case SA_STATE_UNKNOWN: break;
+        case SA_STATE_UNREACH: break;
+        case SA_STATE_OPER: break;
+        case SA_STATE_PRE_OPER: break;
+        case SA_STATE_INHIBITED: break;
+        case SA_STATE_FAULT: break;
+        case SA_STATE_DISCONNECTED: break;
+      }
+      break;
+  }
+
+  m_FunctionalState = new_state;
+  return m_FunctionalState;
+}
+
+// ==============================================================================
 AcqSiteList::AcqSiteList()
  : m_egsa(NULL)
 {
@@ -113,9 +267,10 @@ AcqSiteEntry* AcqSiteList::operator[](const char* name)
       it != m_items.end();
       ++it)
   {
-    entry = *(*it);
-    if (0 == std::strcmp(entry->name(), name))
+    if (0 == std::strcmp((*(*it))->name(), name)) {
+      entry = *(*it);
       break;
+    }
   }
 
   return entry;
@@ -131,9 +286,10 @@ AcqSiteEntry* AcqSiteList::operator[](const std::string& name)
       it != m_items.end();
       ++it)
   {
-    entry = *(*it);
-    if (0 == name.compare(entry->name()))
+    if (0 == name.compare((*(*it))->name())) {
+      entry = *(*it);
       break;
+    }
   }
 
   return entry;

@@ -55,6 +55,8 @@ class EGSA : public mdp::mdwrk {
     // Если собирается рабочая версия, спрятать эти функции в приватный доступ
   private:
 #endif
+    // Запуск Интерфейса второго уровня
+    int implementation();
     // Доступ к конфигурации
     EgsaConfig* config() { return m_egsa_config; };
     // Доступ к Сайтам
@@ -83,9 +85,6 @@ class EGSA : public mdp::mdwrk {
 
   private:
     DISALLOW_COPY_AND_ASSIGN(EGSA);
-
-    // Запуск Интерфейса второго уровня
-    int implementation();
 
     // Обработка сообщения о чтении значений БДРВ (включая ответ группы подписки)
     int process_read_response(msg::Letter*);

@@ -53,6 +53,9 @@ class AcqSiteEntry {
     // size_t      id()        const { return m_Id; };
     sa_object_level_t level() const { return m_Level; };
 
+    // Управление состоянием
+    sa_state_t  change_state_to(sa_state_t);
+
     // TODO: СС и EGSA могут работать на разных хостах, в этом случае подключение EGSA к smad СС
     // не получит доступа к реальным данным от СС. Их придется EGSA туда заносить самостоятельно.
     int attach_smad();

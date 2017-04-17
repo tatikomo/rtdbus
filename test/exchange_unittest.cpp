@@ -355,24 +355,6 @@ TEST(TestEXCHANGE, EGSA_ENDALLINIT)
 }
 */
 
-#if 0
-TEST(TestEXCHANGE, EGSA_STOP)
-{
-  //msg::Letter* message_stop = NULL;
-  const std::string identity = "RTDBUS_BROKER";
-  mdp::zmsg * message_stop = create_message_by_type("EGSA", "TEST", ADG_D_MSG_STOP);
-  bool is_stop = false;
-
-  EXPECT_TRUE(message_stop != NULL);
-  g_egsa_instance->processing(message_stop, identity, is_stop);
-
-  //g_egsa_instance->handle_stop(message_stop, identity);
-  EXPECT_TRUE(is_stop == true);
-
-  delete message_stop;
-}
-#endif
-
 TEST(TestEXCHANGE, EGSA_FREE)
 {
   delete g_sa_config;
@@ -381,6 +363,33 @@ TEST(TestEXCHANGE, EGSA_FREE)
 
   delete g_egsa_instance;
 }
+
+#if 0
+TEST(TestEXCHANGE, EGSA_STOP)
+{
+  std::string broker_endpoint = ENDPOINT_BROKER;
+  std::string service_name = EXCHANGE_NAME;
+
+  //msg::Letter* message_stop = NULL;
+  const std::string identity = "RTDBUS_BROKER";
+  mdp::zmsg * message_stop = create_message_by_type("EGSA", "TEST", ADG_D_MSG_STOP);
+  bool is_stop = false;
+
+  EXPECT_TRUE(message_stop != NULL);
+
+  g_egsa_instance = new EGSA(broker_endpoint, service_name);
+  ASSERT_TRUE(g_egsa_instance != NULL);
+
+  g_egsa_instance->run();
+
+  g_egsa_instance->processing(message_stop, identity, is_stop);
+
+  //g_egsa_instance->handle_stop(message_stop, identity);
+  EXPECT_TRUE(is_stop == true);
+
+  delete message_stop;
+}
+#endif
 
 int main(int argc, char** argv)
 {

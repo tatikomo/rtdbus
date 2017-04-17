@@ -256,6 +256,7 @@ int EGSA::implementation()
 
     while(!interrupt_worker) {
       LOG(INFO) << fname;
+      
       sleep (1);
     }
 
@@ -352,10 +353,12 @@ int EGSA::run()
     }
 #endif
 
+#if 0
     if (OK == status) {
       // Отправить подчиненным системам сообщение о запросе готовности
       fire_ENDALLINIT();
     }
+#endif
 
     // Ожидание завершения работы Прокси
     while (!interrupt_worker)
@@ -609,10 +612,10 @@ int EGSA::activate_cycles()
         events::add(std::bind(&EGSA::cycle_trigger, this, cycle->id(), site_idx),
                     now /*+ std::chrono::seconds((*it)->period())*/); // Время активации: сейчас (+ период цикла?)
       }
-    }
+    } /*
     else {
       LOG(ERROR) << "Skip missing cycle id=" << idx;
-    }
+    } */
   }
 
   return OK;
@@ -1013,8 +1016,31 @@ int EGSA::process_read_response(msg::Letter* report)
  
   for (std::size_t idx = 0; idx < response->num_items(); idx++)
   {
-     const msg::Value& attr_val = response->item(idx);
-     LOG(INFO) << attr_val.tag() << " = " << attr_val.as_string() << std::endl;
+    const msg::Value& attr_val = response->item(idx);
+    LOG(INFO) << attr_val.tag() << " = " << attr_val.as_string() << std::endl;
+
+    // TODO: обновить состояние Сайтов m_ega_ega_odm_ar_AcqSites
+    if (std::string::npos != attr_val.tag().find(RTDB_ATT_SYNTHSTATE)) {
+
+      // Вырезать из attr_val.tag() часть от первого символа '/' до '.'
+      const size_t point_pos = attr_val.tag().find(".");
+      assert(std::string::npos != point_pos);
+      assert(point_pos > 1);
+
+      const std::string sa_name = attr_val.tag().substr(1, point_pos-1);
+      AcqSiteEntry* sa_entry = m_ega_ega_odm_ar_AcqSites[sa_name];
+
+      if (sa_entry) {
+        const sa_state_t new_state = int_to_sa_state(attr_val.raw().fixed.val_uint8);
+        sa_entry->change_state_to(new_state);
+        LOG(INFO) << "Update SA " << sa_name << " state to " << sa_entry->state();
+      }
+      else {
+        LOG(WARNING) << "Skip processing SA " << sa_name << " because of absense it's configuration";
+      }
+    }
+
+    //attr_val.tag()
   }
  
   return status;
