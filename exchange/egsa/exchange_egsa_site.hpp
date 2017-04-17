@@ -7,6 +7,7 @@
 #endif
 
 // Общесистемные заголовочные файлы
+#include <memory>
 #include <vector>
 #include <map>
 
@@ -113,7 +114,7 @@ class AcqSiteList {
     int detach_from_smad(const char*);
     // Отключиться от SMAD
     int detach();
-    // Очистить ресурсы`
+    // Очистить ресурсы
     int release();
     void insert(AcqSiteEntry*);
     size_t size() const { return m_items.size(); };
@@ -136,7 +137,7 @@ class AcqSiteList {
     // Связь между названием СС и её данными
     typedef std::map<const std::string, size_t, map_cmp_str> system_acquisition_list_t;
 
-    std::vector<AcqSiteEntry*> m_items;
+    std::vector<std::shared_ptr<AcqSiteEntry*>> m_items;
     // Связь между названием СС и её индексом в m_items
     system_acquisition_list_t  m_site_map;
 };

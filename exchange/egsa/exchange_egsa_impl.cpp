@@ -64,11 +64,15 @@ EGSA::EGSA(const std::string& _broker, const std::string& _service)
 // ==========================================================================================================
 EGSA::~EGSA()
 {
+
   if (-1 != m_socket) {
     LOG(INFO) << "Timers pipe " << (unsigned int)m_socket << " is closed"; 
   }
 
+  // Отключиться от SMAD Сайтов
   detach();
+  // Удалить сведения о Сайтах из памяти
+  m_ega_ega_odm_ar_AcqSites.release();
 
   delete m_ext_smad;
   delete m_egsa_config;

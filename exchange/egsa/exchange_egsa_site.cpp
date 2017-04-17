@@ -3,6 +3,7 @@
 #endif
 
 // Общесистемные заголовочные файлы
+#include <memory>
 #include <vector>
 #include <map>
 #include <cstring>
@@ -44,12 +45,14 @@ AcqSiteList::AcqSiteList()
 // ==============================================================================
 AcqSiteList::~AcqSiteList()
 {
-  for (std::vector<AcqSiteEntry*>::iterator it = m_items.begin();
+  // TODO Разные экземпляры AcqSiteList в Cycle и в EGSA содержат ссылки на одни
+  // и те же экземпляры объектов AcqSiteEntry
+  for (std::vector<std::shared_ptr<AcqSiteEntry*>>::iterator it = m_items.begin();
        it != m_items.end();
        ++it)
   {
-    LOG(INFO) << "free site " << (*it)->name();
-    delete (*it);
+    // Удалить ссылку на AcqSiteEntry
+    (*it).reset();
   }
 }
 
@@ -73,12 +76,13 @@ int AcqSiteList::detach()
   // TODO: Для всех подчиненных систем сбора:
   // 1. Изменить их состояние SYNTHSTATE на "ОТКЛЮЧЕНО"
   // 2. Отключиться от их внутренней SMAD
-  for(std::vector<AcqSiteEntry*>::const_iterator it = m_items.begin();
+  for(std::vector<std::shared_ptr<AcqSiteEntry*>>::const_iterator it = m_items.begin();
       it != m_items.end();
       ++it)
   {
-    LOG(INFO) << "TODO: set " << (*it)->name() << ".SYNTHSTATE = 0";
-    LOG(INFO) << "TODO: detach " << (*it)->name() << " SMAD";
+    AcqSiteEntry* entry = *(*it);
+    LOG(INFO) << "TODO: set " << entry->name() << ".SYNTHSTATE = 0";
+    LOG(INFO) << "TODO: detach " << entry->name() << " SMAD";
   }
 
   return rc;
@@ -96,7 +100,7 @@ int AcqSiteList::detach_from_smad(const char* name)
 // ==============================================================================
 void AcqSiteList::insert(AcqSiteEntry* the_new_one)
 {
-  m_items.push_back(the_new_one);
+  m_items.push_back(std::make_shared<AcqSiteEntry*>(the_new_one));
 }
 
 // ==============================================================================
@@ -105,14 +109,13 @@ AcqSiteEntry* AcqSiteList::operator[](const char* name)
 {
   AcqSiteEntry *entry = NULL;
 
-  for(std::vector<AcqSiteEntry*>::const_iterator it = m_items.begin();
+  for(std::vector< std::shared_ptr<AcqSiteEntry*> >::const_iterator it = m_items.begin();
       it != m_items.end();
       ++it)
   {
-    if (0 == std::strcmp((*it)->name(), name)) {
-      entry = (*it);
+    entry = *(*it);
+    if (0 == std::strcmp(entry->name(), name))
       break;
-    }
   }
 
   return entry;
@@ -124,14 +127,13 @@ AcqSiteEntry* AcqSiteList::operator[](const std::string& name)
 {
   AcqSiteEntry *entry = NULL;
 
-  for(std::vector<AcqSiteEntry*>::const_iterator it = m_items.begin();
+  for(std::vector<std::shared_ptr<AcqSiteEntry*>>::const_iterator it = m_items.begin();
       it != m_items.end();
       ++it)
   {
-    if (0 == name.compare((*it)->name())) {
-      entry = (*it);
+    entry = *(*it);
+    if (0 == name.compare(entry->name()))
       break;
-    }
   }
 
   return entry;
@@ -141,22 +143,27 @@ AcqSiteEntry* AcqSiteList::operator[](const std::string& name)
 // Вернуть элемент по индексу
 AcqSiteEntry* AcqSiteList::operator[](const std::size_t idx)
 {
-  if (idx < m_items.size())
-    return m_items.at(idx);
-  else
-    return NULL;
+  AcqSiteEntry *entry = NULL;
+
+  if (idx < m_items.size()) {
+    entry = *m_items.at(idx);
+  }
+
+  return entry;
 }
 
 // ==============================================================================
 // Освободить все ресурсы
 int AcqSiteList::release()
 {
-  for (std::vector<AcqSiteEntry*>::iterator it = m_items.begin();
+  for (std::vector<std::shared_ptr<AcqSiteEntry*>>::iterator it = m_items.begin();
        it != m_items.end();
        ++it)
   {
-    LOG(INFO) << "release site " << (*it)->name();
-    delete (*it);
+    LOG(INFO) << "release site " << (*(*it))->name();
+    AcqSiteEntry *entry = *(*it); 
+    (*it).reset();
+    delete entry;
   }
   m_site_map.clear();
 

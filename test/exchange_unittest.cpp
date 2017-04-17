@@ -226,7 +226,8 @@ TEST(TestEXCHANGE, EGSA_CYCLES)
   rc = g_egsa_instance->activate_cycles();
   EXPECT_TRUE(rc == OK);
 
-  g_egsa_instance->wait(16);
+  // > 36 секунд, чтобы GENCONTROL успел выполниться 2 раза
+  g_egsa_instance->wait(40);
   /*
   for (int i=0; i<20; i++) {
     std::cout << ".";
