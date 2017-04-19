@@ -3,7 +3,6 @@
 #endif
 
 #include "proto/common.pb.h"
-#include "google/protobuf/service.h"
 
 #include "msg_message.hpp"
 

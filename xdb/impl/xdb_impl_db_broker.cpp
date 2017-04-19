@@ -1,3 +1,8 @@
+#if defined HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+// Общесистемные заголовочные файлы
 #include <new>
 #include <assert.h>
 #include <stdio.h>
@@ -5,18 +10,13 @@
 #include <stdarg.h>
 #include <string.h>
 
+// Служебные заголовочные файлы сторонних утилит
 #include "glog/logging.h"
-
-#if defined HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #include "mco.h"
-
 #if defined DEBUG
 # if (EXTREMEDB_VERSION <= 40)
 mco_size_t file_writer(void*, const void*, mco_size_t);
@@ -31,9 +31,9 @@ mco_size_sig_t file_writer(void*, const void*, mco_size_t);
 }
 #endif
 
+// Служебные файлы RTDBUS
 #include "helper.hpp"
 #include "tool_time.hpp"
-#include "dat/broker_db.hpp"
 #include "xdb_impl_common.h"
 #include "xdb_impl_database.hpp"
 #include "xdb_impl_db_broker.hpp"

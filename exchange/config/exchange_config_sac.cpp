@@ -20,15 +20,13 @@
 #include "exchange_config_nature.hpp"
 
 using namespace rapidjson;
-using namespace std;
-
 
 // ==========================================================================================
 AcquisitionSystemConfig::AcquisitionSystemConfig(const std::string& config)
  : m_config_filename(config),
    m_config_has_good_format(false),
    m_sa_commands(),
-   m_sa_common(),
+   m_sa_common({0, 0, 0, SA_BYTEORDER_ABCD, GOF_D_SAC_NATURE_EUNK, 0, "", "", SA_MODE_UNKNOWN, 0}),
    m_protocol()
 {
   const char* fname = "AcquisitionSystemConfig()";

@@ -13,22 +13,6 @@
 // Служебные файлы RTDBUS
 #include "exchange_egsa_site.hpp"
 #include "exchange_egsa_cycle.hpp"
-#include "tool_timer.hpp"
-
-// ===================================================================================================
-class CycleTrigger : public TimerTimeoutHandler
-{
-  public:
-    CycleTrigger(const std::string&);
-    CycleTrigger(const std::string&, int);
-   ~CycleTrigger() {};
-
-    void handlerFunction( void );
-
-  private:
-    std::string m_cycle_name;
-    int m_fd;
-};
 
 // ===================================================================================================
 CycleTrigger::CycleTrigger(const std::string& cycle_name)
@@ -66,11 +50,45 @@ void CycleTrigger::handlerFunction( void )
 }
 
 // ===================================================================================================
+// Конструктор экземпляра "Цикл"
+// Все параметры проверяются на корректность при чтении из конфигурационного файла
+// _name    : название Цикла, читается из конфигурации
+// _period  : интервалы между активациями
+// _id      : уникальный числовой идентификатор Цикла
+// _family  : тип Цикла
+Cycle::Cycle(const char* _name, int _period, cycle_id_t _id, cycle_family_t _family)
+ : m_CycleFamily(_family),
+   m_CyclePeriod(_period),
+   m_CycleId(_id),
+   m_SiteList(new AcqSiteList)
+   /*m_CycleTimer(NULL),
+   m_CycleTrigger(NULL)*/
+{
+  strncpy(m_CycleName, _name, EGA_EGA_D_LGCYCLENAME);
+  m_CycleName[EGA_EGA_D_LGCYCLENAME] = '\0';
+}
+
+// ===================================================================================================
 Cycle::~Cycle()
 {
+  delete m_SiteList;
 //  delete m_CycleTimer;
 //  delete m_CycleTrigger;
 };
+
+void Cycle::dump()
+{
+  std::cout << "Cycle name:" << m_CycleName << " family:" << (int)m_CycleFamily
+            << " period:" << (int)m_CyclePeriod << " id:" << (int)m_CycleId << " ";
+  if (m_SiteList->size()) {
+    std::cout << "sites: " << m_SiteList->size() << " [";
+    for(size_t i=0; i < m_SiteList->size(); i++) {
+      std::cout << " " << (*m_SiteList)[i]->name();
+    }
+    std::cout << " ]";
+  }
+  std::cout << std::endl;
+}
 
 #if 0
 // ===================================================================================================
@@ -130,8 +148,8 @@ int Cycle::link(AcqSiteEntry* site)
   int rc = NOK;
 
   // Добавить Сайт, если он ранее уже не был добавлен
-  if (!m_SiteList[site->name()]) {
-    m_SiteList.insert(site);
+  if (NULL == (*m_SiteList)[site->name()]) {
+    m_SiteList->insert(site);
     //LOG(INFO) << "Link " << site->name() << " with cycle " << m_CycleName;
     rc = OK;
   }
@@ -145,6 +163,7 @@ int Cycle::link(AcqSiteEntry* site)
 // ===================================================================================================
 CycleList::CycleList()
 {
+  m_Cycles.clear();
 }
 
 // ===================================================================================================
@@ -161,6 +180,7 @@ CycleList::~CycleList()
 size_t CycleList::insert(Cycle* new_cycle)
 {
   m_Cycles.push_back(new_cycle);
+  return m_Cycles.size();
 }
 
 // ===================================================================================================

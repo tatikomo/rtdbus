@@ -17,15 +17,12 @@
 #include "rapidjson/filereadstream.h"
 
 // Служебные файлы RTDBUS
-#include "mdp_worker_api.hpp"
 #include "tool_events.hpp"
 #include "exchange_sysacq_modbus.hpp"
-#include "exchange_smad_int.hpp"
 #include "exchange_config_sac.hpp"
 #include "exchange_config.hpp"
 
 using namespace rapidjson;
-using namespace std;
 
 typedef struct { int id; const char* name; } modbus_func_by_type_support_t;
 static const modbus_func_by_type_support_t func_by_type_support[] = {
@@ -39,7 +36,6 @@ static const modbus_func_by_type_support_t func_by_type_support[] = {
   { MBUS_TYPE_SUPPORT_FP, s_MBUS_TYPE_SUPPORT_FP },
   { MBUS_TYPE_SUPPORT_DP, s_MBUS_TYPE_SUPPORT_DP }
 };
-
 
 // Таблица характеристик протокола MODBUS, параметры штатных (1-5) и нештатных (>103) функций
 MBusFuncDesription Modbus_Client_Interface::mbusDescr[] = {
@@ -1176,12 +1172,12 @@ void Modbus_Client_Interface::run()
         if (0 == command.compare("STOP")) {
           // завершение работы
           LOG(INFO) << "Call STOP";
-          events::add(std::bind(&Modbus_Client_Interface::process_STOP, this), std::chrono::system_clock::now());
+          cycles::add(std::bind(&Modbus_Client_Interface::process_STOP, this), std::chrono::system_clock::now());
           g_interrupt = 1;
         }
         else if (0 == command.compare("INIT")) {
           LOG(INFO) << "Call INIT";
-          events::add(std::bind(&Modbus_Client_Interface::process_INIT, this), std::chrono::system_clock::now());
+          cycles::add(std::bind(&Modbus_Client_Interface::process_INIT, this), std::chrono::system_clock::now());
           got_message = true;
         }
         else {
@@ -1192,11 +1188,11 @@ void Modbus_Client_Interface::run()
   // Отладка!!!!
       if (5 == ++iter) {
         LOG(WARNING) << "This is SPARTA!!! Fire the INIT reception signal by myself!";
-        events::add(std::bind(&Modbus_Client_Interface::process_INIT, this), std::chrono::system_clock::now());
+        cycles::add(std::bind(&Modbus_Client_Interface::process_INIT, this), std::chrono::system_clock::now());
       }
   // Отладка!!!!
 
-      events::timer();
+      cycles::timer();
 
       if (!got_message) {
         // Нет сообщений - займемся плановыми делами
@@ -1208,7 +1204,7 @@ void Modbus_Client_Interface::run()
     }
 
     // Выполнить оставшиеся события
-    events::timer();
+    cycles::timer();
 
     // Закрываем сокет управления
     from_master.close();
@@ -1290,11 +1286,11 @@ void Modbus_Client_Interface::process_INIT()
   // ACQSYSACQ
   // ...
   // Первым делом получить состояние Системы Сбора
-  events::add(std::bind(&Modbus_Client_Interface::do_ACQSYSACQ,  this), now);
+  cycles::add(std::bind(&Modbus_Client_Interface::do_ACQSYSACQ,  this), now);
   // Следом, если СС в оперативном режиме, получить весь набор данных
-  events::add(std::bind(&Modbus_Client_Interface::do_GENCONTROL, this), now + std::chrono::seconds(1));
-  events::add(std::bind(&Modbus_Client_Interface::do_URGINFOS,   this), now + std::chrono::seconds(5));
-  events::add(std::bind(&Modbus_Client_Interface::do_INFOSACQ,   this), now + std::chrono::seconds(2));
+  cycles::add(std::bind(&Modbus_Client_Interface::do_GENCONTROL, this), now + std::chrono::seconds(1));
+  cycles::add(std::bind(&Modbus_Client_Interface::do_URGINFOS,   this), now + std::chrono::seconds(5));
+  cycles::add(std::bind(&Modbus_Client_Interface::do_INFOSACQ,   this), now + std::chrono::seconds(2));
 }
 
 // ==========================================================================================
@@ -1310,7 +1306,7 @@ void Modbus_Client_Interface::do_GENCONTROL()
 {
   auto now = std::chrono::system_clock::now();
   LOG(INFO) << "Do GENCONTROL";
-  events::add(std::bind(&Modbus_Client_Interface::do_GENCONTROL, this), now + std::chrono::seconds(60));
+  cycles::add(std::bind(&Modbus_Client_Interface::do_GENCONTROL, this), now + std::chrono::seconds(60));
 }
 
 // ==========================================================================================
@@ -1321,7 +1317,7 @@ void Modbus_Client_Interface::do_ACQSYSACQ()
   LOG(INFO) << "Do ACQSYSACQ";
   // TODO: Если СС в оперативном режиме, дадим разрешение на получение данных
   m_status = STATUS_OK_CONNECTED; // NB: для отладки
-  events::add(std::bind(&Modbus_Client_Interface::do_ACQSYSACQ,  this), now + std::chrono::seconds(10));
+  cycles::add(std::bind(&Modbus_Client_Interface::do_ACQSYSACQ,  this), now + std::chrono::seconds(10));
 }
 
 // ==========================================================================================
@@ -1330,7 +1326,7 @@ void Modbus_Client_Interface::do_URGINFOS()
 {
   auto now = std::chrono::system_clock::now();
   LOG(INFO) << "Do URGINFOS";
-  events::add(std::bind(&Modbus_Client_Interface::do_URGINFOS,   this), now + std::chrono::seconds(5));
+  cycles::add(std::bind(&Modbus_Client_Interface::do_URGINFOS,   this), now + std::chrono::seconds(5));
 }
 
 // ==========================================================================================
@@ -1339,6 +1335,6 @@ void Modbus_Client_Interface::do_INFOSACQ()
 {
   auto now = std::chrono::system_clock::now();
   LOG(INFO) << "Do INFOSACQ";
-  events::add(std::bind(&Modbus_Client_Interface::do_INFOSACQ,   this), now + std::chrono::seconds(2));
+  cycles::add(std::bind(&Modbus_Client_Interface::do_INFOSACQ,   this), now + std::chrono::seconds(2));
 }
 

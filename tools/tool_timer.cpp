@@ -7,8 +7,6 @@
 
 #include "tool_timer.hpp"
 
-using namespace std;
-
 Timer::Timer( TimerTimeoutHandler * timeHandler )
 {
     m_timeOutHandlerImp = timeHandler;

@@ -113,24 +113,22 @@ set (WORKER_EGSA_SOURCES
         ${TOOLS_DIR}/tool_timer.hpp
         ${TOOLS_DIR}/tool_events.hpp
         ${WORKER_DIR}/wegsa.cpp
-        ${EXCHANGE_CONFIG_DIR}/exchange_config.hpp
-        ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.hpp
         ${EXCHANGE_SMAD_DIR}/exchange_smad_int.hpp
         ${EXCHANGE_SMAD_DIR}/exchange_smad_ext.hpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config.hpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.hpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_init.cpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_init.hpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.cpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.hpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_sa.cpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_sa.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_init.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_init.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_sa.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_sa.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_request.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_request.hpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_request_base.hpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_request_cyclic.hpp
         )
 
 set (WORKER_TIMEKEEPER_SOURCES
@@ -251,7 +249,7 @@ target_link_libraries(${WORKER_HISTORIAN}
 add_executable (${WORKER_SYSACQ_CLI} ${WORKER_SYSACQ_CLI_SOURCES})
 target_link_libraries(${WORKER_SYSACQ_CLI}
     ${LIBGLOG_LIBRARIES}
-    "pthread"
+    "-pthread"
     ${MDP_LIBRARY_NAME}
     ${MODBUS_LIBRARY_NAME}
     ${LIBMODBUS_LIBRARIES}
@@ -261,7 +259,7 @@ target_link_libraries(${WORKER_SYSACQ_CLI}
 # Сборка EGSA - модуль диспетчеризации Системами Сбора
 add_executable (${WORKER_EGSA} ${WORKER_EGSA_SOURCES})
 target_link_libraries(${WORKER_EGSA}
-    "pthread"
+    "-pthread"
     ${EXCHANGE_LIBRARY_NAME}
     ${LIBMODBUS_LIBRARIES}
     ${LIBGLOG_LIBRARIES}

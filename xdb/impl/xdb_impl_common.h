@@ -7,7 +7,6 @@ extern "C" {
 #endif
 
 // C часть
-#include "mco.h"
 
 const char * mco_ret_string(int, int*);
 void rc_check(const char*, int);

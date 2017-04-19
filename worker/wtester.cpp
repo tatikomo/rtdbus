@@ -1,3 +1,7 @@
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 // Общесистемные заголовочные файлы
 
 // Служебные заголовочные файлы сторонних утилит
@@ -5,8 +9,8 @@
 #include "zmq.hpp"
 
 // Служебные файлы RTDBUS
-#include "config.h"
 #include "helper.hpp"
+#include "mdp_common.h"
 #include "mdp_zmsg.hpp"
 #include "mdp_worker_api.hpp"
 #include "msg_message.hpp"

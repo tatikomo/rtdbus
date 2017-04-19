@@ -67,8 +67,6 @@ set (TEST_EXCHANGE_SOURCES
         ${GTEST_INC_DIR}/gtest/gtest.h
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_request.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_request.cpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_request_base.hpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_request_cyclic.hpp
         ${EXCHANGE_SMAD_DIR}/exchange_smad_int.hpp
         ${EXCHANGE_SMAD_DIR}/exchange_smad_ext.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.cpp

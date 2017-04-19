@@ -55,7 +55,7 @@ void main()
 
  }
 #endif
-namespace events
+namespace cycles
 {
     struct event
     {
@@ -163,16 +163,16 @@ int main()
   auto now = std::chrono::system_clock::now();
   bar b;
 
-  events::add(foo, now + std::chrono::seconds(2));
+  cycles::add(foo, now + std::chrono::seconds(2));
 
-  events::add(std::bind(&bar::hello, b), now + std::chrono::seconds(4));
+  cycles::add(std::bind(&bar::hello, b), now + std::chrono::seconds(4));
 
-  events::add(done, now + std::chrono::seconds(6));
+  cycles::add(done, now + std::chrono::seconds(6));
 
   while (true)
   {
     usleep(10000);
-    events::timer();
+    cycles::timer();
   }
 
   return 0;

@@ -17,6 +17,7 @@
 #include "mdp_worker_api.hpp"
 // Родовой интерфейс работы с Системой сбора
 #include "exchange_sysacq_intf.hpp"
+#include "exchange_smad_int.hpp"
 
 // ===============================================================================================
 
@@ -40,8 +41,6 @@
 #define	Negsa_glob_control      0
 #define Negsa_acquisition       1
 #define Negsa_initialization    13
-
-class InternalSMAD;
 
 // ---------------------------------------------------------
 // Справочная таблица по всем используемым MODBUS-функциям

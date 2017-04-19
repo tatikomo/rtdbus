@@ -16,24 +16,24 @@
  * ============================================================================
  */
 
-#include <string>
-#include <vector>
-#include <thread>
-//#include <memory>
-//#include <functional>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <fcntl.h>
-
-#include "glog/logging.h"
-#include "google/protobuf/stubs/common.h"
-
 #if defined HAVE_CONFIG_H
 #include "config.h"
 #endif
 
+// Общесистемные заголовочные файлы
+#include <string>
+#include <vector>
+#include <thread>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
+
+// Служебные заголовочные файлы сторонних утилит
+#include "glog/logging.h"
+#include "google/protobuf/stubs/common.h"
 #include "sqlite3.h"
 
+// Служебные файлы RTDBUS
 #include "helper.hpp"
 #include "xdb_common.hpp"
 #include "xdb_impl_error.hpp"
@@ -46,6 +46,7 @@
 #include "msg_sinf.hpp"
 // Работа с историей
 #include "hdb_impl_processor.hpp"
+#include "mdp_common.h"
 #include "mdp_zmsg.hpp"
 
 #include "whistorian.hpp"

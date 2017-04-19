@@ -11,7 +11,6 @@
 #include "glog/logging.h"
 
 // Служебные файлы RTDBUS
-#include "config.h"
 #include "mdp_zmsg.hpp"
 #include "mdp_client_async_api.hpp"
 
@@ -24,13 +23,13 @@ using namespace mdp;
 //  your main loop if interrupt_client is ever 1. Works especially well with
 //  zmq_poll.
 int interrupt_client = 0;
-void s_signal_handler (int signal_value)
+static void s_signal_handler (int signal_value)
 {
     interrupt_client = 1;
     LOG(INFO) << "Got signal "<<signal_value;
 }
 
-void s_catch_signals ()
+static void s_catch_signals ()
 {
     struct sigaction action;
     action.sa_handler = s_signal_handler;

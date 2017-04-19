@@ -1,16 +1,21 @@
-#pragma once
 #ifndef MDP_BROKER_HPP
 #define MDP_BROKER_HPP
+#pragma once
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+// Общесистемные заголовочные файлы
 #include <map>
 #include <list>
 #include <string>
 
+// Служебные заголовочные файлы сторонних утилит
 #include "zmq.hpp"
 
-#include "config.h"
+// Служебные файлы RTDBUS
 #include "mdp_zmsg.hpp"
-#include "mdp_broker.hpp"
 #include "xdb_broker.hpp"
 #include "xdb_broker_service.hpp"
 #include "xdb_broker_worker.hpp"
@@ -18,7 +23,6 @@
 
 namespace mdp {
 
-//
 //  This defines a single broker
 class Broker {
  public:

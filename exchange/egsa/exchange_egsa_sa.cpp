@@ -14,7 +14,6 @@
 
 // Служебные файлы RTDBUS
 #include "msg_common.h"
-#include "tool_timer.hpp"
 #include "exchange_config.hpp"
 #include "exchange_config_sac.hpp"
 #include "exchange_smad_int.hpp"
@@ -33,8 +32,8 @@ SystemAcquisition::SystemAcquisition(EGSA* egsa,
                                      AcqSiteEntry* entry)
   : m_egsa(egsa),
     m_info(entry),
-    m_smad(NULL),
-//    m_cycles(NULL),
+    m_smad(NULL)
+#if 0
     m_timer_CONNECT(NULL),
     m_timer_RESPONSE(NULL),
     m_timer_INIT(NULL),
@@ -42,6 +41,7 @@ SystemAcquisition::SystemAcquisition(EGSA* egsa,
     m_timer_GENCONTROL(NULL),
     m_timer_DIFFUSION(NULL),
     m_timer_TELEREGULATION(NULL)
+#endif
 {
   std::string sa_config_filename;
   sa_common_t sa_common;
@@ -84,8 +84,8 @@ SystemAcquisition::~SystemAcquisition()
 {
   LOG(INFO) << "Destructor SA " << m_info->name();
   delete m_smad;
-//  delete m_cycles;
 
+#if 0
   delete m_timer_CONNECT;
   delete m_timer_RESPONSE;
   delete m_timer_INIT;
@@ -93,6 +93,7 @@ SystemAcquisition::~SystemAcquisition()
   delete m_timer_GENCONTROL;
   delete m_timer_DIFFUSION;
   delete m_timer_TELEREGULATION;
+#endif
 }
 
 // -----------------------------------------------------------------------------------

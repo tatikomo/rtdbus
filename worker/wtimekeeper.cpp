@@ -1,7 +1,15 @@
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+// Общесистемные заголовочные файлы
+
+// Служебные заголовочные файлы сторонних утилит
 #include "glog/logging.h"
 #include "google/protobuf/stubs/common.h"
 
-#include "config.h"
+// Служебные файлы RTDBUS
+#include "mdp_common.h"
 #include "wtimekeeper.hpp"
 
 extern int interrupt_worker;

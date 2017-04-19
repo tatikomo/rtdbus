@@ -2,6 +2,7 @@
 #include <map>
 
 #include "xdb_impl_common.hpp"
+#include "xdb_impl_common.h"
 
 using namespace xdb;
 

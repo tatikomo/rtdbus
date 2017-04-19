@@ -12,7 +12,6 @@
 #include <map>
 
 // Служебные заголовочные файлы сторонних утилит
-#include "glog/logging.h"
 #include "rapidjson/document.h"
 
 // Служебные файлы RTDBUS
@@ -149,6 +148,7 @@ class EgsaConfig {
     egsa_config_requests_t& requests() { return m_requests; };
 
   private:
+    DISALLOW_COPY_AND_ASSIGN(EgsaConfig);
     cycle_id_t get_cycle_id_by_name(const std::string&);
 
     rapidjson::Document m_document;

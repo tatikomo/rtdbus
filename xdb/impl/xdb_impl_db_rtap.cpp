@@ -6,7 +6,6 @@
  */
 #include <new>
 #include <map>
-//#include <unordered_set>
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h> // exit
@@ -15,11 +14,13 @@
 #include <sys/types.h>  // kill
 #include <signal.h>     // kill
 
-#include "glog/logging.h"
 
 #if defined HAVE_CONFIG_H
 #include "config.h"
 #endif
+
+// Служебные заголовочные файлы сторонних утилит
+#include "glog/logging.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,14 +28,12 @@ extern "C" {
 }
 #endif
 
+// Служебные файлы RTDBUS
 #include "xdb_common.hpp"
 #include "xdb_impl_common.h"
 #include "xdb_impl_error.hpp"
 
 #include "helper.hpp"
-#include "dat/rtap_db.h"
-#include "dat/rtap_db.hpp"
-#include "dat/rtap_db.hxx"
 #include "xdb_impl_database.hpp"
 #include "xdb_impl_db_rtap.hpp"
 #include "xdb_impl_sbs_rtap.hpp"
@@ -48,7 +47,9 @@ using namespace xdb;
  * Регенерация осуществляется командой mcocomp 
  * на основе содержимого файла rtap_db.mco
  */
+#include "dat/rtap_db.h"
 #include "dat/rtap_db.hpp"
+#include "dat/rtap_db.hxx"
 
 // Конверсия между целым числом и значением HistoryType из rtap_db.mco
 typedef struct {

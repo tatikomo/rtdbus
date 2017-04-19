@@ -1,3 +1,7 @@
+#if defined HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 // Общесистемные заголовочные файлы
 #include <assert.h>
 #include <unistd.h>
@@ -15,9 +19,6 @@
 #include "google/protobuf/stubs/common.h"
 
 // Служебные файлы RTDBUS
-#if defined HAVE_CONFIG_H
-#include "config.h"
-#endif
 #include "xdb_rtap_application.hpp"
 #include "xdb_rtap_environment.hpp"
 #include "xdb_rtap_connection.hpp"
@@ -25,10 +26,9 @@
 
 #include "wdigger.hpp"
 
-#include "msg_common.h"
+#include "mdp_common.h"
 #include "mdp_worker_api.hpp"
 #include "mdp_zmsg.hpp"
-
 // общий интерфейс сообщений
 #include "msg_common.h"
 #include "msg_message.hpp"

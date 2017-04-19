@@ -128,3 +128,4 @@ smad_connection_state_t ExternalSMAD::connect()
 
   return m_state;
 }
+

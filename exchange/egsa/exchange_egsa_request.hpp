@@ -10,6 +10,7 @@
 #include <map>
 #include <mutex>
 
+// ==============================================================================
 class Request
 {
   public:
@@ -23,6 +24,7 @@ class Request
     static size_t m_sequence;
 };
 
+// ==============================================================================
 class RequestList
 {
   public:

@@ -1,8 +1,13 @@
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+// Служебные заголовочные файлы сторонних утилит
 #include "glog/logging.h"
 
-#include "config.h"
-
+// Служебные файлы RTDBUS
 #include "zmq.hpp"
+#include "mdp_common.h"
 #include "mdp_zmsg.hpp"
 #include "mdp_worker_api.hpp"
 #include "wecho.hpp"

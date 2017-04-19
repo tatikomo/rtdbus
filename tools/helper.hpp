@@ -1,13 +1,11 @@
-#pragma once
 #ifndef GEV_HELPER_HPP
 #define GEV_HELPER_HPP
+#pragma once
 
 #include <string>
 #include <iterator>
 #include <map>
 #include <bitset>
-
-#include "tool_time.hpp"
 
 #define within(num) (int) ((float) (num) * random () / (RAND_MAX + 1.0))
 

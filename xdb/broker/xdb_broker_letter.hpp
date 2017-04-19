@@ -1,14 +1,19 @@
-#pragma once
 #ifndef XDB_DATABASE_LETTER_HPP
 #define XDB_DATABASE_LETTER_HPP
+#pragma once
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+// Общесистемные заголовочные файлы
 #include <iostream>
 #include <stdint.h>
 #include <string>
 
-#include "config.h"
+// Служебные файлы RTDBUS
 #include "helper.hpp"
-//#include "msg_common.h"
+#include "tool_time.hpp"
 
 namespace xdb {
 

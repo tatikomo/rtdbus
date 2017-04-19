@@ -25,7 +25,6 @@
 #include "exchange_config_nature.hpp"
 
 using namespace rapidjson;
-using namespace std;
 
 // Секция "COMMON" конфигурационного файла ==============================
 const char* EgsaConfig::s_SECTION_NAME_COMMON_NAME       = "COMMON";

@@ -11,7 +11,6 @@
 #include "google/protobuf/stubs/common.h"
 
 // Служебные файлы RTDBUS
-#include "mdp_zmsg.hpp"
 // общий интерфейс сообщений
 #include "msg_common.h"
 #include "msg_message.hpp"
@@ -19,6 +18,8 @@
 #include "msg_adm.hpp"
 // сообщения по работе с БДРВ
 #include "msg_sinf.hpp"
+#include "mdp_zmsg.hpp"
+#include "mdp_common.h"
 #include "mdp_worker_api.hpp"
 #include "exchange_sysacq_intf.hpp"
 #include "exchange_sysacq_modbus.hpp"

@@ -6,6 +6,7 @@
 #include <assert.h>
 
 // Служебные заголовочные файлы сторонних утилит
+#include "glog/logging.h"
 
 // Служебные файлы RTDBUS
 #include "exchange_config_sac.hpp"

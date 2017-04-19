@@ -19,8 +19,8 @@
 #include "google/protobuf/stubs/common.h"
 
 // Служебные файлы RTDBUS
-#include "exchange_config.hpp"
 #include "exchange_egsa_impl.hpp"
+#include "exchange_config.hpp"
 
 int main(int argc, char *argv[])
 {

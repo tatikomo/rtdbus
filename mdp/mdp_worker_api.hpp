@@ -18,7 +18,6 @@
 #endif
 
 #include "mdp_zmsg.hpp"
-#include "mdp_common.h"
 #include "mdp_helpers.hpp"
 
 namespace mdp {

@@ -1,4 +1,4 @@
-#if !defined EXCHANGE_EGSA_IMPL_HPP
+#ifndef EXCHANGE_EGSA_IMPL_HPP
 #define EXCHANGE_EGSA_IMPL_HPP
 #pragma once
 
@@ -13,23 +13,15 @@
 
 // Служебные заголовочные файлы сторонних утилит
 // Служебные файлы RTDBUS
-#include "mdp_zmsg.hpp"
 #include "mdp_worker_api.hpp"
 #include "msg_message.hpp"
 // Конфигурация
 #include "exchange_config.hpp"
-#include "exchange_config_egsa.hpp"
-// Внешняя память, под управлением EGSA
-#include "exchange_egsa_init.hpp"
 #include "exchange_egsa_site.hpp"
 #include "exchange_egsa_cycle.hpp"
 #include "exchange_egsa_request.hpp"
 
 class ExternalSMAD;
-class EgsaConfig;
-class SystemAcquisition;
-class Cycle;
-class Request;
 
 class EGSA : public mdp::mdwrk {
   public:
@@ -42,11 +34,6 @@ class EGSA : public mdp::mdwrk {
     // Основной рабочий цикл
     int run();
 
-    // Получить набор циклов, в которых участвует заданная СС
-//    std::vector<Cycle*>   *get_Cycles_for_SA(const std::string&);
-    // Получить набор запросов, зарегистрированных за данной СС
-//    std::vector<Request*> *get_Request_for_SA(const std::string&);
-
     //============================================================================
 #ifdef _FUNCTIONAL_TEST
     // Если собирается тест, вынести эти функции в публичный доступ
@@ -58,13 +45,13 @@ class EGSA : public mdp::mdwrk {
     // Запуск Интерфейса второго уровня
     int implementation();
     // Доступ к конфигурации
-    EgsaConfig* config() { return m_egsa_config; };
+    EgsaConfig* config();
     // Доступ к Сайтам
-    AcqSiteList& sites() { return m_ega_ega_odm_ar_AcqSites; };
+    AcqSiteList& sites();
     // Доступ к Циклам
-    CycleList& cycles() { return m_ega_ega_odm_ar_Cycles; };
+    CycleList& cycles();
     // Доступ к Запросам
-    RequestList& requests() { return m_ega_ega_odm_ar_Requests; };
+    RequestList& requests();
     // Ввести в оборот новый Цикл сбора
     size_t push_cycle(Cycle*);
     // Активировать циклы
@@ -77,7 +64,6 @@ class EGSA : public mdp::mdwrk {
     int init();
     // Инициализация внутренних массивов
     int load_config();
-
     // Первичная обработка нового запроса
     int processing(mdp::zmsg*, const std::string&, bool&);
     void tick_tack();

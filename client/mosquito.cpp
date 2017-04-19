@@ -15,6 +15,8 @@
 
 #include "mosquito.hpp"
 
+void* fillValueByType(xdb::AttributeInfo_t&, std::string&);
+
 // ----------------------------------------------------------
 Mosquito::Mosquito(const std::string& broker, int verbose, WorkMode_t given_mode)
   : mdp::mdcli(broker, verbose),

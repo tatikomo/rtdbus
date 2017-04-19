@@ -11,7 +11,6 @@
 #include <string>
 
 // Служебные заголовочные файлы сторонних утилит
-#include "glog/logging.h"
 #include "rapidjson/document.h"
 
 // Служебные файлы RTDBUS

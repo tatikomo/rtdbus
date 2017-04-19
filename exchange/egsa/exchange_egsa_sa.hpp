@@ -10,17 +10,13 @@
 #include <assert.h>
 
 // Служебные заголовочные файлы сторонних утилит
-#include "zmq.hpp"
 
 // Служебные файлы RTDBUS
-#include "tool_timer.hpp"
 #include "exchange_config.hpp"
-#include "exchange_smad_int.hpp"
-#include "exchange_egsa_cycle.hpp"
 
 class EGSA;
-class Cycle;
 class AcqSiteEntry;
+class InternalSMAD;
 
 // Состояние Систем Сбора:
 // Конфигурационные файлы (cnf)
@@ -62,14 +58,13 @@ class SystemAcquisition
 
   private:
     DISALLOW_COPY_AND_ASSIGN(SystemAcquisition);
-    EGSA* m_egsa;
+    EGSA            *m_egsa;
     // Ссылка в EGSA на данные состояния СС, доступные локально
-    AcqSiteEntry* m_info;
+    AcqSiteEntry    *m_info;
     // Ссылка на внутреннюю SMAD
-    InternalSMAD     *m_smad;
-    // Циклы СС
-//    std::vector<Cycle*>* m_cycles;
+    InternalSMAD    *m_smad;
 
+#if 0
     // Набор таймеров внутренних событий
     Timer *m_timer_CONNECT;
     Timer *m_timer_RESPONSE;
@@ -78,9 +73,8 @@ class SystemAcquisition
     Timer *m_timer_GENCONTROL;
     Timer *m_timer_DIFFUSION;
     Timer *m_timer_TELEREGULATION;
+#endif
 
-    // Найти циклы, в которых участвует данная система сбора
-//    std::vector<Cycle*>* look_my_cycles();
     // Послать сообщение инициализации
     void init();
     void process_end_all_init(); // Сообщение о завершении инициализации 
@@ -102,5 +96,6 @@ class SystemAcquisition
 };
 
 // -----------------------------------------------------------------------------------
+
 #endif
 

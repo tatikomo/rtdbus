@@ -84,7 +84,9 @@ There are some other flags defined in logging.cc. Please grep the source code fo
 ctags -R --c++-kinds=+p --fields=+iaS --extra=+q .
 
 Используется cppcheck для статической проверки исходных текстов:
-cppcheck . --force -I../libzmq/src -I../eXtremeDB_5_fusion_eval/include -I../glog/src -I../protobuf/src -I../googletest/googletest/include -Ihdb -Iexchange/modbus -Iclient -Iworker -Itest -Imsg -Itools -Ixdb/impl -Ixdb/rtap -Ixdb/broker -Icmake -Imdp
+cppcheck . --force -I../libzmq/src -I../eXtremeDB_5_fusion_eval/include -I../glog/src -I../protobuf/src -I../googletest/googletest/include -Ihdb -Iexchange/config -Iexchange/sa -Iexchange/smad -Iexchange/egsa -Iclient -Iworker -Itest -Imsg -Itools -Ixdb/impl -Ixdb/rtap -Ixdb/broker -Icmake -Imdp
+
+cppclean . -I../libzmq/src -I../eXtremeDB_5_fusion_eval/include -I../glog/src -I../protobuf/src -I../googletest/googletest/include -I../rapidjson/include -I../sqlite/sqlite-autoconf-3150100 -I../cppzmq -Ihdb -Iexchange/config -Iexchange/sa -Iexchange/smad -Iexchange/egsa -Iclient -Iworker -Itest -Imsg -Itools -Ixdb/impl -Ixdb/common -Ixdb/rtap -Ixdb/broker -Icmake -Imdp -I../xerces-c/src -I../libmodbus/src -I. -I../samples/zguide/examples/C++
 
 Подробная трассировка тестов включается с помощью:
 ctest -R НАЗВАНИЕ_ТЕСТА -VV

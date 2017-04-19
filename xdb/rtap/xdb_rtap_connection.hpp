@@ -8,7 +8,6 @@
 
 #include "xdb_common.hpp"   // rtDbCq
 #include "xdb_impl_error.hpp"
-#include "xdb_rtap_data.hpp" // RtData
 
 namespace xdb {
 

@@ -1,4 +1,4 @@
-#if !defined EXCHANGE_EGSA_SITE_HPP
+#ifndef EXCHANGE_EGSA_SITE_HPP
 #define EXCHANGE_EGSA_SITE_HPP
 #pragma once
 
@@ -12,10 +12,8 @@
 #include <map>
 
 // Служебные заголовочные файлы сторонних утилит
+
 // Служебные файлы RTDBUS
-// Конфигурация
-// Внешняя память, под управлением EGSA
-#include "exchange_egsa_init.hpp"
 #include "exchange_config_egsa.hpp"
 #include "exchange_config.hpp"
 
@@ -26,32 +24,15 @@ class SystemAcquisition;
 // Acquisition Site Entry Structure
 class AcqSiteEntry {
   public:
-    AcqSiteEntry(EGSA* egsa, const egsa_config_site_item_t* entry)
-    : m_egsa(egsa),
-      m_NatureAcqSite(entry->nature),
-      m_AutomaticalInit(entry->auto_init),
-      m_AutomaticalGenCtrl(entry->auto_gencontrol),
-      m_FunctionalState(SA_STATE_UNKNOWN),
-      m_Level(entry->level),
-      // m_Id(entry->id),
-      m_InterfaceComponentActive(false),
-      m_sa_instance(NULL)
-    {
-      strncpy(m_IdAcqSite, entry->name.c_str(), TAG_NAME_MAXLEN);
-    };
+    AcqSiteEntry(EGSA*, const egsa_config_site_item_t*);
+   ~AcqSiteEntry();
 
-   ~AcqSiteEntry()
-    {
-      delete m_sa_instance;
-    };
-
-    const char* name()      const { return m_IdAcqSite; };
-    gof_t_SacNature nature()const { return m_NatureAcqSite; };
-    bool        auto_i()    const { return m_AutomaticalInit; };
-    bool        auto_gc()   const { return m_AutomaticalGenCtrl; };
-    sa_state_t  state()     const { return m_FunctionalState; };
-    // size_t      id()        const { return m_Id; };
-    sa_object_level_t level() const { return m_Level; };
+    const char* name()      const { return m_IdAcqSite; }
+    gof_t_SacNature nature()const { return m_NatureAcqSite; }
+    bool        auto_i()    const { return m_AutomaticalInit; }
+    bool        auto_gc()   const { return m_AutomaticalGenCtrl; }
+    sa_state_t  state()     const { return m_FunctionalState; }
+    sa_object_level_t level() const { return m_Level; }
 
     // Управление состоянием
     sa_state_t  change_state_to(sa_state_t);
@@ -62,6 +43,7 @@ class AcqSiteEntry {
     int detach_smad();
 
   private:
+    DISALLOW_COPY_AND_ASSIGN(AcqSiteEntry);
     // Для доступа SystemAcquisition к объекту egsa ?
     // TODO: А нужен ли тут вообще SystemAcquisition? Может слить его с AcqSiteEntry?
     EGSA* m_egsa;
@@ -92,8 +74,6 @@ class AcqSiteEntry {
     sa_state_t m_FunctionalState;
 
     sa_object_level_t m_Level;
-
-    // size_t m_Id;
 
     // interface component state : active / stopped (TRUE / FALSE)
     bool m_InterfaceComponentActive;
@@ -131,6 +111,8 @@ class AcqSiteList {
     AcqSiteEntry* operator[](const std::size_t);
 
   private:
+    DISALLOW_COPY_AND_ASSIGN(AcqSiteList);
+
     EGSA* m_egsa;
     struct map_cmp_str {
       // Оператор сравнения строк в m_site_map.

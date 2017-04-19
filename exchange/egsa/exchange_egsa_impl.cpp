@@ -4,24 +4,23 @@
 
 // Общесистемные заголовочные файлы
 #include <assert.h>
-#include <sys/time.h>
+#include <sys/time.h>   // for 'time_t' and 'struct timeval'
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>     // for 'usleep'
-
 #include <iostream>
 #include <functional>
 #include <queue>
 #include <chrono>
 #include <thread>
-#include <sys/time.h>   // for 'time_t' and 'struct timeval'
 
 // Служебные заголовочные файлы сторонних утилит
 #include "glog/logging.h"
 
 // Служебные файлы RTDBUS
 #include "tool_events.hpp"
+#include "mdp_common.h"
 #include "mdp_zmsg.hpp"
 #include "mdp_worker_api.hpp"
 #include "msg_common.h"     // константы запросов SIG_D_MSG_*
@@ -206,6 +205,32 @@ int EGSA::load_config()
   return rc;
 }
 
+// ==========================================================================================================
+// Доступ к конфигурации
+EgsaConfig* EGSA::config()
+{
+  return m_egsa_config;
+}
+
+// ==========================================================================================================
+// Доступ к Сайтам
+AcqSiteList& EGSA::sites()
+{
+  return m_ega_ega_odm_ar_AcqSites;
+}
+
+// ==========================================================================================================
+// Доступ к Циклам
+CycleList& EGSA::cycles() {
+  return m_ega_ega_odm_ar_Cycles;
+}
+
+// ==========================================================================================================
+// Доступ к Запросам
+RequestList& EGSA::requests()
+{
+  return m_ega_ega_odm_ar_Requests;
+}
 
 // ==========================================================================================================
 // Подключиться к SMAD систем сбора
@@ -374,7 +399,7 @@ int EGSA::run()
         processing(request, *reply_to, get_order_to_stop);
 
         // Обработка очередного цикла из очереди
-        events::timer();
+        cycles::timer();
 
         if (get_order_to_stop) {
           LOG(INFO) << fname << " got a shutdown order";
@@ -494,9 +519,10 @@ int EGSA::run()
   return status;
 }
 
+// ==========================================================================================================
 void EGSA::tick_tack()
 {
-  events::timer();
+  cycles::timer();
 }
 
 // ==========================================================================================================
@@ -560,7 +586,7 @@ void EGSA::fire_ENDALLINIT()
 
 #if 0
     if (sa->send(ADG_D_MSG_ENDALLINIT)) {
-      events::add(std::bind(&SystemAcquisition::check_ENDALLINIT, sa), now + std::chrono::seconds(2));
+      cycles::add(std::bind(&SystemAcquisition::check_ENDALLINIT, sa), now + std::chrono::seconds(2));
     }
 #endif
   }
@@ -582,7 +608,7 @@ void EGSA::fire_ENDALLINIT()
       delete recv_msg;
     }
 
-    events::timer();
+    cycles::timer();
   }
 }
 
@@ -601,15 +627,15 @@ int EGSA::activate_cycles()
 
     if (cycle) {
       // Для каждого Цикла активировать столько экземпляров, сколько в нем объявлено Сайтов
-      for (size_t sid = 0, site_idx = 0; sid < cycle->sites().size(); sid++, site_idx++)
+      for (size_t sid = 0, site_idx = 0; sid < cycle->sites()->size(); sid++, site_idx++)
       {
         LOG(INFO) << "Activate cycle: " << cycle->name()
                   << " id=" << cycle->id()
                   << " period=" << cycle->period()
-                  << " SA: " << cycle->sites()[sid]->name() << " id=" << site_idx;
+                  << " SA: " << (*cycle->sites())[sid]->name() << " id=" << site_idx;
 
         // Связать триггер с объектом, идентификаторами Цикла и Системы Сбора
-        events::add(std::bind(&EGSA::cycle_trigger, this, cycle->id(), site_idx),
+        cycles::add(std::bind(&EGSA::cycle_trigger, this, cycle->id(), site_idx),
                     now /*+ std::chrono::seconds((*it)->period())*/); // Время активации: сейчас (+ период цикла?)
       }
     } /*
@@ -631,7 +657,7 @@ int EGSA::deactivate_cycles()
     if (m_ega_ega_odm_ar_Cycles[idx])
       LOG(INFO) << "Deactivate cycle id=" << idx << ": " << m_ega_ega_odm_ar_Cycles[idx]->name();
   }
-  events::clear();
+  cycles::clear();
 
   return OK;
 }
@@ -649,7 +675,7 @@ void EGSA::cycle_trigger(size_t cycle_id, size_t sa_id)
   int delta_sec;
 
   Cycle *cycle = m_ega_ega_odm_ar_Cycles[cycle_id];
-  AcqSiteEntry *site = cycle->sites()[sa_id];
+  AcqSiteEntry *site = (*cycle->sites())[sa_id];
   
   assert(site);
   assert(cycle);
@@ -665,7 +691,7 @@ void EGSA::cycle_trigger(size_t cycle_id, size_t sa_id)
       LOG(INFO) << "Reactivate cycle " << cycle->name() << " (" << cycle_id << "," << sa_id << ")";
 //#endif
       auto now = std::chrono::system_clock::now();
-      events::add(std::bind(&EGSA::cycle_trigger, this, cycle_id, sa_id),
+      cycles::add(std::bind(&EGSA::cycle_trigger, this, cycle_id, sa_id),
                   now + std::chrono::seconds(cycle->period()));
 
       auto next = now + std::chrono::seconds(delta_sec);
@@ -717,12 +743,12 @@ int EGSA::wait(int max_wait_sec)
         break;
 
       case 0:
-        events::timer();
+        cycles::timer();
         std::cout << "." << std::flush;
         break;
 
       default:
-        events::timer();
+        cycles::timer();
         read_sz = read(m_socket, buffer, buffer_sz);
         buffer[(read_sz >= 0)? read_sz : 0] = '\0';
         LOG(INFO) << "Read " << read_sz << " bytes: " << buffer;
@@ -1030,8 +1056,13 @@ int EGSA::process_read_response(msg::Letter* report)
       const std::string sa_name = attr_val.tag().substr(1, point_pos-1);
       AcqSiteEntry* sa_entry = m_ega_ega_odm_ar_AcqSites[sa_name];
 
+      // Нашли в своей конфигурации упоминание этой СС
       if (sa_entry) {
+        // Преобразовали числовой код состояния SYNTHSTATE из БДРВ
         const sa_state_t new_state = int_to_sa_state(attr_val.raw().fixed.val_uint8);
+        // Зарядили необходимые Запросы в Циклы, где участвует эта СС
+
+        // Поменяли состояние СС на нужное
         sa_entry->change_state_to(new_state);
         LOG(INFO) << "Update SA " << sa_name << " state to " << sa_entry->state();
       }

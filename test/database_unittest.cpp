@@ -1,20 +1,21 @@
+#if defined HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+// Общесистемные заголовочные файлы
 #include <iostream>
 #include <string>
-
 #include <stdlib.h> // putenv
 #include <stdio.h>  // fprintf
 
+// Служебные заголовочные файлы сторонних утилит
 #include "glog/logging.h"
 #include "gtest/gtest.h"
 #include "xercesc/util/PlatformUtils.hpp"
 #include "sqlite3.h"
 
-#if defined HAVE_CONFIG_H
-#include "config.h"
-#endif
-
+// Служебные файлы RTDBUS
 #include "xdb_common.hpp"
-
 #include "xdb_impl_db_broker.hpp"
 #include "xdb_broker.hpp"
 #include "xdb_broker_service.hpp"
@@ -94,7 +95,7 @@ rtap_db::Points point_list;
 rtap_db_dict::Dictionaries_t dict;
 
 // ===========================================================================
-void wait()
+static void wait()
 {
 #ifdef USE_EXTREMEDB_HTTP_SERVER
 //  puts("\nNext...");
@@ -103,7 +104,7 @@ void wait()
 }
 
 // ===========================================================================
-void show_runtime_info(const char * lead_line)
+static void show_runtime_info(const char * lead_line)
 {
   mco_runtime_info_t info;
   
@@ -139,7 +140,7 @@ void show_runtime_info(const char * lead_line)
 
 // ===========================================================================
 // Если значение attach == true, округления в большую сторону не происходит
-time_t roundTimeToNextEdge(time_t given_time, xdb::sampler_type_t htype, bool attach)
+static time_t roundTimeToNextEdge(time_t given_time, xdb::sampler_type_t htype, bool attach)
 {
   time_t round_time = given_time;
   struct tm edge;

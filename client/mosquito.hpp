@@ -7,7 +7,6 @@
 #endif
 
 #include "mdp_client_async_api.hpp"
-#include "msg_message.hpp"
 
 #define OPTION_MODE_READ  "read"
 #define OPTION_MODE_WRITE "write"

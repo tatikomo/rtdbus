@@ -6,7 +6,6 @@
 #include "config.h"
 #endif
 
-#include "tool_timer.hpp"
 #include "exchange_config.hpp"
 
 #define REQUESTNAME_MAX     17

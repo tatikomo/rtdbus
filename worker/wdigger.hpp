@@ -1,6 +1,6 @@
-#pragma once
 #ifndef WORKER_DIGGER_HPP
 #define WORKER_DIGGER_HPP
+#pragma once
 
 #include <string>
 #include <vector>
@@ -11,7 +11,7 @@
 #if defined HAVE_CONFIG_H
 #include "config.h"
 #endif
-#include "helper.hpp"
+
 // класс измерения производительности
 #include "tool_metrics.hpp"
 
@@ -31,7 +31,7 @@ namespace mdp {
 const char* const DIGGER_NAME = "digger";
 
 // Класс для измерения и хранения метрик производительности
-class Metrics;
+//class Metrics;
 
 // Вторичный обработчик запросов:
 // Процедура:

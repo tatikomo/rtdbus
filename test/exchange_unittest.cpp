@@ -12,6 +12,7 @@
 #include "zmq.hpp"
 
 // Служебные файлы RTDBUS
+#include "mdp_common.h"
 #include "mdp_zmsg.hpp"
 #include "exchange_config.hpp"
 #include "exchange_config_sac.hpp"
@@ -141,6 +142,8 @@ TEST(TestEXCHANGE, EGSA_CONFIG)
 TEST(TestEXCHANGE, EGSA_REQUESTS)
 {
   ega_ega_odm_t_RequestEntry* req_entry_dict = NULL;
+  RequestList req_list;
+  //Request 
   int rc;
 
   // Проверка поиска несуществующего запроса
@@ -153,6 +156,8 @@ TEST(TestEXCHANGE, EGSA_REQUESTS)
   EXPECT_TRUE(rc == OK);
   EXPECT_TRUE(req_entry_dict != NULL);
   EXPECT_TRUE(req_entry_dict->e_RequestId == ECH_D_GENCONTROL);
+
+ // req_list.insert()
 }
 
 // Подготовить полную информацию по циклам, включая связанные с этими циклами сайты
@@ -227,7 +232,7 @@ TEST(TestEXCHANGE, EGSA_CYCLES)
   EXPECT_TRUE(rc == OK);
 
   // > 36 секунд, чтобы GENCONTROL успел выполниться 2 раза
-  g_egsa_instance->wait(40);
+  g_egsa_instance->wait(20);
   /*
   for (int i=0; i<20; i++) {
     std::cout << ".";

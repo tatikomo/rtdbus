@@ -9,8 +9,6 @@
 #include "config.h"
 #endif
 
-#include "xdb_common.hpp"
-
 // неиспользуемый макс. номер (см. ObjClass_t в rtap_db_dict.hxx)
 #define OBJCLASS_UNUSED 127
 

@@ -1,12 +1,18 @@
-#pragma once
 #ifndef XDB_DATABASE_WORKER_HPP
 #define XDB_DATABASE_WORKER_HPP
+#pragma once
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+// Общесистемные заголовочные файлы
 #include <stdint.h>
 #include <sys/time.h>
 
-#include "config.h"
+// Служебные файлы RTDBUS
 #include "helper.hpp"
+#include "tool_time.hpp"
 
 namespace xdb {
 

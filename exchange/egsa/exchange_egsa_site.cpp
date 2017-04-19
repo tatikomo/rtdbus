@@ -17,6 +17,26 @@
 #include "exchange_egsa_sa.hpp"
 
 // ==============================================================================
+AcqSiteEntry::AcqSiteEntry(EGSA* egsa, const egsa_config_site_item_t* entry)
+  : m_egsa(egsa),
+    m_NatureAcqSite(entry->nature),
+    m_AutomaticalInit(entry->auto_init),
+    m_AutomaticalGenCtrl(entry->auto_gencontrol),
+    m_FunctionalState(SA_STATE_UNKNOWN),
+    m_Level(entry->level),
+    m_InterfaceComponentActive(false),
+    m_sa_instance(NULL)
+{
+  strncpy(m_IdAcqSite, entry->name.c_str(), TAG_NAME_MAXLEN);
+}
+
+// ==============================================================================
+AcqSiteEntry::~AcqSiteEntry()
+{
+  delete m_sa_instance;
+}
+
+// ==============================================================================
 // TODO: СС и EGSA могут работать на разных хостах, в этом случае подключение EGSA к smad СС
 // не получит доступа к реальным данным от СС. Их придется EGSA туда заносить самостоятельно.
 int AcqSiteEntry::attach_smad()
