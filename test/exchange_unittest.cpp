@@ -17,7 +17,6 @@
 #include "exchange_config.hpp"
 #include "exchange_config_sac.hpp"
 #include "exchange_config_egsa.hpp"
-#include "exchange_egsa_init.hpp"
 #include "exchange_egsa_impl.hpp"
 #include "exchange_egsa_sa.hpp"
 #include "exchange_egsa_request.hpp"
@@ -31,30 +30,6 @@ SystemAcquisition* g_sa = NULL;
 AcqSiteEntry *g_new_sac_info = NULL;
 
 const char* g_sa_config_filename = "BI4500.json";
-extern ega_ega_odm_t_RequestEntry g_requests_table[]; // declared in exchange_egsa_impl.cpp
-static const char* dict_RequestNames[] = {
-  EGA_EGA_D_STRGENCONTROL,
-  EGA_EGA_D_STRINFOSACQ,
-  EGA_EGA_D_STRURGINFOS,
-  EGA_EGA_D_STRGAZPROCOP,
-  EGA_EGA_D_STREQUIPACQ,
-  EGA_EGA_D_STRACQSYSACQ,
-  EGA_EGA_D_STRALATHRES,
-  EGA_EGA_D_STRTELECMD,
-  EGA_EGA_D_STRTELEREGU,
-  EGA_EGA_D_STRSERVCMD,
-  EGA_EGA_D_STRGLOBDWLOAD,
-  EGA_EGA_D_STRPARTDWLOAD,
-  EGA_EGA_D_STRGLOBUPLOAD,
-  EGA_EGA_D_STRINITCMD,
-  EGA_EGA_D_STRGCPRIMARY,
-  EGA_EGA_D_STRGCSECOND,
-  EGA_EGA_D_STRGCTERTIARY,
-  EGA_EGA_D_STRDIFFPRIMARY,
-  EGA_EGA_D_STRDIFFSECOND,
-  EGA_EGA_D_STRDIFFTERTIARY,
-  EGA_EGA_D_STRINFOSDIFF,
-  EGA_EGA_D_STRDELEGATION };
 
 // Создать корректно заполненные сообщения нужного типа для тестирования реакции EGSA
 // NB: Удалить возвращаемый объект после использования
@@ -224,6 +199,67 @@ TEST(TestEXCHANGE, EGSA_CONFIG)
 // 3 DIPL : DIPLs sending secondary informations in differential mode to the DIR
 // 4 DIPL : DIPLs sending tertiary informations in differential mode to the DIR
 //
+TEST(TestEXCHANGE, EGSA_CYCLES_CONFIG)
+{
+  // TODO Собрать для каждой СС информацию в виде, пригодном к выдаче Запросов в Циклах
+  CycleList &cycles = g_egsa_instance->cycles();
+
+  for(int cidx = 0; cidx < cycles.size(); cidx++) {
+    Cycle* cycle = cycles[cidx];
+    if (cycle) {
+      LOG(INFO) << cycle->name();
+
+      AcqSiteList* sites = cycle->sites();
+      if (sites) {
+
+        for (int sidx = 0; sidx < sites->size(); sidx++) {
+
+          AcqSiteEntry* sa = (*sites)[sidx];
+          LOG(INFO) << "\t" << "SA " << sa->name();
+
+          // Получить для данной СС актуальный Запрос из конфигурации
+          LOG(INFO) << "\t\t" << "REQ #" << cycle->req_id() << " " << Request::name(cycle->req_id());
+
+          // Для актуального Запроса найти все вложенные в него подзапросы
+          RequestDictionary& d_requests = g_egsa_instance->dictionary_requests();
+
+          Request *main_req = d_requests.query_by_id(cycle->req_id());
+
+          if (main_req) { // Есть вложенные Запросы
+            const ech_t_ReqId* included_requests = main_req->included();
+#if 0
+            int ir = 0;
+
+            while (ECH_D_NONEXISTANT != included_requests[ir]) {
+
+              LOG(INFO) << "\t\t\t" << "IR #" << included_requests[ir] << " " << Request::name(included_requests[ir]);
+
+              // Запомнить для этой СС связку "Цикл" - "Связанные Запросы"
+              // TODO: некоторые вложенные Запросы можно пропускать, если для них нет 
+              sa->push_request_for_cycle(cycle, main_req->included());
+
+              ir++;
+            } // while по всем подзапросам
+#else
+
+            // Запомнить для этой СС связку "Цикл" - "Связанные Запросы"
+            // TODO: некоторые вложенные Запросы можно пропускать, если для них нет 
+            sa->push_request_for_cycle(cycle, main_req->included());
+#endif
+
+          } // if есть вложенные подзапросы
+        } // for по всем системам сбора
+      } // if если для этого Цикла есть системы сбора
+      else {
+        LOG(WARNING) << "\t" << "Cycle #" << cidx << " hasn't any sites";
+      }
+    } // if если данный Цикл используется
+    else {
+      LOG(WARNING) << "Skip empty cycle #" << cidx;
+    }
+  } // for проверить все известные Циклы
+}
+
 TEST(TestEXCHANGE, EGSA_CYCLES)
 {
 //  ega_ega_odm_t_RequestEntry* req_entry_dict = NULL;
@@ -333,10 +369,10 @@ TEST(TestEXCHANGE, EGSA_SITES)
 
 TEST(TestEXCHANGE, EGSA_REQUESTS)
 {
-  ega_ega_odm_t_RequestEntry* req_entry_dict = NULL;
-  RequestList req_list;
+  //ega_ega_odm_t_RequestEntry* req_entry_dict = NULL;
+  RequestDictionary req_list;
   //Request 
-  int rc;
+  //int rc;
 
 #if 0
   // Проверка поиска несуществующего запроса
@@ -351,14 +387,14 @@ TEST(TestEXCHANGE, EGSA_REQUESTS)
   EXPECT_TRUE(req_entry_dict->e_RequestId == ECH_D_GENCONTROL);
 #endif
 
-  RequestList &rl = g_egsa_instance->requests();
+  RequestDictionary &rl = g_egsa_instance->dictionary_requests();
   for (size_t id = 0; id < rl.size(); id++) {
-    Request *r = rl[id];
+    Request *r = rl.query_by_id(static_cast<ech_t_ReqId>(id));
     if (r)
       LOG(INFO) << "req id=" << r->id()
-                << " name=" << dict_RequestNames[r->id()]
+                << " name=" << Request::name(r->id()) /* << ", " << EgsaConfig::g_request_dictionary[r->id()].s_RequestName*/
                 << " objclass=" << r->objclass()
-                << " exchange_id=" << r->req_id()
+                << " exchange_id=" << r->exchange_id()
                 << " prio=" << r->priority();
   }
  // req_list.insert()

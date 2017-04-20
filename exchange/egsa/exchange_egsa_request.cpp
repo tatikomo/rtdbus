@@ -15,12 +15,41 @@
 
 size_t Request::m_sequence = 0;
 
+// Вспомогательный словарь для получения соответствия между идентификатором запроса
+// (порядковым номером) и символьным описанием (элементом массива)
+const char* Request::m_dict_RequestNames[] = {
+  EGA_EGA_D_STRGENCONTROL,
+  EGA_EGA_D_STRINFOSACQ,
+  EGA_EGA_D_STRURGINFOS,
+  EGA_EGA_D_STRGAZPROCOP,
+  EGA_EGA_D_STREQUIPACQ,
+  EGA_EGA_D_STRACQSYSACQ,
+  EGA_EGA_D_STRALATHRES,
+  EGA_EGA_D_STRTELECMD,
+  EGA_EGA_D_STRTELEREGU,
+  EGA_EGA_D_STRSERVCMD,
+  EGA_EGA_D_STRGLOBDWLOAD,
+  EGA_EGA_D_STRPARTDWLOAD,
+  EGA_EGA_D_STRGLOBUPLOAD,
+  EGA_EGA_D_STRINITCMD,
+  EGA_EGA_D_STRGCPRIMARY,
+  EGA_EGA_D_STRGCSECOND,
+  EGA_EGA_D_STRGCTERTIARY,
+  EGA_EGA_D_STRDIFFPRIMARY,
+  EGA_EGA_D_STRDIFFSECOND,
+  EGA_EGA_D_STRDIFFTERTIARY,
+  EGA_EGA_D_STRINFOSDIFF,
+  EGA_EGA_D_STRDELEGATION };
+
 // ==============================================================================
-Request::Request(ech_t_ReqId _req_id, ech_t_AcqMode _acq_mode, ega_ega_t_ObjectClass _objclass, int _prio)
-  : m_req_id(_req_id),
-    m_acq_mode(_acq_mode),
-    m_objclass(_objclass),
-    m_prio(_prio)
+Request::Request(const ega_ega_odm_t_RequestEntry* _config)
+  : m_config(*_config)
+{
+  generate_new_exchange_id();
+}
+
+// ==============================================================================
+size_t Request::generate_new_exchange_id()
 {
   mtx.lock();
 
@@ -30,24 +59,25 @@ Request::Request(ech_t_ReqId _req_id, ech_t_AcqMode _acq_mode, ega_ega_t_ObjectC
   m_exchange_id = m_sequence++;
 
   mtx.unlock();
+  return m_exchange_id;
 }
 
 // ==============================================================================
 Request::~Request()
 {
-  LOG(INFO) << "release request exchange:" << m_exchange_id << " id:" << m_req_id;
+  LOG(INFO) << "release request exchange:" << m_exchange_id << " id:" << m_config.e_RequestId;
 }
 
 // ==============================================================================
-RequestList::RequestList()
+RequestDictionary::RequestDictionary()
 {
   m_requests.clear();
 }
 
 // ==============================================================================
-RequestList::~RequestList()
+RequestDictionary::~RequestDictionary()
 {
-  for(std::map<size_t, Request*>::const_iterator it = m_requests.begin();
+  for(std::map<ech_t_ReqId, Request*>::const_iterator it = m_requests.begin();
       it != m_requests.end();
       ++it)
   {
@@ -58,31 +88,27 @@ RequestList::~RequestList()
 }
 
 // ==============================================================================
-int RequestList::add(Request* item)
+int RequestDictionary::add(Request* item)
 {
-  m_requests.insert(std::pair<size_t, Request*>(item->id(), item));
+  m_requests.insert(std::pair<ech_t_ReqId, Request*>(item->id(), item));
   return NOK;
 }
 
 // ==============================================================================
-Request* RequestList::search(size_t idx)
+// Вернуть экземпляр Request соответствующего типа
+Request* RequestDictionary::query_by_id(ech_t_ReqId _id)
 {
-  LOG(INFO) << "search item " << idx;
-  return NULL;
+  return m_requests[_id];
 }
 
 // ==============================================================================
-int RequestList::free(size_t idx)
+RequestRuntimeList::RequestRuntimeList()
 {
-  LOG(INFO) << "free item " << idx;
-  return NOK;
 }
 
 // ==============================================================================
-Request* RequestList::operator[](size_t id)
+RequestRuntimeList::~RequestRuntimeList()
 {
-  return m_requests[id];
 }
 
 // ==============================================================================
-

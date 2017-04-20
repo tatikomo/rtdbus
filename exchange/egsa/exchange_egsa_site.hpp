@@ -19,6 +19,7 @@
 
 class EGSA;
 class SystemAcquisition;
+class Cycle;
 
 // ==============================================================================
 // Acquisition Site Entry Structure
@@ -36,6 +37,8 @@ class AcqSiteEntry {
 
     // Управление состоянием
     sa_state_t  change_state_to(sa_state_t);
+    // Регистрация Запросов в указанном Цикле
+    int push_request_for_cycle(Cycle*, ech_t_ReqId*);
 
     // TODO: СС и EGSA могут работать на разных хостах, в этом случае подключение EGSA к smad СС
     // не получит доступа к реальным данным от СС. Их придется EGSA туда заносить самостоятельно.

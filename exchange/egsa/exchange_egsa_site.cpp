@@ -206,8 +206,44 @@ sa_state_t AcqSiteEntry::change_state_to(sa_state_t new_state)
       break;
   }
 
+  if (state_changed) {
+    LOG(INFO) << name() << ": state was changed from " << m_FunctionalState << " to " << new_state;
+  }
   m_FunctionalState = new_state;
   return m_FunctionalState;
+}
+
+// ==============================================================================
+// Запомнить связку между Циклом и последовательностью Запросов
+// NB: некоторые вложенные запросы могут быть отменены. Критерий отмены - отсутствие
+// параметров, собираемых этим запросом.
+// К примеру, виды собираемой от СС информации по Запросам:
+//      Тревоги     : A_URGINFOS
+//      Телеметрия  : A_INFOSACQ
+//      Телеметрия? : A_GCPRIMARY | A_GCSECOND | A_GCTERTIARY
+// Виды передаваемой в адрес СС информации по Запросам
+//      Телеметрия  : A_IAPRIMARY | A_IASECOND | A_IATERTIARY
+//      Уставки     : A_ALATHRES
+int AcqSiteEntry::push_request_for_cycle(Cycle* cycle, ech_t_ReqId* included_requests)
+{
+  int rc = OK;
+  int ir = 0;
+  char tmp[200] = " ";
+  char s_req[20];
+
+  while (ECH_D_NONEXISTANT != included_requests[ir]) {
+    strcpy(s_req, Request::name(included_requests[ir++]));
+    strcat(tmp, s_req);
+    strcat(tmp, " ");
+  }
+
+  if (!ir) { // Нет вложенных Подзапросов - используем сам Запрос
+    strcat(tmp, Request::name(cycle->req_id()));
+    strcat(tmp, " ");
+  }
+
+  LOG(INFO) << name() << ": store request(s) [" << tmp << "] for cycle " << cycle->name();
+  return rc;
 }
 
 // ==============================================================================

@@ -18,7 +18,6 @@ class AcqSiteList;
 
 // Служебные файлы RTDBUS
 #include "tool_timer.hpp"
-#include "exchange_egsa_init.hpp"
 #include "exchange_config_egsa.hpp"
 
 
@@ -41,15 +40,16 @@ class CycleTrigger : public TimerTimeoutHandler
 class Cycle {
   public:
     // Конструктор экземпляра "Цикл"
-    Cycle(const char*, int, cycle_id_t, cycle_family_t);
-    ~Cycle();
+    Cycle(const char*, int, cycle_id_t, ech_t_ReqId, cycle_family_t);
+   ~Cycle();
 
     // Род цикла
     cycle_family_t family() { return m_CycleFamily; }
     // Название цикла
     const char* name() { return m_CycleName; }
     int period() { return m_CyclePeriod; }
-    int id() { return m_CycleId; }
+    cycle_id_t id() { return m_CycleId; }
+    ech_t_ReqId req_id() { return m_RequestId; }
     // Зарегистрировать указанную СС в этом Цикле
     int link(AcqSiteEntry*);
     // Список сайтов
@@ -63,12 +63,15 @@ class Cycle {
 	cycle_family_t  m_CycleFamily;
     // Цикличность в секундах
 	int             m_CyclePeriod;
-    // Идентификатор
+    // Идентификатор Цикла
     cycle_id_t      m_CycleId;
+    // Идентификатор Запроса, связанного с Циклом
+    ech_t_ReqId     m_RequestId;
     // identifiers of the concerned acquisition sites
 	AcqSiteList*     m_SiteList;
 	//Timer*          m_CycleTimer;
     //CycleTrigger*   m_CycleTrigger;
+ 
   private:
     DISALLOW_COPY_AND_ASSIGN(Cycle);
 };

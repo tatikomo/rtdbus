@@ -56,10 +56,11 @@ void CycleTrigger::handlerFunction( void )
 // _period  : интервалы между активациями
 // _id      : уникальный числовой идентификатор Цикла
 // _family  : тип Цикла
-Cycle::Cycle(const char* _name, int _period, cycle_id_t _id, cycle_family_t _family)
+Cycle::Cycle(const char* _name, int _period, cycle_id_t _id, ech_t_ReqId _req_id, cycle_family_t _family)
  : m_CycleFamily(_family),
    m_CyclePeriod(_period),
    m_CycleId(_id),
+   m_RequestId(_req_id),
    m_SiteList(new AcqSiteList)
    /*m_CycleTimer(NULL),
    m_CycleTrigger(NULL)*/

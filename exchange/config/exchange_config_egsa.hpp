@@ -234,7 +234,7 @@ typedef struct {
   std::string name; // Название Цикла, берется из файла конфигурации
   cycle_id_t id;    // Числовой уникальный идентификатор Цикла, берется из таблицы связи "Имя"<->"ID"
   int period;       // Период активации в секундах
-  std::string request_name;         // TODO: непонятно назначение связанного с Циклом Запроса
+  std::string request_name;         // Связанный Запрос
   std::vector <std::string> sites;  // Список Сайтов, задействованных в Цикле, берется из конфигурации
 } egsa_config_cycle_info_t;
 
@@ -302,6 +302,8 @@ class EgsaConfig {
     egsa_config_sites_t& sites() { return m_sites; };
     // Загруженные Запросы
     egsa_config_requests_t& requests() { return m_requests; };
+    ech_t_ReqId get_request_id(const std::string&);
+    const char* get_request_name(ech_t_ReqId);
 
   private:
     DISALLOW_COPY_AND_ASSIGN(EgsaConfig);

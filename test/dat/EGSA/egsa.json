@@ -42,7 +42,7 @@
 	}, {
 		"NAME": "INFOSACQ",
 		"PERIOD": 2,
-		"REQUEST": "INFOSACQ",
+		"REQUEST": "A_INFOSACQ",
 		"SITE": [{
 			"NAME": "BI4001"
 		}, {
@@ -51,7 +51,7 @@
 	}, {
 		"NAME": "INFO_DACQ_DIPADJ",
 		"PERIOD": 3,
-		"REQUEST": "INFOSACQ",
+		"REQUEST": "A_INFOSACQ",
 		"SITE": [{
 			"NAME": "K42001"
 		}]
@@ -175,7 +175,7 @@
 		"OBJECT": "A"
 	}, {
 		"NAME": "I_INITCMD",
-		"PRIORITY": 82,
+		"PRIORITY": 80,
 		"OBJECT": "A"
 	}]
 }

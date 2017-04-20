@@ -135,6 +135,7 @@ int EGSA::init()
 // и ссылкам, для ускорения работы
 int EGSA::load_config()
 {
+  ech_t_ReqId request_id;
   int rc = OK;
 
   // Была ли ранее уже загружена конфигурация?
@@ -180,10 +181,14 @@ int EGSA::load_config()
       cit != config()->cycles().end();
       ++cit)
   {
+    // request_id получить по имени запроса
+    if (ECH_D_NONEXISTANT != (request_id = m_egsa_config->get_request_id((*cit).second->request_name))) {
+
       // Создадим экземпляр Цикла, удалится он в деструкторе EGSA
       Cycle *cycle = new Cycle((*cit).first.c_str(),
                                (*cit).second->period,
                                (*cit).second->id,
+                               request_id,
                                CYCLE_NORMAL);
 
       // Для данного цикла получить все использующие его сайты
@@ -200,6 +205,10 @@ int EGSA::load_config()
 
       // Ввести в оборот новый Цикл сбора, вернуть новый размер очереди циклов
       m_ega_ega_odm_ar_Cycles.insert(cycle);
+    }
+    else {
+      LOG(ERROR) << "Cycle " << (*cit).first << ": unknown included request " << (*cit).second->request_name;
+    }
   }
 
   // 3) Создать список Запросов
@@ -222,10 +231,9 @@ int EGSA::load_config()
               << " " << (*rit).second->r_IncludingRequests[7]
               << " " << (*rit).second->r_IncludingRequests[8]
               << " " << (*rit).second->r_IncludingRequests[9] << ")";
-    Request* rq = new Request((*rit).second->e_RequestId,
-                              (*rit).second->e_RequestMode,
-                              (*rit).second->e_RequestObject,
-                              (*rit).second->i_RequestPriority);
+
+    Request* rq = new Request((*rit).second);
+
     m_ega_ega_odm_ar_Requests.add(rq);
   }
 
@@ -254,7 +262,7 @@ CycleList& EGSA::cycles() {
 
 // ==========================================================================================================
 // Доступ к Запросам
-RequestList& EGSA::requests()
+RequestDictionary& EGSA::dictionary_requests()
 {
   return m_ega_ega_odm_ar_Requests;
 }

@@ -415,6 +415,26 @@ int EgsaConfig::get_request_by_name(const std::string& _name, ega_ega_odm_t_Requ
 }
 
 // ==========================================================================================
+ech_t_ReqId EgsaConfig::get_request_id(const std::string& name)
+{
+  ech_t_ReqId result = ECH_D_NONEXISTANT;
+
+  for (int id = ECH_D_GENCONTROL; id <= ECH_D_DELEGATION; id++) {
+    if (0 == name.compare(g_request_dictionary[id].s_RequestName)) {
+      result = static_cast<ech_t_ReqId>(id);
+      break;
+    }
+  }
+  return result;
+}
+
+// ==========================================================================================
+const char* EgsaConfig::get_request_name(ech_t_ReqId id)
+{
+  return g_request_dictionary[id].s_RequestName;
+}
+
+// ==========================================================================================
 // Загрузка информации о запросах
 // Обязательные поля в файле:
 // NAME : string
@@ -452,7 +472,7 @@ int EgsaConfig::load_requests()
         // Скопируем значения по-умолчанию
         memcpy(request, dict_entry, sizeof(ega_ega_odm_t_RequestEntry));
 
-        // Очистка информации о вложенных запросах
+        // Очистка информации о вложенных запросах (по-умолчанию = 0, ECH_D_GENCONTROL)
         for (int idx=0; idx < MAX_INTERNAL_REQUESTS; idx++)
           request->r_IncludingRequests[idx] = ECH_D_NONEXISTANT;
 

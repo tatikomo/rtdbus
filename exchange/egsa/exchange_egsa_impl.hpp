@@ -51,7 +51,7 @@ class EGSA : public mdp::mdwrk {
     // Доступ к Циклам
     CycleList& cycles();
     // Доступ к Запросам
-    RequestList& requests();
+    RequestDictionary& dictionary_requests();
     // Ввести в оборот новый Цикл сбора
     size_t push_cycle(Cycle*);
     // Активировать циклы
@@ -140,9 +140,8 @@ class EGSA : public mdp::mdwrk {
     //static ega_ega_odm_t_CycleEntity ega_ega_odm_ar_Cycles[NBCYCLES];
     CycleList   m_ega_ega_odm_ar_Cycles;
 
-    // Request Table - перенёс в exchange_egsa_init.cpp
     //static ega_ega_odm_t_RequestEntry m_requests_table[/*NBREQUESTS*/]; // ega_ega_odm_ar_Requests
-    RequestList m_ega_ega_odm_ar_Requests;
+    RequestDictionary m_ega_ega_odm_ar_Requests;
     //std::vector<Request*> m_ega_ega_odm_ar_Requests;
 };
 
