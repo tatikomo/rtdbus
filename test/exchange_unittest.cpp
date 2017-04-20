@@ -32,6 +32,29 @@ AcqSiteEntry *g_new_sac_info = NULL;
 
 const char* g_sa_config_filename = "BI4500.json";
 extern ega_ega_odm_t_RequestEntry g_requests_table[]; // declared in exchange_egsa_impl.cpp
+static const char* dict_RequestNames[] = {
+  EGA_EGA_D_STRGENCONTROL,
+  EGA_EGA_D_STRINFOSACQ,
+  EGA_EGA_D_STRURGINFOS,
+  EGA_EGA_D_STRGAZPROCOP,
+  EGA_EGA_D_STREQUIPACQ,
+  EGA_EGA_D_STRACQSYSACQ,
+  EGA_EGA_D_STRALATHRES,
+  EGA_EGA_D_STRTELECMD,
+  EGA_EGA_D_STRTELEREGU,
+  EGA_EGA_D_STRSERVCMD,
+  EGA_EGA_D_STRGLOBDWLOAD,
+  EGA_EGA_D_STRPARTDWLOAD,
+  EGA_EGA_D_STRGLOBUPLOAD,
+  EGA_EGA_D_STRINITCMD,
+  EGA_EGA_D_STRGCPRIMARY,
+  EGA_EGA_D_STRGCSECOND,
+  EGA_EGA_D_STRGCTERTIARY,
+  EGA_EGA_D_STRDIFFPRIMARY,
+  EGA_EGA_D_STRDIFFSECOND,
+  EGA_EGA_D_STRDIFFTERTIARY,
+  EGA_EGA_D_STRINFOSDIFF,
+  EGA_EGA_D_STRDELEGATION };
 
 // Создать корректно заполненные сообщения нужного типа для тестирования реакции EGSA
 // NB: Удалить возвращаемый объект после использования
@@ -136,28 +159,7 @@ TEST(TestEXCHANGE, EGSA_CONFIG)
   EXPECT_TRUE(g_egsa_instance->config()->sites().size() == 3);
 
   LOG(INFO) << "load " << g_egsa_instance->config()->requests().size() << " requests";
-  EXPECT_TRUE(g_egsa_instance->config()->requests().size() == 15);
-}
-
-TEST(TestEXCHANGE, EGSA_REQUESTS)
-{
-  ega_ega_odm_t_RequestEntry* req_entry_dict = NULL;
-  RequestList req_list;
-  //Request 
-  int rc;
-
-  // Проверка поиска несуществующего запроса
-  rc =  get_request_by_name("unexistant_request", req_entry_dict);
-  EXPECT_TRUE(rc == NOK);
-  EXPECT_TRUE(req_entry_dict == NULL);
-
-  // Проверка поиска существующего запроса
-  rc =  get_request_by_name(EGA_EGA_D_STRGENCONTROL, req_entry_dict);
-  EXPECT_TRUE(rc == OK);
-  EXPECT_TRUE(req_entry_dict != NULL);
-  EXPECT_TRUE(req_entry_dict->e_RequestId == ECH_D_GENCONTROL);
-
- // req_list.insert()
+  EXPECT_TRUE(g_egsa_instance->config()->requests().size() == 17);
 }
 
 // Подготовить полную информацию по циклам, включая связанные с этими циклами сайты
@@ -232,7 +234,7 @@ TEST(TestEXCHANGE, EGSA_CYCLES)
   EXPECT_TRUE(rc == OK);
 
   // > 36 секунд, чтобы GENCONTROL успел выполниться 2 раза
-  g_egsa_instance->wait(20);
+  g_egsa_instance->wait(10);
   /*
   for (int i=0; i<20; i++) {
     std::cout << ".";
@@ -327,6 +329,39 @@ TEST(TestEXCHANGE, EGSA_SITES)
   delete check_data[0];
   delete check_data[1];
   delete check_data[2];
+}
+
+TEST(TestEXCHANGE, EGSA_REQUESTS)
+{
+  ega_ega_odm_t_RequestEntry* req_entry_dict = NULL;
+  RequestList req_list;
+  //Request 
+  int rc;
+
+#if 0
+  // Проверка поиска несуществующего запроса
+  rc =  get_request_by_name("unexistant_request", req_entry_dict);
+  EXPECT_TRUE(rc == NOK);
+  EXPECT_TRUE(req_entry_dict == NULL);
+
+  // Проверка поиска существующего запроса
+  rc =  get_request_by_name(EGA_EGA_D_STRGENCONTROL, req_entry_dict);
+  EXPECT_TRUE(rc == OK);
+  EXPECT_TRUE(req_entry_dict != NULL);
+  EXPECT_TRUE(req_entry_dict->e_RequestId == ECH_D_GENCONTROL);
+#endif
+
+  RequestList &rl = g_egsa_instance->requests();
+  for (size_t id = 0; id < rl.size(); id++) {
+    Request *r = rl[id];
+    if (r)
+      LOG(INFO) << "req id=" << r->id()
+                << " name=" << dict_RequestNames[r->id()]
+                << " objclass=" << r->objclass()
+                << " exchange_id=" << r->req_id()
+                << " prio=" << r->priority();
+  }
+ // req_list.insert()
 }
 
 #if 0

@@ -36,7 +36,7 @@
 #include "exchange_egsa_site.hpp"
 #include "exchange_egsa_impl.hpp"
 #include "exchange_egsa_request.hpp"
-#include "exchange_egsa_request_cyclic.hpp"
+//#include "exchange_egsa_request_cyclic.hpp"
 #include "xdb_common.hpp"
 
 extern volatile int interrupt_worker;
@@ -84,7 +84,7 @@ int EGSA::init()
   const char* fname = "EGSA::init"; 
   int status = NOK;
   int linger = 0;
-  int hwm = 100;
+  //int hwm = 100;
   int send_timeout_msec = SEND_TIMEOUT_MSEC; // 1 sec
   int recv_timeout_msec = RECV_TIMEOUT_MSEC; // 3 sec
   smad_connection_state_t ext_state;
@@ -156,7 +156,6 @@ int EGSA::load_config()
   // Прочитать информацию по сайтам и циклам
   m_egsa_config->load();
 
-
   // Сейчас загружены списки актуальных Циклов, Запросов, Сайтов:
   // m_egsa_config->sites()
   // m_egsa_config->cycles()
@@ -175,6 +174,7 @@ int EGSA::load_config()
 #warning "Проверь, нужен ли доступ к EGSA внутри AcqSiteEntry"
     m_ega_ega_odm_ar_AcqSites.insert(site);
   }
+
   // 2) Создать список Циклов
   for(egsa_config_cycles_t::const_iterator cit = config()->cycles().begin();
       cit != config()->cycles().end();
@@ -200,6 +200,33 @@ int EGSA::load_config()
 
       // Ввести в оборот новый Цикл сбора, вернуть новый размер очереди циклов
       m_ega_ega_odm_ar_Cycles.insert(cycle);
+  }
+
+  // 3) Создать список Запросов
+  for(egsa_config_requests_t::const_iterator rit = config()->requests().begin();
+      rit != config()->requests().end();
+      ++rit)
+  {
+    LOG(INFO) << "Req "
+              << (*rit).second->s_RequestName << " "
+              << (*rit).second->i_RequestPriority << " "
+              << (unsigned int)(*rit).second->e_RequestObject << " "
+              << (unsigned int)(*rit).second->e_RequestMode
+              << " (irs " << (*rit).second->r_IncludingRequests[0]
+              << " " << (*rit).second->r_IncludingRequests[1]
+              << " " << (*rit).second->r_IncludingRequests[2]
+              << " " << (*rit).second->r_IncludingRequests[3]
+              << " " << (*rit).second->r_IncludingRequests[4]
+              << " " << (*rit).second->r_IncludingRequests[5]
+              << " " << (*rit).second->r_IncludingRequests[6]
+              << " " << (*rit).second->r_IncludingRequests[7]
+              << " " << (*rit).second->r_IncludingRequests[8]
+              << " " << (*rit).second->r_IncludingRequests[9] << ")";
+    Request* rq = new Request((*rit).second->e_RequestId,
+                              (*rit).second->e_RequestMode,
+                              (*rit).second->e_RequestObject,
+                              (*rit).second->i_RequestPriority);
+    m_ega_ega_odm_ar_Requests.add(rq);
   }
 
   return rc;
@@ -617,7 +644,7 @@ void EGSA::fire_ENDALLINIT()
 int EGSA::activate_cycles()
 {
   auto now = std::chrono::system_clock::now();
-  int site_idx; // Порядковый номер Сайта в списке для данного Цикла
+  //int site_idx; // Порядковый номер Сайта в списке для данного Цикла
 
   // Пройти по всем возможным Циклам
   for (size_t idx = ID_CYCLE_GENCONTROL; idx < ID_CYCLE_UNKNOWN; idx++)
@@ -651,7 +678,7 @@ int EGSA::activate_cycles()
 // Деактивировать циклы
 int EGSA::deactivate_cycles()
 {
-  int cycle_idx = 0;
+//  int cycle_idx = 0;
 
   for (size_t idx = ID_CYCLE_GENCONTROL; idx < ID_CYCLE_UNKNOWN; idx++) {
     if (m_ega_ega_odm_ar_Cycles[idx])
@@ -672,7 +699,9 @@ int EGSA::deactivate_cycles()
 void EGSA::cycle_trigger(size_t cycle_id, size_t sa_id)
 {
   int rc = OK;
+#if VERBOSE>6
   int delta_sec;
+#endif
 
   Cycle *cycle = m_ega_ega_odm_ar_Cycles[cycle_id];
   AcqSiteEntry *site = (*cycle->sites())[sa_id];
@@ -683,21 +712,23 @@ void EGSA::cycle_trigger(size_t cycle_id, size_t sa_id)
   LOG(INFO) << "Trigger callback for cycle id=" << cycle_id << " (" << cycle->name() << ") "
             << " SA id=" << sa_id << " (" << site->name() << ")";
 
-  if ((ID_CYCLE_GENCONTROL <= cycle_id) && (cycle_id < ID_CYCLE_UNKNOWN)) {
+  if (cycle_id < ID_CYCLE_UNKNOWN) {
+#if VERBOSE>6
     delta_sec = cycle->period();
+#endif
 
     if (OK == rc) {
-//#if VERBOSE>6
+#if VERBOSE>6
       LOG(INFO) << "Reactivate cycle " << cycle->name() << " (" << cycle_id << "," << sa_id << ")";
-//#endif
+#endif
       auto now = std::chrono::system_clock::now();
       cycles::add(std::bind(&EGSA::cycle_trigger, this, cycle_id, sa_id),
                   now + std::chrono::seconds(cycle->period()));
 
+#if VERBOSE>6
       auto next = now + std::chrono::seconds(delta_sec);
       time_t tt_now    = std::chrono::system_clock::to_time_t ( now );
       time_t tt_future = std::chrono::system_clock::to_time_t ( next );
-#if VERBOSE>6
       LOG(INFO) << "now is: " << ctime(&tt_now);
       LOG(INFO) << "future is: " << ctime(&tt_future);
 #endif

@@ -26,7 +26,7 @@
 	"CYCLES": [{
 		"NAME": "GENCONTROL",
 		"PERIOD": 36,
-		"REQUEST": "GENCONTROL",
+		"REQUEST": "A_GENCONTROL",
 		"SITE": [{
 			"NAME": "BI4001"
 		}, {
@@ -35,7 +35,7 @@
 	}, {
 		"NAME": "URGINFOS",
 		"PERIOD": 5,
-		"REQUEST": "URGINFOS",
+		"REQUEST": "A_URGINFOS",
 		"SITE": [{
 			"NAME": "BI4001"
 		}]
@@ -58,98 +58,123 @@
 	}],
 
     "REQUESTS": [{
-		"NAME": "GENCONTROL",
+		"NAME": "A_GENCONTROL",
 		"PRIORITY": 80,
 		"OBJECT": "A",
 		"MODE": "NONDIFF",
 		"INCLUDED_REQUESTS": [{
-			"NAME": "INFOSACQ"
+			"NAME": "A_INFOSACQ"
 		}, {
-			"NAME": "URGINFOS"
+			"NAME": "A_URGINFOS"
 		}, {
-			"NAME": "ALATHRES"
+			"NAME": "A_ALATHRES"
 		}, {
-			"NAME": "GCPRIMARY"
+			"NAME": "A_GCPRIMARY"
 		}, {
-			"NAME": "GCSECOND"
+			"NAME": "A_GCSECOND"
 		}, {
-			"NAME": "GCTERTIARY"
+			"NAME": "A_GCTERTIARY"
 		}, {
-			"NAME": "IAPRIMARY"
+			"NAME": "A_IAPRIMARY"
 		}, {
-			"NAME": "IASECOND"
+			"NAME": "A_IASECOND"
 		}, {
-			"NAME": "IATERTIARY"
+			"NAME": "A_IATERTIARY"
 		}]
 	}, {
-		"NAME": "URGINFOS",
+		"NAME": "A_URGINFOS",
 		"PRIORITY": 80,
 		"OBJECT": "A",
 		"MODE": "NONDIFF"
 	}, {
-		"NAME": "INFOSACQ",
+		"NAME": "A_INFOSACQ",
 		"PRIORITY": 80,
 		"OBJECT": "A",
 		"MODE": "DIFF",
 		"INCLUDED_REQUESTS": [{
-			"NAME": "URGINFOS"
+			"NAME": "A_URGINFOS"
 		}, {
-			"NAME": "ALATHRES"
+			"NAME": "A_ALATHRES"
 		}]
 	}, {
-		"NAME": "ALATHRES",
+		"NAME": "A_ALATHRES",
 		"PRIORITY": 80,
 		"OBJECT": "A",
 		"MODE": "DIFF"
 	}, {
-		"NAME": "GCPRIMARY",
+		"NAME": "A_GCPRIMARY",
 		"PRIORITY": 80,
 		"OBJECT": "A",
 		"MODE": "NONDIFF"
 	}, {
-		"NAME": "GCSECOND",
+		"NAME": "A_GCSECOND",
 		"PRIORITY": 80,
 		"OBJECT": "A",
 		"MODE": "NONDIFF"
 	}, {
-		"NAME": "GCTERTIARY",
+		"NAME": "A_GCTERTIARY",
 		"PRIORITY": 80,
 		"OBJECT": "A",
 		"MODE": "NONDIFF"
 	}, {
-		"NAME": "IAPRIMARY",
+		"NAME": "A_IAPRIMARY",
 		"PRIORITY": 80,
 		"OBJECT": "A",
 		"MODE": "DIFF"
 	}, {
-		"NAME": "IASECOND",
+		"NAME": "A_IASECOND",
+		"PRIORITY": 80,
+		"OBJECT": "A",
+		"MODE": "DIFF"
+	}, {
+		"NAME": "A_IATERTIARY",
+		"PRIORITY": 80,
+		"OBJECT": "A",
+		"MODE": "DIFF"
+	}, {
+		"NAME": "A_ACQSYSACQ",
 		"PRIORITY": 80,
 		"OBJECT": "A",
 		"MODE": "NONDIFF"
 	}, {
-		"NAME": "IATERTIARY",
+		"NAME": "D_INFODIFF",
 		"PRIORITY": 80,
 		"OBJECT": "A",
 		"MODE": "NONDIFF"
 	}, {
-		"NAME": "INFODIFF",
+		"NAME": "D_DIFFPRIMARY",
 		"PRIORITY": 80,
 		"OBJECT": "A",
 		"MODE": "NONDIFF"
 	}, {
-		"NAME": "TELECMD",
+		"NAME": "D_DIFFSECONDARY",
+		"PRIORITY": 80,
+		"OBJECT": "A",
+		"MODE": "NONDIFF"
+	}, {
+		"NAME": "D_DIFFTERTIARY",
+		"PRIORITY": 80,
+		"OBJECT": "A",
+		"MODE": "NONDIFF"
+	}, {
+		"NAME": "P_DELEGATION",
+		"PRIORITY": 80,
+		"OBJECT": "A",
+		"MODE": "NONDIFF"
+	}, {
+		"NAME": "P_TELECMD",
 		"PRIORITY": 101,
 		"OBJECT": "I"
 	}, {
-		"NAME": "TELEREGU",
+		"NAME": "P_TELEREGU",
 		"PRIORITY": 101,
 		"OBJECT": "I"
 	}, {
-		"NAME": "SERVCMD",
+		"NAME": "S_SERVCMD",
 		"PRIORITY": 80,
 		"OBJECT": "A"
 	}, {
-		"NAME": "INITCMD",
+		"NAME": "I_INITCMD",
 		"PRIORITY": 82,
 		"OBJECT": "A"
 	}]

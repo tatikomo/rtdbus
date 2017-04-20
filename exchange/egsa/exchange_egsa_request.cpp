@@ -11,18 +11,23 @@
 
 // Служебные файлы RTDBUS
 #include "exchange_egsa_request.hpp"
+#include "exchange_config_egsa.hpp"
 
 size_t Request::m_sequence = 0;
 
 // ==============================================================================
-Request::Request()
+Request::Request(ech_t_ReqId _req_id, ech_t_AcqMode _acq_mode, ega_ega_t_ObjectClass _objclass, int _prio)
+  : m_req_id(_req_id),
+    m_acq_mode(_acq_mode),
+    m_objclass(_objclass),
+    m_prio(_prio)
 {
   mtx.lock();
 
   if (m_sequence >= ULONG_MAX - 1)
     m_sequence = 0;
 
-  m_id = m_sequence++;
+  m_exchange_id = m_sequence++;
 
   mtx.unlock();
 }
@@ -30,13 +35,7 @@ Request::Request()
 // ==============================================================================
 Request::~Request()
 {
-  LOG(INFO) << "release request " << m_id;
-}
-
-// ==============================================================================
-size_t Request::id()
-{
-  return m_id;
+  LOG(INFO) << "release request exchange:" << m_exchange_id << " id:" << m_req_id;
 }
 
 // ==============================================================================
@@ -48,6 +47,13 @@ RequestList::RequestList()
 // ==============================================================================
 RequestList::~RequestList()
 {
+  for(std::map<size_t, Request*>::const_iterator it = m_requests.begin();
+      it != m_requests.end();
+      ++it)
+  {
+    delete (*it).second;
+  }
+
   m_requests.clear();
 }
 

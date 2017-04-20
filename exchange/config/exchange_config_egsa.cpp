@@ -100,7 +100,43 @@ cycle_dictionary_item_t EgsaConfig::g_cycle_dictionary[] = {
   { ID_CYCLE_GCT_TGACQ_DIPL,    EgsaConfig::s_CYCLENAME_GCT_TGACQ_DIPL  },
   { ID_CYCLE_UNKNOWN,           NULL                                    }
 };
+// ==========================================================================================================
+ega_ega_odm_t_RequestEntry EgsaConfig::g_request_dictionary[] = {
+// Идентификатор запроса
+// |                    Название запроса
+// |                    |                         Приоритет
+// |                    |                         |   Тип объекта - информация, СС, оборудование
+// |                    |                         |   |       Режим сбора - дифференциальный или нет
+// |                    |                         |   |       |              Признак отношения запроса:
+// |                    |                         |   |       |              к технологическим данным (1)
+// |                    |                         |   |       |              к состоянию системы сбора (0)
+// |                    |                         |   |       |              |      Вложенные запросы
+// |                    |                         |   |       |              |      |
+  {ECH_D_GENCONTROL,    EGA_EGA_D_STRGENCONTROL,  80, ACQSYS, NONDIFF,       true,  {} },   // 0
+  {ECH_D_INFOSACQ,      EGA_EGA_D_STRINFOSACQ,    80, ACQSYS, DIFF,          true,  {} },   // 1
+  {ECH_D_URGINFOS,      EGA_EGA_D_STRURGINFOS,    80, ACQSYS, DIFF,          true,  {} },   // 2
+  {ECH_D_GAZPROCOP,     EGA_EGA_D_STRGAZPROCOP,   80, ACQSYS, NONDIFF,       false, {} },   // 3
+  {ECH_D_EQUIPACQ,      EGA_EGA_D_STREQUIPACQ,    80, EQUIP,  NONDIFF,       true,  {} },   // 4
+  {ECH_D_ACQSYSACQ,     EGA_EGA_D_STRACQSYSACQ,   80, ACQSYS, NONDIFF,       false, {} },   // 5
+  {ECH_D_ALATHRES,      EGA_EGA_D_STRALATHRES,    80, ACQSYS, DIFF,          true,  {} },   // 6
+  {ECH_D_TELECMD,       EGA_EGA_D_STRTELECMD,    101, INFO,   NOT_SPECIFIED, true,  {} },   // 7
+  {ECH_D_TELEREGU,      EGA_EGA_D_STRTELEREGU,   101, INFO,   NOT_SPECIFIED, true,  {} },   // 8
+  {ECH_D_SERVCMD,       EGA_EGA_D_STRSERVCMD,     80, ACQSYS, NOT_SPECIFIED, false, {} },   // 9
+  {ECH_D_GLOBDWLOAD,    EGA_EGA_D_STRGLOBDWLOAD,  80, ACQSYS, NOT_SPECIFIED, false, {} },   // 10
+  {ECH_D_PARTDWLOAD,    EGA_EGA_D_STRPARTDWLOAD,  80, ACQSYS, NOT_SPECIFIED, false, {} },   // 11
+  {ECH_D_GLOBUPLOAD,    EGA_EGA_D_STRGLOBUPLOAD,  80, ACQSYS, NOT_SPECIFIED, false, {} },   // 12
+  {ECH_D_INITCMD,       EGA_EGA_D_STRINITCMD,     82, ACQSYS, NOT_SPECIFIED, false, {} },   // 13
+  {ECH_D_GCPRIMARY,     EGA_EGA_D_STRGCPRIMARY,   80, ACQSYS, NONDIFF,       true,  {} },   // 14
+  {ECH_D_GCSECOND,      EGA_EGA_D_STRGCSECOND,    80, ACQSYS, NONDIFF,       true,  {} },   // 15
+  {ECH_D_GCTERTIARY,    EGA_EGA_D_STRGCTERTIARY,  80, ACQSYS, NONDIFF,       true,  {} },   // 16
+  {ECH_D_DIFFPRIMARY,   EGA_EGA_D_STRDIFFPRIMARY, 80, ACQSYS, DIFF,          true,  {} },   // 17
+  {ECH_D_DIFFSECOND,    EGA_EGA_D_STRDIFFSECOND,  80, ACQSYS, DIFF,          true,  {} },   // 18
+  {ECH_D_DIFFTERTIARY,  EGA_EGA_D_STRDIFFTERTIARY,80, ACQSYS, DIFF,          true,  {} },   // 19
+  {ECH_D_INFODIFFUSION, EGA_EGA_D_STRINFOSDIFF,   80, ACQSYS, NONDIFF,       true,  {} },   // 20
+  {ECH_D_DELEGATION,    EGA_EGA_D_STRDELEGATION,  80, ACQSYS, NOT_SPECIFIED, true,  {} }    // 21
+};
 
+//
 // ==========================================================================================
 EgsaConfig::EgsaConfig(const char* config_filename)
  : m_config_filename(NULL),
@@ -337,6 +373,48 @@ int EgsaConfig::load_sites()
 }
 
 // ==========================================================================================
+// Найти по таблице запрос с заданным идентификатором.
+// Есть такой - присвоить параметру его адрес и вернуть OK
+// Нет такого - присвоить второму параметру NULL и вернуть NOK
+int EgsaConfig::get_request_by_id(ech_t_ReqId _id, ega_ega_odm_t_RequestEntry*& _entry)
+{
+  int rc = NOK;
+
+  if ((ECH_D_GENCONTROL <= _id) && (_id <= ECH_D_DELEGATION)) {
+    rc = OK;
+    _entry = &g_request_dictionary[_id];
+  }
+  else {
+    _entry = NULL;
+  }
+
+  return rc;
+}
+
+// ==========================================================================================
+// Найти по таблице запрос с заданным названием.
+// Есть такой - присвоить параметру его адрес и вернуть OK
+// Нет такого - присвоить второму параметру NULL и вернуть NOK
+int EgsaConfig::get_request_by_name(const std::string& _name, ega_ega_odm_t_RequestEntry*& _entry)
+{
+  for (int id = ECH_D_GENCONTROL; id <= ECH_D_DELEGATION; id++) {
+    if (id == g_request_dictionary[id].e_RequestId) {
+      if (0 == _name.compare(g_request_dictionary[id].s_RequestName)) {
+        _entry = &g_request_dictionary[id];
+        return OK;
+      }
+    }
+    else {
+      // Нарушение структуры таблицы - идентификатор запроса не монотонно возрастающая последовательность
+      assert(0 == 1);
+    }
+  }
+
+  _entry = NULL;
+  return NOK;
+}
+
+// ==========================================================================================
 // Загрузка информации о запросах
 // Обязательные поля в файле:
 // NAME : string
@@ -348,7 +426,7 @@ int EgsaConfig::load_sites()
 int EgsaConfig::load_requests()
 {
   const char* fname = "load_requests";
-  egsa_config_request_info_t *item;
+  ega_ega_odm_t_RequestEntry *dict_entry = NULL, *request;
   int rc = OK;
 
   LOG(INFO) << fname << ": CALL";
@@ -361,73 +439,100 @@ int EgsaConfig::load_requests()
     for (Value::ValueIterator itr = section.Begin(); itr != section.End(); ++itr)
     {
       // Получили доступ к очередному элементу Циклов
-      const Value::Object& request_item = itr->GetObject();
+      const Value::Object& request_item_json = itr->GetObject();
 
-      item = new egsa_config_request_info_t;
-      // Значения по умолчанию
-      item->priority = 127;
-      item->object = 'I';
-      item->mode = 'N';
+      // Проверить в НСИ, известен ли этот Запрос
+      if (OK == get_request_by_name(request_item_json[s_SECTION_REQUESTS_NAME_NAME].GetString(), dict_entry))
+      { // Да - собираем по нему информацию
 
-      item->name = request_item[s_SECTION_REQUESTS_NAME_NAME].GetString();
-      item->priority = request_item[s_SECTION_REQUESTS_NAME_PRIORITY].GetInt();
-      const std::string& s_object = request_item[s_SECTION_REQUESTS_NAME_OBJECT].GetString();
-      if (0 == s_object.compare("I")) {
-        item->object = 'I';
-      }
-      else if (0 == s_object.compare("A")) {
-        item->object = 'A';
-      }
-      else {
-        LOG(WARNING) << "Unsupported value '" << s_object << "' as OBJECT";
-        rc = NOK;
-      }
+        // в dict_entry заполнились поля из НСИ
+        assert(dict_entry);
 
-      // Далее следуют необязательные поля
-      if (request_item.HasMember(s_SECTION_REQUESTS_NAME_MODE)) {
-        const std::string& s_mode = request_item[s_SECTION_REQUESTS_NAME_MODE].GetString();
-        if (0 == s_mode.compare("DIFF")) {
-          item->mode = 'D';
+        request = new ega_ega_odm_t_RequestEntry;
+        // Скопируем значения по-умолчанию
+        memcpy(request, dict_entry, sizeof(ega_ega_odm_t_RequestEntry));
+
+        // Очистка информации о вложенных запросах
+        for (int idx=0; idx < MAX_INTERNAL_REQUESTS; idx++)
+          request->r_IncludingRequests[idx] = ECH_D_NONEXISTANT;
+
+        strncpy(request->s_RequestName,
+                request_item_json[s_SECTION_REQUESTS_NAME_NAME].GetString(),
+                REQUESTNAME_MAX);
+
+        request->i_RequestPriority = request_item_json[s_SECTION_REQUESTS_NAME_PRIORITY].GetInt();
+
+        const std::string& s_object = request_item_json[s_SECTION_REQUESTS_NAME_OBJECT].GetString();
+        if (0 == s_object.compare("I")) {
+          request->e_RequestObject = INFO;
         }
-        else if (0 == s_mode.compare("NONDIFF")) {
-          item->mode = 'N';
+        else if (0 == s_object.compare("A")) {
+          request->e_RequestObject = ACQSYS;
+        }
+        else if (0 == s_object.compare("E")) {
+          request->e_RequestObject = EQUIP;
         }
         else {
-          LOG(WARNING) << "Unsupported value '" << s_mode << "' as MODE";
+          LOG(WARNING) << "Unsupported value '" << s_object << "' as OBJECT";
           rc = NOK;
         }
-       // LOG(INFO) << item->name << ":" << (unsigned int)item->priority << ":" << s_object << ":" << s_mode;
-      }
-      else {
-        LOG(INFO) << item->name << ":" << (unsigned int)item->priority << ":" << s_object;
-      }
 
-      if (request_item.HasMember(s_SECTION_REQUESTS_NAME_INC_REQ)) {
-        // Прочитать массив сайтов, поместить их в m_cycles.sites
-        Value& req_list = request_item[s_SECTION_REQUESTS_NAME_INC_REQ];
-        int idx = 0;
-        for (Value::ValueIterator itr = req_list.Begin(); itr != req_list.End(); ++itr)
-        {
-          const Value::Object& incl_req_item = itr->GetObject();
-          const std::string incl_req_name = incl_req_item[s_SECTION_REQUESTS_NAME_INC_REQ_NAME].GetString();
-          LOG(INFO) << fname << ": " << item->name
-                    << " priority=" << (unsigned int)item->priority
-                    << " object=" << (unsigned int)item->object
-                    << " mode=" << (unsigned int)item->mode
-                    << " incl_req_names "
-                    << " [" << (++idx) << "] " << incl_req_name;
-          item->included_requests.push_back(incl_req_name);
+        // Далее следуют необязательные поля
+        if (request_item_json.HasMember(s_SECTION_REQUESTS_NAME_MODE)) {
+          const std::string& s_mode = request_item_json[s_SECTION_REQUESTS_NAME_MODE].GetString();
+          if (0 == s_mode.compare("DIFF")) {
+            request->e_RequestMode = DIFF;
+          }
+          else if (0 == s_mode.compare("NONDIFF")) {
+            request->e_RequestMode = NONDIFF;
+          }
+          else {
+            request->e_RequestMode = NOT_SPECIFIED;
+          }
+          // LOG(INFO) << request->s_RequestName << ":" << (unsigned int)request->i_RequestPriority << ":" << s_object << ":" << s_mode;
         }
+        else {
+          LOG(INFO) << request->s_RequestName << ":" << (unsigned int)request->i_RequestPriority << ":" << s_object;
+        }
+
+        if (request_item_json.HasMember(s_SECTION_REQUESTS_NAME_INC_REQ)) {
+          // Прочитать массив сайтов, поместить их в m_cycles.sites
+          Value& req_list = request_item_json[s_SECTION_REQUESTS_NAME_INC_REQ];
+          int NumIncludedRequests = 0;
+          for (Value::ValueIterator itr = req_list.Begin(); itr != req_list.End(); ++itr)
+          {
+            const Value::Object& incl_req_item = itr->GetObject();
+            const std::string incl_req_name = incl_req_item[s_SECTION_REQUESTS_NAME_INC_REQ_NAME].GetString();
+            // Проверить имя вложенного Запроса
+            if (OK == get_request_by_name(incl_req_name, dict_entry))
+            {
+              LOG(INFO) << fname << ": " << request->s_RequestName
+                        << " priority=" << (unsigned int)request->i_RequestPriority
+                        << " object=" << (unsigned int)request->e_RequestObject
+                        << " mode=" << (unsigned int)request->e_RequestMode
+                        << " incl_req_names "
+                        << " [" << NumIncludedRequests + 1 << "] " << incl_req_name;
+              if (NumIncludedRequests < MAX_INTERNAL_REQUESTS)
+                request->r_IncludingRequests[NumIncludedRequests++] = dict_entry->e_RequestId;
+              else
+                LOG(WARNING) << request->s_RequestName << ": internal request " << incl_req_name << " exceeds limit"; 
+            }
+          }
+        }
+        m_requests.insert(std::pair<std::string, ega_ega_odm_t_RequestEntry*>(request->s_RequestName, request));
+      } // если название Запроса известно
+      else
+      {
+        LOG(WARNING) << "Skip unknown request " << request_item_json[s_SECTION_REQUESTS_NAME_NAME].GetString();
       }
-      m_requests.insert(std::pair<std::string, egsa_config_request_info_t*>(item->name, item));
-    }
-  }
+    } // новая запись
+  } // если записи были 
 
   return rc;
 }
 
 // ==========================================================================================
-// загрузка всех параметров обмена: разделы COMMON, SITES, CYCLES
+// загрузка всех параметров обмена: разделы COMMON, SITES, CYCLES, REQUESTS
 int EgsaConfig::load()
 {
   const char* fname = "load";
