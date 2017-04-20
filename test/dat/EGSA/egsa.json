@@ -82,11 +82,7 @@
 			"NAME": "A_IATERTIARY"
 		}]
 	}, {
-		"NAME": "A_URGINFOS",
-		"PRIORITY": 80,
-		"OBJECT": "A",
-		"MODE": "NONDIFF"
-	}, {
+
 		"NAME": "A_INFOSACQ",
 		"PRIORITY": 80,
 		"OBJECT": "A",
@@ -97,10 +93,20 @@
 			"NAME": "A_ALATHRES"
 		}]
 	}, {
+		"NAME": "A_URGINFOS",
+		"PRIORITY": 80,
+		"OBJECT": "A",
+		"MODE": "DIFF"
+	}, {
 		"NAME": "A_ALATHRES",
 		"PRIORITY": 80,
 		"OBJECT": "A",
 		"MODE": "DIFF"
+	}, {
+		"NAME": "A_EQUIPACQ",
+		"PRIORITY": 80,
+		"OBJECT": "A",
+		"MODE": "NONDIFF"
 	}, {
 		"NAME": "A_GCPRIMARY",
 		"PRIORITY": 80,
@@ -142,21 +148,6 @@
 		"OBJECT": "A",
 		"MODE": "NONDIFF"
 	}, {
-		"NAME": "D_DIFFPRIMARY",
-		"PRIORITY": 80,
-		"OBJECT": "A",
-		"MODE": "NONDIFF"
-	}, {
-		"NAME": "D_DIFFSECONDARY",
-		"PRIORITY": 80,
-		"OBJECT": "A",
-		"MODE": "NONDIFF"
-	}, {
-		"NAME": "D_DIFFTERTIARY",
-		"PRIORITY": 80,
-		"OBJECT": "A",
-		"MODE": "NONDIFF"
-	}, {
 		"NAME": "P_DELEGATION",
 		"PRIORITY": 80,
 		"OBJECT": "A",
@@ -171,6 +162,18 @@
 		"OBJECT": "I"
 	}, {
 		"NAME": "S_SERVCMD",
+		"PRIORITY": 80,
+		"OBJECT": "A"
+	}, {
+		"NAME": "C_GLOBDWLOAD",
+		"PRIORITY": 80,
+		"OBJECT": "A"
+	}, {
+		"NAME": "C_PARTDWLOAD",
+		"PRIORITY": 80,
+		"OBJECT": "A"
+	}, {
+		"NAME": "C_GLOBUPLOAD",
 		"PRIORITY": 80,
 		"OBJECT": "A"
 	}, {

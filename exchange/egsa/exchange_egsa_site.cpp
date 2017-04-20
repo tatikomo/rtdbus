@@ -224,17 +224,21 @@ sa_state_t AcqSiteEntry::change_state_to(sa_state_t new_state)
 // Виды передаваемой в адрес СС информации по Запросам
 //      Телеметрия  : A_IAPRIMARY | A_IASECOND | A_IATERTIARY
 //      Уставки     : A_ALATHRES
-int AcqSiteEntry::push_request_for_cycle(Cycle* cycle, ech_t_ReqId* included_requests)
+int AcqSiteEntry::push_request_for_cycle(Cycle* cycle, int* included_requests)
 {
   int rc = OK;
   int ir = 0;
   char tmp[200] = " ";
   char s_req[20];
 
-  while (ECH_D_NONEXISTANT != included_requests[ir]) {
-    strcpy(s_req, Request::name(included_requests[ir++]));
-    strcat(tmp, s_req);
-    strcat(tmp, " ");
+#warning "Игнорировать Cycle->req_id(), если included_requests не пуст"
+  for (int idx = 0; idx < NBREQUESTS; idx++) {
+    if (included_requests[idx]) {
+      ir++;
+      strcpy(s_req, Request::name(static_cast<ech_t_ReqId>(idx)));
+      strcat(tmp, s_req);
+      strcat(tmp, " ");
+    }
   }
 
   if (!ir) { // Нет вложенных Подзапросов - используем сам Запрос

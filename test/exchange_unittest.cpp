@@ -134,7 +134,7 @@ TEST(TestEXCHANGE, EGSA_CONFIG)
   EXPECT_TRUE(g_egsa_instance->config()->sites().size() == 3);
 
   LOG(INFO) << "load " << g_egsa_instance->config()->requests().size() << " requests";
-  EXPECT_TRUE(g_egsa_instance->config()->requests().size() == 17);
+  EXPECT_TRUE(g_egsa_instance->config()->requests().size() == 21);
 }
 
 // Подготовить полную информацию по циклам, включая связанные с этими циклами сайты
@@ -226,8 +226,8 @@ TEST(TestEXCHANGE, EGSA_CYCLES_CONFIG)
           Request *main_req = d_requests.query_by_id(cycle->req_id());
 
           if (main_req) { // Есть вложенные Запросы
-            const ech_t_ReqId* included_requests = main_req->included();
 #if 0
+            const ech_t_ReqId* included_requests = main_req->included();
             int ir = 0;
 
             while (ECH_D_NONEXISTANT != included_requests[ir]) {

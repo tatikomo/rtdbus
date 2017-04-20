@@ -111,6 +111,8 @@ ega_ega_odm_t_RequestEntry EgsaConfig::g_request_dictionary[] = {
 // |                    |                         |   |       |              к технологическим данным (1)
 // |                    |                         |   |       |              к состоянию системы сбора (0)
 // |                    |                         |   |       |              |      Вложенные запросы
+// |                    |                         |   |       |              |      (Ненулевое значение говорит о количестве
+// |                    |                         |   |       |              |      подзапросов подобного типа)
 // |                    |                         |   |       |              |      |
   {ECH_D_GENCONTROL,    EGA_EGA_D_STRGENCONTROL,  80, ACQSYS, NONDIFF,       true,  {} },   // 0
   {ECH_D_INFOSACQ,      EGA_EGA_D_STRINFOSACQ,    80, ACQSYS, DIFF,          true,  {} },   // 1
@@ -129,9 +131,9 @@ ega_ega_odm_t_RequestEntry EgsaConfig::g_request_dictionary[] = {
   {ECH_D_GCPRIMARY,     EGA_EGA_D_STRGCPRIMARY,   80, ACQSYS, NONDIFF,       true,  {} },   // 14
   {ECH_D_GCSECOND,      EGA_EGA_D_STRGCSECOND,    80, ACQSYS, NONDIFF,       true,  {} },   // 15
   {ECH_D_GCTERTIARY,    EGA_EGA_D_STRGCTERTIARY,  80, ACQSYS, NONDIFF,       true,  {} },   // 16
-  {ECH_D_DIFFPRIMARY,   EGA_EGA_D_STRDIFFPRIMARY, 80, ACQSYS, DIFF,          true,  {} },   // 17
-  {ECH_D_DIFFSECOND,    EGA_EGA_D_STRDIFFSECOND,  80, ACQSYS, DIFF,          true,  {} },   // 18
-  {ECH_D_DIFFTERTIARY,  EGA_EGA_D_STRDIFFTERTIARY,80, ACQSYS, DIFF,          true,  {} },   // 19
+  {ECH_D_DIFFPRIMARY,   EGA_EGA_D_STRIAPRIMARY,   80, ACQSYS, DIFF,          true,  {} },   // 17
+  {ECH_D_DIFFSECOND,    EGA_EGA_D_STRIASECOND,    80, ACQSYS, DIFF,          true,  {} },   // 18
+  {ECH_D_DIFFTERTIARY,  EGA_EGA_D_STRIATERTIARY,  80, ACQSYS, DIFF,          true,  {} },   // 19
   {ECH_D_INFODIFFUSION, EGA_EGA_D_STRINFOSDIFF,   80, ACQSYS, NONDIFF,       true,  {} },   // 20
   {ECH_D_DELEGATION,    EGA_EGA_D_STRDELEGATION,  80, ACQSYS, NOT_SPECIFIED, true,  {} }    // 21
 };
@@ -472,10 +474,6 @@ int EgsaConfig::load_requests()
         // Скопируем значения по-умолчанию
         memcpy(request, dict_entry, sizeof(ega_ega_odm_t_RequestEntry));
 
-        // Очистка информации о вложенных запросах (по-умолчанию = 0, ECH_D_GENCONTROL)
-        for (int idx=0; idx < MAX_INTERNAL_REQUESTS; idx++)
-          request->r_IncludingRequests[idx] = ECH_D_NONEXISTANT;
-
         strncpy(request->s_RequestName,
                 request_item_json[s_SECTION_REQUESTS_NAME_NAME].GetString(),
                 REQUESTNAME_MAX);
@@ -532,10 +530,9 @@ int EgsaConfig::load_requests()
                         << " mode=" << (unsigned int)request->e_RequestMode
                         << " incl_req_names "
                         << " [" << NumIncludedRequests + 1 << "] " << incl_req_name;
-              if (NumIncludedRequests < MAX_INTERNAL_REQUESTS)
-                request->r_IncludingRequests[NumIncludedRequests++] = dict_entry->e_RequestId;
-              else
-                LOG(WARNING) << request->s_RequestName << ": internal request " << incl_req_name << " exceeds limit"; 
+
+              // Ненулевое значение говорит о количестве подзапросов подобного типа
+              request->r_IncludingRequests[dict_entry->e_RequestId]++;
             }
           }
         }

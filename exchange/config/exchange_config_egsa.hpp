@@ -68,14 +68,14 @@ typedef enum {
 
 typedef enum {
   // Нормальный цикл инициализации
-  TN_INITAUTO,
+  TN_INITAUTO   = 0,
   // Цикл инициализации, требующий повышенной производительности
   // (более требователен к ресурсам)
-  /* TH_INITAUTO, */
+  TH_INITAUTO   = 1, 
   // Цикл определения устаревших запросов
-  TC_OLDREQUEST,
+  TC_OLDREQUEST = 2,
   // Цикл отправки ответов
-  TC_SENDREPLY
+  TC_SENDREPLY  = 3
 } cycle_family_2_t; //GEV непонятно пока к чему относится
 
 typedef enum {
@@ -119,8 +119,6 @@ typedef enum {
 
 // NB: Должен быть последним значением ech_t_ReqId + 1
 #define NBREQUESTS          (ECH_D_DELEGATION + 1)
-// Максимальное количество вложенных подзапросов
-#define MAX_INTERNAL_REQUESTS   10
 
 // Names of External System Requests
 // ---------------------------------
@@ -144,11 +142,8 @@ typedef enum {
 #define EGA_EGA_D_STRIAPRIMARY  "A_IAPRIMARY"   // acq.prim.informations    (differential)
 #define EGA_EGA_D_STRIASECOND   "A_IASECOND"    // acq.sec. informations    (differential)
 #define EGA_EGA_D_STRIATERTIARY "A_IATERTIARY"  // acq.tert. informations   (differential)
-#define EGA_EGA_D_STRINFOSDIFF    "D_INFODIFF"  // diffusion informations
-#define EGA_EGA_D_STRDIFFPRIMARY  "D_DIFFPRIMARY"   // diffusion primary
-#define EGA_EGA_D_STRDIFFSECOND   "D_DIFFSECONDARY" // diffusion secondary
-#define EGA_EGA_D_STRDIFFTERTIARY "D_DIFFTERTIARY"  // diffusion tertiary
-#define EGA_EGA_D_STRDELEGATION   "P_DELEGATION"    // delegation telecommand
+#define EGA_EGA_D_STRINFOSDIFF  "D_INFODIFF"    // global diffusion of informations
+#define EGA_EGA_D_STRDELEGATION "P_DELEGATION"  // delegation telecommand
 
 // ==============================================================================
 // Acquisition Site Entry Structure
@@ -205,8 +200,8 @@ typedef struct {
   // Признак отношения запроса к технологическим данным (1)
   // или к состоянию самой системы сбора как опрашиваемого объекта (2)
   bool  b_Requestprocess;
-  // Включенные в данный запрос подзапросы
-  ech_t_ReqId   r_IncludingRequests[MAX_INTERNAL_REQUESTS];
+  // Включенные в данный запрос подзапросы. Индекс ненулевого элемента есть его ech_t_ReqId
+  int r_IncludingRequests[NBREQUESTS];
   //ega_ega_t_Requests r_IncludingRequests;
 } ega_ega_odm_t_RequestEntry;
 

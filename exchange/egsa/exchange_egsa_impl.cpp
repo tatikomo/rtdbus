@@ -230,7 +230,20 @@ int EGSA::load_config()
               << " " << (*rit).second->r_IncludingRequests[6]
               << " " << (*rit).second->r_IncludingRequests[7]
               << " " << (*rit).second->r_IncludingRequests[8]
-              << " " << (*rit).second->r_IncludingRequests[9] << ")";
+              << " " << (*rit).second->r_IncludingRequests[9]
+              << " " << (*rit).second->r_IncludingRequests[10]
+              << " " << (*rit).second->r_IncludingRequests[11]
+              << " " << (*rit).second->r_IncludingRequests[12]
+              << " " << (*rit).second->r_IncludingRequests[13]
+              << " " << (*rit).second->r_IncludingRequests[14]
+              << " " << (*rit).second->r_IncludingRequests[15]
+              << " " << (*rit).second->r_IncludingRequests[16]
+              << " " << (*rit).second->r_IncludingRequests[17]
+              << " " << (*rit).second->r_IncludingRequests[18]
+              << " " << (*rit).second->r_IncludingRequests[19]
+              << " " << (*rit).second->r_IncludingRequests[20]
+              << " " << (*rit).second->r_IncludingRequests[21]
+              << ")";
 
     Request* rq = new Request((*rit).second);
 

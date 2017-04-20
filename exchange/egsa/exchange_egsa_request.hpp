@@ -29,7 +29,7 @@ class Request
       { return (ECH_D_NONEXISTANT != m_config.e_RequestId)? m_dict_RequestNames[m_config.e_RequestId] : NULL; }
     static const char* name(ech_t_ReqId _id)
       { return (ECH_D_NONEXISTANT != _id)? m_dict_RequestNames[_id] : NULL; }
-    ech_t_ReqId* included()  { return m_config.r_IncludingRequests; }
+    int* included()  { return m_config.r_IncludingRequests; }
 
   private:
     DISALLOW_COPY_AND_ASSIGN(Request);
