@@ -143,6 +143,9 @@ class EGSA : public mdp::mdwrk {
     //static ega_ega_odm_t_RequestEntry m_requests_table[/*NBREQUESTS*/]; // ega_ega_odm_ar_Requests
     RequestDictionary m_ega_ega_odm_ar_Requests;
     //std::vector<Request*> m_ega_ega_odm_ar_Requests;
+    
+    RequestRuntimeList m_waiting_requests;
+    RequestRuntimeList m_deferred_requests;
 };
 
 #endif

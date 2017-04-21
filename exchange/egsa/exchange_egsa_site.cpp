@@ -231,7 +231,6 @@ int AcqSiteEntry::push_request_for_cycle(Cycle* cycle, int* included_requests)
   char tmp[200] = " ";
   char s_req[20];
 
-#warning "Игнорировать Cycle->req_id(), если included_requests не пуст"
   for (int idx = 0; idx < NBREQUESTS; idx++) {
     if (included_requests[idx]) {
       ir++;
@@ -241,6 +240,7 @@ int AcqSiteEntry::push_request_for_cycle(Cycle* cycle, int* included_requests)
     }
   }
 
+  // Игнорировать Cycle->req_id(), если included_requests не пуст
   if (!ir) { // Нет вложенных Подзапросов - используем сам Запрос
     strcat(tmp, Request::name(cycle->req_id()));
     strcat(tmp, " ");

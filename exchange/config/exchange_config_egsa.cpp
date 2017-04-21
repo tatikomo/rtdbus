@@ -117,7 +117,7 @@ ega_ega_odm_t_RequestEntry EgsaConfig::g_request_dictionary[] = {
   {ECH_D_GENCONTROL,    EGA_EGA_D_STRGENCONTROL,  80, ACQSYS, NONDIFF,       true,  {} },   // 0
   {ECH_D_INFOSACQ,      EGA_EGA_D_STRINFOSACQ,    80, ACQSYS, DIFF,          true,  {} },   // 1
   {ECH_D_URGINFOS,      EGA_EGA_D_STRURGINFOS,    80, ACQSYS, DIFF,          true,  {} },   // 2
-  {ECH_D_GAZPROCOP,     EGA_EGA_D_STRGAZPROCOP,   80, ACQSYS, NONDIFF,       false, {} },   // 3
+  {ECH_D_GAZPROCOP,     EGA_EGA_D_STRGAZPROCOP,   80, ACQSYS, NONDIFF,       false, {} },   // 3 - не используется, игнорировать
   {ECH_D_EQUIPACQ,      EGA_EGA_D_STREQUIPACQ,    80, EQUIP,  NONDIFF,       true,  {} },   // 4
   {ECH_D_ACQSYSACQ,     EGA_EGA_D_STRACQSYSACQ,   80, ACQSYS, NONDIFF,       false, {} },   // 5
   {ECH_D_ALATHRES,      EGA_EGA_D_STRALATHRES,    80, ACQSYS, DIFF,          true,  {} },   // 6
@@ -509,9 +509,9 @@ int EgsaConfig::load_requests()
           }
           // LOG(INFO) << request->s_RequestName << ":" << (unsigned int)request->i_RequestPriority << ":" << s_object << ":" << s_mode;
         }
-        else {
+        /*else {
           LOG(INFO) << request->s_RequestName << ":" << (unsigned int)request->i_RequestPriority << ":" << s_object;
-        }
+        }*/
 
         if (request_item_json.HasMember(s_SECTION_REQUESTS_NAME_INC_REQ)) {
           // Прочитать массив сайтов, поместить их в m_cycles.sites

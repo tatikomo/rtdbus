@@ -72,7 +72,6 @@ EGSA::~EGSA()
   detach();
   // Удалить сведения о Сайтах из памяти
   m_ega_ega_odm_ar_AcqSites.release();
-
   delete m_ext_smad;
   delete m_egsa_config;
   delete m_message_factory;
@@ -216,6 +215,7 @@ int EGSA::load_config()
       rit != config()->requests().end();
       ++rit)
   {
+#if VERBOSE>6
     LOG(INFO) << "Req "
               << (*rit).second->s_RequestName << " "
               << (*rit).second->i_RequestPriority << " "
@@ -244,7 +244,7 @@ int EGSA::load_config()
               << " " << (*rit).second->r_IncludingRequests[20]
               << " " << (*rit).second->r_IncludingRequests[21]
               << ")";
-
+#endif
     Request* rq = new Request((*rit).second);
 
     m_ega_ega_odm_ar_Requests.add(rq);

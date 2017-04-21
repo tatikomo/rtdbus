@@ -204,7 +204,7 @@ TEST(TestEXCHANGE, EGSA_CYCLES_CONFIG)
   // TODO Собрать для каждой СС информацию в виде, пригодном к выдаче Запросов в Циклах
   CycleList &cycles = g_egsa_instance->cycles();
 
-  for(int cidx = 0; cidx < cycles.size(); cidx++) {
+  for(size_t cidx = 0; cidx < cycles.size(); cidx++) {
     Cycle* cycle = cycles[cidx];
     if (cycle) {
       LOG(INFO) << cycle->name();
@@ -212,7 +212,7 @@ TEST(TestEXCHANGE, EGSA_CYCLES_CONFIG)
       AcqSiteList* sites = cycle->sites();
       if (sites) {
 
-        for (int sidx = 0; sidx < sites->size(); sidx++) {
+        for (size_t sidx = 0; sidx < sites->size(); sidx++) {
 
           AcqSiteEntry* sa = (*sites)[sidx];
           LOG(INFO) << "\t" << "SA " << sa->name();
@@ -367,37 +367,51 @@ TEST(TestEXCHANGE, EGSA_SITES)
   delete check_data[2];
 }
 
-TEST(TestEXCHANGE, EGSA_REQUESTS)
+TEST(TestEXCHANGE, EGSA_DICT_REQUESTS)
 {
-  //ega_ega_odm_t_RequestEntry* req_entry_dict = NULL;
-  RequestDictionary req_list;
-  //Request 
-  //int rc;
-
-#if 0
-  // Проверка поиска несуществующего запроса
-  rc =  get_request_by_name("unexistant_request", req_entry_dict);
-  EXPECT_TRUE(rc == NOK);
-  EXPECT_TRUE(req_entry_dict == NULL);
-
-  // Проверка поиска существующего запроса
-  rc =  get_request_by_name(EGA_EGA_D_STRGENCONTROL, req_entry_dict);
-  EXPECT_TRUE(rc == OK);
-  EXPECT_TRUE(req_entry_dict != NULL);
-  EXPECT_TRUE(req_entry_dict->e_RequestId == ECH_D_GENCONTROL);
-#endif
-
   RequestDictionary &rl = g_egsa_instance->dictionary_requests();
-  for (size_t id = 0; id < rl.size(); id++) {
-    Request *r = rl.query_by_id(static_cast<ech_t_ReqId>(id));
+
+  for (size_t id = 0; id < rl.size() /*NBREQUESTS*/; id++) {
+
+   // LOG(INFO) << "GEV: RequestDictionary idx=" << id << " size=" << rl.size();
+
+    ech_t_ReqId rid = static_cast<ech_t_ReqId>(id);
+
+    Request *r = rl.query_by_id(rid);
+    // Запроса ECH_D_GAZPROCOP нет в конфигурации
+    if (ECH_D_GAZPROCOP != id) 
+      EXPECT_TRUE(NULL != r);
+    else
+      EXPECT_TRUE(NULL == r);
+#if 0
     if (r)
-      LOG(INFO) << "req id=" << r->id()
+      LOG(INFO) << id << " req_id=" << r->id()
                 << " name=" << Request::name(r->id()) /* << ", " << EgsaConfig::g_request_dictionary[r->id()].s_RequestName*/
                 << " objclass=" << r->objclass()
                 << " exchange_id=" << r->exchange_id()
                 << " prio=" << r->priority();
+#endif
   }
  // req_list.insert()
+}
+
+TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
+{
+  RequestRuntimeList rt_list;
+  ega_ega_odm_t_RequestEntry info = { ECH_D_INITCMD, "ECH_D_INITCMD", 99, INFO, NONDIFF, true, {} };
+
+  Request* req = new Request(&info); 
+
+  // Взвести колбек для запроса на 2 секунды
+  rt_list.add(req, 2);
+
+  int msec = 0;
+  for (int i=0; i < 3; i++)
+  {
+    LOG(INFO) << "iter " << i << ", msec=" << msec;
+    rt_list.timer();
+    usleep(250000); msec += 250000;
+  }
 }
 
 #if 0
