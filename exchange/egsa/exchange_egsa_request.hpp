@@ -16,6 +16,8 @@
 #include "exchange_config_egsa.hpp"
 
 class Request;
+class AcqSiteEntry;
+class Cycle;
 
 // ==============================================================================
 typedef std::function<void (size_t,size_t)> callback_type;
@@ -26,15 +28,18 @@ typedef std::chrono::time_point<std::chrono::system_clock> time_type;
 class Request
 {
   public:
+    // Используется для НСИ
     Request(const ega_ega_odm_t_RequestEntry*);
-    Request(const Request&); // для emplace()
-    Request(const callback_type&, const time_t&); // emplace
-    Request(const callback_type&, const timeval&); // emplace
-    Request(const callback_type&, const std::chrono::time_point<std::chrono::system_clock> &); // emplace
+    // Используется для хранения динамической информации в процессе работы
+    Request(const Request*, AcqSiteEntry*, Cycle*);
+    Request(const Request&);
+    Request(const Request*);
    ~Request();
     Request& operator=(const Request&);
 
     size_t exchange_id() const { return m_exchange_id; }
+    AcqSiteEntry* site() const { return m_site; }
+    Cycle* cycle() const { return m_cycle; }
     ech_t_ReqId id() const { return m_config.e_RequestId; }
     ech_t_AcqMode acq_mode() const { return m_config.e_RequestMode; }
     ega_ega_t_ObjectClass objclass() const { return m_config.e_RequestObject; }
@@ -44,15 +49,19 @@ class Request
     // Установить время начала
     void  begin(const time_type& _when) { m_when = _when; }
     // TODO: разделить события - нормальное завершение или по таймауту
-    void operator()() const { m_finish_callback(0, 0); }
+    //1 void operator()() const { m_finish_callback(0, 0); }
+    void callback() const { m_finish_callback(m_config.e_RequestId, m_exchange_id); }
     const char* name() const
-      { return (ECH_D_NONEXISTANT != m_config.e_RequestId)? m_dict_RequestNames[m_config.e_RequestId] : NULL; }
+      { return (ECH_D_NONEXISTANT != m_config.e_RequestId)? m_dict_RequestNames[m_config.e_RequestId] : "error"; }
     static const char* name(ech_t_ReqId _id)
       { return (ECH_D_NONEXISTANT != _id)? m_dict_RequestNames[_id] : NULL; }
     int* included()  { return m_config.r_IncludingRequests; }
 
      // Событие завершения времени. Предусмотреть флаги - таймаут есть/нет,...
      void on_finish(size_t, size_t);
+
+     // Строка с характеристиками Запроса
+     const char* dump();
   private:
  //   DISALLOW_COPY_AND_ASSIGN(Request); violate in 'm_request_queue.emplace(cb, real_when, 0, 0);'
     size_t generate_new_exchange_id();
@@ -60,6 +69,8 @@ class Request
     // Общий счетчик идентификаторов времени выполнения
     static size_t m_sequence;
     static const char* m_dict_RequestNames[];
+    // выделенный буфер для функции dump()
+    char m_internal_dump[100 + 1];
 
     // Постоянные атрибуты Запроса
     ega_ega_odm_t_RequestEntry  m_config;
@@ -75,6 +86,8 @@ class Request
     // Динамические Атрибуты
     // Идентификатор времени выполнения
     size_t m_exchange_id;
+    AcqSiteEntry *m_site;
+    Cycle        *m_cycle;
 };
 
 // ==============================================================================
@@ -99,12 +112,14 @@ class RequestDictionary
 // ==============================================================================
 // ==============================================================================
 // ==============================================================================
-
+// Приоритетность:
+// 1) время инициализации
+// 2) значение числового атрибута "приоритет" (от 0 до 127 в порядке повышения)
 struct request_less : public std::less<Request>
 {
   bool operator()(const Request &r1, const Request &r2) const
   {
-     return (r2.when() < r1.when());
+     return ((r2.when() < r1.when()) || (r2.priority() > r1.priority()));
   }
 };
 
@@ -142,9 +157,9 @@ class RequestRuntimeList
     // Сортированный по времени список Запросов
     request_priority_queue<Request> m_request_queue;
 
-    void add(const callback_type&, const time_t&);
-    void add(const callback_type&, const timeval&);
-    void add(const callback_type&, const std::chrono::time_point<std::chrono::system_clock>&);
+//1    void add(const callback_type&, const time_t&);
+//1    void add(const callback_type&, const timeval&);
+//1    void add(const callback_type&, const std::chrono::time_point<std::chrono::system_clock>&);
 };
 #endif
 

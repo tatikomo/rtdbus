@@ -10,8 +10,10 @@
 #include "glog/logging.h"
 
 // Служебные файлы RTDBUS
-#include "exchange_egsa_request.hpp"
 #include "exchange_config_egsa.hpp"
+#include "exchange_egsa_request.hpp"
+#include "exchange_egsa_cycle.hpp"
+#include "exchange_egsa_site.hpp"
 
 size_t Request::m_sequence = 0;
 
@@ -42,23 +44,31 @@ const char* Request::m_dict_RequestNames[] = {
   EGA_EGA_D_STRDELEGATION };
 
 // ==============================================================================
+// НСИ
 Request::Request(const ega_ega_odm_t_RequestEntry* _config)
+  : m_site(NULL),
+    m_cycle(NULL)
 {
   const char* name = ((_config)? _config->s_RequestName : "<empty>");
   if (!_config) {
-    memcpy(&m_config, '\0', sizeof(ega_ega_odm_t_RequestEntry));
+    memset(&m_config, '\0', sizeof(ega_ega_odm_t_RequestEntry));
   }
   else {
     memcpy(&m_config, _config, sizeof(ega_ega_odm_t_RequestEntry));
   }
   generate_new_exchange_id();
   m_finish_callback = std::bind(&Request::on_finish, this, 0, 0);
-//  LOG(INFO) << "CTOR Request " << name << " ega_ega_odm_t_RequestEntry " << m_exchange_id;
+  LOG(INFO) << "CTOR Request " << name << " ega_ega_odm_t_RequestEntry "
+            << m_exchange_id
+            << " (" << m_dict_RequestNames[m_config.e_RequestId] << ")";
 }
 
+#if 0
 Request::Request(const callback_type &cb, const time_t &when)
-  : m_finish_callback(cb)
+  : m_config()
+//  : m_finish_callback(cb)
 {
+//1  memset(&m_config, '\0', sizeof(ega_ega_odm_t_RequestEntry));
   m_when = std::chrono::system_clock::from_time_t(when);
   generate_new_exchange_id();
   m_finish_callback = std::bind(&Request::on_finish, this, 0, 3);
@@ -66,35 +76,62 @@ Request::Request(const callback_type &cb, const time_t &when)
 }
 
 Request::Request(const callback_type &cb, const timeval &when)
-  : m_finish_callback(cb)
+  : m_config()
 {
   m_when = std::chrono::system_clock::from_time_t(when.tv_sec) +
                        std::chrono::microseconds(when.tv_usec);
+//1  memset(&m_config, '\0', sizeof(ega_ega_odm_t_RequestEntry));
   generate_new_exchange_id();
   m_finish_callback = std::bind(&Request::on_finish, this, 0, 3);
   LOG(INFO) << "CTOR Request timeval " << m_exchange_id;
 }
 
 Request::Request(const callback_type& cb, const std::chrono::time_point<std::chrono::system_clock> &when)
-  : m_when(when),
+  : m_config(),
+    m_when(when),
     m_finish_callback(cb)
 {
+  generate_new_exchange_id();
   LOG(INFO) << "CTOR Request chrono " << m_exchange_id;
 }
-
+#endif
 
 Request::Request(const Request& orig)
+  : m_config(orig.m_config),
+    m_when(orig.m_when),
+    m_exchange_id(orig.m_exchange_id),
+    m_site(orig.m_site),
+    m_cycle(orig.m_cycle)
 {
   generate_new_exchange_id();
   m_finish_callback = std::bind(&Request::on_finish, this, 0, 1);
-  LOG(INFO) << "CTOR Request Request " << m_exchange_id;
+  LOG(INFO) << "CTOR Request Request& " << m_exchange_id;
+}
+
+Request::Request(const Request* orig)
+  : m_config(orig->m_config),
+    m_when(orig->m_when),
+    m_exchange_id(orig->m_exchange_id),
+    m_site(orig->m_site),
+    m_cycle(orig->m_cycle)
+{
+  generate_new_exchange_id();
+  m_finish_callback = std::bind(&Request::on_finish, this, 2, 3);
+  LOG(INFO) << "CTOR Request Request* " << m_exchange_id;
 }
 
 Request& Request::operator=(const Request& orig)
 {
+  memcpy(&m_config, &orig.m_config, sizeof(ega_ega_odm_t_RequestEntry));
+  m_when = orig.m_when;
+  m_exchange_id = orig.m_exchange_id;
+  m_site = orig.m_site;
+  m_cycle = orig.m_cycle;
+
   generate_new_exchange_id();
-  m_finish_callback = std::bind(&Request::on_finish, this, 0, 2);
+  m_finish_callback = std::bind(&Request::on_finish, this, 4, 5);
   LOG(INFO) << "operator= Request " << m_exchange_id;
+  return *this;
 }
 
 // ==============================================================================
@@ -112,6 +149,17 @@ size_t Request::generate_new_exchange_id()
 }
 
 // ==============================================================================
+// Используется для хранения динамической информации в процессе работы
+Request::Request(const Request* _req, AcqSiteEntry* _site, Cycle* _cycle)
+  : m_config(_req->m_config),
+    m_when(_req->m_when),
+    m_exchange_id(_req->m_exchange_id),
+    m_site(_site),
+    m_cycle(_cycle)
+{
+}
+
+// ==============================================================================
 Request::~Request()
 {
   LOG(INFO) << "release request exchange:" << m_exchange_id << " id:" << m_config.e_RequestId;
@@ -120,7 +168,24 @@ Request::~Request()
 // ==============================================================================
 void Request::on_finish(size_t one, size_t two)
 {
-  LOG(INFO) << "REQUEST TRIGGER: " << one << ", " << two;
+  LOG(INFO) << "TRIGGER REQ ["<< dump() << "]: " << one << ", " << two;
+}
+
+// ==============================================================================
+// Строка с характеристиками Запроса
+const char* Request::dump()
+{
+  snprintf(m_internal_dump, 100, "name:%s prio:%d id:%d site:%s cycle:%s exch:%d when:%ld mode:%d object:%d",
+           name(),
+           priority(),
+           id(),
+           ((m_site)? m_site->name() : "NULL"),
+           ((m_cycle)? m_cycle->name() : "NULL"),
+           exchange_id(),
+           std::chrono::system_clock::to_time_t(when()),
+           acq_mode(),
+           objclass());
+  return m_internal_dump;
 }
 
 // ==============================================================================
@@ -205,10 +270,15 @@ RequestRuntimeList::~RequestRuntimeList()
 void RequestRuntimeList::add(Request* req, const time_t &delta)
 {
   const time_t when = time(0) + delta;
-  LOG(INFO) << "ARM " << req->name() << " trigger for " << delta << " sec"; 
-  add(std::bind(&Request::on_finish, req, 1, 2), when);
+  auto real_when = std::chrono::system_clock::from_time_t(when);
+
+  LOG(INFO) << "ARM " << req->name() << " trigger for " << delta << " sec";
+  req->begin(real_when);
+ //1 add(std::bind(&Request::on_finish, req, 1, 2), when);
+  m_request_queue.emplace(req);
 }
 
+#if 0
 // ==============================================================================
 void RequestRuntimeList::add(const callback_type &cb, const time_t &when)
 {
@@ -232,6 +302,7 @@ void RequestRuntimeList::add(const callback_type &cb,
 {
   m_request_queue.emplace(cb, when);
 }
+#endif
 
 // ==============================================================================
 void RequestRuntimeList::clear()
@@ -263,7 +334,7 @@ void RequestRuntimeList::timer()
       while (!m_request_queue.empty() &&
              (m_request_queue.top().when() < now))
       {
-          m_request_queue.top()();
+          m_request_queue.top().callback();
           m_request_queue.pop();
       }
 }

@@ -260,6 +260,7 @@ TEST(TestEXCHANGE, EGSA_CYCLES_CONFIG)
   } // for проверить все известные Циклы
 }
 
+#if 0
 TEST(TestEXCHANGE, EGSA_CYCLES)
 {
 //  ega_ega_odm_t_RequestEntry* req_entry_dict = NULL;
@@ -282,6 +283,9 @@ TEST(TestEXCHANGE, EGSA_CYCLES)
   rc = g_egsa_instance->deactivate_cycles();
   LOG(INFO) << "END cycles activates testing";
 }
+#else
+#warning "Suppress EGSA_CYCLES test for a while"
+#endif
 
 // Проверка работы класса Системы Сбора
 TEST(TestEXCHANGE, SAC_CREATE)
@@ -398,20 +402,55 @@ TEST(TestEXCHANGE, EGSA_DICT_REQUESTS)
 TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
 {
   RequestRuntimeList rt_list;
-  ega_ega_odm_t_RequestEntry info = { ECH_D_INITCMD, "ECH_D_INITCMD", 99, INFO, NONDIFF, true, {} };
 
-  Request* req = new Request(&info); 
+#if 0
+  ega_ega_odm_t_RequestEntry info1 = { ECH_D_INITCMD, "ECH_D_INITCMD", 127, INFO, NONDIFF, true, {} };
+  ega_ega_odm_t_RequestEntry info2 = { ECH_D_EQUIPACQ, "ECH_D_EQUIPACQ", 1, EQUIP, NONDIFF, true, {} };
+  ega_ega_odm_t_RequestEntry info3 = { ECH_D_DELEGATION, "ECH_D_DELEGATION", 99, ACQSYS, DIFF, false, {} };
+  ega_ega_odm_t_RequestEntry info4 = { ECH_D_INFOSACQ, "ECH_D_INFOSACQ", 80, ACQSYS, NONDIFF, false, {} };
+
+  Request* req1 = new Request(&info1);
+  Request* req2 = new Request(&info2);
+  Request* req3 = new Request(&info3);
+  Request* req4 = new Request(&info4);
+#else
+  RequestDictionary& dict_requests = g_egsa_instance->dictionary_requests();
+  AcqSiteList& sites_list = g_egsa_instance->sites();
+  CycleList &cycles = g_egsa_instance->cycles();
+
+  AcqSiteEntry* site1 = sites_list["BI4001"];
+  Cycle* cycle1 = cycles["INFOSACQ"];
+
+  ASSERT_TRUE(site1);
+  ASSERT_TRUE(cycle1);
+
+  Request* req1 = new Request(dict_requests.query_by_id(ECH_D_INITCMD), site1, cycle1);
+  Request* req2 = new Request(dict_requests.query_by_id(ECH_D_EQUIPACQ));
+  Request* req3 = new Request(dict_requests.query_by_id(ECH_D_DELEGATION));
+  Request* req4 = new Request(dict_requests.query_by_id(ECH_D_INFOSACQ));
+  
+#endif
 
   // Взвести колбек для запроса на 2 секунды
-  rt_list.add(req, 2);
+  rt_list.add(req1, 1);
+  rt_list.add(req2, 1);
+  rt_list.add(req3, 2);
+  rt_list.add(req4, 2);
 
   int msec = 0;
-  for (int i=0; i < 3; i++)
+  for (int i=0; i < 16; i++)
   {
     LOG(INFO) << "iter " << i << ", msec=" << msec;
+    // NB: Запрос ECH_D_INITCMD с приоритетом 127 должен отобразиться
+    // раньше, чем ECH_D_DELEGATION с приоритетом 99
     rt_list.timer();
     usleep(250000); msec += 250000;
   }
+
+  delete req1;
+  delete req2;
+  delete req3;
+  delete req4;
 }
 
 #if 0
