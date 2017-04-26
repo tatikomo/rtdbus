@@ -20,14 +20,21 @@ class AcqSiteEntry;
 class Cycle;
 
 // ==============================================================================
-typedef std::function<void (size_t,size_t)> callback_type;
+typedef std::function<int ()> callback_type;
 typedef std::chrono::time_point<std::chrono::system_clock> time_type;
 
+#define DUMP_SIZE   100
 // ==============================================================================
 // Элементарный запрос адрес СС
 class Request
 {
   public:
+    enum callback_state {
+      ONCE   = 0,
+      REPEAT = 1,
+      ERROR = 2
+    };
+
     // Используется для НСИ
     Request(const ega_ega_odm_t_RequestEntry*);
     // Используется для хранения динамической информации в процессе работы
@@ -38,6 +45,8 @@ class Request
     Request& operator=(const Request&);
 
     size_t exchange_id() const { return m_exchange_id; }
+    // Установить/снять признак, последний ли это Запрос в группе
+    void last_in_bundle(bool sign) { m_last_in_bundle = sign; }
     AcqSiteEntry* site() const { return m_site; }
     Cycle* cycle() const { return m_cycle; }
     ech_t_ReqId id() const { return m_config.e_RequestId; }
@@ -47,45 +56,41 @@ class Request
     // Получить время начала
     const time_type when() const  { return m_when; }
     // Установить время начала
-    void  begin(const time_type& _when) { m_when = _when; }
+    void arm(const time_type& _when) { m_when = _when; }
     // TODO: разделить события - нормальное завершение или по таймауту
-    //1 void operator()() const { m_finish_callback(0, 0); }
-    void callback() const { m_finish_callback(m_config.e_RequestId, m_exchange_id); }
+    int callback() const { return m_trigger_callback(); }
     const char* name() const
-      { return (ECH_D_NONEXISTANT != m_config.e_RequestId)? m_dict_RequestNames[m_config.e_RequestId] : "error"; }
+      { return (ECH_D_NOT_EXISTENT != m_config.e_RequestId)? m_dict_RequestNames[m_config.e_RequestId] : "error"; }
     static const char* name(ech_t_ReqId _id)
-      { return (ECH_D_NONEXISTANT != _id)? m_dict_RequestNames[_id] : NULL; }
+      { return (ECH_D_NOT_EXISTENT != _id)? m_dict_RequestNames[_id] : NULL; }
     int* included()  { return m_config.r_IncludingRequests; }
 
-     // Событие завершения времени. Предусмотреть флаги - таймаут есть/нет,...
-     void on_finish(size_t, size_t);
+    // Событие завершения времени. Предусмотреть флаги - таймаут есть/нет,...
+    int trigger();
 
-     // Строка с характеристиками Запроса
-     const char* dump();
+    // Строка с характеристиками Запроса
+    const char* dump();
   private:
- //   DISALLOW_COPY_AND_ASSIGN(Request); violate in 'm_request_queue.emplace(cb, real_when, 0, 0);'
+ //   DISALLOW_COPY_AND_ASSIGN(Request); violate in 'm_request_queue.emplace()
     size_t generate_new_exchange_id();
     std::mutex mtx;
     // Общий счетчик идентификаторов времени выполнения
     static size_t m_sequence;
     static const char* m_dict_RequestNames[];
     // выделенный буфер для функции dump()
-    char m_internal_dump[100 + 1];
+    char m_internal_dump[DUMP_SIZE + 1];
 
     // Постоянные атрибуты Запроса
     ega_ega_odm_t_RequestEntry  m_config;
     // Время инициации запроса
     time_type         m_when;
     // Функции, вызываемые в указанное время
-    callback_type     m_finish_callback;
-    //ech_t_ReqId     m_req_id;
-    //ech_t_AcqMode   m_acq_mode;
-    //ega_ega_t_ObjectClass m_objclass;
-    //int             m_prio;
-
+    callback_type     m_trigger_callback;
     // Динамические Атрибуты
     // Идентификатор времени выполнения
     size_t m_exchange_id;
+    // Атрибут "Последний запрос в цепочке"
+    bool m_last_in_bundle;
     AcqSiteEntry *m_site;
     Cycle        *m_cycle;
 };

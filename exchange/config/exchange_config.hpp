@@ -187,13 +187,13 @@ typedef enum {
 // ---------------------------------------------------------
 // Состояние системы сбора
 typedef enum {
-  SA_STATE_UNKNOWN  = -1, // Неопределенное состояние
   SA_STATE_UNREACH  = 0,  // Недоступна
   SA_STATE_OPER     = 1,  // Оперативная работа
   SA_STATE_PRE_OPER = 2,  // В процессе инициализации
   SA_STATE_INHIBITED    = 3,    // СС в состоянии запрета работы
   SA_STATE_FAULT        = 4,    // СС в сбойном состоянии
-  SA_STATE_DISCONNECTED = 5     // СС не подключена
+  SA_STATE_DISCONNECTED = 5,    // СС не подключена
+  SA_STATE_UNKNOWN  = 6         // Неопределенное состояние
 } sa_state_t;
 
 static inline sa_state_t int_to_sa_state(int val) {

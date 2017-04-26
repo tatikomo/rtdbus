@@ -92,7 +92,6 @@ typedef enum {
 // NB: Поддерживать синхронизацию с типами запросов в common.proto
 // Нумерация начинается с нуля и вохрастает монотонно без разрывов
 typedef enum {
-  ECH_D_NONEXISTANT  = -1,  /* request not exist */
   ECH_D_GENCONTROL   = 0,   /* general control */
   ECH_D_INFOSACQ     = 1,   /* global acquisition */
   ECH_D_URGINFOS     = 2,   /* urgent data acquisition */
@@ -114,11 +113,12 @@ typedef enum {
   ECH_D_DIFFSECOND   = 18,  /* Secondary differential acquisition */
   ECH_D_DIFFTERTIARY = 19,  /* Tertiary differential acquisition */
   ECH_D_INFODIFFUSION= 20,  /* Information diffusion              */
-  ECH_D_DELEGATION   = 21   /* Process order delegation-end of delegation */
+  ECH_D_DELEGATION   = 21,  /* Process order delegation-end of delegation */
+  ECH_D_NOT_EXISTENT = 22   /* request not exist */
 } ech_t_ReqId;
 
 // NB: Должен быть последним значением ech_t_ReqId + 1
-#define NBREQUESTS          (ECH_D_DELEGATION + 1)
+#define NBREQUESTS          (ECH_D_NOT_EXISTENT)
 
 // Names of External System Requests
 // ---------------------------------
@@ -144,6 +144,7 @@ typedef enum {
 #define EGA_EGA_D_STRIATERTIARY "A_IATERTIARY"  // acq.tert. informations   (differential)
 #define EGA_EGA_D_STRINFOSDIFF  "D_INFODIFF"    // global diffusion of informations
 #define EGA_EGA_D_STRDELEGATION "P_DELEGATION"  // delegation telecommand
+#define EGA_EGA_D_STRNOEXISTENT "NOT_EXISTENT"  // internal error sign
 
 // ==============================================================================
 // Acquisition Site Entry Structure
@@ -372,7 +373,7 @@ class EgsaConfig {
     static const char*  s_CYCLENAME_GCT_TGACQ_DIPL;
 
     static cycle_dictionary_item_t    g_cycle_dictionary[ID_CYCLE_MAX];
-    static ega_ega_odm_t_RequestEntry g_request_dictionary[NBREQUESTS];
+    static ega_ega_odm_t_RequestEntry g_request_dictionary[NBREQUESTS + 1]; // +1 для ECH_D_NOT_EXISTENT
 };
 
 #endif

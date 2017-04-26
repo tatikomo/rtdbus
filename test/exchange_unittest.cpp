@@ -230,7 +230,7 @@ TEST(TestEXCHANGE, EGSA_CYCLES_CONFIG)
             const ech_t_ReqId* included_requests = main_req->included();
             int ir = 0;
 
-            while (ECH_D_NONEXISTANT != included_requests[ir]) {
+            while (ECH_D_NOT_EXISTENT != included_requests[ir]) {
 
               LOG(INFO) << "\t\t\t" << "IR #" << included_requests[ir] << " " << Request::name(included_requests[ir]);
 
@@ -402,49 +402,91 @@ TEST(TestEXCHANGE, EGSA_DICT_REQUESTS)
 TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
 {
   RequestRuntimeList rt_list;
-
-#if 0
-  ega_ega_odm_t_RequestEntry info1 = { ECH_D_INITCMD, "ECH_D_INITCMD", 127, INFO, NONDIFF, true, {} };
-  ega_ega_odm_t_RequestEntry info2 = { ECH_D_EQUIPACQ, "ECH_D_EQUIPACQ", 1, EQUIP, NONDIFF, true, {} };
-  ega_ega_odm_t_RequestEntry info3 = { ECH_D_DELEGATION, "ECH_D_DELEGATION", 99, ACQSYS, DIFF, false, {} };
-  ega_ega_odm_t_RequestEntry info4 = { ECH_D_INFOSACQ, "ECH_D_INFOSACQ", 80, ACQSYS, NONDIFF, false, {} };
-
-  Request* req1 = new Request(&info1);
-  Request* req2 = new Request(&info2);
-  Request* req3 = new Request(&info3);
-  Request* req4 = new Request(&info4);
-#else
   RequestDictionary& dict_requests = g_egsa_instance->dictionary_requests();
   AcqSiteList& sites_list = g_egsa_instance->sites();
   CycleList &cycles = g_egsa_instance->cycles();
 
   AcqSiteEntry* site1 = sites_list["BI4001"];
-  Cycle* cycle1 = cycles["INFOSACQ"];
+  AcqSiteEntry* site2 = sites_list["BI4002"];
+  AcqSiteEntry* site3 = sites_list["K42001"];
+  Cycle* cycle1 = cycles["GENCONTROL"];
+  Cycle* cycle2 = cycles["INFOSACQ"];
 
   ASSERT_TRUE(site1);
   ASSERT_TRUE(cycle1);
 
-  Request* req1 = new Request(dict_requests.query_by_id(ECH_D_INITCMD), site1, cycle1);
-  Request* req2 = new Request(dict_requests.query_by_id(ECH_D_EQUIPACQ));
-  Request* req3 = new Request(dict_requests.query_by_id(ECH_D_DELEGATION));
-  Request* req4 = new Request(dict_requests.query_by_id(ECH_D_INFOSACQ));
+  Request* req1 = new Request(dict_requests.query_by_id(ECH_D_INITCMD),   site1, cycle1);
+  Request* req2 = new Request(dict_requests.query_by_id(ECH_D_EQUIPACQ),  site3, cycle1);
+  Request* req3 = new Request(dict_requests.query_by_id(ECH_D_DELEGATION),site2, cycle2);
+  Request* req4 = new Request(dict_requests.query_by_id(ECH_D_INFOSACQ),  site3, cycle2);
   
-#endif
-
   // Взвести колбек для запроса на 2 секунды
   rt_list.add(req1, 1);
   rt_list.add(req2, 1);
   rt_list.add(req3, 2);
   rt_list.add(req4, 2);
 
-  int msec = 0;
-  for (int i=0; i < 16; i++)
+  // ///////////////////////////////////////////////////////////////////////////////////////
+  // Проверка работы обработки Запросов при изменении состояния СС
+  // Для каждого Цикла должна быть своя очередь Запросов? Или все Запросы в одном списке?
+  int iter=0;
+  const int msec_delay = 250000;
+  const int limit_sec = 20;
+  // количество итераций в limit_sec секундах
+  const int limit_iter = (1000000 / msec_delay) * limit_sec;
+
+  site1->change_state_to(SA_STATE_UNKNOWN);
+  site2->change_state_to(SA_STATE_UNKNOWN);
+  site3->change_state_to(SA_STATE_UNKNOWN);
+
+  while (iter++ < limit_iter)
   {
-    LOG(INFO) << "iter " << i << ", msec=" << msec;
+    LOG(INFO) << "iter " << iter << "/" << limit_iter;
+    switch(iter) {
+      case 2:
+        site3->change_state_to(SA_STATE_UNREACH);
+        break;
+    
+      case 15:
+        site3->change_state_to(SA_STATE_PRE_OPER);
+        break;
+    
+      case 25:
+        site3->change_state_to(SA_STATE_OPER);
+        break;
+
+      case 50:
+        site3->change_state_to(SA_STATE_FAULT);
+        break;
+
+      case 70:
+        site3->change_state_to(SA_STATE_DISCONNECTED);
+        break;
+    }
+
     // NB: Запрос ECH_D_INITCMD с приоритетом 127 должен отобразиться
     // раньше, чем ECH_D_DELEGATION с приоритетом 99
     rt_list.timer();
-    usleep(250000); msec += 250000;
+
+    // На основании текущего состояния СС генерировать новые Запросы
+    switch (site3->state()) {
+      case SA_STATE_UNKNOWN:
+        break;
+      case SA_STATE_UNREACH:
+        break;
+      case SA_STATE_PRE_OPER:
+        break;
+      case SA_STATE_OPER:
+        break;
+      case SA_STATE_INHIBITED:
+        break;
+      case SA_STATE_FAULT:
+        break;
+      case SA_STATE_DISCONNECTED:
+        break;
+    }
+
+    usleep(msec_delay);
   }
 
   delete req1;

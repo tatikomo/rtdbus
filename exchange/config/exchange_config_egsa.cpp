@@ -419,7 +419,7 @@ int EgsaConfig::get_request_by_name(const std::string& _name, ega_ega_odm_t_Requ
 // ==========================================================================================
 ech_t_ReqId EgsaConfig::get_request_id(const std::string& name)
 {
-  ech_t_ReqId result = ECH_D_NONEXISTANT;
+  ech_t_ReqId result = ECH_D_NOT_EXISTENT;
 
   for (int id = ECH_D_GENCONTROL; id <= ECH_D_DELEGATION; id++) {
     if (0 == name.compare(g_request_dictionary[id].s_RequestName)) {

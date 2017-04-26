@@ -181,7 +181,7 @@ int EGSA::load_config()
       ++cit)
   {
     // request_id получить по имени запроса
-    if (ECH_D_NONEXISTANT != (request_id = m_egsa_config->get_request_id((*cit).second->request_name))) {
+    if (ECH_D_NOT_EXISTENT != (request_id = m_egsa_config->get_request_id((*cit).second->request_name))) {
 
       // Создадим экземпляр Цикла, удалится он в деструкторе EGSA
       Cycle *cycle = new Cycle((*cit).first.c_str(),
