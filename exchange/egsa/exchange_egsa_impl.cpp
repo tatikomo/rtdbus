@@ -32,7 +32,6 @@
 #include "exchange_config_egsa.hpp"
 #include "exchange_smad_int.hpp"
 #include "exchange_smad_ext.hpp"
-#include "exchange_egsa_sa.hpp"
 #include "exchange_egsa_site.hpp"
 #include "exchange_egsa_impl.hpp"
 #include "exchange_egsa_request.hpp"

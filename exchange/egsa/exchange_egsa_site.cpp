@@ -14,7 +14,9 @@
 // Служебные файлы RTDBUS
 #include "exchange_egsa_site.hpp"
 #include "exchange_egsa_impl.hpp"
-#include "exchange_egsa_sa.hpp"
+
+#include "exchange_smad_int.hpp"
+#include "exchange_config_sac.hpp"
 
 // ==============================================================================
 AcqSiteEntry::AcqSiteEntry(EGSA* egsa, const egsa_config_site_item_t* entry)
@@ -25,15 +27,147 @@ AcqSiteEntry::AcqSiteEntry(EGSA* egsa, const egsa_config_site_item_t* entry)
     m_FunctionalState(SA_STATE_UNKNOWN),
     m_Level(entry->level),
     m_InterfaceComponentActive(false),
-    m_sa_instance(NULL)
+    m_smad(NULL)
 {
+  std::string sa_config_filename;
+  sa_common_t sa_common;
+  AcquisitionSystemConfig* sa_config = NULL;
+
   strncpy(m_IdAcqSite, entry->name.c_str(), TAG_NAME_MAXLEN);
+
+  // Имя СС не может содержать символа "/"
+  assert(name()[0] != '/');
+
+  sa_config_filename.assign(name());
+  sa_config_filename += ".json";
+
+  // Определить для указанной СС название файла-снимка SMAD
+  sa_config = new AcquisitionSystemConfig(sa_config_filename.c_str());
+  if (NOK == sa_config->load_common(sa_common)) {
+     LOG(ERROR) << "Unable to parse SA " << name() << " common config";
+  }
+  else {
+    m_smad = new InternalSMAD(sa_common.name.c_str(), sa_common.nature, sa_common.smad.c_str());
+
+    // TODO: подключаться к InternalSMAD только после успешной инициализации модуля данной СС
+#if 0
+    if (STATE_OK != (m_smad->state() = m_smad->attach(name(), nature()))) {
+      LOG(ERROR) << "FAIL attach to '" << name() << "', file=" << sa_common.smad
+                 << ", rc=" << m_smad->state();
+    }
+    else {
+      LOG(INFO) << "OK attach to  '" << name() << "', file=" << sa_common.smad;
+    }
+#endif
+  }
+
+//  m_cycles = look_my_cycles();
+
+  delete sa_config;
 }
 
 // ==============================================================================
 AcqSiteEntry::~AcqSiteEntry()
 {
-  delete m_sa_instance;
+  delete m_smad;
+}
+
+// ==============================================================================
+int AcqSiteEntry::send(int msg_id)
+{
+  int rc = OK;
+
+  switch(msg_id) {
+    case ADG_D_MSG_ENDALLINIT:  /*process_end_all_init();*/ break;
+    case ADG_D_MSG_ENDINITACK:  /*process_end_init_acq();*/ break;
+    case ADG_D_MSG_INIT:        /*process_init();        */ break;
+    case ADG_D_MSG_DIFINIT:     /*process_dif_init();    */ break;
+    default:
+      LOG(ERROR) << "Unsupported message (" << msg_id << ") to send to " << name();
+      assert(0 == 1);
+      rc = NOK;
+  }
+
+  return rc;
+}
+
+// -----------------------------------------------------------------------------------
+// TODO: послать сообщение об успешном завершении инициализации связи
+// сразу после того, как последняя из CC успешно ответила на сообщение об инициализации
+void AcqSiteEntry::process_end_all_init()
+{
+//1  m_timer_ENDALLINIT = new Timer("ENDALLINIT");
+//  m_egsa->send_to(name(), ADG_D_MSG_ENDALLINIT);
+  LOG(INFO) << "Process ENDALLINIT for " << name();
+}
+
+// -----------------------------------------------------------------------------------
+// Запрос состояния завершения инициализации
+void AcqSiteEntry::process_end_init_acq()
+{
+  LOG(INFO) << "Process ENDINITACQ for " << name();
+}
+
+// -----------------------------------------------------------------------------------
+// Конец инициализации
+void AcqSiteEntry::process_init()
+{
+  LOG(INFO) << "Process INIT for " << name();
+}
+
+// -----------------------------------------------------------------------------------
+// Запрос завершения инициализации после аварийного завершения
+void AcqSiteEntry::process_dif_init()
+{
+  LOG(INFO) << "Process DIFINIT for " << name();
+}
+
+// -----------------------------------------------------------------------------------
+// TODO: послать сообщение об завершении связи
+void AcqSiteEntry::shutdown()
+{
+//1  m_timer_INIT = new Timer("SHUTDOWN");
+  LOG(INFO) << "Process SHUTDOWN for " << name();
+}
+
+// -----------------------------------------------------------------------------------
+int AcqSiteEntry::control(int code)
+{
+  int rc = NOK;
+
+  // TODO: Передать интерфейсному модулю указанную команду
+  LOG(INFO) << "Control SA '" << name() << "' with " << code << " code";
+  return rc;
+}
+
+// -----------------------------------------------------------------------------------
+// Прочитать изменившиеся данные
+int AcqSiteEntry::pop(sa_parameters_t&)
+{
+  int rc = NOK;
+  LOG(INFO) << "Pop changed data from SA '" << name() << "'";
+  return rc;
+}
+
+// -----------------------------------------------------------------------------------
+// Передать в СС указанные значения
+int AcqSiteEntry::push(sa_parameters_t&)
+{
+  int rc = NOK;
+  LOG(INFO) << "Push data to SA '" << name() << "'";
+  return rc;
+}
+
+// -----------------------------------------------------------------------------------
+int AcqSiteEntry::ask_ENDALLINIT()
+{
+  LOG(INFO) << "CALL AcqSiteEntry::ask_ENDALLINIT() for " << name();
+  return NOK;
+}
+// -----------------------------------------------------------------------------------
+void AcqSiteEntry::check_ENDALLINIT()
+{
+  LOG(INFO) << "CALL AcqSiteEntry::check_ENDALLINIT() for " << name();
 }
 
 // ==============================================================================
@@ -41,9 +175,17 @@ AcqSiteEntry::~AcqSiteEntry()
 // не получит доступа к реальным данным от СС. Их придется EGSA туда заносить самостоятельно.
 int AcqSiteEntry::attach_smad()
 {
-  m_sa_instance = new SystemAcquisition(m_egsa, this);
+#if 0
+    if (STATE_OK != (m_smad->state() = m_smad->attach(name(), nature()))) {
+      LOG(ERROR) << "FAIL attach to '" << name() << "', file=" << sa_common.smad
+                 << ", rc=" << m_smad->state();
+    }
+    else {
+      LOG(INFO) << "OK attach to  '" << name() << "', file=" << sa_common.smad;
+    }
+#endif
 
-  return OK;
+  return NOK;
 }
 
 // ==============================================================================

@@ -18,7 +18,6 @@
 #include "exchange_config_sac.hpp"
 #include "exchange_config_egsa.hpp"
 #include "exchange_egsa_impl.hpp"
-#include "exchange_egsa_sa.hpp"
 #include "exchange_egsa_request.hpp"
 #include "exchange_egsa_request_cyclic.hpp"
 
@@ -26,7 +25,6 @@
 
 AcquisitionSystemConfig* g_sa_config = NULL;
 EGSA* g_egsa_instance = NULL;
-SystemAcquisition* g_sa = NULL;
 AcqSiteEntry *g_new_sac_info = NULL;
 
 const char* g_sa_config_filename = "BI4500.json";
@@ -303,16 +301,13 @@ TEST(TestEXCHANGE, SAC_CREATE)
   new_item.auto_gencontrol = g_egsa_instance->config()->sites().begin()->second->auto_gencontrol;
 
   g_new_sac_info = new AcqSiteEntry(g_egsa_instance, &new_item);
-  // NB: AcqSiteEntry должен существовать на момент удаления SystemAcquisition
-  g_sa = new SystemAcquisition(g_egsa_instance, g_new_sac_info);
-
   // Начальное состояние СС
-  EXPECT_TRUE(g_sa->state() == SA_STATE_UNKNOWN);
+  EXPECT_TRUE(g_new_sac_info->state() == SA_STATE_UNKNOWN);
   // Послать системе команду инициализации
-  g_sa->send(ADG_D_MSG_ENDALLINIT);
+  g_new_sac_info->send(ADG_D_MSG_ENDALLINIT);
   // Поскольку это имитация, состояние системы не изменится,
   // и должен сработать таймер по завершению таймаута
-  EXPECT_TRUE(g_sa->state() == SA_STATE_UNKNOWN);
+  EXPECT_TRUE(g_new_sac_info->state() == SA_STATE_UNKNOWN);
 }
 
 TEST(TestEXCHANGE, EGSA_SITES)
@@ -529,7 +524,6 @@ TEST(TestEXCHANGE, EGSA_ENDALLINIT)
 TEST(TestEXCHANGE, EGSA_FREE)
 {
   delete g_sa_config;
-  delete g_sa;
   delete g_new_sac_info;
 
   delete g_egsa_instance;
