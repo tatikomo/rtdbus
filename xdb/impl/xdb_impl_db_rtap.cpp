@@ -327,7 +327,7 @@ MCO_RET PointInDatabase::create(mco_trans_h t)
 
         // Группа точек, не имеющих атрибутов значений VAL|VALACQ
         // ======================================================
-#pragma warning "Формализовать создание атрибутов VAL для части OBJCLASS в PointInDatabase::create"
+#warning "Формализовать создание атрибутов VAL для части OBJCLASS в PointInDatabase::create"
         case TC:        /* 05 */
         case PIPE:      /* 11 */
         case PIPELINE:  /* 15 */

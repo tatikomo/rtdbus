@@ -1,6 +1,8 @@
 #ifndef TOOL_TIMER_HELPER_H_
 #define TOOL_TIMER_HELPER_H_
 
+#include "config.h"
+
 #include <string>
 #include <signal.h>
 #include <time.h>
@@ -34,6 +36,7 @@ class Timer
         static void timeOutHandler( sigval_t This  );
 
     private:
+        DISALLOW_COPY_AND_ASSIGN(Timer);
         void createTimer(timer_t *timerid, TimerHandler handler_cb);
         void startTimer(timer_t timerid, int startTimeout, int cyclicTimeout);
         void stopTimer(timer_t timerid);

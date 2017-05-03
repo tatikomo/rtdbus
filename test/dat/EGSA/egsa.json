@@ -49,8 +49,19 @@
 			"NAME": "BI4002"
 		}]
 	}, {
+		"NAME": "INFO_DIFF_DIPADJ",
+		"PERIOD": 30,
+		"REQUEST": "DB_INFOSACQ",
+		"SITE": [{
+			"NAME": "K42101"
+		}, {
+			"NAME": "K42102"
+        }, {
+			"NAME": "K42103"
+        }]
+	}, {
 		"NAME": "INFO_DACQ_DIPADJ",
-		"PERIOD": 3,
+		"PERIOD": 30,
 		"REQUEST": "A_INFOSACQ",
 		"SITE": [{
 			"NAME": "K42001"
@@ -82,7 +93,6 @@
 			"NAME": "A_IATERTIARY"
 		}]
 	}, {
-
 		"NAME": "A_INFOSACQ",
 		"PRIORITY": 80,
 		"OBJECT": "A",

@@ -64,7 +64,8 @@ ServiceEndpoint_t Endpoints[] = { // NB: Копия структуры в фай
 
 DatabaseBrokerImpl::DatabaseBrokerImpl(const char* _name) :
     m_database(NULL),
-    m_service_list(NULL)
+    m_service_list(NULL),
+    m_opt()
 {
   assert(_name);
 

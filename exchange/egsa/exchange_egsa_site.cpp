@@ -21,6 +21,8 @@
 // ==============================================================================
 AcqSiteEntry::AcqSiteEntry(EGSA* egsa, const egsa_config_site_item_t* entry)
   : m_egsa(egsa),
+    m_IdAcqSite(),
+    m_DispatcherName(),
     m_NatureAcqSite(entry->nature),
     m_AutomaticalInit(entry->auto_init),
     m_AutomaticalGenCtrl(entry->auto_gencontrol),

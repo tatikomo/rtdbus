@@ -8,10 +8,10 @@
 #include "tool_timer.hpp"
 
 Timer::Timer( TimerTimeoutHandler * timeHandler )
+  : m_Duration(0),
+    m_timeOutHandlerImp(timeHandler),
+    m_timerid()
 {
-    m_timeOutHandlerImp = timeHandler;
-    m_Duration = 0;
-
     TimerHandler handler_cb = &timeOutHandler;
     createTimer( &m_timerid, handler_cb );
 }

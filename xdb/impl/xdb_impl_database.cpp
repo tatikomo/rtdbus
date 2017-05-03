@@ -259,13 +259,20 @@ DatabaseImpl::DatabaseImpl(const char* _name, const Options* _options, mco_dicti
   m_snapshot_loaded(false),
   m_database_was_created(false)
 #if EXTREMEDB_VERSION >= 40
-  , m_dev_num(1)
+  , m_db_params(),
+    m_dev_num(1),
+    m_dev()
+#if defined USE_EXTREMEDB_HTTP_SERVER
+    , m_metadict(NULL),
+      m_intf(NULL, 8082),
+      m_hv(NULL),
+      m_size(),
+      m_metadict_initialized(false)
+#endif
+
 #endif
 {
   int val;
-#if EXTREMEDB_VERSION >= 40 && USE_EXTREMEDB_HTTP_SERVER
-  m_metadict = NULL;
-#endif
   strncpy(m_name, _name, DBNAME_MAXLEN);
   m_name[DBNAME_MAXLEN] = '\0';
 

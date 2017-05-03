@@ -89,11 +89,14 @@ class AcqSiteEntry {
     void check_ENDALLINIT();
 
   private:
+
     DISALLOW_COPY_AND_ASSIGN(AcqSiteEntry);
     EGSA* m_egsa;
 
     // identifier of the acquisition site (name)
     char m_IdAcqSite[TAG_NAME_MAXLEN + 1];
+    // Имя диспетчера
+    char m_DispatcherName[TAG_NAME_MAXLEN + 1];
 
     // nature of the acquisition site (acquisition system, adjacent DIPL)
     gof_t_SacNature m_NatureAcqSite;
@@ -122,13 +125,21 @@ class AcqSiteEntry {
     // interface component state : active / stopped (TRUE / FALSE)
     bool m_InterfaceComponentActive;
 
-    // Ссылка на внутреннюю SMAD
+    // Ссылка на внутреннюю SMAD - acquired data access
     InternalSMAD    *m_smad;
-    // requests in progress list access
-    //void* m_ProgList;
 
-    // acquired data access
-    //void* m_AcquiredData;
+    // composed requests table - a dynamic table containing the number of requests and description of each request
+    std::vector<int> m_requests_composed;
+    // requests in progress list access
+    std::vector<int> m_requests_in_progress;
+
+    // b_OPStateAuthorised
+    //   FALSE -> no Init to the distant in progress / Init to the distant in progress
+    //   TRUE -> Init to the distant terminated with success
+    // b_DistantInitTerminated
+    //   FALSE -> no Init received from the distant / Init from the distant in progress
+    //   TRUE -> Init from the distant terminated
+
 };
 
 // ==============================================================================

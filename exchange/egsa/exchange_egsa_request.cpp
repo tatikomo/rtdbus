@@ -47,7 +47,14 @@ const char* Request::m_dict_RequestNames[] = {
 // ==============================================================================
 // НСИ
 Request::Request(const ega_ega_odm_t_RequestEntry* _config)
-  : m_last_in_bundle(false),
+  : mtx(),
+    m_internal_dump(),
+    m_config(),
+    m_when(),
+    m_trigger_callback(),
+    m_exchange_id(),
+    
+    m_last_in_bundle(false),
     m_site(NULL),
     m_cycle(NULL)
 {
@@ -99,8 +106,11 @@ Request::Request(const callback_type& cb, const std::chrono::time_point<std::chr
 #endif
 
 Request::Request(const Request& orig)
-  : m_config(orig.m_config),
+  : mtx(),
+    m_internal_dump(),
+    m_config(orig.m_config),
     m_when(orig.m_when),
+    m_trigger_callback(),
     m_exchange_id(orig.m_exchange_id),
     m_last_in_bundle(orig.m_last_in_bundle),
     m_site(orig.m_site),
@@ -112,7 +122,9 @@ Request::Request(const Request& orig)
 }
 
 Request::Request(const Request* orig)
-  : m_config(orig->m_config),
+  : mtx(),
+    m_internal_dump(),
+    m_config(orig->m_config),
     m_when(orig->m_when),
     m_exchange_id(orig->m_exchange_id),
     m_last_in_bundle(orig->m_last_in_bundle),

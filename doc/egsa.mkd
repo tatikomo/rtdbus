@@ -43,7 +43,77 @@ BASIC_NAME = AB_HHISTINFSACQ
 
 
 #Запросы между EGSA и Системами Сбора
-1. Инициализация связи (обязательный)
+Index= 0 Name= AB_STATESCMD Prio= 1 Time= 3600000 Iter= 0 Mode= 1 ReqReceiv= 2 RepReceiv= 2
+Index= 1 Name= DB_STATESACQ Prio= 1 Time= 3600000 Iter= 0 Mode= 1 ReqReceiv= 2 RepReceiv= 2
+Index= 2 Name= AB_SELECTLIST Prio= 1 Time= 3600000 Iter= 0 Mode= 1 ReqReceiv= 1 RepReceiv= 2
+Index= 3 Name= AB_GENCONTROL Prio= 1 Time= 3600000 Iter= 0 Mode= 1 ReqReceiv= 1 RepReceiv= 2
+Index= 4 Name= DB_INFOSACQ Prio= 1 Time= 3600000 Iter= 0 Mode= 0 ReqReceiv= 1 RepReceiv= 2
+Index= 5 Name= DB_HISTINFOSACQ Prio= 1 Time= 3600000 Iter= 0 Mode= 1 ReqReceiv= 1 RepReceiv= 2
+Index= 6 Name= DB_ALARM Prio= 0 Time= 3600000 Iter= 0 Mode= 1 ReqReceiv= 1 RepReceiv= 2
+Index= 7 Name= DB_THRESHOLD Prio= 1 Time= 3600000 Iter= 0 Mode= 1 ReqReceiv= 1 RepReceiv= 2
+Index= 8 Name= DB_ORDER Prio= 1 Time= 3600000 Iter= 0 Mode= 1 ReqReceiv= 1 RepReceiv= 2
+Index= 9 Name= AB_HHISTINFSACQ Prio= 1 Time= 3600000 Iter= 0 Mode= 1 ReqReceiv= 1 RepReceiv= 2
+Index= 10 Name= AB_HISTALARM Prio= 0 Time= 3600000 Iter= 0 Mode= 1 ReqReceiv= 1 RepReceiv= 2
+Index= 11 Name= DB_CHGHOUR Prio= 1 Time= 3600000 Iter= 0 Mode= 1 ReqReceiv= 1 RepReceiv= 2
+Index= 12 Name=  Prio= 0 Time= 0 Iter= 0 Mode= 0 ReqReceiv= 0 RepReceiv= 0
+Index= 13 Name=  Prio= 0 Time= 0 Iter= 0 Mode= 0 ReqReceiv= 0 RepReceiv= 0
+Index= 14 Name= DB_TELECMD Prio= 0 Time= 3600000 Iter= 0 Mode= 1 ReqReceiv= 1 RepReceiv= 2
+Index= 15 Name= DB_TELEREGU Prio= 0 Time= 3600000 Iter= 0 Mode= 1 ReqReceiv= 1 RepReceiv= 2
+Index= 16 Name= DB_EMERGENCY Prio= 1 Time= 3600000 Iter= 0 Mode= 0 ReqReceiv= 1 RepReceiv= 2
+Index= 17 Name= DB_ACDLIST Prio= 1 Time= 3600000 Iter= 0 Mode= 1 ReqReceiv= 1 RepReceiv= 2
+Index= 18 Name=  Prio= 0 Time= 0 Iter= 0 Mode= 0 ReqReceiv= 0 RepReceiv= 0
+
+Запросы от EGSA в es_acq разбираются в файле esg_acq_inm_InputDispa.c, функция esg_acq_inm_ReqMan
+К ним относятся:
+GENCONTROL
+GCPRIMARY
+GCSECOND
+GCTERTIARY
+INITCMD
+INFOSACQ - для ГОФО фактически es_acq не передает этот запрос Системе Сбора, автоматически отвечая на него SUCCESS
+TELECMD
+TELEREGU
+
+es_acq обслуживает такие внешние типы сообщений:
+TK_MESSAGE - содержит название Цикла, которое нужно активировать
+    может принимать значания:
+    SENDAGAIN - автоматический цикл для отправки ожидающих в очереди Запросов (1 минута)
+    OLDREQUEST - вызывается удаление старых запросов с помощью esg_acq_rsh_ReqsDelMan (15 минут)
+    HISTDELAY - вызывается esg_acq_inm_NextHistTreat для обработки очередной порции предыстории.
+                Порционность была нужна для предотвращения пиковой загрузки сервера при массовом
+                получении предыстории от множества подчиненных СС (10 секунд).
+ASKLIFE
+STOP
+INT_REQUEST - запрос от EGSA
+RECEIPT_INDIC - Broadcast receipt coming from COM
+    Если полученный файл есть словарь "ESG_EXACQINFOS.DAT" - вызывается esg_acq_dac_NewAcquisitionFile
+    Иначе - читается тип полученного файла-запроса, возможны варианты:
+        ALARM (ECH_D_MSG_EDDALARM)
+        HISTTI (ECH_D_MSG_EDDHISTTI) - особая обработка:
+            Первоначально предыстория помечается как "полученная". Если более нет предыстории
+            в состоянии "в процессе", присвоить этой состояние "в процессе".
+            
+        CHGHOUR (ECH_D_MSG_EDDCHGHOUR)
+        ORDER
+        INCIDENT
+        THRESHOLD
+        MULTITHRES - multi-thresholds message
+        DISPN - dispatcher name file
+        ACDLIST
+        ACDQUERY
+
+TRANSMIT_REPORT - Broadcast report coming from COM, Delete the corresponding file
+STATUS_INDIC - input type is a new state value for a SATO, Store this new state in memory
+ENDHISTFILE - send basic request HHISTINFOSAQ, Store this new state in memory
+EMERGENCY - On receiving from SINF a request for emergency cycle, Send the request to the distant site
+INIT_PHASE - input type is a message from local, Sending task which notify ACQ process that distant init phase is finished - treat the synthetic state of this site
+TRACELEVEL
+MODIFVARENV
+
+Если запрос составной, он декомпозируется с помощью функции esg_acq_crq_BreakCompoReq
+
+
+1. Инициализация связи (обязательный) INITCMD
 1.1. Состояние СС
 Содержит:
 Режим управления местный/дистанционный/без управления(?)

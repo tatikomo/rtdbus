@@ -1,5 +1,5 @@
-#if !defined GEV_TOOLS_TIMER_HPP
-#define GEV_TOOLS_TIMER_HPP
+#if !defined GEV_TOOLS_TIME_HPP
+#define GEV_TOOLS_TIME_HPP
 #pragma once
 
 #include <time.h>
