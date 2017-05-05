@@ -55,7 +55,7 @@ MBusFuncDesription Modbus_Client_Interface::mbusDescr[] = {
 /* 6 */{MBUS_TYPE_SUPPORT_FHR,code_MBUS_TYPE_SUPPORT_FHR, code_MBUS_TYPE_SUPPORT_FHR, s_MBUS_TYPE_SUPPORT_FHR, 124, false},
 /* 7 */{MBUS_TYPE_SUPPORT_FP, code_MBUS_TYPE_SUPPORT_FP,  code_MBUS_TYPE_SUPPORT_FP,  s_MBUS_TYPE_SUPPORT_FP,   62, false},
 /* 8 */{MBUS_TYPE_SUPPORT_DP, code_MBUS_TYPE_SUPPORT_DP,  code_MBUS_TYPE_SUPPORT_DP,  s_MBUS_TYPE_SUPPORT_DP,   31, false}
-    };  
+    };
 
 volatile int g_interrupt = 0;
 
@@ -90,7 +90,7 @@ Modbus_Client_Interface::Modbus_Client_Interface(const std::string& _service,
   m_header_length(0)
 {
 #if 0
-  /* 
+  /*
    * The only 3 EGSA messages may be present at now:
    * 00 - global control [send accept = 0]
    * 01 - acquisition    [send accept = 0]
@@ -174,7 +174,7 @@ int Modbus_Client_Interface::resolve_addr_info(const char* host_name, const char
   else {
       // Имя и порт успешно разрешились, продолжим
       for(p = res;p != NULL; p = p->ai_next) {
-        
+
         // получаем указатель на адрес, по разному в разных протоколах
         if (p->ai_family == AF_INET) { // IPv4
           struct sockaddr_in *ipv4 = (struct sockaddr_in *)p->ai_addr;
@@ -275,7 +275,7 @@ client_status_t Modbus_Client_Interface::connect()
       break;
 
     default:
-      LOG(ERROR) << fname << ": unsupported mode: " << m_config.channel(); 
+      LOG(ERROR) << fname << ": unsupported mode: " << m_config.channel();
   }
 
   if (m_modbus_context && (0 == modbus_connect(m_modbus_context))) {
@@ -442,7 +442,7 @@ client_status_t Modbus_Client_Interface::ask()
     }
 
     num_uint16_registers_to_read = (*it).QuantityRegisters * single_register_of_uint16_size;
- 
+
     switch((*it).NumberModbusFunction) {
       case code_MBUS_TYPE_SUPPORT_HC:   // 1
         do {
@@ -676,7 +676,7 @@ int Modbus_Client_Interface::parse_HR_IR(address_map_t* address_map, const Modbu
         printf("U 0x%04X (raw=%f zoom=%f)\n", UZnach, FZnach, item.g_value);
 #endif
       }
-  
+
       // Запомним текущее время получения данных
       time(&item.rtdbus_timestamp);
       // TODO: получить достоверность параметра
@@ -894,7 +894,7 @@ int Modbus_Client_Interface::make_request_plan()
   const char* fname = "make_request_plan";
 
   LOG(INFO) << fname << ": START";
-  
+
   mbusDescr[MBUS_TYPE_SUPPORT_HC].actualCode = m_config.modbus_specific().actual_HC_FUNCTION;
   mbusDescr[MBUS_TYPE_SUPPORT_IC].actualCode = m_config.modbus_specific().actual_IC_FUNCTION;
   mbusDescr[MBUS_TYPE_SUPPORT_HR].actualCode = m_config.modbus_specific().actual_HR_FUNCTION;
@@ -911,7 +911,7 @@ int Modbus_Client_Interface::make_request_plan()
   }
 
   request_qty = calculate();
-  
+
   LOG(INFO) << fname << ": FINISH, #cycles=" << request_qty;
 
   return request_qty;
@@ -1023,7 +1023,7 @@ int Modbus_Client_Interface::calculate()
       // Обнулим количество реальных регистров, требуемых конфигурационным файлом
       useful_registers_in_order = 0;
 
-      // В порядке возрастания адресов информацию по параметрам данного типа обработки 
+      // В порядке возрастания адресов информацию по параметрам данного типа обработки
       for (address_map_t::const_iterator it = address_map->begin();
            it !=  address_map->end();
            ++it)

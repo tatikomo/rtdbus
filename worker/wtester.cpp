@@ -19,7 +19,7 @@
 
 extern int interrupt_worker;
 
-Tester::Tester(const std::string& broker, const std::string& service, int verbose) 
+Tester::Tester(const std::string& broker, const std::string& service, int verbose)
   : mdwrk(broker, service, verbose),
     m_message_factory(new msg::MessageFactory(service.c_str()))
 {
@@ -68,7 +68,7 @@ int Tester::handle_request(mdp::zmsg* request, std::string*& reply_to)
   return rc;
 }
 
-int Tester::handle_rtdbus_message(msg::Letter* letter, 
+int Tester::handle_rtdbus_message(msg::Letter* letter,
                                 std::string *reply_to)
 {
   int rc = OK;
@@ -94,7 +94,7 @@ int Tester::handle_rtdbus_message(msg::Letter* letter,
 }
 
 
-int Tester::handle_sell_request(std::string &price, 
+int Tester::handle_sell_request(std::string &price,
                                 std::string &volume,
                                 std::string *reply_to)
 {
@@ -114,7 +114,7 @@ int Tester::handle_sell_request(std::string &price,
   return rc;
 }
 
-int Tester::handle_buy_request(std::string &price, 
+int Tester::handle_buy_request(std::string &price,
                                std::string &volume,
                                std::string *reply_to)
 {
@@ -135,7 +135,7 @@ int Tester::handle_buy_request(std::string &price,
 
 /*
  * Если задан параметр FUNCTIONAL_TEST, значит объект находится
- * под тестированием, следует заблокировать main() 
+ * под тестированием, следует заблокировать main()
  */
 #if !defined _FUNCTIONAL_TEST
 int main(int argc, char **argv)

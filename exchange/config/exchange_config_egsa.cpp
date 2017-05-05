@@ -244,7 +244,7 @@ int EgsaConfig::load_common()
       rc = OK;
       LOG(INFO) << fname << ": Use egsa SMAD file: " << m_common.smad_filename;
     }
-    else LOG(ERROR) << fname << ": Section " << s_SECTION_NAME_COMMON_NAME << ": not valid format"; 
+    else LOG(ERROR) << fname << ": Section " << s_SECTION_NAME_COMMON_NAME << ": not valid format";
   }
 
   return rc;
@@ -543,7 +543,7 @@ int EgsaConfig::load_requests()
         LOG(WARNING) << "Skip unknown request " << request_item_json[s_SECTION_REQUESTS_NAME_NAME].GetString();
       }
     } // новая запись
-  } // если записи были 
+  } // если записи были
 
   return rc;
 }

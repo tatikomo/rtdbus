@@ -1,4 +1,4 @@
-/* 
+/*
  * ITG
  * author: Eugeniy Gorovoy
  * email: eugeni.gorovoi@gmail.com
@@ -40,11 +40,11 @@ extern "C" {
 
 using namespace xdb;
 
-/* 
- * Включение динамически генерируемых определений 
+/*
+ * Включение динамически генерируемых определений
  * структуры данных для внутренней базы RTAP.
  *
- * Регенерация осуществляется командой mcocomp 
+ * Регенерация осуществляется командой mcocomp
  * на основе содержимого файла rtap_db.mco
  */
 #include "dat/rtap_db.h"
@@ -240,7 +240,7 @@ PointInDatabase::~PointInDatabase()
 }
 
 // =================================================================================
-// Начальное создание всех объектов XDB, необходимых для последующего 
+// Начальное создание всех объектов XDB, необходимых для последующего
 // создания атрибутов с помощью автоматических функций.
 // Экземпляр транзакции запоминается для возможного использования в
 // автоматных функциях создания атрибутов.
@@ -259,9 +259,9 @@ MCO_RET PointInDatabase::create(mco_trans_h t)
       m_rc = m_point.autoid_get(m_point_aid);
       if (m_rc) { LOG(ERROR) << "Getting point '" << m_info->tag() << "' id, rc=" << m_rc; break; }
 
-      // Для сохранения ссылочной целостности пока считаем, что ID Паспорта 
-      // совпадает с ID Точки. Если в функции создания Паспорта сохранение 
-      // данных пройдет успешно, ID Паспорта изменится на уникальное значение. 
+      // Для сохранения ссылочной целостности пока считаем, что ID Паспорта
+      // совпадает с ID Точки. Если в функции создания Паспорта сохранение
+      // данных пройдет успешно, ID Паспорта изменится на уникальное значение.
       m_passport_aid = m_CE_aid = m_SA_aid = m_point_aid;
 
       // Успешно создана общая часть паспорта Точки.
@@ -269,7 +269,7 @@ MCO_RET PointInDatabase::create(mco_trans_h t)
       // Analog или Discrete, и AlarmInfo, в зависимости от типа класса.
       switch (objclass())
       {
-        // Группа точек, имеющих и тревоги, и дискретные атрибуты значения 
+        // Группа точек, имеющих и тревоги, и дискретные атрибуты значения
         // ===============================================================
         case TS:  /* 0 */
         case AL:  /* 6 */
@@ -300,7 +300,7 @@ MCO_RET PointInDatabase::create(mco_trans_h t)
             m_rc = assign(m_alarm);
             if (m_rc) { LOG(ERROR) << m_info->tag() << " assign alarm information, rc="<<m_rc; break; }
             m_is_AL_assigned = true;
-        // Группа точек, имеющих только дискретные атрибуты значения 
+        // Группа точек, имеющих только дискретные атрибуты значения
         // =========================================================
         case TSA: /* 3 */ // Вынесен ниже остальных, поскольку не имеет Alarm
             // Только создать дискретную часть Точки, значения заполняются автоматными функциями
@@ -399,7 +399,7 @@ MCO_RET PointInDatabase::load(mco_trans_h t)
 
     switch (m_objclass)
     {
-        // Группа точек, имеющих и тревоги, и дискретные атрибуты значения 
+        // Группа точек, имеющих и тревоги, и дискретные атрибуты значения
         // ===============================================================
         case TS:  /* 0 */
         case AL:  /* 6 */
@@ -417,7 +417,7 @@ MCO_RET PointInDatabase::load(mco_trans_h t)
             m_rc = m_point.alarm_read(m_alarm);
             if (m_rc) { LOG(ERROR) << m_info->tag() << " assign alarm information, rc="<<m_rc; break; }
             m_is_AL_assigned = true;
-        // Группа точек, имеющих только дискретные атрибуты значения 
+        // Группа точек, имеющих только дискретные атрибуты значения
         // =========================================================
         case TSA: /* 3 */ // Вынесен ниже остальных, поскольку не имеет Alarm
             // Только создать дискретную часть Точки, значения заполняются автоматными функциями
@@ -521,7 +521,7 @@ MCO_RET PointInDatabase::update_references()
     m_rc = m_point.passport_ref_put(m_passport_aid);
     if (m_rc) { LOG(ERROR)<<"Setting passport id("<<m_passport_aid<<")"; break; }
 
-    // Заполнить все ссылки autoid на другие таблицы своим autoid, 
+    // Заполнить все ссылки autoid на другие таблицы своим autoid,
     // чтобы не создавать коллизий одинаковых значений ссылок.
     m_rc = m_point.CE_ref_put(m_CE_aid);
     if (m_rc) { LOG(ERROR)<<"Setting CE link (" << m_CE_aid <<")"; break; }
@@ -638,7 +638,7 @@ DBState_t DatabaseRtapImpl::State()
 }
 
 // =================================================================================
-// Статический метод, вызываемый из runtime базы данных 
+// Статический метод, вызываемый из runtime базы данных
 // при создании нового экземпляра XDBService
 // =================================================================================
 MCO_RET DatabaseRtapImpl::new_Point(mco_trans_h /* t */,
@@ -694,7 +694,7 @@ MCO_RET DatabaseRtapImpl::on_update_VALIDCHANGE(mco_trans_h t,
   SA_passport sa_passport_instance;
   XDBPoint sa_instance;
   objclass_t objclass;
-  Validity current_validity;      // Current validity  : VALID                  
+  Validity current_validity;      // Current validity  : VALID
   Validity acquired_validity;     // Acquired validity : VALIDACQ
  // Validity last_acquired_validity;//
   timestamp last_update_time;     // Acquired date     : DATEHOURM
@@ -781,7 +781,7 @@ MCO_RET DatabaseRtapImpl::on_update_VALIDCHANGE(mco_trans_h t,
       rc = SA_passport_old_sa_state_get(&sa_passport_instance, &old_sa_state);
       if (rc) { LOG(ERROR) << "Get '"<<tag<<"' SA old state, rc="<<rc; break; }
     }
- 
+
     // TODO: набор применимых СЕ зависит в первую очередь от типа объекта управления, ГТП или ЛПУ
     //
     // В зависимости от типа Точки вызывается соответствующая фунция GOFVAL{TI|AL|TSC}
@@ -886,7 +886,7 @@ MCO_RET DatabaseRtapImpl::on_update_VALIDCHANGE(mco_trans_h t,
                    <<"' with unsupported objclass: " << objclass;
         rc = MCO_S_NOTFOUND;
     }
- 
+
   } while (false);
 
   LOG(INFO) << "VALIDCHANGE update end "<<obj<<" tag '"<<tag<<"' ["<<tag_size<<"] self=" << self << ", rc="<<rc;
@@ -896,7 +896,7 @@ MCO_RET DatabaseRtapImpl::on_update_VALIDCHANGE(mco_trans_h t,
 
 
 // =================================================================================
-// Статический метод, вызываемый из runtime базы данных 
+// Статический метод, вызываемый из runtime базы данных
 // при удалении экземпляра XDBService
 // =================================================================================
 MCO_RET DatabaseRtapImpl::del_Point(mco_trans_h t,
@@ -946,13 +946,13 @@ MCO_RET DatabaseRtapImpl::RegisterEvents()
     if (rc) LOG(ERROR) << "Registering event on VALIDCHANGE updates, rc=" << rc;
     else LOG(INFO) << "Register event on VALIDCHANGE update is OK";
 
-    rc = mco_register_new_point_evnt_handler(t, 
+    rc = mco_register_new_point_evnt_handler(t,
             new_handler,
             static_cast<void*>(this)
             );
     if (rc) LOG(ERROR) << "Registering event on Point creation, rc=" << rc;
 
-    rc = mco_register_delete_point_evnt_handler(t, 
+    rc = mco_register_delete_point_evnt_handler(t,
             delete_handler,
             static_cast<void*>(this)
             );
@@ -994,7 +994,7 @@ void DatabaseRtapImpl::GenerateXSD()
       do
       {
         (*ALL_TYPES_LIST[i++])(t, f, file_writer);
-      } 
+      }
       while (ALL_TYPES_LIST[i]);
 
       LOG(INFO) << "XSD Schema store successfully";
@@ -1118,7 +1118,7 @@ const Error& DatabaseRtapImpl::read(mco_db_h& handle, xdb::AttributeInfo_t* info
       {
           // Это может быть для атрибутов, создаваемых в паспорте
           // NB: поведение по умолчанию - пропустить атрибут, выдав предупреждение
-          LOG(WARNING) << "Function for reading attribute '" << attr_name 
+          LOG(WARNING) << "Function for reading attribute '" << attr_name
                        << "' doesn't found";
           setError(rtE_ATTR_NOT_FOUND);
       }
@@ -1412,8 +1412,8 @@ const Error& DatabaseRtapImpl::create(mco_db_h& handler, rtap_db::Point& info)
     // TODO: Проверить, будем ли мы сохранять эту Точку в БД
     // Если нет -> не начинать транзакцию
     // Если да -> продолжаем
-    // 
-    // Как проверить? 
+    //
+    // Как проверить?
     // Сейчас проверка выполняется в createPassport:
     //      если точка игнорируется, функция вернет MCO_E_NOTSUPPORTED
     //
@@ -1887,7 +1887,7 @@ MCO_RET DatabaseRtapImpl::createTableDICT_TSC_VAL_LABEL(mco_db_h& handler, rtap_
   MCO_RET rc = MCO_E_UNSUPPORTED;
   DICT_TSC_VAL_LABEL instance;
   mco_trans_h t;
-  
+
   assert(dict);
 
   do
@@ -1898,7 +1898,7 @@ MCO_RET DatabaseRtapImpl::createTableDICT_TSC_VAL_LABEL(mco_db_h& handler, rtap_
     // Очистить прежнее содержимое, если есть
     rc = DICT_TSC_VAL_LABEL_delete_all(t);
     if (rc) { LOG(ERROR) << "Cleaning VAL_LABEL table, rc=" << rc; break; }
-    
+
     for (unsigned int idx=0; idx < dict->size(); idx++)
     {
       LOG(INFO) << "[" << idx+1 << "/" << dict->size() << "] Insert VAL_LABEL: objclass="
@@ -1943,7 +1943,7 @@ MCO_RET DatabaseRtapImpl::createTableDICT_UNITY_ID(mco_db_h& handler, rtap_db_di
   MCO_RET rc = MCO_E_UNSUPPORTED;
   DICT_UNITY_ID instance;
   mco_trans_h t;
-  
+
   assert(dict);
   setError(rtE_RUNTIME_ERROR);
 
@@ -1955,7 +1955,7 @@ MCO_RET DatabaseRtapImpl::createTableDICT_UNITY_ID(mco_db_h& handler, rtap_db_di
     // Очистить прежнее содержимое, если есть
     rc = DICT_UNITY_ID_delete_all(t);
     if (rc) { LOG(ERROR) << "Cleaning UNITY table, rc=" << rc; break; }
-  
+
     for (unsigned int idx=0; idx < dict->size(); idx++)
     {
       LOG(INFO) << "[" << idx+1 << "/" << dict->size() << "] Insert UNITY: id="
@@ -2012,7 +2012,7 @@ MCO_RET DatabaseRtapImpl::createTableXDB_CE(mco_db_h& handler, rtap_db_dict::mac
   MCO_RET rc = MCO_E_UNSUPPORTED;
   XDB_CE instance;
   mco_trans_h t;
-  
+
   assert(dict);
   setError(rtE_RUNTIME_ERROR);
 
@@ -2024,7 +2024,7 @@ MCO_RET DatabaseRtapImpl::createTableXDB_CE(mco_db_h& handler, rtap_db_dict::mac
     // Очистить прежнее содержимое, если есть
     rc = XDB_CE_delete_all(t);
     if (rc) { LOG(ERROR) << "Cleaning VAL_LABEL table, rc=" << rc; break; }
-    
+
     for (unsigned int idx=0; idx < dict->size(); idx++)
     {
       LOG(INFO) << "[" << idx+1 << "/" << dict->size() << "] Insert XDB_CE: id="
@@ -2070,7 +2070,7 @@ MCO_RET DatabaseRtapImpl::createTableXDB_CE(mco_db_h& handler, rtap_db_dict::mac
 //      Если да:
 //          вызывается функция создания соответствующего класса
 //      Если нет:
-//          идентификатор паспорта присваивается равным 
+//          идентификатор паспорта присваивается равным
 //          идентификатору экземпляра Точки
 //      Если класс точки неизвестен:
 //          Возвращается код MCO_E_UNSUPPORTED
@@ -2312,7 +2312,7 @@ MCO_RET DatabaseRtapImpl::createPassport(PointInDatabase* point)
   {
     rc = passport_instance.checkpoint();
     if (rc)
-    { 
+    {
       LOG(ERROR) << "Checkpoint " << info.tag() <<", rc=" << rc;
     }
     // TODO: что в этом случае делать с уже созданным паспортом?
@@ -2371,7 +2371,7 @@ void DatabaseRtapImpl::check_user_defined_type(int given_type, AttributeInfo_t* 
 
 // =================================================================================
 // Найти точку с указанным тегом.
-// В имени тега не может быть указан атрибут. 
+// В имени тега не может быть указан атрибут.
 // Читается весь набор атрибутов заданной точки.
 // =================================================================================
 rtap_db::Point* DatabaseRtapImpl::locate(mco_db_h& handle, const char* _tag)
@@ -2389,7 +2389,7 @@ rtap_db::Point* DatabaseRtapImpl::locate(mco_db_h& handle, const char* _tag)
 
 //  LOG(INFO) << "Locating point " << _tag;
   tag_size = strlen(_tag);
-      
+
   do
   {
     rc = mco_trans_start(handle, MCO_READ_ONLY, MCO_TRANS_FOREGROUND, &t);
@@ -2486,7 +2486,7 @@ const Error& DatabaseRtapImpl::write(mco_db_h& handle, AttributeInfo_t* info)
       {
           // Это может быть для атрибутов, создаваемых в паспорте
           // NB: поведение по умолчанию - пропустить атрибут, выдав предупреждение
-          LOG(WARNING) << "Function for writing attribute '" << attr_name 
+          LOG(WARNING) << "Function for writing attribute '" << attr_name
                        << "' doesn't found";
           setError(rtE_ATTR_NOT_FOUND);
       }
@@ -2553,7 +2553,7 @@ MCO_RET DatabaseRtapImpl::createPoint(PointInDatabase* instance)
     rc = createOBJCLASS(instance, /* NOT USED */instance->attributes()[0]);
     if (rc) { LOG(ERROR) << "Creating attribute OBJCLASS:" << (int)instance->objclass(); break; }
 
-    // остальные поля необязательные, создавать их по необходимости 
+    // остальные поля необязательные, создавать их по необходимости
     // ============================================================
     // vvv Начало создания необязательных корневых атрибутов Точки
     // ============================================================
@@ -2585,7 +2585,7 @@ MCO_RET DatabaseRtapImpl::createPoint(PointInDatabase* instance)
       {
         // Это может быть для атрибутов, создаваемых в паспорте
         // NB: поведение по умолчанию - пропустить атрибут, выдав предупреждение
-        LOG(WARNING) << "Function creating '" << instance->attribute(attr_idx).name() 
+        LOG(WARNING) << "Function creating '" << instance->attribute(attr_idx).name()
                      << "' is not found";
         setError(rtE_ATTR_NOT_FOUND);
       }
@@ -2594,7 +2594,7 @@ MCO_RET DatabaseRtapImpl::createPoint(PointInDatabase* instance)
         // Функция найдена, но вернула ошибку
         LOG(ERROR) << "Function creating '" << "' failed";
         break;
-      }    
+      }
     }
     // ==========================================================
     // ^^^ Конец создания необязательных корневых атрибутов Точки
@@ -2791,7 +2791,7 @@ MCO_RET DatabaseRtapImpl::writeSHORTLABEL(mco_trans_h& t, rtap_db::XDBPoint& ins
 MCO_RET DatabaseRtapImpl::createSHORTLABEL(PointInDatabase* instance, rtap_db::Attrib& attr)
 {
   MCO_RET rc = instance->xdbpoint().SHORTLABEL_put(attr.value().c_str(),
-                                                   static_cast<uint2>(attr.value().size())); 
+                                                   static_cast<uint2>(attr.value().size()));
   return rc;
 }
 
@@ -2896,7 +2896,7 @@ MCO_RET DatabaseRtapImpl::writeUNITY(mco_trans_h& t,
                  <<attr_info->value.dynamic.varchar<<"', rc="<<rc;
       break;
     }
-    
+
     // И присвоить его значение полю UNITY_ID Точки
     rc = instance.UNITY_ID_put(unity_id);
     if (rc)
@@ -2922,7 +2922,7 @@ MCO_RET DatabaseRtapImpl::createL_SA(PointInDatabase* /* instance */, rtap_db::A
 {
   //autoid_t sa_id;
   MCO_RET rc = MCO_S_OK;
-  
+
   // TODO: реализация
   //rc = instance->xdbpoint().SA_ref_get(sa_id);
   //rc = instance->xdbpoint().SA_ref_put(sa_id);
@@ -3262,7 +3262,7 @@ MCO_RET DatabaseRtapImpl::createCURRENT_SHIFT_TIME(PointInDatabase* instance, rt
   {
     case SITE:
         rc = instance->passport().site->CURRENT_SHIFT_TIME_write(datehourm);
-        if (!rc) 
+        if (!rc)
         {
             // Конвертировать дату из 8 байт XML-файла в формат rtap_db::timestamp
             // (секунды и наносекунды по 4 байта)
@@ -3413,7 +3413,7 @@ MCO_RET DatabaseRtapImpl::createPREV_SHIFT_TIME(PointInDatabase* instance, rtap_
   {
     case SITE:
         rc = instance->passport().site->PREV_SHIFT_TIME_write(datehourm);
-        if (!rc) 
+        if (!rc)
         {
             // Конвертировать дату из 8 байт XML-файла в формат rtap_db::timestamp
             // (секунды и наносекунды по 4 байта)
@@ -3525,7 +3525,7 @@ MCO_RET DatabaseRtapImpl::createDATEAINS(PointInDatabase* instance, rtap_db::Att
   }
 
   // Если экземпляр отметки времени создан, заполним его
-  if (!rc) 
+  if (!rc)
   {
     // Конвертировать дату из 8 байт XML-файла в формат rtap_db::timestamp
     // (секунды и наносекунды по 4 байта)
@@ -3557,7 +3557,7 @@ MCO_RET DatabaseRtapImpl::createDATEHOURM(PointInDatabase* instance, rtap_db::At
   std::string::size_type point_pos;
   MCO_RET rc = instance->xdbpoint().DATEHOURM_write(datehourm);
 
-  if (MCO_S_OK == rc) 
+  if (MCO_S_OK == rc)
   {
     // Конвертировать дату из 8 байт XML-файла в формат rtap_db::timestamp
     // (секунды и наносекунды по 4 байта)
@@ -4073,7 +4073,7 @@ MCO_RET DatabaseRtapImpl::writeVAL(mco_trans_h& t, rtap_db::XDBPoint& instance, 
             break;
 
         case TS:    // 00
-        case TSA:   // 03 
+        case TSA:   // 03
         case AL:    // 06
         case ICS:   // 07
         case PIPE:  // 11
@@ -6569,7 +6569,7 @@ MCO_RET DatabaseRtapImpl::createUNITYCATEG(PointInDatabase* instance, rtap_db::A
 {
   MCO_RET rc = MCO_S_OK;
   // Это поле является фиктивным, чтение и запись фактически осуществляется
-  // из таблицы НСИ DICT_UNITY_ID, поле DimensionID 
+  // из таблицы НСИ DICT_UNITY_ID, поле DimensionID
   //
   return rc;
 }

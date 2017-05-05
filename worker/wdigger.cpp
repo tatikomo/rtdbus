@@ -432,7 +432,7 @@ int DiggerWorker::processing(mdp::zmsg* request, std::string &identity)
   int rc = OK;
   rtdbMsgType msgType;
 
-//  LOG(INFO) << "Process new request with " << request->parts() 
+//  LOG(INFO) << "Process new request with " << request->parts()
 //            << " parts and reply to " << identity;
 
   // Получить отметку времени начала обработки запроса
@@ -538,7 +538,7 @@ int DiggerWorker::handle_read(msg::Letter* letter, std::string& identity)
       // Обновить значение под контролем protobuf
       // Перенос прочитанных из БДРВ значений (AttrVal) в RTDBM::ValueUpdate
       todo.flush();
-    
+   
 #if (VERBOSE > 2)
         LOG(INFO) << "Read [" << todo.type() << "] " << todo.tag() << " = " << todo.as_string();
 #endif
@@ -781,7 +781,7 @@ int DiggerWorker::handle_sbs_ctrl(msg::Letter* letter, std::string& identity)
   if (do_continue)
   {
       operation.buffer = static_cast<void*>(&sbs_name);
-      // NB: 2015-10-08 команды SUSPEND и ENABLE не реализованы, возвращают ошибку 
+      // NB: 2015-10-08 команды SUSPEND и ENABLE не реализованы, возвращают ошибку
       result = m_db_connection->ConfigDatabase(operation);
 
       // 2 ======================================
@@ -822,7 +822,7 @@ void DiggerWorker::send_exec_result(int exec_val, std::string& identity)
 {
   static std::string message_OK = "успешно";
   std::string message_FAIL;
-  msg::ExecResult *msg_exec_result = 
+  msg::ExecResult *msg_exec_result =
         dynamic_cast<msg::ExecResult*>(m_message_factory->create(ADG_D_MSG_EXECRESULT));
 
   msg_exec_result->set_destination(identity);
@@ -907,7 +907,7 @@ void DiggerPoller::work()
 //  xdb::map_id_name_t::iterator it_points;
   // Список элементарных записей чтения
   xdb::SubscriptionPoints_t points_list;
-  // Набор опубликованных точек, для которых после нужно было скинуть флаг модификации 
+  // Набор опубликованных точек, для которых после нужно было скинуть флаг модификации
   std::unordered_set <std::string> sbs_points_ready_to_clear_modif_flags;
   //1 std::vector<xdb::AttributeInfo_t*> info_all;
   bool result = false;
@@ -947,7 +947,7 @@ void DiggerPoller::work()
         {
           LOG(INFO) << "Detect modified SBS " << it_sbs->first << ":'" << it_sbs->second << "'";
 
-          // Читать все значения модифицированных атрибутов точек для указанной группы 
+          // Читать все значения модифицированных атрибутов точек для указанной группы
           operation.action.query = xdb::rtQUERY_SBS_READ_POINTS_ARMED;
           tags.clear();
           tags.push_back(it_sbs->second);
@@ -1223,7 +1223,7 @@ void DiggerProbe::shutdown_workers()
           }
         }
       }
-      
+     
     LOG(INFO) << "DiggerProbe all workers joined";
 
       for(unsigned int i = 0; i < m_worker_list.size(); ++i)
@@ -1364,7 +1364,7 @@ void DiggerProxy::run()
   try
   {
     // Сокет прямого подключения к экземплярам DiggerWorker
-    // NB: Выполняется в отдельной нити 
+    // NB: Выполняется в отдельной нити
     //ZMQ_ROUTER_MANDATORY может привести zmq_proxy_steerable к аномальному завершению: rc=-1, errno=113
     //Наблюдалось в случаях интенсивного обмена брокера с клиентом, если последний аномально завершался.
     m_frontend.setsockopt(ZMQ_ROUTER_MANDATORY, &mandatory, sizeof (mandatory));
@@ -1758,7 +1758,7 @@ int Digger::handle_request(mdp::zmsg* request, std::string*& reply_to)
   rtdbMsgType msgType;
 
   assert (request->parts () >= 2);
-  LOG(INFO) << "Process new request with " << request->parts() 
+  LOG(INFO) << "Process new request with " << request->parts()
             << " parts and reply to " << *reply_to;
 
   msg::Letter *letter = m_message_factory->create(request);

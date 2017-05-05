@@ -124,7 +124,7 @@ Broker::Bind ()
     }
     catch(zmq::error_t err)
     {
-      LOG(ERROR) << "MDP Broker/0.2.0 unable bind to " << m_endpoint 
+      LOG(ERROR) << "MDP Broker/0.2.0 unable bind to " << m_endpoint
         << " [" <<  err.what() << "]";
       status = false;
     }
@@ -134,7 +134,7 @@ Broker::Bind ()
 
 // Регистрировать новый экземпляр Обработчика для Сервиса
 //  ---------------------------------------------------------------------
-xdb::Worker* 
+xdb::Worker*
 Broker::worker_register(const std::string& service_name, const std::string& worker_identity)
 {
   return m_database->PushWorkerForService(service_name, worker_identity);
@@ -150,18 +150,18 @@ Broker::database_snapshot(const char* msg)
 
 //  ---------------------------------------------------------------------
 //  Delete any idle workers that haven't pinged us in a while.
-//  
-//  Необходимо единовременно получить список Обработчиков 
-//  в состоянии ARMED для заданного Сервиса. PopWorker всегда будет 
-//  возвращать один и тот же экземпляр Обработчика до тех пор, пока 
+//
+//  Необходимо единовременно получить список Обработчиков
+//  в состоянии ARMED для заданного Сервиса. PopWorker всегда будет
+//  возвращать один и тот же экземпляр Обработчика до тех пор, пока
 //  у него не сменится состояние (к примеру, после окончания срока годности)
 //
 //  TODO 22/01/2015 - Переработать логику. Получить список всех Обработчиков,
 //  и проверить их таймауты. Для тех из них, кто превысил время, проверить состояние.
 //  1. Если Обработчик был свободен (ARMED), просто удалить его.
-//  2. Если Обработчик был занят обслуживанием запроса (OCCUPIED), передать 
-//  выполнение запроса другому Обработчику. Если время жизни запроса истекло, отправить 
-//  отрицательную квитанцию Клиенту. 
+//  2. Если Обработчик был занят обслуживанием запроса (OCCUPIED), передать
+//  выполнение запроса другому Обработчику. Если время жизни запроса истекло, отправить
+//  отрицательную квитанцию Клиенту.
 //
 void
 Broker::purge_workers ()
@@ -183,9 +183,9 @@ Broker::purge_workers ()
     {
 //        LOG(INFO) <<"Purge workers for "<<srv_count<<":"<<service->GetNAME()
 //                  <<" => "<<wrk_count<<":"<<wrk->GetIDENTITY();
-        if (wrk->Expired ()) 
+        if (wrk->Expired ())
         {
-          if (m_verbose) 
+          if (m_verbose)
           {
             LOG(INFO) << "Deleting expired worker: " << wrk->GetIDENTITY();
           }
@@ -249,7 +249,7 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
 #warning "Replace xdb::Letter(zmsg*) into xdb::Letter(string&, string&)"
 #endif
       status = m_database->PushRequestToService(srv, letter);
-      if (!status) 
+      if (!status)
         LOG(ERROR) << "Unable to push new letter "<<letter->GetID()
                    <<" for service '"<<srv->GetNAME()<<"'";
       delete letter;
@@ -286,7 +286,7 @@ Broker::service_dispatch (xdb::Service *srv, zmsg *processing_msg = NULL)
         // Передать ожидающую обслуживания команду выбранному Обработчику
         worker_send (wrk, MDPW_REQUEST, EMPTY_FRAME, letter);
         delete letter;
-        // После отсылки Сообщения этот экземпляр Обработчика перешел 
+        // После отсылки Сообщения этот экземпляр Обработчика перешел
         // в состояние OCCUPIED, нужно выбрать нового Обработчика.
 //        database_snapshot("SEND_SERVICE_DISPATCH.STOP");
       }
@@ -322,7 +322,7 @@ Broker::service_internal (const std::string& service_name, zmsg *msg, source_req
         switch(request_source) {
           case SOURCE_CLIENT:
             // [011] @006B8B4567
-            // [000] 
+            // [000]
             // [004] SINF
             assert(msg && msg->parts() == 3);
             uid = msg->pop_front();
@@ -332,7 +332,7 @@ Broker::service_internal (const std::string& service_name, zmsg *msg, source_req
 
           case SOURCE_WORKER:
             //  [004] EGSA
-            //  [000] 
+            //  [000]
             //  [011] mmi.service
             //  [004] SINF
             assert(msg && msg->parts() == 4);
@@ -406,7 +406,7 @@ Broker::service_internal (const std::string& service_name, zmsg *msg, source_req
       break;
   }
   msg->wrap (uid.c_str(), EMPTY_FRAME);
- 
+
   msg->send (*m_socket);
 
   delete srv;
@@ -448,7 +448,7 @@ Broker::release (xdb::Worker *&wrk, int disconnect)
     return false;
   }
 
-  if (disconnect) 
+  if (disconnect)
   {
     LOG(INFO) << "Send DISCONNECT to Service " << wrk->GetIDENTITY();
     worker_send (wrk->GetIDENTITY(), MDPW_DISCONNECT, EMPTY_FRAME);
@@ -474,7 +474,7 @@ Broker::release (xdb::Worker *&wrk, int disconnect)
 
 //  ---------------------------------------------------------------------
 //  MDPW_READY processing sent to us by a worker
-bool 
+bool
 Broker::worker_process_READY(xdb::Worker*& worker,
                              const std::string& sender_identity,
                              zmsg *msg)
@@ -536,7 +536,7 @@ Broker::worker_process_READY(xdb::Worker*& worker,
 }
 
 //  ---------------------------------------------------------------------
-bool 
+bool
 Broker::worker_process_REQUEST(xdb::Worker*& worker,
                               const std::string& sender_identity,
                               zmsg *msg)
@@ -573,7 +573,7 @@ Broker::worker_process_REQUEST(xdb::Worker*& worker,
 }
 
 //  ---------------------------------------------------------------------
-bool 
+bool
 Broker::worker_process_REPORT(xdb::Worker*& worker,
                               const std::string& sender_identity,
                               zmsg *msg)
@@ -586,7 +586,7 @@ Broker::worker_process_REPORT(xdb::Worker*& worker,
   if (m_verbose)
     LOG(INFO) << "Get REPORT from '" << sender_identity << "' worker=" << worker;
 
-  if (worker) 
+  if (worker)
   {
      service = m_database->GetServiceForWorker(worker);
      assert(service->GetID() == worker->GetSERVICE_ID());
@@ -619,7 +619,7 @@ Broker::worker_process_REPORT(xdb::Worker*& worker,
      worker_waiting (worker);
      delete service;
   }
-  else 
+  else
   {
      LOG(ERROR) << "Got report from NULL worker";
      status = false;
@@ -630,7 +630,7 @@ Broker::worker_process_REPORT(xdb::Worker*& worker,
 }
 
 //  ---------------------------------------------------------------------
-bool 
+bool
 Broker::worker_process_HEARTBEAT(xdb::Worker*& worker,
                                  const std::string& sender_identity,
                                  zmsg*)
@@ -661,7 +661,7 @@ Broker::worker_process_HEARTBEAT(xdb::Worker*& worker,
 }
 
 //  ---------------------------------------------------------------------
-bool 
+bool
 Broker::worker_process_DISCONNECT(xdb::Worker*& worker, const std::string& sender_identity, zmsg*)
 {
   if (m_verbose) LOG(INFO) << "Get DISCONNECT from worker " << sender_identity;
@@ -729,14 +729,14 @@ Broker::worker_msg (const std::string& sender_identity, zmsg *msg)
 //  If pointer to message is provided, sends that message.
 //  Input parameters
 //  command: MDPW_DISCONNECT,...
-//  option: 
+//  option:
 //  letter: (may by NULL on release worker when command=MDPW_DISCONNECT)
 void
 Broker::worker_send (xdb::Worker *worker,
     const char *command, const std::string& option, xdb::Letter *letter)
 {
   // TODO: удалить сообщение из базы только после успешной передачи
-  // NB: это может привести к параллельному исполнению 
+  // NB: это может привести к параллельному исполнению
   // команды двумя Обработчиками. Как бороться? И стоит ли?
   assert(worker);
 
@@ -788,9 +788,9 @@ Broker::worker_send (xdb::Worker *worker,
 
 void
 Broker::worker_send (
-    /* IN     */ xdb::Worker* worker, 
+    /* IN     */ xdb::Worker* worker,
     /* IN     */ const char* command,
-    /* IN     */ const std::string& option, 
+    /* IN     */ const std::string& option,
     /* IN-OUT */ std::string& header,
     /* IN     */ std::string& body)
 {
@@ -900,7 +900,7 @@ Broker::client_msg (const std::string& sender, zmsg *msg)
         // Да, т.к. имя Сервиса начинается с ключевой фразы "mmi."
         service_internal (service_frame, msg, SOURCE_CLIENT);
     }
-    else // Нет, это запрос общего порядка 
+    else // Нет, это запрос общего порядка
     {
         // Проверим наличие такого Сервиса
         xdb::Service *srv = m_database->GetServiceByName(service_frame.c_str());

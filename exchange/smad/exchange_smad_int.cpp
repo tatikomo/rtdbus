@@ -24,7 +24,7 @@
 //  5 | DELEGATION  | INTEGER   | 1            |    |
 //  6 | LAST_PROBE  | TIME      |              |    |   // Когда в последний раз опрашивалась модулем
 //  7 | LAST_SENT   | TIME      |              |    |   // Последний раз, когда данные были отправлены клиенту
-//  8 | MODE        | TEXT      |              |    |   
+//  8 | MODE        | TEXT      |              |    |
 // ---+-------------+-----------+--------------+    |
 //                                                  |
 // Структура таблицы описания параметров СС "DICT"  |
@@ -578,7 +578,7 @@ int InternalSMAD::push(const sa_parameter_info_t& info)
       sqlite3_free(m_db_err);
   }
   else status = OK;
-  
+
   return status;
 }
 

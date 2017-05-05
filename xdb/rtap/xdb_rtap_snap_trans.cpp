@@ -25,7 +25,7 @@ static const std::string OBJCLASS_STRING = "OBJCLASS";
 /* Global variables */
 /*------------------*/
 #define LINE_BUFFER_LEN    255
-char     currentAttrName [NAME_SIZE+1];   
+char     currentAttrName [NAME_SIZE+1];
 char     currentStrDeType[DETYPE_SIZE+1];
 rtDeType currentDeType;
  	
@@ -58,7 +58,7 @@ int nbHist;
 int nbHistFailed;
 
 // ###############################################################
-// Заполнить структуру AttributeInfo_t по заданным DbType_t и 
+// Заполнить структуру AttributeInfo_t по заданным DbType_t и
 // строковому представлению значения
 bool getAttrValue(DbType_t, AttributeInfo_t*, const std::string&);
 
@@ -100,7 +100,7 @@ rtDeType extractDeType(char* laChaine)
 
   if (j < GOF_D_BDR_MAX_DE_TYPE)
       return((rtDeType)j);
-  else 
+  else
       return(rtUNDEFINED);
 }
 
@@ -141,7 +141,7 @@ recordType xdb::getRecordType(std::string& typeEnreg)
    else if (typeEnreg.compare(0, TYPE_ENREG_SIZE, "L0") == 0)
       return L0_TYPE;
    else
-      return UNKNOWN_RECORD_TYPE;  
+      return UNKNOWN_RECORD_TYPE;
 }
 
 /*
@@ -182,7 +182,7 @@ void LoadDbTypesDictionary()
                            GOF_D_BDR_OBJCLASS_DISP_TABLE_H));
    dbPointsTypeHash.insert(DbPointsTypeHashPair_t("DISP_TABLE_J",
                            GOF_D_BDR_OBJCLASS_DISP_TABLE_J));
-   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("DISP_TABLE_M",  
+   dbPointsTypeHash.insert(DbPointsTypeHashPair_t("DISP_TABLE_M",
                            GOF_D_BDR_OBJCLASS_DISP_TABLE_M));
    dbPointsTypeHash.insert(DbPointsTypeHashPair_t("DISP_TABLE_QH",
                            GOF_D_BDR_OBJCLASS_DISP_TABLE_QH));
@@ -221,7 +221,7 @@ int xdb::processClassFile(const char* fpath)
   std::string s_type;
   std::string s_default_value;
   DbType_t    db_type;
-  AttributeInfo_t *p_attr_info; 
+  AttributeInfo_t *p_attr_info;
   std::string line;
   std::string::size_type first;
   std::string::size_type second;
@@ -410,7 +410,7 @@ void releaseAttributeInfo(AttributeInfo_t* delete_me, bool is_delete_after = fal
     delete delete_me;
 }
 
-// 
+//
 bool getAttrValue(DbType_t db_type,
     // OUTPUT
     AttributeInfo_t* p_attr_info,
@@ -761,8 +761,8 @@ std::string& xdb::dump_point(
 
 //
 // Прочитать сгенерированный файл с содержимым БДРВ
-// Часть атрибутов и/или значений по-умолчанию может 
-// отсутствовать, в этом случае нужно брать их из 
+// Часть атрибутов и/или значений по-умолчанию может
+// отсутствовать, в этом случае нужно брать их из
 // структуры ClassDescriptionTable[]
 //
 bool xdb::processInstanceFile(const char* fpath)
@@ -846,7 +846,7 @@ bool xdb::processInstanceFile(const char* fpath)
     //  "AV"
     //  "C0"
     //  "L0"
-    //  
+    //
     while (getline(ifs, buffer))
     {
       input_file_line++;
@@ -884,7 +884,7 @@ bool xdb::processInstanceFile(const char* fpath)
             }
 
             // NB: Если длина алиаса равна 19 символов, во входном файле значение
-            // instanceAlias склеивается с className. 
+            // instanceAlias склеивается с className.
             if (iss >> type >> instanceAlias)
             {
               if (NAME_LENGTH < instanceAlias.size()-1)
@@ -953,7 +953,7 @@ bool xdb::processInstanceFile(const char* fpath)
          /*--------*/
          case S_TYPE :
            // adds the scalar in the class --> init currentAttrName, currentDeType
-           // Получить в глобальных переменных currentAttrName и currentDeType 
+           // Получить в глобальных переменных currentAttrName и currentDeType
            // значения "Название атрибута" и "Тип данных" соответственно.
            // NB: По умолчанию в файле инстанса для всех атрибутов доступ PUBLIC
            //
@@ -1057,7 +1057,7 @@ bool xdb::processInstanceFile(const char* fpath)
          /*--------*/
          case T_TYPE :
            /* sets table info ---> init currentAttrName */
-           //status = setInfoTable(buffer, INSTANCE_FORMAT, &attrCateg); 
+           //status = setInfoTable(buffer, INSTANCE_FORMAT, &attrCateg);
            fieldCount = 0;
            colonne = 0;
            ligne = 0;
@@ -1066,7 +1066,7 @@ bool xdb::processInstanceFile(const char* fpath)
          /*-------------*/
          /* TABLE FIELD */
          /*-------------*/
-         case F_TYPE : 
+         case F_TYPE :
            /* initializes the fields data of tableField structure */
            status = initFieldTable(buffer, tableStrDeType, fieldCount);
            fieldCount++;
@@ -1142,14 +1142,14 @@ bool xdb::processInstanceFile(const char* fpath)
          /*----------------------*/
          case J_TYPE :
          /*
-           LOG (INFO) << "(" << typeRecord 
+           LOG (INFO) << "(" << typeRecord
             << ") : CE_DEFINITION|ALIAS_CE_DEFINITION : "
             << buffer;
           */
            break;
 
          default:
-           LOG (INFO) << "#" << input_file_line 
+           LOG (INFO) << "#" << input_file_line
             << " : (" << typeRecord << ") : UNKNOWN : '" << buffer <<"'";
       }
     }
@@ -1189,8 +1189,8 @@ bool setInfoVector(char *buffer, formatType leFormat, attrCategory* category)
       pType = pAttr + NAME_SIZE;
 
    strncpy(attrName, pAttr, NAME_SIZE);
-   attrName[NAME_SIZE] = CNULL;  
-   skipStr(attrName);  
+   attrName[NAME_SIZE] = CNULL;
+   skipStr(attrName);
 
    if (leFormat == CLASS_FORMAT)
       strncpy(categ, pCateg, CATEGORY_SIZE);
@@ -1202,7 +1202,7 @@ bool setInfoVector(char *buffer, formatType leFormat, attrCategory* category)
 
    strncpy(deType, pType, DETYPE_SIZE);
    deType[DETYPE_SIZE] = CNULL;
-   skipStr(deType); 
+   skipStr(deType);
 
    /* init output parameter */
    if (strncmp(categ, STR_PUBLIC, CATEGORY_SIZE) == 0)
@@ -1213,13 +1213,13 @@ bool setInfoVector(char *buffer, formatType leFormat, attrCategory* category)
       LOG(ERROR) << "Must be 'PUBLIC' or 'PRIVATE', not " << categ;
 
    /* init global variables for the attribute name and DeType */
-   strcpy(currentAttrName, attrName); 
+   strcpy(currentAttrName, attrName);
    strcpy(currentStrDeType, deType);
    currentDeType = extractDeType(deType);
 
    LOG(INFO)<<categ<<" | "<<attrName<<"["<<deType<<"]";
 
-   return status;   
+   return status;
 }
 
 bool setInfoTable(char *buffer, formatType leFormat, attrCategory* category)
@@ -1256,7 +1256,7 @@ bool setInfoTable(char *buffer, formatType leFormat, attrCategory* category)
       LOG(ERROR) << "Must be 'PUBLIC' or 'PRIVATE', not " << categ;
 
    LOG(INFO)<<categ<<" | "<<currentAttrName;
-   return status;   
+   return status;
 }
 #endif
 
@@ -1383,7 +1383,7 @@ bool xdb::GetDbTypeFromString(std::string& s_t, DbType_t& db_t)
   return status;
 }
 
-// На входе код типа БДРВ, на выходе строковое представление типа, 
+// На входе код типа БДРВ, на выходе строковое представление типа,
 // согласно шаблону AttributeType файла rtap_db.xsd
 const char* xdb::GetDbNameFromType(const DbType_t& db_t)
 {

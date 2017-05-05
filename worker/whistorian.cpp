@@ -126,7 +126,7 @@ void HistorianResponder::run()
   LOG(INFO) << fname << ": START";
   try
   {
-    // Сокет прямого подключения, выполняется в отдельной нити 
+    // Сокет прямого подключения, выполняется в отдельной нити
     // ZMQ_ROUTER_MANDATORY может привести zmq_proxy_steerable к аномальному завершению: rc=-1, errno=113
     // Наблюдалось в случаях интенсивного обмена с клиентом, если тот аномально завершался.
     m_frontend.setsockopt(ZMQ_ROUTER_MANDATORY, &mandatory, sizeof (mandatory));
@@ -203,7 +203,7 @@ int HistorianResponder::processing(mdp::zmsg* request, std::string &identity)
   rtdbMsgType msgType;
   int rc = OK;
 
-//  LOG(INFO) << "Process new request with " << request->parts() 
+//  LOG(INFO) << "Process new request with " << request->parts()
 //            << " parts and reply to " << identity;
 
   // Получить отметку времени начала обработки запроса
@@ -378,7 +378,7 @@ void HistorianProducer::run()
     // Начало рабочего цикла
     // ---------------------------------------------------
     historic->Make(now);
- 
+
     // Запомнить время начала исполнения
     m_time_before = getTime();
     sprintf(time_as_string, "%ld", m_time_before.tv_sec);
@@ -450,7 +450,7 @@ int Historian::handle_request(mdp::zmsg* request, std::string* reply_to, bool& n
   rtdbMsgType msgType;
 
   assert (request->parts () >= 2);
-  LOG(INFO) << "Process new request with " << request->parts() 
+  LOG(INFO) << "Process new request with " << request->parts()
             << " parts and reply to " << *reply_to;
 
   msg::Letter *letter = m_message_factory->create(request);

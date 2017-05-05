@@ -48,13 +48,13 @@ const char* Request::m_dict_RequestNames[] = {
 // НСИ
 Request::Request(const ega_ega_odm_t_RequestEntry* _config)
   : mtx(),
+    m_class(AUTOMATIC),
     m_internal_dump(),
     m_config(),
     m_when(),
     m_trigger_callback(),
     m_exchange_id(),
-    
-    m_last_in_bundle(false),
+    m_last_in_bundle(true),
     m_site(NULL),
     m_cycle(NULL)
 {
@@ -107,6 +107,7 @@ Request::Request(const callback_type& cb, const std::chrono::time_point<std::chr
 
 Request::Request(const Request& orig)
   : mtx(),
+    m_class(orig.m_class),
     m_internal_dump(),
     m_config(orig.m_config),
     m_when(orig.m_when),
@@ -123,6 +124,7 @@ Request::Request(const Request& orig)
 
 Request::Request(const Request* orig)
   : mtx(),
+    m_class(orig->m_class),
     m_internal_dump(),
     m_config(orig->m_config),
     m_when(orig->m_when),
@@ -140,8 +142,9 @@ Request& Request::operator=(const Request& orig)
 {
   memcpy(&m_config, &orig.m_config, sizeof(ega_ega_odm_t_RequestEntry));
   m_when = orig.m_when;
+  m_class = orig.m_class;
   m_exchange_id = orig.m_exchange_id;
-  m_last_in_bundle = false;
+  m_last_in_bundle = true;
   m_site = orig.m_site;
   m_cycle = orig.m_cycle;
 
@@ -168,7 +171,8 @@ size_t Request::generate_new_exchange_id()
 // ==============================================================================
 // Используется для хранения динамической информации в процессе работы
 Request::Request(const Request* _req, AcqSiteEntry* _site, Cycle* _cycle)
-  : m_config(_req->m_config),
+  : m_class(_req->m_class),
+    m_config(_req->m_config),
     m_when(_req->m_when),
     m_exchange_id(_req->m_exchange_id),
     m_site(_site),
@@ -187,7 +191,7 @@ Request::~Request()
 int Request::trigger()
 {
   const int REQUEST_ID_LAST = ECH_D_NOT_EXISTENT + 1;
-  const int SA_STATE_LAST = SA_STATE_UNKNOWN + 1;
+  const int SA_STATE_LAST = EGA_EGA_AUT_D_NB_STATE + 1;
   //      0
   //      |                 21
   //      |                 |                 0
@@ -199,36 +203,37 @@ int Request::trigger()
 #define X true
 #define _ false
   static const bool enabler_matrix[REQUEST_ID_LAST][SA_STATE_LAST] = {
-    //                         UNREACH
-    //                         |  OPER
-    //                         |  |  PRE_OPER
-    //                         |  |  |  INHIBITED
-    //                         |  |  |  |  FAULT
-    //                         |  |  |  |  |  DISCONNECTED
-    //                         |  |  |  |  |  |  UNKNOWN
-    //                         |  |  |  |  |  |  |
-    /* ECH_D_GENCONTROL */   { _, X, X, _, _, _, _ },
-    /* ECH_D_INFOSACQ   */   { _, X, X, _, _, _, _ },
-    /* ECH_D_URGINFOS   */   { _, X, X, _, _, _, _ },
-    /* ECH_D_GAZPROCOP  */   { _, _, _, _, _, _, _ },
-    /* ECH_D_EQUIPACQ   */   { _, X, X, X, X, _, _ },
-    /* ECH_D_ACQSYSACQ  */   { _, X, X, X, X, X, X },
-    /* ECH_D_ALATHRES   */   { _, X, X, _, _, _, _ },
-    /* ECH_D_TELECMD    */   { _, X, _, _, _, _, _ },
-    /* ECH_D_TELEREGU   */   { _, X, _, _, _, _, _ },
-    /* ECH_D_SERVCMD    */   { X, X, X, _, X, _, _ },
-    /* ECH_D_GLOBDWLOAD */   { _, X, _, _, _, _, _ },
-    /* ECH_D_PARTDWLOAD */   { _, X, _, _, _, _, _ },
-    /* ECH_D_GLOBUPLOAD */   { _, X, _, _, _, _, _ },
-    /* ECH_D_INITCMD    */   { X, X, X, _, X, X, X },
-    /* ECH_D_GCPRIMARY  */   { _, X, _, _, _, _, _ },
-    /* ECH_D_GCSECOND   */   { _, X, _, _, _, _, _ },
-    /* ECH_D_GCTERTIARY */   { _, X, _, _, _, _, _ },
-    /* ECH_D_DIFFPRIMARY*/   { _, X, _, _, _, _, _ },
-    /* ECH_D_DIFFSECOND */   { _, X, _, _, _, _, _ },
-    /* ECH_D_DIFFTERTIARY */ { _, X, _, _, _, _, _ },
-    /* ECH_D_INFODIFFUSION*/ { _, X, _, _, _, _, _ },
-    /* ECH_D_DELEGATION   */ { _, X, X, _, _, X, _ },
+    //                         NI_NM_NO
+    //                         |  NI_M_NO
+    //                         |  |  NI_NM_O
+    //                         |  |  |  NI_M_O
+    //                         |  |  |  |  I_NM_NO
+    //                         |  |  |  |  |  I_M_NO
+    //                         |  |  |  |  |  |  I_NM_O
+    //                         |  |  |  |  |  |  |  I_M_O
+    //                         |  |  |  |  |  |  |  |
+    /* ECH_D_GENCONTROL */   { _, _, X, _, _, _, _, _ },
+    /* ECH_D_INFOSACQ   */   { _, _, X, _, _, _, _, _ },
+    /* ECH_D_URGINFOS   */   { _, _, X, _, _, _, _, _ },
+    /* ECH_D_GAZPROCOP  */   { _, _, X, _, _, _, _, _ },
+    /* ECH_D_EQUIPACQ   */   { _, _, X, X, _, _, _, _ },
+    /* ECH_D_ACQSYSACQ  */   { _, _, X, X, X, X, X, _ },
+    /* ECH_D_ALATHRES   */   { _, _, X, _, _, _, _, _ },
+    /* ECH_D_TELECMD    */   { _, _, X, _, _, _, _, _ },
+    /* ECH_D_TELEREGU   */   { _, _, X, _, _, _, _, _ },
+    /* ECH_D_SERVCMD    */   { _, _, X, X, _, _, X, X },
+    /* ECH_D_GLOBDWLOAD */   { _, _, _, X, _, _, _, _ },
+    /* ECH_D_PARTDWLOAD */   { _, _, _, X, _, _, _, _ },
+    /* ECH_D_GLOBUPLOAD */   { _, _, _, X, _, _, _, _ },
+    /* ECH_D_INITCMD    */   { X, X, X, X, _, _, _, _ },
+    /* ECH_D_GCPRIMARY  */   { _, _, X, _, _, _, _, _ },
+    /* ECH_D_GCSECOND   */   { _, _, X, _, _, _, _, _ },
+    /* ECH_D_GCTERTIARY */   { _, _, X, _, _, _, _, _ },
+    /* ECH_D_DIFFPRIMARY*/   { _, _, X, _, _, _, _, _ },
+    /* ECH_D_DIFFSECOND */   { _, _, X, _, _, _, _, _ },
+    /* ECH_D_DIFFTERTIARY */ { _, _, X, _, _, _, _, _ },
+    /* ECH_D_INFODIFFUSION*/ { _, _, X, _, _, _, _, _ },
+    /* ECH_D_DELEGATION   */ { _, _, X, X, _, _, _, _ },
   };
 #undef _
 #undef X
@@ -250,10 +255,10 @@ int Request::trigger()
   else {
     // Нет, запрещен
   }
-  
+
   /*
   switch (m_site->state()) {
-    case 
+    case
   }*/
 
 #if 0
@@ -311,18 +316,18 @@ int Request::trigger()
 // Строка с характеристиками Запроса
 const char* Request::dump()
 {
-  snprintf(m_internal_dump, DUMP_SIZE, "name:%s prio:%d id:%d last:%d site:%s (state:%d) cycle:%s exch:%d when:%ld mode:%d object:%d",
+  snprintf(m_internal_dump, DUMP_SIZE, "name:%s prio:%d id:%d lst:%d site:%s (st:%d) cyc:%s exch:%d when:%ld mode:%d obj:%d",
            name(),
            priority(),
            id(),
            m_last_in_bundle,
            ((m_site)? m_site->name() : "NULL"),
-           ((m_site)? m_site->state() : SA_STATE_UNKNOWN),
+           ((m_site)? m_site->state() : EGA_EGA_D_STATEINIT),
            ((m_cycle)? m_cycle->name() : "NULL"),
            exchange_id(),
            std::chrono::system_clock::to_time_t(when()),
            acq_mode(),
-           objclass());
+           object());
   return m_internal_dump;
 }
 

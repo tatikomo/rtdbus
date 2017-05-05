@@ -192,7 +192,7 @@ bool DatabaseBroker::ReleaseLetterFromWorker(Worker* worker)
 
 
 bool DatabaseBroker::IsServiceCommandEnabled(
-        const Service* srv, 
+        const Service* srv,
         const std::string& cmd_name)
 {
   assert(m_impl);
@@ -300,29 +300,29 @@ Worker *DatabaseBroker::GetWorkerByIdent(const std::string& ident)
 {
   return GetWorkerByIdent(ident.c_str());
 }
- 
-void DatabaseBroker::EnableServiceCommand(const std::string &srv_name, 
+
+void DatabaseBroker::EnableServiceCommand(const std::string &srv_name,
         const std::string& command)
 {
   assert(m_impl);
   return m_impl->EnableServiceCommand(srv_name, command);
 }
 
-void DatabaseBroker::EnableServiceCommand(const Service *srv, 
+void DatabaseBroker::EnableServiceCommand(const Service *srv,
         const std::string& command)
 {
   assert(m_impl);
   return m_impl->EnableServiceCommand(srv, command);
 }
 
-void DatabaseBroker::DisableServiceCommand(const std::string &srv_name, 
+void DatabaseBroker::DisableServiceCommand(const std::string &srv_name,
         const std::string& command)
 {
   assert(m_impl);
   return m_impl->DisableServiceCommand(srv_name, command);
 }
 
-void DatabaseBroker::DisableServiceCommand(const Service *srv, 
+void DatabaseBroker::DisableServiceCommand(const Service *srv,
         const std::string& command)
 {
   assert(m_impl);

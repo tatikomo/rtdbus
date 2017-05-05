@@ -22,8 +22,8 @@ class Cycle;
 // ==============================================================================
 typedef std::function<int ()> callback_type;
 typedef std::chrono::time_point<std::chrono::system_clock> time_type;
+#define DUMP_SIZE   150
 
-#define DUMP_SIZE   100
 // ==============================================================================
 // Элементарный запрос адрес СС
 class Request
@@ -34,6 +34,12 @@ class Request
       REPEAT = 1,
       ERROR = 2
     };
+
+    typedef enum {
+      AUTOMATIC = 0,
+      CYCLIC = 1,
+      ASYNC = 2
+    } request_class_t;
 
     // Используется для НСИ
     Request(const ega_ega_odm_t_RequestEntry*);
@@ -51,10 +57,13 @@ class Request
     Cycle* cycle() const { return m_cycle; }
     ech_t_ReqId id() const { return m_config.e_RequestId; }
     ech_t_AcqMode acq_mode() const { return m_config.e_RequestMode; }
-    ega_ega_t_ObjectClass objclass() const { return m_config.e_RequestObject; }
-    int priority() const          { return m_config.i_RequestPriority; }
+    ega_ega_t_ObjectClass object() const { return m_config.e_RequestObject; }
+    // Класс запроса - автоматический, циклический, асинхронный
+    request_class_t rclass() const { return m_class; }
+    int priority() const           { return m_config.i_RequestPriority; }
+    bool rprocess() const          { return m_config.b_Requestprocess; }
     // Получить время начала
-    const time_type when() const  { return m_when; }
+    const time_type when() const   { return m_when; }
     // Установить время начала
     void arm(const time_type& _when) { m_when = _when; }
     // TODO: разделить события - нормальное завершение или по таймауту
@@ -74,6 +83,8 @@ class Request
  //   DISALLOW_COPY_AND_ASSIGN(Request); violate in 'm_request_queue.emplace()
     size_t generate_new_exchange_id();
     std::mutex mtx;
+    // Тип Запроса - Автоматический, Асинхронный, Циклический
+    request_class_t m_class;
     // Общий счетчик идентификаторов времени выполнения
     static size_t m_sequence;
     static const char* m_dict_RequestNames[];

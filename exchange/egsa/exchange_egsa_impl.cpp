@@ -64,7 +64,7 @@ EGSA::~EGSA()
 {
 
   if (-1 != m_socket) {
-    LOG(INFO) << "Timers pipe " << (unsigned int)m_socket << " is closed"; 
+    LOG(INFO) << "Timers pipe " << (unsigned int)m_socket << " is closed";
   }
 
   // Отключиться от SMAD Сайтов
@@ -79,7 +79,7 @@ EGSA::~EGSA()
 // ==========================================================================================================
 int EGSA::init()
 {
-  const char* fname = "EGSA::init"; 
+  const char* fname = "EGSA::init";
   int status = NOK;
   int linger = 0;
   //int hwm = 100;
@@ -299,7 +299,7 @@ int EGSA::attach_to_sites_smad()
 }
 
 // ==========================================================================================================
-// Изменение состояния подключенных систем сбора и отключение от их внутренней SMAD 
+// Изменение состояния подключенных систем сбора и отключение от их внутренней SMAD
 int EGSA::detach()
 {
   int rc = OK;
@@ -328,7 +328,7 @@ int EGSA::implementation()
 
     while(!interrupt_worker) {
       LOG(INFO) << fname;
-      
+
       sleep (1);
     }
 
@@ -396,7 +396,7 @@ int EGSA::run()
 
 #if 0
     if (OK == status) {
-      // Сокет для получения запросов, прямого подключения, выполняется в отдельной нити 
+      // Сокет для получения запросов, прямого подключения, выполняется в отдельной нити
       // ZMQ_ROUTER_MANDATORY может привести zmq_proxy_steerable к аномальному завершению: rc=-1, errno=113
       // Наблюдалось в случаях интенсивного обмена с клиентом, если тот аномально завершался.
       m_frontend.setsockopt(ZMQ_ROUTER_MANDATORY, &mandatory, sizeof (mandatory));
@@ -422,13 +422,6 @@ int EGSA::run()
       m_socket_items[1].fd = 0;
       m_socket_items[1].events = ZMQ_POLLIN;
       m_socket_items[1].revents = 0;
-    }
-#endif
-
-#if 0
-    if (OK == status) {
-      // Отправить подчиненным системам сообщение о запросе готовности
-      fire_ENDALLINIT();
     }
 #endif
 
@@ -572,6 +565,7 @@ void EGSA::tick_tack()
   cycles::timer();
 }
 
+#if 0
 // ==========================================================================================================
 // Отправить всем подчиненным системам запрос готовности, и ожидать ответа
 void EGSA::fire_ENDALLINIT()
@@ -631,11 +625,11 @@ void EGSA::fire_ENDALLINIT()
 
     send_to_broker((char*) MDPW_REPORT, NULL, send_msg);
 
-#if 0
+/*
     if (sa->send(ADG_D_MSG_ENDALLINIT)) {
       cycles::add(std::bind(&SystemAcquisition::check_ENDALLINIT, sa), now + std::chrono::seconds(2));
     }
-#endif
+*/
   }
 
   // TODO: Проверить, кто из СС успел передать сообщение о завершении инициализации
@@ -658,6 +652,7 @@ void EGSA::fire_ENDALLINIT()
     cycles::timer();
   }
 }
+#endif
 
 // ==========================================================================================================
 // Активировать циклы
@@ -725,7 +720,7 @@ void EGSA::cycle_trigger(size_t cycle_id, size_t sa_id)
 
   Cycle *cycle = m_ega_ega_odm_ar_Cycles[cycle_id];
   AcqSiteEntry *site = (*cycle->sites())[sa_id];
-  
+
   assert(site);
   assert(cycle);
 
@@ -821,7 +816,7 @@ int EGSA::processing(mdp::zmsg* request, const std::string &identity, bool& need
   rtdbMsgType msgType;
   int rc = OK;
 
-//  LOG(INFO) << "Process new request with " << request->parts() 
+//  LOG(INFO) << "Process new request with " << request->parts()
 //            << " parts and reply to " << identity;
 
   // Получить отметку времени начала обработки запроса
@@ -933,12 +928,21 @@ int EGSA::handle_read_multiple(msg::Letter*, const std::string& origin)
 // ==========================================================================================================
 int EGSA::handle_sbs_update(msg::Letter*, const std::string& origin)
 {
+  int rc = NOK;
+
   LOG(ERROR) << "Not yet realized: handle_sbs_update from " << origin;
-  return NOK;
+
+  // TODO: при изменении какого-либо атрибута СС (SYNTHSTATE, INHIBITION, EXPMODE) пересчитать состояние СС
+  // RTDB_ATT_IDX_SYNTHSTATE
+  // RTDB_ATT_IDX_INHIB
+  // RTDB_ATT_IDX_EXPMODE
+  //
+#warning "Recalculate SA state on SBS of SA attributes receiving"
+  return rc;
 }
 
 // ==========================================================================================================
-// Активация группы подписки точек систем сбора 
+// Активация группы подписки точек систем сбора
 int EGSA::activateSBS()
 {
   std::string sbs_name = EXCHANGE_NAME;
@@ -1088,17 +1092,32 @@ int EGSA::waitSBS()
 // Обработка полученных по подписке от БДРВ данных
 int EGSA::process_read_response(msg::Letter* report)
 {
+  int attribute_idx = RTDB_ATT_IDX_UNEXIST;
   int status = OK;
   msg::ReadMulti* response = dynamic_cast<msg::ReadMulti*>(report);
- 
+
   for (std::size_t idx = 0; idx < response->num_items(); idx++)
   {
     const msg::Value& attr_val = response->item(idx);
     LOG(INFO) << attr_val.tag() << " = " << attr_val.as_string() << std::endl;
 
-    // TODO: обновить состояние Сайтов m_ega_ega_odm_ar_AcqSites
     if (std::string::npos != attr_val.tag().find(RTDB_ATT_SYNTHSTATE)) {
+      attribute_idx = RTDB_ATT_IDX_SYNTHSTATE;
+    }
+    else if (std::string::npos != attr_val.tag().find(RTDB_ATT_INHIB)) {
+      attribute_idx = RTDB_ATT_IDX_INHIB;
+    }
+    else if (std::string::npos != attr_val.tag().find(RTDB_ATT_EXPMODE)) {
+      attribute_idx = RTDB_ATT_IDX_EXPMODE;
+    }
+    else {
+      LOG(WARNING) << "Subscription processing: skip unsupported atribute " << attr_val.tag();
+    }
 
+    // Проверим, получили ли мы допустимый атрибут
+    if (RTDB_ATT_IDX_UNEXIST != attribute_idx) { // Да, один из допустимых
+      // Обновим состояние Сайтов m_ega_ega_odm_ar_AcqSites
+      //
       // Вырезать из attr_val.tag() часть от первого символа '/' до '.'
       const size_t point_pos = attr_val.tag().find(".");
       assert(std::string::npos != point_pos);
@@ -1110,21 +1129,22 @@ int EGSA::process_read_response(msg::Letter* report)
       // Нашли в своей конфигурации упоминание этой СС
       if (sa_entry) {
         // Преобразовали числовой код состояния SYNTHSTATE из БДРВ
-        const sa_state_t new_state = int_to_sa_state(attr_val.raw().fixed.val_uint8);
+        // const sa_state_t new_state = int_to_sa_state(attr_val.raw().fixed.val_uint8);
         // Зарядили необходимые Запросы в Циклы, где участвует эта СС
 
         // Поменяли состояние СС на нужное
-        sa_entry->change_state_to(new_state);
+        sa_entry->change_state(attribute_idx, attr_val.raw().fixed.val_uint8);
         LOG(INFO) << "Update SA " << sa_name << " state to " << sa_entry->state();
       }
       else {
         LOG(WARNING) << "Skip processing SA " << sa_name << " because of absense it's configuration";
       }
+
+
     }
 
-    //attr_val.tag()
   }
- 
+
   return status;
 }
 
@@ -1177,7 +1197,7 @@ int EGSA::handle_stop(msg::Letter* letter, const std::string& identity)
     // TODO: Возможно ли переполнение?
     exec_reply->header()->set_interest_id(letter->header()->interest_id() + 1);
     exec_reply->header()->set_proc_dest(identity);
-    if (OK == rc) 
+    if (OK == rc)
       exec_reply->set_exec_result(1);
     else
       exec_reply->set_failure_cause(0, "GEV");

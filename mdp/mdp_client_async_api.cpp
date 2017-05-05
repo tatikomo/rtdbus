@@ -42,7 +42,7 @@ static void s_catch_signals ()
 
 /*
  * Клиент может иметь представление о Службах, с которыми ему
- * предстоит работать. В этом случае можно, помимо подключения 
+ * предстоит работать. В этом случае можно, помимо подключения
  * к Брокеру, создавать подключения к общему сокету Служб.
  * Тип у общих сокетов Служб (m_welcome) => ROUTER
  */
@@ -78,7 +78,7 @@ mdcli::~mdcli ()
      // Освободить занятую под ServiceInfo_t память
      delete it->second;
   }
-  
+
   try
   {
     if (m_subscriber)
@@ -131,7 +131,7 @@ void mdcli::connect_to_broker ()
     if (m_client) {
       delete m_client;
     }
-  
+
     m_client = new zmq::socket_t (*m_context, ZMQ_DEALER);
 
     m_client->setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
@@ -322,7 +322,7 @@ int mdcli::subscript(const std::string& service_name, const std::string& group_n
       m_subscriber->setsockopt(ZMQ_SUBSCRIBE, group_name.c_str(), group_name.size());
 
       add_socket_to_pool(m_subscriber, SUBSCRIBER_ITEM);
-     
+
       LOG(INFO) << "Subscript to ["<<service_name<<":"<<group_name<<"]";
   }
   catch(zmq::error_t err)
@@ -439,7 +439,7 @@ mdcli::send (const std::string& service, zmsg *&request_p, ChannelType chan)
 //   0 - ничего не получено за время таймаута
 //   1 - получено сообщение
 //  -1 - завершить работу
-int 
+int
 mdcli::recv (zmsg* &msg)
 {
   int status = RECEIVE_OK; // все в порядке

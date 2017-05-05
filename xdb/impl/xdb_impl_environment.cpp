@@ -123,8 +123,8 @@ Error& EnvironmentImpl::sendMessage(mdp::Letter* letter)
 
 const Error& EnvironmentImpl::LoadSnapshot(const char *app_name, const char *filename)
 {
-  LOG(INFO) << "Load " << m_name 
-            << " current snapshot for '" << app_name 
+  LOG(INFO) << "Load " << m_name
+            << " current snapshot for '" << app_name
             << "' from '" << filename << "'";
   m_last_error = rtE_NOT_IMPLEMENTED;
   return m_last_error;

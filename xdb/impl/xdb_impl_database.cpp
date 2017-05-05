@@ -76,9 +76,9 @@ void extended_impl_errhandler(MCO_RET errcode, const char* file, int line)
 /* Stream writer with prototype mco_stream_write */
 
 #if (EXTREMEDB_VERSION <= 40)
-mco_size_t 
+mco_size_t
 #else
-mco_size_sig_t 
+mco_size_sig_t
 #endif
 file_writer( void *stream_handle /* FILE *  */, const void *from, mco_size_t nbytes )
 {
@@ -91,9 +91,9 @@ file_writer( void *stream_handle /* FILE *  */, const void *from, mco_size_t nby
 
 /* Stream reader with prototype mco_stream_read */
 #if (EXTREMEDB_VERSION <= 40)
-mco_size_t 
+mco_size_t
 #else
-mco_size_sig_t 
+mco_size_sig_t
 #endif
 file_reader( void *stream_handle /* FILE *  */,  /* OUT */void *to, mco_size_t max_nbytes )
 {
@@ -459,9 +459,9 @@ DatabaseImpl::~DatabaseImpl()
 #else
 /*
  * Тесты используют последовательное создание и удаление экземпляров БД.
- * Повторный вызов mco_runtime_start|mco_runtime_stop ведет к сбоям в 
+ * Повторный вызов mco_runtime_start|mco_runtime_stop ведет к сбоям в
  * работе XDB.
- * Необходимо или ограничить вызов mco_runtime_stop, или разбить тесты 
+ * Необходимо или ограничить вызов mco_runtime_stop, или разбить тесты
  * на независимые части.
  */
 #warning "Временный запрет на вызов mco_runtime_stop"
@@ -551,7 +551,7 @@ const Error& DatabaseImpl::Init()
       m_dev[1].type       = MCO_MEMORY_CONV;            /* set the device as a conventional memory device */
       m_dev[1].dev.conv.ptr = (void*)malloc( m_DatabaseSize/2 ); /* allocate memory and set device pointer */
     }
-    
+
     /* setup memory device for main database storage */
     m_dev[2].type       = MCO_MEMORY_FILE;                /* set the device as a file device */
     m_dev[2].assignment = MCO_MEMORY_ASSIGN_PERSISTENT;   /* assign the device as a main database persistent storage */
@@ -610,7 +610,7 @@ const Error& DatabaseImpl::Init()
       //mco_error_set_handler(&impl_errhandler);
       mco_error_set_handler_ex(&extended_impl_errhandler);
       LOG(INFO) << "User-defined error handler set";
- 
+
 #if RTDBUS_USE_XDB_CALC
       mco_calc_init(&m_calc, m_dict);
 
@@ -804,10 +804,10 @@ const Error& DatabaseImpl::ConnectToInstance()
      if (true == getOption(const_cast<Options*>(m_db_access_flags), "OF_TRUNCATE", opt_val) && opt_val)
      {
        /*
-        * NB: предварительное удаление экземпляра БД делает бесполезной 
+        * NB: предварительное удаление экземпляра БД делает бесполезной
         * последующую попытку подключения к ней.
-        * Очистка оставлена в качестве временной меры. В дальнейшем 
-        * уже созданный экземпляр БД может использоваться в качестве 
+        * Очистка оставлена в качестве временной меры. В дальнейшем
+        * уже созданный экземпляр БД может использоваться в качестве
         * persistent-хранилища после аварийного завершения.
         */
        rc = mco_db_clean(m_db);
@@ -817,12 +817,12 @@ const Error& DatabaseImpl::ConnectToInstance()
          LOG(ERROR) << "Unable truncate database " << m_name;
        }
     }
- 
+
     if (!rc)
     {
       RegisterEvents();
       /*
-      MCO_TRANS_ISOLATION_LEVEL isolation_level = 
+      MCO_TRANS_ISOLATION_LEVEL isolation_level =
             mco_trans_set_default_isolation_level(m_db, MCO_REPEATABLE_READ);
       LOG(INFO) << "Change default transaction isolation level to MCO_REPEATABLE_READ, "<<isolation_level;
       */
@@ -839,7 +839,7 @@ const Error& DatabaseImpl::ConnectToInstance()
 /*
  * Сохранение содержимого БД в виде файла XML формата McObject.
  *
- * NB: Внутри функции может упасть xdb runtime в том случае, если 
+ * NB: Внутри функции может упасть xdb runtime в том случае, если
  * сохраняемая БД имеет хотя бы один безиндексный класс.
  */
 const Error& DatabaseImpl::SaveAsXML(const char* given_file_name, const char *msg)
@@ -878,7 +878,7 @@ const Error& DatabaseImpl::SaveAsXML(const char* given_file_name, const char *ms
       calc_file_name[sizeof(calc_file_name) - 1] = '\0';
     }
   }
-    
+
   /* setup policy */
   setupPolicy(np);
 
@@ -1003,7 +1003,7 @@ const Error& DatabaseImpl::StoreSnapshot(const char* given_file_name)
       setError(rtE_SNAPSHOT_WRITE);
     }
   } while(false);
-    
+
 #else
 #warning "Binary snapshot is disabled for this version"
    LOG(WARNING) << "Binary snapshot is disabled for this version";
@@ -1053,7 +1053,7 @@ const Error& DatabaseImpl::Disconnect()
 
       rc = mco_db_disconnect(m_db);
       LOG(INFO)<<"mco_db_disconnect '" << m_name << "': " << mco_ret_string(rc,NULL);
-      if (rc) 
+      if (rc)
       {
         LOG(ERROR) << "Unable to disconnect from '" << m_name
                    << "': " << mco_ret_string(rc,NULL);
@@ -1068,7 +1068,7 @@ const Error& DatabaseImpl::Disconnect()
         // Остальные подключившиеся процессы должны только отключаться от БД.
 #if (EXTREMEDB_VERSION >= 40) && USE_EXTREMEDB_HTTP_SERVER
         rc = mco_uda_db_close(m_metadict, 0);
-#else      
+#else
         rc = mco_db_close(m_name);
 #endif
         LOG(INFO)<<"mco_db_close '"<<m_name<<"': "<<mco_ret_string(rc,NULL);
@@ -1122,7 +1122,7 @@ const Error& DatabaseImpl::Disconnect()
 }
 
 // NB: нужно выполнить до mco_db_connect (m_db д.б. NULL)
-// БД должна быть в состоянии ATTACHED, иначе при попытке 
+// БД должна быть в состоянии ATTACHED, иначе при попытке
 // восстановления содержимого получим ошибку MCO_E_INSTANCE_DUPLICATE
 //
 const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
@@ -1280,7 +1280,7 @@ const Error& DatabaseImpl::LoadSnapshot(const char *given_file_name)
         }
         setError(restoring_state);
       }
-      
+
       break;
     }
 
@@ -1498,7 +1498,7 @@ const Error& DatabaseImpl::Open()
    if (rc)
    {
      // Если мы пытаемся открыть уже созданную БД,
-     // и при этом флаги открытия не говорят, что нам 
+     // и при этом флаги открытия не говорят, что нам
      // нужно было ее создавать - это не ошибка
      if (MCO_E_INSTANCE_DUPLICATE == rc)
      {
@@ -1547,8 +1547,8 @@ const Error& DatabaseImpl::RegisterEvents()
 
   do
   {
-    rc = mco_trans_start(m_db, 
-                         MCO_READ_WRITE, 
+    rc = mco_trans_start(m_db,
+                         MCO_READ_WRITE,
                          MCO_TRANS_FOREGROUND,
                          &t);
     if (rc)
@@ -1558,15 +1558,15 @@ const Error& DatabaseImpl::RegisterEvents()
       break;
     }
 
-    rc = mco_register_newService_handler(t, 
-            &DatabaseBrokerImpl::new_Service, 
+    rc = mco_register_newService_handler(t,
+            &DatabaseBrokerImpl::new_Service,
             (void*)this
             );
 
     if (rc) LOG(ERROR) << "Registering event on XDBService creation, rc=" << rc;
 
-    rc = mco_register_delService_handler(t, 
-            &DatabaseBrokerImpl::del_Service, 
+    rc = mco_register_delService_handler(t,
+            &DatabaseBrokerImpl::del_Service,
             (void*)this);
     if (rc) LOG(ERROR) << "Registering event on XDBService deletion, rc=" << rc;
 
@@ -1599,7 +1599,7 @@ const Error& DatabaseImpl::TransitionToState(DBState_t new_state)
   bool transition_correctness = false;
 
   clearError();
-  /* 
+  /*
    * Проверить допустимость перехода из старого в новое состояние
    */
   switch (m_state)
@@ -1739,7 +1739,7 @@ void DatabaseImpl::clearError()
 // Интерфейс управления БД - Контроль выполнения
 const Error& DatabaseImpl::Control(rtDbCq& info)
 {
-  
+
   m_last_error = rtE_NOT_IMPLEMENTED;
   return m_last_error;
 }

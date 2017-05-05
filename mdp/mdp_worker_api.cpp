@@ -39,7 +39,7 @@ typedef struct {
 // Формат endpoint серверный, предназначен для передачи в bind()
 //
 // NB: Это дубликат структуры, хранящийся в xdb_impl_db_broker.cpp
-// Для серверного подключения с помощью bind по указанному endpoint 
+// Для серверного подключения с помощью bind по указанному endpoint
 // нужно заменить "localhost" на "*" или "lo", поскольку в таблице
 // синтаксис endpoint приведен для вызова connect()
 //
@@ -218,7 +218,7 @@ void mdwrk::connect_to_broker ()
     LOG(INFO) << "Connecting to broker " << m_broker_endpoint;
 
     // Register service with broker
-    // Внесены изменения из-за необходимости передачи значения точки подключения 
+    // Внесены изменения из-за необходимости передачи значения точки подключения
     zmsg *msg = new zmsg ();
     const char* endp = getEndpoint();
     msg->push_front (const_cast<char*>(endp));
@@ -259,7 +259,7 @@ void mdwrk::connect_to_world ()
     // сообщение Брокеру (READY) получает нужную строку. Эту же строку получают все
     // Клиенты, заинтересованные в прямой передаче данных между ними и Обработчиками.
     // ===================================================================================
-    // 
+    //
     if(m_direct_endpoint)
     {
       m_direct->bind (m_direct_endpoint);
@@ -404,7 +404,7 @@ bool mdwrk::send_to(const std::string& service_name, mdp::zmsg *&request, Channe
        else {
          // Кеш знает о данной Службе
          if (false == service_info->connected) { // Но мы еще не были подключены к ней
-           
+
            // -----------------------------------------------------------
            // (2) - Подключить m_peer к конечной точке указанного Сервиса
            // Создадим, если ранее не было, сокет для связи с другими Службами
@@ -582,7 +582,7 @@ mdwrk::recv (std::string *&reply, int msec_timeout, bool* timeout_sign)
     // ответы на запросы текущей Службы
     if (m_peer)
       poll_socket_number++;
-  
+
     // Проверить четыре возможных диапазона таймаута
     if (0 == msec_timeout) { // 1. Равен нулю - немедленный выход в случае отсутствия принимаемых данных
       poll_interval = 0;
@@ -627,7 +627,7 @@ mdwrk::recv (std::string *&reply, int msec_timeout, bool* timeout_sign)
         //  Don't try to handle errors, just assert noisily
         assert (msg->parts () >= 3);
 
-        // NB: если в zmsg [GEV:генерация GUID] закомментирована проверка 
+        // NB: если в zmsg [GEV:генерация GUID] закомментирована проверка
         // на количество фреймов в сообщении (=5),
         // то в этом случае empty будет равен
         // [011] @0000000000
@@ -763,8 +763,8 @@ mdwrk::recv (std::string *&reply, int msec_timeout, bool* timeout_sign)
 
 // ==========================================================================================================
 // Обновить значения атрибутов, отвечающих за время выдачи HEARBEAT Брокеру
-// Вызывается после успешной явной отправки HEARTBEAT, или в процессе нормального 
-// обмена сообщениями между Службой и Брокером, т.к. успешность этого процесса 
+// Вызывается после успешной явной отправки HEARTBEAT, или в процессе нормального
+// обмена сообщениями между Службой и Брокером, т.к. успешность этого процесса
 // так же говорит о хорошем состоянии процесса Службы.
 void mdwrk::update_heartbeat_sign()
 {
@@ -875,7 +875,7 @@ const char* mdwrk::getEndpoint(bool convertation_asked) const
         {
           endpoint = Endpoints[entry_idx].endpoint_default; // Нет
         }
-        
+
         // Для bind() нужно переделать строку подключения, т.к. она в формате connect()
         // Заменить "tcp://адрес:порт" на "tcp://*:порт" или "tcp://lo:порт"
         if (convertation_asked)

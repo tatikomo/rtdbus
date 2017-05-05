@@ -1,6 +1,6 @@
 /*
  * g++ -g list_databases.cpp -I../../eXtremeDB_5_fusion_eval/include -L../../eXtremeDB_5_fusion_eval/target/bin.so -Wl,-rpath,../../eXtremeDB_5_fusion_eval/target/bin.so -lmcolib -lmcotmvcc -lmcounrt -lmcovtmem -lmcomipc -lmcoslnx -o list
- * 
+ *
  */
 #include <cstddef> // ptrdiff_t
 #include <string>

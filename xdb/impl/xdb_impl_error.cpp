@@ -25,7 +25,7 @@ static __attribute__((constructor)) void my_errortable_init()
   g_error_descriptions[rtE_RUNTIME_FATAL]    = (const char*)"Fatal runtime failure";
   g_error_descriptions[rtE_RUNTIME_ERROR]    = (const char*)"Runtime error";
   g_error_descriptions[rtE_RUNTIME_WARNING]  = (const char*)"Recoverable runtime failure";
-  g_error_descriptions[rtE_TABLE_CREATE]     = (const char*)"Creating table"; 
+  g_error_descriptions[rtE_TABLE_CREATE]     = (const char*)"Creating table";
   g_error_descriptions[rtE_TABLE_READ]       = (const char*)"Reading from table";
   g_error_descriptions[rtE_TABLE_WRITE]      = (const char*)"Writing into table";
   g_error_descriptions[rtE_TABLE_DELETE]     = (const char*)"Deleting table";

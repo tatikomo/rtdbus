@@ -123,7 +123,7 @@ int main()
 
     timer1->start();
     timer2->start();
-    
+
     for (int i = 1; i <= 100; i++) {
       std::cout << (unsigned int)i << " "; // std::endl;
       std::cout << std::flush;
@@ -133,7 +133,7 @@ int main()
         std::cout << "restart timer1" << std::endl;
         timer1->restart();
       }
-      
+
       if (!(i % 25)) {
         std::cout << "restart timer2" << std::endl;
         timer2->restart();

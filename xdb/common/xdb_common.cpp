@@ -41,7 +41,7 @@ const uint16_t xdb::var_size[xdb::DB_TYPE_LAST+1] = {
 };
 
 // Соответствие между индексом атрибута, и его типом и размером
-const AttrTypeDescription_t xdb::AttrTypeDescription[] = 
+const AttrTypeDescription_t xdb::AttrTypeDescription[] =
 {
 //#include "dat/attr_type.gen"
 // NB: Поле size для типов данных DB_TYPE_BYTES* определяет максимальный,
@@ -135,7 +135,7 @@ const AttrTypeDescription_t xdb::AttrTypeDescription[] =
     { RTDB_ATT_IDX_UNIVNAME,        RTDB_ATT_TAG,           DB_TYPE_BYTES32,sizeof(wchar_t)*TAG_NAME_MAXLEN }, // 67
 // NB: VAL - особый случай, может быть как целочисленным, так и double
     { RTDB_ATT_IDX_VAL,             RTDB_ATT_VAL,           DB_TYPE_DOUBLE, sizeof(double) },     // 68
-// NB: VALACQ - особый случай, может быть как целочисленным, так и double 
+// NB: VALACQ - особый случай, может быть как целочисленным, так и double
     { RTDB_ATT_IDX_VALACQ,          RTDB_ATT_VALACQ,        DB_TYPE_DOUBLE, sizeof(double) },     // 69
     { RTDB_ATT_IDX_VALEX,           RTDB_ATT_VALEX,         DB_TYPE_DOUBLE, sizeof(double) },     // 70
     { RTDB_ATT_IDX_VALID,           RTDB_ATT_VALID,         DB_TYPE_UINT8,  sizeof(uint8_t) },    // 71
@@ -152,7 +152,7 @@ const AttrTypeDescription_t xdb::AttrTypeDescription[] =
 // Индекс элемента - код типа данных RTAP
 // Значение элемента - соответствующий индексу тип данных в eXtremeDB
 //
-const DeTypeToDbTypeLink DeTypeToDbType[] = 
+const DeTypeToDbTypeLink DeTypeToDbType[] =
 {
     { rtRESERVED0,  DB_TYPE_UNDEF },
     { rtLOGICAL,    DB_TYPE_LOGICAL },
@@ -190,7 +190,7 @@ const DeTypeToDbTypeLink DeTypeToDbType[] =
 };
 
 // Соответствие между кодом типа БДРВ и его аналогом в RTAP
-const DbTypeToDeTypeLink DbTypeToDeType[] = 
+const DbTypeToDeTypeLink DbTypeToDeType[] =
 {
   { DB_TYPE_UNDEF,  rtUNDEFINED },
   { DB_TYPE_LOGICAL,rtLOGICAL },
@@ -223,7 +223,7 @@ const DbTypeToDeTypeLink DbTypeToDeType[] =
 // Описание типов данных БДРВ
 // NB: длина символьных типов расчитана, исходя из двухбайтовых кодировок,
 // чтобы иметь возможность хранения русского текста в формате UTF-8.
-const DbTypeDescription_t xdb::DbTypeDescription[] = 
+const DbTypeDescription_t xdb::DbTypeDescription[] =
 {
 /* 00 */  { DB_TYPE_UNDEF,   "UNDEF",   0 },
 /* 01 */  { DB_TYPE_LOGICAL, "LOGICAL", sizeof(bool) },
@@ -296,12 +296,12 @@ const DeTypeDescription_t xdb::rtDataElem[] =
 
 // Динамическая таблица описаний классов
 // Заполняется из шаблонных файлов вида XX_YYY.dat
-// где 
+// где
 //  XX = номер класса
 //  YYY = название класса
 ClassDescription_t xdb::ClassDescriptionTable[] =  {
 //        Имя (name)
-//        |         Objclass (code) 
+//        |         Objclass (code)
 //        |         |                       тип атрибутов {VAL|VALMANUAL|VALACQ} (val_type)
 //        |         |                       |               ссылка на набор атрибутов (attributes_pool)
 //        |         |                       |               |

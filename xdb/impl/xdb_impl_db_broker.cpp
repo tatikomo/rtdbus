@@ -41,11 +41,11 @@ mco_size_sig_t file_writer(void*, const void*, mco_size_t);
 
 using namespace xdb;
 
-/* 
- * Включение динамически генерируемых определений 
+/*
+ * Включение динамически генерируемых определений
  * структуры данных для внутренней базы Брокера.
  *
- * Регенерация осуществляется командой mcocomp 
+ * Регенерация осуществляется командой mcocomp
  * на основе содержимого файла broker.mco
  */
 #include "dat/broker_db.h"
@@ -106,7 +106,7 @@ bool DatabaseBrokerImpl::Init()
 bool DatabaseBrokerImpl::Connect()
 {
   Error status;
-  
+
   status = m_database->Connect();
 
   if (status.Ok())
@@ -172,7 +172,7 @@ bool DatabaseBrokerImpl::LoadDictionaries()
         }
         else if (MCO_S_NOTFOUND == rc) // Требуемая Служба не найдена
         {
-            // Нет такой записи, внесем данные по ней 
+            // Нет такой записи, внесем данные по ней
             rc = XDBEndpointLinks_new(t, &link_instance);
             if (rc) { LOG(ERROR) << "Creating endpoint link, rc=" << rc; break; }
 
@@ -189,7 +189,7 @@ bool DatabaseBrokerImpl::LoadDictionaries()
             rc = XDBEndpointLinks_checkpoint(&link_instance);
             if (rc) { LOG(ERROR) << "Checkpointing link, rc=" << rc; break; }
 
-            LOG(INFO) << "Set default endpoint value '" << Endpoints[entry_idx].endpoint_default 
+            LOG(INFO) << "Set default endpoint value '" << Endpoints[entry_idx].endpoint_default
                       << "' for service '" << Endpoints[entry_idx].name << "'";
         }
         else // Любая другая ошибка => проверка следующей Службы
@@ -222,7 +222,7 @@ bool DatabaseBrokerImpl::LoadDictionaries()
 const char* DatabaseBrokerImpl::getEndpoint() const
 {
   return (Endpoints[BROKER_ENDPOINT_IDX].endpoint_given[0])?
-    Endpoints[BROKER_ENDPOINT_IDX].endpoint_given : 
+    Endpoints[BROKER_ENDPOINT_IDX].endpoint_given :
     Endpoints[BROKER_ENDPOINT_IDX].endpoint_default;
 }
 
@@ -390,7 +390,7 @@ DBState_t DatabaseBrokerImpl::State() const
 }
 
 /*
- * Статический метод, вызываемый из runtime базы данных 
+ * Статический метод, вызываемый из runtime базы данных
  * при создании нового экземпляра XDBService
  */
 MCO_RET DatabaseBrokerImpl::new_Service(mco_trans_h /*t*/,
@@ -435,7 +435,7 @@ MCO_RET DatabaseBrokerImpl::new_Service(mco_trans_h /*t*/,
 }
 
 /*
- * Статический метод, вызываемый из runtime базы данных 
+ * Статический метод, вызываемый из runtime базы данных
  * при удалении экземпляра XDBService
  */
 MCO_RET DatabaseBrokerImpl::del_Service(mco_trans_h /*t*/,
@@ -475,8 +475,8 @@ MCO_RET DatabaseBrokerImpl::RegisterEvents()
     rc = mco_trans_start(m_database->getDbHandler(), MCO_READ_WRITE, MCO_TRANS_FOREGROUND, &t);
     if (rc) LOG(ERROR) << "Starting transaction, rc=" << rc;
 
-    rc = mco_register_newService_handler(t, 
-            &DatabaseBrokerImpl::new_Service, 
+    rc = mco_register_newService_handler(t,
+            &DatabaseBrokerImpl::new_Service,
             static_cast<void*>(this)
 //#if (EXTREMEDB_VERSION >= 40) && USE_EXTREMEDB_HTTP_SERVER
 //            , MCO_AFTER_UPDATE
@@ -485,8 +485,8 @@ MCO_RET DatabaseBrokerImpl::RegisterEvents()
 
     if (rc) LOG(ERROR) << "Registering event on XDBService creation, rc=" << rc;
 
-    rc = mco_register_delService_handler(t, 
-            &DatabaseBrokerImpl::del_Service, 
+    rc = mco_register_delService_handler(t,
+            &DatabaseBrokerImpl::del_Service,
             static_cast<void*>(this));
     if (rc) LOG(ERROR) << "Registering event on XDBService deletion, rc=" << rc;
 
@@ -640,12 +640,12 @@ bool DatabaseBrokerImpl::RemoveService(const char *name)
 
     /* найти запись в таблице сервисов с заданным именем */
     rc = broker_db::XDBService::PK_name::find(t, name, strlen(name), service_instance);
-    if (MCO_S_NOTFOUND == rc) 
-    { 
+    if (MCO_S_NOTFOUND == rc)
+    {
         LOG(ERROR) << "Removed service '" << name << "' doesn't exists, rc=" << rc; break;
     }
     if (rc) { LOG(ERROR) << "Unable to find service '" << name << "', rc=" << rc; break; }
-    
+
     rc = service_instance.remove();
     if (rc) { LOG(ERROR) << "Unable to remove service '" << name << "', rc=" << rc; break; }
 
@@ -705,8 +705,8 @@ bool DatabaseBrokerImpl::RemoveWorker(Worker *wrk)
       // Не удалять, пометить как "неактивен"
       // NB: Неактивные обработчики должны быть удалены в процессе сборки мусора
       rc = worker_instance.state_put(DISARMED);
-      if (rc) 
-      { 
+      if (rc)
+      {
         LOG(ERROR) << "Disarming worker '" << identity << "', rc=" << rc;
         break;
       }
@@ -724,8 +724,8 @@ bool DatabaseBrokerImpl::RemoveWorker(Worker *wrk)
 }
 
 // Активировать Обработчик wrk своего Сервиса
-// TODO: рассмотреть необходимость расширенной обработки состояния уже 
-// существующего экземпляра. Повторная его регистрация при наличии 
+// TODO: рассмотреть необходимость расширенной обработки состояния уже
+// существующего экземпляра. Повторная его регистрация при наличии
 // незакрытой ссылки на Сообщение может говорить о сбое в его обработке.
 bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
 {
@@ -837,17 +837,17 @@ bool DatabaseBrokerImpl::PushWorker(Worker *wrk)
         rc = xdb_next_expiration_time.nsec_put(next_expiration_time.tv_nsec);
         if (rc) { LOG(ERROR) << "Unable to set expiration time nanoseconds, rc="<<rc; break; }
       }
-      else 
-      { 
-        LOG(ERROR) << "Unable to load worker "<<wrk->GetIDENTITY()<<" data"; 
-        break; 
+      else
+      {
+        LOG(ERROR) << "Unable to load worker "<<wrk->GetIDENTITY()<<" data";
+        break;
       }
 
       rc = mco_trans_commit(t);
       if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; }
 
   } while (false);
-  
+
   if (rc)
     mco_trans_rollback(t);
 
@@ -1025,7 +1025,7 @@ Service *DatabaseBrokerImpl::LoadService(
     if (rc) { LOG(ERROR)<<"Unable to get service's endpoint, rc="<<rc; break; }
     rc = instance.state_get(state);
     if (rc) { LOG(ERROR)<<"Unable to get service id for "<<name; break; }
-    
+
     update_state = StateConvert(state);
 
     service = new Service(aid, name);
@@ -1062,8 +1062,8 @@ MCO_RET DatabaseBrokerImpl::LoadWorkerByIdent(
                 identity,
                 strlen(identity),
                 worker_instance);
-    if (rc) 
-    { 
+    if (rc)
+    {
 //      LOG(ERROR)<<"Unable to locate '"<<identity<<"' in service id "<<service_aid<<", rc="<<rc;
       wrk->SetINDEX(-1);
       break;
@@ -1116,7 +1116,7 @@ MCO_RET DatabaseBrokerImpl::LoadWorker(mco_trans_h /*t*/,
 
     ident[IDENTITY_MAXLEN] = '\0';
     if (rc)
-    { 
+    {
         LOG(ERROR)<<"Unable to get worker's identity for service id "
                   <<srv_aid<<", rc="<<rc;
         break;
@@ -1137,19 +1137,19 @@ MCO_RET DatabaseBrokerImpl::LoadWorker(mco_trans_h /*t*/,
     /* Состояние объекта полностью соответствует хранимому в БД */
     worker->SetVALID();
 /*    LOG(INFO) << "Load Worker('" << worker->GetIDENTITY()
-              << "' id=" << worker->GetID() 
-              << " srv_id=" << worker->GetSERVICE_ID() 
+              << "' id=" << worker->GetID()
+              << " srv_id=" << worker->GetSERVICE_ID()
               << " state=" << worker->GetSTATE();*/
   } while(false);
 
   return rc;
 }
 
-/* 
+/*
  * Вернуть ближайший свободный Обработчик в состоянии ARMED (по умолчанию).
  * Побочные эффекты: создается экземпляр Worker, его удаляет вызвавшая сторона
  *
- * TODO: возвращать следует наиболее "старый" экземпляр, временная отметка 
+ * TODO: возвращать следует наиболее "старый" экземпляр, временная отметка
  * которого раньше всех остальных экземпляров с этим же состоянием.
  */
 Worker *DatabaseBrokerImpl::PopWorker(const Service *srv, WorkerState state)
@@ -1241,7 +1241,7 @@ bool DatabaseBrokerImpl::IsServiceExist(const char *name)
 /*
  * Поиск Обработчика, находящегося в состоянии state.
  *
- * TODO: рассмотреть возможность поиска экземпляра, имеющего 
+ * TODO: рассмотреть возможность поиска экземпляра, имеющего
  * самую раннюю отметку времени из всех остальных конкурентов.
  * Это необходимо для более равномерного распределения нагрузки.
  */
@@ -1279,7 +1279,7 @@ Worker* DatabaseBrokerImpl::GetWorkerByState(autoid_t service_id,
          rc = worker_instance.from_cursor(t, &csr);
          // сообщим об ошибке и попробуем продолжить
          if (rc) { LOG(ERROR)<<"Unable to load worker from cursor, rc="<<rc; continue; }
-         
+
          rc = worker_instance.state_get(worker_state);
          if (rc) { LOG(ERROR)<< "Unable to get worker state from cursor, rc="<<rc; continue; }
 
@@ -1329,7 +1329,7 @@ bool DatabaseBrokerImpl::ClearWorkersForService(const Service *service)
 
     while ((wrk = PopWorker(service, OCCUPIED)))
     {
-//        if (m_verbose) 
+//        if (m_verbose)
         {
           LOG(INFO) << "Purge worker " << wrk->GetIDENTITY()
                     << " for service "<< const_cast<Service*>(service)->GetNAME();
@@ -1451,9 +1451,9 @@ bool DatabaseBrokerImpl::GetWaitingLetter(
     if (rc) { LOG(ERROR) << "Starting transaction, rc="<<rc; break; }
 
     rc = broker_db::XDBLetter::SK_by_state_for_serv::cursor(t, &csr);
-    if (MCO_S_CURSOR_EMPTY == rc) 
+    if (MCO_S_CURSOR_EMPTY == rc)
         break; /* В индексе нет ни одной записи */
-    if (rc) 
+    if (rc)
     {
       LOG(ERROR)<<"Unable to initialize cursor for '"<<srv->GetNAME()<<"', rc="<<rc;
       break;
@@ -1463,21 +1463,21 @@ bool DatabaseBrokerImpl::GetWaitingLetter(
                 &csr,
                 MCO_EQ,
                 srv->GetID(),
-                UNASSIGNED); 
+                UNASSIGNED);
     // Вернуться, если курсор пуст
     if (MCO_S_CURSOR_EMPTY == rc)
       break;
     if (rc) { LOG(ERROR) << "Unable to get Letters list cursor, rc="<<rc; break; }
 
     rc = mco_cursor_first(t, &csr);
-    if (rc) 
-    { 
+    if (rc)
+    {
         LOG(ERROR) << "Unable to point at first item in Letters list cursor, rc="<<rc;
         break;
     }
 
     // Достаточно получить первый элемент,
-    // функция будет вызываться до опустошения содержимого курсора 
+    // функция будет вызываться до опустошения содержимого курсора
     rc = letter_instance.from_cursor(t, &csr);
     if (rc) { LOG(ERROR) << "Unable to get item from Letters cursor, rc="<<rc; break; }
 
@@ -1584,7 +1584,7 @@ MCO_RET DatabaseBrokerImpl::LoadLetter(mco_trans_h /*t*/,
       if (rc)
       {
         LOG(ERROR) << "Locating assigned worker with id="<<worker_aid
-                   <<" for letter id "<<aid<<", rc=" << rc; 
+                   <<" for letter id "<<aid<<", rc=" << rc;
         break;
       }
       worker_instance.identity_get(reply_buffer, (uint2)IDENTITY_MAXLEN);
@@ -1649,9 +1649,9 @@ Letter* DatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
     if (rc) { LOG(ERROR) << "Starting transaction, rc="<<rc; break; }
 
     rc = broker_db::XDBLetter::SK_by_state_for_serv::cursor(t, &csr);
-    if (MCO_S_CURSOR_EMPTY == rc) 
+    if (MCO_S_CURSOR_EMPTY == rc)
         break; /* В индексе нет ни одной записи */
-    if (rc) 
+    if (rc)
     {
       LOG(ERROR)<<"Unable to initialize cursor for '"<<srv->GetNAME()
                 <<"', rc="<<rc;
@@ -1666,7 +1666,7 @@ Letter* DatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
                                     srv->GetID(),
                                     UNASSIGNED);
          (rc == MCO_S_OK);
-         rc = mco_cursor_next(t, &csr)) 
+         rc = mco_cursor_next(t, &csr))
     {
        if ((MCO_S_NOTFOUND == rc) || (MCO_S_CURSOR_EMPTY == rc))
          break;
@@ -1679,7 +1679,7 @@ Letter* DatabaseBrokerImpl::GetWaitingLetter(/* IN */ Service* srv)
        if (rc == MCO_S_OK && cmp_result == 0)
        {
          // Достаточно получить первый элемент,
-         // функция будет вызываться до опустошения содержимого курсора 
+         // функция будет вызываться до опустошения содержимого курсора
          rc = letter_instance.from_cursor(t, &csr);
          if (rc) { LOG(ERROR) << "Unable to get item from Letters cursor, rc="<<rc; break; }
 
@@ -1791,46 +1791,46 @@ bool DatabaseBrokerImpl::AssignLetterToWorker(Worker* worker, Letter* letter)
     }
 
     /* ===== Установлены ограничения времени обработки и для Сообщения, и для Обработчика == */
-    
+
     // TODO проверить корректность преобразования
     rc = letter_instance.state_put(static_cast<LetterState>(ASSIGNED));
-    if (rc) 
+    if (rc)
     {
       LOG(ERROR)<<"Unable changing state to "<<ASSIGNED<<" (ASSIGNED) from "
                 <<letter->GetSTATE()<<" for letter with id="
                 <<letter->GetID()<<", rc="<<rc;
-      break; 
+      break;
     }
     letter->SetSTATE(Letter::ASSIGNED);
     letter->SetWORKER_ID(worker->GetID());
 
     // TODO проверить корректность преобразования
     rc = worker_instance.state_put(static_cast<WorkerState>(OCCUPIED));
-    if (rc) 
-    { 
+    if (rc)
+    {
       LOG(ERROR)<<"Worker '"<<worker->GetIDENTITY()<<"' changing state OCCUPIED ("
-                <<OCCUPIED<<"), rc="<<rc; break; 
+                <<OCCUPIED<<"), rc="<<rc; break;
     }
     worker->SetSTATE(Worker::OCCUPIED);
 
     /* ===== Установлены новые значения состояний Сообщения и Обработчика == */
 
     rc = worker_instance.letter_ref_put(letter->GetID());
-    if (rc) 
-    { 
+    if (rc)
+    {
         LOG(ERROR)<<"Unable to set letter ref "<<letter->GetID()
-            <<" for worker '"<<worker->GetIDENTITY()<<"', rc="<<rc; 
-        break; 
+            <<" for worker '"<<worker->GetIDENTITY()<<"', rc="<<rc;
+        break;
     }
 
-    // Обновить идентификатор Обработчика, до этого он должен был быть равным 
+    // Обновить идентификатор Обработчика, до этого он должен был быть равным
     // id Сообщения, для соблюдения уникальности индекса SK_by_worker_id
     rc = letter_instance.worker_ref_put(worker->GetID());
-    if (rc) 
-    { 
+    if (rc)
+    {
         LOG(ERROR)<<"Unable to set worker ref "<<worker->GetID()
-            <<" for letter id="<<letter->GetID()<<", rc="<<rc; 
-        break; 
+            <<" for letter id="<<letter->GetID()<<", rc="<<rc;
+        break;
     }
 #if 0
 #warning "Здесь должен быть идентификатор Клиента, инициировавшего запрос, а не идентификатор Обработчика"
@@ -1838,7 +1838,7 @@ bool DatabaseBrokerImpl::AssignLetterToWorker(Worker* worker, Letter* letter)
     if (rc)
     {
         LOG(ERROR) << "Set origin '"<<letter->GetREPLY_TO()<<"' for letter id="
-                   <<letter->GetID()<<", rc=" << rc; 
+                   <<letter->GetID()<<", rc=" << rc;
         break;
     }
 #endif
@@ -1991,13 +1991,13 @@ bool DatabaseBrokerImpl::SetLetterState(Letter* letter, Letter::State _new_state
     /* Запись не найдена - есть ошибка - сообщить */
     if (rc) { LOG(ERROR)<<"Unable to locate Letter with id="<<letter->GetID()<<", rc="<<rc; break; }
 
-    // TODO проверить корректность преобразования из Letter::State в LetterState 
+    // TODO проверить корректность преобразования из Letter::State в LetterState
     rc = letter_instance.state_put((LetterState)_new_state);
-    if (rc) 
+    if (rc)
     {
       LOG(ERROR)<<"Unable changing state to "<<_new_state<<" from "<<letter->GetSTATE()
                 <<" for letter with id="<<letter->GetID()<<", rc="<<rc;
-      break; 
+      break;
     }
     letter->SetSTATE(_new_state);
 
@@ -2100,7 +2100,7 @@ Worker *DatabaseBrokerImpl::GetWorkerByIdent(const std::string& ident)
 }
 
 void DatabaseBrokerImpl::EnableServiceCommand(
-        const Service *srv, 
+        const Service *srv,
         const std::string &command)
 {
   assert(srv);
@@ -2109,7 +2109,7 @@ void DatabaseBrokerImpl::EnableServiceCommand(
 }
 
 void DatabaseBrokerImpl::EnableServiceCommand(
-        const std::string &srv_name, 
+        const std::string &srv_name,
         const std::string &command)
 {
   assert(!srv_name.empty());
@@ -2118,7 +2118,7 @@ void DatabaseBrokerImpl::EnableServiceCommand(
 }
 
 void DatabaseBrokerImpl::DisableServiceCommand(
-        const std::string &srv_name, 
+        const std::string &srv_name,
         const std::string &command)
 {
   assert(!srv_name.empty());
@@ -2127,7 +2127,7 @@ void DatabaseBrokerImpl::DisableServiceCommand(
 }
 
 void DatabaseBrokerImpl::DisableServiceCommand(
-        const Service *srv, 
+        const Service *srv,
         const std::string &command)
 {
   assert(srv);
@@ -2173,7 +2173,7 @@ bool DatabaseBrokerImpl::PushRequestToService(Service *srv, Letter *letter)
 
   /*
    * 1. Получить id Службы
-   * 2. Поместить сообщение и его заголовок в таблицу XDBLetter 
+   * 2. Поместить сообщение и его заголовок в таблицу XDBLetter
    * с состоянием UNASSIGNED.
    * Далее, после передачи сообщения Обработчику, он вносит свой id
    */
@@ -2184,10 +2184,10 @@ bool DatabaseBrokerImpl::PushRequestToService(Service *srv, Letter *letter)
 
     rc = letter_instance.create(t);
     if (rc)
-    { 
+    {
         LOG(ERROR)<<"Unable to create new letter for service '"
                   <<srv->GetNAME()<<"', rc="<<rc;
-        break; 
+        break;
     }
 
     rc = letter_instance.autoid_get(aid);
@@ -2199,7 +2199,7 @@ bool DatabaseBrokerImpl::PushRequestToService(Service *srv, Letter *letter)
     letter->SetSERVICE_ID(srv->GetID());
 
     /*
-     * NB: для сохранения уникальности ключа SK_by_worker_id нельзя оставлять пустым 
+     * NB: для сохранения уникальности ключа SK_by_worker_id нельзя оставлять пустым
      * поле worker_ref_id, хотя оно и должно будет заполниться в AssignLetterToWorker.
      * Поэтому сейчас в него запишем идентификатор Letter, т.к. он уникален.
      */
@@ -2221,9 +2221,9 @@ bool DatabaseBrokerImpl::PushRequestToService(Service *srv, Letter *letter)
       mark.sec_put(what_time.tv_sec);
       letter->SetEXPIRATION(what_time);
     }
-    else 
+    else
     {
-      LOG(WARNING) << "Unable to calculate expiration time"; 
+      LOG(WARNING) << "Unable to calculate expiration time";
       mark.nsec_put(0);
       mark.sec_put(0);
     }
@@ -2235,10 +2235,10 @@ bool DatabaseBrokerImpl::PushRequestToService(Service *srv, Letter *letter)
     rc = letter_instance.origin_put(letter->GetREPLY_TO(), strlen(letter->GetREPLY_TO()));
     if (rc) { LOG(ERROR) << "Set field REPLY to '"<<letter->GetREPLY_TO()<<"', rc="<<rc; break; }
     if (mco_get_last_error(t))
-    { 
+    {
         LOG(ERROR)<<"Unable to set letter attributes for service '"
                   <<srv->GetNAME()<<"', rc="<<rc;
-        break; 
+        break;
     }
     rc = mco_trans_commit(t);
     if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; }
@@ -2368,10 +2368,10 @@ bool ServiceList::AddService(const char* name, int64_t id)
 
   if (m_size >= MAX_SERVICES_ENTRY)
     return false;
- 
+
   srv = new Service(id, name);
   m_array[m_size++] = srv;
-  
+
 //  LOG(INFO) << "EVENT AddService '"<<srv->GetNAME()<<"' id="<<srv->GetID();
   return true;
 }
@@ -2435,8 +2435,8 @@ bool ServiceList::refresh()
     if (rc) { LOG(ERROR) << "Unable to get Services list cursor, rc="<<rc; break; }
 
     rc = mco_cursor_first(t, &csr);
-    if (rc) 
-    { 
+    if (rc)
+    {
         LOG(ERROR) << "Unable to point at first item in Services list cursor, rc="<<rc;
         break;
     }
@@ -2444,9 +2444,9 @@ bool ServiceList::refresh()
     while (rc == MCO_S_OK)
     {
       rc = service_instance.from_cursor(t, &csr);
-      if (rc) 
-      { 
-        LOG(ERROR) << "Unable to get item from Services list cursor, rc="<<rc; 
+      if (rc)
+      {
+        LOG(ERROR) << "Unable to get item from Services list cursor, rc="<<rc;
       }
 
       rc = service_instance.name_get(name, Service::NameMaxLen);

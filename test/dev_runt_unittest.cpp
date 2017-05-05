@@ -68,7 +68,7 @@ typedef struct {
 one_test client_test_messages[] = {
   // спросить состояние, ожидать подтверждения
   { ADG_D_MSG_ASKLIFE,       ADG_D_MSG_EXECRESULT},
-  // Отправить запрос на чтение данных, ожидать прочитанных данных 
+  // Отправить запрос на чтение данных, ожидать прочитанных данных
   { SIG_D_MSG_READ_MULTI,    SIG_D_MSG_READ_MULTI},
   // Отправить запрос на модификацию данных, ожидать подтверждения
   { SIG_D_MSG_WRITE_MULTI,   ADG_D_MSG_EXECRESULT}
@@ -82,7 +82,7 @@ void  Dump(msg::Letter*);
 /*
  * Реализация функций
  */
-Pulsar::Pulsar(const std::string& broker, int verbose) 
+Pulsar::Pulsar(const std::string& broker, int verbose)
   : mdcli(broker, verbose),
     m_channel(ChannelType::PERSISTENT)
 {
@@ -138,11 +138,11 @@ void Dump(msg::Letter* letter)
    //  ---------------------------------------------------------------------
    //  Deletes worker from all data structures, and destroys worker
 +  !void worker_delete (Worker *&wrk, int disconnect);
-   заменено на 
+   заменено на
 +  void release (Worker *&wrk, int disconnect);
 
    //  ---------------------------------------------------------------------
-   //  Processes one READY, REPORT, HEARTBEAT or  DISCONNECT message 
+   //  Processes one READY, REPORT, HEARTBEAT or  DISCONNECT message
    //  sent to the broker by a worker
    void worker_msg (const std::string& sender, zmsg *msg);
 
@@ -286,7 +286,7 @@ client_task (void* /*args*/)
             if (service_status == 200)
             {
               LOG(INFO) << "Endpoint for \"" << service_name << "\" is " << service_endpoint;
-            
+
               client->send (service_name, request, ChannelType::DIRECT);
               wait_response = true;
             }
@@ -319,7 +319,7 @@ client_task (void* /*args*/)
             LOG(INFO) << "Receive message id="<<count<<" from worker";
             report->dump();
             assert (report->parts () >= 2);
-            
+
 #if 0
             mdp_letter = new mdp::Letter(report);
     //        TODO: Доделать разбор сообщений
@@ -346,7 +346,7 @@ client_task (void* /*args*/)
   delete message_factory;
   delete client;
   pthread_exit(NULL);
-  return NULL; /* NOTREACHED */ 
+  return NULL; /* NOTREACHED */
 }
 
 /*
@@ -377,7 +377,7 @@ worker_task (void* /*args*/)
 
   LOG(INFO) << "Stop worker thread";
   pthread_exit(NULL);
-  return NULL; /* NOTREACHED */ 
+  return NULL; /* NOTREACHED */
 }
 
 /*
@@ -424,7 +424,7 @@ broker_task (void* /*args*/)
   delete broker;
 
   pthread_exit(NULL);
-  return NULL; /* NOTREACHED */ 
+  return NULL; /* NOTREACHED */
 }
 
 ////////////////////////////////////////////////////////////////////////////////

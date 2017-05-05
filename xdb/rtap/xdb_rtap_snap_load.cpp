@@ -99,7 +99,7 @@ bool xdb::loadFromXML(RtEnvironment* env, const char* env_path)
   }
 
   applyClassListToDB(env, dictionary, point_list);
- 
+
   // Автоматически создать группу для EGSA из точек типа "Система Сбора"
   status = activateExchangeSubcriptionGroups(env, point_list);
   if (!status) {
@@ -280,7 +280,7 @@ bool loadXmlContent(RtEnvironment* env, const char* filename, rtap_db::Points& p
 // 1. Ищем в рабочем каталоге файлы GROUP_CATALOG.{название группы}
 // 2. Цикл по списку найденных групп подписки
 // 2.1. Читать файлы {название группы} с перечнем динамических атрибутов
-// 2.2. 
+// 2.2.
 bool loadSubscriptionGroups(RtEnvironment* env, const char *work_env)
 {
   bool status = false;
@@ -353,7 +353,7 @@ bool process_group(RtConnection *conn, const char* work_env, const char* file_na
     if (NULL != (group_file = fopen(group_file_name.c_str(), "r")))
     {
       LOG(INFO) << "Read group name: " << sbs_group_name;
-    
+
       while(fgets(one_line, 200, group_file))
       {
         last_point = strrchr(one_line, '.');

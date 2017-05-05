@@ -1,4 +1,4 @@
-/* 
+/*
  * ITG
  * author: Eugeniy Gorovoy
  * email: eugeni.gorovoi@gmail.com
@@ -22,7 +22,7 @@
  *   GOFVALTI
  *   GOFVALTSCDIR
  *
- * 
+ *
  */
 #include "glog/logging.h"
 
@@ -43,11 +43,11 @@ extern "C" {
 
 using namespace xdb;
 
-/* 
- * Включение динамически генерируемых определений 
+/*
+ * Включение динамически генерируемых определений
  * структуры данных для внутренней базы RTAP.
  *
- * Регенерация осуществляется командой mcocomp 
+ * Регенерация осуществляется командой mcocomp
  * на основе содержимого файла rtap_db.mco
  */
 #include "dat/rtap_db.hpp"
@@ -128,8 +128,8 @@ MCO_RET DatabaseRtapImpl::GOFVALTI(mco_trans_h t,
           switch(h_Valid)
           {
             case VALIDITY_INHIBITION:
-            case VALIDITY_MANUAL: 
-            case VALIDITY_FAULT_INHIB: 
+            case VALIDITY_MANUAL:
+            case VALIDITY_FAULT_INHIB:
             case VALIDITY_FAULT_FORCED:
                 b_Validacq = VALIDITY_VALID;
                 rc = XDBPoint_VALIDITY_ACQ_put(obj, b_Validacq);
@@ -214,7 +214,7 @@ MCO_RET DatabaseRtapImpl::GOFVALTI(mco_trans_h t,
             rc = XDBPoint_INHIBLOCAL_put(obj, TRUE);
             if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_INHIBLOCAL<<"', rc="<<rc; break; }
           break;
-        
+
           case VALIDITY_INHIBITION:
             h_Valid_Out = VALIDITY_MANUAL;
 
@@ -245,13 +245,13 @@ MCO_RET DatabaseRtapImpl::GOFVALTI(mco_trans_h t,
             }
 
             // TODO: Send message to update the information list SIL_TRT_D_MSG_FORCED_INF_LIS_PUT
-            
+
             // Set the local inhibition into Database
             b_InhibLocal = true;
             rc = XDBPoint_INHIBLOCAL_put(obj, TRUE);
             if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_INHIBLOCAL<<"', rc="<<rc; break; }
           break;
-  
+
           case VALIDITY_FAULT_INHIB:
             h_Valid_Out = VALIDITY_FAULT_FORCED;
             // TODO: Send message to update the information list SIL_TRT_D_MSG_FORCED_INF_LIS_PUT
@@ -325,7 +325,7 @@ MCO_RET DatabaseRtapImpl::GOFVALTI(mco_trans_h t,
               {
                 h_Valid_Out = VALIDITY_FAULT_FORCED;
               }
-              
+
               // TODO: Send message to update the information list SIL_TRT_D_MSG_FORCED_INF_LIS_PUT
 
               rc = XDBPoint_VALIDITY_put(obj, h_Valid_Out);
@@ -421,7 +421,7 @@ MCO_RET DatabaseRtapImpl::GOFVALTI(mco_trans_h t,
 
             // Inhibition is over if both the SA and the upper level equipment
             // are no more inhibited
-  
+
             if ((o_SaState != SS_INHIB) && (b_Inhib == false))
             {
               //  Last acquisition was valid
@@ -433,7 +433,7 @@ MCO_RET DatabaseRtapImpl::GOFVALTI(mco_trans_h t,
                   // TODO: Send message to update the fault information list SIL_TRT_D_MSG_FAULT_INF_LIS_SUP
                 }
 
-                if (o_SaState == SS_WORK) 
+                if (o_SaState == SS_WORK)
                 {
                   h_Valid_Out = VALIDITY_VALID;
                 }
@@ -544,7 +544,7 @@ MCO_RET DatabaseRtapImpl::GOFVALTI(mco_trans_h t,
 
               rc = XDBPoint_VALIDITY_put(obj, h_Valid_Out);
               if (rc) { LOG(ERROR) << "Write '"<<tag<< "."<<RTDB_ATT_VALID<<"', rc="<<rc; break; }
-  
+
               if (h_Valid == VALIDITY_INHIBITION || h_Valid == VALIDITY_MANUAL)
               {
                 // Acquistion before inhibition was not in fault
@@ -673,7 +673,7 @@ MCO_RET DatabaseRtapImpl::GOFVALTI(mco_trans_h t,
 
                 point_was_modified = true;
               }
-              else 
+              else
               {
                 if ((h_Valid == VALIDITY_INHIBITION || h_Valid == VALIDITY_MANUAL)
                  && (b_Validacq == false))
@@ -724,7 +724,7 @@ MCO_RET DatabaseRtapImpl::GOFVALTI(mco_trans_h t,
   {
     // Взведем признак модификации атрибутов для последующей проверки группой подписки
     rc = XDBPoint_is_modified_put(obj, TRUE);
-    if (rc) 
+    if (rc)
     {
       LOG(ERROR) << "Set '"<<tag<<"' modified flag, rc="<<rc;
     }

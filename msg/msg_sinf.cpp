@@ -146,7 +146,7 @@ Value::Value(/*RTDBM::ValueUpdate* */ void* vu)
       m_instance.value.dynamic.val_string = new std::string;
       m_instance.value.dynamic.val_string->assign(temp->s_value());
 #if 0
-      std::cout << "NEW string size=" << m_instance.value.dynamic.val_string->size() 
+      std::cout << "NEW string size=" << m_instance.value.dynamic.val_string->size()
                 << " " << m_instance.value.dynamic.val_string << std::endl;
 #endif
     break;
@@ -170,14 +170,14 @@ Value::Value(/*RTDBM::ValueUpdate* */ void* vu)
       // Странно - размер данных не нулевой, но не совпадает с ожидаемым
       if (temp->s_value().size() && (temp->s_value().size() != xdb::var_size[m_instance.type]))
         LOG(ERROR)<< "Value::Value(void*) " << m_instance.name
-                  << ": size doesn't equal (" 
+                  << ": size doesn't equal ("
                   << temp->s_value().size() << ", "
                   << xdb::var_size[m_instance.type] << ")";
 
       strncpy(m_instance.value.dynamic.varchar, temp->s_value().c_str(), xdb::var_size[m_instance.type]);
 //      m_instance.value.dynamic.varchar[xdb::var_size[m_instance.type]] = '\0';
 #if 0
-      std::cout << "NEW char* type=" << m_instance.type 
+      std::cout << "NEW char* type=" << m_instance.type
                 << " size=" << xdb::var_size[m_instance.type]
                 << " \"" << m_instance.value.dynamic.varchar << "\"" << std::endl;
 #endif
@@ -654,7 +654,7 @@ void Value::flush()
 ReadMulti::ReadMulti() : Letter(SIG_D_MSG_READ_MULTI, 0), m_updater(NULL) {}
 ReadMulti::ReadMulti(rtdbExchangeId _id) : Letter(SIG_D_MSG_READ_MULTI, _id), m_updater(NULL) {}
 
-ReadMulti::ReadMulti(Header* head, const std::string& body) : Letter(head, body), m_updater(NULL) 
+ReadMulti::ReadMulti(Header* head, const std::string& body) : Letter(head, body), m_updater(NULL)
 {
   assert(header()->usr_msg_type() == SIG_D_MSG_READ_MULTI);
 }
@@ -663,7 +663,7 @@ ReadMulti::ReadMulti(const std::string& head, const std::string& body) : Letter(
 {
   assert(header()->usr_msg_type() == SIG_D_MSG_READ_MULTI);
 }
- 
+
 ReadMulti::~ReadMulti()
 {
   delete m_updater;
@@ -798,13 +798,13 @@ bool ReadMulti::get(std::size_t idx, std::string& tag, xdb::DbType_t& type, xdb:
    xdb::datetime_t datetime;
    const RTDBM::ValueUpdate& item =
          static_cast<RTDBM::ReadMulti*>(data()->impl()->instance())->update_item(idx);
- 
+
   assert(val);
 
   type = static_cast<xdb::DbType_t>(item.type());
   qual = static_cast<xdb::Quality_t>(item.quality());
   tag = item.tag();
- 
+
   switch (type)
   {
      case RTDBM::DB_TYPE_LOGICAL:
@@ -872,9 +872,9 @@ bool ReadMulti::get(std::size_t idx, std::string& tag, xdb::DbType_t& type, xdb:
        // Неизвестный тип
        status = false;
        val = NULL;
-     break;  
+     break;
   }
- 
+
   return status;
 }
 
@@ -963,7 +963,7 @@ bool ReadMulti::get(std::size_t idx, std::string& tag, xdb::DbType_t& type, xdb:
        // Неизвестный тип
        status = false;
        LOG(ERROR)<< ": unsupported '" << tag << "' type " << type; //1
-    break;  
+    break;
   }
 
   return status;
@@ -974,7 +974,7 @@ bool ReadMulti::get(std::size_t idx, std::string& tag, xdb::DbType_t& type, xdb:
 // изменения из AttrVal в RTDBM::ValueUpdate
 Value& ReadMulti::item(std::size_t idx)
 {
-  RTDBM::ValueUpdate* pb_updater = 
+  RTDBM::ValueUpdate* pb_updater =
         static_cast<RTDBM::ReadMulti*>(data()->impl()->instance())->mutable_update_item(idx);
 
   // Создать новый
@@ -987,7 +987,7 @@ Value& ReadMulti::item(std::size_t idx)
 #if 0
 const Value& ReadMulti::operator[](std::size_t idx)
 {
-  const RTDBM::ValueUpdate& pb_updater = 
+  const RTDBM::ValueUpdate& pb_updater =
         static_cast<RTDBM::ReadMulti*>(data()->impl()->instance())->update_item(idx);
 
   // Создать новый
@@ -1000,7 +1000,7 @@ const Value& ReadMulti::operator[](std::size_t idx)
 
 void ReadMulti::set_type(std::size_t idx, xdb::DbType_t type)
 {
-  RTDBM::ValueUpdate* pb_updater = 
+  RTDBM::ValueUpdate* pb_updater =
         static_cast<RTDBM::ReadMulti*>(data()->impl()->instance())->mutable_update_item(idx);
 
   if (RTDBM::DbType_IsValid(type))
@@ -1020,12 +1020,12 @@ WriteMulti::WriteMulti(Header* head, const std::string& body) : Letter(head, bod
 {
   assert(header()->usr_msg_type() == SIG_D_MSG_WRITE_MULTI);
 }
- 
+
 WriteMulti::WriteMulti(const std::string& head, const std::string& body) : Letter(head, body), m_updater(NULL)
 {
   assert(header()->usr_msg_type() == SIG_D_MSG_WRITE_MULTI);
 }
- 
+
 WriteMulti::~WriteMulti()
 {
   delete m_updater;
@@ -1114,7 +1114,7 @@ void WriteMulti::add(std::string& tag, xdb::DbType_t type, void* val)
 
     case xdb::DB_TYPE_LAST:
     case xdb::DB_TYPE_UNDEF:
-        // TODO: что делать при попытке сохранения данных неопределенного типа? 
+        // TODO: что делать при попытке сохранения данных неопределенного типа?
     break;
 
     default:
@@ -1125,7 +1125,7 @@ void WriteMulti::add(std::string& tag, xdb::DbType_t type, void* val)
 
 Value& WriteMulti::item(std::size_t idx)
 {
-  RTDBM::ValueUpdate* pb_updater = 
+  RTDBM::ValueUpdate* pb_updater =
         static_cast<RTDBM::WriteMulti*>(data()->impl()->instance())->mutable_update_item(idx);
 
   // Создать новый
@@ -1143,7 +1143,7 @@ std::size_t WriteMulti::num_items()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
- 
+
 SubscriptionControl::SubscriptionControl()
  : Letter(SIG_D_MSG_GRPSBS_CTRL, 0), m_updater(NULL)
 {
@@ -1297,7 +1297,7 @@ void SubscriptionEvent::add(std::string& tag, xdb::DbType_t type, void* val)
 
     case xdb::DB_TYPE_LAST:
     case xdb::DB_TYPE_UNDEF:
-        // TODO: что делать при попытке сохранения данных неопределенного типа? 
+        // TODO: что делать при попытке сохранения данных неопределенного типа?
     break;
 
     default:
@@ -1391,7 +1391,7 @@ bool SubscriptionEvent::get(std::size_t idx, std::string& tag, xdb::DbType_t& ty
        // Неизвестный тип
        status = false;
        LOG(ERROR) << ": unsupported '" << tag << "' type " << type;
-    break;  
+    break;
   }
 
   return status;
@@ -1400,14 +1400,14 @@ bool SubscriptionEvent::get(std::size_t idx, std::string& tag, xdb::DbType_t& ty
 // Получить структуру со значениями параметра с заданным индексом
 Value& SubscriptionEvent::item(std::size_t idx)
 {
-  RTDBM::ValueUpdate* pb_updater = 
+  RTDBM::ValueUpdate* pb_updater =
         static_cast<RTDBM::SubscriptionEvent*>(data()->impl()->instance())->mutable_update_item(idx);
 
   // Создать новый
   delete m_updater;
   m_updater = new Value(static_cast<void*>(pb_updater));
 
-  return *m_updater; 
+  return *m_updater;
 }
 
 // Получить количество элементов в пуле
@@ -1484,7 +1484,7 @@ void HistoryRequest::add(time_t start, double new_val, int new_validity)
     new_item->set_valid(static_cast<RTDBM::gof_t_AcqInfoValid>(new_validity));
   }
   else new_item->set_valid(RTDBM::GOF_D_ACQ_INVALID);
-  
+
   new_item->set_value(new_val);
 
   new_item->set_frame(start);

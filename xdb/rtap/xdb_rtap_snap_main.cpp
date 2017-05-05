@@ -147,7 +147,7 @@ int main(int argc, char** argv)
         app->setOption(OF_DEFINE_RDWR, 1);
         app->setOption(OF_DEFINE_SAVE_SNAP, 1);
         RtEnvironment *env = app->loadEnvironment(database_name);
-      
+
         switch (command)
         {
           case LOAD_FROM_XML:

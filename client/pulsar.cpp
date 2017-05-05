@@ -288,7 +288,7 @@ int main (int argc, char *argv [])
       delete request;
 
       id_list[sent_exchange_id] = SENT_OUT;
-      
+
 #ifdef ASYNC_EXCHANGE
       // Асинхронный обмен
     }
@@ -298,7 +298,7 @@ int main (int argc, char *argv [])
         status = client->recv(report);
         if (Pulsar::RECEIVE_OK != status)
             break;
-        
+
         letter = message_factory->create(report);
         num_received++;
         rtdbExchangeId recv_message_exchange_id = letter->header()->exchange_id();

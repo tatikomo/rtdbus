@@ -114,7 +114,7 @@ RtEnvironment* RtApplication::loadEnvironment(const char* _env_name)
   Error status;
   int   val;
   RtEnvironment *env = isEnvironmentRegistered(_env_name);
-  
+
   if (env)
   {
     LOG(INFO) << "Application '" << m_impl->getAppName()
@@ -135,7 +135,7 @@ RtEnvironment* RtApplication::loadEnvironment(const char* _env_name)
       case rtE_NONE:
         LOG(INFO) << "'" << _env_name << "' DB content is loaded succesfully";
         break;
-      
+
       case rtE_SNAPSHOT_NOT_EXIST:
         // TODO восстановить состояние по конфигурационным файлам
         LOG(ERROR) << "Construct empty database contents for '"
@@ -200,7 +200,7 @@ RtEnvironment* RtApplication::attach_to_env(const char* _env_name)
   // Попытаемся определить, был ли уже текущий процесс подключен к этой БД?
   // Если env равно NULL - не был подключен.
   RtEnvironment *env = isEnvironmentRegistered(_env_name);
-  
+
   if (env)
   {
     LOG(INFO) << "Application '" << m_impl->getAppName()
@@ -223,7 +223,7 @@ RtEnvironment* RtApplication::attach_to_env(const char* _env_name)
 }
 
 // ---------------------------------------------------------------------
-// Зарегистрировать в Приложении новую Среду, кроме дубликатов 
+// Зарегистрировать в Приложении новую Среду, кроме дубликатов
 void RtApplication::registerEnvironment(RtEnvironment* _new_env)
 {
   if (!isEnvironmentRegistered(_new_env->getName()))

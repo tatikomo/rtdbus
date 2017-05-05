@@ -188,7 +188,7 @@ TEST(TestProtobuf, PROTO_VERSION)
 }
 
 /*
- * Создает экземпляр zmsg, содержащий нагрузку из 
+ * Создает экземпляр zmsg, содержащий нагрузку из
  * заголовка и структуры ExecResult
  * NB: после использования необходимо удалить message
  */
@@ -223,7 +223,7 @@ TEST(TestProtobuf, EXEC_RESULT)
 }
 
 /*
- * Создать экземпляр Payload на основе zmsg и сравнить 
+ * Создать экземпляр Payload на основе zmsg и сравнить
  * восстановленные на его основе данные с образцом
  */
 TEST(TestPayload, CREATE_FROM_MSG)

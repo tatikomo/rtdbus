@@ -142,7 +142,7 @@ int SA_Module_Instance::run()
 
       delete request;
     }
-  
+
 //1    status = m_impl->quantum();
   }
 
@@ -356,7 +356,7 @@ int SA_Module_Instance::handle_request(mdp::zmsg* request, std::string* reply_to
   rtdbMsgType msgType;
 
   assert (request->parts () >= 2);
-  LOG(INFO) << "Process new request with " << request->parts() 
+  LOG(INFO) << "Process new request with " << request->parts()
             << " parts and reply to " << *reply_to;
 
   msg::Letter *letter = m_message_factory->create(request);
@@ -380,7 +380,7 @@ int SA_Module_Instance::handle_request(mdp::zmsg* request, std::string* reply_to
       // -----------------------------------------------------------------------------------
       // Группа сообщений, которые допустимо принимать только ДО завершения инициализации
       case ADG_D_MSG_INIT:      // Запрос выполнения первоначальной иницициализации данным модулем
-      case ADG_D_MSG_DIFINIT:   // Запрос выполнения иницициализации данным модулем после рестарта 
+      case ADG_D_MSG_DIFINIT:   // Запрос выполнения иницициализации данным модулем после рестарта
         rc = handle_init(letter, reply_to); // Ответ ADG_D_MSG_EXECRESULT
         break;
       case ADG_D_MSG_ENDALLINIT:// Сообщение об общем завершении инициализации

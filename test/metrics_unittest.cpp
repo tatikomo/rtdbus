@@ -26,7 +26,7 @@ TEST(TestMETRICS, PROCESS)
   for (int iter = 0; iter < 14; iter++)
   {
     metric_server->before();
-  
+
     for (int32_t i=0; i<((rand() % 100000) + 100000000); i++)
     {
 //      usleep((rand() % 50) + 1);

@@ -52,7 +52,7 @@ const int ID_CYCLE_MAX = ID_CYCLE_UNKNOWN + 1;
 #define EGA_EGA_D_LGCYCLENAME 23
 
 // Target object class
-typedef enum 
+typedef enum
 {
   INFO,     // information
   EQUIP,    // technological equipment,
@@ -71,7 +71,7 @@ typedef enum {
   TN_INITAUTO   = 0,
   // Цикл инициализации, требующий повышенной производительности
   // (более требователен к ресурсам)
-  TH_INITAUTO   = 1, 
+  TH_INITAUTO   = 1,
   // Цикл определения устаревших запросов
   TC_OLDREQUEST = 2,
   // Цикл отправки ответов
@@ -171,7 +171,7 @@ typedef struct {
   //ega_ega_odm_t_SubscriptedInfo r_SubscrInhibState;
   //ega_ega_odm_t_SubscriptedInfo r_SubscrSynthState;
   //ega_ega_odm_t_SubscriptedInfo r_SubscrExploitMode;
-    
+
   // functional EGSA state of the acquisition site
   // (acquisition site command only, all operations, all dispatcher requests only, waiting for no inhibition)
   int i_FunctionalState;
@@ -198,8 +198,8 @@ typedef struct {
   ega_ega_t_ObjectClass e_RequestObject;
   // Режим сбора - дифференциальный или нет
   ech_t_AcqMode e_RequestMode;
-  // Признак отношения запроса к технологическим данным (1)
-  // или к состоянию самой системы сбора как опрашиваемого объекта (2)
+  // Признак отношения запроса к технологическим данным (true)
+  // или к состоянию самой системы сбора как опрашиваемого объекта (false)
   bool  b_Requestprocess;
   // Включенные в данный запрос подзапросы. Индекс ненулевого элемента есть его ech_t_ReqId
   int r_IncludingRequests[NBREQUESTS];
@@ -334,7 +334,7 @@ class EgsaConfig {
 	static const char*  s_SECTION_SITES_NAME_AUTO_INIT;
 	static const char*  s_SECTION_SITES_NAME_AUTO_GENCONTROL;
     egsa_config_sites_t m_sites;
-    
+
     // Секция "CYCLES" конфигурационного файла ==============================
     // Название секции
     static const char*  s_SECTION_NAME_CYCLES_NAME;

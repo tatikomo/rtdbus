@@ -25,7 +25,7 @@
 
 AcquisitionSystemConfig* g_sa_config = NULL;
 EGSA* g_egsa_instance = NULL;
-AcqSiteEntry *g_new_sac_info = NULL;
+AcqSiteEntry *g_sac_entry = NULL;
 
 const char* g_sa_config_filename = "BI4500.json";
 
@@ -233,7 +233,7 @@ TEST(TestEXCHANGE, EGSA_CYCLES_CONFIG)
               LOG(INFO) << "\t\t\t" << "IR #" << included_requests[ir] << " " << Request::name(included_requests[ir]);
 
               // Запомнить для этой СС связку "Цикл" - "Связанные Запросы"
-              // TODO: некоторые вложенные Запросы можно пропускать, если для них нет 
+              // TODO: некоторые вложенные Запросы можно пропускать, если для них нет
               sa->push_request_for_cycle(cycle, main_req->included());
 
               ir++;
@@ -241,7 +241,7 @@ TEST(TestEXCHANGE, EGSA_CYCLES_CONFIG)
 #else
 
             // Запомнить для этой СС связку "Цикл" - "Связанные Запросы"
-            // TODO: некоторые вложенные Запросы можно пропускать, если для них нет 
+            // TODO: некоторые вложенные Запросы можно пропускать, если для них нет
             sa->push_request_for_cycle(cycle, main_req->included());
 #endif
 
@@ -300,21 +300,100 @@ TEST(TestEXCHANGE, SAC_CREATE)
   new_item.auto_init= g_egsa_instance->config()->sites().begin()->second->auto_init;
   new_item.auto_gencontrol = g_egsa_instance->config()->sites().begin()->second->auto_gencontrol;
 
-  g_new_sac_info = new AcqSiteEntry(g_egsa_instance, &new_item);
+  g_sac_entry = new AcqSiteEntry(g_egsa_instance, &new_item);
   // Начальное состояние СС
-  EXPECT_TRUE(g_new_sac_info->state() == SA_STATE_UNKNOWN);
+  EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_NO);
   // Послать системе команду инициализации
-  g_new_sac_info->send(ADG_D_MSG_ENDALLINIT);
+  g_sac_entry->send(ADG_D_MSG_ENDALLINIT);
   // Поскольку это имитация, состояние системы не изменится,
   // и должен сработать таймер по завершению таймаута
-  EXPECT_TRUE(g_new_sac_info->state() == SA_STATE_UNKNOWN);
+  EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_NO);
+}
+
+// Проверка работы класса Системы Сбора
+TEST(TestEXCHANGE, SAC_STATES)
+{
+  EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_NO);
+
+#if 0
+  LOG(INFO) << "Set state to PRE_OPER";
+  g_sac_entry->change_state(RTDB_ATT_IDX_SYNTHSTATE, 2);
+  EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_NO);
+  LOG(INFO) << "Set state to CONNECTED";
+  g_sac_entry->change_state(RTDB_ATT_IDX_SYNTHSTATE, 1);
+  EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_O);
+  LOG(INFO) << "Set state to incorrect value(3)";
+  g_sac_entry->change_state(RTDB_ATT_IDX_SYNTHSTATE, 3);
+  // Состояние не изменилось
+  EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_O);
+
+  // Сбросить Запрет
+  LOG(INFO) << "Clear attr \"INHIBITED\"";
+  g_sac_entry->change_state(RTDB_ATT_IDX_INHIB, 0);
+  EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_O);
+  // Установить Запрет
+  LOG(INFO) << "Set attr \"INHIBITED\"";
+  g_sac_entry->change_state(RTDB_ATT_IDX_INHIB, 1);
+  EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_I_NM_O);
+  // Сбросить Запрет
+  LOG(INFO) << "Clear attr \"INHIBITED\"";
+  g_sac_entry->change_state(RTDB_ATT_IDX_INHIB, 0);
+  EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_O);
+
+  // Сбросить Техобслуживание
+  LOG(INFO) << "Clear attr \"EXPMODE\"";
+  g_sac_entry->change_state(RTDB_ATT_IDX_EXPMODE, 0);
+  EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_O);
+  // Установить Техобслуживание
+  LOG(INFO) << "Set attr \"EXPMODE\"";
+  g_sac_entry->change_state(RTDB_ATT_IDX_EXPMODE, 1);
+  EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_M_O);
+  // Сбросить Техобслуживание
+  LOG(INFO) << "Clear attr \"EXPMODE\"";
+  g_sac_entry->change_state(RTDB_ATT_IDX_EXPMODE, 0);
+  EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_O);
+
+  // Установить "В процессе инициализации связи"
+  LOG(INFO) << "Set state to PRE_OPER";
+  g_sac_entry->change_state(RTDB_ATT_IDX_SYNTHSTATE, 2);
+  EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_NO);
+  // Установить "Обрыв связи"
+  LOG(INFO) << "Set state to DISCONNECTED";
+  g_sac_entry->change_state(RTDB_ATT_IDX_SYNTHSTATE, 0);
+  EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_NO);
+  // Установить "В процессе инициализации связи"
+  LOG(INFO) << "Set state to PRE_OPER";
+  g_sac_entry->change_state(RTDB_ATT_IDX_SYNTHSTATE, 2);
+  EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_NO);
+  // Установить "Связь установлена"
+  LOG(INFO) << "Set state to CONNECTED";
+  g_sac_entry->change_state(RTDB_ATT_IDX_SYNTHSTATE, 1);
+  EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_O);
+#else
+  for (int inhib = 0; inhib < 2; inhib++)
+  {
+    g_sac_entry->change_state(RTDB_ATT_IDX_INHIB, inhib);
+
+    for (int expmode = 0; expmode < 2; expmode++)
+    {
+      g_sac_entry->change_state(RTDB_ATT_IDX_EXPMODE, expmode);
+
+      // 0 -> 2 -> 1 : последовательность состояний "Недоступна" -> "Инициализация" -> "Оперативна"
+      g_sac_entry->change_state(RTDB_ATT_IDX_SYNTHSTATE, 0);
+      g_sac_entry->change_state(RTDB_ATT_IDX_SYNTHSTATE, 2);
+      g_sac_entry->change_state(RTDB_ATT_IDX_SYNTHSTATE, 1);
+    }
+  }
+
+#endif
+
 }
 
 TEST(TestEXCHANGE, EGSA_SITES)
 {
   const egsa_config_site_item_t config_item[] = {
     // Имя
-    // |        
+    // |
     // |        Уровень
     // |        |            Тип
     // |        |            |                      AUTO_INIT
@@ -378,7 +457,7 @@ TEST(TestEXCHANGE, EGSA_DICT_REQUESTS)
 
     Request *r = rl.query_by_id(rid);
     // Запроса ECH_D_GAZPROCOP нет в конфигурации
-    if (ECH_D_GAZPROCOP != id) 
+    if (ECH_D_GAZPROCOP != id)
       EXPECT_TRUE(NULL != r);
     else
       EXPECT_TRUE(NULL == r);
@@ -414,7 +493,7 @@ TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
   Request* req2 = new Request(dict_requests.query_by_id(ECH_D_EQUIPACQ),  site3, cycle1);
   Request* req3 = new Request(dict_requests.query_by_id(ECH_D_DELEGATION),site2, cycle2);
   Request* req4 = new Request(dict_requests.query_by_id(ECH_D_INFOSACQ),  site3, cycle2);
-  
+
   // Взвести колбек для запроса на 2 секунды
   rt_list.add(req1, 1);
   rt_list.add(req2, 1);
@@ -430,32 +509,36 @@ TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
   // количество итераций в limit_sec секундах
   const int limit_iter = (1000000 / msec_delay) * limit_sec;
 
-  site1->change_state_to(SA_STATE_UNKNOWN);
-  site2->change_state_to(SA_STATE_UNKNOWN);
-  site3->change_state_to(SA_STATE_UNKNOWN);
-
   while (iter++ < limit_iter)
   {
     LOG(INFO) << "iter " << iter << "/" << limit_iter;
     switch(iter) {
       case 2:
-        site3->change_state_to(SA_STATE_UNREACH);
-        break;
-    
-      case 15:
-        site3->change_state_to(SA_STATE_PRE_OPER);
-        break;
-    
-      case 25:
-        site3->change_state_to(SA_STATE_OPER);
+        site3->change_state(RTDB_ATT_IDX_SYNTHSTATE, SYNTHSTATE_UNREACH);
         break;
 
-      case 50:
-        site3->change_state_to(SA_STATE_FAULT);
+      case 15:
+        site3->change_state(RTDB_ATT_IDX_SYNTHSTATE, SYNTHSTATE_PRE_OPER);
+        break;
+
+      case 25:
+        site3->change_state(RTDB_ATT_IDX_SYNTHSTATE, SYNTHSTATE_OPER);
+        break;
+
+      case 45:
+        site3->change_state(RTDB_ATT_IDX_EXPMODE, 0);
+        break;
+
+      case 53:
+        site3->change_state(RTDB_ATT_IDX_EXPMODE, 1);
         break;
 
       case 70:
-        site3->change_state_to(SA_STATE_DISCONNECTED);
+        site3->change_state(RTDB_ATT_IDX_INHIB, 1);
+        break;
+
+      case 78:
+        site3->change_state(RTDB_ATT_IDX_INHIB, 0);
         break;
     }
 
@@ -465,19 +548,21 @@ TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
 
     // На основании текущего состояния СС генерировать новые Запросы
     switch (site3->state()) {
-      case SA_STATE_UNKNOWN:
+      case EGA_EGA_AUT_D_STATE_NI_NM_NO:
         break;
-      case SA_STATE_UNREACH:
+      case EGA_EGA_AUT_D_STATE_NI_M_NO:
         break;
-      case SA_STATE_PRE_OPER:
+      case EGA_EGA_AUT_D_STATE_NI_NM_O:
         break;
-      case SA_STATE_OPER:
+      case EGA_EGA_AUT_D_STATE_NI_M_O:
         break;
-      case SA_STATE_INHIBITED:
+      case EGA_EGA_AUT_D_STATE_I_NM_NO:
         break;
-      case SA_STATE_FAULT:
+      case EGA_EGA_AUT_D_STATE_I_M_NO:
         break;
-      case SA_STATE_DISCONNECTED:
+      case EGA_EGA_AUT_D_STATE_I_NM_O:
+        break;
+      case EGA_EGA_AUT_D_STATE_I_M_O:
         break;
     }
 
@@ -506,7 +591,7 @@ TEST(TestEXCHANGE, EGSA_ENDALLINIT)
 
   EXPECT_TRUE(message_end_all_init != NULL);
   EXPECT_TRUE(is_stop == false);
- 
+
 #if 1
   LOG(INFO) << "\t:start waiting events (10 sec)";
   int i=1000;
@@ -524,7 +609,7 @@ TEST(TestEXCHANGE, EGSA_ENDALLINIT)
 TEST(TestEXCHANGE, EGSA_FREE)
 {
   delete g_sa_config;
-  delete g_new_sac_info;
+  delete g_sac_entry;
 
   delete g_egsa_instance;
 }

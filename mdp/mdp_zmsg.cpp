@@ -163,7 +163,7 @@ void zmsg::send(zmq::socket_t & socket)
           memcpy(message.data(), uuidbin, 5);
           delete[] uuidbin;
        }
-       else 
+       else
        {
           message.rebuild(data.size());
           memcpy(message.data(), data.data(), data.size());
@@ -318,7 +318,7 @@ void zmsg::append (const char *part)
 }
 
 
-/* 
+/*
  * Двоичное представление Адресата содержит символы '\0', однако при приеме
  * оно конвертируется в символьную форму (5 двоичных байт в '@'+10 символьных байт).
  */
@@ -339,7 +339,7 @@ void zmsg::wrap(const char *address, const char *delim) {
 }
 
 
-char * zmsg::unwrap() 
+char * zmsg::unwrap()
 {
    if (m_part_data.empty()) {
       return NULL;
@@ -387,7 +387,7 @@ void zmsg::dump()
        // Dump the message as text or binary
        is_text = 1;
        for (char_nbr = 0; char_nbr < buffer_size; char_nbr++)
-           if (static_cast<unsigned char>(data[char_nbr]) < 32 
+           if (static_cast<unsigned char>(data[char_nbr]) < 32
             || static_cast<unsigned char>(data[char_nbr]) > 127)
                is_text = 0;
 

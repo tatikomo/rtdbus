@@ -11,7 +11,7 @@
 // Циклически изменяются значения, читаемые затем в функции rtPopValue
 rtValue     g_val[SIL_TRT_CAL_VALAL_MAXPARAMS];
 rtIndexer   g_indexer[SIL_TRT_CAL_VALAL_MAXPARAMS];
-// Векторы для резервирования значений 
+// Векторы для резервирования значений
 rtValue     g_val_bak[SIL_TRT_CAL_VALAL_MAXPARAMS];
 rtIndexer   g_indexer_bak[SIL_TRT_CAL_VALAL_MAXPARAMS];
 // Используется в rtPopValue для записи в добавленное поле name.
@@ -79,7 +79,7 @@ int rtCeRead(rtIndexer& ind, void* quality, void* value)
 
 rtValue* rtPopValue()
 {
-  // Эмулированные значения 
+  // Эмулированные значения
   rtUInt8  val_8  = 0;
   rtUInt16 val_16 = 0;
   rtUInt32 val_32 = 0;
@@ -151,9 +151,9 @@ gof_t_Status gof_tim_p_GetTimeOfDay(rtTime* pd_date)
 {
   gof_t_Status i_ret = GOF_D_NOERROR;
   struct timeval r_date;
- 
+
   i_ret = gettimeofday(&r_date, NULL);
- 
+
   /* value the gof_t_Date parameter */
   pd_date->tv_sec = r_date.tv_sec;
   pd_date->tv_usec = r_date.tv_usec;
@@ -328,15 +328,15 @@ rtInt sil_trt_cal_ValAl(rtUInt16 parm_count)
 
 /*
  *******************************************************************************
- *     READ ALL THE PARAMETERS IN  
+ *     READ ALL THE PARAMETERS IN
  *******************************************************************************
 */
 
 
-	/* 
-	 * Read all the parameters in, checking quality as we go. 
-	 * This will result in pr_val[1] containing the first parameter 
-	 * and in pr_val[1] containing the second parameter ... 
+	/*
+	 * Read all the parameters in, checking quality as we go.
+	 * This will result in pr_val[1] containing the first parameter
+	 * and in pr_val[1] containing the second parameter ...
 	 */
 
 	outQuality = rtATTR_OK;
@@ -358,7 +358,7 @@ rtInt sil_trt_cal_ValAl(rtUInt16 parm_count)
 		}
 	}
 
-	/* 
+	/*
 	 * Set the stack pointer so the return value can be written
 	 */
 
@@ -386,8 +386,8 @@ rtInt sil_trt_cal_ValAl(rtUInt16 parm_count)
 	pr_val[0]->operand.operandType = rtSCALAR_ELEMENT;
 	pr_val[0]->quality = outQuality;
 
-	/* 
-	 * If the quality is error then quit 
+	/*
+	 * If the quality is error then quit
 	 */
 	if (pr_val[0]->quality == rtATTR_ERROR) {
 		return rtSUCCESS;
@@ -480,7 +480,7 @@ rtInt sil_trt_cal_ValAl(rtUInt16 parm_count)
 
 /*
  *******************************************************************************
- *     TREATMENT of Acquired_validity  
+ *     TREATMENT of Acquired_validity
  *******************************************************************************
 */
 
@@ -488,7 +488,7 @@ rtInt sil_trt_cal_ValAl(rtUInt16 parm_count)
 
 /*
  *******************************************************************************
- *     CASE  h_AcquVti (VALIDCHANGE)   ==   VALID  
+ *     CASE  h_AcquVti (VALIDCHANGE)   ==   VALID
  *******************************************************************************
 */
 	case GOF_D_BDR_VALIDCHANGE_VALID:
@@ -568,7 +568,7 @@ rtInt sil_trt_cal_ValAl(rtUInt16 parm_count)
 
 /*
  *******************************************************************************
- *     CASE  h_AcquVti (VALIDCHANGE)   ==   FAULTY 
+ *     CASE  h_AcquVti (VALIDCHANGE)   ==   FAULTY
  *******************************************************************************
 */
 	case GOF_D_BDR_VALIDCHANGE_FAULT:
@@ -719,7 +719,7 @@ rtInt sil_trt_cal_ValAl(rtUInt16 parm_count)
 
 /*
  *******************************************************************************
- *     CASE  h_AcquVti (VALIDCHANGE)   ==   END_INHIB 
+ *     CASE  h_AcquVti (VALIDCHANGE)   ==   END_INHIB
  *******************************************************************************
 */
 
@@ -1107,7 +1107,7 @@ rtInt sil_trt_cal_ValAl(rtUInt16 parm_count)
 				}
 			}
 
-/*	Note : VALIDACQ is not updated and no lines are added into the fault 
+/*	Note : VALIDACQ is not updated and no lines are added into the fault
 	invalid information list					      */
 
 		}
@@ -1139,7 +1139,7 @@ rtInt sil_trt_cal_ValAl(rtUInt16 parm_count)
 
 /*
  *******************************************************************************
- *     END OF PROCESSING OF THE STATE OF SA 
+ *     END OF PROCESSING OF THE STATE OF SA
  *******************************************************************************
 */
 

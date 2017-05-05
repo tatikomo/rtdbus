@@ -19,7 +19,7 @@ int TimeKeeper::handle_request(mdp::zmsg* request, std::string*& reply_to)
   int rc = OK;
 
   assert (request->parts () >= 1);
-  LOG(INFO) << "Process new request with " << request->parts() 
+  LOG(INFO) << "Process new request with " << request->parts()
     << " parts and reply to " << reply_to;
 
   request->dump();
@@ -47,7 +47,7 @@ int main(int argc, char* argv[])
 
     LOG(INFO) << "TIMEKEEPER START";
 
-    while (!interrupt_worker) 
+    while (!interrupt_worker)
     {
        std::string *reply_to = new std::string;
        mdp::zmsg   *request  = NULL;

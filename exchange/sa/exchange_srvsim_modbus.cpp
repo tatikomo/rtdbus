@@ -81,7 +81,7 @@ int RTDBUS_Modbus_server::resolve_addr_info(const char* host_name, const char* p
   else {
       // Имя и порт успешно разрешились, продолжим
       for(p = res;p != NULL; p = p->ai_next) {
-        
+
         // получаем указатель на адрес, по разному в разных протоколах
         if (p->ai_family == AF_INET) { // IPv4
           struct sockaddr_in *ipv4 = (struct sockaddr_in *)p->ai_addr;
@@ -190,7 +190,7 @@ int RTDBUS_Modbus_server::init()
 int RTDBUS_Modbus_server::load_config()
 {
   int status = OK;
- 
+
   // загрузка всей конфигурации
   if (OK == (status = m_config->load())) {
 
@@ -664,7 +664,7 @@ int main(int argc, char* argv[])
   mbus_server = new RTDBUS_Modbus_server(config_filename);
 
   rc = mbus_server->run();
-  
+
   delete mbus_server;
 
   LOG(INFO) << "RTDBUS MODBUS server simulator " << argv[0] << " FINISH";

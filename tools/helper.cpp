@@ -42,7 +42,7 @@ void LogError(int rc,
 #warning "Unsupported OS"
 #endif
 
-    sprintf(buffer, pre_format, 
+    sprintf(buffer, pre_format,
             functionName? functionName : empty,
             rc);
 
@@ -133,11 +133,11 @@ void hex_dump(const std::string& data)
    offset = sprintf(buf, "[%03d] ", static_cast<int>(data.size()));
    for (char_nbr = 0; char_nbr < data.size(); char_nbr++)
    {
-       if (is_text) 
+       if (is_text)
        {
            strcpy(static_cast<char*>(&buf[0] + offset++), static_cast<const char*>(&data[char_nbr]));
        }
-       else 
+       else
        {
            snprintf(&buf[offset], 3, "%02X", static_cast<unsigned char>(data[char_nbr]));
            offset += 2;
@@ -157,7 +157,7 @@ char* hex_dump(const char* data, unsigned int size)
    is_text = 1;
    for (char_nbr = 0; char_nbr < size; char_nbr++)
    {
-       if (static_cast<unsigned char>(data[char_nbr]) < 32 
+       if (static_cast<unsigned char>(data[char_nbr]) < 32
         || static_cast<unsigned char>(data[char_nbr]) > 127)
         {
            // Встречаются непечатные символы, выводим в двоичном виде
@@ -169,12 +169,12 @@ char* hex_dump(const char* data, unsigned int size)
    offset = sprintf(buf, "[%03d] ", size);
    for (char_nbr = 0; char_nbr < size; char_nbr++)
    {
-       if (is_text) 
+       if (is_text)
        {
            strcpy(static_cast<char*>(&buf[0] + offset++),
                   static_cast<const char*>(&data[char_nbr]));
        }
-       else 
+       else
        {
            snprintf(&buf[offset], 3, "%02X", static_cast<unsigned char>(data[char_nbr]));
            offset += 2;

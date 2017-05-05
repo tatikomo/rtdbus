@@ -30,9 +30,11 @@ class EGSA : public mdp::mdwrk {
 
     EGSA(const std::string&, const std::string&);
    ~EGSA();
-    
+
     // Основной рабочий цикл
     int run();
+    // Доступ к Запросам
+    RequestDictionary& dictionary_requests();
 
     //============================================================================
 #ifdef _FUNCTIONAL_TEST
@@ -50,8 +52,6 @@ class EGSA : public mdp::mdwrk {
     AcqSiteList& sites();
     // Доступ к Циклам
     CycleList& cycles();
-    // Доступ к Запросам
-    RequestDictionary& dictionary_requests();
     // Ввести в оборот новый Цикл сбора
     size_t push_cycle(Cycle*);
     // Активировать циклы
@@ -100,13 +100,13 @@ class EGSA : public mdp::mdwrk {
     void fire_ENDALLINIT();
 
     // --------------------------------------------------------------------------
-    // Активация группы подписки точек систем сбора 
+    // Активация группы подписки точек систем сбора
     int activateSBS();
     // Дождаться ответа на запрос активации группы подписки
     int waitSBS();
     // Подключиться к SMAD систем сбора
     int attach_to_sites_smad();
-    // Изменение состояния подключенных систем сбора и отключение от их внутренней SMAD 
+    // Изменение состояния подключенных систем сбора и отключение от их внутренней SMAD
     int detach();
     // Функция срабатывания при наступлении времени очередного таймера
     void cycle_trigger(size_t, size_t);
@@ -143,7 +143,7 @@ class EGSA : public mdp::mdwrk {
     //static ega_ega_odm_t_RequestEntry m_requests_table[/*NBREQUESTS*/]; // ega_ega_odm_ar_Requests
     RequestDictionary m_ega_ega_odm_ar_Requests;
     //std::vector<Request*> m_ega_ega_odm_ar_Requests;
-    
+
     RequestRuntimeList m_waiting_requests;
     RequestRuntimeList m_deferred_requests;
 };

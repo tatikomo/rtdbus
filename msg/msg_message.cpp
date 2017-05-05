@@ -42,47 +42,47 @@ static __attribute__((constructor)) void my_hashtable_init()
                                               xdb::DbTypeDescription[xdb::DB_TYPE_UNDEF].code));
       g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_LOGICAL].name,
                                               xdb::DbTypeDescription[xdb::DB_TYPE_LOGICAL].code));
-      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_INT8].name, 
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_INT8].name,
                                               xdb::DbTypeDescription[xdb::DB_TYPE_INT8].code));
-      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_UINT8].name, 
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_UINT8].name,
                                               xdb::DbTypeDescription[xdb::DB_TYPE_UINT8].code));
-      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_INT16].name, 
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_INT16].name,
                                               xdb::DbTypeDescription[xdb::DB_TYPE_INT16].code));
-      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_UINT16].name, 
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_UINT16].name,
                                               xdb::DbTypeDescription[xdb::DB_TYPE_UINT16].code));
-      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_INT32].name, 
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_INT32].name,
                                               xdb::DbTypeDescription[xdb::DB_TYPE_INT32].code));
-      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_UINT32].name, 
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_UINT32].name,
                                               xdb::DbTypeDescription[xdb::DB_TYPE_UINT32].code));
-      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_FLOAT].name, 
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_FLOAT].name,
                                               xdb::DbTypeDescription[xdb::DB_TYPE_FLOAT].code));
-      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_DOUBLE].name, 
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_DOUBLE].name,
                                               xdb::DbTypeDescription[xdb::DB_TYPE_DOUBLE].code));
-      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES].name, 
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES].name,
                                               xdb::DbTypeDescription[xdb::DB_TYPE_BYTES].code));
-      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES4].name, 
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES4].name,
                                               xdb::DbTypeDescription[xdb::DB_TYPE_BYTES4].code));
-      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES8].name, 
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES8].name,
                                               xdb::DbTypeDescription[xdb::DB_TYPE_BYTES8].code));
-      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES12].name, 
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES12].name,
                                               xdb::DbTypeDescription[xdb::DB_TYPE_BYTES12].code));
-      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES16].name, 
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES16].name,
                                               xdb::DbTypeDescription[xdb::DB_TYPE_BYTES16].code));
-      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES20].name, 
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES20].name,
                                               xdb::DbTypeDescription[xdb::DB_TYPE_BYTES20].code));
-      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES32].name, 
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES32].name,
                                               xdb::DbTypeDescription[xdb::DB_TYPE_BYTES32].code));
-      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES48].name, 
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES48].name,
                                               xdb::DbTypeDescription[xdb::DB_TYPE_BYTES48].code));
-      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES64].name, 
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES64].name,
                                               xdb::DbTypeDescription[xdb::DB_TYPE_BYTES64].code));
-      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES80].name, 
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES80].name,
                                               xdb::DbTypeDescription[xdb::DB_TYPE_BYTES80].code));
-      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES128].name, 
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES128].name,
                                               xdb::DbTypeDescription[xdb::DB_TYPE_BYTES128].code));
-      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES256].name, 
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_BYTES256].name,
                                               xdb::DbTypeDescription[xdb::DB_TYPE_BYTES256].code));
-      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_ABSTIME].name, 
+      g_dbTypesHash->insert(DbTypesHashPair_t(xdb::DbTypeDescription[xdb::DB_TYPE_ABSTIME].name,
                                               xdb::DbTypeDescription[xdb::DB_TYPE_ABSTIME].code));
   }
 }
@@ -285,7 +285,7 @@ const std::string& Data::get_serialized()
   return impl()->get_serialized();
 }
 
-// Вернуть фактический класс PROTOBUF, хранящий данное сообщение 
+// Вернуть фактический класс PROTOBUF, хранящий данное сообщение
 DataImpl* Data::impl() const
 {
   assert(m_impl);
@@ -339,7 +339,7 @@ Letter::Letter(rtdbMsgType _type, rtdbExchangeId _id)
   // TODO: Проверить необходимость создания экземпляра с явным указанием идентификатора обмена
 //  LOG(INFO) << "Letter::Letter(" << _type << ", " << _id << ")";
 }
- 
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Создание нового сообщения с уже десериализованым заголовком
 Letter::Letter(Header* head_pb, const std::string& body_str)
@@ -367,7 +367,7 @@ Letter::Letter(const std::string& head_str, const std::string& body_str)
 
   m_data = new Data(m_header->usr_msg_type(), body_str);
 }
- 
+
 // признак того, была ли модификация данных
 void Letter::modified(bool new_val)
 {
@@ -382,7 +382,7 @@ bool Letter::modified()
 #if 0
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // На основе типа сообщения и сериализованных данных.
-// Если последний параметр равен NULL, создается пустая структура 
+// Если последний параметр равен NULL, создается пустая структура
 // нужного типа с тем, чтобы потом её заполнил пользователь самостоятельно.
 Letter::Letter(const rtdbMsgType user_type, const std::string& dest, const std::string* data) :
   m_initialized(false),
@@ -502,7 +502,7 @@ MessageFactory::MessageFactory(const char* procname)
   m_default_serialized_header.clear();
   if (m_source_procname.size() > SERVICE_NAME_MAXLEN)
   {
-    LOG(WARNING) << "Given process name (" << m_source_procname 
+    LOG(WARNING) << "Given process name (" << m_source_procname
                << " will truncated from " << m_source_procname.size()
                << " to " << SERVICE_NAME_MAXLEN << " bytes";
     m_source_procname.resize(SERVICE_NAME_MAXLEN);
@@ -510,12 +510,12 @@ MessageFactory::MessageFactory(const char* procname)
   // std::cout << "GEV : MessageFactory::MessageFactory(" << m_source_procname << ") this=" << this << std::endl;
   // NB: Начальные значения m_default_pb_header выставляются конструктором по-умолчанию
 }
- 
+
 MessageFactory::~MessageFactory()
 {
   // GEV std::cout << "TOTO-0 : MessageFactory::~MessageFactory(" << m_source_procname << ") this=" << this << std::endl;
 }
- 
+
 Letter* MessageFactory::create(rtdbMsgType type)
 {
   Letter *created = NULL;
@@ -543,7 +543,7 @@ Letter* MessageFactory::create(rtdbMsgType type)
     case SIG_D_MSG_REQ_HISTORY:     created = new HistoryRequest(); break;
 
     default:
-      LOG(ERROR) << "Unsupported message type: " << type; 
+      LOG(ERROR) << "Unsupported message type: " << type;
       assert(0 == 1);
   }
 
@@ -586,7 +586,7 @@ Letter* MessageFactory::create(void* void_request)
   // Есть непустые данные для десериализации
   if ((head_str && head_str->size()) && (body_str /*&& body_str->size()*/))
   {
-    // Создать экземпляр из полученных фреймов заголовка и данных 
+    // Создать экземпляр из полученных фреймов заголовка и данных
     created = unserialize(*head_str, *body_str);
   }
   else
@@ -606,7 +606,7 @@ Letter* MessageFactory::create(void* void_request)
 /*
  * Создать экземпляр данных соответствующего типа, и десериализовать его на основе входной строки.
  * Если входная строка пуста (это возможно, когда сообщение создается Клиентом), то:
- * 1. Присвоить элементам восстановленного класса значения "по умолчанию", т.к. иначе protobuf 
+ * 1. Присвоить элементам восстановленного класса значения "по умолчанию", т.к. иначе protobuf
  * не сериализует этот экземпляр данных.
  * 2. Заполнить тестовыми сериализованными данными строковый буфер m_serialized_data
  */
@@ -718,7 +718,7 @@ bool MessageFactory::GetDbTypeFromString(std::string& s_t, xdb::DbType_t& db_t)
   return status;
 }
 
-// На входе код типа БДРВ, на выходе строковое представление типа, 
+// На входе код типа БДРВ, на выходе строковое представление типа,
 // согласно шаблону AttributeType файла rtap_db.xsd
 const char* MessageFactory::GetDbNameFromType(const xdb::DbType_t& db_t)
 {

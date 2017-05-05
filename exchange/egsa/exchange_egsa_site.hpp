@@ -20,7 +20,64 @@
 class EGSA;
 class SystemAcquisition;
 class Cycle;
+class Request;
 class InternalSMAD;
+class AcqSiteEntry;
+
+// Transition definition
+// ---------------------
+#define  EGA_EGA_AUT_D_TRANS_O  0   // Operational
+#define  EGA_EGA_AUT_D_TRANS_NO 1   // No Operational
+#define  EGA_EGA_AUT_D_TRANS_E  2   // Exploitation
+#define  EGA_EGA_AUT_D_TRANS_NE 3   // Maintenance
+#define  EGA_EGA_AUT_D_TRANS_I  4   // Inhibition
+#define  EGA_EGA_AUT_D_TRANS_NI 5   // No inhibition
+
+// States definition
+// -----------------
+#define  EGA_EGA_D_STATEINIT    0
+#if 0
+/*
+EGA_EGA_AUT_D_STATE_A;   // Не в запрете, не в техобслуживании, не оперативна    NI_NM_NO
+EGA_EGA_AUT_D_STATE_N;   // Не в запрете, не в техобслуживании,    оперативна    NI_NM_O
+EGA_EGA_AUT_D_STATE_B;   // Не в запрете,    в техобслуживании, не оперативна    NI_M_NO
+EGA_EGA_AUT_D_STATE_C;   // Не в запрете,    в техобслуживании,    оперативна    NI_M_O
+EGA_EGA_AUT_D_STATE_WA;  //    в запрете, не в техобслуживании, не оперативна    I_NM_NO
+EGA_EGA_AUT_D_STATE_WN;  //    в запрете, не в техобслуживании,    оперативна    I_NM_O
+EGA_EGA_AUT_D_STATE_WB;  //    в запрете,    в техобслуживании, не оперативна    I_M_NO
+EGA_EGA_AUT_D_STATE_WC;  //    в запрете,    в техобслуживании,    оперативна    I_M_O
+*/
+#define  EGA_EGA_AUT_D_STATE_A  EGA_EGA_D_STATEINIT     // Acquisition systems requests only
+#define  EGA_EGA_AUT_D_STATE_B  EGA_EGA_D_STATEINIT+1   // only process commands in maintain mode
+#define  EGA_EGA_AUT_D_STATE_N  EGA_EGA_D_STATEINIT+2   // Normal operation state
+#define  EGA_EGA_AUT_D_STATE_C  EGA_EGA_D_STATEINIT+3   // Dispatcher request only
+#define  EGA_EGA_AUT_D_STATE_WA EGA_EGA_D_STATEINIT+4   // Inhibition
+#define  EGA_EGA_AUT_D_STATE_WB EGA_EGA_D_STATEINIT+5   // Inhibition
+#define  EGA_EGA_AUT_D_STATE_WN EGA_EGA_D_STATEINIT+6   // Inhibition
+#define  EGA_EGA_AUT_D_STATE_WC EGA_EGA_D_STATEINIT+7   // Inhibition
+
+#define  EGA_EGA_AUT_D_NB_TRANS (EGA_EGA_AUT_D_TRANS_NI+1)   // transition number (state/mode values)
+#define  EGA_EGA_AUT_D_NB_STATE (EGA_EGA_AUT_D_STATE_WC+1)   // automate state number
+
+#else
+
+#define  EGA_EGA_D_STATEINIT    0
+typedef enum {
+  EGA_EGA_AUT_D_STATE_NI_NM_NO  = EGA_EGA_D_STATEINIT,    // Acquisition systems requests only
+  EGA_EGA_AUT_D_STATE_NI_M_NO   = EGA_EGA_D_STATEINIT+1,  // Only commands processing in maintaince mode
+  EGA_EGA_AUT_D_STATE_NI_NM_O   = EGA_EGA_D_STATEINIT+2,  // Normal operation state
+  EGA_EGA_AUT_D_STATE_NI_M_O    = EGA_EGA_D_STATEINIT+3,  // Dispatcher request only
+  EGA_EGA_AUT_D_STATE_I_NM_NO   = EGA_EGA_D_STATEINIT+4,  // Inhibition
+  EGA_EGA_AUT_D_STATE_I_M_NO    = EGA_EGA_D_STATEINIT+5,  // Inhibition
+  EGA_EGA_AUT_D_STATE_I_NM_O    = EGA_EGA_D_STATEINIT+6,  // Inhibition
+  EGA_EGA_AUT_D_STATE_I_M_O     = EGA_EGA_D_STATEINIT+7   // Inhibition
+} sa_state_t;
+
+#define  EGA_EGA_AUT_D_NB_TRANS (EGA_EGA_AUT_D_TRANS_NI+1)   // transition number (state/mode values)
+#define  EGA_EGA_AUT_D_NB_STATE (EGA_EGA_AUT_D_STATE_I_M_O+1)   // automate state number
+#endif
+
+
 
 // ==============================================================================
 // Acquisition Site Entry Structure
@@ -47,6 +104,19 @@ class InternalSMAD;
 //          cnf+,comm+params+,link+
 
 class AcqSiteEntry {
+  // Automaton structure definition
+  // ------------------------------
+  typedef enum {
+    ACTION_NONE       = 0,
+    ACTION_AUTOINIT   = 1,
+    ACTION_GENCONTROL = 2
+  } action_type_t;
+
+  typedef struct {
+    sa_state_t  next_state;
+    action_type_t action_type;
+  } ega_ega_aut_t_automate;
+
   public:
     AcqSiteEntry(EGSA*, const egsa_config_site_item_t*);
    ~AcqSiteEntry();
@@ -58,8 +128,10 @@ class AcqSiteEntry {
     sa_state_t  state()     const { return m_FunctionalState; }
     sa_object_level_t level() const { return m_Level; }
 
+#if 0
     // Управление состоянием
     sa_state_t  change_state_to(sa_state_t);
+#endif
     // Регистрация Запросов в указанном Цикле
     int push_request_for_cycle(Cycle*, int*);
 
@@ -71,7 +143,7 @@ class AcqSiteEntry {
     int send(int);
     // Послать сообщение инициализации
     void init();
-    void process_end_all_init(); // Сообщение о завершении инициализации 
+    void process_end_all_init(); // Сообщение о завершении инициализации
     void process_end_init_acq(); // Запрос состояния завершения инициализации
     void process_init();         // Конец инициализации
     void process_dif_init();     // Запрос завершения инициализации после аварийного завершения
@@ -87,11 +159,29 @@ class AcqSiteEntry {
     int ask_ENDALLINIT();
     // Проверить поступление ответа готовности
     void check_ENDALLINIT();
+    // Сменить состояние в зависимости от поданного на вход атрибута
+    // Управление состояниями СС в зависимости от асинхронных изменений состояния атрибутов
+    // SYNTHSTATE, INHIBITION, EXPMODE в БДРВ, приходящих по подписке
+    int change_state(int, int);
+
+    // Попытаться добавить в очередь указанный Запрос, вернет признак разрешенности Запроса
+    bool add_request(const Request*);
+    // Функция вызывается при необходимости создания Запросов на инициализацию связи
+    int cbAutoInit();
+    // Функция вызывается при необходимости создания Запросов на общий сбор информации (есть, Генерал Контрол!)
+    int cbGeneralControl();
 
   private:
-
     DISALLOW_COPY_AND_ASSIGN(AcqSiteEntry);
+    // Инициализация внутреннего состояния в зависимости от атрибутов SYNTHSTATE, INHIB, EXPMODE
+    void init_functional_state();
+    // Получить ссылку на экземпляр Запроса указанного типа
+    const Request* get_dict_request(ech_t_ReqId);
+
     EGSA* m_egsa;
+    synthstate_t m_synthstate;
+    bool m_expmode;
+    bool m_inhibition;
 
     // identifier of the acquisition site (name)
     char m_IdAcqSite[TAG_NAME_MAXLEN + 1];
@@ -115,7 +205,7 @@ class AcqSiteEntry {
     //ega_ega_odm_t_SubscriptedInfo r_SubscrInhibState;
     //ega_ega_odm_t_SubscriptedInfo r_SubscrSynthState;
     //ega_ega_odm_t_SubscriptedInfo r_SubscrExploitMode;
-    
+ 
     // functional EGSA state of the acquisition site
     // (acquisition site command only, all operations, all dispatcher requests only, waiting for no inhibition)
     sa_state_t m_FunctionalState;
@@ -139,7 +229,9 @@ class AcqSiteEntry {
     // b_DistantInitTerminated
     //   FALSE -> no Init received from the distant / Init from the distant in progress
     //   TRUE -> Init from the distant terminated
-
+    //
+    // ega_ega_aut_a_auto[i_indtrans][m_FunctionalState]
+    static const ega_ega_aut_t_automate m_ega_ega_aut_a_auto [EGA_EGA_AUT_D_NB_TRANS][EGA_EGA_AUT_D_NB_STATE];
 };
 
 // ==============================================================================
@@ -182,6 +274,8 @@ class AcqSiteList {
     // Связь между названием СС и её индексом в m_items
     system_acquisition_list_t  m_site_map;
 };
+
+
 
 #endif
 

@@ -240,7 +240,7 @@ MCO_RET DatabaseRtapImpl::queryPointsOfSpecifiedClass (mco_db_h& handler, rtDbCq
           if (rc && (rc != MCO_S_CURSOR_END)) { LOG(ERROR) << "Next XDBPoint cursor, rc=" << rc; break; }
 
         } // Конец проверки, что первый элемент курсора установлен
- 
+
       } // Конец проверки, есть ли точки такого класса?
 
 #if (EXTREMEDB_VERSION >=40)
@@ -248,7 +248,7 @@ MCO_RET DatabaseRtapImpl::queryPointsOfSpecifiedClass (mco_db_h& handler, rtDbCq
       if (rc) { LOG(ERROR) << "Close XDBPoint cursor, rc=" << rc; break; }
 #endif
 
-    } // Конец успешного создания курсора по индексу модификации 
+    } // Конец успешного создания курсора по индексу модификации
 
     rc = mco_trans_commit(t);
     if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; break; }
@@ -332,7 +332,7 @@ MCO_RET DatabaseRtapImpl::querySbsArmedGroup (mco_db_h& handler, rtDbCq& info)
 
              // point_instance - модифицированная Точка
              // Найти группы, куда она входит
-             
+
              // point_aid - идентификатор модифицированной Точки
              rc = XDBPoint_autoid_get(&point_instance, &point_aid);
              if (rc) { LOG(ERROR) << "Get XDBPoint aid, rc=" << rc; break; }
@@ -427,7 +427,7 @@ MCO_RET DatabaseRtapImpl::querySbsArmedGroup (mco_db_h& handler, rtDbCq& info)
       if (rc) { LOG(ERROR) << "Close XDBPoint cursor, rc=" << rc; break; }
 #endif
 
-    } // Конец успешного создания курсора по индексу модификации 
+    } // Конец успешного создания курсора по индексу модификации
 
     rc = mco_trans_commit(t);
     if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; break; }
@@ -603,7 +603,7 @@ MCO_RET DatabaseRtapImpl::querySbsPoints(mco_db_h& handler, rtDbCq& info, TypeOf
 
              // point_instance - модифицированная Точка
              // Найти группы, куда она входит
-             
+
              // point_aid - идентификатор модифицированной Точки
              rc = XDBPoint_autoid_get(&point_instance, &point_aid);
              if (rc) { LOG(ERROR) << "Get XDBPoint aid, rc=" << rc; break; }
@@ -658,13 +658,13 @@ MCO_RET DatabaseRtapImpl::querySbsPoints(mco_db_h& handler, rtDbCq& info, TypeOf
                          sbs_map->insert(std::pair<autoid_t, std::string>(point_aid, point_name));
                          break;
 
-                       // Сбросить флаг модификации для данной точки 
+                       // Сбросить флаг модификации для данной точки
                        case rtQUERY_SBS_POINTS_DISARM:
                        // -----------------------------------------------
                          rc = XDBPoint_is_modified_put(&point_instance, FALSE);
                          if (rc) { LOG(ERROR) << "Clear modified flag for point id="<<point_aid<<", rc=" << rc; break; }
                          break;
-    
+
                        // Прочитать значение значимых атрибутов и занести их в список AttributeInfo_t
                        case rtQUERY_SBS_READ_POINTS_ARMED:
                        // -----------------------------------------------
@@ -721,7 +721,7 @@ MCO_RET DatabaseRtapImpl::querySbsPoints(mco_db_h& handler, rtDbCq& info, TypeOf
       if (rc) { LOG(ERROR) << "Close XDBPoint cursor, rc=" << rc; break; }
 #endif
 
-    } // Конец успешного создания курсора по индексу модификации 
+    } // Конец успешного создания курсора по индексу модификации
 
     rc = mco_trans_commit(t);
     if (rc) { LOG(ERROR) << "Commitment transaction, rc=" << rc; break; }

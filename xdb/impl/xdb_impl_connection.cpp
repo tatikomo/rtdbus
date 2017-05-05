@@ -72,14 +72,12 @@ ConnectionImpl::~ConnectionImpl()
   if (m_database_handle)
   {
     rc = mco_db_disconnect(m_database_handle);
-    if (rc) {
-        LOG(ERROR) << "Closing database '" << m_rtap_db_impl->getName() 
-        << "' connection failure, rc=" << rc; }
+    if (rc) { LOG(ERROR) << "Closing '" << m_rtap_db_impl->getName() << "' connection, rc=" << rc; }
   }
 }
 
 // Найти точку с указанным тегом.
-// В имени тега не может быть указан атрибут. 
+// В имени тега не может быть указан атрибут.
 // Читается весь набор атрибутов заданной точки.
 rtap_db::Point* ConnectionImpl::locate(const char* _tag)
 {

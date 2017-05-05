@@ -19,14 +19,14 @@ AskLife::AskLife(Header* head, const std::string& body) : Letter(head, body)
 {
   assert(header()->usr_msg_type() == ADG_D_MSG_ASKLIFE);
 }
- 
+
 AskLife::AskLife(const std::string& head, const std::string& body) : Letter(head, body)
 {
   assert(header()->usr_msg_type() == ADG_D_MSG_ASKLIFE);
 }
- 
+
 AskLife::~AskLife() {}
- 
+
 bool AskLife::exec_result(int &val)
 {
   bool exec_result_exist = static_cast<RTDBM::SimpleRequest*>(data()->impl()->instance())->has_exec_result();
@@ -39,7 +39,7 @@ bool AskLife::exec_result(int &val)
 
   return exec_result_exist;
 }
- 
+
 void AskLife::set_exec_result(int _new_val)
 {
   RTDBM::gof_t_ExecResult ex_result;
@@ -57,7 +57,7 @@ void AskLife::set_exec_result(int _new_val)
 ExecResult::ExecResult() : Letter(ADG_D_MSG_EXECRESULT, 0) {}
 ExecResult::ExecResult(rtdbExchangeId _id) : Letter(ADG_D_MSG_EXECRESULT, _id) {}
 
-ExecResult::ExecResult(Header* head, const std::string& body) : Letter(head, body) 
+ExecResult::ExecResult(Header* head, const std::string& body) : Letter(head, body)
 {
   assert(header()->usr_msg_type() == ADG_D_MSG_EXECRESULT);
 }
@@ -66,9 +66,9 @@ ExecResult::ExecResult(const std::string& head, const std::string& body) : Lette
 {
   assert(header()->usr_msg_type() == ADG_D_MSG_EXECRESULT);
 }
- 
+
 ExecResult::~ExecResult() {}
- 
+
 int ExecResult::exec_result()
 {
   return static_cast<RTDBM::ExecResult*>(data()->impl()->instance())->exec_result();
@@ -146,7 +146,7 @@ bool SimpleRequest::exec_result(int &val)
 
   return exec_result_exist;
 }
- 
+
 void SimpleRequest::set_exec_result(int _new_val)
 {
   RTDBM::gof_t_ExecResult ex_result;

@@ -18,15 +18,105 @@
 #include "exchange_smad_int.hpp"
 #include "exchange_config_sac.hpp"
 
+// Строки 0 и 1 используются, если меняется значение атрибута SYNTHSTATE
+// Строки 2 и 3 используются, если меняется значение атрибута EXPMODE
+// Строки 4 и 5 используются, если меняется значение атрибута INHIB
+const AcqSiteEntry::ega_ega_aut_t_automate AcqSiteEntry::m_ega_ega_aut_a_auto [EGA_EGA_AUT_D_NB_TRANS][EGA_EGA_AUT_D_NB_STATE] =
+{
+  /* Transition = OPERATIONAL */
+  /* --------------------------- */
+  /* suppression of GenCtrl in EGA_EGA_AUT_D_STATE_NI_NM_O when synth.state changes from non operationnel to operationel first case */
+  {
+    {EGA_EGA_AUT_D_STATE_NI_NM_O,   ACTION_NONE    },  // Normal operation
+    {EGA_EGA_AUT_D_STATE_NI_M_O,    ACTION_NONE    },  // Dispatcher request
+    {EGA_EGA_AUT_D_STATE_NI_NM_O,   ACTION_NONE    },  // Normal operation
+    {EGA_EGA_AUT_D_STATE_NI_M_O,    ACTION_NONE    },  // Dispatcher request
+    {EGA_EGA_AUT_D_STATE_I_NM_O,    ACTION_NONE    },  // Inhibition
+    {EGA_EGA_AUT_D_STATE_I_M_O,     ACTION_NONE    },  // Inhibition
+    {EGA_EGA_AUT_D_STATE_I_NM_O,    ACTION_NONE    },  // Inhibition
+    {EGA_EGA_AUT_D_STATE_I_M_O,     ACTION_NONE    }   // Inhibition
+  },
+
+  /* Transition = NO_OPERATIONAL */
+  /* ------------------------------- */
+  {
+    {EGA_EGA_AUT_D_STATE_NI_NM_NO,  ACTION_NONE    },  // SA commands only
+    {EGA_EGA_AUT_D_STATE_NI_M_NO,   ACTION_NONE    },  // SA commands only
+    {EGA_EGA_AUT_D_STATE_NI_NM_NO,  ACTION_AUTOINIT},  // SA commands only
+    {EGA_EGA_AUT_D_STATE_NI_M_NO,   ACTION_NONE    },  // SA commands only
+    {EGA_EGA_AUT_D_STATE_I_NM_NO,   ACTION_NONE    },  // Inhibition
+    {EGA_EGA_AUT_D_STATE_I_M_NO,    ACTION_NONE    },  // Inhibition
+    {EGA_EGA_AUT_D_STATE_I_NM_NO,   ACTION_NONE    },  // Inhibition
+    {EGA_EGA_AUT_D_STATE_I_M_NO,    ACTION_NONE    }   // Inhibition
+  },
+
+  /* Transition = EXPLOITATION */
+  /* ------------------------- */
+  {
+    {EGA_EGA_AUT_D_STATE_NI_NM_NO,  ACTION_NONE    },
+    {EGA_EGA_AUT_D_STATE_NI_NM_NO,  ACTION_AUTOINIT},
+    {EGA_EGA_AUT_D_STATE_NI_NM_O,   ACTION_NONE    },
+    {EGA_EGA_AUT_D_STATE_NI_NM_O,   ACTION_GENCONTROL},
+    {EGA_EGA_AUT_D_STATE_I_NM_NO,   ACTION_NONE    },
+    {EGA_EGA_AUT_D_STATE_I_NM_NO,   ACTION_NONE    },
+    {EGA_EGA_AUT_D_STATE_I_NM_O,    ACTION_NONE    },
+    {EGA_EGA_AUT_D_STATE_I_NM_O,    ACTION_NONE    }
+  },
+
+  /* Transition = MAINTENANCE */
+  /* ------------------------ */
+  {
+    {EGA_EGA_AUT_D_STATE_NI_M_NO,   ACTION_NONE    },
+    {EGA_EGA_AUT_D_STATE_NI_M_NO,   ACTION_NONE    },
+    {EGA_EGA_AUT_D_STATE_NI_M_O,    ACTION_NONE    },
+    {EGA_EGA_AUT_D_STATE_NI_M_O,    ACTION_NONE    },
+    {EGA_EGA_AUT_D_STATE_I_M_NO,    ACTION_NONE    },
+    {EGA_EGA_AUT_D_STATE_I_M_NO,    ACTION_NONE    },
+    {EGA_EGA_AUT_D_STATE_I_M_O,     ACTION_NONE    },
+    {EGA_EGA_AUT_D_STATE_I_M_O,     ACTION_NONE    }
+  },
+
+  /* Transition = INHIBITION */
+  /* ----------------------- */
+  {
+    {EGA_EGA_AUT_D_STATE_I_NM_NO,   ACTION_NONE    },
+    {EGA_EGA_AUT_D_STATE_I_M_NO,    ACTION_NONE    },
+    {EGA_EGA_AUT_D_STATE_I_NM_O,    ACTION_NONE    },
+    {EGA_EGA_AUT_D_STATE_I_M_O,     ACTION_NONE    },
+    {EGA_EGA_AUT_D_STATE_I_NM_NO,   ACTION_NONE    },
+    {EGA_EGA_AUT_D_STATE_I_M_NO,    ACTION_NONE    },
+    {EGA_EGA_AUT_D_STATE_I_NM_O,    ACTION_NONE    },
+    {EGA_EGA_AUT_D_STATE_I_M_O,     ACTION_NONE    }
+  },
+
+  /* Transition = DE-INHIBITION */
+  /* --------------------------- */
+  /* change GenCtrl to AutInit in EGA_EGA_AUT_D_STATE_NI_NM_NO (= synth.state -> non operationnel, exploit.mode -> exploit.) */
+  /* and in EGA_EGA_AUT_D_STATE_NI_NM_O (= synth.state -> operationnel, exploit.mode -> exploit.) */
+  {
+    {EGA_EGA_AUT_D_STATE_NI_NM_NO,  ACTION_NONE     },
+    {EGA_EGA_AUT_D_STATE_NI_M_NO,   ACTION_NONE     },
+    {EGA_EGA_AUT_D_STATE_NI_NM_O,   ACTION_NONE     },
+    {EGA_EGA_AUT_D_STATE_NI_M_O,    ACTION_NONE     },
+    {EGA_EGA_AUT_D_STATE_NI_NM_NO,  ACTION_AUTOINIT },
+    {EGA_EGA_AUT_D_STATE_NI_M_NO,   ACTION_NONE     },
+    {EGA_EGA_AUT_D_STATE_NI_NM_O,   ACTION_AUTOINIT },
+    {EGA_EGA_AUT_D_STATE_NI_M_O,    ACTION_NONE     }
+  }
+}; /* End of a_auto initialisation */
+
 // ==============================================================================
 AcqSiteEntry::AcqSiteEntry(EGSA* egsa, const egsa_config_site_item_t* entry)
   : m_egsa(egsa),
+    m_synthstate(SYNTHSTATE_UNREACH),
+    m_expmode(true),
+    m_inhibition(false),
     m_IdAcqSite(),
     m_DispatcherName(),
     m_NatureAcqSite(entry->nature),
     m_AutomaticalInit(entry->auto_init),
     m_AutomaticalGenCtrl(entry->auto_gencontrol),
-    m_FunctionalState(SA_STATE_UNKNOWN),
+    m_FunctionalState(EGA_EGA_AUT_D_STATE_NI_NM_NO),
     m_Level(entry->level),
     m_InterfaceComponentActive(false),
     m_smad(NULL)
@@ -64,6 +154,7 @@ AcqSiteEntry::AcqSiteEntry(EGSA* egsa, const egsa_config_site_item_t* entry)
   }
 
 //  m_cycles = look_my_cycles();
+  init_functional_state();
 
   delete sa_config;
 }
@@ -72,6 +163,93 @@ AcqSiteEntry::AcqSiteEntry(EGSA* egsa, const egsa_config_site_item_t* entry)
 AcqSiteEntry::~AcqSiteEntry()
 {
   delete m_smad;
+}
+
+// ==============================================================================
+// Инициализация внутреннего состояния в зависимости от атрибутов SYNTHSTATE, INHIB, EXPMODE
+//  INHIB = true - в запрете
+//        = false - разрешена
+//  EXPMODE = true - в режиме эксплуатации
+//          = false - в режиме техобслуживания
+void AcqSiteEntry::init_functional_state()
+{
+   m_FunctionalState = EGA_EGA_AUT_D_STATE_NI_NM_NO;
+
+   if (!m_inhibition) {  // Inhibition State is NO inhibited
+      // -------------------------------------------------
+      if ((m_synthstate == SYNTHSTATE_OPER) && (m_expmode)) {
+	    m_FunctionalState = EGA_EGA_AUT_D_STATE_NI_NM_O; // Не в запрете, не в техобслуживании,    оперативна
+      }
+      else if ((m_synthstate == SYNTHSTATE_OPER) && (!m_expmode)) {
+        m_FunctionalState = EGA_EGA_AUT_D_STATE_NI_M_O;  // Не в запрете,    в техобслуживании,    оперативна
+      }
+      else if ((m_synthstate != SYNTHSTATE_OPER) && (!m_expmode)) {
+        m_FunctionalState = EGA_EGA_AUT_D_STATE_NI_M_NO; // Не в запрете,    в техобслуживании, не оперативна
+      }
+      else if ((m_synthstate != SYNTHSTATE_OPER) && (m_expmode)) {
+        m_FunctionalState = EGA_EGA_AUT_D_STATE_NI_NM_NO;// Не в запрете, не в техобслуживании, не оперативна
+      }
+      else {
+        LOG(ERROR) << name() << ": synthetic " << m_synthstate << ", inhibition " << m_inhibition;
+      }
+   }
+   else {  // Inhibition State is inhibited
+      // -------------------------------------------------
+      if ((m_synthstate == SYNTHSTATE_OPER) && (m_expmode)) {
+	    m_FunctionalState = EGA_EGA_AUT_D_STATE_I_NM_O;  //    в запрете, не в техобслуживании,    оперативна
+      }
+      else if ((m_synthstate == SYNTHSTATE_OPER) && (!m_expmode)) {
+        m_FunctionalState = EGA_EGA_AUT_D_STATE_I_M_O;   //    в запрете,    в техобслуживании,    оперативна
+      }
+      else if ((m_synthstate != SYNTHSTATE_OPER) && (!m_expmode)) {
+        m_FunctionalState = EGA_EGA_AUT_D_STATE_I_M_NO;  //    в запрете,    в техобслуживании, не оперативна
+      }
+      else if ((m_synthstate != SYNTHSTATE_OPER) && (m_expmode)) {
+	    m_FunctionalState = EGA_EGA_AUT_D_STATE_I_NM_NO; //    в запрете, не в техобслуживании, не оперативна
+      }
+      else {
+        LOG(ERROR) << name() << ": synthetic " << m_synthstate << ", inhibition " << m_inhibition;
+      }
+   }
+}
+
+// ==============================================================================
+// Получить ссылку на экземпляр Запроса указанного типа
+const Request* AcqSiteEntry::get_dict_request(ech_t_ReqId type)
+{
+  Request *dict = NULL;
+
+  assert(m_egsa);
+  dict = m_egsa->dictionary_requests().query_by_id(type);
+
+  return dict;
+}
+
+// ==============================================================================
+// Функция вызывается при необходимости создания Запросов на инициализацию связи
+int AcqSiteEntry::cbAutoInit()
+{
+  int rc = NOK;
+  const char *fname = "cbAutoInit";
+  const Request *rq_init = get_dict_request(ECH_D_INITCMD);
+
+  if (true == add_request(rq_init)) {
+    LOG(INFO) << fname << ": " << name() << ": push " << rq_init->name();
+  }
+  else {
+    LOG(WARNING) << fname << ": " << name() << ": unable to push request #" << ECH_D_INITCMD << " (" << Request::name(ECH_D_INITCMD) << ")";
+  }
+
+  return rc;
+}
+
+// ==============================================================================
+// Функция вызывается при необходимости создания Запросов на общий сбор информации (есть, Генерал Контрол!)
+int AcqSiteEntry::cbGeneralControl()
+{
+  int rc = NOK;
+  LOG(INFO) << "cbGeneralControl";
+  return rc;
 }
 
 // ==============================================================================
@@ -201,10 +379,265 @@ int AcqSiteEntry::detach_smad()
 }
 
 // ==============================================================================
+// Управление состояниями СС в зависимости от асинхронных изменений состояния атрибутов
+// SYNTHSTATE, INHIBITION, EXPMODE в БДРВ, приходящих по подписке
+int AcqSiteEntry::change_state(int attribute_idx, int val)
+{
+  char attr_name[100] = "";
+  //
+  int rc = OK;
+  int i_indtrans = 0;
+  const sa_state_t prev_state = m_FunctionalState;
+  const synthstate_t prev_synthstate = m_synthstate;
+  const bool prev_inhibition = m_inhibition;
+  const bool prev_expmode = m_expmode;
+
+  switch (attribute_idx) {
+    case RTDB_ATT_IDX_SYNTHSTATE:
+      if ((SYNTHSTATE_UNREACH <= val) && (val <= SYNTHSTATE_PRE_OPER)) {
+        m_synthstate = static_cast<synthstate_t>(val);
+        sprintf(attr_name, "%s:=%d", RTDB_ATT_SYNTHSTATE, val);
+
+        if (SYNTHSTATE_OPER == m_synthstate)
+          i_indtrans = EGA_EGA_AUT_D_TRANS_O;
+        else
+          i_indtrans = EGA_EGA_AUT_D_TRANS_NO;
+      }
+      else {
+        LOG(ERROR) << name() << ": skip unsupported " << RTDB_ATT_SYNTHSTATE << " value:" << val;
+        rc = NOK;
+      }
+      break;
+
+    case RTDB_ATT_IDX_INHIB:
+      if ((0 == val) || (1 == val)) {
+        m_inhibition = (1 == val);
+        sprintf(attr_name, "%s:=%d", RTDB_ATT_INHIB, val);
+
+        if (1 == m_inhibition)
+          i_indtrans = EGA_EGA_AUT_D_TRANS_I;
+        else
+          i_indtrans = EGA_EGA_AUT_D_TRANS_NI;
+      }
+      else {
+        LOG(ERROR) << name() << ": skip unsupported " << RTDB_ATT_INHIB << " value:" << val;
+        rc = NOK;
+      }
+      break;
+
+    case RTDB_ATT_IDX_EXPMODE:
+      if ((0 == val) || (1 == val)) {
+        m_expmode = (1 == val);
+        sprintf(attr_name, "%s:=%d", RTDB_ATT_EXPMODE, val);
+
+        if (1 == m_expmode)
+          i_indtrans = EGA_EGA_AUT_D_TRANS_E;
+        else
+          i_indtrans = EGA_EGA_AUT_D_TRANS_NE;
+      }
+      else {
+        LOG(ERROR) << name() << ": skip unsupported " << RTDB_ATT_EXPMODE << " value:" << val;
+        rc = NOK;
+      }
+      break;
+
+    default:
+      LOG(ERROR) << name() << ": unsupported attribute idx#" << attribute_idx;
+      rc = NOK;
+  }
+
+  const sa_state_t new_state = m_ega_ega_aut_a_auto[i_indtrans][m_FunctionalState].next_state;
+
+  LOG(INFO) << name() << ": change \"" << attr_name << "\" "
+            << prev_state << " => "
+            << new_state
+            << " (inhib,expmode,syntstate) ("
+            << prev_inhibition << ":"
+            << prev_expmode << ":"
+            << prev_synthstate
+            << ") => ("
+            << m_inhibition << ":"
+            << m_expmode << ":"
+            << m_synthstate
+            << ") "
+            << "[" << i_indtrans << "," << m_FunctionalState << "] "
+            << "act:" << m_ega_ega_aut_a_auto[i_indtrans][m_FunctionalState].action_type;
+
+  switch (m_ega_ega_aut_a_auto[i_indtrans][m_FunctionalState].action_type) {
+    case ACTION_AUTOINIT:
+      rc = cbAutoInit();
+      break;
+
+    case ACTION_GENCONTROL:
+      rc = cbGeneralControl();
+      break;
+
+    case ACTION_NONE:
+    default:
+      break;
+  }
+
+  m_FunctionalState = new_state;
+  return rc;
+}
+
+// ==============================================================================
+// Попытаться добавить в очередь указанный Запрос
+bool AcqSiteEntry::add_request(const Request* new_req)
+{
+  // const char* fname = "AcqSiteEntry::add_request";
+  // Признак - разрешить или запретить указанный Запрос для СС
+  bool permit = false;
+
+  if (new_req->rclass() == Request::AUTOMATIC) {
+    // Automatic request class treatment
+    // ---------------------------------
+    if (state() == EGA_EGA_AUT_D_STATE_NI_NM_NO) {
+      // Автоматические Запросы разрешено подавать только из состояния СС "Не запрещена, не в техобслуживании, не оперативна"
+      permit = true;
+    }
+    else {
+      permit = false;
+    }
+  }
+  else {
+    switch (state()) {
+      // ---------------------------------
+      case EGA_EGA_AUT_D_STATE_NI_NM_O:     // Normal operation state
+        permit = true;
+        break;
+
+      // ---------------------------------
+      case EGA_EGA_AUT_D_STATE_I_NM_NO:     // Inhibition states
+      case EGA_EGA_AUT_D_STATE_I_M_NO:
+      case EGA_EGA_AUT_D_STATE_I_M_O:
+      case EGA_EGA_AUT_D_STATE_I_NM_O:
+        permit = false;
+        break;
+
+      // ---------------------------------
+      case EGA_EGA_AUT_D_STATE_NI_M_O:      // Dispatcher requests only
+        if (new_req->rclass() != Request::ASYNC) {
+          permit = false;
+        }
+        else {
+          permit = true;
+        }
+        break;
+
+      case EGA_EGA_AUT_D_STATE_NI_NM_NO:
+        // Acquisition systems requests only
+        // ---------------------------------
+        if (new_req->rprocess() == true) {
+          permit = false;
+        }
+        else {
+          if (new_req->id() != ECH_D_SERVCMD) {
+            permit = true;
+          }
+        }
+        break;
+
+      case EGA_EGA_AUT_D_STATE_NI_M_NO:
+        if (new_req->rclass() == Request::ASYNC) {
+          permit = true;
+        }
+        else {
+          permit = false;
+        }
+        break;
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#if 0
+    if (state() == EGA_EGA_AUT_D_STATE_NI_NM_O) {
+      // Normal operation state
+      // ---------------------------------
+      permit = true;
+    }
+    else if ((state() == EGA_EGA_AUT_D_STATE_I_NM_NO) ||
+       (state() == EGA_EGA_AUT_D_STATE_I_M_NO) ||
+       (state() == EGA_EGA_AUT_D_STATE_I_M_O) ||
+       (state() == EGA_EGA_AUT_D_STATE_I_NM_O) )
+    {
+      // Inhibition state
+      // ---------------------------------
+      permit = false;
+    }
+    else {
+      // Others states
+      // ---------------------------------
+/* -------------------------------------------------------------------------- */
+/*  Remarques :
+    ---------
+ new_req->b_Requestprocess = TRUE for processed request
+ new_req->b_Requestprocess = FALSE for SA request
+ e_RequestClass = FALSE for dispatcher request
+ e_RequestClass = TRUE for another request class
+                                                                              */
+/* -------------------------------------------------------------------------- */
+      // Dispatcher requests only
+      // ------------------------
+      if (state() == EGA_EGA_AUT_D_STATE_NI_M_O)   {
+        if (new_req->rclass() != Request::ASYNC) {
+          permit = false;
+        }
+        else {
+          permit = true;
+        }
+      }
+      else if (state() == EGA_EGA_AUT_D_STATE_NI_NM_NO) {
+        // Acquisition systems requests only
+        // ---------------------------------
+        if (new_req->rprocess() == true) {
+          permit = false;
+        }
+        else {
+          if (new_req->id() != ECH_D_SERVCMD) {
+            permit = true;
+          }
+        }
+      }
+      else if (state() == EGA_EGA_AUT_D_STATE_NI_M_NO) {
+        if (new_req->rclass() == Request::ASYNC) {
+          permit = true;
+        }
+        else {
+          permit = false;
+        }
+      }
+    } // end if other request
+#endif
+  } // end if automat request
+
+  return permit;
+}
+
+#if 0
+// ==============================================================================
 #warning "Продолжить тут - Реализовать машину состояний CC"
 // Изменение состояния СС вызывают изменения в очереди Запросов
 // TODO: Реализовать машину состояний
-sa_state_t AcqSiteEntry::change_state_to(sa_state_t new_state)
+int AcqSiteEntry::change_state_to(sa_state_t new_state)
 {
   bool state_changed = false;
 
@@ -235,6 +668,7 @@ sa_state_t AcqSiteEntry::change_state_to(sa_state_t new_state)
         // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
         case SA_STATE_INHIBITED:
         case SA_STATE_FAULT:
+        case SA_STATE_MAINTENANCE:
         case SA_STATE_DISCONNECTED:
           state_changed = true;
           // TODO: удалить возможно оставшиеся в очереди Запросы
@@ -269,6 +703,7 @@ sa_state_t AcqSiteEntry::change_state_to(sa_state_t new_state)
         // ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
         case SA_STATE_INHIBITED:
         case SA_STATE_FAULT:
+        case SA_STATE_MAINTENANCE:
         case SA_STATE_DISCONNECTED:
           state_changed = true;
           // TODO: удалить возможно оставшиеся в очереди Запросы
@@ -288,6 +723,7 @@ sa_state_t AcqSiteEntry::change_state_to(sa_state_t new_state)
         case SA_STATE_PRE_OPER: break;
         case SA_STATE_INHIBITED: break;
         case SA_STATE_FAULT: break;
+        case SA_STATE_MAINTENANCE: break;
         case SA_STATE_DISCONNECTED: break;
       }
       break;
@@ -302,6 +738,7 @@ sa_state_t AcqSiteEntry::change_state_to(sa_state_t new_state)
         case SA_STATE_PRE_OPER: break;
         case SA_STATE_INHIBITED: break;
         case SA_STATE_FAULT: break;
+        case SA_STATE_MAINTENANCE: break;
         case SA_STATE_DISCONNECTED: break;
       }
       break;
@@ -316,6 +753,7 @@ sa_state_t AcqSiteEntry::change_state_to(sa_state_t new_state)
         case SA_STATE_PRE_OPER: break;
         case SA_STATE_INHIBITED: break;
         case SA_STATE_FAULT: break;
+        case SA_STATE_MAINTENANCE: break;
         case SA_STATE_DISCONNECTED: break;
       }
 
@@ -331,8 +769,14 @@ sa_state_t AcqSiteEntry::change_state_to(sa_state_t new_state)
         case SA_STATE_PRE_OPER: break;
         case SA_STATE_INHIBITED: break;
         case SA_STATE_FAULT: break;
+        case SA_STATE_MAINTENANCE: break;
         case SA_STATE_DISCONNECTED: break;
       }
+      break;
+
+    // --------------------------------------------------------------------------
+    case SA_STATE_MAINTENANCE: // техобслуживание
+    // --------------------------------------------------------------------------
       break;
 
     // --------------------------------------------------------------------------
@@ -345,6 +789,7 @@ sa_state_t AcqSiteEntry::change_state_to(sa_state_t new_state)
         case SA_STATE_PRE_OPER: break;
         case SA_STATE_INHIBITED: break;
         case SA_STATE_FAULT: break;
+        case SA_STATE_MAINTENANCE: break;
         case SA_STATE_DISCONNECTED: break;
       }
       break;
@@ -353,9 +798,11 @@ sa_state_t AcqSiteEntry::change_state_to(sa_state_t new_state)
   if (state_changed) {
     LOG(INFO) << name() << ": state was changed from " << m_FunctionalState << " to " << new_state;
   }
+
   m_FunctionalState = new_state;
   return m_FunctionalState;
 }
+#endif
 
 // ==============================================================================
 // Запомнить связку между Циклом и последовательностью Запросов
@@ -521,7 +968,7 @@ int AcqSiteList::release()
        ++it)
   {
     LOG(INFO) << "release site " << (*(*it))->name();
-    AcqSiteEntry *entry = *(*it); 
+    AcqSiteEntry *entry = *(*it);
     (*it).reset();
     delete entry;
   }

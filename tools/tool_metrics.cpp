@@ -78,7 +78,7 @@ void UsageRow::add(const thread_stat_t& _item)
 
   if (_item.ru_rss > m_pstat_max.ru_rss)
     m_pstat_max.ru_rss = _item.ru_rss;
-  
+
   // 2. анализ поля between_2_requests
   // =================================
   if (_item.between_2_requests < m_pstat_min.between_2_requests)
@@ -94,7 +94,7 @@ void UsageRow::add(const thread_stat_t& _item)
 
   if (_item.ucpu_usage_pct > m_pstat_max.ucpu_usage_pct)
     m_pstat_max.ucpu_usage_pct = _item.ucpu_usage_pct;
-  
+
   // 4. анализ поля ucpu_usage
   // =================================
   if (_item.ucpu_usage < m_pstat_min.ucpu_usage)
@@ -193,7 +193,7 @@ void UsageRow::add(const thread_stat_t& _item)
             << "\ts#:"      << m_pstat_min.scpu_usage
             << std::endl;
 #endif
-  
+
   std::cout << "avg\trss:"  << m_pstat_avg.ru_rss
             << "\tb2r:"     << m_pstat_avg.between_2_requests
             << "\tpd:"      << m_pstat_avg.processing_duration
@@ -262,7 +262,7 @@ void Metrics::after()
   struct timeval diff_usr;
 
   // Поле m_time_after пока еще содержит время с момента окончания предыдущего запроса.
-  // Следует вычесть это значение из времени начала текущего запроса для получения 
+  // Следует вычесть это значение из времени начала текущего запроса для получения
   // интервала между двумя запросами.
   if (m_time_after.tv_sec && m_time_after.tv_nsec)
     m_thread_stat.between_2_requests = timeSeconds(timeDiff(m_time_after, m_time_before));

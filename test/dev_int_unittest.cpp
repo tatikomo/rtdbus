@@ -223,7 +223,7 @@ TEST(TestHelper, CLOCK)
 
   EXPECT_TRUE (1 >= (future_time.tv_sec - now_time.tv_sec));
   // 1млрд = одна секунда, добавим 200тыс (2 мсек) для погрешности.
-  EXPECT_TRUE (200000 > 
+  EXPECT_TRUE (200000 >
         ((future_time.tv_nsec + future_time.tv_sec * 1.0e9) - (now_time.tv_nsec + now_time.tv_sec * 1.0e9)
           - 5.0e8));
 
@@ -333,11 +333,11 @@ TEST(TestProxy, RUNTIME_VERSION)
    //  ---------------------------------------------------------------------
    //  Deletes worker from all data structures, and destroys worker
 +  !void worker_delete (Worker *&wrk, int disconnect);
-   заменено на 
+   заменено на
 +  void release (Worker *&wrk, int disconnect);
 
    //  ---------------------------------------------------------------------
-   //  Processes one READY, REPORT, HEARTBEAT or  DISCONNECT message 
+   //  Processes one READY, REPORT, HEARTBEAT or  DISCONNECT message
    //  sent to the broker by a worker
    void worker_msg (const std::string& sender, zmsg *msg);
 
@@ -428,8 +428,8 @@ TEST(TestProxy, BROKER_INTERNAL)
 }
 
 
-/* 
- * Проверить механизм массового занесения сообщений в спул Службы, без привязки 
+/*
+ * Проверить механизм массового занесения сообщений в спул Службы, без привязки
  * к Обработчикам.
  *
  * NB: service1 уже существует

@@ -38,7 +38,7 @@ AcquisitionSystemConfig::AcquisitionSystemConfig(const std::string& config)
   m_sa_common.error_nb = 2;     // Количество последовательных ошибок связи до диагностики разрыва связи
   m_sa_common.byte_order = SA_BYTEORDER_ABCD;   // Порядок байт СС
   m_sa_common.nature = GOF_D_SAC_NATURE_EUNK;   // Неизвестный тип СС
-  m_sa_common.subtract = 0;     // Признак необходимости вычитания единицы из адреса 
+  m_sa_common.subtract = 0;     // Признак необходимости вычитания единицы из адреса
   m_sa_common.channel = SA_MODE_UNKNOWN;      // Тип канала доступа к серверу, MODBUS-{TCP|RTU}, OPC-UA
   m_sa_common.trace_level = 1;
 
@@ -250,7 +250,7 @@ int AcquisitionSystemConfig::load_parameters(sa_parameters_t* in, sa_parameters_
 
       if (info.type != SA_PARAM_TYPE_UNK) {
         // Для параметров данных типов может присутствовать параметр ADDR
-        
+
         if (include) { // Этот параметр попадает в БДРВ
 
             assert(acq_item.HasMember(s_PARAM_TYPESUP));
@@ -287,13 +287,13 @@ int AcquisitionSystemConfig::load_parameters(sa_parameters_t* in, sa_parameters_
                 info.support = MBUS_TYPE_SUPPORT_DP;
             }
             else {
-                LOG(ERROR) << fname << ": unknown support type: " << type_support 
+                LOG(ERROR) << fname << ": unknown support type: " << type_support
                            << " for parameter " << name;
             }
 
             LOG(INFO) << "address: " << info.address << ", support type: "
                       << type_support << " (" << info.support << ")";
- 
+
             // Выполнить проверки возможности указанных ограничений для параметра.
             // Если проверки не прошли, игнорируем этот параметр.
             test_constrains_correct = check_constrains(info);
@@ -310,7 +310,7 @@ int AcquisitionSystemConfig::load_parameters(sa_parameters_t* in, sa_parameters_
       } // Конец блока "тип параметра успешно определился"
 
     } // Конец перебора всех собираемых от системы сбора параметров
-  } // Конец проверки, необходимости сбора информации по входным параметрам 
+  } // Конец проверки, необходимости сбора информации по входным параметрам
 
   if (out) {
     // Получение списка параметров для передачи серверу
@@ -332,7 +332,7 @@ bool AcquisitionSystemConfig::check_constrains(const sa_parameter_info_t& info)
      if ((info.low_fis == info.high_fis) || (info.low_fan == info.high_fan)) {
        status = false;
        LOG(WARNING) << "HR-IR: edges of intervals must not be equivalent for " << info.name;
-     } 
+     }
   }
 
   return status;
@@ -594,7 +594,7 @@ int AcquisitionSystemConfig::load_common(sa_common_t& common)
           rtu_info.flow_control = SOFTWARE;
           rtu_info.nbit = 8;
           rtu_info.start_stop = 1;
-            
+
           if (srv_item.HasMember(s_SERVICE_DEVICE)) {
             strncpy(rtu_info.dev_name, srv_item[s_SERVICE_DEVICE].GetString(), MAX_DEVICE_FILENAME_LENGTH);
             rtu_info.dev_name[MAX_DEVICE_FILENAME_LENGTH] = '\0';

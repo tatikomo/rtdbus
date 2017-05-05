@@ -150,7 +150,7 @@ const char *HistoricImpl::s_SQL_CREATE_TABLE_DATA_TEMPLATE =
         "FOREIGN KEY (TagID) REFERENCES %s(TagId) ON DELETE CASCADE"
         ");";
 
-const char *HistoricImpl::s_SQL_CREATE_INDEX_DATA_TEMPLATE = 
+const char *HistoricImpl::s_SQL_CREATE_INDEX_DATA_TEMPLATE =
         "CREATE INDEX IF NOT EXISTS TimestampIndex "
         "ON %s (\"Timestamp\" ASC);";
 
@@ -222,7 +222,7 @@ bool HistoricImpl::Connect()
   // Подключиться к БДРВ, если необходимо
   if (m_rtdb_env) {
     LOG(INFO) << "Prepare to attach to RTDB and HDB after";
-    // 
+    //
     if (true == (status = rtdb_connect()))
     {
       // Получить из БДРВ перечень точек, имеющих предысторию
@@ -249,7 +249,7 @@ bool HistoricImpl::Connect()
     else
     {
       LOG(FATAL) << "Unable to connect to RTDB";
-    }    
+    }
   }
   else { // подключаться к БДРВ не требуется, только к HDB
     LOG(INFO) << "Prepare to attach to HDB only";
@@ -288,7 +288,7 @@ bool HistoricImpl::createIndexes()
   bool created = false;
   char sql_operator[MAX_BUFFER_SIZE_FOR_SQL_COMMAND + 1];
   int printed;
-  
+
   // Таблицы созданы успешно, создадим индексы
   printed = snprintf(sql_operator,
                      MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
@@ -1567,7 +1567,7 @@ bool HistoricImpl::Make(time_t current)
   const char *fname = "Make";
   struct tm edge;
   bool sampling_status = false;
-  
+
   assert(m_rtdb_env != NULL);
   assert(m_rtdb_conn != NULL);
 

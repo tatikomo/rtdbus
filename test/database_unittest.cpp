@@ -83,7 +83,7 @@ xdb::RtApplication* app = NULL;
 xdb::RtEnvironment* env = NULL;
 xdb::RtConnection* connection = NULL;
 
-/* 
+/*
  * Содержимое базы данных RTDB после чтения из файла classes.xml
  * Инициализируется в функции TestTools.LOAD_XML
  * Используется в функции TestRtapDATABASE.CREATE
@@ -107,7 +107,7 @@ static void wait()
 static void show_runtime_info(const char * lead_line)
 {
   mco_runtime_info_t info;
-  
+
   /* get runtime info */
   mco_get_runtime_info(&info);
 
@@ -135,7 +135,7 @@ static void show_runtime_info(const char * lead_line)
   fprintf( stdout, "\tC runtime _______________ : %s\n", info.mco_rtl_supported        ? "yes":"no" );
   fprintf( stdout, "\tSQL support _____________ : %s\n", info.mco_sql_supported        ? "yes":"no" );
   fprintf( stdout, "\tPersistent storage support: %s\n", info.mco_disk_supported       ? "yes":"no" );
-  fprintf( stdout, "\tDirect pointers mode ____ : %s\n", info.mco_direct_pointers      ? "yes":"no" );  
+  fprintf( stdout, "\tDirect pointers mode ____ : %s\n", info.mco_direct_pointers      ? "yes":"no" );
 }
 
 // ===========================================================================
@@ -286,7 +286,7 @@ TEST(TestBrokerDATABASE, INSERT_WORKER)
     delete worker0;
 
     /*
-     * УСПЕШНО 
+     * УСПЕШНО
      * Поместить первого Обработчика в спул Службы
      */
     worker1_1 = new xdb::Worker(service1_id, worker_identity_1);
@@ -300,7 +300,7 @@ TEST(TestBrokerDATABASE, INSERT_WORKER)
 
     /*
      * УСПЕШНО
-     * Повторная регистрация Обработчика с идентификатором, который там уже 
+     * Повторная регистрация Обработчика с идентификатором, который там уже
      * присутствует.
      * Должно призойти замещение предыдущего экземпляра Обработчика worker_identity_1
      */
@@ -313,7 +313,7 @@ TEST(TestBrokerDATABASE, INSERT_WORKER)
     EXPECT_EQ(worker1_1->GetID(), worker1_2->GetID());
     wait();
 
-    /* 
+    /*
      * УСПЕШНО
      * Можно поместить нескольких Обработчиков с разными идентификаторами
      */
@@ -326,9 +326,9 @@ TEST(TestBrokerDATABASE, INSERT_WORKER)
     EXPECT_NE(worker1_2->GetID(), worker2->GetID());
     wait();
 
-    /* 
+    /*
      * УСПЕШНО
-     * Помещение экземпляра в спул второго Сервиса 
+     * Помещение экземпляра в спул второго Сервиса
      */
     worker3 = new xdb::Worker(service2_id, worker_identity_3);
     status = database->PushWorker(worker3);
@@ -362,7 +362,7 @@ TEST(TestBrokerDATABASE, REMOVE_WORKER)
 #if defined VERBOSE
     std::cout << "worker: '" << worker->GetIDENTITY() << "' "
               << "state: " << worker->GetSTATE() << " "
-              << "expiration: " 
+              << "expiration: "
               << expiration_time_mark.tv_sec << "."
               << expiration_time_mark.tv_nsec << std::endl;
 #endif
@@ -387,7 +387,7 @@ TEST(TestBrokerDATABASE, REMOVE_WORKER)
 #if defined VERBOSE
     std::cout << "worker: '" << worker->GetIDENTITY() << "' "
               << "state: " << worker->GetSTATE() << " "
-              << "expiration: " 
+              << "expiration: "
               << expiration_time_mark.tv_sec << "."
               << expiration_time_mark.tv_nsec << std::endl;
 #endif
@@ -405,7 +405,7 @@ TEST(TestBrokerDATABASE, REMOVE_WORKER)
     /*
      * У Сервиса-1 было зарегистрировано только два Обработчика,
      * и они все только что были удалены RemoveWorker-ом.
-     * Эта попытка получения Обработчика из спула не должна ничего 
+     * Эта попытка получения Обработчика из спула не должна ничего
      * возвращать, т.к. у Сервиса1 нет Обработчиков в состоянии ARMED
      */
     worker = database->PopWorker(service1);
@@ -440,7 +440,7 @@ TEST(TestBrokerDATABASE, CHECK_SERVICE)
 {
     bool status;
     xdb::Service *service = NULL;
-    
+
     status = database->IsServiceExist(service_name_1);
     EXPECT_EQ(status, true);
 
@@ -490,7 +490,7 @@ TEST(TestBrokerDATABASE, SERVICE_LIST)
     srv = services_list->next();
   }
 
-  // Создать список из Сервисов и инициировать его из БД. 
+  // Создать список из Сервисов и инициировать его из БД.
 //  srv_array = services_list->getList();
 //  ASSERT_TRUE(srv_array != NULL);
 }
@@ -647,7 +647,7 @@ TEST(TestDiggerDATABASE, CREATION)
   EXPECT_EQ(env->getLastError().getCode(), xdb::rtE_NONE);
   EXPECT_EQ(env->getLastError().getCode(), err.getCode());
 
-  // Проверка корректности получения экземпляра Среды с одним 
+  // Проверка корректности получения экземпляра Среды с одним
   // названием и невозможности появления её дубликата
   env1 = app->loadEnvironment(RTDB_NAME);
   ASSERT_TRUE(env1 != NULL);
@@ -991,7 +991,7 @@ TEST(TestDiggerDATABASE, CREATE_SBS)
   // Название точек, входящих в набор создаваемой группы
   operation.tags = &tags_list;
   operation.addrCnt = tags_list.size();
-  
+
   const Error& status_1 = connection->ConfigDatabase(operation);
   EXPECT_EQ(status_1.code(), rtE_NONE);
   std::cout << "Create subscription group was: " << status_1.what() << std::endl;
@@ -1211,7 +1211,7 @@ TEST(TestDiggerDATABASE, DISARM_SBS)
   Error status;
   int sbs_items_old_count = 0;
   int sbs_items_new_count = 0;
- 
+
   // Получим список модифицированных точек этой группы
   tags.push_back(group_name_2);
   operation.action.query = rtQUERY_SBS_POINTS_ARMED;
@@ -1332,7 +1332,7 @@ TEST(TestTools, LOAD_DICT_XML)
 
     CE_ITEM_p.parsers (Identifier_p,
                   ActionScript_p);
-                  
+
     INFO_TYPES_p.parsers (ObjClassEntry_p,
                           InfoTypeEntry_p,
                           string_p);
@@ -1517,14 +1517,14 @@ TEST(TestTools, LOAD_CLASSES)
     if (pool)
     {
 #if defined VERBOSE
-        std::cout << "#" << objclass_idx << " : " 
-            << xdb::ClassDescriptionTable[objclass_idx].name 
+        std::cout << "#" << objclass_idx << " : "
+            << xdb::ClassDescriptionTable[objclass_idx].name
             << "(" << pool->size() << ")" << std::endl;
 #endif
 
         for (xdb::AttributeMap_t::const_iterator it = pool->begin(); it != pool->end(); ++it)
         {
-            sprintf(msg_info, "\"%s\" : %02d", 
+            sprintf(msg_info, "\"%s\" : %02d",
                 it->second.name.c_str(), it->second.type);
 
             switch(it->second.type)
@@ -1575,7 +1575,7 @@ TEST(TestTools, LOAD_CLASSES)
               case xdb::DB_TYPE_BYTES80:
               case xdb::DB_TYPE_BYTES128:
               case xdb::DB_TYPE_BYTES256:
-                  sprintf(msg_val, "[%02X] \"%s\"", 
+                  sprintf(msg_val, "[%02X] \"%s\"",
                     it->second.value.dynamic.size,
                     it->second.value.dynamic.varchar);
                   break;
@@ -1676,7 +1676,7 @@ TEST(TestHIST, HIST_LOAD)
   char s_tag[TAG_NAME_MAXLEN + 1] = HIST_TEST_POINT_NAME;
   historized_attributes_t historized[MAX_PORTION_SIZE_LOADED_HISTORY];
   int loaded;
-  
+
   LOG(INFO) << "Loading history of " << s_tag << " from HDB";
   loaded = historic->load_samples_period_per_tag(s_tag,
                                  existance,
@@ -1834,7 +1834,7 @@ TEST(TestHIST, HIST_MAKE_SAMPLES)
   while (redisGetReply(redis_context, &v_reply) == REDIS_OK) {
     freeReplyObject(v_reply);
   }
-  
+
   if (0 < num_items) {
     LOG(ERROR) << "Part of samplings (" << num_items << ") are not storing in history database";
     is_success = false;

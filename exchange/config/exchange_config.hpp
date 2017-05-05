@@ -185,31 +185,17 @@ typedef enum {
 } sa_object_level_t;
 
 // ---------------------------------------------------------
-// Состояние системы сбора
+// Значения атрибута SYNTHSTATE
+// NB: Значения синхронизированы со схемой rtap_db, структура SynthState, а также с ГОФО:
+// GOF_D_BDR_SYNTHSTATE_UNR	    0
+// GOF_D_BDR_SYNTHSTATE_OP		1
+// GOF_D_BDR_SYNTHSTATE_PREOP	2
+// 
 typedef enum {
-  SA_STATE_UNREACH  = 0,  // Недоступна
-  SA_STATE_OPER     = 1,  // Оперативная работа
-  SA_STATE_PRE_OPER = 2,  // В процессе инициализации
-  SA_STATE_INHIBITED    = 3,    // СС в состоянии запрета работы
-  SA_STATE_FAULT        = 4,    // СС в сбойном состоянии
-  SA_STATE_DISCONNECTED = 5,    // СС не подключена
-  SA_STATE_UNKNOWN  = 6         // Неопределенное состояние
-} sa_state_t;
-
-static inline sa_state_t int_to_sa_state(int val) {
-  sa_state_t state = SA_STATE_UNKNOWN;
-  switch (val) {
-    case 0: state = SA_STATE_UNREACH;   break;
-    case 1: state = SA_STATE_OPER;      break;
-    case 2: state = SA_STATE_PRE_OPER;  break;
-    case 3: state = SA_STATE_INHIBITED; break;
-    case 4: state = SA_STATE_FAULT;     break;
-    case 5: state = SA_STATE_DISCONNECTED; break;
-    case -1:
-    default: break;
-  }
-  return state;
-}
+  SYNTHSTATE_UNREACH    = 0,
+  SYNTHSTATE_OPER       = 1,
+  SYNTHSTATE_PRE_OPER   = 2
+} synthstate_t;
 
 // ---------------------------------------------------------
 // definition of the nature of a Sac (site of acquisition)
