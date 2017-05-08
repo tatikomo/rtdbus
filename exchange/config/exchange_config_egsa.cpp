@@ -71,6 +71,7 @@ const char* EgsaConfig::s_CYCLENAME_URGINFOS         = "URGINFOS";
 const char* EgsaConfig::s_CYCLENAME_INFOSACQ_URG     = "INFOSACQ_URG";
 const char* EgsaConfig::s_CYCLENAME_INFOSACQ         = "INFOSACQ";
 const char* EgsaConfig::s_CYCLENAME_INFO_DACQ_DIPADJ = "INFO_DACQ_DIPADJ";
+const char* EgsaConfig::s_CYCLENAME_INFO_DIFF_DIPADJ = "INFO_DIFF_DIPADJ";
 const char* EgsaConfig::s_CYCLENAME_GEN_GACQ_DIPADJ  = "GEN_GACQ_DIPADJ";
 const char* EgsaConfig::s_CYCLENAME_GCP_PGACQ_DIPL   = "GCS_SGACQ_DIPL";
 const char* EgsaConfig::s_CYCLENAME_GCS_SGACQ_DIPL   = "GCS_SGACQ_DIPL";
@@ -88,6 +89,7 @@ cycle_dictionary_item_t EgsaConfig::g_cycle_dictionary[] = {
   { ID_CYCLE_INFOSACQ_URG,      EgsaConfig::s_CYCLENAME_INFOSACQ_URG    },
   { ID_CYCLE_INFOSACQ,          EgsaConfig::s_CYCLENAME_INFOSACQ        },
   { ID_CYCLE_INFO_DACQ_DIPADJ,  EgsaConfig::s_CYCLENAME_INFO_DACQ_DIPADJ},
+  { ID_CYCLE_INFO_DIFF_DIPADJ,  EgsaConfig::s_CYCLENAME_INFO_DIFF_DIPADJ},
   { ID_CYCLE_GEN_GACQ_DIPADJ,   EgsaConfig::s_CYCLENAME_GEN_GACQ_DIPADJ },
   { ID_CYCLE_GCP_PGACQ_DIPL,    EgsaConfig::s_CYCLENAME_GCP_PGACQ_DIPL  },
   { ID_CYCLE_GCS_SGACQ_DIPL,    EgsaConfig::s_CYCLENAME_GCS_SGACQ_DIPL  },
@@ -100,42 +102,79 @@ cycle_dictionary_item_t EgsaConfig::g_cycle_dictionary[] = {
   { ID_CYCLE_GCT_TGACQ_DIPL,    EgsaConfig::s_CYCLENAME_GCT_TGACQ_DIPL  },
   { ID_CYCLE_UNKNOWN,           NULL                                    }
 };
+
 // ==========================================================================================================
-ega_ega_odm_t_RequestEntry EgsaConfig::g_request_dictionary[] = {
-// Идентификатор запроса
-// |                    Название запроса
-// |                    |                         Приоритет
-// |                    |                         |   Тип объекта - информация, СС, оборудование
-// |                    |                         |   |       Режим сбора - дифференциальный или нет
-// |                    |                         |   |       |              Признак отношения запроса:
-// |                    |                         |   |       |              к технологическим данным (1)
-// |                    |                         |   |       |              к состоянию системы сбора (0)
-// |                    |                         |   |       |              |      Вложенные запросы
-// |                    |                         |   |       |              |      (Ненулевое значение говорит о количестве
-// |                    |                         |   |       |              |      подзапросов подобного типа)
-// |                    |                         |   |       |              |      |
-  {ECH_D_GENCONTROL,    EGA_EGA_D_STRGENCONTROL,  80, ACQSYS, NONDIFF,       true,  {} },   // 0
-  {ECH_D_INFOSACQ,      EGA_EGA_D_STRINFOSACQ,    80, ACQSYS, DIFF,          true,  {} },   // 1
-  {ECH_D_URGINFOS,      EGA_EGA_D_STRURGINFOS,    80, ACQSYS, DIFF,          true,  {} },   // 2
-  {ECH_D_GAZPROCOP,     EGA_EGA_D_STRGAZPROCOP,   80, ACQSYS, NONDIFF,       false, {} },   // 3 - не используется, игнорировать
-  {ECH_D_EQUIPACQ,      EGA_EGA_D_STREQUIPACQ,    80, EQUIP,  NONDIFF,       true,  {} },   // 4
-  {ECH_D_ACQSYSACQ,     EGA_EGA_D_STRACQSYSACQ,   80, ACQSYS, NONDIFF,       false, {} },   // 5
-  {ECH_D_ALATHRES,      EGA_EGA_D_STRALATHRES,    80, ACQSYS, DIFF,          true,  {} },   // 6
-  {ECH_D_TELECMD,       EGA_EGA_D_STRTELECMD,    101, INFO,   NOT_SPECIFIED, true,  {} },   // 7
-  {ECH_D_TELEREGU,      EGA_EGA_D_STRTELEREGU,   101, INFO,   NOT_SPECIFIED, true,  {} },   // 8
-  {ECH_D_SERVCMD,       EGA_EGA_D_STRSERVCMD,     80, ACQSYS, NOT_SPECIFIED, false, {} },   // 9
-  {ECH_D_GLOBDWLOAD,    EGA_EGA_D_STRGLOBDWLOAD,  80, ACQSYS, NOT_SPECIFIED, false, {} },   // 10
-  {ECH_D_PARTDWLOAD,    EGA_EGA_D_STRPARTDWLOAD,  80, ACQSYS, NOT_SPECIFIED, false, {} },   // 11
-  {ECH_D_GLOBUPLOAD,    EGA_EGA_D_STRGLOBUPLOAD,  80, ACQSYS, NOT_SPECIFIED, false, {} },   // 12
-  {ECH_D_INITCMD,       EGA_EGA_D_STRINITCMD,     82, ACQSYS, NOT_SPECIFIED, false, {} },   // 13
-  {ECH_D_GCPRIMARY,     EGA_EGA_D_STRGCPRIMARY,   80, ACQSYS, NONDIFF,       true,  {} },   // 14
-  {ECH_D_GCSECOND,      EGA_EGA_D_STRGCSECOND,    80, ACQSYS, NONDIFF,       true,  {} },   // 15
-  {ECH_D_GCTERTIARY,    EGA_EGA_D_STRGCTERTIARY,  80, ACQSYS, NONDIFF,       true,  {} },   // 16
-  {ECH_D_DIFFPRIMARY,   EGA_EGA_D_STRIAPRIMARY,   80, ACQSYS, DIFF,          true,  {} },   // 17
-  {ECH_D_DIFFSECOND,    EGA_EGA_D_STRIASECOND,    80, ACQSYS, DIFF,          true,  {} },   // 18
-  {ECH_D_DIFFTERTIARY,  EGA_EGA_D_STRIATERTIARY,  80, ACQSYS, DIFF,          true,  {} },   // 19
-  {ECH_D_INFODIFFUSION, EGA_EGA_D_STRINFOSDIFF,   80, ACQSYS, NONDIFF,       true,  {} },   // 20
-  {ECH_D_DELEGATION,    EGA_EGA_D_STRDELEGATION,  80, ACQSYS, NOT_SPECIFIED, true,  {} }    // 21
+// Запросы в адрес подчиненных систем сбора - с префиксом EGA
+// Запросы в адрес смежных информационных систем - с префиксом ESG (esg_esg_d.h, esg_esg_odm_p.h, esg_esg_odm_OperDataManage.c)
+RequestEntry EgsaConfig::g_request_dictionary[] = {
+//         Идентификатор запроса
+//         |                      Название запроса
+//         |                      |                         Приоритет (меньше значение - меньше приоритет)
+//         |                      |                         |   Тип объекта - информация, СС, оборудование
+//         |                      |                         |   |       Режим сбора - дифференциальный (без запроса сервера)
+//         |                      |                         |   |       или нет (запрос-ответ)
+//         |                      |                         |   |       |              Признак отношения запроса:
+//         |                      |                         |   |       |              к технологическим данным (true)
+//         |                      |                         |   |       |              к состоянию системы сбора (false)
+//         |                      |                         |   |       |              |      Вложенные запросы
+//         |                      |                         |   |       |              |      (Ненулевое значение говорит о количестве
+//         |                      |                         |   |       |              |      подзапросов подобного типа)
+//         |                      |                         |   |       |              |      |
+/* 00 */  {EGA_GENCONTROL,        EGA_EGA_D_STRGENCONTROL,  80, ACQSYS, NONDIFF,       true,  {} },
+/* 01 */  {EGA_INFOSACQ,          EGA_EGA_D_STRINFOSACQ,    80, ACQSYS, DIFF,          true,  {} },
+/* 02 */  {EGA_URGINFOS,          EGA_EGA_D_STRURGINFOS,    80, ACQSYS, DIFF,          true,  {} },
+/* 03 */  {EGA_GAZPROCOP,         EGA_EGA_D_STRGAZPROCOP,   80, ACQSYS, NONDIFF,       false, {} },
+/* 04 */  {EGA_EQUIPACQ,          EGA_EGA_D_STREQUIPACQ,    80, EQUIP,  NONDIFF,       true,  {} },
+/* 05 */  {EGA_ACQSYSACQ,         EGA_EGA_D_STRACQSYSACQ,   80, ACQSYS, NONDIFF,       false, {} },
+/* 06 */  {EGA_ALATHRES,          EGA_EGA_D_STRALATHRES,    80, ACQSYS, DIFF,          true,  {} },
+/* 07 */  {EGA_TELECMD,           EGA_EGA_D_STRTELECMD,    101, INFO,   NOT_SPECIFIED, true,  {} },
+/* 08 */  {EGA_TELEREGU,          EGA_EGA_D_STRTELEREGU,   101, INFO,   NOT_SPECIFIED, true,  {} },
+/* 09 */  {EGA_SERVCMD,           EGA_EGA_D_STRSERVCMD,     80, ACQSYS, NOT_SPECIFIED, false, {} },
+/* 10 */  {EGA_GLOBDWLOAD,        EGA_EGA_D_STRGLOBDWLOAD,  80, ACQSYS, NOT_SPECIFIED, false, {} },
+/* 11 */  {EGA_PARTDWLOAD,        EGA_EGA_D_STRPARTDWLOAD,  80, ACQSYS, NOT_SPECIFIED, false, {} },
+/* 12 */  {EGA_GLOBUPLOAD,        EGA_EGA_D_STRGLOBUPLOAD,  80, ACQSYS, NOT_SPECIFIED, false, {} },
+/* 13 */  {EGA_INITCMD,           EGA_EGA_D_STRINITCMD,     82, ACQSYS, NOT_SPECIFIED, false, {} },
+/* 14 */  {EGA_GCPRIMARY,         EGA_EGA_D_STRGCPRIMARY,   80, ACQSYS, NONDIFF,       true,  {} },
+/* 15 */  {EGA_GCSECOND,          EGA_EGA_D_STRGCSECOND,    80, ACQSYS, NONDIFF,       true,  {} },
+/* 16 */  {EGA_GCTERTIARY,        EGA_EGA_D_STRGCTERTIARY,  80, ACQSYS, NONDIFF,       true,  {} },
+/* 17 */  {EGA_DIFFPRIMARY,       EGA_EGA_D_STRIAPRIMARY,   80, ACQSYS, DIFF,          true,  {} },
+/* 18 */  {EGA_DIFFSECOND,        EGA_EGA_D_STRIASECOND,    80, ACQSYS, DIFF,          true,  {} },
+/* 19 */  {EGA_DIFFTERTIARY,      EGA_EGA_D_STRIATERTIARY,  80, ACQSYS, DIFF,          true,  {} },
+/* 20 */  {EGA_INFODIFFUSION,     EGA_EGA_D_STRINFOSDIFF,   80, ACQSYS, NONDIFF,       true,  {} },
+/* 21 */  {EGA_DELEGATION,        EGA_EGA_D_STRDELEGATION,  80, ACQSYS, NOT_SPECIFIED, true,  {} },
+//
+//         Идентификатор запроса
+//         |                      Название запроса
+//         |                      |                               Приоритет
+//         |                      |                               |   Тип объекта - информация, СС, оборудование
+//         |                      |                               |   |       Режим сбора - дифференциальный (без запроса сервера)
+//         |                      |                               |   |       или нет (запрос-ответ)
+//         |                      |                               |   |       |        Признак отношения запроса:
+//         |                      |                               |   |       |        к технологическим данным (true)
+//         |                      |                               |   |       |        к состоянию системы сбора (false)
+//         |                      |                               |   |       |        |      Вложенные запросы
+//         |                      |                               |   |       |        |      (Ненулевое значение говорит о количестве
+//         |                      |                               |   |       |        |      подзапросов подобного типа)
+//         |                      |                               |   |       |        |      |
+/* 22 */  {ESG_BASID_STATECMD,    ESG_ESG_D_BASSTR_STATECMD,      80, ACQSYS, DIFF,    true,  {} }, // Site state ask
+/* 23 */  {ESG_BASID_STATEACQ,    ESG_ESG_D_BASSTR_STATEACQ,      80, ACQSYS, DIFF,    true,  {} }, // Site state
+/* 24 */  {ESG_BASID_SELECTLIST,  ESG_ESG_D_BASSTR_SELECTLIST,    80, ACQSYS, NONDIFF, true,  {} }, // Selective list
+/* 25 */  {ESG_BASID_GENCONTROL,  ESG_ESG_D_BASSTR_GENCONTROL,    80, ACQSYS, NONDIFF, true,  {} }, // TI general control
+/* 26 */  {ESG_BASID_INFOSACQ,    ESG_ESG_D_BASSTR_INFOSACQ,      80, ACQSYS, NONDIFF, true,  {} }, // TI
+/* 27 */  {ESG_BASID_HISTINFOSACQ,ESG_ESG_D_BASSTR_HISTINFOSACQ,  80, ACQSYS, NONDIFF, true,  {} }, // TI Historicals
+/* 28 */  {ESG_BASID_ALARM,       ESG_ESG_D_BASSTR_ALARM,        101, ACQSYS, NONDIFF, true,  {} }, // Alarms
+/* 29 */  {ESG_BASID_THRESHOLD,   ESG_ESG_D_BASSTR_THRESHOLD,     80, ACQSYS, NONDIFF, true,  {} }, // Thresholds
+/* 30 */  {ESG_BASID_ORDER,       ESG_ESG_D_BASSTR_ORDER,         80, ACQSYS, NONDIFF, true,  {} }, // Orders
+/* 31 */  {ESG_BASID_HHISTINFSACQ,ESG_ESG_D_BASSTR_HHISTINFSACQ,  80, ACQSYS, NONDIFF, true,  {} }, // TI Historics
+/* 32 */  {ESG_BASID_HISTALARM,   ESG_ESG_D_BASSTR_HISTALARM,    101, ACQSYS, NONDIFF, true,  {} }, // TI Historics
+/* 33 */  {ESG_BASID_CHGHOUR,     ESG_ESG_D_BASSTR_CHGHOUR,       80, ACQSYS, NONDIFF, true,  {} }, // Hour change
+/* 34 */  {ESG_BASID_INCIDENT,    ESG_ESG_D_BASSTR_INCIDENT,      80, ACQSYS, NONDIFF, true,  {} }, // Incident
+/* 35 */  {ESG_BASID_MULTITHRES,  ESG_ESG_D_BASSTR_MULTITHRES,    80, ACQSYS, NONDIFF, true,  {} }, // Multi Thresholds (outline)
+/* 36 */  {ESG_BASID_TELECMD,     ESG_ESG_D_BASSTR_TELECMD,      101, ACQSYS, NONDIFF, true,  {} }, // Telecommand
+/* 37 */  {ESG_BASID_TELEREGU,    ESG_ESG_D_BASSTR_TELEREGU,     101, ACQSYS, NONDIFF, true,  {} }, // Teleregulation
+/* 38 */  {ESG_BASID_EMERGENCY,   ESG_ESG_D_BASSTR_EMERGENCY,     80, ACQSYS, NONDIFF, true,  {} }, // Emergency cycle request
+/* 39 */  {ESG_BASID_ACDLIST,     ESG_ESG_D_BASSTR_ACDLIST,       80, ACQSYS, NONDIFF, true,  {} }, // ACD list element
+/* 40 */  {ESG_BASID_ACDQUERY,    ESG_ESG_D_BASSTR_ACDQUERY,      80, ACQSYS, NONDIFF, true,  {} }  // ACD query element
 };
 
 //
@@ -378,11 +417,11 @@ int EgsaConfig::load_sites()
 // Найти по таблице запрос с заданным идентификатором.
 // Есть такой - присвоить параметру его адрес и вернуть OK
 // Нет такого - присвоить второму параметру NULL и вернуть NOK
-int EgsaConfig::get_request_by_id(ech_t_ReqId _id, ega_ega_odm_t_RequestEntry*& _entry)
+int EgsaConfig::get_request_by_id(ech_t_ReqId _id, RequestEntry*& _entry)
 {
   int rc = NOK;
 
-  if ((ECH_D_GENCONTROL <= _id) && (_id <= ECH_D_DELEGATION)) {
+  if ((EGA_GENCONTROL <= _id) && (_id < NOT_EXISTENT)) {
     rc = OK;
     _entry = &g_request_dictionary[_id];
   }
@@ -397,9 +436,9 @@ int EgsaConfig::get_request_by_id(ech_t_ReqId _id, ega_ega_odm_t_RequestEntry*& 
 // Найти по таблице запрос с заданным названием.
 // Есть такой - присвоить параметру его адрес и вернуть OK
 // Нет такого - присвоить второму параметру NULL и вернуть NOK
-int EgsaConfig::get_request_by_name(const std::string& _name, ega_ega_odm_t_RequestEntry*& _entry)
+int EgsaConfig::get_request_by_name(const std::string& _name, RequestEntry*& _entry)
 {
-  for (int id = ECH_D_GENCONTROL; id <= ECH_D_DELEGATION; id++) {
+  for (int id = EGA_GENCONTROL; id < NOT_EXISTENT; id++) {
     if (id == g_request_dictionary[id].e_RequestId) {
       if (0 == _name.compare(g_request_dictionary[id].s_RequestName)) {
         _entry = &g_request_dictionary[id];
@@ -419,9 +458,9 @@ int EgsaConfig::get_request_by_name(const std::string& _name, ega_ega_odm_t_Requ
 // ==========================================================================================
 ech_t_ReqId EgsaConfig::get_request_id(const std::string& name)
 {
-  ech_t_ReqId result = ECH_D_NOT_EXISTENT;
+  ech_t_ReqId result = NOT_EXISTENT;
 
-  for (int id = ECH_D_GENCONTROL; id <= ECH_D_DELEGATION; id++) {
+  for (int id = EGA_GENCONTROL; id < NOT_EXISTENT; id++) {
     if (0 == name.compare(g_request_dictionary[id].s_RequestName)) {
       result = static_cast<ech_t_ReqId>(id);
       break;
@@ -448,7 +487,7 @@ const char* EgsaConfig::get_request_name(ech_t_ReqId id)
 int EgsaConfig::load_requests()
 {
   const char* fname = "load_requests";
-  ega_ega_odm_t_RequestEntry *dict_entry = NULL, *request;
+  RequestEntry *dict_entry = NULL, *request;
   int rc = OK;
 
   LOG(INFO) << fname << ": CALL";
@@ -470,9 +509,9 @@ int EgsaConfig::load_requests()
         // в dict_entry заполнились поля из НСИ
         assert(dict_entry);
 
-        request = new ega_ega_odm_t_RequestEntry;
+        request = new RequestEntry;
         // Скопируем значения по-умолчанию
-        memcpy(request, dict_entry, sizeof(ega_ega_odm_t_RequestEntry));
+        memcpy(request, dict_entry, sizeof(RequestEntry));
 
         strncpy(request->s_RequestName,
                 request_item_json[s_SECTION_REQUESTS_NAME_NAME].GetString(),
@@ -536,7 +575,7 @@ int EgsaConfig::load_requests()
             }
           }
         }
-        m_requests.insert(std::pair<std::string, ega_ega_odm_t_RequestEntry*>(request->s_RequestName, request));
+        m_requests.insert(std::pair<std::string, RequestEntry*>(request->s_RequestName, request));
       } // если название Запроса известно
       else
       {

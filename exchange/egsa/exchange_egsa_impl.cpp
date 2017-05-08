@@ -35,7 +35,6 @@
 #include "exchange_egsa_site.hpp"
 #include "exchange_egsa_impl.hpp"
 #include "exchange_egsa_request.hpp"
-//#include "exchange_egsa_request_cyclic.hpp"
 #include "xdb_common.hpp"
 
 extern volatile int interrupt_worker;
@@ -43,30 +42,18 @@ extern volatile int interrupt_worker;
 // ==========================================================================================================
 EGSA::EGSA(const std::string& _broker, const std::string& _service)
   : mdp::mdwrk(_broker, _service, 1 /* num threads */, true /* use  direct connection */),
+    m_state(INITIAL),
     m_signal_socket(m_context, ZMQ_ROUTER),  // Сообщения от таймеров циклов
     m_message_factory(new msg::MessageFactory(EXCHANGE_NAME)),
     m_backend_socket(m_context, ZMQ_DEALER), // Сокет обмена сообщениями с Интерфейсом второго уровня
     m_ext_smad(NULL),
-    m_egsa_config(NULL),
-    m_socket(-1) // TODO: удалить, планируется использовать events вместо таймеров
+    m_egsa_config(NULL)
 {
-/*  m_socket = open("egsa_timers.pipe", S_IFIFO|0666, 0);
-  if (-1 == m_socket) {
-    LOG(ERROR) << "Unable to open socket: " << strerror(errno);
-  }
-  else {
-    LOG(INFO) << "Timers pipe " << (unsigned int)m_socket << " is ready";
-  }*/
 }
 
 // ==========================================================================================================
 EGSA::~EGSA()
 {
-
-  if (-1 != m_socket) {
-    LOG(INFO) << "Timers pipe " << (unsigned int)m_socket << " is closed";
-  }
-
   // Отключиться от SMAD Сайтов
   detach();
   // Удалить сведения о Сайтах из памяти
@@ -99,12 +86,12 @@ int EGSA::init()
 
     if (OK == status) {
       try {
-#warning "GEV inproc socket, what first: connect() or bind()"
-        m_backend_socket.connect(ENDPOINT_EXCHG_FRONTEND);
+        // Для inproc создать точку подключения к нитям Обработчиков ДО вызова connect в Клиентах
+        m_backend_socket.bind(ENDPOINT_EGSA_BACKEND);
         m_backend_socket.setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
         m_backend_socket.setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
         m_backend_socket.setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
-        LOG(INFO) << fname << ": connect to EGSA backend " << ENDPOINT_EXCHG_FRONTEND;
+        LOG(INFO) << fname << ": connect to EGSA backend " << ENDPOINT_EGSA_BACKEND;
       }
       catch(zmq::error_t error)
       {
@@ -133,13 +120,14 @@ int EGSA::init()
 // и ссылкам, для ускорения работы
 int EGSA::load_config()
 {
+  const char* fname = "EGSA::load_config";
   ech_t_ReqId request_id;
   int rc = OK;
 
   // Была ли ранее уже загружена конфигурация?
   if (m_egsa_config) {
     // Была - очистим старые данные и перечитаем её
-    LOG(INFO) << "Reload configuration";
+    LOG(INFO) << fname << ": reload configuration";
 
     delete m_egsa_config;
     m_ega_ega_odm_ar_AcqSites.release();
@@ -180,7 +168,7 @@ int EGSA::load_config()
       ++cit)
   {
     // request_id получить по имени запроса
-    if (ECH_D_NOT_EXISTENT != (request_id = m_egsa_config->get_request_id((*cit).second->request_name))) {
+    if (NOT_EXISTENT != (request_id = m_egsa_config->get_request_id((*cit).second->request_name))) {
 
       // Создадим экземпляр Цикла, удалится он в деструкторе EGSA
       Cycle *cycle = new Cycle((*cit).first.c_str(),
@@ -196,7 +184,12 @@ int EGSA::load_config()
       {
         // Найти AcqSiteEntry для текущей SA в m_ega_ega_odm_ar_AcqSites
         AcqSiteEntry* site = m_ega_ega_odm_ar_AcqSites[(*sit)];
-        cycle->link(site);
+        if (site) {
+          cycle->link(site);
+        }
+        else {
+          LOG(ERROR) << fname << ": skip undefined site " << (*sit);
+        }
       }
       //
       cycle->dump();
@@ -205,7 +198,7 @@ int EGSA::load_config()
       m_ega_ega_odm_ar_Cycles.insert(cycle);
     }
     else {
-      LOG(ERROR) << "Cycle " << (*cit).first << ": unknown included request " << (*cit).second->request_name;
+      LOG(ERROR) << fname << ": cycle " << (*cit).first << ": unknown included request " << (*cit).second->request_name;
     }
   }
 
@@ -323,16 +316,128 @@ int EGSA::implementation()
 {
   const char* fname = "EGSA::implementation";
   int status = OK;
+  bool need_to_stop = false;
+  int linger = 0;
+  int send_timeout_msec = SEND_TIMEOUT_MSEC;
+  int recv_timeout_msec = RECV_TIMEOUT_MSEC;
+  mdp::zmsg *request = NULL;
+  zmq::pollitem_t  socket_items[2];
+  // time_t last_probe_time, cur_time;
+  zmq::socket_t  commands(m_context, ZMQ_DEALER);
+  const int PollingTimeout = 1000;
+  int sec = 0; // GEV TEST
 
   try {
+    commands.connect(ENDPOINT_EGSA_BACKEND);
+    commands.setsockopt(ZMQ_LINGER, &linger, sizeof (linger));
+    commands.setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
+    commands.setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
 
-    while(!interrupt_worker) {
+    socket_items[0].socket = (void*)commands; // NB: (void*) обязателен
+    socket_items[0].fd = 0;
+    socket_items[0].events = ZMQ_POLLIN;
+    socket_items[0].revents = 0;
+
+    // Запомним как первоначальное значение
+    //last_probe_time = cur_time = time(0);
+
+    LOG(INFO) << fname << ": connects to " << ENDPOINT_EGSA_BACKEND;
+
+    // Высший приоритет останова у интерфейса Службы (EGSA::run получил сигнал останова)
+    // Низший приоритет останова у нити implementation (по получении команды STOP)
+    while(!interrupt_worker && !need_to_stop) {
       LOG(INFO) << fname;
 
-      sleep (1);
-    }
+      const egsa_internal_state_t old_egsa_state = m_state;
+      zmq::poll (socket_items, 1, PollingTimeout);
 
-  }
+#if _FUNCTIONAL_TEST
+      // GEV TEST
+      switch (sec) {
+        case 1:  m_state = INITIAL;      break;
+        case 3:  m_state = WAITING_INIT; break;
+        case 4:  m_state = END_INIT;     break;
+        case 5:  m_state = RUN;          break;
+        case 10: m_state = STOP;         break;
+        case 11: m_state = SHUTTINGDOWN; break;
+      }
+#else
+      if (socket_items[0].revents & ZMQ_POLLIN) { // Получен запрос
+
+          request = new mdp::zmsg (commands);
+          assert (request);
+
+          // command or replay address
+          std::string identity  = request->pop_front();
+#if 0
+          std::string empty = request->pop_front();
+#endif
+
+          LOG(INFO) << fname << ": get command from " << identity;
+          // processing(request, identity);
+
+          delete request;
+      } // если получен запрос
+#endif
+
+      if (old_egsa_state != m_state) { // Изменилось состояние?
+
+        switch(m_state) {
+          // Инициализация нити
+          // ------------------
+          case INITIAL:
+            LOG(INFO) << fname << ": state INITIAL";
+            change_state_to(WAITING_INIT);
+            break;
+
+          // Ожидание разрешения на работу
+          // -----------------------------------
+          case WAITING_INIT:
+            LOG(INFO) << fname << ": state WAITING_INIT";
+            // Ждем от Брокера сигнала о завершении инициализации - начале работ
+            change_state_to(END_INIT);
+
+          // Получили сигнал о завершении инициализации, можно работать
+          // ----------------------------------------------------------
+          case END_INIT:
+            LOG(INFO) << fname << ": state END_INIT";
+            change_state_to(RUN);
+            activate_cycles();
+            break;
+
+          // Получили сигнал о завершении работы, останавливаем нить
+          // ----------------------------------------------------------
+          case STOP:
+            LOG(INFO) << fname << ": state STOP";
+            change_state_to(SHUTTINGDOWN);
+            deactivate_cycles();
+            need_to_stop = true;
+            break;
+
+          // Оперативный режим, ждем команд управления и опроса
+          // --------------------------------------------------
+          case RUN:
+            LOG(INFO) << fname << ": state RUN";
+            break;
+
+          case SHUTTINGDOWN:
+            LOG(INFO) << fname << ": state SHUTTINGDOWN";
+            need_to_stop = true;
+            interrupt_worker = true;
+            break;
+
+          default:
+            LOG(FATAL) << fname << ": unhandled state #" << m_state; 
+        } // end switch
+
+      } // конец проверки, изменилось ли состояние
+
+      sec++;
+
+      cycles::timer();
+    }  // конец цикла while
+
+  } // конец блока try-catch
   catch(zmq::error_t error)
   {
     LOG(ERROR) << fname << ": catch: " << error.what();
@@ -347,6 +452,13 @@ int EGSA::implementation()
   m_backend_socket.close();
 
   return status;
+}
+
+// ==========================================================================================================
+void EGSA::change_state_to(egsa_internal_state_t new_state)
+{
+  LOG(INFO) << "EGSA state change " << m_state << " => " << new_state;
+  m_state = new_state;
 }
 
 // ==========================================================================================================
@@ -390,7 +502,6 @@ int EGSA::run()
 
   try
   {
-
     // Запустить нить интерфейса
     m_servant_thread = new std::thread(std::bind(&EGSA::implementation, this));
 
@@ -436,6 +547,7 @@ int EGSA::run()
       {
         LOG(INFO) << "EGSA::recv() got a message";
 
+        // Обслуживание внешних запросов от Брокера и Клиентов
         processing(request, *reply_to, get_order_to_stop);
 
         // Обработка очередного цикла из очереди
@@ -528,10 +640,6 @@ int EGSA::run()
             break;
         }
       }
-
-
-
-
 
       usleep (100000);
     }
@@ -766,16 +874,23 @@ int EGSA::wait(int max_wait_sec)
   ssize_t read_sz;
   ssize_t buffer_sz = 100;
 
+#if 0
   /* Watch fd[1] to see when it has input. */
   FD_ZERO(&rfds);
   FD_SET(m_socket, &rfds);
+#endif
 
   for (int i=0; i<max_wait_sec; i++) {
     if (interrupt_worker) {
-      LOG(INFO) << "EGSA::wait breaks";
+      LOG(INFO) << "interrupt EGSA::wait";
       break;
     }
 
+#if 1
+    cycles::timer();
+    std::cout << "." << std::flush;
+    sleep(1);
+#else
     /* Wait up to one seconds. */
     tv.tv_sec = 1;
     tv.tv_usec = 1;
@@ -800,6 +915,7 @@ int EGSA::wait(int max_wait_sec)
         LOG(INFO) << "Read " << read_sz << " bytes: " << buffer;
         /* FD_ISSET(0, &rfds) will be true. */
     }
+#endif
   }
   std::cout << std::endl;
 
@@ -905,7 +1021,8 @@ int EGSA::handle_end_all_init(msg::Letter*, const std::string& origin)
   const char* fname = "EGSA::handle_end_all_init";
 
   LOG(INFO) << fname << ": BEGIN (from " << origin << ")";
-  activate_cycles();
+  // TODO: Передать команду Начало Работы в implementation, Циклы должны активироваться там
+  // activate_cycles();
   LOG(INFO) << fname << ": END";
 
   return OK;
@@ -1187,7 +1304,7 @@ int EGSA::handle_stop(msg::Letter* letter, const std::string& identity)
   try
   {
     // Отправить сообщение в EGSA о принудительном останове
-    LOG(INFO) << "Send TERMINATE to EGSA";
+    LOG(INFO) << "Send TERMINATE to EGSA implementation threads";
     m_backend_socket.send("TERMINATE", 9, 0);
 
     deactivate_cycles();

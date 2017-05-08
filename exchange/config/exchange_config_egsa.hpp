@@ -32,17 +32,18 @@ typedef enum {
   ID_CYCLE_INFOSACQ_URG     = 2,
   ID_CYCLE_INFOSACQ         = 3,
   ID_CYCLE_INFO_DACQ_DIPADJ = 4,
-  ID_CYCLE_GEN_GACQ_DIPADJ  = 5,
-  ID_CYCLE_GCP_PGACQ_DIPL   = 6,
-  ID_CYCLE_GCS_SGACQ_DIPL   = 7,
-  ID_CYCLE_INFO_DACQ_DIPL   = 8,
-  ID_CYCLE_IAPRIMARY        = 9,
-  ID_CYCLE_IASECOND         = 10,
-  ID_CYCLE_SERVCMD          = 11,
-  ID_CYCLE_INFODIFF         = 12,
-  ID_CYCLE_ACQSYSACQ        = 13,
-  ID_CYCLE_GCT_TGACQ_DIPL   = 14,
-  ID_CYCLE_UNKNOWN          = 15   // Последняя запись, неизвестный цикл
+  ID_CYCLE_INFO_DIFF_DIPADJ = 5,
+  ID_CYCLE_GEN_GACQ_DIPADJ  = 6,
+  ID_CYCLE_GCP_PGACQ_DIPL   = 7,
+  ID_CYCLE_GCS_SGACQ_DIPL   = 8,
+  ID_CYCLE_INFO_DACQ_DIPL   = 9,
+  ID_CYCLE_IAPRIMARY        = 10,
+  ID_CYCLE_IASECOND         = 11,
+  ID_CYCLE_SERVCMD          = 12,
+  ID_CYCLE_INFODIFF         = 13,
+  ID_CYCLE_ACQSYSACQ        = 14,
+  ID_CYCLE_GCT_TGACQ_DIPL   = 15,
+  ID_CYCLE_UNKNOWN          = 16   // Последняя запись, неизвестный цикл
 } cycle_id_t;
 
 const int ID_CYCLE_MAX = ID_CYCLE_UNKNOWN + 1;
@@ -92,33 +93,72 @@ typedef enum {
 // NB: Поддерживать синхронизацию с типами запросов в common.proto
 // Нумерация начинается с нуля и вохрастает монотонно без разрывов
 typedef enum {
-  ECH_D_GENCONTROL   = 0,   /* general control */
-  ECH_D_INFOSACQ     = 1,   /* global acquisition */
-  ECH_D_URGINFOS     = 2,   /* urgent data acquisition */
-  ECH_D_GAZPROCOP    = 3,   /* gaz volume count acquisition */
-  ECH_D_EQUIPACQ     = 4,   /* equipment acquisition */
-  ECH_D_ACQSYSACQ    = 5,   /* Sac data acquisition */
-  ECH_D_ALATHRES     = 6,   /* alarms and thresholds acquisition */
-  ECH_D_TELECMD      = 7,   /* telecommand */
-  ECH_D_TELEREGU     = 8,   /* teleregulation */
-  ECH_D_SERVCMD      = 9,   /* service command */
-  ECH_D_GLOBDWLOAD   = 10,  /* global download */
-  ECH_D_PARTDWLOAD   = 11,  /* partial download */
-  ECH_D_GLOBUPLOAD   = 12,  /* Sac configuration global upload */
-  ECH_D_INITCMD      = 13,  /* initialisation of the exchanges */
-  ECH_D_GCPRIMARY    = 14,  /* Primary general control */
-  ECH_D_GCSECOND     = 15,  /* Secondary general control */
-  ECH_D_GCTERTIARY   = 16,  /* Tertiary general control */
-  ECH_D_DIFFPRIMARY  = 17,  /* Primary differential acquisition */
-  ECH_D_DIFFSECOND   = 18,  /* Secondary differential acquisition */
-  ECH_D_DIFFTERTIARY = 19,  /* Tertiary differential acquisition */
-  ECH_D_INFODIFFUSION= 20,  /* Information diffusion              */
-  ECH_D_DELEGATION   = 21,  /* Process order delegation-end of delegation */
-  ECH_D_NOT_EXISTENT = 22   /* request not exist */
+  // Запросы к локальным подчинённым системам сбора [0..21]
+  EGA_GENCONTROL   = 0,   // general control
+  EGA_INFOSACQ     = 1,   // global acquisition
+  EGA_URGINFOS     = 2,   // urgent data acquisition
+  EGA_GAZPROCOP    = 3,   // gaz volume count acquisition
+  EGA_EQUIPACQ     = 4,   // equipment acquisition
+  EGA_ACQSYSACQ    = 5,   // Sac data acquisition
+  EGA_ALATHRES     = 6,   // alarms and thresholds acquisition
+  EGA_TELECMD      = 7,   // telecommand
+  EGA_TELEREGU     = 8,   // teleregulation
+  EGA_SERVCMD      = 9,   // service command
+  EGA_GLOBDWLOAD   = 10,  // global download
+  EGA_PARTDWLOAD   = 11,  // partial download
+  EGA_GLOBUPLOAD   = 12,  // Sac configuration global upload
+  EGA_INITCMD      = 13,  // initialisation of the exchanges
+  EGA_GCPRIMARY    = 14,  // Primary general control
+  EGA_GCSECOND     = 15,  // Secondary general control
+  EGA_GCTERTIARY   = 16,  // Tertiary general control
+  EGA_DIFFPRIMARY  = 17,  // Primary differential acquisition
+  EGA_DIFFSECOND   = 18,  // Secondary differential acquisition
+  EGA_DIFFTERTIARY = 19,  // Tertiary differential acquisition
+  EGA_INFODIFFUSION= 20,  // Information diffusion
+  EGA_DELEGATION   = 21,  // Process order delegation-end of delegation
+
+  // Запросы к глобальным/внешним иноформационным системам
+  ESG_BASID_STATECMD      = 22,
+  ESG_BASID_STATEACQ      = 23,
+  ESG_BASID_SELECTLIST    = 24,
+  ESG_BASID_GENCONTROL    = 25,
+  ESG_BASID_INFOSACQ      = 26,
+  ESG_BASID_HISTINFOSACQ  = 27,
+  ESG_BASID_ALARM         = 28,
+  ESG_BASID_THRESHOLD     = 29,
+  ESG_BASID_ORDER         = 30,
+  ESG_BASID_HHISTINFSACQ  = 31,
+  ESG_BASID_HISTALARM     = 32,
+  ESG_BASID_CHGHOUR       = 33,
+  ESG_BASID_INCIDENT      = 34,
+  ESG_BASID_MULTITHRES    = 35,  // OutLine Thresholds
+  ESG_BASID_TELECMD       = 36,
+  ESG_BASID_TELEREGU      = 37,
+  ESG_BASID_EMERGENCY     = 38,
+  ESG_BASID_ACDLIST       = 39,
+  ESG_BASID_ACDQUERY      = 40,
+
+#if 0
+  // Local requests are exchanged with local EGSA of our site
+  // NB: возможно, не потребуются
+  ESG_ESG_D_LOCID_GENCONTROL    = 41
+  ESG_ESG_D_LOCID_GCPRIMARY     = 42
+  ESG_ESG_D_LOCID_GCSECOND      = 43
+  ESG_ESG_D_LOCID_INFOSACQ      = 44
+  ESG_ESG_D_LOCID_INITCOMD      = 45
+  ESG_ESG_D_LOCID_CHGHOURCMD    = 46
+  ESG_ESG_D_LOCID_TELECMD       = 47
+  ESG_ESG_D_LOCID_TELEREGU      = 48
+  ESG_ESG_D_LOCID_EMERGENCY     = 49
+  ESG_ESG_D_LOCID_GCTERTIARY    = 50
+  ECH_D_NOT_EXISTENT = (ESG_ESG_D_LOCID_GCTERTIARY + 1)   // 51, request not exist
+#else
+  NOT_EXISTENT = (ESG_BASID_ACDQUERY + 1)   // 41, request not exist
+#endif
 } ech_t_ReqId;
 
 // NB: Должен быть последним значением ech_t_ReqId + 1
-#define NBREQUESTS          (ECH_D_NOT_EXISTENT)
+#define NBREQUESTS          (NOT_EXISTENT)
 
 // Names of External System Requests
 // ---------------------------------
@@ -145,6 +185,52 @@ typedef enum {
 #define EGA_EGA_D_STRINFOSDIFF  "D_INFODIFF"    // global diffusion of informations
 #define EGA_EGA_D_STRDELEGATION "P_DELEGATION"  // delegation telecommand
 #define EGA_EGA_D_STRNOEXISTENT "NOT_EXISTENT"  // internal error sign
+
+
+// Names of Distant Sites Requests
+// ---------------------------------
+#define ESG_ESG_D_BASSTR_STATECMD       "AB_STATESCMD"    // Site state ask
+#define ESG_ESG_D_BASSTR_STATEACQ       "DB_STATESACQ"    // Site state
+#define ESG_ESG_D_BASSTR_SELECTLIST     "AB_SELECTLIST"   // Selective list
+#define ESG_ESG_D_BASSTR_GENCONTROL     "AB_GENCONTROL"   // TI general control
+#define ESG_ESG_D_BASSTR_INFOSACQ       "DB_INFOSACQ"     // TI
+#define ESG_ESG_D_BASSTR_HISTINFOSACQ   "DB_HISTINFOSACQ" // TI Historicals
+#define ESG_ESG_D_BASSTR_ALARM          "DB_ALARM"        // Alarms
+#define ESG_ESG_D_BASSTR_THRESHOLD      "DB_THRESHOLD"    // Thresholds
+#define ESG_ESG_D_BASSTR_ORDER          "DB_ORDER"        // Orders
+#define ESG_ESG_D_BASSTR_HHISTINFSACQ   "AB_HHISTINFSACQ" // TI Historics
+#define ESG_ESG_D_BASSTR_HISTALARM      "AB_HISTALARM"    // TI Historics
+#define ESG_ESG_D_BASSTR_CHGHOUR        "DB_CHGHOUR"      // Hour change
+#define ESG_ESG_D_BASSTR_INCIDENT       "DB_INCIDENT"     // INCIDENT
+#define ESG_ESG_D_BASSTR_MULTITHRES     "DB_MULTITHRES"   // Multi Thresholds (outline)
+#define ESG_ESG_D_BASSTR_TELECMD        "DB_TELECMD"      // Telecommand
+#define ESG_ESG_D_BASSTR_TELEREGU       "DB_TELEREGU"     // Teleregulation
+#define ESG_ESG_D_BASSTR_EMERGENCY      "DB_EMERGENCY"    // Emergency cycle request
+#define ESG_ESG_D_BASSTR_ACDLIST        "DB_ACDLIST"      // ACD list element
+#define ESG_ESG_D_BASSTR_ACDQUERY       "DB_ACDQUERY"     // ACD query element
+
+// number of basic request to exchange with acquisition sites
+// ----------------------------------------------------------
+#define ESG_ESG_D_NBRBASREQ            (ESG_ESG_D_BASID_ACDQUERY + 1)
+
+
+// Names of LOCAL Requests
+// Local requests are exchanged with local EGSA of our site
+// --------------------------------------------------------
+#define ESG_ESG_D_LOCSTR_GENCONTROL  "AL_GENCONTROL" // Ti general control
+#define ESG_ESG_D_LOCSTR_GCPRIMARY   "AL_GCPRIMARY"  // Ti primary general control
+#define ESG_ESG_D_LOCSTR_GCSECOND    "AL_GCSECOND"   // Ti second general control
+#define ESG_ESG_D_LOCSTR_GCTERTIARY  "AL_GCTERTIARY" // Ti tertiary general control
+#define ESG_ESG_D_LOCSTR_INFOSACQ    "AL_INFOSACQ"   // TeleInformations
+#define ESG_ESG_D_LOCSTR_INITCOMD    "IL_INITCOMD"   // Initialisation command
+#define ESG_ESG_D_LOCSTR_CHGHOURCMD  "DL_CHGHOURCMD" // Summer/Winter hour change
+#define ESG_ESG_D_LOCSTR_TELECMD     "DL_TELECMD"    // TC order request name
+#define ESG_ESG_D_LOCSTR_TELEREGU    "DL_TELEREGU"   // TR order request name
+#define ESG_ESG_D_LOCSTR_EMERGENCY   "AL_EMERGENCY"  // Emergency state
+
+// number of local requests of local site
+#define ESG_ESG_D_NBRLOCREQ          10
+
 
 // ==============================================================================
 // Acquisition Site Entry Structure
@@ -204,7 +290,7 @@ typedef struct {
   // Включенные в данный запрос подзапросы. Индекс ненулевого элемента есть его ech_t_ReqId
   int r_IncludingRequests[NBREQUESTS];
   //ega_ega_t_Requests r_IncludingRequests;
-} ega_ega_odm_t_RequestEntry;
+} RequestEntry;
 
 // Статическая связка между идентификатором Цикла (его порядковым номером) и его названием
 typedef struct {
@@ -247,7 +333,7 @@ typedef struct {
 // Перечень циклов
 typedef std::map<const std::string, egsa_config_cycle_info_t*> egsa_config_cycles_t;
 // Перечень типов Запросов
-typedef std::map<const std::string, ega_ega_odm_t_RequestEntry*> egsa_config_requests_t;
+typedef std::map<const std::string, RequestEntry*> egsa_config_requests_t;
 
 // ==========================================================================================
 // Разбор конфигурационных файлов:
@@ -305,9 +391,9 @@ class EgsaConfig {
     DISALLOW_COPY_AND_ASSIGN(EgsaConfig);
     cycle_id_t get_cycle_id_by_name(const std::string&);
     // Найти по таблице НСИ запрос с заданным идентификатором
-    int get_request_by_id(ech_t_ReqId, ega_ega_odm_t_RequestEntry*&);
+    int get_request_by_id(ech_t_ReqId, RequestEntry*&);
     // Найти по таблице НСИ запрос с заданным названием
-    int get_request_by_name(const std::string&, ega_ega_odm_t_RequestEntry*&);
+    int get_request_by_name(const std::string&, RequestEntry*&);
 
     rapidjson::Document m_document;
     char   *m_config_filename;
@@ -361,6 +447,7 @@ class EgsaConfig {
     static const char*  s_CYCLENAME_INFOSACQ_URG;
     static const char*  s_CYCLENAME_INFOSACQ;
     static const char*  s_CYCLENAME_INFO_DACQ_DIPADJ;
+    static const char*  s_CYCLENAME_INFO_DIFF_DIPADJ;
     static const char*  s_CYCLENAME_GEN_GACQ_DIPADJ;
     static const char*  s_CYCLENAME_GCP_PGACQ_DIPL;
     static const char*  s_CYCLENAME_GCS_SGACQ_DIPL;
@@ -373,7 +460,7 @@ class EgsaConfig {
     static const char*  s_CYCLENAME_GCT_TGACQ_DIPL;
 
     static cycle_dictionary_item_t    g_cycle_dictionary[ID_CYCLE_MAX];
-    static ega_ega_odm_t_RequestEntry g_request_dictionary[NBREQUESTS + 1]; // +1 для ECH_D_NOT_EXISTENT
+    static RequestEntry g_request_dictionary[NBREQUESTS + 1]; // +1 для NOT_EXISTENT
 };
 
 #endif

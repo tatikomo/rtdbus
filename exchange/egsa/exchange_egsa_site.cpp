@@ -105,6 +105,67 @@ const AcqSiteEntry::ega_ega_aut_t_automate AcqSiteEntry::m_ega_ega_aut_a_auto [E
   }
 }; /* End of a_auto initialisation */
 
+
+//bool [EGA_GENCONTROL..NOT_EXISTENT][NI_NM_NO..I_M_O] = {
+// Номер строки - тип текущего Запроса
+// Номер столбца - состояние связанной с Запросом СС
+#define X true
+#define _ false
+const bool AcqSiteEntry::enabler_matrix[REQUEST_ID_LAST][SA_STATE_LAST] = {
+    //                       NI_NM_NO
+    //                       |  NI_M_NO
+    //                       |  |  NI_NM_O
+    //                       |  |  |  NI_M_O
+    //                       |  |  |  |  I_NM_NO
+    //                       |  |  |  |  |  I_M_NO
+    //                       |  |  |  |  |  |  I_NM_O
+    //                       |  |  |  |  |  |  |  I_M_O
+    //                       |  |  |  |  |  |  |  |
+    /* EGA_GENCONTROL */   { _, _, X, _, _, _, _, _ },
+    /* EGA_INFOSACQ   */   { _, _, X, _, _, _, _, _ },
+    /* EGA_URGINFOS   */   { _, _, X, _, _, _, _, _ },
+    /* EGA_GAZPROCOP  */   { _, _, X, _, _, _, _, _ },
+    /* EGA_EQUIPACQ   */   { _, _, X, X, _, _, _, _ },
+    /* EGA_ACQSYSACQ  */   { _, _, X, X, X, X, X, _ },
+    /* EGA_ALATHRES   */   { _, _, X, _, _, _, _, _ },
+    /* EGA_TELECMD    */   { _, _, X, _, _, _, _, _ },
+    /* EGA_TELEREGU   */   { _, _, X, _, _, _, _, _ },
+    /* EGA_SERVCMD    */   { _, _, X, X, _, _, X, X },
+    /* EGA_GLOBDWLOAD */   { _, _, _, X, _, _, _, _ },
+    /* EGA_PARTDWLOAD */   { _, _, _, X, _, _, _, _ },
+    /* EGA_GLOBUPLOAD */   { _, _, _, X, _, _, _, _ },
+    /* EGA_INITCMD    */   { X, X, X, X, _, _, _, _ },
+    /* EGA_GCPRIMARY  */   { _, _, X, _, _, _, _, _ },
+    /* EGA_GCSECOND   */   { _, _, X, _, _, _, _, _ },
+    /* EGA_GCTERTIARY */   { _, _, X, _, _, _, _, _ },
+    /* EGA_DIFFPRIMARY*/   { _, _, X, _, _, _, _, _ },
+    /* EGA_DIFFSECOND */   { _, _, X, _, _, _, _, _ },
+    /* EGA_DIFFTERTIARY */ { _, _, X, _, _, _, _, _ },
+    /* EGA_INFODIFFUSION*/ { _, _, X, _, _, _, _, _ },
+    /* EGA_DELEGATION */   { _, _, X, X, _, _, _, _ },
+    /* ESG_STATECMD   */   { _, _, X, _, _, _, _, _ },
+    /* ESG_STATEACQ   */   { _, _, X, _, _, _, _, _ },
+    /* ESG_SELECTLIST */   { _, _, X, _, _, _, _, _ },
+    /* ESG_GENCONTROL */   { _, _, X, _, _, _, _, _ },
+    /* ESG_INFOSACQ   */   { _, _, X, _, _, _, _, _ },
+    /* ESG_HISTINFOSACQ */ { _, _, X, _, _, _, _, _ },
+    /* ESG_ALARM      */   { _, _, X, _, _, _, _, _ },
+    /* ESG_THRESHOLD  */   { _, _, X, _, _, _, _, _ },
+    /* ESG_ORDER      */   { _, _, X, _, _, _, _, _ },
+    /* ESG_HHISTINFSACQ */ { _, _, X, _, _, _, _, _ },
+    /* ESG_HISTALARM  */   { _, _, X, _, _, _, _, _ },
+    /* ESG_CHGHOUR    */   { _, _, X, _, _, _, _, _ },
+    /* ESG_INCIDENT   */   { _, _, X, _, _, _, _, _ },
+    /* ESG_MULTITHRES */   { _, _, X, _, _, _, _, _ },
+    /* ESG_TELECMD    */   { _, _, X, _, _, _, _, _ },
+    /* ESG_TELEREGU   */   { _, _, X, _, _, _, _, _ },
+    /* ESG_EMERGENCY  */   { _, _, X, _, _, _, _, _ },
+    /* ESG_ACDLIST    */   { _, _, X, _, _, _, _, _ },
+    /* ESG_ACDQUERY   */   { _, _, X, _, _, _, _, _ },
+  };
+#undef _
+#undef X
+
 // ==============================================================================
 AcqSiteEntry::AcqSiteEntry(EGSA* egsa, const egsa_config_site_item_t* entry)
   : m_egsa(egsa),
@@ -231,13 +292,13 @@ int AcqSiteEntry::cbAutoInit()
 {
   int rc = NOK;
   const char *fname = "cbAutoInit";
-  const Request *rq_init = get_dict_request(ECH_D_INITCMD);
+  const Request *rq_init = get_dict_request(EGA_INITCMD);
 
   if (true == add_request(rq_init)) {
     LOG(INFO) << fname << ": " << name() << ": push " << rq_init->name();
   }
   else {
-    LOG(WARNING) << fname << ": " << name() << ": unable to push request #" << ECH_D_INITCMD << " (" << Request::name(ECH_D_INITCMD) << ")";
+    LOG(WARNING) << fname << ": " << name() << ": unable to push request #" << EGA_INITCMD << " (" << Request::name(EGA_INITCMD) << ")";
   }
 
   return rc;
@@ -489,6 +550,10 @@ bool AcqSiteEntry::add_request(const Request* new_req)
   // Признак - разрешить или запретить указанный Запрос для СС
   bool permit = false;
 
+  // GEV TEST
+  // Проверить, разрешен ли Запрос для текущего состояния СС
+  LOG(INFO) << "Enabler: " << enabler_matrix[new_req->id()][state()];
+
   if (new_req->rclass() == Request::AUTOMATIC) {
     // Automatic request class treatment
     // ---------------------------------
@@ -532,7 +597,7 @@ bool AcqSiteEntry::add_request(const Request* new_req)
           permit = false;
         }
         else {
-          if (new_req->id() != ECH_D_SERVCMD) {
+          if (new_req->id() != EGA_SERVCMD) {
             permit = true;
           }
         }
@@ -612,7 +677,7 @@ bool AcqSiteEntry::add_request(const Request* new_req)
           permit = false;
         }
         else {
-          if (new_req->id() != ECH_D_SERVCMD) {
+          if (new_req->id() != EGA_SERVCMD) {
             permit = true;
           }
         }

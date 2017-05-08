@@ -268,6 +268,8 @@ set (ENDPOINT_HMI_FRONTEND          "tcp://localhost:5558")
 set (ENDPOINT_EXCHG_FRONTEND        "tcp://localhost:5559")
 set (ENDPOINT_SBS_PUBLISHER         "tcp://localhost:5560")
 set (ENDPOINT_HIST_FRONTEND         "tcp://localhost:5561")
+# Теневой сокет EGSA::run <=> EGSA::implementation
+set (ENDPOINT_EGSA_BACKEND          "inproc://rtdb_egsa_data")
 
 set (HISTDB_SNAP_FILENAME           "hdb.sqlite3")
 # Локальное или удаленное расположение БДРВ для службы Архивирования.

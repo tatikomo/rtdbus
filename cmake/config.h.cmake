@@ -60,6 +60,8 @@
 #cmakedefine ENDPOINT_SBS_PUBLISHER   "@ENDPOINT_SBS_PUBLISHER@"
 /* historian server */
 #cmakedefine ENDPOINT_HIST_FRONTEND   "@ENDPOINT_HIST_FRONTEND@"
+/* internal transport between EGSA::run and EGSA::imlplementation */
+#cmakedefine ENDPOINT_EGSA_BACKEND    "@ENDPOINT_EGSA_BACKEND@"
 
 /* Predefined service names */
 #cmakedefine BROKER_NAME        "@BROKER_NAME@"

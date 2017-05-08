@@ -71,6 +71,15 @@ class EGSA : public mdp::mdwrk {
 
   private:
     DISALLOW_COPY_AND_ASSIGN(EGSA);
+    typedef enum {
+      INITIAL       = 0,    // начальное состояние до инициализации
+      WAITING_INIT  = 1,    // состояние ожидания получения разрешения на работу 
+      END_INIT      = 2,    // разрешение получено, подготовка к работе
+      RUN           = 3,    // работа
+      SHUTTINGDOWN  = 4,    // состояние завершения работы 
+      STOP          = 5     // получен приказ на останов
+    } egsa_internal_state_t;
+    void change_state_to(egsa_internal_state_t);
 
     // Обработка сообщения о чтении значений БДРВ (включая ответ группы подписки)
     int process_read_response(msg::Letter*);
@@ -97,7 +106,7 @@ class EGSA : public mdp::mdwrk {
     int handle_stop(msg::Letter*, const std::string&);
 
     // Отправить всем подчиненным системам запрос готовности
-    void fire_ENDALLINIT();
+    //void fire_ENDALLINIT();
 
     // --------------------------------------------------------------------------
     // Активация группы подписки точек систем сбора
@@ -111,6 +120,8 @@ class EGSA : public mdp::mdwrk {
     // Функция срабатывания при наступлении времени очередного таймера
     void cycle_trigger(size_t, size_t);
 
+    // Текущее состояние процесса
+    egsa_internal_state_t m_state;
     // Входящее соединение от Таймеров
     zmq::socket_t   m_signal_socket;
     // Набор для zmq::poll
@@ -127,8 +138,6 @@ class EGSA : public mdp::mdwrk {
     EgsaConfig   *m_egsa_config;
     // Хранилище изменивших своё значение параметров, используется для всех СС
     sa_parameters_t m_list;
-    // Сокет получения данных
-    int m_socket;
 
     // General data
     //static ega_ega_odm_t_GeneralData ega_ega_odm_r_GeneralData;

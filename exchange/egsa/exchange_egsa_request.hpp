@@ -22,8 +22,8 @@ class Cycle;
 // ==============================================================================
 typedef std::function<int ()> callback_type;
 typedef std::chrono::time_point<std::chrono::system_clock> time_type;
-#define DUMP_SIZE   150
 
+#define DUMP_SIZE   150
 // ==============================================================================
 // Элементарный запрос адрес СС
 class Request
@@ -42,7 +42,7 @@ class Request
     } request_class_t;
 
     // Используется для НСИ
-    Request(const ega_ega_odm_t_RequestEntry*);
+    Request(const RequestEntry*);
     // Используется для хранения динамической информации в процессе работы
     Request(const Request*, AcqSiteEntry*, Cycle*);
     Request(const Request&);
@@ -51,6 +51,7 @@ class Request
     Request& operator=(const Request&);
 
     size_t exchange_id() const { return m_exchange_id; }
+    size_t generate_exchange_id();
     // Установить/снять признак, последний ли это Запрос в группе
     void last_in_bundle(bool sign) { m_last_in_bundle = sign; }
     AcqSiteEntry* site() const { return m_site; }
@@ -69,9 +70,9 @@ class Request
     // TODO: разделить события - нормальное завершение или по таймауту
     int callback() const { return m_trigger_callback(); }
     const char* name() const
-      { return (ECH_D_NOT_EXISTENT != m_config.e_RequestId)? m_dict_RequestNames[m_config.e_RequestId] : "error"; }
+      { return (NOT_EXISTENT != m_config.e_RequestId)? m_dict_RequestNames[m_config.e_RequestId] : "error"; }
     static const char* name(ech_t_ReqId _id)
-      { return (ECH_D_NOT_EXISTENT != _id)? m_dict_RequestNames[_id] : NULL; }
+      { return (NOT_EXISTENT != _id)? m_dict_RequestNames[_id] : NULL; }
     int* included()  { return m_config.r_IncludingRequests; }
 
     // Событие завершения времени. Предусмотреть флаги - таймаут есть/нет,...
@@ -81,7 +82,6 @@ class Request
     const char* dump();
   private:
  //   DISALLOW_COPY_AND_ASSIGN(Request); violate in 'm_request_queue.emplace()
-    size_t generate_new_exchange_id();
     std::mutex mtx;
     // Тип Запроса - Автоматический, Асинхронный, Циклический
     request_class_t m_class;
@@ -92,7 +92,7 @@ class Request
     char m_internal_dump[DUMP_SIZE + 1];
 
     // Постоянные атрибуты Запроса
-    ega_ega_odm_t_RequestEntry  m_config;
+    RequestEntry  m_config;
     // Время инициации запроса
     time_type         m_when;
     // Функции, вызываемые в указанное время

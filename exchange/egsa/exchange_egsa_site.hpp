@@ -73,10 +73,14 @@ typedef enum {
   EGA_EGA_AUT_D_STATE_I_M_O     = EGA_EGA_D_STATEINIT+7   // Inhibition
 } sa_state_t;
 
-#define  EGA_EGA_AUT_D_NB_TRANS (EGA_EGA_AUT_D_TRANS_NI+1)   // transition number (state/mode values)
-#define  EGA_EGA_AUT_D_NB_STATE (EGA_EGA_AUT_D_STATE_I_M_O+1)   // automate state number
+#define EGA_EGA_AUT_D_NB_TRANS (EGA_EGA_AUT_D_TRANS_NI+1)   // transition number (state/mode values)
+#define EGA_EGA_AUT_D_NB_STATE (EGA_EGA_AUT_D_STATE_I_M_O+1)   // automate state number
+
 #endif
 
+
+#define REQUEST_ID_LAST (NOT_EXISTENT + 1)
+#define SA_STATE_LAST   (EGA_EGA_AUT_D_NB_STATE + 1)
 
 
 // ==============================================================================
@@ -128,10 +132,6 @@ class AcqSiteEntry {
     sa_state_t  state()     const { return m_FunctionalState; }
     sa_object_level_t level() const { return m_Level; }
 
-#if 0
-    // Управление состоянием
-    sa_state_t  change_state_to(sa_state_t);
-#endif
     // Регистрация Запросов в указанном Цикле
     int push_request_for_cycle(Cycle*, int*);
 
@@ -201,15 +201,11 @@ class AcqSiteEntry {
     // FALSE-> has not to be performed
     bool m_AutomaticalGenCtrl;
 
-    // data base information subscription for synthetic state, inhibition state, exploitation mode
-    //ega_ega_odm_t_SubscriptedInfo r_SubscrInhibState;
-    //ega_ega_odm_t_SubscriptedInfo r_SubscrSynthState;
-    //ega_ega_odm_t_SubscriptedInfo r_SubscrExploitMode;
- 
     // functional EGSA state of the acquisition site
     // (acquisition site command only, all operations, all dispatcher requests only, waiting for no inhibition)
     sa_state_t m_FunctionalState;
 
+    // Уровень СС - вышестоящая, подчиненная, соседняя,...
     sa_object_level_t m_Level;
 
     // interface component state : active / stopped (TRUE / FALSE)
@@ -219,10 +215,15 @@ class AcqSiteEntry {
     InternalSMAD    *m_smad;
 
     // composed requests table - a dynamic table containing the number of requests and description of each request
-    std::vector<int> m_requests_composed;
+    std::vector<Request*> m_requests_composed;
     // requests in progress list access
-    std::vector<int> m_requests_in_progress;
+    std::vector<Request*> m_requests_in_progress;
 
+    // Поля, специфичные для удаленных Сайтов того же, или верхнего уровня (соседние объекты или управление)
+    // Поскольку процедура установления связи с ними растянута по времени и состоит из нескольких
+    // последовательных этапов, необходимо иметь информацию о текущем состоянии процедуры инициализации
+    // удаленного Сайта (см. описание esg_esg_odm_t_AcqSiteEntry в esg_esg_odm_p.h).
+    //
     // b_OPStateAuthorised
     //   FALSE -> no Init to the distant in progress / Init to the distant in progress
     //   TRUE -> Init to the distant terminated with success
@@ -230,8 +231,9 @@ class AcqSiteEntry {
     //   FALSE -> no Init received from the distant / Init from the distant in progress
     //   TRUE -> Init from the distant terminated
     //
-    // ega_ega_aut_a_auto[i_indtrans][m_FunctionalState]
     static const ega_ega_aut_t_automate m_ega_ega_aut_a_auto [EGA_EGA_AUT_D_NB_TRANS][EGA_EGA_AUT_D_NB_STATE];
+    // матрица допустимости Запросов по типам от текущего функционального состояния СС
+    static const bool enabler_matrix[REQUEST_ID_LAST][SA_STATE_LAST];
 };
 
 // ==============================================================================

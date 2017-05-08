@@ -19,7 +19,6 @@
 #include "exchange_config_egsa.hpp"
 #include "exchange_egsa_impl.hpp"
 #include "exchange_egsa_request.hpp"
-#include "exchange_egsa_request_cyclic.hpp"
 
 #include "proto/rtdbus.pb.h"
 
@@ -126,13 +125,13 @@ TEST(TestEXCHANGE, EGSA_CONFIG)
   ASSERT_TRUE(g_egsa_instance->config());
 
   LOG(INFO) << "load " << g_egsa_instance->config()->cycles().size() << " cycles";
-  EXPECT_TRUE(g_egsa_instance->config()->cycles().size() == 4);
+  EXPECT_TRUE(g_egsa_instance->config()->cycles().size() == 5);
 
   LOG(INFO) << "load " << g_egsa_instance->config()->sites().size() << " sites";
   EXPECT_TRUE(g_egsa_instance->config()->sites().size() == 3);
 
   LOG(INFO) << "load " << g_egsa_instance->config()->requests().size() << " requests";
-  EXPECT_TRUE(g_egsa_instance->config()->requests().size() == 21);
+  EXPECT_TRUE(g_egsa_instance->config()->requests().size() == 40);
 }
 
 // Подготовить полную информацию по циклам, включая связанные с этими циклами сайты
@@ -228,7 +227,7 @@ TEST(TestEXCHANGE, EGSA_CYCLES_CONFIG)
             const ech_t_ReqId* included_requests = main_req->included();
             int ir = 0;
 
-            while (ECH_D_NOT_EXISTENT != included_requests[ir]) {
+            while (NOT_EXISTENT != included_requests[ir]) {
 
               LOG(INFO) << "\t\t\t" << "IR #" << included_requests[ir] << " " << Request::name(included_requests[ir]);
 
@@ -258,10 +257,10 @@ TEST(TestEXCHANGE, EGSA_CYCLES_CONFIG)
   } // for проверить все известные Циклы
 }
 
-#if 0
+#if 1
 TEST(TestEXCHANGE, EGSA_CYCLES)
 {
-//  ega_ega_odm_t_RequestEntry* req_entry_dict = NULL;
+//  RequestEntry* req_entry_dict = NULL;
   int rc;
 
   LOG(INFO) << "BEGIN cycles activates testing";
@@ -456,8 +455,8 @@ TEST(TestEXCHANGE, EGSA_DICT_REQUESTS)
     ech_t_ReqId rid = static_cast<ech_t_ReqId>(id);
 
     Request *r = rl.query_by_id(rid);
-    // Запроса ECH_D_GAZPROCOP нет в конфигурации
-    if (ECH_D_GAZPROCOP != id)
+    // Запроса EGA_GAZPROCOP нет в конфигурации
+    if (EGA_GAZPROCOP != id)
       EXPECT_TRUE(NULL != r);
     else
       EXPECT_TRUE(NULL == r);
@@ -476,6 +475,7 @@ TEST(TestEXCHANGE, EGSA_DICT_REQUESTS)
 TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
 {
   RequestRuntimeList rt_list;
+  Request* dict_req = NULL;
   RequestDictionary& dict_requests = g_egsa_instance->dictionary_requests();
   AcqSiteList& sites_list = g_egsa_instance->sites();
   CycleList &cycles = g_egsa_instance->cycles();
@@ -489,10 +489,18 @@ TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
   ASSERT_TRUE(site1);
   ASSERT_TRUE(cycle1);
 
-  Request* req1 = new Request(dict_requests.query_by_id(ECH_D_INITCMD),   site1, cycle1);
-  Request* req2 = new Request(dict_requests.query_by_id(ECH_D_EQUIPACQ),  site3, cycle1);
-  Request* req3 = new Request(dict_requests.query_by_id(ECH_D_DELEGATION),site2, cycle2);
-  Request* req4 = new Request(dict_requests.query_by_id(ECH_D_INFOSACQ),  site3, cycle2);
+  dict_req = dict_requests.query_by_id(EGA_INITCMD);
+  ASSERT_TRUE(dict_req);
+  Request* req1 = new Request(dict_req, site1, cycle1);
+  dict_req = dict_requests.query_by_id(ESG_BASID_STATEACQ);
+  ASSERT_TRUE(dict_req);
+  Request* req2 = new Request(dict_req, site3, cycle1);
+  dict_req = dict_requests.query_by_id(EGA_DELEGATION);
+  ASSERT_TRUE(dict_req);
+  Request* req3 = new Request(dict_req, site2, cycle2);
+  dict_req = dict_requests.query_by_id(ESG_BASID_INFOSACQ);
+  ASSERT_TRUE(dict_req);
+  Request* req4 = new Request(dict_req, site3, cycle2);
 
   // Взвести колбек для запроса на 2 секунды
   rt_list.add(req1, 1);
@@ -542,8 +550,8 @@ TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
         break;
     }
 
-    // NB: Запрос ECH_D_INITCMD с приоритетом 127 должен отобразиться
-    // раньше, чем ECH_D_DELEGATION с приоритетом 99
+    // NB: Запрос EGA_INITCMD с приоритетом 127 должен отобразиться
+    // раньше, чем EGA_DELEGATION с приоритетом 99
     rt_list.timer();
 
     // На основании текущего состояния СС генерировать новые Запросы
@@ -575,12 +583,14 @@ TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
   delete req4;
 }
 
-#if 0
 TEST(TestEXCHANGE, EGSA_RUN)
 {
+#if 1
+  g_egsa_instance->implementation();
+#else
   g_egsa_instance->run();
-}
 #endif
+}
 
 /*
 TEST(TestEXCHANGE, EGSA_ENDALLINIT)

@@ -47,7 +47,7 @@ class BaseRequest {
 
     };
 
-    ega_ega_odm_t_RequestEntry m_entry;
+    RequestEntry m_entry;
     int  m_id;
     egsa_request_class_t m_class;
     std::string m_cycle_name;

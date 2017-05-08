@@ -42,34 +42,55 @@ const char* Request::m_dict_RequestNames[] = {
   EGA_EGA_D_STRIATERTIARY,
   EGA_EGA_D_STRINFOSDIFF,
   EGA_EGA_D_STRDELEGATION,
-  EGA_EGA_D_STRNOEXISTENT };
+  ESG_ESG_D_BASSTR_STATECMD,
+  ESG_ESG_D_BASSTR_STATEACQ,
+  ESG_ESG_D_BASSTR_SELECTLIST,
+  ESG_ESG_D_BASSTR_GENCONTROL,
+  ESG_ESG_D_BASSTR_INFOSACQ,
+  ESG_ESG_D_BASSTR_HISTINFOSACQ,
+  ESG_ESG_D_BASSTR_ALARM,
+  ESG_ESG_D_BASSTR_THRESHOLD,
+  ESG_ESG_D_BASSTR_ORDER,
+  ESG_ESG_D_BASSTR_HHISTINFSACQ,
+  ESG_ESG_D_BASSTR_HISTALARM,
+  ESG_ESG_D_BASSTR_CHGHOUR,
+  ESG_ESG_D_BASSTR_INCIDENT,
+  ESG_ESG_D_BASSTR_MULTITHRES,
+  ESG_ESG_D_BASSTR_TELECMD,
+  ESG_ESG_D_BASSTR_TELEREGU,
+  ESG_ESG_D_BASSTR_EMERGENCY,
+  ESG_ESG_D_BASSTR_ACDLIST,
+  ESG_ESG_D_BASSTR_ACDQUERY,
+  EGA_EGA_D_STRNOEXISTENT,
+};
 
 // ==============================================================================
 // НСИ
-Request::Request(const ega_ega_odm_t_RequestEntry* _config)
+Request::Request(const RequestEntry* _config)
   : mtx(),
     m_class(AUTOMATIC),
     m_internal_dump(),
     m_config(),
     m_when(),
     m_trigger_callback(),
-    m_exchange_id(),
+    m_exchange_id(0),
     m_last_in_bundle(true),
     m_site(NULL),
     m_cycle(NULL)
 {
-  const char* name = ((_config)? _config->s_RequestName : "<empty>");
   if (!_config) {
-    memset(&m_config, '\0', sizeof(ega_ega_odm_t_RequestEntry));
+    memset(&m_config, '\0', sizeof(RequestEntry));
   }
   else {
-    memcpy(&m_config, _config, sizeof(ega_ega_odm_t_RequestEntry));
+    memcpy(&m_config, _config, sizeof(RequestEntry));
   }
-  generate_new_exchange_id();
+//  generate_exchange_id();
   m_trigger_callback = std::bind(&Request::trigger, this);
-  LOG(INFO) << "CTOR Request " << name << " ega_ega_odm_t_RequestEntry "
+#if VERBOSE>5
+  LOG(INFO) << "CTOR Request " << ((_config)? _config->s_RequestName : "<empty>") << " RequestEntry "
             << m_exchange_id
             << " (" << m_dict_RequestNames[m_config.e_RequestId] << ")";
+#endif
 }
 
 #if 0
@@ -77,9 +98,9 @@ Request::Request(const callback_type &cb, const time_t &when)
   : m_config()
 //  : m_trigger_callback(cb)
 {
-//1  memset(&m_config, '\0', sizeof(ega_ega_odm_t_RequestEntry));
+//1  memset(&m_config, '\0', sizeof(RequestEntry));
   m_when = std::chrono::system_clock::from_time_t(when);
-  generate_new_exchange_id();
+  generate_exchange_id();
   m_trigger_callback = std::bind(&Request::trigger, this);
   LOG(INFO) << "CTOR Request time_t " << m_exchange_id;
 }
@@ -89,8 +110,8 @@ Request::Request(const callback_type &cb, const timeval &when)
 {
   m_when = std::chrono::system_clock::from_time_t(when.tv_sec) +
                        std::chrono::microseconds(when.tv_usec);
-//1  memset(&m_config, '\0', sizeof(ega_ega_odm_t_RequestEntry));
-  generate_new_exchange_id();
+//1  memset(&m_config, '\0', sizeof(RequestEntry));
+  generate_exchange_id();
   m_trigger_callback = std::bind(&Request::trigger, this);
   LOG(INFO) << "CTOR Request timeval " << m_exchange_id;
 }
@@ -100,7 +121,7 @@ Request::Request(const callback_type& cb, const std::chrono::time_point<std::chr
     m_when(when),
     m_trigger_callback(cb)
 {
-  generate_new_exchange_id();
+  generate_exchange_id();
   LOG(INFO) << "CTOR Request chrono " << m_exchange_id;
 }
 #endif
@@ -117,9 +138,11 @@ Request::Request(const Request& orig)
     m_site(orig.m_site),
     m_cycle(orig.m_cycle)
 {
-  generate_new_exchange_id();
+//  generate_exchange_id();
   m_trigger_callback = std::bind(&Request::trigger, this);
+#if VERBOSE>8
   LOG(INFO) << "CTOR Request Request& " << m_exchange_id;
+#endif
 }
 
 Request::Request(const Request* orig)
@@ -133,14 +156,16 @@ Request::Request(const Request* orig)
     m_site(orig->m_site),
     m_cycle(orig->m_cycle)
 {
-  generate_new_exchange_id();
+//  generate_exchange_id();
   m_trigger_callback = std::bind(&Request::trigger, this);
+#if VERBOSE>8
   LOG(INFO) << "CTOR Request Request* " << m_exchange_id;
+#endif
 }
 
 Request& Request::operator=(const Request& orig)
 {
-  memcpy(&m_config, &orig.m_config, sizeof(ega_ega_odm_t_RequestEntry));
+  memcpy(&m_config, &orig.m_config, sizeof(RequestEntry));
   m_when = orig.m_when;
   m_class = orig.m_class;
   m_exchange_id = orig.m_exchange_id;
@@ -148,21 +173,23 @@ Request& Request::operator=(const Request& orig)
   m_site = orig.m_site;
   m_cycle = orig.m_cycle;
 
-  generate_new_exchange_id();
+//  generate_exchange_id();
   m_trigger_callback = std::bind(&Request::trigger, this);
+#if VERBOSE>8
   LOG(INFO) << "operator= Request " << m_exchange_id;
+#endif
   return *this;
 }
 
 // ==============================================================================
-size_t Request::generate_new_exchange_id()
+size_t Request::generate_exchange_id()
 {
   mtx.lock();
 
   if (m_sequence >= ULONG_MAX - 1)
     m_sequence = 0;
 
-  m_exchange_id = m_sequence++;
+  m_exchange_id = ++m_sequence;
 
   mtx.unlock();
   return m_exchange_id;
@@ -183,78 +210,26 @@ Request::Request(const Request* _req, AcqSiteEntry* _site, Cycle* _cycle)
 // ==============================================================================
 Request::~Request()
 {
+#if VERBOSE>8
   LOG(INFO) << "release request exchange:" << m_exchange_id << " id:" << m_config.e_RequestId;
+#endif
 }
 
 // ==============================================================================
 // TODO: Вероятно, не стоит давать возможность Запросу самоповторяться
 int Request::trigger()
 {
-  const int REQUEST_ID_LAST = ECH_D_NOT_EXISTENT + 1;
-  const int SA_STATE_LAST = EGA_EGA_AUT_D_NB_STATE + 1;
-  //      0
-  //      |                 21
-  //      |                 |                 0
-  //      |                 |                 |                 6
-  //      |                 |                 |                 |
-  //bool [ECH_D_GENCONTROL..ECH_D_DELEGATION][SA_STATE_UNREACH..SA_STATE_UNKNOWN] = {
-  // Номер строки - тип текущего Запроса
-  // Номер столбца - состояние связанной с Запросом СС
-#define X true
-#define _ false
-  static const bool enabler_matrix[REQUEST_ID_LAST][SA_STATE_LAST] = {
-    //                         NI_NM_NO
-    //                         |  NI_M_NO
-    //                         |  |  NI_NM_O
-    //                         |  |  |  NI_M_O
-    //                         |  |  |  |  I_NM_NO
-    //                         |  |  |  |  |  I_M_NO
-    //                         |  |  |  |  |  |  I_NM_O
-    //                         |  |  |  |  |  |  |  I_M_O
-    //                         |  |  |  |  |  |  |  |
-    /* ECH_D_GENCONTROL */   { _, _, X, _, _, _, _, _ },
-    /* ECH_D_INFOSACQ   */   { _, _, X, _, _, _, _, _ },
-    /* ECH_D_URGINFOS   */   { _, _, X, _, _, _, _, _ },
-    /* ECH_D_GAZPROCOP  */   { _, _, X, _, _, _, _, _ },
-    /* ECH_D_EQUIPACQ   */   { _, _, X, X, _, _, _, _ },
-    /* ECH_D_ACQSYSACQ  */   { _, _, X, X, X, X, X, _ },
-    /* ECH_D_ALATHRES   */   { _, _, X, _, _, _, _, _ },
-    /* ECH_D_TELECMD    */   { _, _, X, _, _, _, _, _ },
-    /* ECH_D_TELEREGU   */   { _, _, X, _, _, _, _, _ },
-    /* ECH_D_SERVCMD    */   { _, _, X, X, _, _, X, X },
-    /* ECH_D_GLOBDWLOAD */   { _, _, _, X, _, _, _, _ },
-    /* ECH_D_PARTDWLOAD */   { _, _, _, X, _, _, _, _ },
-    /* ECH_D_GLOBUPLOAD */   { _, _, _, X, _, _, _, _ },
-    /* ECH_D_INITCMD    */   { X, X, X, X, _, _, _, _ },
-    /* ECH_D_GCPRIMARY  */   { _, _, X, _, _, _, _, _ },
-    /* ECH_D_GCSECOND   */   { _, _, X, _, _, _, _, _ },
-    /* ECH_D_GCTERTIARY */   { _, _, X, _, _, _, _, _ },
-    /* ECH_D_DIFFPRIMARY*/   { _, _, X, _, _, _, _, _ },
-    /* ECH_D_DIFFSECOND */   { _, _, X, _, _, _, _, _ },
-    /* ECH_D_DIFFTERTIARY */ { _, _, X, _, _, _, _, _ },
-    /* ECH_D_INFODIFFUSION*/ { _, _, X, _, _, _, _, _ },
-    /* ECH_D_DELEGATION   */ { _, _, X, X, _, _, _, _ },
-  };
-#undef _
-#undef X
   int rc = ONCE;
 
-  // Проверить, разрешен ли Запрос для текущего состояния СС
-  if (enabler_matrix[m_config.e_RequestId][m_site->state()]) {
-    // Да, разрешен
-    LOG(INFO) << "TRIGGER REQ [" << dump() << "] enabler:" << enabler_matrix[m_config.e_RequestId][m_site->state()];
+  LOG(INFO) << "TRIGGER REQ [" << dump() << "] ";
 
-    // TODO: Выполнить действия, предполагаемые данным запросом:
-    //  * прочитать данные из SMAD и передать их в БДРВ для Запросов типов Сбора Данных (GENCONTROL, URGINFOS,...)
-    //  * получить состояние СС для Запросов типа Управление (ACQSYSACQ, SERVCMD,...)
-    //  * ...
-    //
-    m_when += std::chrono::seconds(1); // GEV: повторять запрос каждую секунду
-    rc = REPEAT;
-  }
-  else {
-    // Нет, запрещен
-  }
+  // TODO: Выполнить действия, предполагаемые данным запросом:
+  //  * прочитать данные из SMAD и передать их в БДРВ для Запросов типов Сбора Данных (GENCONTROL, URGINFOS,...)
+  //  * получить состояние СС для Запросов типа Управление (ACQSYSACQ, SERVCMD,...)
+  //  * ...
+  //
+  m_when += std::chrono::seconds(1); // GEV: повторять запрос каждую секунду
+  rc = REPEAT;
 
   /*
   switch (m_site->state()) {
@@ -395,7 +370,9 @@ RequestRuntimeList::RequestRuntimeList()
 // ==============================================================================
 RequestRuntimeList::~RequestRuntimeList()
 {
+#if VERBOSE>8
   LOG(INFO) << "DTOR RequestRuntimeList";
+#endif
   while (!m_request_queue.empty())
   {
       LOG(INFO) << "REQ QUEUE TOP: " << m_request_queue.top().name();
@@ -472,21 +449,21 @@ bool RequestRuntimeList::remove(const Request& re) { /*
 // Итерация по выборке подходящих Запросов из сортированной очереди
 void RequestRuntimeList::timer()
 {
-      time_type now = std::chrono::system_clock::now();
+  time_type now = std::chrono::system_clock::now();
 
-      while (!m_request_queue.empty() &&
-             (m_request_queue.top().when() < now))
-      {
-        const Request& req = m_request_queue.top();
+  while (!m_request_queue.empty() &&
+         (m_request_queue.top().when() < now))
+  {
+    const Request& req = m_request_queue.top();
 
-        // Если запрос говорит, что его нужно повторить - поместим обратно в очередь
-        // NB: при этом новое время активации Запроса должно быть уже изменено в callback()-е
-        if (Request::REPEAT == req.callback()) {
-          m_request_queue.emplace(req);
-        }
+    // Если запрос говорит, что его нужно повторить - поместим обратно в очередь
+    // NB: при этом новое время активации Запроса должно быть уже изменено в callback()-е
+    if (Request::REPEAT == req.callback()) {
+      m_request_queue.emplace(req);
+    }
 
-        m_request_queue.pop();
-      }
+    m_request_queue.pop();
+  }
 }
 
 // ==============================================================================
