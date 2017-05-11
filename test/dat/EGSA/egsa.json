@@ -189,102 +189,119 @@
 	}, {
 		"NAME": "I_INITCMD",
 		"PRIORITY": 80,
-		"OBJECT": "A"
+		"OBJECT": "A",
+        "COMMENT": "Установить связь с модулем СС"
     }, {
         "NAME": "AB_STATESCMD",
 		"PRIORITY": 80,
 		"OBJECT": "A",
 		"MODE": "DIFF",
-        "COMMENT": "русский комментарий"
+        "COMMENT": "Отправить абоненту своё состояние"
     }, {
         "NAME": "DB_STATESACQ",
 		"PRIORITY": 80,
 		"OBJECT": "A",
-		"MODE": "DIFF"
+		"MODE": "DIFF",
+        "COMMENT": "Обработать состояние абонента"
+    }, {
+        "NAME": "IL_INITCOMD",
+		"PRIORITY": 0,
+		"OBJECT": "A",
+		"MODE": "DIFF",
+        "COMMENT": "Виртуальный локальный запрос. Если INCLUDED_REQUEST есть, этот запрос считать COMPOSED (комбинированным, состоящим из неск. подчиненных)",
+		"INCLUDED_REQUESTS": [{
+			"NAME": "AB_STATESCMD"
+		}, {
+			"NAME": "AB_HISTALARM"
+		}, {
+			"NAME": "AB_HHISTINFSACQ"
+		}, {
+			"NAME": "AB_GENCONTROL"
+		}]
     }, {
         "NAME": "AB_SELECTLIST",
 		"PRIORITY": 80,
 		"OBJECT": "A",
-		"MODE": "DIFF"
+		"MODE": "NONDIFF"
     }, {
         "NAME": "AB_GENCONTROL",
 		"PRIORITY": 80,
 		"OBJECT": "A",
-		"MODE": "DIFF"
+		"MODE": "NONDIFF"
     }, {
         "NAME": "DB_INFOSACQ",
         "PRIORITY": 80,
 		"OBJECT": "A",
-		"MODE": "DIFF"
+		"MODE": "NONDIFF"
     }, {
         "NAME": "DB_HISTINFOSACQ",
   		"PRIORITY": 80,
 		"OBJECT": "A",
-		"MODE": "DIFF"
+		"MODE": "NONDIFF"
     }, {
         "NAME": "DB_ALARM",
-		"PRIORITY": 80,
+		"PRIORITY": 101,
 		"OBJECT": "A",
-		"MODE": "DIFF"
+		"MODE": "NONDIFF"
     }, {
         "NAME": "DB_THRESHOLD",
 		"PRIORITY": 80,
 		"OBJECT": "A",
-		"MODE": "DIFF"
+		"MODE": "NONDIFF"
     }, {
         "NAME": "DB_ORDER",
         "PRIORITY": 80,
 		"OBJECT": "A",
-		"MODE": "DIFF"
+		"MODE": "NONDIFF"
     }, {
         "NAME": "AB_HHISTINFSACQ",
         "PRIORITY": 80,
 		"OBJECT": "A",
-		"MODE": "DIFF"
+		"MODE": "NONDIFF"
     }, {
         "NAME": "AB_HISTALARM",
-        "PRIORITY": 80,
+        "PRIORITY": 101,
 		"OBJECT": "A",
-		"MODE": "DIFF"
+		"MODE": "NONDIFF"
     }, {
         "NAME": "DB_CHGHOUR",
         "PRIORITY": 80,
 		"OBJECT": "A",
-		"MODE": "DIFF"
+		"MODE": "NONDIFF"
     }, {
         "NAME": "DB_INCIDENT",
         "PRIORITY": 80,
 		"OBJECT": "A",
-		"MODE": "DIFF"
+		"MODE": "NONDIFF"
     }, {
         "NAME": "DB_MULTITHRES",
         "PRIORITY": 80,
 		"OBJECT": "A",
-		"MODE": "DIFF"
+		"MODE": "NONDIFF"
     }, {
         "NAME": "DB_TELECMD",
-        "PRIORITY": 80,
-		"OBJECT": "A",
-		"MODE": "DIFF"
+        "PRIORITY": 101,
+		"OBJECT": "I",
+		"MODE": "NONDIFF"
     }, {
         "NAME": "DB_TELEREGU",
-        "PRIORITY": 80,
-		"OBJECT": "A",
-		"MODE": "DIFF"
+        "PRIORITY": 101,
+		"OBJECT": "I",
+		"MODE": "NONDIFF"
     }, {
         "NAME": "DB_EMERGENCY",
         "PRIORITY": 80,
 		"OBJECT": "A",
-		"MODE": "DIFF"
+		"MODE": "NONDIFF"
     }, {
         "NAME": "DB_ACDLIST",
         "PRIORITY": 80,
 		"OBJECT": "A",
-		"MODE": "DIFF"
+		"MODE": "NONDIFF"
     }, {
         "NAME": "DB_ACDQUERY",
         "PRIORITY": 80,
 		"OBJECT": "A",
-		"MODE": "DIFF"
+		"MODE": "NONDIFF"
     }]
 }

@@ -41,6 +41,19 @@ class Request
       ASYNC = 2
     } request_class_t;
 
+    typedef enum {
+      ESG_ESG_LIS_D_INPROGRESSREQUESTSTATE = 1,
+      ESG_ESG_LIS_D_ACCEPTEDREQUESTSTATE = 2,
+      ESG_ESG_LIS_D_SENTREQUESTSTATE = 3,
+      ESG_ESG_LIS_D_EXECUTEDREQUESTSTATE = 4,
+      ESG_ESG_LIS_D_ERRORREQUESTSTATE = 5,
+      ESG_ESG_LIS_D_NOTSENTREQUESTSTATE = 5,
+      ESG_ESG_LIS_D_WAIT_N = 6, // normal
+      ESG_ESG_LIS_D_WAIT_U = 7, // urgent
+      ESG_ESG_LIS_D_SENT_N = 8,
+      ESG_ESG_LIS_D_SENT_U = 9,
+    } request_executing_state_t;
+
     // Используется для НСИ
     Request(const RequestEntry*);
     // Используется для хранения динамической информации в процессе работы
@@ -50,36 +63,39 @@ class Request
    ~Request();
     Request& operator=(const Request&);
 
-    size_t exchange_id() const { return m_exchange_id; }
-    size_t generate_exchange_id();
+    size_t          exchange_id() const { return m_exchange_id; }
+    size_t          generate_exchange_id();
     // Установить/снять признак, последний ли это Запрос в группе
-    void last_in_bundle(bool sign) { m_last_in_bundle = sign; }
-    AcqSiteEntry* site() const { return m_site; }
-    Cycle* cycle() const { return m_cycle; }
-    ech_t_ReqId id() const { return m_config.e_RequestId; }
-    ech_t_AcqMode acq_mode() const { return m_config.e_RequestMode; }
+    void            last_in_bundle(bool sign) { m_last_in_bundle = sign; }
+    AcqSiteEntry*   site() const { return m_site; }
+    Cycle*          cycle() const { return m_cycle; }
+    ech_t_ReqId     id() const { return m_config.e_RequestId; }
+    ech_t_AcqMode   acq_mode() const { return m_config.e_RequestMode; }
     ega_ega_t_ObjectClass object() const { return m_config.e_RequestObject; }
     // Класс запроса - автоматический, циклический, асинхронный
     request_class_t rclass() const { return m_class; }
-    int priority() const           { return m_config.i_RequestPriority; }
-    bool rprocess() const          { return m_config.b_Requestprocess; }
+    int             priority() const { return m_config.i_RequestPriority; }
+    bool            rprocess() const { return m_config.b_Requestprocess; }
     // Получить время начала
     const time_type when() const   { return m_when; }
+    // Получить длительность исполнения
+    const time_type duration() const { return m_duration; }
     // Установить время начала
-    void arm(const time_type& _when) { m_when = _when; }
+    void            arm(const time_type& _when) { m_when = _when; }
     // TODO: разделить события - нормальное завершение или по таймауту
-    int callback() const { return m_trigger_callback(); }
-    const char* name() const
+    int             callback() const { return m_trigger_callback(); }
+    const char*     name() const
       { return (NOT_EXISTENT != m_config.e_RequestId)? m_dict_RequestNames[m_config.e_RequestId] : "error"; }
     static const char* name(ech_t_ReqId _id)
       { return (NOT_EXISTENT != _id)? m_dict_RequestNames[_id] : NULL; }
-    int* included()  { return m_config.r_IncludingRequests; }
+    const int*      included() const { return m_config.r_IncludingRequests; }
+    // Проверить, является ли запрос составным
+    int             composed() const;
 
     // Событие завершения времени. Предусмотреть флаги - таймаут есть/нет,...
-    int trigger();
-
+    int             trigger();
     // Строка с характеристиками Запроса
-    const char* dump();
+    const char*     dump();
   private:
  //   DISALLOW_COPY_AND_ASSIGN(Request); violate in 'm_request_queue.emplace()
     std::mutex mtx;
@@ -95,6 +111,8 @@ class Request
     RequestEntry  m_config;
     // Время инициации запроса
     time_type         m_when;
+    // Длительность исполнения
+    time_type         m_duration;
     // Функции, вызываемые в указанное время
     callback_type     m_trigger_callback;
     // Динамические Атрибуты

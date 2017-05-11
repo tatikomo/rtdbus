@@ -8,7 +8,7 @@
 
 // Общесистемные заголовочные файлы
 #include <memory>
-#include <vector>
+#include <list>
 #include <map>
 
 // Служебные заголовочные файлы сторонних утилит
@@ -63,25 +63,19 @@ EGA_EGA_AUT_D_STATE_WC;  //    в запрете,    в техобслужива
 
 #define  EGA_EGA_D_STATEINIT    0
 typedef enum {
-  EGA_EGA_AUT_D_STATE_NI_NM_NO  = EGA_EGA_D_STATEINIT,    // Acquisition systems requests only
-  EGA_EGA_AUT_D_STATE_NI_M_NO   = EGA_EGA_D_STATEINIT+1,  // Only commands processing in maintaince mode
-  EGA_EGA_AUT_D_STATE_NI_NM_O   = EGA_EGA_D_STATEINIT+2,  // Normal operation state
-  EGA_EGA_AUT_D_STATE_NI_M_O    = EGA_EGA_D_STATEINIT+3,  // Dispatcher request only
-  EGA_EGA_AUT_D_STATE_I_NM_NO   = EGA_EGA_D_STATEINIT+4,  // Inhibition
-  EGA_EGA_AUT_D_STATE_I_M_NO    = EGA_EGA_D_STATEINIT+5,  // Inhibition
-  EGA_EGA_AUT_D_STATE_I_NM_O    = EGA_EGA_D_STATEINIT+6,  // Inhibition
-  EGA_EGA_AUT_D_STATE_I_M_O     = EGA_EGA_D_STATEINIT+7   // Inhibition
+/* 0 */  EGA_EGA_AUT_D_STATE_NI_NM_NO  = EGA_EGA_D_STATEINIT,    // Acquisition systems requests only
+/* 1 */  EGA_EGA_AUT_D_STATE_NI_M_NO   = EGA_EGA_D_STATEINIT+1,  // Only commands processing in maintaince mode
+/* 2 */  EGA_EGA_AUT_D_STATE_NI_NM_O   = EGA_EGA_D_STATEINIT+2,  // Normal operation state
+/* 3 */  EGA_EGA_AUT_D_STATE_NI_M_O    = EGA_EGA_D_STATEINIT+3,  // Dispatcher request only
+/* 4 */  EGA_EGA_AUT_D_STATE_I_NM_NO   = EGA_EGA_D_STATEINIT+4,  // Inhibition
+/* 5 */  EGA_EGA_AUT_D_STATE_I_M_NO    = EGA_EGA_D_STATEINIT+5,  // Inhibition
+/* 6 */  EGA_EGA_AUT_D_STATE_I_NM_O    = EGA_EGA_D_STATEINIT+6,  // Inhibition
+/* 7 */  EGA_EGA_AUT_D_STATE_I_M_O     = EGA_EGA_D_STATEINIT+7   // Inhibition
 } sa_state_t;
 
-#define EGA_EGA_AUT_D_NB_TRANS (EGA_EGA_AUT_D_TRANS_NI+1)   // transition number (state/mode values)
-#define EGA_EGA_AUT_D_NB_STATE (EGA_EGA_AUT_D_STATE_I_M_O+1)   // automate state number
-
+#define EGA_EGA_AUT_D_NB_TRANS (EGA_EGA_AUT_D_TRANS_NI + 1)     // transition number (state/mode values)
+#define EGA_EGA_AUT_D_NB_STATE (EGA_EGA_AUT_D_STATE_I_M_O + 1)  // automate state number
 #endif
-
-
-#define REQUEST_ID_LAST (NOT_EXISTENT + 1)
-#define SA_STATE_LAST   (EGA_EGA_AUT_D_NB_STATE + 1)
-
 
 // ==============================================================================
 // Acquisition Site Entry Structure
@@ -108,18 +102,35 @@ typedef enum {
 //          cnf+,comm+params+,link+
 
 class AcqSiteEntry {
-  // Automaton structure definition
-  // ------------------------------
+  // Automation structure definition
+  // -------------------------------
   typedef enum {
     ACTION_NONE       = 0,
     ACTION_AUTOINIT   = 1,
     ACTION_GENCONTROL = 2
   } action_type_t;
 
+  // Запись об элементарном состоянии СС
   typedef struct {
     sa_state_t  next_state;
     action_type_t action_type;
   } ega_ega_aut_t_automate;
+
+  // Состояние ТИ определенного типа
+  typedef enum {
+    UNKNOWN  = 0,
+    RECEIVE  = 1,
+    ACQUIRE  = 2,
+    SENT     = 3,
+    TRANSMIT = 4
+  } teleinformation_processing_t;
+
+  typedef enum {
+    NONE    = 0,
+    BEGIN   = 1,
+    END_NOHHIST = 2,
+    END     = 3
+  } init_phase_t;
 
   public:
     AcqSiteEntry(EGSA*, const egsa_config_site_item_t*);
@@ -133,7 +144,7 @@ class AcqSiteEntry {
     sa_object_level_t level() const { return m_Level; }
 
     // Регистрация Запросов в указанном Цикле
-    int push_request_for_cycle(Cycle*, int*);
+    int push_request_for_cycle(Cycle*, const int*);
 
     // TODO: СС и EGSA могут работать на разных хостах, в этом случае подключение EGSA к smad СС
     // не получит доступа к реальным данным от СС. Их придется EGSA туда заносить самостоятельно.
@@ -164,8 +175,12 @@ class AcqSiteEntry {
     // SYNTHSTATE, INHIBITION, EXPMODE в БДРВ, приходящих по подписке
     int change_state(int, int);
 
-    // Попытаться добавить в очередь указанный Запрос, вернет признак разрешенности Запроса
-    bool add_request(const Request*);
+    // Проверить допустимость принятия Запроса к исполнению
+    bool state_filter(const Request*);
+    bool ega_state_filter(const Request*); // для запросов к локальным подчиненным СС
+    bool esg_state_filter(const Request*, int);  // для запросов к удаленным/вышестоящим системам
+    // Попытаться добавить в очередь указанный Запрос
+    int add_request(const Request*);
     // Функция вызывается при необходимости создания Запросов на инициализацию связи
     int cbAutoInit();
     // Функция вызывается при необходимости создания Запросов на общий сбор информации (есть, Генерал Контрол!)
@@ -177,6 +192,9 @@ class AcqSiteEntry {
     void init_functional_state();
     // Получить ссылку на экземпляр Запроса указанного типа
     const Request* get_dict_request(ech_t_ReqId);
+    // Состояние авторизации (?)
+    bool OPStateAuthorised() { return m_OPStateAuthorised; }
+    init_phase_t InitPhase() { return m_init_phase; };
 
     EGSA* m_egsa;
     synthstate_t m_synthstate;
@@ -215,9 +233,9 @@ class AcqSiteEntry {
     InternalSMAD    *m_smad;
 
     // composed requests table - a dynamic table containing the number of requests and description of each request
-    std::vector<Request*> m_requests_composed;
+    //std::list<const Request*> m_requests_composed;
     // requests in progress list access
-    std::vector<Request*> m_requests_in_progress;
+    std::list<const Request*> m_requests_in_progress;
 
     // Поля, специфичные для удаленных Сайтов того же, или верхнего уровня (соседние объекты или управление)
     // Поскольку процедура установления связи с ними растянута по времени и состоит из нескольких
@@ -232,8 +250,24 @@ class AcqSiteEntry {
     //   TRUE -> Init from the distant terminated
     //
     static const ega_ega_aut_t_automate m_ega_ega_aut_a_auto [EGA_EGA_AUT_D_NB_TRANS][EGA_EGA_AUT_D_NB_STATE];
+
+
+    // ========================= ESG ================================================
     // матрица допустимости Запросов по типам от текущего функционального состояния СС
-    static const bool enabler_matrix[REQUEST_ID_LAST][SA_STATE_LAST];
+    static const bool enabler_matrix[REQUEST_ID_LAST + 1][EGA_EGA_AUT_D_NB_STATE + 1];
+    // Состояние предыстории определенной дискретизации - секундная (2017/05: пока нет),
+    // минутная, 5-минутная, часовая, суточная, месячная.
+    // NB: количество типов синхронизировать первоисточником в rtap_db.mco, тип HistoryType
+    teleinformation_processing_t m_history_info[6];
+    // Состояние авторизации
+    bool m_OPStateAuthorised;
+    // Состояние процедуры инициализации связи, используется для ESG
+    init_phase_t m_init_phase;
+    // Состояние типа данных "Тревоги"
+    teleinformation_processing_t m_Alarms;
+    // Состояние типа данных "Телеизмерения"
+    teleinformation_processing_t m_Infos;
+    // ========================= ESG ================================================
 };
 
 // ==============================================================================

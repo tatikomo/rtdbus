@@ -213,29 +213,7 @@ int EGSA::load_config()
               << (*rit).second->i_RequestPriority << " "
               << (unsigned int)(*rit).second->e_RequestObject << " "
               << (unsigned int)(*rit).second->e_RequestMode
-              << " (irs " << (*rit).second->r_IncludingRequests[0]
-              << " " << (*rit).second->r_IncludingRequests[1]
-              << " " << (*rit).second->r_IncludingRequests[2]
-              << " " << (*rit).second->r_IncludingRequests[3]
-              << " " << (*rit).second->r_IncludingRequests[4]
-              << " " << (*rit).second->r_IncludingRequests[5]
-              << " " << (*rit).second->r_IncludingRequests[6]
-              << " " << (*rit).second->r_IncludingRequests[7]
-              << " " << (*rit).second->r_IncludingRequests[8]
-              << " " << (*rit).second->r_IncludingRequests[9]
-              << " " << (*rit).second->r_IncludingRequests[10]
-              << " " << (*rit).second->r_IncludingRequests[11]
-              << " " << (*rit).second->r_IncludingRequests[12]
-              << " " << (*rit).second->r_IncludingRequests[13]
-              << " " << (*rit).second->r_IncludingRequests[14]
-              << " " << (*rit).second->r_IncludingRequests[15]
-              << " " << (*rit).second->r_IncludingRequests[16]
-              << " " << (*rit).second->r_IncludingRequests[17]
-              << " " << (*rit).second->r_IncludingRequests[18]
-              << " " << (*rit).second->r_IncludingRequests[19]
-              << " " << (*rit).second->r_IncludingRequests[20]
-              << " " << (*rit).second->r_IncludingRequests[21]
-              << ")";
+              << " (irs " << (*rit).second->composed() << ")";
 #endif
     Request* rq = new Request((*rit).second);
 
@@ -310,6 +288,26 @@ int EGSA::detach()
 }
 
 // ==========================================================================================================
+// Обработка команд от EGSA::run()
+int EGSA::process_command(const std::string& command)
+{
+  const char *fname = "EGSA::process_command";
+  int rc = NOK;
+
+  if (std::string::npos != command.compare("TERMINATE")) {
+    LOG(INFO) << fname << ": process " << command;
+  }
+  else if (std::string::npos != command.compare("PROBE")) {
+    LOG(INFO) << fname << ": process " << command;
+  }
+  else {
+    LOG(ERROR) << fname << ": unsupported command: " << command;
+  }
+
+  return rc;
+}
+
+// ==========================================================================================================
 // Интерфейс реализации второго уровня
 // Отвечает за взаимодействие с интерфейсными модулями систем сбора и смежными объектами
 int EGSA::implementation()
@@ -368,13 +366,9 @@ int EGSA::implementation()
           assert (request);
 
           // command or replay address
-          std::string identity  = request->pop_front();
-#if 0
-          std::string empty = request->pop_front();
-#endif
+          std::string command_identity  = request->pop_front();
 
-          LOG(INFO) << fname << ": get command from " << identity;
-          // processing(request, identity);
+          process_command(command_identity);
 
           delete request;
       } // если получен запрос

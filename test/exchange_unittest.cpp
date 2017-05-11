@@ -131,7 +131,7 @@ TEST(TestEXCHANGE, EGSA_CONFIG)
   EXPECT_TRUE(g_egsa_instance->config()->sites().size() == 3);
 
   LOG(INFO) << "load " << g_egsa_instance->config()->requests().size() << " requests";
-  EXPECT_TRUE(g_egsa_instance->config()->requests().size() == 40);
+  EXPECT_TRUE(g_egsa_instance->config()->requests().size() == 41);
 }
 
 // Подготовить полную информацию по циклам, включая связанные с этими циклами сайты
@@ -469,7 +469,25 @@ TEST(TestEXCHANGE, EGSA_DICT_REQUESTS)
                 << " prio=" << r->priority();
 #endif
   }
- // req_list.insert()
+  // req_list.insert()
+
+  // Локальный запрос IL_INITCOMD является композитным,
+  // состоящим из AB_STATESCMD,AB_HISTALARM,AB_HHISTINFSACQ,AB_GENCONTROL
+  Request *ric = rl.query_by_id(ESG_LOCID_INITCOMD);
+  ASSERT_TRUE(NULL != ric);
+  LOG(INFO) << ESG_ESG_D_LOCSTR_INITCOMD << ": composed() = " << ric->composed();
+  EXPECT_TRUE(ric->composed() == 4);
+  EXPECT_TRUE(ric->included()[ESG_BASID_STATECMD] == 1);
+  EXPECT_TRUE(ric->included()[ESG_BASID_HISTALARM] == 2);
+  EXPECT_TRUE(ric->included()[ESG_BASID_HHISTINFSACQ] == 3);
+  EXPECT_TRUE(ric->included()[ESG_BASID_GENCONTROL] == 4);
+
+  // Запрос URGINFOS не является композтным
+  Request *ru = rl.query_by_id(EGA_URGINFOS);
+  ASSERT_TRUE(NULL != ru);
+  LOG(INFO) << EGA_EGA_D_STRURGINFOS << ": composed() = " << ru->composed();
+  EXPECT_TRUE(ru->composed() == 0);
+  EXPECT_TRUE(ru->included()[ESG_BASID_STATECMD] == 0);
 }
 
 TEST(TestEXCHANGE, EGSA_RT_REQUESTS)

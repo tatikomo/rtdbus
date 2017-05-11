@@ -46,6 +46,8 @@ class EGSA : public mdp::mdwrk {
 #endif
     // Запуск Интерфейса второго уровня
     int implementation();
+    // Обработка в implementation команд от EGSA::run()
+    int process_command(const std::string&);
     // Доступ к конфигурации
     EgsaConfig* config();
     // Доступ к Сайтам

@@ -61,6 +61,16 @@ const char* Request::m_dict_RequestNames[] = {
   ESG_ESG_D_BASSTR_EMERGENCY,
   ESG_ESG_D_BASSTR_ACDLIST,
   ESG_ESG_D_BASSTR_ACDQUERY,
+  ESG_ESG_D_LOCSTR_GENCONTROL,
+  ESG_ESG_D_LOCSTR_GCPRIMARY,
+  ESG_ESG_D_LOCSTR_GCSECONDARY,
+  ESG_ESG_D_LOCSTR_GCTERTIARY,
+  ESG_ESG_D_LOCSTR_INFOSACQ,
+  ESG_ESG_D_LOCSTR_INITCOMD,
+  ESG_ESG_D_LOCSTR_CHGHOURCMD,
+  ESG_ESG_D_LOCSTR_TELECMD,
+  ESG_ESG_D_LOCSTR_TELEREGU,
+  ESG_ESG_D_LOCSTR_EMERGENCY,
   EGA_EGA_D_STRNOEXISTENT,
 };
 
@@ -72,6 +82,7 @@ Request::Request(const RequestEntry* _config)
     m_internal_dump(),
     m_config(),
     m_when(),
+    m_duration(),
     m_trigger_callback(),
     m_exchange_id(0),
     m_last_in_bundle(true),
@@ -132,6 +143,7 @@ Request::Request(const Request& orig)
     m_internal_dump(),
     m_config(orig.m_config),
     m_when(orig.m_when),
+    m_duration(orig.m_duration),
     m_trigger_callback(),
     m_exchange_id(orig.m_exchange_id),
     m_last_in_bundle(orig.m_last_in_bundle),
@@ -151,6 +163,7 @@ Request::Request(const Request* orig)
     m_internal_dump(),
     m_config(orig->m_config),
     m_when(orig->m_when),
+    m_duration(orig->m_duration),
     m_exchange_id(orig->m_exchange_id),
     m_last_in_bundle(orig->m_last_in_bundle),
     m_site(orig->m_site),
@@ -166,7 +179,7 @@ Request::Request(const Request* orig)
 Request& Request::operator=(const Request& orig)
 {
   memcpy(&m_config, &orig.m_config, sizeof(RequestEntry));
-  m_when = orig.m_when;
+  m_duration = orig.m_duration;
   m_class = orig.m_class;
   m_exchange_id = orig.m_exchange_id;
   m_last_in_bundle = true;
@@ -201,6 +214,7 @@ Request::Request(const Request* _req, AcqSiteEntry* _site, Cycle* _cycle)
   : m_class(_req->m_class),
     m_config(_req->m_config),
     m_when(_req->m_when),
+    m_duration(_req->m_duration),
     m_exchange_id(_req->m_exchange_id),
     m_site(_site),
     m_cycle(_cycle)
@@ -213,6 +227,21 @@ Request::~Request()
 #if VERBOSE>8
   LOG(INFO) << "release request exchange:" << m_exchange_id << " id:" << m_config.e_RequestId;
 #endif
+}
+
+// ==============================================================================
+// Проверить, является ли запрос составным, то есть нужно ли его заменять на вложенные запросы.
+// Возвращает количество составных запросов. Если = 0 - запрос простой, > 0 - составной.
+int Request::composed() const
+{
+  int composing_reqests_number = 0;
+
+  for(int i=0; i < NBREQUESTS; i++) {
+    if (m_config.r_IncludingRequests[i])
+      composing_reqests_number++;
+  }
+
+  return composing_reqests_number;
 }
 
 // ==============================================================================

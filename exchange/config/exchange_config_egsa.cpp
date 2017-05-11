@@ -174,7 +174,20 @@ RequestEntry EgsaConfig::g_request_dictionary[] = {
 /* 37 */  {ESG_BASID_TELEREGU,    ESG_ESG_D_BASSTR_TELEREGU,     101, ACQSYS, NONDIFF, true,  {} }, // Teleregulation
 /* 38 */  {ESG_BASID_EMERGENCY,   ESG_ESG_D_BASSTR_EMERGENCY,     80, ACQSYS, NONDIFF, true,  {} }, // Emergency cycle request
 /* 39 */  {ESG_BASID_ACDLIST,     ESG_ESG_D_BASSTR_ACDLIST,       80, ACQSYS, NONDIFF, true,  {} }, // ACD list element
-/* 40 */  {ESG_BASID_ACDQUERY,    ESG_ESG_D_BASSTR_ACDQUERY,      80, ACQSYS, NONDIFF, true,  {} }  // ACD query element
+/* 40 */  {ESG_BASID_ACDQUERY,    ESG_ESG_D_BASSTR_ACDQUERY,      80, ACQSYS, NONDIFF, true,  {} }, // ACD query element
+
+// Локальные композитные запросы, при попытке их добавления в очередь запросов происходит замещение
+// на подчиненные запросы из INCLUDED_REQUESTS
+/* 41 */  {ESG_LOCID_GENCONTROL,  ESG_ESG_D_LOCSTR_GENCONTROL,     0, ACQSYS, NONDIFF, true, {} },
+/* 42 */  {ESG_LOCID_GCPRIMARY,   ESG_ESG_D_LOCSTR_GCPRIMARY,      0, ACQSYS, NONDIFF, true, {} },
+/* 43 */  {ESG_LOCID_GCSECONDARY, ESG_ESG_D_LOCSTR_GCSECONDARY,    0, ACQSYS, NONDIFF, true, {} },
+/* 44 */  {ESG_LOCID_GCTERTIARY,  ESG_ESG_D_LOCSTR_GCTERTIARY,     0, ACQSYS, NONDIFF, true, {} },
+/* 45 */  {ESG_LOCID_INFOSACQ,    ESG_ESG_D_LOCSTR_INFOSACQ,       0, ACQSYS, NONDIFF, true, {} },
+/* 46 */  {ESG_LOCID_INITCOMD,    ESG_ESG_D_LOCSTR_INITCOMD,       0, ACQSYS, NONDIFF, true, {} },
+/* 47 */  {ESG_LOCID_CHGHOURCMD,  ESG_ESG_D_LOCSTR_CHGHOURCMD,     0, ACQSYS, NONDIFF, true, {} },
+/* 48 */  {ESG_LOCID_TELECMD,     ESG_ESG_D_LOCSTR_TELECMD,        0, ACQSYS, NONDIFF, true, {} },
+/* 49 */  {ESG_LOCID_TELEREGU,    ESG_ESG_D_LOCSTR_TELEREGU,       0, ACQSYS, NONDIFF, true, {} },
+/* 50 */  {ESG_LOCID_EMERGENCY,   ESG_ESG_D_LOCSTR_EMERGENCY,      0, ACQSYS, NONDIFF, true, {} },
 };
 
 //
@@ -556,6 +569,7 @@ int EgsaConfig::load_requests()
           // Прочитать массив сайтов, поместить их в m_cycles.sites
           Value& req_list = request_item_json[s_SECTION_REQUESTS_NAME_INC_REQ];
           int NumIncludedRequests = 0;
+          int sequence = 0;
           for (Value::ValueIterator itr = req_list.Begin(); itr != req_list.End(); ++itr)
           {
             const Value::Object& incl_req_item = itr->GetObject();
@@ -567,14 +581,13 @@ int EgsaConfig::load_requests()
                         << " priority=" << (unsigned int)request->i_RequestPriority
                         << " object=" << (unsigned int)request->e_RequestObject
                         << " mode=" << (unsigned int)request->e_RequestMode
-                        << " incl_req_names "
-                        << " [" << NumIncludedRequests + 1 << "] " << incl_req_name;
+                        << incl_req_name; // << " sequence=" << (sequence+1);
 
-              // Ненулевое значение говорит о количестве подзапросов подобного типа
-              request->r_IncludingRequests[dict_entry->e_RequestId]++;
-            }
-          }
-        }
+              // Ненулевое значение говорит о порядке исполнения подзапросов
+              request->r_IncludingRequests[dict_entry->e_RequestId] = ++sequence;
+            } // end нашли запрос по его имени 
+          } // конец цикла чтения вложенных запросов
+        } // конец блока "этот запрос составной"
         m_requests.insert(std::pair<std::string, RequestEntry*>(request->s_RequestName, request));
       } // если название Запроса известно
       else

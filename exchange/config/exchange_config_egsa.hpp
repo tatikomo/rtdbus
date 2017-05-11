@@ -89,11 +89,12 @@ typedef enum {
   CYCLE_CONTROL     = 3
 } cycle_family_t;
 
-// Типы запросов
+// Типы запросов, передаваемых соответствующим процессам.
 // NB: Поддерживать синхронизацию с типами запросов в common.proto
 // Нумерация начинается с нуля и вохрастает монотонно без разрывов
 typedef enum {
   // Запросы к локальным подчинённым системам сбора [0..21]
+  // Требуют постоянного подключения, после обрыва связи - EGA_INITCMD
   EGA_GENCONTROL   = 0,   // general control
   EGA_INFOSACQ     = 1,   // global acquisition
   EGA_URGINFOS     = 2,   // urgent data acquisition
@@ -117,7 +118,8 @@ typedef enum {
   EGA_INFODIFFUSION= 20,  // Information diffusion
   EGA_DELEGATION   = 21,  // Process order delegation-end of delegation
 
-  // Запросы к глобальным/внешним иноформационным системам
+  // Запросы к глобальным/внешним иноформационным системам.
+  // Не требуют постоянного подключения.
   ESG_BASID_STATECMD      = 22,
   ESG_BASID_STATEACQ      = 23,
   ESG_BASID_SELECTLIST    = 24,
@@ -138,27 +140,24 @@ typedef enum {
   ESG_BASID_ACDLIST       = 39,
   ESG_BASID_ACDQUERY      = 40,
 
-#if 0
   // Local requests are exchanged with local EGSA of our site
-  // NB: возможно, не потребуются
-  ESG_ESG_D_LOCID_GENCONTROL    = 41
-  ESG_ESG_D_LOCID_GCPRIMARY     = 42
-  ESG_ESG_D_LOCID_GCSECOND      = 43
-  ESG_ESG_D_LOCID_INFOSACQ      = 44
-  ESG_ESG_D_LOCID_INITCOMD      = 45
-  ESG_ESG_D_LOCID_CHGHOURCMD    = 46
-  ESG_ESG_D_LOCID_TELECMD       = 47
-  ESG_ESG_D_LOCID_TELEREGU      = 48
-  ESG_ESG_D_LOCID_EMERGENCY     = 49
-  ESG_ESG_D_LOCID_GCTERTIARY    = 50
-  ECH_D_NOT_EXISTENT = (ESG_ESG_D_LOCID_GCTERTIARY + 1)   // 51, request not exist
-#else
-  NOT_EXISTENT = (ESG_BASID_ACDQUERY + 1)   // 41, request not exist
-#endif
+  ESG_LOCID_GENCONTROL    = 41,
+  ESG_LOCID_GCPRIMARY     = 42,
+  ESG_LOCID_GCSECONDARY   = 43,
+  ESG_LOCID_GCTERTIARY    = 44,
+  ESG_LOCID_INFOSACQ      = 45,
+  ESG_LOCID_INITCOMD      = 46,
+  ESG_LOCID_CHGHOURCMD    = 47,
+  ESG_LOCID_TELECMD       = 48,
+  ESG_LOCID_TELEREGU      = 49,
+  ESG_LOCID_EMERGENCY     = 50,
+  NOT_EXISTENT = (ESG_LOCID_EMERGENCY + 1)   // 51, request not exist
 } ech_t_ReqId;
 
 // NB: Должен быть последним значением ech_t_ReqId + 1
 #define NBREQUESTS          (NOT_EXISTENT)
+#define REQUEST_ID_FIRST    EGA_GENCONTROL
+#define REQUEST_ID_LAST     ESG_LOCID_EMERGENCY
 
 // Names of External System Requests
 // ---------------------------------
@@ -186,7 +185,6 @@ typedef enum {
 #define EGA_EGA_D_STRDELEGATION "P_DELEGATION"  // delegation telecommand
 #define EGA_EGA_D_STRNOEXISTENT "NOT_EXISTENT"  // internal error sign
 
-
 // Names of Distant Sites Requests
 // ---------------------------------
 #define ESG_ESG_D_BASSTR_STATECMD       "AB_STATESCMD"    // Site state ask
@@ -209,17 +207,16 @@ typedef enum {
 #define ESG_ESG_D_BASSTR_ACDLIST        "DB_ACDLIST"      // ACD list element
 #define ESG_ESG_D_BASSTR_ACDQUERY       "DB_ACDQUERY"     // ACD query element
 
-// number of basic request to exchange with acquisition sites
-// ----------------------------------------------------------
-#define ESG_ESG_D_NBRBASREQ            (ESG_ESG_D_BASID_ACDQUERY + 1)
-
+#define ESG_ESG_D_NBRBASREQ             (ESG_ESG_D_BASID_ACDQUERY - EGA_DELEGATION)
+// Индекс последнего базового запроса, далее идут локальные
+#define LAST_BASIC_REQUEST              ESG_BASID_ACDQUERY
 
 // Names of LOCAL Requests
 // Local requests are exchanged with local EGSA of our site
 // --------------------------------------------------------
 #define ESG_ESG_D_LOCSTR_GENCONTROL  "AL_GENCONTROL" // Ti general control
 #define ESG_ESG_D_LOCSTR_GCPRIMARY   "AL_GCPRIMARY"  // Ti primary general control
-#define ESG_ESG_D_LOCSTR_GCSECOND    "AL_GCSECOND"   // Ti second general control
+#define ESG_ESG_D_LOCSTR_GCSECONDARY "AL_GCSECONDARY"// Ti second general control
 #define ESG_ESG_D_LOCSTR_GCTERTIARY  "AL_GCTERTIARY" // Ti tertiary general control
 #define ESG_ESG_D_LOCSTR_INFOSACQ    "AL_INFOSACQ"   // TeleInformations
 #define ESG_ESG_D_LOCSTR_INITCOMD    "IL_INITCOMD"   // Initialisation command
@@ -287,9 +284,10 @@ typedef struct {
   // Признак отношения запроса к технологическим данным (true)
   // или к состоянию самой системы сбора как опрашиваемого объекта (false)
   bool  b_Requestprocess;
-  // Включенные в данный запрос подзапросы. Индекс ненулевого элемента есть его ech_t_ReqId
+  // Включенные в данный запрос подзапросы.
+  // Индекс ненулевого элемента есть его ech_t_ReqId, значение индекса - очередность исполнения запроса.
+  // Очередность должна сохраниться той же, что и в конфигурации.
   int r_IncludingRequests[NBREQUESTS];
-  //ega_ega_t_Requests r_IncludingRequests;
 } RequestEntry;
 
 // Статическая связка между идентификатором Цикла (его порядковым номером) и его названием
