@@ -18,7 +18,6 @@ namespace xdb {
 //class RtEnvironment;
 class RtConnection;
 class RtPointFilter;
-class RtData;
 
 // Тип хранилища: в памяти или на диске
 typedef enum

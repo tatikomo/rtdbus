@@ -22,6 +22,7 @@
 #include "exchange_egsa_request.hpp"
 
 class ExternalSMAD;
+class AcqSiteEntry;
 
 class EGSA : public mdp::mdwrk {
   public:
@@ -46,6 +47,8 @@ class EGSA : public mdp::mdwrk {
 #endif
     // Запуск Интерфейса второго уровня
     int implementation();
+    int process_requests_for_all_sites();
+    int process_request_for_site(AcqSiteEntry*);
     // Обработка в implementation команд от EGSA::run()
     int process_command(const std::string&);
     // Доступ к конфигурации
@@ -81,7 +84,7 @@ class EGSA : public mdp::mdwrk {
       SHUTTINGDOWN  = 4,    // состояние завершения работы 
       STOP          = 5     // получен приказ на останов
     } egsa_internal_state_t;
-    void change_state_to(egsa_internal_state_t);
+    bool change_state_to(egsa_internal_state_t);
 
     // Обработка сообщения о чтении значений БДРВ (включая ответ группы подписки)
     int process_read_response(msg::Letter*);

@@ -81,9 +81,9 @@ void Cycle::dump()
 {
   std::cout << "Cycle name:" << m_CycleName << " family:" << (int)m_CycleFamily
             << " period:" << (int)m_CyclePeriod << " id:" << (int)m_CycleId << " ";
-  if (m_SiteList->size()) {
-    std::cout << "sites: " << m_SiteList->size() << " [";
-    for(size_t i=0; i < m_SiteList->size(); i++) {
+  if (m_SiteList->count()) {
+    std::cout << "sites: " << m_SiteList->count() << " [";
+    for(size_t i=0; i < m_SiteList->count(); i++) {
       std::cout << " " << (*m_SiteList)[i]->name();
     }
     std::cout << " ]";

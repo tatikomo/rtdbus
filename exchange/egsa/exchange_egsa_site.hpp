@@ -18,7 +18,6 @@
 #include "exchange_config.hpp"
 
 class EGSA;
-class SystemAcquisition;
 class Cycle;
 class Request;
 class InternalSMAD;
@@ -311,7 +310,7 @@ class AcqSiteList {
     // Очистить ресурсы
     int release();
     void insert(AcqSiteEntry*);
-    size_t size() const { return m_items.size(); };
+    size_t count() const { return m_items.size(); };
     void set_egsa(EGSA*);
 
     // Вернуть элемент по имени Сайта

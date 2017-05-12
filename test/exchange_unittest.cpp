@@ -210,7 +210,7 @@ TEST(TestEXCHANGE, EGSA_CYCLES_CONFIG)
       AcqSiteList* sites = cycle->sites();
       if (sites) {
 
-        for (size_t sidx = 0; sidx < sites->size(); sidx++) {
+        for (size_t sidx = 0; sidx < sites->count(); sidx++) {
 
           AcqSiteEntry* sa = (*sites)[sidx];
           LOG(INFO) << "\t" << "SA " << sa->name();
@@ -417,9 +417,9 @@ TEST(TestEXCHANGE, EGSA_SITES)
   check_data[2] = new AcqSiteEntry(g_egsa_instance, &config_item[2]);
 
   AcqSiteList& sites_list = g_egsa_instance->sites();
-  LOG(INFO) << "EGSA_SITES loads " << sites_list.size() << " sites";
+  LOG(INFO) << "EGSA_SITES loads " << sites_list.count() << " sites";
 
-  for (size_t i=0; i < sites_list.size(); i++) {
+  for (size_t i=0; i < sites_list.count(); i++) {
     const AcqSiteEntry* entry = sites_list[i];
 
     switch(i) {
@@ -668,7 +668,7 @@ TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
 TEST(TestEXCHANGE, EGSA_RUN)
 {
 #if 1
-//  g_egsa_instance->implementation();
+  g_egsa_instance->implementation();
 #else
 #warning "Отключена проверка EGSA::implementation"
   g_egsa_instance->run();

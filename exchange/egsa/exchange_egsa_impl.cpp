@@ -158,7 +158,6 @@ int EGSA::load_config()
        ++sit)
   {
     AcqSiteEntry* site = new AcqSiteEntry(this, (*sit).second);
-#warning "Проверь, нужен ли доступ к EGSA внутри AcqSiteEntry"
     m_ega_ega_odm_ar_AcqSites.insert(site);
   }
 
@@ -258,7 +257,7 @@ int EGSA::attach_to_sites_smad()
   int rc = OK;
 
   // По списку известных нам систем сбора создать интерфейсы к их SMAD
-  for (size_t i=0; i < m_ega_ega_odm_ar_AcqSites.size(); i++) {
+  for (size_t i=0; i < m_ega_ega_odm_ar_AcqSites.count(); i++) {
 
 #warning "Нужно предусмотреть возможность работы системы сбора и EGSA на разных хостах"
     // TODO: СС и EGSA могут работать на разных хостах, в этом случае подключение EGSA к smad СС
@@ -278,7 +277,7 @@ int EGSA::detach()
   // TODO: Для всех подчиненных систем сбора:
   // 1. Изменить их состояние SYNTHSTATE на "ОТКЛЮЧЕНО"
   // 2. Отключиться от их внутренней SMAD
-  for (size_t i=0; i < m_ega_ega_odm_ar_AcqSites.size(); i++) {
+  for (size_t i=0; i < m_ega_ega_odm_ar_AcqSites.count(); i++) {
     LOG(INFO) << "TODO: set " << m_ega_ega_odm_ar_AcqSites[i]->name() << "." << RTDB_ATT_SYNTHSTATE << " = 0";
     LOG(INFO) << "TODO: detach " << m_ega_ega_odm_ar_AcqSites[i]->name() << " SMAD";
     rc |= m_ega_ega_odm_ar_AcqSites[i]->detach_smad();
@@ -294,10 +293,10 @@ int EGSA::process_command(const std::string& command)
   const char *fname = "EGSA::process_command";
   int rc = NOK;
 
-  if (std::string::npos != command.compare("TERMINATE")) {
+  if (0 == command.compare("TERMINATE")) {
     LOG(INFO) << fname << ": process " << command;
   }
-  else if (std::string::npos != command.compare("PROBE")) {
+  else if (0 == command.compare("PROBE")) {
     LOG(INFO) << fname << ": process " << command;
   }
   else {
@@ -315,10 +314,10 @@ int EGSA::implementation()
   const char* fname = "EGSA::implementation";
   int status = OK;
   bool need_to_stop = false;
+  bool changed = true;
   int linger = 0;
   int send_timeout_msec = SEND_TIMEOUT_MSEC;
   int recv_timeout_msec = RECV_TIMEOUT_MSEC;
-  mdp::zmsg *request = NULL;
   zmq::pollitem_t  socket_items[2];
   // time_t last_probe_time, cur_time;
   zmq::socket_t  commands(m_context, ZMQ_DEALER);
@@ -346,23 +345,12 @@ int EGSA::implementation()
     while(!interrupt_worker && !need_to_stop) {
       LOG(INFO) << fname;
 
-      const egsa_internal_state_t old_egsa_state = m_state;
       zmq::poll (socket_items, 1, PollingTimeout);
 
-#if _FUNCTIONAL_TEST
-      // GEV TEST
-      switch (sec) {
-        case 1:  m_state = INITIAL;      break;
-        case 3:  m_state = WAITING_INIT; break;
-        case 4:  m_state = END_INIT;     break;
-        case 5:  m_state = RUN;          break;
-        case 10: m_state = STOP;         break;
-        case 11: m_state = SHUTTINGDOWN; break;
-      }
-#else
+#ifndef _FUNCTIONAL_TEST
       if (socket_items[0].revents & ZMQ_POLLIN) { // Получен запрос
 
-          request = new mdp::zmsg (commands);
+          mdp::zmsg *request = new mdp::zmsg (commands);
           assert (request);
 
           // command or replay address
@@ -374,61 +362,75 @@ int EGSA::implementation()
       } // если получен запрос
 #endif
 
-      if (old_egsa_state != m_state) { // Изменилось состояние?
+      switch(m_state) {
+        // Инициализация нити
+        // ------------------
+        case INITIAL:
+          LOG(INFO) << fname << ": state INITIAL";
+#ifdef _FUNCTIONAL_TEST
+          if (sec == 1) changed = change_state_to(WAITING_INIT);
+#endif
+          break;
 
-        switch(m_state) {
-          // Инициализация нити
-          // ------------------
-          case INITIAL:
-            LOG(INFO) << fname << ": state INITIAL";
-            change_state_to(WAITING_INIT);
-            break;
+        // Ожидание разрешения на работу
+        // -----------------------------------
+        case WAITING_INIT:
+          LOG(INFO) << fname << ": state WAITING_INIT";
+          // Ждем от Брокера сигнала о завершении инициализации - начале работ
+#ifdef _FUNCTIONAL_TEST
+          if (sec == 3) changed = change_state_to(END_INIT);
+#endif
 
-          // Ожидание разрешения на работу
-          // -----------------------------------
-          case WAITING_INIT:
-            LOG(INFO) << fname << ": state WAITING_INIT";
-            // Ждем от Брокера сигнала о завершении инициализации - начале работ
-            change_state_to(END_INIT);
-
-          // Получили сигнал о завершении инициализации, можно работать
-          // ----------------------------------------------------------
-          case END_INIT:
-            LOG(INFO) << fname << ": state END_INIT";
-            change_state_to(RUN);
+        // Получили сигнал о завершении инициализации, можно работать
+        // ----------------------------------------------------------
+        case END_INIT:
+          LOG(INFO) << fname << ": state END_INIT";
+#ifdef _FUNCTIONAL_TEST
+          if (sec == 4) {
+            changed = change_state_to(RUN);
             activate_cycles();
-            break;
+          }
+#endif
+          break;
 
-          // Получили сигнал о завершении работы, останавливаем нить
-          // ----------------------------------------------------------
-          case STOP:
-            LOG(INFO) << fname << ": state STOP";
-            change_state_to(SHUTTINGDOWN);
+        // Получили сигнал о завершении работы, останавливаем нить
+        // ----------------------------------------------------------
+        case STOP:
+          LOG(INFO) << fname << ": state STOP";
+#ifdef _FUNCTIONAL_TEST
+          if (sec == 11) {
+            changed = change_state_to(SHUTTINGDOWN);
             deactivate_cycles();
-            need_to_stop = true;
-            break;
+          }
+#endif
+          need_to_stop = true;
+          break;
 
-          // Оперативный режим, ждем команд управления и опроса
-          // --------------------------------------------------
-          case RUN:
-            LOG(INFO) << fname << ": state RUN";
-            break;
+        // Оперативный режим, ждем команд управления и опроса
+        // --------------------------------------------------
+        case RUN:
+          LOG(INFO) << fname << ": state RUN";
+#ifdef _FUNCTIONAL_TEST
+          if (sec == 10) changed = change_state_to(STOP);
+#endif
+          break;
 
-          case SHUTTINGDOWN:
-            LOG(INFO) << fname << ": state SHUTTINGDOWN";
-            need_to_stop = true;
-            interrupt_worker = true;
-            break;
+        case SHUTTINGDOWN:
+          LOG(INFO) << fname << ": state SHUTTINGDOWN";
+          need_to_stop = true;
+          interrupt_worker = true;
+          break;
 
-          default:
-            LOG(FATAL) << fname << ": unhandled state #" << m_state; 
-        } // end switch
-
-      } // конец проверки, изменилось ли состояние
+        default:
+          LOG(FATAL) << fname << ": unhandled state #" << m_state; 
+      } // end switch
 
       sec++;
 
       cycles::timer();
+
+      process_requests_for_all_sites();
+
     }  // конец цикла while
 
   } // конец блока try-catch
@@ -449,10 +451,119 @@ int EGSA::implementation()
 }
 
 // ==========================================================================================================
-void EGSA::change_state_to(egsa_internal_state_t new_state)
+// Обработать первые в очереди ожидания Запросы для всех доступных систем сбора 
+int EGSA::process_requests_for_all_sites()
 {
-  LOG(INFO) << "EGSA state change " << m_state << " => " << new_state;
-  m_state = new_state;
+  int rc = NOK;
+  AcqSiteList &all_sa = sites();
+
+  for(size_t i=0; i < all_sa.count(); i++) {
+    AcqSiteEntry* site = all_sa[i];
+    assert(site);
+    //
+    rc = process_request_for_site(site);
+
+    LOG(INFO) << site->name() << ": requests processing status=" << rc;
+  }
+
+  return rc;
+}
+
+// ==========================================================================================================
+// Обработать первый Запрос из в очереди ожидания указанной системы сбора 
+// После обработки запроса (перехода в состояние EXECUTED) он удаляется.
+// Если хотя бы один и группы composed-запросов завершился с ошибкой, вся группа считается завершившейся с
+// ошибкой, и подзапросы группы удаляются.
+int EGSA::process_request_for_site(AcqSiteEntry* site)
+{
+  int rc = OK;
+
+  if (!site->requests().empty()) {
+
+      // Всегда исполнять запросы по очереди.
+      // Пока не выполнится текущий, не переходить к исполнению следующих
+      Request *executed = site->requests().front();
+
+      LOG(INFO) << site->name() << ": run " << executed->name() << " [" << executed->str_state() << "]";
+
+      switch(executed->state()) {
+        // -----------------------------------------------------------------
+        case Request::STATE_INPROGRESS:  // На исполнении
+          executed->state(Request::STATE_EXECUTED);
+          break;
+
+        // -----------------------------------------------------------------
+        case Request::STATE_ACCEPTED:    // Принят к исполнению
+          // в режим ожидания, если не подразумевается немедленного ответа
+          executed->state(Request::STATE_WAIT_N);
+          break;
+
+        // -----------------------------------------------------------------
+        case Request::STATE_SENT:        // Отправлен
+          // после получения подтверждения о приеме
+          executed->state(Request::STATE_ACCEPTED);
+          break;
+
+        // -----------------------------------------------------------------
+        case Request::STATE_EXECUTED:    // Исполнен
+          // Удалить запрос из списка
+          LOG(INFO) << "Done request " << executed->name() << " last_in_bundle?:" << executed->last_in_bundle();
+          delete executed;
+          site->requests().pop_front();
+          break;
+
+        // -----------------------------------------------------------------
+        case Request::STATE_ERROR:       // При выполнении возникла ошибка
+          LOG(INFO) << "Error request " << executed->name();
+          // TODO: удалить оставшиеся подзапросы из этой группы.
+          // Для этого каждый подзапрос должен знать идентификатор своего composed-запроса
+          rc = NOK;
+          break;
+
+        // -----------------------------------------------------------------
+        case Request::STATE_NOTSENT:     // Еще не отправлен
+          // TODO: отправить в адрес СС
+          executed->state(Request::STATE_SENT);
+          break;
+
+        // -----------------------------------------------------------------
+        case Request::STATE_WAIT_N:      // Ожидает (нормальный приоритет)
+        case Request::STATE_WAIT_U:      // Ожидает (высокий приоритет)
+          // ожидать ответа на запрос от СС, может быть:
+          // ERROR = Ошибка
+          // EXECUTED = Исполнено
+          // INPROGRESS = Промежуточное состояние - ещё в процессе выполнения
+          executed->state(Request::STATE_INPROGRESS);
+          break;
+
+        // -----------------------------------------------------------------
+        case Request::STATE_SENT_N:      // Отправлен (нормальный приоритет)
+        case Request::STATE_SENT_U:      // Отправлен (высокий приоритет)
+          executed->state(Request::STATE_EXECUTED);
+          break;
+
+        // -----------------------------------------------------------------
+        case Request::STATE_UNKNOWN:
+          LOG(ERROR) << site->name() << ": unsupported request " << executed->name() << " state: " << executed->state();
+          rc = NOK;
+      }
+  }
+
+  return rc;
+}
+
+// ==========================================================================================================
+bool EGSA::change_state_to(egsa_internal_state_t _state)
+{
+  bool changed = false;
+
+  if (m_state != _state) {
+    LOG(INFO) << "EGSA state changes " << m_state << " => " << _state;
+    changed = true;
+    m_state = _state;
+  }
+
+  return changed;
 }
 
 // ==========================================================================================================
@@ -579,7 +690,7 @@ int EGSA::run()
     {
       // TODO: пробежаться по всем зарегистрированным системам сбора.
       // Если они в активном состоянии, получить от них даннные
-      for (idx = 0; idx < m_ega_ega_odm_ar_AcqSites.size(); idx++)
+      for (idx = 0; idx < m_ega_ega_odm_ar_AcqSites.count(); idx++)
       {
         sa = AcqSiteList[idx];
 
@@ -688,7 +799,7 @@ void EGSA::fire_ENDALLINIT()
 
   simple_request = static_cast<msg::SimpleRequest*>(m_message_factory->create(ADG_D_MSG_ENDALLINIT));
 
-  for (size_t idx = 0; idx < m_ega_ega_odm_ar_AcqSites.size(); idx++)
+  for (size_t idx = 0; idx < m_ega_ega_odm_ar_AcqSites.count(); idx++)
   {
     sa = m_ega_ega_odm_ar_AcqSites[idx];
     assert(sa);
@@ -771,7 +882,7 @@ int EGSA::activate_cycles()
 
     if (cycle) {
       // Для каждого Цикла активировать столько экземпляров, сколько в нем объявлено Сайтов
-      for (size_t sid = 0, site_idx = 0; sid < cycle->sites()->size(); sid++, site_idx++)
+      for (size_t sid = 0, site_idx = 0; sid < cycle->sites()->count(); sid++, site_idx++)
       {
         LOG(INFO) << "Activate cycle: " << cycle->name()
                   << " id=" << cycle->id()
@@ -861,12 +972,12 @@ void EGSA::cycle_trigger(size_t cycle_id, size_t sa_id)
 // Тестовая функция ожидания срабатывания таймеров в течении заданного времени
 int EGSA::wait(int max_wait_sec)
 {
-  fd_set rfds;
-  struct timeval tv;
-  int retval;
-  char buffer[100 + 1];
-  ssize_t read_sz;
-  ssize_t buffer_sz = 100;
+  //fd_set rfds;
+  //struct timeval tv;
+  //int retval;
+  //char buffer[100 + 1];
+  //ssize_t read_sz;
+  //ssize_t buffer_sz = 100;
 
 #if 0
   /* Watch fd[1] to see when it has input. */
@@ -1348,7 +1459,7 @@ std::vector<Cycle*> *EGSA::get_Cycles_for_SA(const std::string& sa_name)
   std::vector<Cycle*> *search_result = NULL;
 
   // СС может быть заявлена в нескольких циклах, проверить их все
-  for (size_t idx = 0; idx < m_ega_ega_odm_ar_Cycles.size(); idx++)
+  for (size_t idx = 0; idx < m_ega_ega_odm_ar_Cycles.count(); idx++)
   {
     //LOG(INFO) << sa_name << ":" << (*it)->name();
     Cycle* cycle = m_ega_ega_odm_ar_Cycles[idx];

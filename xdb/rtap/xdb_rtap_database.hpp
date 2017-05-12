@@ -13,7 +13,6 @@
 namespace xdb {
 
 class DatabaseRtapImpl;
-class ConnectionImpl;
 
 class RtDatabase
 {

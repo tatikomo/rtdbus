@@ -1,6 +1,9 @@
 //
 // реализация Службы
 //
+#if defined HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 // Общесистемные заголовочные файлы
 #include <vector>
@@ -13,12 +16,8 @@
 #include "glog/logging.h"
 
 // Служебные файлы RTDBUS
-#if defined HAVE_CONFIG_H
-#include "config.h"
-#endif
 #include "mdp_helpers.hpp"
 #include "mdp_zmsg.hpp"
-#include "config.h"
 #include "mdp_common.h"
 #include "mdp_worker_api.hpp"
 

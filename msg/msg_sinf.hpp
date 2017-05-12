@@ -9,7 +9,6 @@
 #include <string>
 #include <cstdint>
 
-#include "config.h"
 #include "msg_common.h"
 #include "msg_message.hpp"
 

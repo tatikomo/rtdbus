@@ -68,6 +68,7 @@ class Request
     size_t          generate_exchange_id();
     // Установить/снять признак, последний ли это Запрос в группе
     void            last_in_bundle(bool sign) { m_last_in_bundle = sign; }
+    bool            last_in_bundle() const { return m_last_in_bundle; }
     AcqSiteEntry*   site() const { return m_site; }
     Cycle*          cycle() const { return m_cycle; }
     ech_t_ReqId     id() const { return m_config.e_RequestId; }
