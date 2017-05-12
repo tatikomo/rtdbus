@@ -30,28 +30,29 @@ class Request
 {
   public:
     enum callback_state {
-      ONCE   = 0,
-      REPEAT = 1,
-      ERROR = 2
+      ONCE      = 0,
+      REPEAT    = 1,
+      ERROR     = 2
     };
 
     typedef enum {
       AUTOMATIC = 0,
-      CYCLIC = 1,
-      ASYNC = 2
+      CYCLIC    = 1,
+      ASYNC     = 2
     } request_class_t;
 
     typedef enum {
-      ESG_ESG_LIS_D_INPROGRESSREQUESTSTATE = 1,
-      ESG_ESG_LIS_D_ACCEPTEDREQUESTSTATE = 2,
-      ESG_ESG_LIS_D_SENTREQUESTSTATE = 3,
-      ESG_ESG_LIS_D_EXECUTEDREQUESTSTATE = 4,
-      ESG_ESG_LIS_D_ERRORREQUESTSTATE = 5,
-      ESG_ESG_LIS_D_NOTSENTREQUESTSTATE = 5,
-      ESG_ESG_LIS_D_WAIT_N = 6, // normal
-      ESG_ESG_LIS_D_WAIT_U = 7, // urgent
-      ESG_ESG_LIS_D_SENT_N = 8,
-      ESG_ESG_LIS_D_SENT_U = 9,
+      STATE_UNKNOWN      = 0,
+      STATE_INPROGRESS   = 1,
+      STATE_ACCEPTED     = 2,
+      STATE_SENT         = 3,
+      STATE_EXECUTED     = 4,
+      STATE_ERROR        = 5,
+      STATE_NOTSENT      = 6,
+      STATE_WAIT_N       = 7,
+      STATE_WAIT_U       = 8,
+      STATE_SENT_N       = 9,
+      STATE_SENT_U       = 10,
     } request_executing_state_t;
 
     // Используется для НСИ
@@ -88,9 +89,13 @@ class Request
       { return (NOT_EXISTENT != m_config.e_RequestId)? m_dict_RequestNames[m_config.e_RequestId] : "error"; }
     static const char* name(ech_t_ReqId _id)
       { return (NOT_EXISTENT != _id)? m_dict_RequestNames[_id] : NULL; }
+    static const char* str_state(request_executing_state_t _state) { return m_dict_RequestStates[_state]; }
+    const char* str_state() const { return m_dict_RequestStates[m_state]; }
     const int*      included() const { return m_config.r_IncludingRequests; }
     // Проверить, является ли запрос составным
     int             composed() const;
+    request_executing_state_t state() const { return m_state; }
+    void state(request_executing_state_t _state) { m_state = _state; }
 
     // Событие завершения времени. Предусмотреть флаги - таймаут есть/нет,...
     int             trigger();
@@ -103,7 +108,10 @@ class Request
     request_class_t m_class;
     // Общий счетчик идентификаторов времени выполнения
     static size_t m_sequence;
+    // Словарь названий Запросов
     static const char* m_dict_RequestNames[];
+    // Словарь названий состояний Запросов
+    static const char* m_dict_RequestStates[];
     // выделенный буфер для функции dump()
     char m_internal_dump[DUMP_SIZE + 1];
 
@@ -122,6 +130,7 @@ class Request
     bool m_last_in_bundle;
     AcqSiteEntry *m_site;
     Cycle        *m_cycle;
+    request_executing_state_t m_state;
 };
 
 // ==============================================================================

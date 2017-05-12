@@ -150,6 +150,8 @@ class AcqSiteEntry {
     // не получит доступа к реальным данным от СС. Их придется EGSA туда заносить самостоятельно.
     int attach_smad();
     int detach_smad();
+    // Доступ к списку текущих Запросов
+    std::list<Request*>& requests() { return m_requests_in_progress; }
     // Послать сообщение указанного типа
     int send(int);
     // Послать сообщение инициализации
@@ -187,6 +189,31 @@ class AcqSiteEntry {
     int cbGeneralControl();
 
   private:
+    // Exchanged Info table header */
+    // --------------------------- */
+    //  . Global number of exchanged data 
+    //  . Primary exchanged data number
+    //  . Secondary exchanged data number 
+    //  . Tertiary exchanged data number
+    //  . Exploitation exchanged data number
+    //  . TI number, concerned by quarter historic 
+    //  . TI number, concerned by hour historic 
+    //  . TI number, concerned by day historic 
+    //  . TI number, concerned by month historic 
+    //  . TI, which alarm has to be transmit number
+    typedef struct {
+        size_t                 h_EffNb; 
+        size_t                 h_PrimNb;
+        size_t                 h_SecondNb;
+        size_t                 h_TertiaryNb;
+        size_t                 h_ExploitNb;
+        size_t                 h_QuarterNb;
+        size_t                 h_HourNb;
+        size_t                 h_DayNb;
+        size_t                 h_MonthNb;
+        size_t                 h_AlarmNb;
+    } esg_esg_odm_t_ExchInfoNumb;
+
     DISALLOW_COPY_AND_ASSIGN(AcqSiteEntry);
     // Инициализация внутреннего состояния в зависимости от атрибутов SYNTHSTATE, INHIB, EXPMODE
     void init_functional_state();
@@ -235,7 +262,7 @@ class AcqSiteEntry {
     // composed requests table - a dynamic table containing the number of requests and description of each request
     //std::list<const Request*> m_requests_composed;
     // requests in progress list access
-    std::list<const Request*> m_requests_in_progress;
+    std::list<Request*> m_requests_in_progress;
 
     // Поля, специфичные для удаленных Сайтов того же, или верхнего уровня (соседние объекты или управление)
     // Поскольку процедура установления связи с ними растянута по времени и состоит из нескольких

@@ -1,5 +1,6 @@
 // Общесистемные заголовочные файлы
 #include <string>
+#include <list>
 #include <vector>
 #include <unistd.h>
 #include <stdint.h>
@@ -257,7 +258,7 @@ TEST(TestEXCHANGE, EGSA_CYCLES_CONFIG)
   } // for проверить все известные Циклы
 }
 
-#if 1
+#if 0
 TEST(TestEXCHANGE, EGSA_CYCLES)
 {
 //  RequestEntry* req_entry_dict = NULL;
@@ -384,6 +385,13 @@ TEST(TestEXCHANGE, SAC_STATES)
     }
   }
 
+  while (!g_sac_entry->requests().empty()) {
+    Request* finished = g_sac_entry->requests().front();
+    LOG(INFO) << g_sac_entry->name() << ": release request " << finished->name() << ", state " << finished->str_state();
+    delete finished;
+    g_sac_entry->requests().pop_front();
+  }
+
 #endif
 
 }
@@ -497,7 +505,7 @@ TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
   RequestDictionary& dict_requests = g_egsa_instance->dictionary_requests();
   AcqSiteList& sites_list = g_egsa_instance->sites();
   CycleList &cycles = g_egsa_instance->cycles();
-
+  std::list<Request*>::iterator it;
   AcqSiteEntry* site1 = sites_list["BI4001"];
   AcqSiteEntry* site2 = sites_list["BI4002"];
   AcqSiteEntry* site3 = sites_list["K42001"];
@@ -531,7 +539,7 @@ TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
   // Для каждого Цикла должна быть своя очередь Запросов? Или все Запросы в одном списке?
   int iter=0;
   const int msec_delay = 250000;
-  const int limit_sec = 20;
+  const int limit_sec = 25;
   // количество итераций в limit_sec секундах
   const int limit_iter = (1000000 / msec_delay) * limit_sec;
 
@@ -572,27 +580,83 @@ TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
     // раньше, чем EGA_DELEGATION с приоритетом 99
     rt_list.timer();
 
-    // На основании текущего состояния СС генерировать новые Запросы
-    switch (site3->state()) {
-      case EGA_EGA_AUT_D_STATE_NI_NM_NO:
-        break;
-      case EGA_EGA_AUT_D_STATE_NI_M_NO:
-        break;
-      case EGA_EGA_AUT_D_STATE_NI_NM_O:
-        break;
-      case EGA_EGA_AUT_D_STATE_NI_M_O:
-        break;
-      case EGA_EGA_AUT_D_STATE_I_NM_NO:
-        break;
-      case EGA_EGA_AUT_D_STATE_I_M_NO:
-        break;
-      case EGA_EGA_AUT_D_STATE_I_NM_O:
-        break;
-      case EGA_EGA_AUT_D_STATE_I_M_O:
-        break;
+    if (!site3->requests().empty()) {
+
+        // Всегда исполнять запросы по очереди.
+        // Пока не выполнится текущий, не переходить к исполнению следующих
+        Request *executed = site3->requests().front();
+
+        LOG(INFO) << site3->name() << ": executed " << executed->name() << " " << executed->str_state();
+
+        switch(executed->state()) {
+          // -----------------------------------------------------------------
+          case Request::STATE_INPROGRESS:  // На исполнении
+            executed->state(Request::STATE_EXECUTED);
+            break;
+
+          // -----------------------------------------------------------------
+          case Request::STATE_ACCEPTED:    // Принят к исполнению
+            // в режим ожидания, если не подразумевается немедленного ответа
+            executed->state(Request::STATE_WAIT_N);
+            break;
+
+          // -----------------------------------------------------------------
+          case Request::STATE_SENT:        // Отправлен
+            // после получения подтверждения о приеме
+            executed->state(Request::STATE_ACCEPTED);
+            break;
+
+          // -----------------------------------------------------------------
+          case Request::STATE_EXECUTED:    // Исполнен
+            // Удалить запрос из списка
+            LOG(INFO) << "Done request " << executed->name();
+            delete executed;
+            site3->requests().pop_front();
+            break;
+
+          // -----------------------------------------------------------------
+          case Request::STATE_ERROR:       // При выполнении возникла ошибка
+            LOG(INFO) << "Error request " << executed->name();
+            break;
+
+          // -----------------------------------------------------------------
+          case Request::STATE_NOTSENT:     // Еще не отправлен
+            // TODO: отправить в адрес СС
+            executed->state(Request::STATE_SENT);
+            break;
+
+          // -----------------------------------------------------------------
+          case Request::STATE_WAIT_N:      // Ожидает (нормальный приоритет)
+          case Request::STATE_WAIT_U:      // Ожидает (высокий приоритет)
+            // ожидать ответа на запрос от СС, может быть:
+            // ERROR = Ошибка
+            // EXECUTED = Исполнено
+            // INPROGRESS = Промежуточное состояние - ещё в процессе выполнения
+            executed->state(Request::STATE_INPROGRESS);
+            break;
+
+          // -----------------------------------------------------------------
+          case Request::STATE_SENT_N:      // Отправлен (нормальный приоритет)
+          case Request::STATE_SENT_U:      // Отправлен (высокий приоритет)
+            executed->state(Request::STATE_EXECUTED);
+            break;
+
+          // -----------------------------------------------------------------
+          case Request::STATE_UNKNOWN:
+            LOG(ERROR) << site3->name() << ": unsupported request " << executed->name() << " state: " << executed->state();
+        }
     }
 
     usleep(msec_delay);
+  }
+
+  // Возможно остались неудаленные/невыполненные запросы
+  LOG(INFO) << "Clear resources for SA " << site3->name();
+  while (!site3->requests().empty()) {
+    Request* finished = site3->requests().front();
+    LOG(INFO) << site3->name() << ": release request=" << finished->name() << ", state=" << finished->str_state();
+    delete finished;
+    site3->requests().pop_front();
   }
 
   delete req1;
@@ -604,8 +668,9 @@ TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
 TEST(TestEXCHANGE, EGSA_RUN)
 {
 #if 1
-  g_egsa_instance->implementation();
+//  g_egsa_instance->implementation();
 #else
+#warning "Отключена проверка EGSA::implementation"
   g_egsa_instance->run();
 #endif
 }

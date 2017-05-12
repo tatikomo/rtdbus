@@ -74,6 +74,21 @@ const char* Request::m_dict_RequestNames[] = {
   EGA_EGA_D_STRNOEXISTENT,
 };
 
+// Словарь названий состояний Запросов
+const char* Request::m_dict_RequestStates[] = {
+  /* 0 */ "UNKNOWN",
+  /* 1 */ "INPROGRESS",
+  /* 2 */ "ACCEPTED",
+  /* 3 */ "SENT",
+  /* 4 */ "EXECUTED",
+  /* 5 */ "ERROR",
+  /* 6 */ "NOTSENT",
+  /* 7 */ "WAIT_N",
+  /* 8 */ "WAIT_U",
+  /* 9 */ "SENT_N",
+  /*10 */ "SENT_U",
+};
+
 // ==============================================================================
 // НСИ
 Request::Request(const RequestEntry* _config)
@@ -148,7 +163,8 @@ Request::Request(const Request& orig)
     m_exchange_id(orig.m_exchange_id),
     m_last_in_bundle(orig.m_last_in_bundle),
     m_site(orig.m_site),
-    m_cycle(orig.m_cycle)
+    m_cycle(orig.m_cycle),
+    m_state(STATE_NOTSENT)
 {
 //  generate_exchange_id();
   m_trigger_callback = std::bind(&Request::trigger, this);
@@ -167,7 +183,8 @@ Request::Request(const Request* orig)
     m_exchange_id(orig->m_exchange_id),
     m_last_in_bundle(orig->m_last_in_bundle),
     m_site(orig->m_site),
-    m_cycle(orig->m_cycle)
+    m_cycle(orig->m_cycle),
+    m_state(orig->m_state)
 {
 //  generate_exchange_id();
   m_trigger_callback = std::bind(&Request::trigger, this);
@@ -185,6 +202,7 @@ Request& Request::operator=(const Request& orig)
   m_last_in_bundle = true;
   m_site = orig.m_site;
   m_cycle = orig.m_cycle;
+  m_state = orig.m_state;
 
 //  generate_exchange_id();
   m_trigger_callback = std::bind(&Request::trigger, this);
@@ -217,7 +235,8 @@ Request::Request(const Request* _req, AcqSiteEntry* _site, Cycle* _cycle)
     m_duration(_req->m_duration),
     m_exchange_id(_req->m_exchange_id),
     m_site(_site),
-    m_cycle(_cycle)
+    m_cycle(_cycle),
+    m_state(_req->m_state)
 {
 }
 

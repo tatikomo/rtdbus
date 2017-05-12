@@ -864,6 +864,7 @@ int AcqSiteEntry::add_request(const Request* dict_req)
   Request *basic_request = NULL;
 
   if (true == state_filter(dict_req)) {
+
     // Данный Запрос допустим к исполнению
     LOG(INFO) << fname << ": request " << dict_req->name() << " is enabled to " << name();
 
@@ -873,6 +874,7 @@ int AcqSiteEntry::add_request(const Request* dict_req)
       // Создать на его базе новый экземпляр, и поместить его в список исполняемых Запросов
       basic_request = new Request(dict_req);
       basic_request->generate_exchange_id();
+      basic_request->state(Request::STATE_NOTSENT);
       LOG(INFO) << fname << ": 1/1 " << basic_request->name();
 
       m_requests_in_progress.push_back(basic_request);
@@ -898,7 +900,13 @@ int AcqSiteEntry::add_request(const Request* dict_req)
           // Этот запрос не последний в группе
           basic_request->last_in_bundle(false);
           basic_request->generate_exchange_id();
+          basic_request->state(Request::STATE_NOTSENT);
 
+          // TODO: для запроса предыстории рассмотреть необходимость создание отдельного запроса для каждого типа дискретизации предыстории
+          // esg_acq_crq_ComposedReq.c:1375
+          //
+          //
+          //
           m_requests_in_progress.push_back(basic_request);
         }
         else { // прекратить, как только пойдут нулевые значения - неиспользуемые запросы
