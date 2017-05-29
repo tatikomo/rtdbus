@@ -52,6 +52,7 @@
 		"NAME": "INFO_DIFF_DIPADJ",
 		"PERIOD": 30,
 		"REQUEST": "DB_INFOSACQ",
+        "COMMENT": "Возможно потребуется добавить поле CATEG (категория ТИ, обслуживаемая этим Циклом - первичная/вторичная/третичная)",
 		"SITE": [{
 			"NAME": "K42101"
 		}, {
@@ -62,9 +63,24 @@
 	}, {
 		"NAME": "INFO_DACQ_DIPADJ",
 		"PERIOD": 30,
-		"REQUEST": "A_INFOSACQ",
+		"REQUEST": "DB_INFOSACQ",
+        "COMMENT": "Соответствие CATEG есть в ESG_EX{SND|ACQ}INFOS.DAT - каждая ТИ помечена как первичная/вторичная/третичная",
 		"SITE": [{
-			"NAME": "K42001"
+		"NAME": "K42101"
+        }]
+	}, {
+		"NAME": "INFO_DIFF_PRIDIR",
+		"PERIOD": 30,
+		"REQUEST": "DB_INFOSACQ",
+		"SITE": [{
+		"NAME": "K42001"
+		}]
+	}, {
+		"NAME": "INFO_DIFF_SECDIR",
+		"PERIOD": 3600,
+		"REQUEST": "DB_INFOSACQ",
+		"SITE": [{
+		"NAME": "K42001"
 		}]
 	}],
 

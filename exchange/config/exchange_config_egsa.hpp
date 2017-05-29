@@ -33,17 +33,19 @@ typedef enum {
   ID_CYCLE_INFOSACQ         = 3,
   ID_CYCLE_INFO_DACQ_DIPADJ = 4,
   ID_CYCLE_INFO_DIFF_DIPADJ = 5,
-  ID_CYCLE_GEN_GACQ_DIPADJ  = 6,
-  ID_CYCLE_GCP_PGACQ_DIPL   = 7,
-  ID_CYCLE_GCS_SGACQ_DIPL   = 8,
-  ID_CYCLE_INFO_DACQ_DIPL   = 9,
-  ID_CYCLE_IAPRIMARY        = 10,
-  ID_CYCLE_IASECOND         = 11,
-  ID_CYCLE_SERVCMD          = 12,
-  ID_CYCLE_INFODIFF         = 13,
-  ID_CYCLE_ACQSYSACQ        = 14,
-  ID_CYCLE_GCT_TGACQ_DIPL   = 15,
-  ID_CYCLE_UNKNOWN          = 16   // Последняя запись, неизвестный цикл
+  ID_CYCLE_INFO_DIFF_PRIDIR = 6,
+  ID_CYCLE_INFO_DIFF_SECDIR = 7,
+  ID_CYCLE_GEN_GACQ_DIPADJ  = 8,
+  ID_CYCLE_GCP_PGACQ_DIPL   = 9,
+  ID_CYCLE_GCS_SGACQ_DIPL   = 10,
+  ID_CYCLE_INFO_DACQ_DIPL   = 11,
+  ID_CYCLE_IAPRIMARY        = 12,
+  ID_CYCLE_IASECOND         = 13,
+  ID_CYCLE_SERVCMD          = 14,
+  ID_CYCLE_INFODIFF         = 15,
+  ID_CYCLE_ACQSYSACQ        = 16,
+  ID_CYCLE_GCT_TGACQ_DIPL   = 17,
+  ID_CYCLE_UNKNOWN          = 18   // Последняя запись, неизвестный цикл
 } cycle_id_t;
 
 const int ID_CYCLE_MAX = ID_CYCLE_UNKNOWN + 1;
@@ -55,9 +57,11 @@ const int ID_CYCLE_MAX = ID_CYCLE_UNKNOWN + 1;
 // Target object class
 typedef enum
 {
-  INFO,     // information
-  EQUIP,    // technological equipment,
-  ACQSYS    // acquisition system
+  INFO  = 1,    // information - команды телеуправления
+  EQUIP = 2,    // technological equipment - опрос наличия оборудования в НСИ
+  ACQSYS= 4,    // acquisition system - запрос телеметрии
+  SERV  = 8,    // system maintenace - служебные запросы на обслуживание системы сбора
+  ALL   = 16    // all of it - все вышеперечисленное
 } ega_ega_t_ObjectClass;
 
 // acquisition mode
@@ -271,7 +275,7 @@ typedef struct {
 
 // ==============================================================================
 typedef struct {
-  // Идентификатор запроса
+  // Идентификатор базового запроса
   ech_t_ReqId   e_RequestId;
   // Название запроса
   char  s_RequestName[REQUESTNAME_MAX + 1];
@@ -446,6 +450,8 @@ class EgsaConfig {
     static const char*  s_CYCLENAME_INFOSACQ;
     static const char*  s_CYCLENAME_INFO_DACQ_DIPADJ;
     static const char*  s_CYCLENAME_INFO_DIFF_DIPADJ;
+    static const char*  s_CYCLENAME_INFO_DIFF_PRIDIR;
+    static const char*  s_CYCLENAME_INFO_DIFF_SECDIR;
     static const char*  s_CYCLENAME_GEN_GACQ_DIPADJ;
     static const char*  s_CYCLENAME_GCP_PGACQ_DIPL;
     static const char*  s_CYCLENAME_GCS_SGACQ_DIPL;

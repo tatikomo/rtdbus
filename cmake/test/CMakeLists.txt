@@ -71,6 +71,8 @@ set (TEST_EXCHANGE_SOURCES
         ${EXCHANGE_SMAD_DIR}/exchange_smad_ext.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl_acq.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl_send.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.cpp

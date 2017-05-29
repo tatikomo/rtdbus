@@ -3,6 +3,7 @@
 #define MSG_MESSAGE_HPP
 
 #include <string>
+#include <map>
 
 #include "config.h"
 #include "msg_common.h"
@@ -17,6 +18,9 @@ class Data;
 class DataImpl;
 class Letter;
 class MessageFactory;
+
+typedef std::map  <const std::string, rtdbMsgType> MessageTypesHash_t;
+typedef std::pair <const std::string, rtdbMsgType> MessageTypesHashPair_t;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 class Letter

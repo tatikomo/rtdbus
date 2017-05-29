@@ -72,6 +72,8 @@ const char* EgsaConfig::s_CYCLENAME_INFOSACQ_URG     = "INFOSACQ_URG";
 const char* EgsaConfig::s_CYCLENAME_INFOSACQ         = "INFOSACQ";
 const char* EgsaConfig::s_CYCLENAME_INFO_DACQ_DIPADJ = "INFO_DACQ_DIPADJ";
 const char* EgsaConfig::s_CYCLENAME_INFO_DIFF_DIPADJ = "INFO_DIFF_DIPADJ";
+const char* EgsaConfig::s_CYCLENAME_INFO_DIFF_PRIDIR = "INFO_DIFF_PRIDIR";
+const char* EgsaConfig::s_CYCLENAME_INFO_DIFF_SECDIR = "INFO_DIFF_SECDIR";
 const char* EgsaConfig::s_CYCLENAME_GEN_GACQ_DIPADJ  = "GEN_GACQ_DIPADJ";
 const char* EgsaConfig::s_CYCLENAME_GCP_PGACQ_DIPL   = "GCS_SGACQ_DIPL";
 const char* EgsaConfig::s_CYCLENAME_GCS_SGACQ_DIPL   = "GCS_SGACQ_DIPL";
@@ -90,6 +92,8 @@ cycle_dictionary_item_t EgsaConfig::g_cycle_dictionary[] = {
   { ID_CYCLE_INFOSACQ,          EgsaConfig::s_CYCLENAME_INFOSACQ        },
   { ID_CYCLE_INFO_DACQ_DIPADJ,  EgsaConfig::s_CYCLENAME_INFO_DACQ_DIPADJ},
   { ID_CYCLE_INFO_DIFF_DIPADJ,  EgsaConfig::s_CYCLENAME_INFO_DIFF_DIPADJ},
+  { ID_CYCLE_INFO_DIFF_PRIDIR,  EgsaConfig::s_CYCLENAME_INFO_DIFF_PRIDIR},
+  { ID_CYCLE_INFO_DIFF_SECDIR,  EgsaConfig::s_CYCLENAME_INFO_DIFF_SECDIR},
   { ID_CYCLE_GEN_GACQ_DIPADJ,   EgsaConfig::s_CYCLENAME_GEN_GACQ_DIPADJ },
   { ID_CYCLE_GCP_PGACQ_DIPL,    EgsaConfig::s_CYCLENAME_GCP_PGACQ_DIPL  },
   { ID_CYCLE_GCS_SGACQ_DIPL,    EgsaConfig::s_CYCLENAME_GCS_SGACQ_DIPL  },
@@ -129,10 +133,10 @@ RequestEntry EgsaConfig::g_request_dictionary[] = {
 /* 06 */  {EGA_ALATHRES,          EGA_EGA_D_STRALATHRES,    80, ACQSYS, DIFF,          true,  {} },
 /* 07 */  {EGA_TELECMD,           EGA_EGA_D_STRTELECMD,    101, INFO,   NOT_SPECIFIED, true,  {} },
 /* 08 */  {EGA_TELEREGU,          EGA_EGA_D_STRTELEREGU,   101, INFO,   NOT_SPECIFIED, true,  {} },
-/* 09 */  {EGA_SERVCMD,           EGA_EGA_D_STRSERVCMD,     80, ACQSYS, NOT_SPECIFIED, false, {} },
-/* 10 */  {EGA_GLOBDWLOAD,        EGA_EGA_D_STRGLOBDWLOAD,  80, ACQSYS, NOT_SPECIFIED, false, {} },
-/* 11 */  {EGA_PARTDWLOAD,        EGA_EGA_D_STRPARTDWLOAD,  80, ACQSYS, NOT_SPECIFIED, false, {} },
-/* 12 */  {EGA_GLOBUPLOAD,        EGA_EGA_D_STRGLOBUPLOAD,  80, ACQSYS, NOT_SPECIFIED, false, {} },
+/* 09 */  {EGA_SERVCMD,           EGA_EGA_D_STRSERVCMD,     80, SERV,   NOT_SPECIFIED, false, {} },
+/* 10 */  {EGA_GLOBDWLOAD,        EGA_EGA_D_STRGLOBDWLOAD,  80, SERV,   NOT_SPECIFIED, false, {} },
+/* 11 */  {EGA_PARTDWLOAD,        EGA_EGA_D_STRPARTDWLOAD,  80, SERV,   NOT_SPECIFIED, false, {} },
+/* 12 */  {EGA_GLOBUPLOAD,        EGA_EGA_D_STRGLOBUPLOAD,  80, SERV,   NOT_SPECIFIED, false, {} },
 /* 13 */  {EGA_INITCMD,           EGA_EGA_D_STRINITCMD,     82, ACQSYS, NOT_SPECIFIED, false, {} },
 /* 14 */  {EGA_GCPRIMARY,         EGA_EGA_D_STRGCPRIMARY,   80, ACQSYS, NONDIFF,       true,  {} },
 /* 15 */  {EGA_GCSECOND,          EGA_EGA_D_STRGCSECOND,    80, ACQSYS, NONDIFF,       true,  {} },
@@ -170,8 +174,8 @@ RequestEntry EgsaConfig::g_request_dictionary[] = {
 /* 33 */  {ESG_BASID_CHGHOUR,     ESG_ESG_D_BASSTR_CHGHOUR,       80, ACQSYS, NONDIFF, true,  {} }, // Hour change
 /* 34 */  {ESG_BASID_INCIDENT,    ESG_ESG_D_BASSTR_INCIDENT,      80, ACQSYS, NONDIFF, true,  {} }, // Incident
 /* 35 */  {ESG_BASID_MULTITHRES,  ESG_ESG_D_BASSTR_MULTITHRES,    80, ACQSYS, NONDIFF, true,  {} }, // Multi Thresholds (outline)
-/* 36 */  {ESG_BASID_TELECMD,     ESG_ESG_D_BASSTR_TELECMD,      101, ACQSYS, NONDIFF, true,  {} }, // Telecommand
-/* 37 */  {ESG_BASID_TELEREGU,    ESG_ESG_D_BASSTR_TELEREGU,     101, ACQSYS, NONDIFF, true,  {} }, // Teleregulation
+/* 36 */  {ESG_BASID_TELECMD,     ESG_ESG_D_BASSTR_TELECMD,      101, INFO,   NONDIFF, true,  {} }, // Telecommand
+/* 37 */  {ESG_BASID_TELEREGU,    ESG_ESG_D_BASSTR_TELEREGU,     101, INFO,   NONDIFF, true,  {} }, // Teleregulation
 /* 38 */  {ESG_BASID_EMERGENCY,   ESG_ESG_D_BASSTR_EMERGENCY,     80, ACQSYS, NONDIFF, true,  {} }, // Emergency cycle request
 /* 39 */  {ESG_BASID_ACDLIST,     ESG_ESG_D_BASSTR_ACDLIST,       80, ACQSYS, NONDIFF, true,  {} }, // ACD list element
 /* 40 */  {ESG_BASID_ACDQUERY,    ESG_ESG_D_BASSTR_ACDQUERY,      80, ACQSYS, NONDIFF, true,  {} }, // ACD query element
@@ -250,7 +254,7 @@ EgsaConfig::~EgsaConfig()
        it != m_cycles.end();
        ++it)
   {
-    LOG(INFO) << "Free cycle " << ++idx << " " << (*it).first;
+//    LOG(INFO) << "Free cycle " << ++idx << " " << (*it).first;
     delete (*it).second;
   }
   m_cycles.clear();
@@ -260,7 +264,7 @@ EgsaConfig::~EgsaConfig()
        it != m_sites.end();
        ++it)
   {
-    LOG(INFO) << "Free site " << ++idx << " " << (*it).first;
+//    LOG(INFO) << "Free site " << ++idx << " " << (*it).first;
     delete (*it).second;
   }
   m_sites.clear();
@@ -270,7 +274,7 @@ EgsaConfig::~EgsaConfig()
        it != m_requests.end();
        ++it)
   {
-    LOG(INFO) << "Free request " << ++idx << " " << (*it).first;
+//    LOG(INFO) << "Free request " << ++idx << " " << (*it).first;
     delete (*it).second;
   }
   m_requests.clear();
@@ -568,7 +572,6 @@ int EgsaConfig::load_requests()
         if (request_item_json.HasMember(s_SECTION_REQUESTS_NAME_INC_REQ)) {
           // Прочитать массив сайтов, поместить их в m_cycles.sites
           Value& req_list = request_item_json[s_SECTION_REQUESTS_NAME_INC_REQ];
-          int NumIncludedRequests = 0;
           int sequence = 0;
           for (Value::ValueIterator itr = req_list.Begin(); itr != req_list.End(); ++itr)
           {

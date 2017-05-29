@@ -189,11 +189,12 @@ AcqSiteEntry::AcqSiteEntry(EGSA* egsa, const egsa_config_site_item_t* entry)
     m_Level(entry->level),
     m_InterfaceComponentActive(false),
     m_smad(NULL),
-    m_history_info(),
     m_OPStateAuthorised(false),
-    m_init_phase(NONE),
-    m_Alarms(UNKNOWN),
-    m_Infos(UNKNOWN)
+    m_DistantInitTerminated(false),
+    m_init_phase_state(INITPHASE_END),
+    m_history_info(),
+    m_Alarms(NOTRECEIVED),
+    m_Infos(NOTRECEIVED)
 {
   std::string sa_config_filename;
   sa_common_t sa_common;
@@ -306,6 +307,8 @@ int AcqSiteEntry::cbAutoInit()
   int rc = NOK;
   const char *fname = "cbAutoInit";
   const Request *rq_init = NULL;
+
+  OPStateAuthorised(false);
 
   switch(m_Level) {
     case LEVEL_LOCAL:
@@ -504,8 +507,8 @@ int AcqSiteEntry::detach_smad()
 
 // ==============================================================================
 // Управление состояниями СС в зависимости от асинхронных изменений состояния атрибутов
-// SYNTHSTATE, INHIBITION, EXPMODE в БДРВ, приходящих по подписке
-int AcqSiteEntry::change_state(int attribute_idx, int val)
+// SYNTHSTATE, INHIBITION, EXPMODE в БДРВ, приходящих по подписке.
+int AcqSiteEntry::esg_esg_aut_StateManage(int attribute_idx, int val)
 {
   char attr_name[100] = "";
   //
@@ -522,10 +525,20 @@ int AcqSiteEntry::change_state(int attribute_idx, int val)
         m_synthstate = static_cast<synthstate_t>(val);
         sprintf(attr_name, "%s:=%d", RTDB_ATT_SYNTHSTATE, val);
 
-        if (SYNTHSTATE_OPER == m_synthstate)
+        if (SYNTHSTATE_OPER == m_synthstate) {
           i_indtrans = EGA_EGA_AUT_D_TRANS_O;
-        else
+        }
+        else {
           i_indtrans = EGA_EGA_AUT_D_TRANS_NO;
+
+          // TODO: Удалить все Запросы, связанные с передачей данных
+          release_requests(ALL);
+
+          OPStateAuthorised(false);
+          DistantInitTerminated(false);
+          InitPhase(INITPHASE_END);
+          FirstDistInitOPStateAuth(false);
+        }
       }
       else {
         LOG(ERROR) << name() << ": skip unsupported " << RTDB_ATT_SYNTHSTATE << " value:" << val;
@@ -607,6 +620,91 @@ int AcqSiteEntry::change_state(int attribute_idx, int val)
 }
 
 // ==============================================================================
+// Обработка изменения оперативного состояния системы сбора - атрибута SYNTHSTATE
+int AcqSiteEntry::esg_acq_dac_SynthStateMan(int _state)
+{
+  static const char* fname = "esg_acq_dac_SynthStateMan";
+  int rc = OK;
+
+  LOG(INFO) << name() << ": change SYNTHSTATE: " << m_synthstate << " => " << _state;
+
+  // определить допустимость значения нового состояния
+  assert((SYNTHSTATE_UNREACH <= _state) && (_state <= SYNTHSTATE_PRE_OPER));
+  if ((SYNTHSTATE_UNREACH <= _state) && (_state <= SYNTHSTATE_PRE_OPER)) {
+    m_synthstate = static_cast<synthstate_t>(_state);
+  }
+  else {
+    LOG(ERROR) << fname << ": unsupported given value: " << _state;
+    rc = NOK;
+  }
+
+  // Manage distant equipement state and update in state automate
+  // ------------------------------------------------------------
+  if (OK == (rc = esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, m_synthstate)))
+  {
+#if 1
+    LOG(INFO) << "TODO: Propagate new SYNTHSTATE value to all exchange threads";
+#else
+    // Обновить состояние Сайта в общем доступе
+    // ----------------------------------------
+    if (OK == (rc = esg_acq_dac_SmdSynthState (s_IAcqSiteId, m_synthstate))) {
+
+      // Build state message to be transmitted to DIFF process
+      // -----------------------------------------------------
+      memcpy(r_SyntSend.s_AcqSiteName, s_IAcqSiteId, sizeof(gof_t_UniversalName));
+      r_SyntSend.i_StateValue = m_synthstate;
+
+      // Consult general data to get DIFF process num
+      // -----------------------------------------------------
+      //   Build the structure process
+      //   - Get the current Rtap environnement
+      //   - Get the identification of the interface component
+      // -----------------------------------------------------
+      esg_esg_odm_ConsultGeneralData (&r_GenData);
+
+      rc = gof_msg_p_GetProcByNum (r_GenData.s_RtapEnvironment, (gof_t_Int16)r_GenData.o_DIFprocNum, &r_ProcessDest);
+
+      if (rc == OK)
+      {
+        rc = gof_msg_p_SendMessage (&r_ProcessDest, ESG_D_SYNTHETICAL_STATE, sizeof(esg_t_SyntheticalState), &r_SyntSend);
+
+        // Send the message to es_Sending
+        // -----------------------------------
+        if (rc == OK) {
+          rc = gof_msg_p_SendMessage (&r_ProcessDest,
+                                        ESG_D_SYNTHETICAL_STATE,
+                                        sizeof(esg_t_SyntheticalState),
+                                        &r_SyntSend);
+          // Transmit immediatly the new synthetic state to SINF component
+          if (rc == OK) {
+            strcpy (r_SynthStateSite.s_SA_name, s_IAcqSiteId);
+            r_SynthStateSite.e_status = m_synthstate;
+
+            rc = sig_ext_msg_p_InpSendMessageToSinf ( SIG_D_MSG_SASTATUS, sizeof (sig_t_msg_SAStatus), &r_SynthStateSite);
+            sprintf ( s_Trace, "Transmit synth state to SINF, Status %d", rc) ;
+            ech_tra_p_Trace ( s_FctName, s_Trace ) ;
+          }
+        }
+
+      }
+      else {
+        sprintf(s_LoggedText,"Rtap env: %s DIF procNum: %d", r_GenData.s_RtapEnvironment,r_GenData.o_DIFprocNum);
+      }
+
+    }
+    else {
+      LOG(ERROR) << fname << ": Can;t set site " << site->name() << " StateVal: " << m_synthstate;
+    }
+#endif
+  }
+  else {
+    LOG(ERROR) << fname << ": Automate SynthStateValue: " << m_synthstate;
+  }
+
+  return rc;
+}
+
+// ==============================================================================
 bool AcqSiteEntry::esg_state_filter(const Request* req, int hist_period)
 {
   static const char* fname = "esg_state_filter";
@@ -664,7 +762,8 @@ bool AcqSiteEntry::esg_state_filter(const Request* req, int hist_period)
 
       // local init command is refused if the last one was terminated with success and a distant init command is in progress
       if (req->id() == ESG_LOCID_INITCOMD) {
-        if ((OPStateAuthorised() == true) && (InitPhase() != END)) {
+        if ((OPStateAuthorised() == true) && (InitPhase() != INITPHASE_END)) {
+          LOG(INFO) << fname << ": request #" << req->id() << " refuse " << ESG_ESG_D_LOCSTR_INITCOMD << ": OPStateAuth=" << OPStateAuthorised() << ", InitPhase=" << InitPhase();
           permission = false;
         }
       }
@@ -680,19 +779,22 @@ bool AcqSiteEntry::esg_state_filter(const Request* req, int hist_period)
 
         switch (req->id()) {
           case ESG_BASID_ALARM:
-            if (UNKNOWN == m_Alarms) {
+            if (NOTRECEIVED == m_Alarms) {
+              LOG(INFO) << fname << ": request #" << req->id() << " refuse " << ESG_ESG_D_BASSTR_ALARM << ": Alarms=" << m_Alarms;
               permission = false;
             }
             break;
 
           case ESG_BASID_HISTINFOSACQ:
-            if (UNKNOWN == m_history_info[hist_period]) {
+            if (NOTRECEIVED == m_history_info[hist_period]) {
+              LOG(INFO) << fname << ": request #" << req->id() << " refuse " << ESG_ESG_D_BASSTR_HISTINFOSACQ << ": History=" << m_history_info[hist_period];
               permission = false;
             }
             break;
 
           case ESG_BASID_INFOSACQ:
-            if (UNKNOWN == m_Infos) {
+            if (NOTRECEIVED == m_Infos) {
+              LOG(INFO) << fname << ": request #" << req->id() << " refuse " << ESG_ESG_D_BASSTR_INFOSACQ << ": Infos=" << m_Infos;
               permission = false;
             }
             break;
@@ -725,7 +827,8 @@ bool AcqSiteEntry::esg_state_filter(const Request* req, int hist_period)
 	  else {   // request type is LOCAL
         if (req->id() == ESG_LOCID_INITCOMD) {
           // local init command is refused if the last one was terminated with success and a distant init command is in progress
-          if ((OPStateAuthorised() == true) && (InitPhase() != END)) {
+          if ((OPStateAuthorised() == true) && (InitPhase() != INITPHASE_END)) {
+            LOG(INFO) << fname << ": request #" << req->id() << " refuse " << ESG_ESG_D_LOCSTR_INITCOMD << ": OPStateAuth=" << OPStateAuthorised() << ", InitPhase=" << InitPhase();
             permission = false;
           }
 		}
@@ -850,7 +953,7 @@ bool AcqSiteEntry::ega_state_filter(const Request* checked_req)
 // Попытаться добавить в очередь указанный Запрос.
 // Входной параметр - ссылка на экземпляр Запроса из НСИ.
 // Проверить его на комбинированность, и поместить в очередь запросов на исполнение
-// только базовые Запросы. 
+// только базовые Запросы.
 // NB: Соответствующее значение массива по индексу подзапроса представляет собой
 // порядковый номер его включения в очередь, поскольку очередность важна!
 int AcqSiteEntry::add_request(const Request* dict_req)
@@ -895,7 +998,10 @@ int AcqSiteEntry::add_request(const Request* dict_req)
 
           // Создадим экземпляр базового для этого составного Запроса
           basic_request = new Request(get_dict_request(static_cast<ech_t_ReqId>(sorted_sequence[rid])));
-          LOG(INFO) << fname << ": " << ++idx << "/" << num_composed << " " << basic_request->name();
+          // Запомнить идентификатор Составного Запроса
+          basic_request->composed_id(dict_req->id());
+          LOG(INFO) << fname << ": " << ++idx << "/" << num_composed << " " << basic_request->name()
+                    << " (composed " << Request::name(basic_request->composed_id()) << ")";
 
           // Этот запрос не последний в группе
           basic_request->last_in_bundle(false);
@@ -914,7 +1020,7 @@ int AcqSiteEntry::add_request(const Request* dict_req)
           if (basic_request) {
             basic_request->last_in_bundle(true);
           }
-          break; 
+          break;
         }
       }
 
@@ -929,7 +1035,44 @@ int AcqSiteEntry::add_request(const Request* dict_req)
   return rc;
 }
 
+// ==========================================================================================================
+// Для указанной системы сбора удалить запросы указанной категории
+int AcqSiteEntry::release_requests(int object_class)
+{
+  // ega_ega_t_ObjectClass
+  int rc = NOK;
+
+  // Проверить все существующие запросы
+  if (!requests().empty()) {
+
+    LOG(INFO) << "Order to release requests type: " << object_class;
+
+    std::list<Request*>::iterator it = requests().begin();
+    while (it != requests().end())
+    {
+      Request *req = (*it);
+
+      // То, что надо
+      if (req->object() & object_class) {
+        LOG(INFO) << "Remove existing request " << req->name() << ", state=" << req->state()
+                  << ", object_class=" << object_class << " (" << req->object() << ")";
+        delete req;
+        it = requests().erase(it);
+        rc = OK;
+      }
+      ++it;
+    }
+  }
+  else {
+    LOG(INFO) << name() << ": empty request list";
+  }
+
+  return rc;
+}
+
+
 #if 0
+
 // ==============================================================================
 #warning "Продолжить тут - Реализовать машину состояний CC"
 // Изменение состояния СС вызывают изменения в очереди Запросов
@@ -1138,6 +1281,158 @@ int AcqSiteEntry::push_request_for_cycle(Cycle* cycle, const int* included_reque
   return rc;
 }
 
+
+
+// ==============================================================================
+// NB: суффикс s_ISuffix в ГОФО всегда равен "REQ"
+int AcqSiteEntry::esg_ine_man_DeleteReqInProgress(const char* s_IDistantSiteId)
+{
+  static const char* fname = "esg_ine_man_DeleteReqInProgress";
+  int   rc = OK;
+#if 1
+  LOG(INFO) << fname << ": run";
+#else
+  bool  b_AllReqDeleted = false;
+  bool  b_EntryFound;
+  bool  b_BasicReqFound;
+  esg_esg_lis_t_ProgListEntry   r_ConsultEntry;
+  esg_esg_t_DescRequest         r_ReadRequest;
+  esg_esg_lis_t_ProgListEntry	r_ResultEntry;
+  gof_t_Cause                   r_Failure;
+  esg_esg_t_ReqResp             r_ReqResp;
+  esg_esg_t_DescRequest		    r_LocalRequest;
+  size_t		i_i;
+
+  //............................................................................
+  //      Execution sequence
+  while ((!b_AllReqDeleted) && (rc == OK))
+  {
+
+    // (CD) Delete local request : delete associated file if exists
+    //----------------------------------------------------------------------------
+    memset (&r_ConsultEntry, 0, sizeof (esg_esg_lis_t_ProgListEntry));
+    memset (&r_ReadRequest, 0, sizeof (esg_esg_t_DescRequest));
+    memset (&r_ReqResp, 0, sizeof (esg_esg_t_ReqResp));
+    rc = esg_esg_lis_ConsultEntry (s_IDistantSiteId,
+                                   ESG_ESG_LIS_D_GETOLDENTRY,
+                                   &r_ConsultEntry,
+                                   r_ReadRequest,
+                                   &b_EntryFound,
+                                   &r_ResultEntry);
+    if (rc != OK)
+    {
+            LOG(ERROR) << fname << ": Provider " << s_IDistantSiteId;
+    }
+    else
+    {
+      if (b_EntryFound)
+      {
+        b_BasicReqFound = true;
+        for (i_i=0; (i_i<ESG_ESG_D_NBRBASREQ) && (b_BasicReqFound); i_i++)
+        {
+          // for basic request associated with local request
+          //----------------------------------------------------------------------------
+          if (r_ResultEntry.ar_TabReqBas[i_i].i_IdExchange.i_IdExchange != 0)
+          {
+            if ((r_ResultEntry.ar_TabReqBas[i_i].i_StateRequest == ESG_ESG_LIS_D_WAIT_N)
+             ||
+                (r_ResultEntry.ar_TabReqBas[i_i].i_StateRequest == ESG_ESG_LIS_D_WAIT_U))
+            {
+              // delete associated file
+              //----------------------------------------------------------------------------
+              rc = esg_esg_fil_FileNameBuild (s_IDistantSiteId,
+                                              r_ResultEntry.ar_TabReqBas[i_i].i_IdExchange.i_IdExchange,
+                                              ESG_ESG_FIL_D_MODE_SENDER,
+                                              s_ISuffix,
+                                              s_LongName );
+              if (rc == OK)
+              {
+                rc = esg_esg_fil_FileDelete (s_LongName);
+              }
+              if (rc != OK)
+              {
+                LOG(ERROR) << fname << ": Provider " << site->name() << ", Local ReqId " << r_ResultEntry.r_ManagedRequestDesc.r_ExchangedRequest.h_ReqId;
+              }
+            }
+          }
+          else
+          {
+            b_BasicReqFound = false;
+          }
+        }
+        // send response to EGSA for local request
+        //----------------------------------------------------------------------------
+        if (r_ResultEntry.r_ManagedRequestDesc.r_ExchangedRequest.h_ReqType == ESG_ESG_ODM_D_REQ_LOCAL)
+        {
+          r_Failure.i_error_code = OK;
+          strcpy(r_Failure.s_error_text,ESG_ESG_D_EMPTYSTRING);
+          strcpy (r_ReqResp.Provider_Id, s_IDistantSiteId);
+          r_LocalRequest.i_IdExchange = r_ResultEntry.i_ProviderRequestDesc;
+          r_LocalRequest.r_ExchangedRequest.h_ReqId = r_ResultEntry.e_EgaReqId;
+          rc = esg_ine_man_SendResp(r_ReqResp,
+                                        // addition of reply type to send to EGSA
+                                        ECH_D_ENDEXEC_REPLY,
+                                        GOF_D_FAILURE,
+                                        r_Failure,
+                                        r_LocalRequest);
+          if (rc != OK)
+          {
+            LOG(ERROR) << fname << ": Reply to EGSA (ExchangeId: " << r_LocalRequest.r_ExchangedRequest.h_ReqId;
+          }
+        }
+
+        // delete local request in progress list
+        //----------------------------------------------------------------------------
+        rc = esg_esg_lis_DeleteEntry (s_IDistantSiteId, r_ResultEntry.r_ManagedRequestDesc);
+        if (rc != OK)
+        {
+          LOG(ERROR) << fname << ": Provider=" << s_IDistantSiteId << ", Local ReqId=" << r_ResultEntry.r_ManagedRequestDesc.r_ExchangedRequest.h_ReqId;
+        }
+      }
+      else
+      {
+        b_AllReqDeleted = true;
+      }
+    }
+  }
+#endif
+  return rc;
+}
+//-END esg_ine_man_DeleteReqInProgress ---------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // ==============================================================================
 AcqSiteList::AcqSiteList()
  : m_egsa(NULL)
@@ -1147,14 +1442,23 @@ AcqSiteList::AcqSiteList()
 // ==============================================================================
 AcqSiteList::~AcqSiteList()
 {
+#if VERBOSE>7
+  LOG(INFO) << "DTOR AcqSiteList, size=" << m_items.size();
+#endif
   // Разные экземпляры AcqSiteList в Cycle и в EGSA содержат ссылки на одни
   // и те же экземпляры объектов AcqSiteEntry
   for (std::vector<std::shared_ptr<AcqSiteEntry*>>::iterator it = m_items.begin();
        it != m_items.end();
        ++it)
   {
-    // Удалить ссылку на AcqSiteEntry
-    (*it).reset();
+    if (*it) {
+#if VERBOSE>8
+      LOG(INFO) << "DTOR AcqSiteList item " << (*(*it))->name();
+#endif
+
+      // Удалить ссылку на AcqSiteEntry
+      (*it).reset();
+    }
   }
 }
 
@@ -1182,9 +1486,11 @@ int AcqSiteList::detach()
       it != m_items.end();
       ++it)
   {
-    AcqSiteEntry* entry = *(*it);
-    LOG(INFO) << "TODO: set " << entry->name() << ".SYNTHSTATE = 0";
-    LOG(INFO) << "TODO: detach " << entry->name() << " SMAD";
+    if (*it) {
+      AcqSiteEntry* entry = *(*it);
+      LOG(INFO) << "TODO: set " << entry->name() << ".SYNTHSTATE = 0";
+      LOG(INFO) << "TODO: detach " << entry->name() << " SMAD";
+    }
   }
 
   return rc;
@@ -1203,6 +1509,7 @@ int AcqSiteList::detach_from_smad(const char* name)
 void AcqSiteList::insert(AcqSiteEntry* the_new_one)
 {
   m_items.push_back(std::make_shared<AcqSiteEntry*>(the_new_one));
+  LOG(INFO) << "insert " << the_new_one->name() << ", index=" << m_items.size();
 }
 
 // ==============================================================================
@@ -1230,13 +1537,20 @@ AcqSiteEntry* AcqSiteList::operator[](const std::string& name)
 {
   AcqSiteEntry *entry = NULL;
 
-  for(std::vector<std::shared_ptr<AcqSiteEntry*>>::const_iterator it = m_items.begin();
+  for(std::vector< std::shared_ptr<AcqSiteEntry*> >::const_iterator it = m_items.begin();
       it != m_items.end();
       ++it)
   {
-    if (0 == name.compare((*(*it))->name())) {
-      entry = *(*it);
-      break;
+    if (*it) {
+//      LOG(INFO) << "look at " << (*(*it))->name() << " (" << name << ")";
+      if (0 == name.compare((*(*it))->name())) {
+        entry = *(*it);
+//        LOG(INFO) << "found " << (*(*it))->name() << " = " << name;
+        break;
+      }
+    }
+    else {
+      LOG(WARNING) << "AcqSiteList::operator[" << name << "] found NULL in m_items";
     }
   }
 
@@ -1250,7 +1564,12 @@ AcqSiteEntry* AcqSiteList::operator[](const std::size_t idx)
   AcqSiteEntry *entry = NULL;
 
   if (idx < m_items.size()) {
-    entry = *m_items.at(idx);
+    if (m_items.at(idx)) {
+      entry = *m_items.at(idx);
+    }
+    else {
+      LOG(WARNING) << "AcqSiteList::operator[" << idx << "] found NULL in m_items";
+    }
   }
 
   return entry;
@@ -1260,17 +1579,12 @@ AcqSiteEntry* AcqSiteList::operator[](const std::size_t idx)
 // Освободить все ресурсы
 int AcqSiteList::release()
 {
-  for (std::vector<std::shared_ptr<AcqSiteEntry*>>::iterator it = m_items.begin();
-       it != m_items.end();
-       ++it)
-  {
-    LOG(INFO) << "release site " << (*(*it))->name();
-    AcqSiteEntry *entry = *(*it);
-    (*it).reset();
-    delete entry;
-  }
+//  LOG(INFO) << "AcqSiteList::release() RUN, size=" << m_items.size();
+  m_items.erase(m_items.begin(), m_items.end());
   m_site_map.clear();
+//  LOG(INFO) << "AcqSiteList::release() FINISH, size=" << m_items.size();
 
   return OK;
 }
-// ==============================================================================
+
+

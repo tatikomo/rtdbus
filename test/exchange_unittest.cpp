@@ -29,6 +29,7 @@ AcqSiteEntry *g_sac_entry = NULL;
 
 const char* g_sa_config_filename = "BI4500.json";
 
+// =======================================================================================================================
 // Создать корректно заполненные сообщения нужного типа для тестирования реакции EGSA
 // NB: Удалить возвращаемый объект после использования
 mdp::zmsg* create_message_by_type(const std::string& dest,
@@ -100,6 +101,7 @@ mdp::zmsg* create_message_by_type(const std::string& dest,
   return message;
 }
 
+// =======================================================================================================================
 TEST(TestEXCHANGE, EGSA_CREATE)
 {
   std::string broker_endpoint = ENDPOINT_BROKER;
@@ -112,12 +114,14 @@ TEST(TestEXCHANGE, EGSA_CREATE)
   ASSERT_TRUE(g_sa_config != NULL);
 }
 
+// =======================================================================================================================
 TEST(TestEXCHANGE, SA_CONFIG)
 {
   int rc = g_sa_config->load();
   EXPECT_TRUE(OK == rc);
 }
 
+// =======================================================================================================================
 TEST(TestEXCHANGE, EGSA_CONFIG)
 {
   int rc = g_egsa_instance->load_config();
@@ -126,7 +130,7 @@ TEST(TestEXCHANGE, EGSA_CONFIG)
   ASSERT_TRUE(g_egsa_instance->config());
 
   LOG(INFO) << "load " << g_egsa_instance->config()->cycles().size() << " cycles";
-  EXPECT_TRUE(g_egsa_instance->config()->cycles().size() == 5);
+  EXPECT_TRUE(g_egsa_instance->config()->cycles().size() == 7);
 
   LOG(INFO) << "load " << g_egsa_instance->config()->sites().size() << " sites";
   EXPECT_TRUE(g_egsa_instance->config()->sites().size() == 3);
@@ -135,6 +139,7 @@ TEST(TestEXCHANGE, EGSA_CONFIG)
   EXPECT_TRUE(g_egsa_instance->config()->requests().size() == 41);
 }
 
+// =======================================================================================================================
 // Подготовить полную информацию по циклам, включая связанные с этими циклами сайты
 // ГТП:
 // GCP_PGACQ_DIPL   =   основной цикл сбора информации (1 час)
@@ -285,6 +290,7 @@ TEST(TestEXCHANGE, EGSA_CYCLES)
 #warning "Suppress EGSA_CYCLES test for a while"
 #endif
 
+// =======================================================================================================================
 // Проверка работы класса Системы Сбора
 TEST(TestEXCHANGE, SAC_CREATE)
 {
@@ -310,6 +316,7 @@ TEST(TestEXCHANGE, SAC_CREATE)
   EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_NO);
 }
 
+// =======================================================================================================================
 // Проверка работы класса Системы Сбора
 TEST(TestEXCHANGE, SAC_STATES)
 {
@@ -317,71 +324,71 @@ TEST(TestEXCHANGE, SAC_STATES)
 
 #if 0
   LOG(INFO) << "Set state to PRE_OPER";
-  g_sac_entry->change_state(RTDB_ATT_IDX_SYNTHSTATE, 2);
+  g_sac_entry->esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, 2);
   EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_NO);
   LOG(INFO) << "Set state to CONNECTED";
-  g_sac_entry->change_state(RTDB_ATT_IDX_SYNTHSTATE, 1);
+  g_sac_entry->esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, 1);
   EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_O);
   LOG(INFO) << "Set state to incorrect value(3)";
-  g_sac_entry->change_state(RTDB_ATT_IDX_SYNTHSTATE, 3);
+  g_sac_entry->esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, 3);
   // Состояние не изменилось
   EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_O);
 
   // Сбросить Запрет
   LOG(INFO) << "Clear attr \"INHIBITED\"";
-  g_sac_entry->change_state(RTDB_ATT_IDX_INHIB, 0);
+  g_sac_entry->esg_esg_aut_StateManage(RTDB_ATT_IDX_INHIB, 0);
   EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_O);
   // Установить Запрет
   LOG(INFO) << "Set attr \"INHIBITED\"";
-  g_sac_entry->change_state(RTDB_ATT_IDX_INHIB, 1);
+  g_sac_entry->esg_esg_aut_StateManage(RTDB_ATT_IDX_INHIB, 1);
   EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_I_NM_O);
   // Сбросить Запрет
   LOG(INFO) << "Clear attr \"INHIBITED\"";
-  g_sac_entry->change_state(RTDB_ATT_IDX_INHIB, 0);
+  g_sac_entry->esg_esg_aut_StateManage(RTDB_ATT_IDX_INHIB, 0);
   EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_O);
 
   // Сбросить Техобслуживание
   LOG(INFO) << "Clear attr \"EXPMODE\"";
-  g_sac_entry->change_state(RTDB_ATT_IDX_EXPMODE, 0);
+  g_sac_entry->esg_esg_aut_StateManage(RTDB_ATT_IDX_EXPMODE, 0);
   EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_O);
   // Установить Техобслуживание
   LOG(INFO) << "Set attr \"EXPMODE\"";
-  g_sac_entry->change_state(RTDB_ATT_IDX_EXPMODE, 1);
+  g_sac_entry->esg_esg_aut_StateManage(RTDB_ATT_IDX_EXPMODE, 1);
   EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_M_O);
   // Сбросить Техобслуживание
   LOG(INFO) << "Clear attr \"EXPMODE\"";
-  g_sac_entry->change_state(RTDB_ATT_IDX_EXPMODE, 0);
+  g_sac_entry->esg_esg_aut_StateManage(RTDB_ATT_IDX_EXPMODE, 0);
   EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_O);
 
   // Установить "В процессе инициализации связи"
   LOG(INFO) << "Set state to PRE_OPER";
-  g_sac_entry->change_state(RTDB_ATT_IDX_SYNTHSTATE, 2);
+  g_sac_entry->esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, 2);
   EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_NO);
   // Установить "Обрыв связи"
   LOG(INFO) << "Set state to DISCONNECTED";
-  g_sac_entry->change_state(RTDB_ATT_IDX_SYNTHSTATE, 0);
+  g_sac_entry->esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, 0);
   EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_NO);
   // Установить "В процессе инициализации связи"
   LOG(INFO) << "Set state to PRE_OPER";
-  g_sac_entry->change_state(RTDB_ATT_IDX_SYNTHSTATE, 2);
+  g_sac_entry->esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, 2);
   EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_NO);
   // Установить "Связь установлена"
   LOG(INFO) << "Set state to CONNECTED";
-  g_sac_entry->change_state(RTDB_ATT_IDX_SYNTHSTATE, 1);
+  g_sac_entry->esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, 1);
   EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_O);
 #else
   for (int inhib = 0; inhib < 2; inhib++)
   {
-    g_sac_entry->change_state(RTDB_ATT_IDX_INHIB, inhib);
+    g_sac_entry->esg_esg_aut_StateManage(RTDB_ATT_IDX_INHIB, inhib);
 
     for (int expmode = 0; expmode < 2; expmode++)
     {
-      g_sac_entry->change_state(RTDB_ATT_IDX_EXPMODE, expmode);
+      g_sac_entry->esg_esg_aut_StateManage(RTDB_ATT_IDX_EXPMODE, expmode);
 
       // 0 -> 2 -> 1 : последовательность состояний "Недоступна" -> "Инициализация" -> "Оперативна"
-      g_sac_entry->change_state(RTDB_ATT_IDX_SYNTHSTATE, 0);
-      g_sac_entry->change_state(RTDB_ATT_IDX_SYNTHSTATE, 2);
-      g_sac_entry->change_state(RTDB_ATT_IDX_SYNTHSTATE, 1);
+      g_sac_entry->esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, 0);
+      g_sac_entry->esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, 2);
+      g_sac_entry->esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, 1);
     }
   }
 
@@ -396,6 +403,7 @@ TEST(TestEXCHANGE, SAC_STATES)
 
 }
 
+// =======================================================================================================================
 TEST(TestEXCHANGE, EGSA_SITES)
 {
   const egsa_config_site_item_t config_item[] = {
@@ -452,6 +460,7 @@ TEST(TestEXCHANGE, EGSA_SITES)
   delete check_data[2];
 }
 
+// =======================================================================================================================
 TEST(TestEXCHANGE, EGSA_DICT_REQUESTS)
 {
   RequestDictionary &rl = g_egsa_instance->dictionary_requests();
@@ -498,8 +507,10 @@ TEST(TestEXCHANGE, EGSA_DICT_REQUESTS)
   EXPECT_TRUE(ru->included()[ESG_BASID_STATECMD] == 0);
 }
 
+// =======================================================================================================================
 TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
 {
+#if 0
   RequestRuntimeList rt_list;
   Request* dict_req = NULL;
   RequestDictionary& dict_requests = g_egsa_instance->dictionary_requests();
@@ -533,6 +544,13 @@ TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
   rt_list.add(req2, 1);
   rt_list.add(req3, 2);
   rt_list.add(req4, 2);
+#else
+
+  AcqSiteEntry* site1 = g_egsa_instance->sites()["BI4001"];
+  AcqSiteEntry* site2 = g_egsa_instance->sites()["BI4002"];
+  AcqSiteEntry* site3 = g_egsa_instance->sites()["K42001"];
+
+#endif
 
   // ///////////////////////////////////////////////////////////////////////////////////////
   // Проверка работы обработки Запросов при изменении состояния СС
@@ -548,37 +566,82 @@ TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
     LOG(INFO) << "iter " << iter << "/" << limit_iter;
     switch(iter) {
       case 2:
-        site3->change_state(RTDB_ATT_IDX_SYNTHSTATE, SYNTHSTATE_UNREACH);
+        site1->esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, SYNTHSTATE_PRE_OPER);
+        site1->esg_esg_aut_StateManage(RTDB_ATT_IDX_EXPMODE, 1);
+        site1->esg_esg_aut_StateManage(RTDB_ATT_IDX_INHIB, 0);
+
+        site3->esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, SYNTHSTATE_PRE_OPER);
+        site3->esg_esg_aut_StateManage(RTDB_ATT_IDX_EXPMODE, 1);
+        site3->esg_esg_aut_StateManage(RTDB_ATT_IDX_INHIB, 0);
+        break;
+
+      case 5:
+        site2->esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, SYNTHSTATE_PRE_OPER);
+        site2->esg_esg_aut_StateManage(RTDB_ATT_IDX_EXPMODE, 1);
+        site2->esg_esg_aut_StateManage(RTDB_ATT_IDX_INHIB, 0);
+        break;
+
+      case 8:
+        site1->esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, SYNTHSTATE_OPER);
+        site3->esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, SYNTHSTATE_OPER);
         break;
 
       case 15:
-        site3->change_state(RTDB_ATT_IDX_SYNTHSTATE, SYNTHSTATE_PRE_OPER);
+        site3->esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, SYNTHSTATE_PRE_OPER);
         break;
 
-      case 25:
-        site3->change_state(RTDB_ATT_IDX_SYNTHSTATE, SYNTHSTATE_OPER);
+      case 16:
+        site2->esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, SYNTHSTATE_OPER);
+        break;
+
+      case 20:
+        site3->esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, SYNTHSTATE_OPER);
         break;
 
       case 45:
-        site3->change_state(RTDB_ATT_IDX_EXPMODE, 0);
+        site3->esg_esg_aut_StateManage(RTDB_ATT_IDX_EXPMODE, 0);
         break;
 
       case 53:
-        site3->change_state(RTDB_ATT_IDX_EXPMODE, 1);
+        site3->esg_esg_aut_StateManage(RTDB_ATT_IDX_EXPMODE, 1);
+        break;
+
+      case 60:
+        site2->esg_esg_aut_StateManage(RTDB_ATT_IDX_EXPMODE, 0);
         break;
 
       case 70:
-        site3->change_state(RTDB_ATT_IDX_INHIB, 1);
+        site3->esg_esg_aut_StateManage(RTDB_ATT_IDX_INHIB, 1);
         break;
 
       case 78:
-        site3->change_state(RTDB_ATT_IDX_INHIB, 0);
+        site3->esg_esg_aut_StateManage(RTDB_ATT_IDX_INHIB, 0);
+        break;
+
+      case 82:
+        site2->esg_esg_aut_StateManage(RTDB_ATT_IDX_EXPMODE, 1);
+
+        site3->esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, SYNTHSTATE_UNREACH);
+        site3->esg_esg_aut_StateManage(RTDB_ATT_IDX_EXPMODE, 1);
+        site3->esg_esg_aut_StateManage(RTDB_ATT_IDX_INHIB, 0);
+        break;
+
+      case 85:
+        site1->esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, SYNTHSTATE_UNREACH);
+
+        site3->esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, SYNTHSTATE_PRE_OPER);
+        break;
+
+      case 90:
+        site3->esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, SYNTHSTATE_OPER);
         break;
     }
 
+#if 0
     // NB: Запрос EGA_INITCMD с приоритетом 127 должен отобразиться
     // раньше, чем EGA_DELEGATION с приоритетом 99
     rt_list.timer();
+#endif
 
     if (!site3->requests().empty()) {
 
@@ -659,15 +722,18 @@ TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
     site3->requests().pop_front();
   }
 
+#if 0
   delete req1;
   delete req2;
   delete req3;
   delete req4;
+#endif
 }
 
+// =======================================================================================================================
 TEST(TestEXCHANGE, EGSA_RUN)
 {
-#if 1
+#if 0
   g_egsa_instance->implementation();
 #else
 #warning "Отключена проверка EGSA::implementation"
@@ -675,6 +741,7 @@ TEST(TestEXCHANGE, EGSA_RUN)
 #endif
 }
 
+// =======================================================================================================================
 /*
 TEST(TestEXCHANGE, EGSA_ENDALLINIT)
 {
@@ -699,6 +766,7 @@ TEST(TestEXCHANGE, EGSA_ENDALLINIT)
 }
 */
 
+// =======================================================================================================================
 TEST(TestEXCHANGE, EGSA_FREE)
 {
   delete g_sa_config;
@@ -707,6 +775,7 @@ TEST(TestEXCHANGE, EGSA_FREE)
   delete g_egsa_instance;
 }
 
+// =======================================================================================================================
 #if 0
 TEST(TestEXCHANGE, EGSA_STOP)
 {
@@ -734,6 +803,7 @@ TEST(TestEXCHANGE, EGSA_STOP)
 }
 #endif
 
+// =======================================================================================================================
 int main(int argc, char** argv)
 {
   //GOOGLE_PROTOBUF_VERIFY_VERSION;

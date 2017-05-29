@@ -270,6 +270,10 @@ set (ENDPOINT_SBS_PUBLISHER         "tcp://localhost:5560")
 set (ENDPOINT_HIST_FRONTEND         "tcp://localhost:5561")
 # Теневой сокет EGSA::run <=> EGSA::implementation
 set (ENDPOINT_EGSA_BACKEND          "inproc://rtdb_egsa_data")
+# Теневой сокет EGSA::run <=> EGSA::implementation_acq
+set (ENDPOINT_EGSA_ACQ_BACKEND      "inproc://rtdb_egsa_acq_data")
+# Теневой сокет EGSA::run <=> EGSA::implementation_send
+set (ENDPOINT_EGSA_SEND_BACKEND     "inproc://rtdb_egsa_send_data")
 
 set (HISTDB_SNAP_FILENAME           "hdb.sqlite3")
 # Локальное или удаленное расположение БДРВ для службы Архивирования.

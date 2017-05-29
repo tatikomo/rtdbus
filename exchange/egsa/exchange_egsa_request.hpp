@@ -25,7 +25,11 @@ typedef std::chrono::time_point<std::chrono::system_clock> time_type;
 
 #define DUMP_SIZE   150
 // ==============================================================================
-// Элементарный запрос адрес СС
+// Элементарный запрос адрес СС.
+// Запросы могут быть простыми|элементарными (basic) и составными (composed).
+// Составные состоят из набора базовых Запросов.
+// Базовые содержат в себе идентификатор Составного Запроса.
+//
 class Request
 {
   public:
@@ -64,19 +68,32 @@ class Request
    ~Request();
     Request& operator=(const Request&);
 
+    //
     size_t          exchange_id() const { return m_exchange_id; }
+    //
     size_t          generate_exchange_id();
     // Установить/снять признак, последний ли это Запрос в группе
     void            last_in_bundle(bool sign) { m_last_in_bundle = sign; }
+    //
     bool            last_in_bundle() const { return m_last_in_bundle; }
+    //
     AcqSiteEntry*   site() const { return m_site; }
+    //
     Cycle*          cycle() const { return m_cycle; }
+    // Вернуть идентификатор Базового (basic) Запроса
     ech_t_ReqId     id() const { return m_config.e_RequestId; }
+    // Вернуть идентификатор Составного (composed) запроса
+    ech_t_ReqId     composed_id() const { return m_ComposedRequestId; }
+    // Установить идентификатор Составного (composed) Запроса
+    void            composed_id(ech_t_ReqId _composed_id) { m_ComposedRequestId = _composed_id; }
+    //
     ech_t_AcqMode   acq_mode() const { return m_config.e_RequestMode; }
+    //
     ega_ega_t_ObjectClass object() const { return m_config.e_RequestObject; }
     // Класс запроса - автоматический, циклический, асинхронный
     request_class_t rclass() const { return m_class; }
     int             priority() const { return m_config.i_RequestPriority; }
+    //
     bool            rprocess() const { return m_config.b_Requestprocess; }
     // Получить время начала
     const time_type when() const   { return m_when; }
@@ -86,6 +103,7 @@ class Request
     void            arm(const time_type& _when) { m_when = _when; }
     // TODO: разделить события - нормальное завершение или по таймауту
     int             callback() const { return m_trigger_callback(); }
+    // Вернуть тег Сайта
     const char*     name() const
       { return (NOT_EXISTENT != m_config.e_RequestId)? m_dict_RequestNames[m_config.e_RequestId] : "error"; }
     static const char* name(ech_t_ReqId _id)
@@ -95,9 +113,10 @@ class Request
     const int*      included() const { return m_config.r_IncludingRequests; }
     // Проверить, является ли запрос составным
     int             composed() const;
+    // Вернуть состояние Сайта
     request_executing_state_t state() const { return m_state; }
+    // Установить новое состояние Системы
     void state(request_executing_state_t _state) { m_state = _state; }
-
     // Событие завершения времени. Предусмотреть флаги - таймаут есть/нет,...
     int             trigger();
     // Строка с характеристиками Запроса
@@ -118,12 +137,14 @@ class Request
 
     // Постоянные атрибуты Запроса
     RequestEntry  m_config;
+    // Идентификатор composed запроса
+    ech_t_ReqId   m_ComposedRequestId;
     // Время инициации запроса
-    time_type         m_when;
+    time_type     m_when;
     // Длительность исполнения
-    time_type         m_duration;
+    time_type     m_duration;
     // Функции, вызываемые в указанное время
-    callback_type     m_trigger_callback;
+    callback_type m_trigger_callback;
     // Динамические Атрибуты
     // Идентификатор времени выполнения
     size_t m_exchange_id;

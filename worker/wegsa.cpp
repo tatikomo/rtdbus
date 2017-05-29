@@ -69,6 +69,7 @@ int main(int argc, char *argv[])
 
   LOG(INFO) << "Finish host EGSA instance, rc=" << rc;
 
+  delete instance;
   ::google::protobuf::ShutdownProtobufLibrary();
   ::google::ShutdownGoogleLogging();
 

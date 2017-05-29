@@ -157,6 +157,7 @@ Request::Request(const Request& orig)
     m_class(orig.m_class),
     m_internal_dump(),
     m_config(orig.m_config),
+    m_ComposedRequestId(NOT_EXISTENT),
     m_when(orig.m_when),
     m_duration(orig.m_duration),
     m_trigger_callback(),
@@ -178,6 +179,7 @@ Request::Request(const Request* orig)
     m_class(orig->m_class),
     m_internal_dump(),
     m_config(orig->m_config),
+    m_ComposedRequestId(orig->m_ComposedRequestId),
     m_when(orig->m_when),
     m_duration(orig->m_duration),
     m_exchange_id(orig->m_exchange_id),
@@ -196,6 +198,7 @@ Request::Request(const Request* orig)
 Request& Request::operator=(const Request& orig)
 {
   memcpy(&m_config, &orig.m_config, sizeof(RequestEntry));
+  m_ComposedRequestId = orig.m_ComposedRequestId;
   m_duration = orig.m_duration;
   m_class = orig.m_class;
   m_exchange_id = orig.m_exchange_id;
@@ -231,6 +234,7 @@ size_t Request::generate_exchange_id()
 Request::Request(const Request* _req, AcqSiteEntry* _site, Cycle* _cycle)
   : m_class(_req->m_class),
     m_config(_req->m_config),
+    m_ComposedRequestId(_req->m_ComposedRequestId),
     m_when(_req->m_when),
     m_duration(_req->m_duration),
     m_exchange_id(_req->m_exchange_id),
@@ -277,7 +281,7 @@ int Request::trigger()
   //  * ...
   //
   m_when += std::chrono::seconds(1); // GEV: повторять запрос каждую секунду
-  rc = REPEAT;
+  //1 rc = REPEAT;
 
   /*
   switch (m_site->state()) {

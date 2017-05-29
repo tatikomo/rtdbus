@@ -117,21 +117,22 @@ class AcqSiteEntry {
 
   // Состояние ТИ определенного типа
   typedef enum {
-    UNKNOWN  = 0,
-    RECEIVE  = 1,
-    ACQUIRE  = 2,
-    SENT     = 3,
-    TRANSMIT = 4
+    NOTRECEIVED = 0,
+    RECEIVED    = 1,
+    ACQUIRED    = 2,
+    SENT        = 3,
+    TRANSMIT    = 4
   } teleinformation_processing_t;
 
-  typedef enum {
-    NONE    = 0,
-    BEGIN   = 1,
-    END_NOHHIST = 2,
-    END     = 3
-  } init_phase_t;
-
   public:
+    // состояние в процессе процедуры инициализации связи Сайта
+    typedef enum {
+      INITPHASE_NONE    = 0,
+      INITPHASE_BEGIN   = 1,
+      INITPHASE_END_NOHHIST = 2,
+      INITPHASE_END     = 3
+    } init_phase_state_t;
+
     AcqSiteEntry(EGSA*, const egsa_config_site_item_t*);
    ~AcqSiteEntry();
 
@@ -140,10 +141,15 @@ class AcqSiteEntry {
     bool        auto_i()    const { return m_AutomaticalInit; }
     bool        auto_gc()   const { return m_AutomaticalGenCtrl; }
     sa_state_t  state()     const { return m_FunctionalState; }
+    synthstate_t synthstate() const { return m_synthstate; }
     sa_object_level_t level() const { return m_Level; }
 
+    // Обработка изменения оперативного состояния системы сбора - атрибута SYNTHSTATE
+    int esg_acq_dac_SynthStateMan(int);
     // Регистрация Запросов в указанном Цикле
     int push_request_for_cycle(Cycle*, const int*);
+    // Удалить Запросы из очереди на исполнение
+    int esg_ine_man_DeleteReqInProgress(const char*);
 
     // TODO: СС и EGSA могут работать на разных хостах, в этом случае подключение EGSA к smad СС
     // не получит доступа к реальным данным от СС. Их придется EGSA туда заносить самостоятельно.
@@ -174,7 +180,8 @@ class AcqSiteEntry {
     // Сменить состояние в зависимости от поданного на вход атрибута
     // Управление состояниями СС в зависимости от асинхронных изменений состояния атрибутов
     // SYNTHSTATE, INHIBITION, EXPMODE в БДРВ, приходящих по подписке
-    int change_state(int, int);
+    int esg_esg_aut_StateManage(int, int);
+    int release_requests(int);
 
     // Проверить допустимость принятия Запроса к исполнению
     bool state_filter(const Request*);
@@ -186,6 +193,16 @@ class AcqSiteEntry {
     int cbAutoInit();
     // Функция вызывается при необходимости создания Запросов на общий сбор информации (есть, Генерал Контрол!)
     int cbGeneralControl();
+    // Состояние авторизации (?)
+    bool OPStateAuthorised() { return m_OPStateAuthorised; }
+    void OPStateAuthorised(bool _auth) { m_OPStateAuthorised = _auth; }
+    bool DistantInitTerminated() { return m_DistantInitTerminated; }
+    void DistantInitTerminated(bool _distant) { m_DistantInitTerminated = _distant; }
+    init_phase_state_t InitPhase() { return m_init_phase_state; }
+    void InitPhase(init_phase_state_t _state) { m_init_phase_state = _state; }
+    bool FirstDistInitOPStateAuth() { return m_FirstDistInitOPStateAuth; }
+    void FirstDistInitOPStateAuth(bool _val) { m_FirstDistInitOPStateAuth = _val; }
+    int phase_change();
 
   private:
     // Exchanged Info table header */
@@ -218,9 +235,6 @@ class AcqSiteEntry {
     void init_functional_state();
     // Получить ссылку на экземпляр Запроса указанного типа
     const Request* get_dict_request(ech_t_ReqId);
-    // Состояние авторизации (?)
-    bool OPStateAuthorised() { return m_OPStateAuthorised; }
-    init_phase_t InitPhase() { return m_init_phase; };
 
     EGSA* m_egsa;
     synthstate_t m_synthstate;
@@ -263,32 +277,32 @@ class AcqSiteEntry {
     // requests in progress list access
     std::list<Request*> m_requests_in_progress;
 
+    static const ega_ega_aut_t_automate m_ega_ega_aut_a_auto [EGA_EGA_AUT_D_NB_TRANS][EGA_EGA_AUT_D_NB_STATE];
+
+    // ========================= ESG ================================================
     // Поля, специфичные для удаленных Сайтов того же, или верхнего уровня (соседние объекты или управление)
     // Поскольку процедура установления связи с ними растянута по времени и состоит из нескольких
     // последовательных этапов, необходимо иметь информацию о текущем состоянии процедуры инициализации
     // удаленного Сайта (см. описание esg_esg_odm_t_AcqSiteEntry в esg_esg_odm_p.h).
     //
-    // b_OPStateAuthorised
+    // Состояние авторизации
+    bool m_OPStateAuthorised;
     //   FALSE -> no Init to the distant in progress / Init to the distant in progress
     //   TRUE -> Init to the distant terminated with success
-    // b_DistantInitTerminated
+    bool m_DistantInitTerminated;
     //   FALSE -> no Init received from the distant / Init from the distant in progress
     //   TRUE -> Init from the distant terminated
-    //
-    static const ega_ega_aut_t_automate m_ega_ega_aut_a_auto [EGA_EGA_AUT_D_NB_TRANS][EGA_EGA_AUT_D_NB_STATE];
-
-
-    // ========================= ESG ================================================
+    // Состояние процедуры инициализации связи, используется для ESG
+    init_phase_state_t m_init_phase_state;
+    // TODO: определить назначение поля
+    bool m_FirstDistInitOPStateAuth;
+ 
     // матрица допустимости Запросов по типам от текущего функционального состояния СС
     static const bool enabler_matrix[REQUEST_ID_LAST + 1][EGA_EGA_AUT_D_NB_STATE + 1];
     // Состояние предыстории определенной дискретизации - секундная (2017/05: пока нет),
     // минутная, 5-минутная, часовая, суточная, месячная.
     // NB: количество типов синхронизировать первоисточником в rtap_db.mco, тип HistoryType
     teleinformation_processing_t m_history_info[6];
-    // Состояние авторизации
-    bool m_OPStateAuthorised;
-    // Состояние процедуры инициализации связи, используется для ESG
-    init_phase_t m_init_phase;
     // Состояние типа данных "Тревоги"
     teleinformation_processing_t m_Alarms;
     // Состояние типа данных "Телеизмерения"

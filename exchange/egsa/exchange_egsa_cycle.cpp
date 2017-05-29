@@ -172,7 +172,9 @@ CycleList::~CycleList()
 {
   for (std::vector<Cycle*>::iterator it = m_Cycles.begin(); it != m_Cycles.end(); ++it)
   {
+#if VERBOSE>7
     LOG(INFO) << "free cycle " << (*it)->name();
+#endif
     delete (*it);
   }
 }

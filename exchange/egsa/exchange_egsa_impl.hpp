@@ -24,6 +24,16 @@
 class ExternalSMAD;
 class AcqSiteEntry;
 
+// Команды от EGSA::implementation в адрес ES_ACQ и ES_SEND
+#define INIT         "INIT"
+#define ENDALLINIT   "ENDALLINIT"
+#define SHUTTINGDOWN "SHUTTINGDOWN"
+#define STOP         "STOP"
+#define ASKLIFE      "ASKLIFE"
+#define TK_MESSAGE   "TK_MESSAGE"   // Сообщение от таймкипера. Сообщение содержит вторым параметром название Цикла (OLDREQUEST|SENDAGAIN)
+#define OLDREQUEST   "OLDREQUEST"   // Общий Цикл для ES_ACQ и ES_SEND
+#define SENDAGAIN    "SENDAGAIN"    // Специфичный Цикл для ES_SEND
+
 class EGSA : public mdp::mdwrk {
   public:
     enum { BROKER_ITEM = 0, SUBSCRIBER_ITEM = 1, SERVICE_ITEM = 2, SOCKET_MAX_COUNT = SERVICE_ITEM + 1 };
@@ -47,6 +57,10 @@ class EGSA : public mdp::mdwrk {
 #endif
     // Запуск Интерфейса второго уровня
     int implementation();
+    // Запуск Интерфейса ES_ACQ
+    int implementation_acq();
+    // Запуск Интерфейса ES_SEND
+    int implementation_send();
     int process_requests_for_all_sites();
     int process_request_for_site(AcqSiteEntry*);
     // Обработка в implementation команд от EGSA::run()
@@ -72,24 +86,65 @@ class EGSA : public mdp::mdwrk {
     // Первичная обработка нового запроса
     int processing(mdp::zmsg*, const std::string&, bool&);
     void tick_tack();
+    int esg_acq_rsh_CheckBreq (AcqSiteEntry* /*esg_esg_t_ReqResp r_ReqResp*/);
     //============================================================================
 
   private:
     DISALLOW_COPY_AND_ASSIGN(EGSA);
+    // Состояния нити EGSA
     typedef enum {
-      INITIAL       = 0,    // начальное состояние до инициализации
-      WAITING_INIT  = 1,    // состояние ожидания получения разрешения на работу 
-      END_INIT      = 2,    // разрешение получено, подготовка к работе
-      RUN           = 3,    // работа
-      SHUTTINGDOWN  = 4,    // состояние завершения работы 
-      STOP          = 5     // получен приказ на останов
-    } egsa_internal_state_t;
-    bool change_state_to(egsa_internal_state_t);
+      STATE_INITIAL   = 0,    // начальное состояние до инициализации
+      STATE_CNF_OK    = 1,    // Conf Ok - Wait for STOP/SBS msg
+      STATE_INI_OK    = 2,    // SBS received - wait for EndAllInit/Stop
+      STATE_INI_KO    = 3,    // Init Ko - Wait only for Stop message
+      STATE_WAITING_INIT = 4, // состояние ожидания получения разрешения на работу 
+      STATE_END_INIT  = 5,    // разрешение получено, подготовка к работе
+      STATE_RUN       = 6,    // работа
+      STATE_SHUTTINGDOWN = 7, // состояние завершения работы 
+      STATE_STOP      = 8,    // получен приказ на останов
+      STATE_NB        = STATE_STOP+1  // количество состояний
+    } internal_state_t;
 
+    // Индексы фраз для ответа EGSA::implement
+    enum { GOOD=0, ALREADY=1, FAIL=2, UNWILLING=3 };
+    static const char* internal_report_string[];
+
+    // Тип источника данных (сокета), с которого прочиталось сообщение
+    typedef enum {
+      SOURCE_CONTROL  = 1,
+      SOURCE_DATA     = 2
+    } message_source_t;
+
+    // Сменить состояние EGSA на указанное
+    bool change_egsa_state_to(internal_state_t);
+    internal_state_t egsa_state() { return m_state_egsa; }
+    // Сменить состояние ES_ACQ на указанное
+    bool change_acq_state_to(internal_state_t);
+    internal_state_t acq_state() { return m_state_acq; }
+    // Сменить состояние ES_SEND на указанное
+    bool change_send_state_to(internal_state_t);
+    internal_state_t send_state() { return m_state_send; }
+    // Обработка события смены Фазы для данного Сайта
+    int esg_acq_inm_PhaseChgMan(AcqSiteEntry*, AcqSiteEntry::init_phase_state_t);
+
+    // Инициализация интерфейса ES_ACQ
+    int init_acq();
+    // Завершение работы интерфейса ES_ACQ
+    int fini_acq();
+    // Инициализация интерфейса ES_SEND
+    int init_send();
+    // Завершение работы интерфейса ES_SEND
+    int fini_send();
     // Обработка сообщения о чтении значений БДРВ (включая ответ группы подписки)
     int process_read_response(msg::Letter*);
+    // Обработка сообщения внутри нити ES_ACQ
+    int process_acq(const std::string&);
+    // Обработка сообщения внутри нити ES_SEND
+    int process_send(const std::string&);
     // Останов экземпляра
     int stop();
+    // Ответ на простой запрос верхнего уровня
+    int esg_ine_ini_Acknowledge(const std::string&, int, int);
     // Получить новое сообщение
     // Второй параметр - количество милисекунд ожидания получения сообщения.
     // =  0 - разовое чтение сообщений, немедленный выход в случае отсутствия таковых
@@ -125,18 +180,28 @@ class EGSA : public mdp::mdwrk {
     // Функция срабатывания при наступлении времени очередного таймера
     void cycle_trigger(size_t, size_t);
 
-    // Текущее состояние процесса
-    egsa_internal_state_t m_state;
-    // Входящее соединение от Таймеров
-    zmq::socket_t   m_signal_socket;
+    // Текущее состояние процесса EGSA
+    internal_state_t m_state_egsa;
+    // Текущее состояние процесса EGSA
+    internal_state_t m_state_acq;
+    // Текущее состояние процесса EGSA
+    internal_state_t m_state_send;
+
     // Набор для zmq::poll
     //zmq::pollitem_t m_socket_items[2];
     msg::MessageFactory *m_message_factory;
     // Сокет обмена сообщениями с Интерфейсом второго уровня
     zmq::socket_t   m_backend_socket;
+    // Сокет обмена сообщениями внутри нити ES_ACQ
+    zmq::socket_t  *m_acq_control;
+    // Сокет обмена сообщениями внутри нити ES_SEND
+    zmq::socket_t  *m_send_control;
     // Нить подчиненного интерфейса
     std::thread*    m_servant_thread;
-
+    // аналог ES_ACQ
+    std::thread*    m_acquisition_thread;
+    // аналог ES_SEND
+    std::thread*    m_sending_thread;
 
     // Экземпляр ExternalSMAD для хранения конфигурации и данных EGSA
     ExternalSMAD *m_ext_smad;
@@ -160,6 +225,39 @@ class EGSA : public mdp::mdwrk {
 
     RequestRuntimeList m_waiting_requests;
     RequestRuntimeList m_deferred_requests;
+
+    // Функции нити ES_ACQ <============================================================================
+    // Обработка команды от верхнего уровня
+    int process_acq_command(mdp::zmsg*);
+    // обработка информации от смежной системы
+    int process_acq_request(mdp::zmsg*, const std::string&);
+    // Удалить просроченные Запросы
+    int esg_acq_rsh_ReqsDelMan();
+    // EGSA request
+    int esg_acq_inm_ReqMan(msg::Letter*);
+    // Broadcast receipt coming from COM
+    int esg_acq_inm_ReceiptIndic(msg::Letter*);
+    // Broadcast report coming from COM
+    int esg_acq_inm_TransmReport(msg::Letter*);
+    // new state value for a SATO
+    int esg_acq_inm_StatesMan(msg::Letter*);
+    // send basic request HHISTINFOSAQ
+    int esg_acq_inm_SendHhist(msg::Letter*);
+    // request for emergency cycle
+    int esg_acq_inm_EmergenCycReq(msg::Letter*);
+    // distant init. phase is finished - treat the synthetic state of this site
+    int esg_acq_inm_PhaseChgMan(msg::Letter*);
+
+    // Функции нити ES_SEND <============================================================================
+    int esg_ine_ini_OpenDifDataAccess();
+    int esg_ine_ini_AllocExchInfo(const char*);
+    int esg_ine_tim_WakeupsAsk();
+    int process_send_command(mdp::zmsg*);
+    int process_send_request(mdp::zmsg*, const std::string&);
+    int esg_esg_odm_TraceAllCycleEntry();
+    int esg_ine_ini_UpdateDataDiffCycle();
+    int esg_ine_ini_GetStatesMode();
+    int esg_ine_ini_AlaHistSub();
 };
 
 #endif
