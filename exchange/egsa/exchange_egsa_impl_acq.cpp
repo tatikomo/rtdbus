@@ -60,7 +60,8 @@ int EGSA::implementation_acq()
     // Сокет для обмена командами с нитью EGSA::implementation
     m_acq_control = new zmq::socket_t(m_context, ZMQ_PAIR);
 
-    m_acq_control->bind(ENDPOINT_EGSA_ACQ_BACKEND);
+    m_acq_control->connect(ENDPOINT_EGSA_ACQ_BACKEND);
+    LOG(INFO) << fname << ": connects to EGSA::implementation " << ENDPOINT_EGSA_ACQ_BACKEND;
     m_acq_control->setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
     m_acq_control->setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
     m_acq_control->setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));

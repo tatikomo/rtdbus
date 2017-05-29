@@ -180,7 +180,9 @@ class EGSA : public mdp::mdwrk {
     // Функция срабатывания при наступлении времени очередного таймера
     void cycle_trigger(size_t, size_t);
 
-    // Текущее состояние процесса EGSA
+    // Состояние
+    internal_state_t m_state;
+    // Текущее состояние процесса EGSA::implementation
     internal_state_t m_state_egsa;
     // Текущее состояние процесса EGSA
     internal_state_t m_state_acq;

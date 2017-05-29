@@ -196,10 +196,12 @@ AcqSiteEntry::AcqSiteEntry(EGSA* egsa, const egsa_config_site_item_t* entry)
     m_Alarms(NOTRECEIVED),
     m_Infos(NOTRECEIVED)
 {
+  static const char* fname = "CTOR AcqSiteEntry";
   std::string sa_config_filename;
   sa_common_t sa_common;
   AcquisitionSystemConfig* sa_config = NULL;
 
+  LOG(INFO) << fname << ": start";
   strncpy(m_IdAcqSite, entry->name.c_str(), TAG_NAME_MAXLEN);
 
   // Имя СС не может содержать символа "/"
@@ -232,12 +234,31 @@ AcqSiteEntry::AcqSiteEntry(EGSA* egsa, const egsa_config_site_item_t* entry)
   init_functional_state();
 
   delete sa_config;
+  LOG(INFO) << fname << ": done";
 }
 
 // ==============================================================================
 AcqSiteEntry::~AcqSiteEntry()
 {
+#if VERBOSE>8
+  static const char* fname = "DTOR AcqSiteEntry";
+#endif
+
   delete m_smad;
+
+#if 1
+  while (!m_requests_in_progress.empty())
+  {
+    const Request* rq = m_requests_in_progress.front();
+#if VERBOSE>8
+    LOG(INFO) << fname << ": release " << rq->name();
+#endif
+    m_requests_in_progress.pop_front();
+    delete rq;
+  }
+#else
+  release_requests(ALL);
+#endif
 }
 
 // ==============================================================================
@@ -382,7 +403,10 @@ int AcqSiteEntry::cbGeneralControl()
 // ==============================================================================
 int AcqSiteEntry::send(int msg_id)
 {
+  static const char* fname = "AcqSiteEntry::send";
   int rc = OK;
+
+  LOG(INFO) << fname << ": msg #" << msg_id;
 
   switch(msg_id) {
     case ADG_D_MSG_ENDALLINIT:  /*process_end_all_init();*/ break;
@@ -1579,10 +1603,18 @@ AcqSiteEntry* AcqSiteList::operator[](const std::size_t idx)
 // Освободить все ресурсы
 int AcqSiteList::release()
 {
-//  LOG(INFO) << "AcqSiteList::release() RUN, size=" << m_items.size();
-  m_items.erase(m_items.begin(), m_items.end());
-  m_site_map.clear();
-//  LOG(INFO) << "AcqSiteList::release() FINISH, size=" << m_items.size();
+  static const char* fname = "AcqSiteList::release";
+
+  LOG(INFO) << fname << ": RUN, size=" << m_items.size();
+
+  while (!m_items.empty())
+  {
+    const AcqSiteEntry *item = (*m_items.back());
+    LOG(INFO) << fname << ": delete " << item->name();
+    delete item;
+    m_items.pop_back();
+  }
+  LOG(INFO) << fname << ": FINISH, size=" << m_items.size();
 
   return OK;
 }

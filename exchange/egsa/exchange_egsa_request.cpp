@@ -391,9 +391,12 @@ void RequestDictionary::release()
       it != m_requests.end();
       ++it)
   {
+#if VERBOSE>6
     LOG(INFO) << "Free dictionary req " << (*it).second->name();
+#endif
     delete (*it).second;
   }
+  m_requests.clear();
 }
 
 // ==============================================================================
@@ -416,7 +419,9 @@ Request* RequestDictionary::query_by_id(ech_t_ReqId _id)
 // ==============================================================================
 RequestRuntimeList::RequestRuntimeList()
 {
+#if VERBOSE>8
   LOG(INFO) << "CTOR RequestRuntimeList";
+#endif
 }
 
 // ==============================================================================

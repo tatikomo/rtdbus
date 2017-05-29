@@ -392,15 +392,20 @@ TEST(TestEXCHANGE, SAC_STATES)
     }
   }
 
+#if 1
   while (!g_sac_entry->requests().empty()) {
     Request* finished = g_sac_entry->requests().front();
     LOG(INFO) << g_sac_entry->name() << ": release request " << finished->name() << ", state " << finished->str_state();
     delete finished;
     g_sac_entry->requests().pop_front();
   }
+#else
+  g_sac_entry->release_requests(ALL);
+#endif
 
 #endif
 
+  delete g_sac_entry;
 }
 
 // =======================================================================================================================
@@ -770,7 +775,6 @@ TEST(TestEXCHANGE, EGSA_ENDALLINIT)
 TEST(TestEXCHANGE, EGSA_FREE)
 {
   delete g_sa_config;
-  delete g_sac_entry;
 
   delete g_egsa_instance;
 }

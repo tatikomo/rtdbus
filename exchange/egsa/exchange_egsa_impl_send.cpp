@@ -41,7 +41,8 @@ int EGSA::implementation_send()
     // Сокет для обмена командами с нитью EGSA::implementation
     m_send_control = new zmq::socket_t (m_context, ZMQ_PAIR);
 
-    m_send_control->bind(ENDPOINT_EGSA_SEND_BACKEND);
+    m_send_control->connect(ENDPOINT_EGSA_SEND_BACKEND);
+    LOG(INFO) << fname << ": connects to EGSA::implementation  " << ENDPOINT_EGSA_SEND_BACKEND;
     m_send_control->setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
     m_send_control->setsockopt(ZMQ_SNDTIMEO, &send_timeout_msec, sizeof(send_timeout_msec));
     m_send_control->setsockopt(ZMQ_RCVTIMEO, &recv_timeout_msec, sizeof(recv_timeout_msec));
@@ -143,6 +144,8 @@ int EGSA::process_send_command(mdp::zmsg* request)
   const char* report = internal_report_string[UNWILLING];
   const std::string command_identity = request->pop_front();
   int rc = NOK;
+
+  LOG(INFO) << fname << ": read command " << command_identity;
 
   if (0 == command_identity.compare(TK_MESSAGE))        // <<<========================== Циклическое сообщение
   {
