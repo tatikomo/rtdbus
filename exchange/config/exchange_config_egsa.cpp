@@ -204,7 +204,9 @@ EgsaConfig::EgsaConfig(const char* config_filename)
   FILE* f_params = NULL;
   struct stat configfile_info;
 
-  LOG(INFO) << "Constructor EgsaConfig";
+#if VERBOSE>8
+  LOG(INFO) << "CTOR EgsaConfig";
+#endif
   m_config_filename = strdup(config_filename);
 
   // Выделить буфер readBuffer размером с читаемый файл
@@ -247,7 +249,10 @@ EgsaConfig::~EgsaConfig()
 {
   int idx = 0;
 
+#if VERBOSE>8
   LOG(INFO) << "Destructor EgsaConfig";
+#endif
+
   free(m_config_filename); // NB: free() after strdup()
 
   for (egsa_config_cycles_t::iterator it = m_cycles.begin();

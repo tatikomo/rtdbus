@@ -288,7 +288,9 @@ DatabaseImpl::DatabaseImpl(const char* _name, const Options* _options, mco_dicti
   strcat(m_logFileName, ".log");
 #endif
 
-  LOG(INFO) << "Constructor database " << m_name;
+#if VERBOSE>8
+  LOG(INFO) << "CTOR database " << m_name;
+#endif
 
   if (getOption(const_cast<Options*>(m_db_access_flags),"OF_CREATE", val) && val)
   {

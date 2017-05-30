@@ -106,7 +106,11 @@ Modbus_Client_Interface::Modbus_Client_Interface(const std::string& _service,
   m_pFMessages[2].ReqEGSAAttr.SendAccept    = 1;
 #endif
   catch_signals();
-  //LOG(INFO) << "Constructor Modbus_Client_Interface";
+
+#if VERBOSE>8
+  //LOG(INFO) << "CTOR Modbus_Client_Interface";
+#endif
+
 }
 
 // ==========================================================================================

@@ -89,7 +89,9 @@ HistorianResponder::HistorianResponder(zmq::context_t& ctx) :
   m_message_factory(NULL),
   m_historic(NULL)
 {
-  LOG(INFO) << "Constructor HistorianResponder";
+#if VERBOSE>8
+  LOG(INFO) << "CTOR HistorianResponder";
+#endif
 }
 
 // ---------------------------------------------------------------------
@@ -318,7 +320,7 @@ HistorianProducer::HistorianProducer(zmq::context_t& ctx, xdb::RtEnvironment* en
   m_time_before({0, 0}),
   m_time_after({0, 0})
 {
-  LOG(INFO) << "Constructor HistorianProducer, env: " << m_env;
+  LOG(INFO) << "CTOR HistorianProducer, env: " << m_env;
 }
 
 // ---------------------------------------------------------------------
@@ -422,7 +424,7 @@ Historian::Historian(const std::string& endpoint, const std::string& name) :
   m_environment(NULL),
   m_db_connection(NULL)
 {
-  LOG(INFO) << "Constructor Historian " << m_server_name
+  LOG(INFO) << "CTOR Historian " << m_server_name
             << ", connect to " << m_broker_endpoint;
 
   m_appli = new xdb::RtApplication(HISTORIAN_NAME);
@@ -433,7 +435,9 @@ Historian::Historian(const std::string& endpoint, const std::string& name) :
 // ---------------------------------------------------------------------
 Historian::~Historian()
 {
+#if VERBOSE>8
   LOG(INFO) << "Destructor Historian";
+#endif
 
   delete m_message_factory;
   delete m_db_connection;

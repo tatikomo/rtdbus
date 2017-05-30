@@ -205,7 +205,10 @@ InternalSMAD::InternalSMAD(const char* sa_name, gof_t_SacNature sa_nature, const
    m_sa_name(NULL),
    m_sa_reference(0)
 {
-  LOG(INFO) << "Constructor InternalSMAD";
+#if VERBOSE>8
+  LOG(INFO) << "CTOR InternalSMAD";
+#endif
+
   m_sa_name = strdup(sa_name);
   m_snapshot_filename = strdup(filename);
 }
@@ -215,7 +218,9 @@ InternalSMAD::~InternalSMAD()
 {
   int rc;
 
+#if VERBOSE>8
   LOG(INFO) << "Destructor InternalSMAD";
+#endif
 
   free(m_snapshot_filename); // NB: именно free(), а не delete
   free(m_sa_name); // NB: именно free(), а не delete
