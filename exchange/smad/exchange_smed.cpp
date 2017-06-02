@@ -14,9 +14,9 @@
 #include "glog/logging.h"
 
 // Класс внешней SMAD, используемой EGSA
-#include "exchange_smad_ext.hpp"
+#include "exchange_smed.hpp"
 
-ExternalSMAD::ExternalSMAD(const char* snap_file)
+SMED::SMED(const char* snap_file)
  : m_db(NULL),
    m_state(STATE_DISCONNECTED),
    m_db_err(NULL),
@@ -25,17 +25,17 @@ ExternalSMAD::ExternalSMAD(const char* snap_file)
   m_snapshot_filename = strdup(snap_file);
 }
 
-ExternalSMAD::~ExternalSMAD()
+SMED::~SMED()
 {
   int rc;
 
   if (SQLITE_OK != (rc = sqlite3_close(m_db)))
-  LOG(ERROR) << "Closing ExternalSMAD '" << m_snapshot_filename << "': " << rc;
+  LOG(ERROR) << "Closing SMED '" << m_snapshot_filename << "': " << rc;
 
   free(m_snapshot_filename);
 }
 
-smad_connection_state_t ExternalSMAD::connect()
+smad_connection_state_t SMED::connect()
 {
   const char *fname = "connect";
   char sql_operator[1000 + 1];
@@ -43,7 +43,7 @@ smad_connection_state_t ExternalSMAD::connect()
   int rc = 0;
 
   // ------------------------------------------------------------------
-  // Открыть файл ExternalSMAD с базой данных SQLite
+  // Открыть файл SMED с базой данных SQLite
   rc = sqlite3_open_v2(m_snapshot_filename,
                        &m_db,
                        // Если таблица только что создана, проверить наличие
@@ -51,7 +51,7 @@ smad_connection_state_t ExternalSMAD::connect()
                        "unix-dotfile");
   if (rc == SQLITE_OK)
   {
-    LOG(INFO) << fname << ": ExternalSMAD file '" << m_snapshot_filename << "' successfuly opened";
+    LOG(INFO) << fname << ": SMED file '" << m_snapshot_filename << "' successfuly opened";
     m_state = STATE_OK;
 
     // Установить кодировку UTF8
@@ -87,7 +87,7 @@ smad_connection_state_t ExternalSMAD::connect()
         // ------------------------------------------------------------------
         // Всегда заново создавать данные CC, даже если они ранее существовали.
         // Первичной информацией должен быть конфигурационный файл, иначе возможна
-        // ситуация с рассинхронизацией структуры БД InternalSMAD и конфигурационного файла.
+        // ситуация с рассинхронизацией структуры SMAD и конфигурационного файла.
         drop_dict(m_sa_name, m_sa_reference);
       }
 
@@ -122,7 +122,7 @@ smad_connection_state_t ExternalSMAD::connect()
   }
   else
   {
-    LOG(ERROR) << fname << ": opening InternalSMAD file '" << m_snapshot_filename << "' error=" << rc;
+    LOG(ERROR) << fname << ": opening SMAD file '" << m_snapshot_filename << "' error=" << rc;
     m_state = STATE_ERROR;
   }
 

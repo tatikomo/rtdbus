@@ -22,14 +22,14 @@
 #include "exchange_config.hpp"
 #include "exchange_config_sac.hpp"
 
-class InternalSMAD;
+class SMAD;
 
 // =============================================================================================
 // Набор состояний модуля
 typedef enum {
   // Ещё не подключён, все в порядке
   STATUS_OK = 1,
-  // Ещё не подключён, InternalSMAD загружена
+  // Ещё не подключён, SMAD загружена
   STATUS_OK_SMAD_LOAD,                  // 2
   // Подключён, все в порядке
   STATUS_OK_CONNECTED,                  // 3
@@ -43,7 +43,7 @@ typedef enum {
   STATUS_FAIL_TO_RECONNECT,             // 7
   // Нормальное завершение работы
   STATUS_OK_SHUTDOWN,                   // 8
-  // Нет возможности продолжать работу из-за проблем с InternalSMAD
+  // Нет возможности продолжать работу из-за проблем с SMAD
   STATUS_FATAL_SMAD,                    // 9
   // Нет возможности продолжать работу из-за проблем с конфигурационными файлами
   STATUS_FATAL_CONFIG,                  // 10
@@ -95,7 +95,7 @@ class SysAcqInterface {
     client_status_t m_status;
     AcquisitionSystemConfig& m_config;
     sa_common_t     m_sa_common;
-    InternalSMAD   *m_smad;
+    SMAD           *m_smad;
     std::string     m_service_name;
     int             m_connection_restored;
     int             m_num_connection_try;

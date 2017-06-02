@@ -205,7 +205,7 @@ int SA_Module_Instance::handle_init(msg::Letter* letter, std::string* reply_to)
   switch(m_status) {
     case STATUS_OK:
       // LoadSMAD()
-    case STATUS_OK_SMAD_LOAD: // Ещё не подключён, InternalSMAD загружена
+    case STATUS_OK_SMAD_LOAD: // Ещё не подключён, SMAD загружена
     case STATUS_OK_NOT_CONNECTED: // Не подключён, требуется переподключение
       LOG(INFO) << "Ready to init";
       code = 1;

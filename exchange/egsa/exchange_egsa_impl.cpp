@@ -30,8 +30,8 @@
 #include "msg_sinf.hpp"
 #include "exchange_config.hpp"
 #include "exchange_config_egsa.hpp"
-#include "exchange_smad_int.hpp"
-#include "exchange_smad_ext.hpp"
+#include "exchange_smad.hpp"
+#include "exchange_smed.hpp"
 #include "exchange_egsa_site.hpp"
 #include "exchange_egsa_impl.hpp"
 #include "exchange_egsa_request.hpp"
@@ -54,7 +54,7 @@ EGSA::EGSA(const std::string& _broker, const std::string& _service)
     m_servant_thread(NULL),
     m_acquisition_thread(NULL),
     m_sending_thread(NULL),
-    m_ext_smad(NULL),
+    m_smed(NULL),
     m_egsa_config(NULL)
 {
 }
@@ -74,7 +74,7 @@ EGSA::~EGSA()
   //delete m_acq_control;
   //delete m_send_control;
 
-  delete m_ext_smad;
+  delete m_smed;
   delete m_egsa_config;
   delete m_message_factory;
 }
@@ -95,17 +95,17 @@ int EGSA::init()
   LOG(INFO) << fname << ": configs loaded, state=" << m_state;
 
   // Подключиться к своей внутренней памяти SMAD
-  m_ext_smad = new ExternalSMAD(m_egsa_config->smad_name().c_str());
-  LOG(INFO) << fname << ": ExternalSMAD created, state=" << m_ext_smad->state();
+  m_smed = new SMED(m_egsa_config->smad_name().c_str());
+  LOG(INFO) << fname << ": SMED created, state=" << m_smed->state();
+
+  if (STATE_OK == (ext_state = m_smed->connect())) {
 
 #ifndef _FUNCTIONAL_TEST
-  if (STATE_OK == (ext_state = m_ext_smad->connect())) {
-
     // Активировать группу подписки
     status = activateSBS();
     LOG(INFO) << fname << ": SBS activated";
 #else
-#warning "FUNCTIONAL_TEST: skip External SMAD and SBS facilities"
+#warning "FUNCTIONAL_TEST: skip SMED and SBS facilities"
 #endif
 
     if (OK == status) {
@@ -130,17 +130,25 @@ int EGSA::init()
         status = NOK;
       }
     } // end if SBS activated normally
-#ifndef _FUNCTIONAL_TEST
-  } // end if external smad connected normally
+  } // end if connected to SMED normally
   else {
-    LOG(ERROR) << "Connecting to internal EGSA SMAD, code=" << ext_state;
+    LOG(ERROR) << "Connecting to SMED, code=" << ext_state;
   }
-#endif
 
   if (NOK == status)
     m_state = STATE_INI_KO;
 
   return status;
+}
+
+// ==========================================================================================================
+// Внутренний тест SMED
+int EGSA::test_smed()
+{
+  int rc = OK;
+
+  LOG(INFO) << "TEST SMED";
+  return rc;
 }
 
 // ==========================================================================================================
@@ -760,8 +768,7 @@ int EGSA::run()
 
       // Загрузка конфигурации EGSA
       if ((OK == status) && (true == init())) {
-        // Загрузка основной части кофигурации систем сбора и создание экземпляров
-        // InternalSMAD без фактического подключения
+        // Загрузка основной части кофигурации SA и создание экземпляров SMAD без фактического подключения
         if (OK == (status = attach_to_sites_smad())) {
           interrupt_worker = false;
         }

@@ -20,7 +20,7 @@
 class EGSA;
 class Cycle;
 class Request;
-class InternalSMAD;
+class SMAD;
 class AcqSiteEntry;
 
 // Transition definition
@@ -270,7 +270,7 @@ class AcqSiteEntry {
     bool m_InterfaceComponentActive;
 
     // Ссылка на внутреннюю SMAD - acquired data access
-    InternalSMAD    *m_smad;
+    SMAD    *m_smad;
 
     // composed requests table - a dynamic table containing the number of requests and description of each request
     //std::list<const Request*> m_requests_composed;

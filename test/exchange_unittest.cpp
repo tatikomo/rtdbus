@@ -512,6 +512,7 @@ TEST(TestEXCHANGE, EGSA_DICT_REQUESTS)
   EXPECT_TRUE(ru->included()[ESG_BASID_STATECMD] == 0);
 }
 
+#ifdef _SHORT_TEST
 // =======================================================================================================================
 TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
 {
@@ -734,17 +735,36 @@ TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
   delete req4;
 #endif
 }
+#else
+#warning "SKIP EGSA_RT_REQUESTS TEST"
+#endif
 
 // =======================================================================================================================
+// Тест памяти SMED.
+// Данная память является буфером между накапливаемой системами сбора телеинформацией и БДРВ.
+TEST(TestEXCHANGE, EGSA_SMED)
+{
+  LOG(INFO) << "Check SMED";
+
+  int rc = g_egsa_instance->test_smed();
+  EXPECT_TRUE(rc == OK);
+}
+
+#ifndef _SHORT_TEST
+// =======================================================================================================================
+// Проверка на автоматическую генерацию запросов к известным (трем) системам сбора
+// Создание трех нитей:
+//   EGSA::implementation - верхний уровень работы Службы EGSA
+//   EGSA::implementation_acq - уровень опроса телеинформации от систем сбора
+//   EGSA::implementation_send - уровень отправки данных в системы сбора
+// Процедура EGSA::run - верхний уровень контроля EGSA
 TEST(TestEXCHANGE, EGSA_RUN)
 {
-#if 0
-  g_egsa_instance->implementation();
-#else
-#warning "Отключена проверка EGSA::implementation"
   g_egsa_instance->run();
-#endif
 }
+#else
+#warning "SKIP EGSA_RT_REQUESTS TEST"
+#endif
 
 // =======================================================================================================================
 /*

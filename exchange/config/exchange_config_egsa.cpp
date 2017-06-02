@@ -609,6 +609,13 @@ int EgsaConfig::load_requests()
 }
 
 // ==========================================================================================
+// Разбор конфигурационного файла со словарями ESG.
+// Название конфигурационного файла содержится в egsa.json секции COMMON, запись ESG_FILE
+int EgsaConfig::load_esg()
+{
+}
+
+// ==========================================================================================
 // загрузка всех параметров обмена: разделы COMMON, SITES, CYCLES, REQUESTS
 int EgsaConfig::load()
 {
@@ -646,6 +653,13 @@ int EgsaConfig::load()
        LOG(ERROR) << fname << ": Get requests";
        break;
     }
+
+    status = load_esg();
+    if (NOK == status) {
+       LOG(ERROR) << fname << ": Get ESG config";
+       break;
+    }
+
     status = OK;
 
   } while(false);

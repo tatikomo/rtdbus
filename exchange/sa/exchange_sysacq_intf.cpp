@@ -10,7 +10,7 @@
 
 // Служебные файлы RTDBUS
 #include "exchange_config_sac.hpp"
-#include "exchange_smad_int.hpp"
+#include "exchange_smad.hpp"
 #include "exchange_sysacq_intf.hpp"
 
 SysAcqInterface::SysAcqInterface(const std::string& _name,
@@ -31,15 +31,15 @@ SysAcqInterface::SysAcqInterface(const std::string& _name,
   // Конфигурационные файлы в порядке?
   if (OK == m_config.load())
   {
-    // Создать InternalSMAD из указанного снимка
-    m_smad = new InternalSMAD(m_config.name().c_str(),
-                              m_config.nature(),
-                              m_config.smad_filename().c_str());
+    // Создать SMAD из указанного снимка
+    m_smad = new SMAD(m_config.name().c_str(),
+                      m_config.nature(),
+                      m_config.smad_filename().c_str());
 
-    // Открыть InternalSMAD
+    // Открыть SMAD
     if (STATE_OK != m_smad->connect())
     {
-      LOG(ERROR) << fname << ": Unable to continue without InternalSMAD " << m_config.name();
+      LOG(ERROR) << fname << ": Unable to continue without SMAD " << m_config.name();
       m_status = STATUS_FATAL_SMAD;
       // NB: m_smad будет удалён в деструкторе
     }

@@ -17,7 +17,7 @@
 #include "mdp_worker_api.hpp"
 // Родовой интерфейс работы с Системой сбора
 #include "exchange_sysacq_intf.hpp"
-#include "exchange_smad_int.hpp"
+#include "exchange_smad.hpp"
 
 // ===============================================================================================
 
@@ -153,7 +153,7 @@ class Modbus_Client_Interface : public SysAcqInterface {
 
     // Подключиться к внутренней БД для хранения там полученных данных
     client_status_t connect_to_smad();
-    // Инициализировать значения всех параметров в InternalSMAD
+    // Инициализировать значения всех параметров в SMAD
     client_status_t init_smad_parameters();
     // Завершить формированое запроса
     void polish_order(int, int, ModbusOrderDescription&);

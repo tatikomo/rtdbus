@@ -21,7 +21,7 @@
 #include "exchange_egsa_cycle.hpp"
 #include "exchange_egsa_request.hpp"
 
-class ExternalSMAD;
+class SMED;
 class AcqSiteEntry;
 
 // Команды от EGSA::implementation в адрес ES_ACQ и ES_SEND
@@ -55,8 +55,8 @@ class EGSA : public mdp::mdwrk {
     // Если собирается рабочая версия, спрятать эти функции в приватный доступ
   private:
 #endif
-    // Запуск Интерфейса второго уровня
-    int implementation();
+    // Внутренний тест SMED
+    int test_smed();
     // Запуск Интерфейса ES_ACQ
     int implementation_acq();
     // Запуск Интерфейса ES_SEND
@@ -115,6 +115,8 @@ class EGSA : public mdp::mdwrk {
       SOURCE_DATA     = 2
     } message_source_t;
 
+    // Запуск Интерфейса второго уровня
+    int implementation();
     // Сменить состояние EGSA на указанное
     bool change_egsa_state_to(internal_state_t);
     internal_state_t egsa_state() { return m_state_egsa; }
@@ -205,9 +207,9 @@ class EGSA : public mdp::mdwrk {
     // аналог ES_SEND
     std::thread*    m_sending_thread;
 
-    // Экземпляр ExternalSMAD для хранения конфигурации и данных EGSA
-    ExternalSMAD *m_ext_smad;
-    EgsaConfig   *m_egsa_config;
+    // Экземпляр SMED для хранения конфигурации и данных EGSA
+    SMED        *m_smed;
+    EgsaConfig  *m_egsa_config;
     // Хранилище изменивших своё значение параметров, используется для всех СС
     sa_parameters_t m_list;
 

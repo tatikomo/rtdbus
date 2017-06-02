@@ -370,7 +370,7 @@ class EgsaConfig {
 
     // Загрузка данных
     int load();
-    // Загрузка обещей части конфигурационного файла
+    // Загрузка общей части конфигурационного файла
     int load_common();
     // Загрузка информации о циклах
     int load_cycles();
@@ -378,6 +378,8 @@ class EgsaConfig {
     int load_sites();
     // Загрузка информации о запросах
     int load_requests();
+    // Загрузка НСИ ESG
+    int load_esg();
     // Вернуть название внутренней SMAD для EGSA
     const std::string& smad_name();
     // Загруженные Циклы

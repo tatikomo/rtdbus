@@ -15,7 +15,7 @@
 #include "exchange_egsa_site.hpp"
 #include "exchange_egsa_impl.hpp"
 
-#include "exchange_smad_int.hpp"
+#include "exchange_smad.hpp"
 #include "exchange_config_sac.hpp"
 
 // Строки 0 и 1 используются, если меняется значение атрибута SYNTHSTATE
@@ -216,9 +216,9 @@ AcqSiteEntry::AcqSiteEntry(EGSA* egsa, const egsa_config_site_item_t* entry)
      LOG(ERROR) << "Unable to parse SA " << name() << " common config";
   }
   else {
-    m_smad = new InternalSMAD(sa_common.name.c_str(), sa_common.nature, sa_common.smad.c_str());
+    m_smad = new SMAD(sa_common.name.c_str(), sa_common.nature, sa_common.smad.c_str());
 
-    // TODO: подключаться к InternalSMAD только после успешной инициализации модуля данной СС
+    // TODO: подключаться к SMAD только после успешной инициализации модуля данной СС
 #if 0
     if (STATE_OK != (m_smad->state() = m_smad->attach(name(), nature()))) {
       LOG(ERROR) << "FAIL attach to '" << name() << "', file=" << sa_common.smad

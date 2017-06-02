@@ -705,7 +705,7 @@ int Modbus_Client_Interface::parse_HR_IR(address_map_t* address_map, const Modbu
                   << ", valid=" << item.valid;
       } // конец проверки, что значение не вышло за допустимый диапазон
 
-      // Занести значение в InternalSMAD
+      // Занести значение в SMAD
       status = m_smad->push(item);
 
     } // конец блока обработки значения, присутствующего в конфигурации
@@ -740,7 +740,7 @@ int Modbus_Client_Interface::parse_HC_IC(address_map_t* address_map, const Modbu
       // TODO: получить достоверность дискретов
       item.valid_acq = item.valid = 0; // GOF_D_ACQ_VALID
 
-      // Занести значение в InternalSMAD
+      // Занести значение в SMAD
       status = m_smad->push(item);
     }
   }
@@ -794,7 +794,7 @@ int Modbus_Client_Interface::parse_FP(address_map_t* address_map, const ModbusOr
                 << " ([0]=" << common.i_values[0] <<" [1]=" << common.i_values[1] << ")"
                 << ", idx=" << register_idx;
 
-      // Занести значение в InternalSMAD
+      // Занести значение в SMAD
       // TODO: возможно предварительное занесение данных во внутренний буфер, с тем чтобы потом разово
       // в одной транзакции занести оттуда данные в БД. Это ускорит работу за счёт отказа от создания
       // транзакции на каждый параметр в отдельности.
@@ -923,7 +923,7 @@ int Modbus_Client_Interface::make_request_plan()
 
 // ==========================================================================================
 // На основе ранее прочитанных из конфигурационного файла списков параметров
-// создать с именем, соответствующим коду системы сбора, таблицу в InternalSMAD,
+// создать с именем, соответствующим коду системы сбора, таблицу в SMAD,
 // и заполнить её списком параметров. Параллельно собрать такую же информацию
 // в виде сортированного по адресу дерева для каждого из типов обработки.
 client_status_t Modbus_Client_Interface::init_smad_parameters() // загрузка параметров обмена
@@ -1221,7 +1221,7 @@ void Modbus_Client_Interface::run()
   switch (m_status)
   {
     case STATUS_OK: // Ещё не подключён, все в порядке
-    case STATUS_OK_SMAD_LOAD:     // Ещё не подключён, InternalSMAD загружена
+    case STATUS_OK_SMAD_LOAD:     // Ещё не подключён, SMAD загружена
     case STATUS_OK_CONNECTED:     // Подключён, все в порядке
     case STATUS_OK_NOT_CONNECTED: // Не подключён, требуется переподключение
     case STATUS_OK_SHUTTINGDOWN:  // Не подключён, выполняется останов
@@ -1234,8 +1234,8 @@ void Modbus_Client_Interface::run()
       LOG(INFO) << "Fail, status=" << m_status;
       break;
 
-    case STATUS_FATAL_SMAD:       // Нет возможности продолжать работу из-за проблем с InternalSMAD
-      LOG(ERROR) << fname << ": Unable to init InternalSMAD";
+    case STATUS_FATAL_SMAD:       // Нет возможности продолжать работу из-за проблем с SMAD
+      LOG(ERROR) << fname << ": Unable to init SMAD";
       break;
     case STATUS_FATAL_CONFIG:     // Нет возможности продолжать работу из-за проблем с конфигурационными файлами
     case STATUS_FATAL_RUNTIME:    // Нет возможности продолжать работу из-за проблем с ОС

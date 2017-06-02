@@ -67,8 +67,8 @@ set (TEST_EXCHANGE_SOURCES
         ${GTEST_INC_DIR}/gtest/gtest.h
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_request.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_request.cpp
-        ${EXCHANGE_SMAD_DIR}/exchange_smad_int.hpp
-        ${EXCHANGE_SMAD_DIR}/exchange_smad_ext.hpp
+        ${EXCHANGE_SMAD_DIR}/exchange_smad.hpp
+        ${EXCHANGE_SMAD_DIR}/exchange_smed.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl_acq.cpp
@@ -270,6 +270,9 @@ set_source_files_properties(${XDB_IMPL_DIR}/dat/rtap_db-pskel.hxx
 
 add_executable (${UNITTEST_EXCHANGE} ${TEST_EXCHANGE_SOURCES})
 add_definitions (-D_FUNCTIONAL_TEST)
+# Для ускорения тестирования пропустить некоторые тесты.
+# Если нужен полный набор, закоментировать следующую строку.
+add_definitions (-D_SHORT_TEST)
 add_definitions (-pg)
 target_link_libraries(${UNITTEST_EXCHANGE}
     ${LIBGLOG_LIBRARIES}

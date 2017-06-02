@@ -1,0 +1,4230 @@
+{
+    "DED_ELEMTYPES": [
+        {
+            "NAME": "L1800",
+            "TYPE": "I",
+            "SIZE": "4",
+            "COMMENT": "Length of any elementary data"
+        },
+        {
+            "NAME": "L2800",
+            "TYPE": "I",
+            "SIZE": "4",
+            "COMMENT": "Number of elementary data (same type)"
+        },
+        {
+            "NAME": "L3800",
+            "TYPE": "I",
+            "SIZE": "8",
+            "COMMENT": "LED identification field"
+        },
+        {
+            "NAME": "E1800",
+            "TYPE": "I",
+            "SIZE": "3",
+            "COMMENT": "Message order number in the interchange"
+        },
+        {
+            "NAME": "E1802",
+            "TYPE": "I",
+            "SIZE": "3",
+            "COMMENT": "Segment order number in a message"
+        },
+        {
+            "NAME": "E1804",
+            "TYPE": "I",
+            "SIZE": "3",
+            "COMMENT": "Messages count in a interchange"
+        },
+        {
+            "NAME": "E1806",
+            "TYPE": "I",
+            "SIZE": "3",
+            "COMMENT": "Applicative segments count in the message"
+        },
+        {
+            "NAME": "E1808",
+            "TYPE": "I",
+            "SIZE": "4",
+            "COMMENT": "Applicative segment length in bytes"
+        },
+        {
+            "NAME": "E1810",
+            "TYPE": "I",
+            "SIZE": "4",
+            "COMMENT": "Number of elements"
+        },
+        {
+            "NAME": "E1812",
+            "TYPE": "I",
+            "SIZE": "4",
+            "COMMENT": "Length of a text"
+        },
+        {
+            "NAME": "E2800",
+            "TYPE": "T",
+            "SIZE": "U17",
+            "COMMENT": "Date in UTC: YYYYMMDDhhmnssmil - year on 4"
+        },
+        {
+            "NAME": "E2802",
+            "TYPE": "T",
+            "SIZE": "U14",
+            "COMMENT": "Date in UTC: YYYYMMDDhhmnss - year on 4"
+        },
+        {
+            "NAME": "E2804",
+            "TYPE": "T",
+            "SIZE": "U14",
+            "COMMENT": "Taking to acount date in UTC: YYYYMMDDhhmnss"
+        },
+        {
+            "NAME": "E2806",
+            "TYPE": "T",
+            "SIZE": "U14",
+            "COMMENT": "Begin expected date in UTC: YYYYMMDDhhmnss"
+        },
+        {
+            "NAME": "E2808",
+            "TYPE": "T",
+            "SIZE": "U14",
+            "COMMENT": "End expected date in UTC: YYYYMMDDhhmnss"
+        },
+        {
+            "NAME": "E2810",
+            "TYPE": "I",
+            "SIZE": "6",
+            "COMMENT": "Oil expected change time"
+        },
+        {
+            "NAME": "E2812",
+            "TYPE": "I",
+            "SIZE": "6",
+            "COMMENT": "Gaz expecting puttig back"
+        },
+        {
+            "NAME": "E2814",
+            "TYPE": "T",
+            "SIZE": "U14",
+            "COMMENT": "Begin real date in UTC: YYYYMMDDhhmnss"
+        },
+        {
+            "NAME": "E2816",
+            "TYPE": "T",
+            "SIZE": "U14",
+            "COMMENT": "End real date in UTC: YYYYMMDDhhmnss"
+        },
+        {
+            "NAME": "E2818",
+            "TYPE": "I",
+            "SIZE": "6",
+            "COMMENT": "Oil real change time"
+        },
+        {
+            "NAME": "E2820",
+            "TYPE": "I",
+            "SIZE": "6",
+            "COMMENT": "Gaz real change time"
+        },
+        {
+            "NAME": "E2822",
+            "TYPE": "T",
+            "SIZE": "U14",
+            "COMMENT": "Incident apparition date in UTC: YYYYMMDDhhmnss"
+        },
+        {
+            "NAME": "E2824",
+            "TYPE": "T",
+            "SIZE": "U14",
+            "COMMENT": "TI historical date in UTC: YYYYMMDDhhmnss"
+        },
+        {
+            "NAME": "E2826",
+            "TYPE": "T",
+            "SIZE": "U14",
+            "COMMENT": "Archive TI historical date in UTC: YYYYMMDDhhmnss"
+        },
+        {
+            "NAME": "E2828",
+            "TYPE": "T",
+            "SIZE": "U20",
+            "COMMENT": "Full Date with micro in UTC: YYYYMMDDhhmnssmilmic"
+        },
+        {
+            "NAME": "E3800",
+            "TYPE": "I",
+            "SIZE": "8",
+            "COMMENT": "Interchange identification"
+        },
+        {
+            "NAME": "E3802",
+            "TYPE": "S",
+            "SIZE": "32",
+            "COMMENT": "Sender universal name"
+        },
+        {
+            "NAME": "E3804",
+            "TYPE": "S",
+            "SIZE": "32",
+            "COMMENT": "Receiver identification"
+        },
+        {
+            "NAME": "E3806",
+            "TYPE": "I",
+            "SIZE": "6",
+            "COMMENT": "Message type  i.e. File type"
+        },
+        {
+            "NAME": "E3808",
+            "TYPE": "I",
+            "SIZE": "6",
+            "COMMENT": "Segment type"
+        },
+        {
+            "NAME": "E3810",
+            "TYPE": "R",
+            "SIZE": "2.2",
+            "COMMENT": "Interchange version number"
+        },
+        {
+            "NAME": "E3816",
+            "TYPE": "I",
+            "SIZE": "4",
+            "COMMENT": "Basic request identification"
+        },
+        {
+            "NAME": "E3818",
+            "TYPE": "I",
+            "SIZE": "2",
+            "COMMENT": "Reply identification"
+        },
+        {
+            "NAME": "E3820",
+            "TYPE": "I",
+            "SIZE": "2",
+            "COMMENT": "Init phase step"
+        },
+        {
+            "NAME": "E3822",
+            "TYPE": "S",
+            "SIZE": "0",
+            "COMMENT": "TI identification"
+        },
+        {
+            "NAME": "E3824",
+            "TYPE": "I",
+            "SIZE": "5",
+            "COMMENT": "Localisation entry"
+        },
+        {
+            "NAME": "E3826",
+            "TYPE": "I",
+            "SIZE": "3",
+            "COMMENT": "Order planification type : pressure..."
+        },
+        {
+            "NAME": "E3828",
+            "TYPE": "I",
+            "SIZE": "4",
+            "COMMENT": "Equipments type"
+        },
+        {
+            "NAME": "E3830",
+            "TYPE": "I",
+            "SIZE": "3",
+            "COMMENT": "Type associated to order"
+        },
+        {
+            "NAME": "E3832",
+            "TYPE": "I",
+            "SIZE": "3",
+            "COMMENT": "Manoeuvre type"
+        },
+        {
+            "NAME": "E3834",
+            "TYPE": "I",
+            "SIZE": "10",
+            "COMMENT": "Order request identifier"
+        },
+        {
+            "NAME": "E3836",
+            "TYPE": "I",
+            "SIZE": "10",
+            "COMMENT": "Incident identifier"
+        },
+        {
+            "NAME": "E3838",
+            "TYPE": "I",
+            "SIZE": "4",
+            "COMMENT": "SIDx Operation type : create or modify"
+        },
+        {
+            "NAME": "E3839",
+            "TYPE": "I",
+            "SIZE": "2",
+            "COMMENT": "Historic type (quart hour, hour, day, month)"
+        },
+        {
+            "NAME": "E3840",
+            "TYPE": "S",
+            "SIZE": "0",
+            "COMMENT": "Incident nature: technological or contr. system"
+        },
+        {
+            "NAME": "E3842",
+            "TYPE": "I",
+            "SIZE": "4",
+            "COMMENT": "Equipment LED corresponding to universal name"
+        },
+        {
+            "NAME": "E3844",
+            "TYPE": "I",
+            "SIZE": "4",
+            "COMMENT": "TI LED for one element of selective list"
+        },
+        {
+            "NAME": "E3846",
+            "TYPE": "I",
+            "SIZE": "4",
+            "COMMENT": "User type"
+        },
+        {
+            "NAME": "E3848",
+            "TYPE": "I",
+            "SIZE": "4",
+            "COMMENT": "Type of historized TI"
+        },
+        {
+            "NAME": "E3850",
+            "TYPE": "S",
+            "SIZE": "0",
+            "COMMENT": "Universal name"
+        },
+        {
+            "NAME": "E3852",
+            "TYPE": "S",
+            "SIZE": "0",
+            "COMMENT": "dispatcher name"
+        },
+        {
+            "NAME": "E4800",
+            "TYPE": "S",
+            "SIZE": "0",
+            "COMMENT": "Free Text (variable Length)"
+        },
+        {
+            "NAME": "E4802",
+            "TYPE": "S",
+            "SIZE": "0",
+            "COMMENT": "Reply refusal or failure cause (Literal)"
+        },
+        {
+            "NAME": "E4803",
+            "TYPE": "I",
+            "SIZE": "10",
+            "COMMENT": "Reply refusal or failure cause (Coded value)"
+        },
+        {
+            "NAME": "E4804",
+            "TYPE": "S",
+            "SIZE": "0",
+            "COMMENT": "order label - label text"
+        },
+        {
+            "NAME": "E5800",
+            "TYPE": "I",
+            "SIZE": "5",
+            "COMMENT": "State of TS / ICS"
+        },
+        {
+            "NAME": "E5801",
+            "TYPE": "I",
+            "SIZE": "5",
+            "COMMENT": "State of historic TS / ICS"
+        },
+        {
+            "NAME": "E5802",
+            "TYPE": "I",
+            "SIZE": "5",
+            "COMMENT": "Alarm State"
+        },
+        {
+            "NAME": "E5803",
+            "TYPE": "I",
+            "SIZE": "5",
+            "COMMENT": "State of a TS/ICS/TSA/TSC (.VAL)"
+        },
+        {
+            "NAME": "E5804",
+            "TYPE": "I",
+            "SIZE": "5",
+            "COMMENT": "Validity state of a TI (.VALID)"
+        },
+        {
+            "NAME": "E5805",
+            "TYPE": "I",
+            "SIZE": "5",
+            "COMMENT": "Compact validity state of a TI (.VALIDR)"
+        },
+        {
+            "NAME": "E5806",
+            "TYPE": "I",
+            "SIZE": "2",
+            "COMMENT": "Synthtic state of Communating system"
+        },
+        {
+            "NAME": "E5807",
+            "TYPE": "S",
+            "SIZE": "0",
+            "COMMENT": "State label for AL/ICS/TS/TSC (.VAL_LABEL)"
+        },
+        {
+            "NAME": "E5808",
+            "TYPE": "L",
+            "SIZE": "1",
+            "COMMENT": "Related data indication (0=No data; 1=data)"
+        },
+        {
+            "NAME": "E5809",
+            "TYPE": "L",
+            "SIZE": "1",
+            "COMMENT": "Status of TI"
+        },
+        {
+            "NAME": "E5810",
+            "TYPE": "I",
+            "SIZE": "2",
+            "COMMENT": "Execution result"
+        },
+        {
+            "NAME": "E5812",
+            "TYPE": "I",
+            "SIZE": "3",
+            "COMMENT": "alarm type"
+        },
+        {
+            "NAME": "E5814",
+            "TYPE": "I",
+            "SIZE": "3",
+            "COMMENT": "alarm degree"
+        },
+        {
+            "NAME": "E5815",
+            "TYPE": "I",
+            "SIZE": "3",
+            "COMMENT": "alarm category"
+        },
+        {
+            "NAME": "E5816",
+            "TYPE": "I",
+            "SIZE": "3",
+            "COMMENT": "Work to do in a manoeuvre"
+        },
+        {
+            "NAME": "E5818",
+            "TYPE": "I",
+            "SIZE": "2",
+            "COMMENT": "Broadcast mode"
+        },
+        {
+            "NAME": "E5820",
+            "TYPE": "I",
+            "SIZE": "3",
+            "COMMENT": "type of order"
+        },
+        {
+            "NAME": "E5822",
+            "TYPE": "I",
+            "SIZE": "2",
+            "COMMENT": "historical period type (quarterhour, hour, day, month)"
+        },
+        {
+            "NAME": "E5824",
+            "TYPE": "I",
+            "SIZE": "3",
+            "COMMENT": "Incident state"
+        },
+        {
+            "NAME": "E5826",
+            "TYPE": "I",
+            "SIZE": "3",
+            "COMMENT": "Incident urgency"
+        },
+        {
+            "NAME": "E5828",
+            "TYPE": "I",
+            "SIZE": "2",
+            "COMMENT": "Type of alarm list"
+        },
+        {
+            "NAME": "E5830",
+            "TYPE": "I",
+            "SIZE": "10",
+            "COMMENT": "Status"
+        },
+        {
+            "NAME": "E5831",
+            "TYPE": "L",
+            "SIZE": "1",
+            "COMMENT": "(.ALDEST)"
+        },
+        {
+            "NAME": "E5832",
+            "TYPE": "I",
+            "SIZE": "1",
+            "COMMENT": "alarm synthetic state"
+        },
+        {
+            "NAME": "E5834",
+            "TYPE": "I",
+            "SIZE": "1",
+            "COMMENT": "equipment type Valve=0 Group=1"
+        },
+        {
+            "NAME": "E5836",
+            "TYPE": "I",
+            "SIZE": "2",
+            "COMMENT": "equipment operation Open=1 Close=2"
+        },
+        {
+            "NAME": "E5838",
+            "TYPE": "L",
+            "SIZE": "1",
+            "COMMENT": "change responsability flag"
+        },
+        {
+            "NAME": "E5839",
+            "TYPE": "I",
+            "SIZE": "10",
+            "COMMENT": "ALARMBEGIN attribute"
+        },
+        {
+            "NAME": "E5840",
+            "TYPE": "L",
+            "SIZE": "1",
+            "COMMENT": "Emergency cycle request: Flag Start/Stop"
+        },
+        {
+            "NAME": "E5842",
+            "TYPE": "I",
+            "SIZE": "2",
+            "COMMENT": "Emergency cycle request: Period in seconds"
+        },
+        {
+            "NAME": "E6800",
+            "TYPE": "R",
+            "SIZE": "11e4",
+            "COMMENT": "TM/ICM value in scientic notation"
+        },
+        {
+            "NAME": "E6802",
+            "TYPE": "R",
+            "SIZE": "11e4",
+            "COMMENT": "Order value"
+        },
+        {
+            "NAME": "E6804",
+            "TYPE": "R",
+            "SIZE": "11e4",
+            "COMMENT": "Monthly volume"
+        },
+        {
+            "NAME": "E6806",
+            "TYPE": "R",
+            "SIZE": "11e4",
+            "COMMENT": "Daily volume"
+        },
+        {
+            "NAME": "E6808",
+            "TYPE": "R",
+            "SIZE": "11e4",
+            "COMMENT": "Hourly volume"
+        },
+        {
+            "NAME": "E6810",
+            "TYPE": "R",
+            "SIZE": "11e4",
+            "COMMENT": "Pressure"
+        },
+        {
+            "NAME": "E6812",
+            "TYPE": "R",
+            "SIZE": "11e4",
+            "COMMENT": "Calorific power"
+        },
+        {
+            "NAME": "E6814",
+            "TYPE": "R",
+            "SIZE": "11e4",
+            "COMMENT": "Annual volume"
+        },
+        {
+            "NAME": "E6816",
+            "TYPE": "R",
+            "SIZE": "11e4",
+            "COMMENT": "Quarterly volume"
+        },
+        {
+            "NAME": "E6822",
+            "TYPE": "R",
+            "SIZE": "11e4",
+            "COMMENT": "Very high threshold value in scientific notation"
+        },
+        {
+            "NAME": "E6824",
+            "TYPE": "R",
+            "SIZE": "11e4",
+            "COMMENT": "High threshold value in scientific notation"
+        },
+        {
+            "NAME": "E6826",
+            "TYPE": "R",
+            "SIZE": "11e4",
+            "COMMENT": "Low threshold value in scientific notation"
+        },
+        {
+            "NAME": "E6828",
+            "TYPE": "R",
+            "SIZE": "11e4",
+            "COMMENT": "Very low threshold value in scientific notation"
+        },
+        {
+            "NAME": "E6830",
+            "TYPE": "R",
+            "SIZE": "11e4",
+            "COMMENT": "Gradient threshold value in scientific notation"
+        },
+        {
+            "NAME": "E7000",
+            "TYPE": "I",
+            "SIZE": "4",
+            "COMMENT": "General control data category"
+        },
+        {
+            "NAME": "E7001",
+            "TYPE": "I",
+            "SIZE": "4",
+            "COMMENT": "Changing hour Season"
+        }
+    ],
+
+    "DCD_ELEMSTRUCTS": [
+        {
+            "COMMENT": "Interchange Header Segment: UNB",
+            "NAME": "C0001",
+            "FIELDS": [
+                {
+                    "FIELD": "E3800"
+                },
+                {
+                    "FIELD": "E3810"
+                },
+                {
+                    "FIELD": "E3802"
+                },
+                {
+                    "FIELD": "E3804"
+                },
+                {
+                    "FIELD": "E2802"
+                },
+                {
+                    "FIELD": "E1804"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Interchange End segment: UNZ",
+            "NAME": "C0002",
+            "FIELDS": [
+                {
+                    "FIELD": "E3800"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Message header segment: UNH",
+            "NAME": "C0003",
+            "FIELDS": [
+                {
+                    "FIELD": "E1800"
+                },
+                {
+                    "FIELD": "E3806"
+                },
+                {
+                    "FIELD": "E1806"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Message End Segment: UNT",
+            "NAME": "C0004",
+            "FIELDS": [
+                {
+                    "FIELD": "E1800"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Applicative segment header: APB",
+            "NAME": "C0005",
+            "FIELDS": [
+                {
+                    "FIELD": "E1802"
+                },
+                {
+                    "FIELD": "E3808"
+                },
+                {
+                    "FIELD": "E1808"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TM of SA",
+            "NAME": "C0006",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "FIELD": "E6800"
+                },
+                {
+                    "FIELD": "E5804"
+                },
+                {
+                    "FIELD": "E2800"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TS of SA",
+            "NAME": "C0007",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "FIELD": "E5800"
+                },
+                {
+                    "FIELD": "E5804"
+                },
+                {
+                    "FIELD": "E2800"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TM/ICM Thresholds",
+            "NAME": "C0008",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "COMMENT": "Very high threshold value in scientific notation",
+                    "FIELD": "E6822"
+                },
+                {
+                    "COMMENT": "High threshold value in scientific notation",
+                    "FIELD": "E6824"
+                },
+                {
+                    "COMMENT": "Low threshold value in scientific notation",
+                    "FIELD": "E6826"
+                },
+                {
+                    "COMMENT": "Very low threshold value in scientific notation",
+                    "FIELD": "E6828"
+                },
+                {
+                    "COMMENT": "Gradient threshold value in scientific notation",
+                    "FIELD": "E6830"
+                },
+                {
+                    "COMMENT": "alarm degree",
+                    "FIELD": "E5814"
+                },
+                {
+                    "FIELD": "E5814"
+                },
+                {
+                    "FIELD": "E5814"
+                },
+                {
+                    "FIELD": "E5814"
+                },
+                {
+                    "FIELD": "E5814"
+                },
+                {
+                    "COMENT": "alarm type : operationnel - non operationnel",
+                    "FIELD": "E5812"
+                },
+                {
+                    "FIELD": "E5812"
+                },
+                {
+                    "FIELD": "E5812"
+                },
+                {
+                    "FIELD": "E5812"
+                },
+                {
+                    "FIELD": "E5812"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Basic request Header",
+            "NAME": "C0009",
+            "FIELDS": [
+                {
+                    "FIELD": "E3816"
+                },
+                {
+                    "FIELD": "E3820"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Reply Header",
+            "NAME": "C0010",
+            "FIELDS": [
+                {
+                    "FIELD": "E3816"
+                },
+                {
+                    "FIELD": "E3818"
+                },
+                {
+                    "FIELD": "E5808"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Refusal or Failure cause",
+            "NAME": "C0011",
+            "FIELDS": [
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4802"
+                },
+                {
+                    "FIELD": "E4803"
+                }
+            ]
+        },
+        {
+            "COMMENT": "End of Execution Result",
+            "NAME": "C0012",
+            "FIELDS": [
+                {
+                    "FIELD": "E5810"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Alarm related to TM/ICM ",
+            "NAME": "C0013",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "FIELD": "E2828"
+                },
+                {
+                    "FIELD": "E5812"
+                },
+                {
+                    "FIELD": "E5814"
+                },
+                {
+                    "FIELD": "E5802"
+                },
+                {
+                    "FIELD": "E6800"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Alarm related to TS/ICS",
+            "NAME": "C0014",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "FIELD": "E2828"
+                },
+                {
+                    "FIELD": "E5812"
+                },
+                {
+                    "FIELD": "E5814"
+                },
+                {
+                    "FIELD": "E5802"
+                },
+                {
+                    "FIELD": "E6800"
+                }
+            ]
+        },
+        {
+            "COMMENT": "universal name",
+            "NAME": "C0020",
+            "FIELDS": [
+                {
+                    "COMMENT": "TI universal name",
+                    "FIELD": "L1800"
+                },
+                {
+                    "COMMENT": "TI universal name size",
+                    "FIELD": "E3850"
+                }
+            ]
+        },
+        {
+            "COMMENT": "count of items in ACD list",
+            "NAME": "C0021",
+            "FIELDS": [
+                {
+                    "COMMENT": "Count of  Elements",
+                    "FIELD": "E1810"
+                }
+            ]
+        },
+        {
+            "COMMENT": "ACD Alarm ConDition list element",
+            "NAME": "C0022",
+            "FIELDS": [
+                {
+                    "COMMENT": "modification date",
+                    "FIELD": "E2828"
+                },
+                {
+                    "COMMENT": "threshold",
+                    "FIELD": "E6800"
+                },
+                {
+                    "COMMENT": "alarm type",
+                    "FIELD": "E5812"
+                },
+                {
+                    "COMMENT": "alarm degree",
+                    "FIELD": "E5814"
+                },
+                {
+                    "COMMENT": "alarm category",
+                    "FIELD": "E5815"
+                },
+                {
+                    "COMMENT": "dispatcher name",
+                    "FIELD": "L1800"
+                },
+                {
+                    "COMMENT": "dispatcher name size",
+                    "FIELD": "E3852"
+                }
+            ]
+        },
+        {
+            "COMMENT": "ACD last time value",
+            "NAME": "C0023",
+            "FIELDS": [
+                {
+                    "FIELD": "E2828"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TI identifier for selective list",
+            "NAME": "C0015",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Intermediate execution stage",
+            "NAME": "C0016",
+            "FIELDS": [
+                {
+                    "FIELD": "E4804"
+                },
+                {
+                    "FIELD": "E4805"
+                }
+            ]
+        },
+        {
+            "COMMENT": "States of communicating system",
+            "NAME": "C0017",
+            "FIELDS": [
+                {
+                    "FIELD": "E5806"
+                }
+            ]
+        },
+        {
+            "COMMENT": "General control request",
+            "NAME": "C0018",
+            "FIELDS": [
+                {
+                    "FIELD": "E3816"
+                },
+                {
+                    "FIELD": "E3820"
+                },
+                {
+                    "FIELD": "E7000"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TM Multi Thresholds sets request",
+            "NAME": "C0019",
+            "FIELDS": [
+                {
+                    "COMMENT": "Number of  Elements",
+                    "FIELD": "E1810"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Changing hour ",
+            "NAME": "C0025",
+            "FIELDS": [
+                {
+                    "FIELD": "E3800"
+                },
+                {
+                    "FIELD": "E2800"
+                },
+                {
+                    "FIELD": "E7001"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Historised alarm dates",
+            "NAME": "C0026",
+            "FIELDS": [
+                {
+                    "FIELD": "E3816"
+                },
+                {
+                    "FIELD": "E3820"
+                },
+                {
+                    "FIELD": "E2828"
+                },
+                {
+                    "FIELD": "E2828"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Historised alarm type",
+            "NAME": "C0027",
+            "FIELDS": [
+                {
+                    "FIELD": "E5828"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Historised alarm description",
+            "NAME": "C0028",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "FIELD": "E2828"
+                },
+                {
+                    "FIELD": "E5812"
+                },
+                {
+                    "FIELD": "E5814"
+                },
+                {
+                    "FIELD": "E5802"
+                },
+                {
+                    "FIELD": "E6800"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Free Text",
+            "NAME": "C0030",
+            "FIELDS": [
+                {
+                    "FIELD": "E3834"
+                },
+                {
+                    "FIELD": "E3836"
+                },
+                {
+                    "FIELD": "E5820"
+                },
+                {
+                    "FIELD": "E5818"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4804"
+                },
+                {
+                    "FIELD": "E3846"
+                },
+                {
+                    "FIELD": "E2822"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E3850"
+                },
+                {
+                    "FIELD": "E1812"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4800"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Planification Order",
+            "NAME": "C0031",
+            "FIELDS": [
+                {
+                    "FIELD": "E3834"
+                },
+                {
+                    "FIELD": "E3836"
+                },
+                {
+                    "FIELD": "E5820"
+                },
+                {
+                    "FIELD": "E5818"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4804"
+                },
+                {
+                    "FIELD": "E3846"
+                },
+                {
+                    "FIELD": "E2822"
+                },
+                {
+                    "FIELD": "E2804"
+                },
+                {
+                    "FIELD": "E1810"
+                },
+                {
+                    "FIELD": "E1812"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4800"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Elementary Planification order",
+            "NAME": "C0032",
+            "FIELDS": [
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E3850"
+                },
+                {
+                    "FIELD": "E3824"
+                },
+                {
+                    "FIELD": "E3826"
+                },
+                {
+                    "FIELD": "E6802"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Security Order - on Equipment Type",
+            "NAME": "C0033",
+            "FIELDS": [
+                {
+                    "FIELD": "E3834"
+                },
+                {
+                    "FIELD": "E3836"
+                },
+                {
+                    "FIELD": "E5820"
+                },
+                {
+                    "FIELD": "E5818"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4804"
+                },
+                {
+                    "FIELD": "E3846"
+                },
+                {
+                    "FIELD": "E2822"
+                },
+                {
+                    "FIELD": "E3830"
+                },
+                {
+                    "FIELD": "E3828"
+                },
+                {
+                    "FIELD": "E1812"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4800"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Security Order - on Name",
+            "NAME": "C0034",
+            "FIELDS": [
+                {
+                    "FIELD": "E3834"
+                },
+                {
+                    "FIELD": "E3836"
+                },
+                {
+                    "FIELD": "E5820"
+                },
+                {
+                    "FIELD": "E5818"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4804"
+                },
+                {
+                    "FIELD": "E3846"
+                },
+                {
+                    "FIELD": "E2822"
+                },
+                {
+                    "FIELD": "E3830"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E3850"
+                },
+                {
+                    "FIELD": "E1812"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4800"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Conducting Order - on Equipment Type",
+            "NAME": "C0035",
+            "FIELDS": [
+                {
+                    "FIELD": "E3834"
+                },
+                {
+                    "FIELD": "E3836"
+                },
+                {
+                    "FIELD": "E5820"
+                },
+                {
+                    "FIELD": "E5818"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4804"
+                },
+                {
+                    "FIELD": "E3846"
+                },
+                {
+                    "FIELD": "E2822"
+                },
+                {
+                    "FIELD": "E3830"
+                },
+                {
+                    "FIELD": "E3828"
+                },
+                {
+                    "FIELD": "E1812"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4800"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Conducting Order - on Name",
+            "NAME": "C0036",
+            "FIELDS": [
+                {
+                    "FIELD": "E3834"
+                },
+                {
+                    "FIELD": "E3836"
+                },
+                {
+                    "FIELD": "E5820"
+                },
+                {
+                    "FIELD": "E5818"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4804"
+                },
+                {
+                    "FIELD": "E3846"
+                },
+                {
+                    "FIELD": "E2822"
+                },
+                {
+                    "FIELD": "E3830"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E3850"
+                },
+                {
+                    "FIELD": "E1812"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4800"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Technological restraints - on Equipment Type",
+            "NAME": "C0037",
+            "FIELDS": [
+                {
+                    "FIELD": "E3834"
+                },
+                {
+                    "FIELD": "E3836"
+                },
+                {
+                    "FIELD": "E5820"
+                },
+                {
+                    "FIELD": "E5818"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4804"
+                },
+                {
+                    "FIELD": "E3846"
+                },
+                {
+                    "FIELD": "E2822"
+                },
+                {
+                    "FIELD": "E3830"
+                },
+                {
+                    "FIELD": "E3828"
+                },
+                {
+                    "FIELD": "E1812"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4800"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Technological restraints - on Name",
+            "NAME": "C0038",
+            "FIELDS": [
+                {
+                    "FIELD": "E3834"
+                },
+                {
+                    "FIELD": "E3836"
+                },
+                {
+                    "FIELD": "E5820"
+                },
+                {
+                    "FIELD": "E5818"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4804"
+                },
+                {
+                    "FIELD": "E3846"
+                },
+                {
+                    "FIELD": "E2822"
+                },
+                {
+                    "FIELD": "E3830"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E3850"
+                },
+                {
+                    "FIELD": "E1812"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4800"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Contractual restraints",
+            "NAME": "C0039",
+            "FIELDS": [
+                {
+                    "FIELD": "E3834"
+                },
+                {
+                    "FIELD": "E3836"
+                },
+                {
+                    "FIELD": "E5820"
+                },
+                {
+                    "FIELD": "E5818"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4804"
+                },
+                {
+                    "FIELD": "E3846"
+                },
+                {
+                    "FIELD": "E2822"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E3850"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E3850"
+                },
+                {
+                    "FIELD": "E6804"
+                },
+                {
+                    "FIELD": "E6806"
+                },
+                {
+                    "FIELD": "E6808"
+                },
+                {
+                    "FIELD": "E6810"
+                },
+                {
+                    "FIELD": "E6812"
+                },
+                {
+                    "FIELD": "E1812"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4800"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Manoeuvre",
+            "NAME": "C0040",
+            "FIELDS": [
+                {
+                    "FIELD": "E3834"
+                },
+                {
+                    "FIELD": "E3836"
+                },
+                {
+                    "FIELD": "E5820"
+                },
+                {
+                    "FIELD": "E5818"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4804"
+                },
+                {
+                    "FIELD": "E3846"
+                },
+                {
+                    "FIELD": "E2822"
+                },
+                {
+                    "FIELD": "E3832"
+                },
+                {
+                    "FIELD": "E5816"
+                },
+                {
+                    "FIELD": "E2806"
+                },
+                {
+                    "FIELD": "E2808"
+                },
+                {
+                    "FIELD": "E2810"
+                },
+                {
+                    "FIELD": "E2812"
+                },
+                {
+                    "FIELD": "E2814"
+                },
+                {
+                    "FIELD": "E2816"
+                },
+                {
+                    "FIELD": "E2818"
+                },
+                {
+                    "FIELD": "E2820"
+                },
+                {
+                    "FIELD": "E1812"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4800"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Consuption quotas",
+            "NAME": "C0041",
+            "FIELDS": [
+                {
+                    "FIELD": "E3834"
+                },
+                {
+                    "FIELD": "E3836"
+                },
+                {
+                    "FIELD": "E5820"
+                },
+                {
+                    "FIELD": "E5818"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4804"
+                },
+                {
+                    "FIELD": "E3846"
+                },
+                {
+                    "FIELD": "E2822"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E3850"
+                },
+                {
+                    "FIELD": "E6814"
+                },
+                {
+                    "FIELD": "E6816"
+                },
+                {
+                    "FIELD": "E1812"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4800"
+                }
+            ]
+        },
+        {
+            "COMMENT": "order acknowledgment",
+            "NAME": "C0042",
+            "FIELDS": [
+                {
+                    "FIELD": "E3834"
+                },
+                {
+                    "FIELD": "E3836"
+                }
+            ]
+        },
+        {
+            "COMMENT": "elementary plannification application",
+            "NAME": "C0043",
+            "FIELDS": [
+                {
+                    "FIELD": "E3834"
+                },
+                {
+                    "FIELD": "E3836"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E3850"
+                }
+            ]
+        },
+        {
+            "COMMENT": "manoeuvre autorisation",
+            "NAME": "C0044",
+            "FIELDS": [
+                {
+                    "FIELD": "E3834"
+                },
+                {
+                    "FIELD": "E3836"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E3850"
+                },
+                {
+                    "FIELD": "E2806"
+                },
+                {
+                    "FIELD": "E2808"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Incident",
+            "NAME": "C0045",
+            "FIELDS": [
+                {
+                    "FIELD": "E3834"
+                },
+                {
+                    "FIELD": "E3836"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E3840"
+                },
+                {
+                    "FIELD": "E3828"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E3850"
+                },
+                {
+                    "FIELD": "E5824"
+                },
+                {
+                    "FIELD": "E5826"
+                },
+                {
+                    "FIELD": "E2822"
+                },
+                {
+                    "FIELD": "E3838"
+                },
+                {
+                    "FIELD": "E2822"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4804"
+                },
+                {
+                    "FIELD": "E1812"
+                },
+                {
+                    "FIELD": "E1812"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E4800"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TI Historics Indicators",
+            "NAME": "C0060",
+            "FIELDS": [
+                {
+                    "FIELD": "E5822"
+                },
+                {
+                    "FIELD": "E2824"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TI quarter historic for volume",
+            "NAME": "C0061",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "FIELD": "E6800"
+                },
+                {
+                    "FIELD": "E5804"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TI quarter historic for indicator",
+            "NAME": "C0062",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "FIELD": "E5801"
+                },
+                {
+                    "FIELD": "E5804"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TI hour historic for volume",
+            "NAME": "C0063",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "FIELD": "E6808"
+                },
+                {
+                    "FIELD": "E5804"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TI hour historic for indicator",
+            "NAME": "C0064",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "FIELD": "E5801"
+                },
+                {
+                    "FIELD": "E5804"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TI day historic for volume",
+            "NAME": "C0065",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "FIELD": "E6806"
+                },
+                {
+                    "FIELD": "E5804"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TI day historic for indicator",
+            "NAME": "C0066",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "FIELD": "E5801"
+                },
+                {
+                    "FIELD": "E5804"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TI month historic for volume",
+            "NAME": "C0067",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "FIELD": "E6804"
+                },
+                {
+                    "FIELD": "E5804"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TI month historic for indicator",
+            "NAME": "C0068",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "FIELD": "E5801"
+                },
+                {
+                    "FIELD": "E5804"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Request for TI historics",
+            "NAME": "C0070",
+            "FIELDS": [
+                {
+                    "FIELD": "E3816"
+                },
+                {
+                    "FIELD": "E3820"
+                },
+                {
+                    "FIELD": "E5822"
+                },
+                {
+                    "FIELD": "E2826"
+                },
+                {
+                    "FIELD": "E3844"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Historic of Historised TI Type",
+            "NAME": "C0071",
+            "FIELDS": [
+                {
+                    "FIELD": "E5822"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Historic of Historised TI - TI part",
+            "NAME": "C0072",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "FIELD": "E5830"
+                },
+                {
+                    "FIELD": "E1810"
+                },
+                {
+                    "FIELD": "E3848"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Historic of Historised TI Value",
+            "NAME": "C0073",
+            "FIELDS": [
+                {
+                    "FIELD": "E2824"
+                },
+                {
+                    "FIELD": "E6800"
+                },
+                {
+                    "FIELD": "E5804"
+                }
+            ]
+        },
+        {
+            "COMMENT": "ICM",
+            "NAME": "C0101",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "FIELD": "E5809"
+                },
+                {
+                    "FIELD": "E6800"
+                },
+                {
+                    "FIELD": "E5805"
+                },
+                {
+                    "FIELD": "E5805"
+                },
+                {
+                    "FIELD": "E6800"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TM",
+            "NAME": "C0102",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "FIELD": "E5809"
+                },
+                {
+                    "FIELD": "E6800"
+                },
+                {
+                    "FIELD": "E5804"
+                },
+                {
+                    "FIELD": "E5805"
+                },
+                {
+                    "FIELD": "E5805"
+                },
+                {
+                    "FIELD": "E6800"
+                },
+                {
+                    "FIELD": "E2800"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TM with ALARM",
+            "NAME": "C0103",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "FIELD": "E5809"
+                },
+                {
+                    "FIELD": "E6800"
+                },
+                {
+                    "FIELD": "E5804"
+                },
+                {
+                    "FIELD": "E5805"
+                },
+                {
+                    "FIELD": "E2800"
+                },
+                {
+                    "FIELD": "E5839"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Alarm with ALDEST",
+            "NAME": "C0104",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "FIELD": "E5809"
+                },
+                {
+                    "FIELD": "E5831"
+                },
+                {
+                    "FIELD": "E6800"
+                },
+                {
+                    "FIELD": "E5804"
+                },
+                {
+                    "FIELD": "E5805"
+                },
+                {
+                    "FIELD": "E2800"
+                },
+                {
+                    "FIELD": "E5839"
+                }
+            ]
+        },
+        {
+            "COMMENT": "ICS",
+            "NAME": "C0111",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "FIELD": "E5809"
+                },
+                {
+                    "FIELD": "E5803"
+                },
+                {
+                    "FIELD": "E5805"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E5807"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TS",
+            "NAME": "C0112",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "FIELD": "E5809"
+                },
+                {
+                    "FIELD": "E5803"
+                },
+                {
+                    "FIELD": "E5804"
+                },
+                {
+                    "FIELD": "E5805"
+                },
+                {
+                    "FIELD": "E2800"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E5807"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TSA",
+            "NAME": "C0113",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "FIELD": "E5809"
+                },
+                {
+                    "FIELD": "E5803"
+                },
+                {
+                    "FIELD": "E5804"
+                },
+                {
+                    "FIELD": "E5805"
+                },
+                {
+                    "FIELD": "E2800"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TSC",
+            "NAME": "C0114",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "FIELD": "E5809"
+                },
+                {
+                    "FIELD": "E5803"
+                },
+                {
+                    "FIELD": "E5804"
+                },
+                {
+                    "FIELD": "E5805"
+                },
+                {
+                    "FIELD": "E2800"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E5807"
+                }
+            ]
+        },
+        {
+            "COMMENT": "AL",
+            "NAME": "C0115",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "FIELD": "E5809"
+                },
+                {
+                    "FIELD": "E5803"
+                },
+                {
+                    "FIELD": "E5804"
+                },
+                {
+                    "FIELD": "E5805"
+                },
+                {
+                    "FIELD": "E2800"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E5807"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TSC add ALDEST field",
+            "NAME": "C0116",
+            "FIELDS": [
+                {
+                    "FIELD": "L3800"
+                },
+                {
+                    "FIELD": "E5809"
+                },
+                {
+                    "FIELD": "E5831"
+                },
+                {
+                    "FIELD": "E5803"
+                },
+                {
+                    "FIELD": "E5804"
+                },
+                {
+                    "FIELD": "E5805"
+                },
+                {
+                    "FIELD": "E2800"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E5807"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TELECOMMAND",
+            "NAME": "C0074",
+            "FIELDS": [
+                {
+                    "FIELD": "E3816"
+                },
+                {
+                    "FIELD": "E3820"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E3850"
+                },
+                {
+                    "FIELD": "E5834"
+                },
+                {
+                    "FIELD": "E5836"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E3852"
+                },
+                {
+                    "FIELD": "E5838"
+                }
+            ]
+        },
+        {
+            "COMMENT": "dispatcher name ",
+            "NAME": "C0075",
+            "FIELDS": [
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E3852"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TELEREGULATION",
+            "NAME": "C0076",
+            "FIELDS": [
+                {
+                    "FIELD": "E3816"
+                },
+                {
+                    "FIELD": "E3820"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E3850"
+                },
+                {
+                    "FIELD": "E6802"
+                },
+                {
+                    "FIELD": "L1800"
+                },
+                {
+                    "FIELD": "E3852"
+                },
+                {
+                    "FIELD": "E5838"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Emergency cycle request",
+            "NAME": "C0077",
+            "FIELDS": [
+                {
+                    "FIELD": "E3816"
+                },
+                {
+                    "FIELD": "E3820"
+                },
+                {
+                    "FIELD": "E5840"
+                },
+                {
+                    "FIELD": "E5842"
+                }
+            ]
+        }
+    ],
+
+    "ESG_LOCSTRUCTS": [
+        {
+            "COMMENT": "TM / ICM",
+            "NAME": "I0006",
+            "ICD": "C0006",
+            "FIELDS": [
+                {
+                    "ATTR": "VAL",
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "ATTR": "VALID",
+                    "TYPE": "INT16"
+                },
+                {
+                    "ATTR": "DATEHOURM",
+                    "TYPE": "DATE"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TS / ICS",
+            "NAME": "I0007",
+            "ICD": "C0007",
+            "FIELDS": [
+                {
+                    "ATTR": "VAL",
+                    "TYPE": "INT16"
+                },
+                {
+                    "ATTR": "VALID",
+                    "TYPE": "INT16"
+                },
+                {
+                    "ATTR": "DATEHOURM",
+                    "TYPE": "DATE"
+                }
+            ]
+        },
+        {
+            "COMMENT": "THRESHOLDS_SET",
+            "NAME": "T0008",
+            "ICD": "C0008",
+            "FIELDS": [
+                {
+                    "COMMENT": "TM threshold on Very Low",
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "COMMENT": "TM threshold on Low",
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "COMMENT": "TM threshold on High",
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "COMMENT": "TM threshold on Very High",
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "COMMENT": "TM threshold on Gradient",
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "COMMENT": "Degree on Very Low",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "Degree on Low",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "Degree on High",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "Degree on Very High",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "Degree on Gradient",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "Alarm category on Very Low",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "Alarm category on Low",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "Alarm category on High",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "Alarm category on Very High",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "Alarm category on Gradient",
+                    "TYPE": "UINT8"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Basic request only",
+            "NAME": "R0009",
+            "ICD": "C0009",
+            "FIELDS": [
+                {
+                    "COMMENT": "request id",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "Init phase",
+                    "TYPE": "INT32"
+                }
+            ]
+        },
+        {
+            "COMMENT": "reply segment - HICD identification",
+            "NAME": "R0010",
+            "ICD": "C0010",
+            "FIELDS": [
+                {
+                    "TYPE": "UINT16"
+                },
+                {
+                    "TYPE": "UINT16"
+                },
+                {
+                    "TYPE": "LOGIC"
+                }
+            ]
+        },
+        {
+            "COMMENT": "reply segment - FICD cause",
+            "NAME": "R0011",
+            "ICD": "C0011",
+            "FIELDS": [
+                {
+                    "TYPE": "STRING",
+                    "LENGTH": 64
+                },
+                {
+                    "TYPE": "UINT32"
+                }
+            ]
+        },
+        {
+            "COMMENT": "reply segment - XICD execution result",
+            "NAME": "R0012",
+            "ICD": "C0012",
+            "FIELDS": [
+                {
+                    "TYPE": "UINT32"
+                }
+            ]
+        },
+        {
+            "COMMENT": "ALARM TM",
+            "NAME": "A0013",
+            "ICD": "C0013",
+            "FIELDS": [
+                {
+                    "TYPE": "DATE"
+                },
+                {
+                    "TYPE": "UINT8"
+                },
+                {
+                    "TYPE": "UINT8"
+                },
+                {
+                    "TYPE": "UINT8"
+                },
+                {
+                    "TYPE": "DOUBLE"
+                }
+            ]
+        },
+        {
+            "COMMENT": "ALARM TS",
+            "NAME": "A0014",
+            "ICD": "C0014",
+            "FIELDS": [
+                {
+                    "TYPE": "DATE"
+                },
+                {
+                    "TYPE": "UINT8"
+                },
+                {
+                    "TYPE": "UINT8"
+                },
+                {
+                    "TYPE": "UINT8"
+                },
+                {
+                    "TYPE": "DOUBLE"
+                }
+            ]
+        },
+        {
+            "COMMENT": "ACD Alarm ConDition list element",
+            "NAME": "A0022",
+            "ICD": "C0022",
+            "FIELDS": [
+                {
+                    "COMMENT": "modification date",
+                    "TYPE": "DATE"
+                },
+                {
+                    "COMMENT": "threshold",
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "COMMENT": "alarm type",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "alarm degree",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "alarm category",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "dispatcher name",
+                    "TYPE": "STRING",
+                    "LENGTH": 20
+                }
+            ]
+        },
+        {
+            "COMMENT": "ACD alarm last recived time",
+            "NAME": "A0023",
+            "ICD": "C0023",
+            "FIELDS": [
+                {
+                    "TYPE": "DATE"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Synthetical State value",
+            "NAME": "I0017",
+            "ICD": "C0017",
+            "FIELDS": [
+                {
+                    "ATTR": "SYNTHSTATE",
+                    "TYPE": "UINT32"
+                }
+            ]
+        },
+        {
+            "COMMENT": "State value",
+            "NAME": "S0017",
+            "ICD": "C0017",
+            "FIELDS": [
+                {
+                    "ATTR": "SYNTHSTATE",
+                    "TYPE": "UINT32"
+                }
+            ]
+        },
+        {
+            "COMMENT": "General control Request",
+            "NAME": "R0018",
+            "ICD": "C0018",
+            "FIELDS": [
+                {
+                    "COMMENT": "request id",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "init phase",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "data categ",
+                    "TYPE": "INT32"
+                }
+            ]
+        },
+        {
+            "COMMENT": "universal name of TI",
+            "NAME": "I0020",
+            "ICD": "C0020",
+            "FIELDS": [
+                {
+                    "COMMENT": "universal name",
+                    "TYPE": "STRING",
+                    "LENGTH": 31
+                }
+            ]
+        },
+        {
+            "COMMENT": "ACD list count",
+            "NAME": "A0021",
+            "ICD": "C0021",
+            "FIELDS": [
+                {
+                    "COMMENT": "ACD item list count",
+                    "TYPE": "UINT16"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Changing season hour",
+            "NAME": "G0025",
+            "ICD": "C0025",
+            "FIELDS": [
+                {
+                    "COMMENT": "Interchange identifier",
+                    "TYPE": "UINT32"
+                },
+                {
+                    "COMMENT": "New Date",
+                    "TYPE": "DATE"
+                },
+                {
+                    "COMMENT": "Season",
+                    "TYPE": "INT32"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Last historized alarms dates",
+            "NAME": "H0026",
+            "ICD": "C0026",
+            "FIELDS": [
+                {
+                    "COMMENT": "request identifier",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "init phase",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "last date for operative alarms",
+                    "ATTR": "DATE_ALO",
+                    "TYPE": "DATE"
+                },
+                {
+                    "COMMENT": "last date for non operative alarms",
+                    "ATTR": "DATE_ALO",
+                    "TYPE": "DATE"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Historized alarm list type",
+            "NAME": "H0027",
+            "ICD": "C0027",
+            "FIELDS": [
+                {
+                    "COMMENT": "type of alarm list",
+                    "ATTR": "VAL",
+                    "TYPE": "INT16"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Historized alarm description",
+            "NAME": "H0028",
+            "ICD": "C0028",
+            "FIELDS": [
+                {
+                    "COMMENT": "alarm reference (as LED)",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "alarm date",
+                    "TYPE": "DATE"
+                },
+                {
+                    "COMMENT": "alarm type",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "alarm degree",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "alarm state",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "alarm value",
+                    "TYPE": "DOUBLE"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Multi Threshold TM Count",
+            "NAME": "T0019",
+            "ICD": "C0019",
+            "FIELDS": [
+                {
+                    "COMMENT": "TM Count",
+                    "TYPE": "UINT16"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Free Text",
+            "NAME": "O0030",
+            "ICD": "C0030",
+            "FIELDS": [
+                {
+                    "COMMENT": "order request identifier",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "order identifier",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "type of order and text",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "broadcast mode",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "order label",
+                    "TYPE": "STRING",
+                    "LENGTH": 79
+                },
+                {
+                    "COMMENT": "user type",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "creation date",
+                    "TYPE": "DATE"
+                },
+                {
+                    "COMMENT": "address",
+                    "TYPE": "STRING",
+                    "LENGTH": 31
+                },
+                {
+                    "COMMENT": "size of text",
+                    "TYPE": "UINT32"
+                },
+                {
+                    "COMMENT": "free text",
+                    "TYPE": "STRING",
+                    "LENGTH": 5191
+                }
+            ]
+        },
+        {
+            "COMMENT": "Planification Order",
+            "NAME": "O0031",
+            "ICD": "C0031",
+            "FIELDS": [
+                {
+                    "COMMENT": "order request identifier",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "order identifier",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "type of order and text",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "broadcast mode",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "order label",
+                    "TYPE": "STRING",
+                    "LENGTH": 79
+                },
+                {
+                    "COMMENT": "user type",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "creation date",
+                    "TYPE": "DATE"
+                },
+                {
+                    "COMMENT": "taking account to date",
+                    "TYPE": "DATE"
+                },
+                {
+                    "COMMENT": "elementary planification order count",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "size of text",
+                    "TYPE": "UINT32"
+                },
+                {
+                    "COMMENT": "free text",
+                    "TYPE": "STRING",
+                    "LENGTH": 5191
+                }
+            ]
+        },
+        {
+            "COMMENT": "Elementary Planification order",
+            "NAME": "O0032",
+            "ICD": "C0032",
+            "FIELDS": [
+                {
+                    "COMMENT": "equipment name",
+                    "TYPE": "STRING",
+                    "LENGTH": 31
+                },
+                {
+                    "COMMENT": "localisation entry",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "order type",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "order value",
+                    "TYPE": "DOUBLE"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Security Order - on Equipment Type",
+            "NAME": "O0033",
+            "ICD": "C0033",
+            "FIELDS": [
+                {
+                    "COMMENT": "order request identifier",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "order identifier",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "type of order and text",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "broadcast mode",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "order label",
+                    "TYPE": "STRING",
+                    "LENGTH": 79
+                },
+                {
+                    "COMMENT": "user type",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "creation date",
+                    "TYPE": "DATE"
+                },
+                {
+                    "COMMENT": "type associated to the order",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "equipment type",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "size of text",
+                    "TYPE": "UINT32"
+                },
+                {
+                    "COMMENT": "free text",
+                    "TYPE": "STRING",
+                    "LENGTH": 5191
+                }
+            ]
+        },
+        {
+            "COMMENT": "Security Order - on Name",
+            "NAME": "O0034",
+            "ICD": "C0034",
+            "FIELDS": [
+                {
+                    "COMMENT": "order request identifier",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "order identifier",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "type of order and text",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "broadcast mode",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "order label",
+                    "TYPE": "STRING",
+                    "LENGTH": 79
+                },
+                {
+                    "COMMENT": "user type",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "creation date",
+                    "TYPE": "DATE"
+                },
+                {
+                    "COMMENT": "type associated to the order",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "equipment or consumer name",
+                    "TYPE": "STRING",
+                    "LENGTH": 31
+                },
+                {
+                    "COMMENT": "size of text",
+                    "TYPE": "UINT32"
+                },
+                {
+                    "COMMENT": "free text",
+                    "TYPE": "STRING",
+                    "LENGTH": 5191
+                }
+            ]
+        },
+        {
+            "COMMENT": "Conducting Order - on Equipment Type",
+            "NAME": "O0035",
+            "ICD": "C0035",
+            "FIELDS": [
+                {
+                    "COMMENT": "order request identifier",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "order identifier",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "type of order and text",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "broadcast mode",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "order label",
+                    "TYPE": "STRING",
+                    "LENGTH": 79
+                },
+                {
+                    "COMMENT": "user type",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "creation date",
+                    "TYPE": "DATE"
+                },
+                {
+                    "COMMENT": "type associated to the order",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "equipment type",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "size of text",
+                    "TYPE": "UINT32"
+                },
+                {
+                    "COMMENT": "free text",
+                    "TYPE": "STRING",
+                    "LENGTH": 5191
+                }
+            ]
+        },
+        {
+            "COMMENT": "Conducting Order - on Name",
+            "NAME": "O0036",
+            "ICD": "C0036",
+            "FIELDS": [
+                {
+                    "COMMENT": "order request identifier",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "order identifier",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "type of order and text",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "broadcast mode",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "order label",
+                    "TYPE": "STRING",
+                    "LENGTH": 79
+                },
+                {
+                    "COMMENT": "user type",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "creation date",
+                    "TYPE": "DATE"
+                },
+                {
+                    "COMMENT": "type associated to the order",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "equipment or consumer name",
+                    "TYPE": "STRING",
+                    "LENGTH": 31
+                },
+                {
+                    "COMMENT": "size of text",
+                    "TYPE": "UINT32"
+                },
+                {
+                    "COMMENT": "free text",
+                    "TYPE": "STRING",
+                    "LENGTH": 5191
+                }
+            ]
+        },
+        {
+            "COMMENT": "Technological restraints - on Equipment Type",
+            "NAME": "O0037",
+            "ICD": "C0037",
+            "FIELDS": [
+                {
+                    "COMMENT": "order request identifier",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "order identifier",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "type of order and text",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "broadcast mode",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "order label",
+                    "TYPE": "STRING",
+                    "LENGTH": 79
+                },
+                {
+                    "COMMENT": "user type",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "creation date",
+                    "TYPE": "DATE"
+                },
+                {
+                    "COMMENT": "type associated to the order",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "equipment type",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "size of text",
+                    "TYPE": "UINT32"
+                },
+                {
+                    "COMMENT": "free text",
+                    "TYPE": "STRING",
+                    "LENGTH": 5191
+                }
+            ]
+        },
+        {
+            "COMMENT": "Technological restraints - on Name",
+            "NAME": "O0038",
+            "ICD": "C0038",
+            "FIELDS": [
+                {
+                    "COMMENT": "order request identifier",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "order identifier",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "type of order and text",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "broadcast mode",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "order label",
+                    "TYPE": "STRING",
+                    "LENGTH": 79
+                },
+                {
+                    "COMMENT": "user type",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "creation date",
+                    "TYPE": "DATE"
+                },
+                {
+                    "COMMENT": "type associated to the order",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "equipment or consumer name",
+                    "TYPE": "STRING",
+                    "LENGTH": 31
+                },
+                {
+                    "COMMENT": "size of text",
+                    "TYPE": "UINT32"
+                },
+                {
+                    "COMMENT": "free text",
+                    "TYPE": "STRING",
+                    "LENGTH": 5191
+                }
+            ]
+        },
+        {
+            "COMMENT": "Contractual restraints",
+            "NAME": "O0039",
+            "ICD": "C0039",
+            "FIELDS": [
+                {
+                    "COMMENT": "order request identifier",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "order identifier",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "type of order and text",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "broadcast mode",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "order label",
+                    "TYPE": "STRING",
+                    "LENGTH": 79
+                },
+                {
+                    "COMMENT": "user type",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "creation date",
+                    "TYPE": "DATE"
+                },
+                {
+                    "TYPE": "STRING",
+                    "LENGTH": 31
+                },
+                {
+                    "TYPE": "STRING",
+                    "LENGTH": 31
+                },
+                {
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "COMMENT": "size of text",
+                    "TYPE": "UINT32"
+                },
+                {
+                    "COMMENT": "free text",
+                    "TYPE": "STRING",
+                    "LENGTH": 5191
+                }
+            ]
+        },
+        {
+            "COMMENT": "Manoeuvre",
+            "NAME": "O0040",
+            "ICD": "C0040",
+            "FIELDS": [
+                {
+                    "COMMENT": "order request identifier",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "order identifier",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "type of order and text",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "broadcast mode",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "order label",
+                    "TYPE": "STRING",
+                    "LENGTH": 79
+                },
+                {
+                    "COMMENT": "user type",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "creation date",
+                    "TYPE": "DATE"
+                },
+                {
+                    "TYPE": "UINT8"
+                },
+                {
+                    "TYPE": "UINT8"
+                },
+                {
+                    "TYPE": "DATE"
+                },
+                {
+                    "TYPE": "DATE"
+                },
+                {
+                    "TYPE": "INT32"
+                },
+                {
+                    "TYPE": "INT32"
+                },
+                {
+                    "TYPE": "DATE"
+                },
+                {
+                    "TYPE": "DATE"
+                },
+                {
+                    "TYPE": "INT32"
+                },
+                {
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "size of text",
+                    "TYPE": "UINT32"
+                },
+                {
+                    "COMMENT": "free text",
+                    "TYPE": "STRING",
+                    "LENGTH": 5191
+                }
+            ]
+        },
+        {
+            "COMMENT": "Consuption quotas",
+            "NAME": "O0041",
+            "ICD": "C0041",
+            "FIELDS": [
+                {
+                    "COMMENT": "order request identifier",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "order identifier",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "type of order and text",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "broadcast mode",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "order label",
+                    "TYPE": "STRING",
+                    "LENGTH": 79
+                },
+                {
+                    "COMMENT": "user type",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "COMMENT": "creation date",
+                    "TYPE": "DATE"
+                },
+                {
+                    "TYPE": "STRING",
+                    "LENGTH": 31
+                },
+                {
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "COMMENT": "size of text",
+                    "TYPE": "UINT32"
+                },
+                {
+                    "COMMENT": "free text",
+                    "TYPE": "STRING",
+                    "LENGTH": 5191
+                }
+            ]
+        },
+        {
+            "COMMENT": "order acknowledgment",
+            "NAME": "O0042",
+            "ICD": "C0042",
+            "FIELDS": [
+                {
+                    "TYPE": "INT32"
+                },
+                {
+                    "TYPE": "UINT16"
+                }
+            ]
+        },
+        {
+            "COMMENT": "elementary plannification application",
+            "NAME": "O0043",
+            "ICD": "C0043",
+            "FIELDS": [
+                {
+                    "TYPE": "INT32"
+                },
+                {
+                    "TYPE": "UINT16"
+                },
+                {
+                    "TYPE": "STRING",
+                    "LENGTH": 31
+                }
+            ]
+        },
+        {
+            "COMMENT": "manoeuvre autorisation",
+            "NAME": "O0044",
+            "ICD": "C0044",
+            "FIELDS": [
+                {
+                    "TYPE": "INT32"
+                },
+                {
+                    "TYPE": "UINT16"
+                },
+                {
+                    "TYPE": "STRING",
+                    "LENGTH": 31
+                },
+                {
+                    "TYPE": "DATE"
+                },
+                {
+                    "TYPE": "DATE"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Incident",
+            "NAME": "O0045",
+            "ICD": "C0045",
+            "FIELDS": [
+                {
+                    "COMMENT": "order request identifier",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "order identifier",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "short label",
+                    "TYPE": "STRING",
+                    "LENGTH": 15
+                },
+                {
+                    "COMMENT": "broadcast mode",
+                    "TYPE": "UINT8"
+                },
+                {
+                    "TYPE": "STRING",
+                    "LENGTH": 31
+                },
+                {
+                    "TYPE": "UINT16"
+                },
+                {
+                    "TYPE": "UINT16"
+                },
+                {
+                    "TYPE": "DATE"
+                },
+                {
+                    "TYPE": "INT32"
+                },
+                {
+                    "TYPE": "DATE"
+                },
+                {
+                    "TYPE": "STRING",
+                    "LENGTH": 79
+                },
+                {
+                    "TYPE": "UINT32"
+                },
+                {
+                    "COMMENT": "size of text",
+                    "TYPE": "UINT32"
+                },
+                {
+                    "COMMENT": "free text",
+                    "TYPE": "STRING",
+                    "LENGTH": 5191
+                }
+            ]
+        },
+        {
+            "COMMENT": "Historized TI description",
+            "NAME": "P0060",
+            "ICD": "C0060",
+            "FIELDS": [
+                {
+                    "COMMENT": "last historized period",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "last archive date",
+                    "TYPE": "DATE"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Historized quarter-hour TI description",
+            "NAME": "P0061",
+            "ICD": "C0061",
+            "FIELDS": [
+                {
+                    "COMMENT": "",
+                    "ATTR": "LASTVALQH",
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "LASTVALIDQH",
+                    "TYPE": "UINT16"
+                }
+            ]
+        },
+        {
+            "COMMENT": "quart hour historic for indicator",
+            "NAME": "P0062",
+            "ICD": "C0062",
+            "FIELDS": [
+                {
+                    "COMMENT": "",
+                    "ATTR": "LASTVALQH",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "LASTVALIDQH",
+                    "TYPE": "UINT16"
+                }
+            ]
+        },
+        {
+            "COMMENT": "hour historic for volume",
+            "NAME": "P0063",
+            "ICD": "C0063",
+            "FIELDS": [
+                {
+                    "COMMENT": "",
+                    "ATTR": "LASTVALH",
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "LASTVALIDH",
+                    "TYPE": "UINT16"
+                }
+            ]
+        },
+        {
+            "COMMENT": "hour historic for indicator",
+            "NAME": "P0064",
+            "ICD": "C0064",
+            "FIELDS": [
+                {
+                    "COMMENT": "",
+                    "ATTR": "LASTVALH",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "LASTVALIDH",
+                    "TYPE": "UINT16"
+                }
+            ]
+        },
+        {
+            "COMMENT": "day historic for volume",
+            "NAME": "P0065",
+            "ICD": "C0065",
+            "FIELDS": [
+                {
+                    "COMMENT": "",
+                    "ATTR": "LASTVALJ",
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "LASTVALIDJ",
+                    "TYPE": "UINT16"
+                }
+            ]
+        },
+        {
+            "COMMENT": "day historic for indicator",
+            "NAME": "P0066",
+            "ICD": "C0066",
+            "FIELDS": [
+                {
+                    "COMMENT": "",
+                    "ATTR": "LASTVALJ",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "LASTVALIDJ",
+                    "TYPE": "UINT16"
+                }
+            ]
+        },
+        {
+            "COMMENT": "month historic for volume",
+            "NAME": "P0067",
+            "ICD": "C0067",
+            "FIELDS": [
+                {
+                    "COMMENT": "",
+                    "ATTR": "LASTVALM",
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "LASTVALIDM",
+                    "TYPE": "UINT16"
+                }
+            ]
+        },
+        {
+            "COMMENT": "month historic for indicator",
+            "NAME": "P0068",
+            "ICD": "C0068",
+            "FIELDS": [
+                {
+                    "COMMENT": "",
+                    "ATTR": "LASTVALM",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "LASTVALIDM",
+                    "TYPE": "UINT16"
+                }
+            ]
+        },
+        {
+            "COMMENT": "",
+            "NAME": "R0070",
+            "ICD": "C0070",
+            "FIELDS": [
+                {
+                    "COMMENT": "request identifier",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "init phase",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "historic period",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "archive date",
+                    "TYPE": "DATE"
+                },
+                {
+                    "COMMENT": "TI number concerned by the request",
+                    "TYPE": "UINT16"
+                }
+            ]
+        },
+        {
+            "COMMENT": "",
+            "NAME": "P0071",
+            "ICD": "C0071",
+            "FIELDS": [
+                {
+                    "COMMENT": "periodicity",
+                    "ATTR": "",
+                    "TYPE": "UINT32"
+                }
+            ]
+        },
+        {
+            "COMMENT": "",
+            "NAME": "P0072",
+            "ICD": "C0072",
+            "FIELDS": [
+                {
+                    "COMMENT": "TI identifier",
+                    "ATTR": "",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "status",
+                    "ATTR": "",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "number ech",
+                    "ATTR": "",
+                    "TYPE": "UINT32"
+                },
+                {
+                    "COMMENT": "Info Type",
+                    "ATTR": "",
+                    "TYPE": "UINT8"
+                }
+            ]
+        },
+        {
+            "COMMENT": "",
+            "NAME": "P0073",
+            "ICD": "C0073",
+            "FIELDS": [
+                {
+                    "COMMENT": "Time val",
+                    "ATTR": "",
+                    "TYPE": "DATE"
+                },
+                {
+                    "COMMENT": "value",
+                    "ATTR": "",
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "COMMENT": "Validity",
+                    "ATTR": "",
+                    "TYPE": "UINT16"
+                }
+            ]
+        },
+        {
+            "COMMENT": "ICM",
+            "NAME": "I0101",
+            "ICD": "C0101",
+            "FIELDS": [
+                {
+                    "COMMENT": "",
+                    "ATTR": "STATUS",
+                    "TYPE": "LOGIC"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VAL",
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VALIDR",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VALIDJ_INT",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VALJ_INT",
+                    "TYPE": "DOUBLE"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TM",
+            "NAME": "I0102",
+            "ICD": "C0102",
+            "FIELDS": [
+                {
+                    "COMMENT": "",
+                    "ATTR": "STATUS",
+                    "TYPE": "LOGIC"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VAL",
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VALID",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VALIDR",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VALIDJ_INT",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VALJ_INT",
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "DATEHOURM",
+                    "TYPE": "DATE"
+                }
+            ]
+        },
+        {
+            "COMMENT": "ALARMBEGIN",
+            "NAME": "I0103",
+            "ICD": "C0103",
+            "FIELDS": [
+                {
+                    "COMMENT": "",
+                    "ATTR": "STATUS",
+                    "TYPE": "LOGIC"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VAL",
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VALID",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VALIDR",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "DATEHOURM",
+                    "TYPE": "DATE"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "ALARMBEGIN",
+                    "TYPE": "UINT32"
+                }
+            ]
+        },
+        {
+            "COMMENT": "ALDEST",
+            "NAME": "I0104",
+            "ICD": "C0104",
+            "FIELDS": [
+                {
+                    "COMMENT": "",
+                    "ATTR": "STATUS",
+                    "TYPE": "LOGIC"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "ALDEST",
+                    "TYPE": "LOGIC"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VAL",
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VALID",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VALIDR",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "DATEHOURM",
+                    "TYPE": "DATE"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "ALARMBEGIN",
+                    "TYPE": "UINT32"
+                }
+            ]
+        },
+        {
+            "COMMENT": "ICS",
+            "NAME": "I0111",
+            "ICD": "C0111",
+            "FIELDS": [
+                {
+                    "COMMENT": "",
+                    "ATTR": "STATUS",
+                    "TYPE": "LOGIC"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VAL",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VALIDR",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VAL_LABEL",
+                    "TYPE": "STRING",
+                    "LENGTH": 11
+                }
+            ]
+        },
+        {
+            "COMMENT": "TS",
+            "NAME": "I0112",
+            "ICD": "C0112",
+            "FIELDS": [
+                {
+                    "COMMENT": "",
+                    "ATTR": "STATUS",
+                    "TYPE": "LOGIC"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VAL",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VALID",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VALIDR",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "DATEHOURM",
+                    "TYPE": "DATE"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VAL_LABEL",
+                    "TYPE": "STRING",
+                    "LENGTH": 11
+                }
+            ]
+        },
+        {
+            "COMMENT": "TSA",
+            "NAME": "I0113",
+            "ICD": "C0113",
+            "FIELDS": [
+                {
+                    "COMMENT": "",
+                    "ATTR": "STATUS",
+                    "TYPE": "LOGIC"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VAL",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VALID",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VALIDR",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "DATEHOURM",
+                    "TYPE": "DATE"
+                }
+            ]
+        },
+        {
+            "COMMENT": "TSC",
+            "NAME": "I0114",
+            "ICD": "C0114",
+            "FIELDS": [
+                {
+                    "COMMENT": "",
+                    "ATTR": "STATUS",
+                    "TYPE": "LOGIC"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VAL",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VALID",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VALIDR",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "DATEHOURM",
+                    "TYPE": "DATE"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VAL_LABEL",
+                    "TYPE": "STRING",
+                    "LENGTH": 11
+                }
+            ]
+        },
+        {
+            "COMMENT": "AL",
+            "NAME": "I0115",
+            "ICD": "C0115",
+            "FIELDS": [
+                {
+                    "COMMENT": "",
+                    "ATTR": "STATUS",
+                    "TYPE": "LOGIC"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VAL",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VALID",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VALIDR",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "DATEHOURM",
+                    "TYPE": "DATE"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VAL_LABEL",
+                    "TYPE": "STRING",
+                    "LENGTH": 11
+                }
+            ]
+        },
+        {
+            "COMMENT": "ALDEST",
+            "NAME": "I0116",
+            "ICD": "C0116",
+            "FIELDS": [
+                {
+                    "COMMENT": "",
+                    "ATTR": "STATUS",
+                    "TYPE": "LOGIC"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "ALDEST",
+                    "TYPE": "LOGIC"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VAL",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VALID",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VALIDR",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "DATEHOURM",
+                    "TYPE": "DATE"
+                },
+                {
+                    "COMMENT": "",
+                    "ATTR": "VAL_LABEL",
+                    "TYPE": "STRING",
+                    "LENGTH": 11
+                }
+            ]
+        },
+        {
+            "COMMENT": "TELECOMMAND",
+            "NAME": "O0074",
+            "ICD": "C0074",
+            "FIELDS": [
+                {
+                    "COMMENT": "request id",
+                    "ATTR": "",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "Init phase",
+                    "ATTR": "",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "commanded equip univ name",
+                    "ATTR": "",
+                    "TYPE": "STRING",
+                    "LENGTH": 31
+                },
+                {
+                    "COMMENT": "equipment type",
+                    "ATTR": "",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "operation",
+                    "ATTR": "",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "dispatcher name",
+                    "ATTR": "",
+                    "TYPE": "STRING",
+                    "LENGTH": 20
+                },
+                {
+                    "COMMENT": "change responsability flag",
+                    "ATTR": "",
+                    "TYPE": "LOGIC"
+                }
+            ]
+        },
+        {
+            "COMMENT": "Dispatcher name",
+            "NAME": "R0075",
+            "ICD": "C0075",
+            "FIELDS": [
+                {
+                    "COMMENT": "dispatcher name",
+                    "ATTR": "",
+                    "TYPE": "STRING",
+                    "LENGTH": 20
+                }
+            ]
+        },
+        {
+            "COMMENT": "TELEREGULATION",
+            "NAME": "O0076",
+            "ICD": "C0076",
+            "FIELDS": [
+                {
+                    "COMMENT": "request id",
+                    "ATTR": "",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "Init phase",
+                    "ATTR": "",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "commanded equip univ name",
+                    "ATTR": "",
+                    "TYPE": "STRING",
+                    "LENGTH": 31
+                },
+                {
+                    "COMMENT": "Value of teleregulation",
+                    "ATTR": "",
+                    "TYPE": "DOUBLE"
+                },
+                {
+                    "COMMENT": "dispatcher name",
+                    "ATTR": "",
+                    "TYPE": "STRING",
+                    "LENGTH": 20
+                },
+                {
+                    "COMMENT": "change responsability flag",
+                    "ATTR": "",
+                    "TYPE": "LOGIC"
+                }
+            ]
+        },
+        {
+            "COMMENT": "EMERGENCY CYCLE REQUEST",
+            "NAME": "R0077",
+            "ICD": "C0077",
+            "FIELDS": [
+                {
+                    "COMMENT": "request id",
+                    "ATTR": "",
+                    "TYPE": "UINT16"
+                },
+                {
+                    "COMMENT": "Init phase",
+                    "ATTR": "",
+                    "TYPE": "INT32"
+                },
+                {
+                    "COMMENT": "Flag: Start/Stop Emergency cycle",
+                    "ATTR": "",
+                    "TYPE": "LOGIC"
+                },
+                {
+                    "COMMENT": "Period in seconds",
+                    "ATTR": "",
+                    "TYPE": "UINT16"
+                }
+            ]
+        }
+    ]
+}
