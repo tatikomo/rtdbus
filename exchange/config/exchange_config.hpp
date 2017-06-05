@@ -262,6 +262,7 @@ typedef struct {
   int start_stop;
 } sa_rtu_info_t;
 
+// ---------------------------------------------------------
 typedef struct {
   char host_name[20 + 1];
   char port_name[20 + 1];
@@ -269,6 +270,7 @@ typedef struct {
 //  int port_num;
 } sa_network_address_t;
 
+// ---------------------------------------------------------
 typedef struct {
   int timeout;      // Таймаут ожидания ответа в секундах
   int repeat_nb;    // Количество последовательных попыток передачи данных при сбое
@@ -282,10 +284,12 @@ typedef struct {
   int trace_level;  // Глубина трассировки логов
 } sa_common_t;
 
+// ---------------------------------------------------------
 typedef struct {
   int lala;
 } sa_command_info_t;
 
+// ---------------------------------------------------------
 typedef struct {
   int slave_idx;
   int actual_HC_FUNCTION;  // фактический код функции для способа обработки HC
@@ -305,10 +309,12 @@ typedef struct {
   double dubious_value;         // Константа-признак недостоверного значения
 } mbus_common_info_t;
 
+// ---------------------------------------------------------
 typedef struct {
   int lala;
 } opc_common_info_t;
 
+// ---------------------------------------------------------
 typedef union {
   mbus_common_info_t    mbus;
   opc_common_info_t     opc;
@@ -320,5 +326,33 @@ typedef std::vector<sa_parameter_info_t> sa_parameters_t;
 typedef std::vector<sa_command_info_t> sa_commands_t;
 // соответствие между числовым адресом параметра и его описанием
 typedef std::map <int, sa_parameter_info_t> address_map_t;
+
+// ---------------------------------------------------------
+// Тип телеинформации из словаря DED_ELEMTYPES
+typedef enum {
+  TM_TYPE_UNKNOWN   = 0,
+  TM_TYPE_INTEGER   = 1,    // I
+  TM_TYPE_TIME      = 2,    // T
+  TM_TYPE_STRING    = 3,    // S
+  TM_TYPE_REAL      = 4,    // R
+  TM_TYPE_LOGIC     = 5     // L
+} elemtype_t;
+
+// ---------------------------------------------------------
+// Тип телеинформации из словаря ESG
+typedef enum {
+  TM_CLASS_UNKNOWN      = 0,    // ?
+  TM_CLASS_INFORMATION  = 1,    // I
+  TM_CLASS_ALARM        = 2,    // A
+  TM_CLASS_STATE        = 3,    // S
+  TM_CLASS_ORDER        = 4,    // O
+  TM_CLASS_HISTORIZATION= 5,    // P
+  TM_CLASS_HISTORIC     = 6,    // H
+  TM_CLASS_THRESHOLD    = 7,    // T
+  TM_CLASS_REQUEST      = 8,    // R
+  TM_CLASS_CHANGEHOUR   = 9,    // G
+  TM_CLASS_INCIDENT     = 10    // D
+} elemtype_class_t;
+
 #endif
 

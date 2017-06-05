@@ -201,7 +201,9 @@ AcqSiteEntry::AcqSiteEntry(EGSA* egsa, const egsa_config_site_item_t* entry)
   sa_common_t sa_common;
   AcquisitionSystemConfig* sa_config = NULL;
 
+#if VERBOSE>8
   LOG(INFO) << fname << ": start";
+#endif
   strncpy(m_IdAcqSite, entry->name.c_str(), TAG_NAME_MAXLEN);
 
   // Имя СС не может содержать символа "/"
@@ -213,7 +215,7 @@ AcqSiteEntry::AcqSiteEntry(EGSA* egsa, const egsa_config_site_item_t* entry)
   // Определить для указанной СС название файла-снимка SMAD
   sa_config = new AcquisitionSystemConfig(sa_config_filename.c_str());
   if (NOK == sa_config->load_common(sa_common)) {
-     LOG(ERROR) << "Unable to parse SA " << name() << " common config";
+     LOG(ERROR) << fname << ": unable to parse SA " << name() << " common config";
   }
   else {
     m_smad = new SMAD(sa_common.name.c_str(), sa_common.nature, sa_common.smad.c_str());
@@ -234,7 +236,9 @@ AcqSiteEntry::AcqSiteEntry(EGSA* egsa, const egsa_config_site_item_t* entry)
   init_functional_state();
 
   delete sa_config;
+#if VERBOSE>8
   LOG(INFO) << fname << ": done";
+#endif
 }
 
 // ==============================================================================

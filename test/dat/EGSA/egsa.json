@@ -1,7 +1,7 @@
 {
     "COMMON": {
-      "SMAD_FILE":  "EGSA_SMAD.sqlite",
-      "ESG_FILE":  "ESG.json"
+      "SMED_FILE":  "SMED.sqlite",
+      "DICT_ESG_FILE":  "esg.json"
     },
 
 	"SITES": [{

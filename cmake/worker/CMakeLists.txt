@@ -127,6 +127,8 @@ set (WORKER_EGSA_SOURCES
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_request.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_request.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator.hpp
         )
 
 set (WORKER_TIMEKEEPER_SOURCES

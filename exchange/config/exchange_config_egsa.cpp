@@ -7,6 +7,7 @@
 #endif
 
 // Общесистемные заголовочные файлы
+#include <iostream> // std::cout
 #include <string>
 #include <assert.h>
 #include <sys/types.h>
@@ -28,8 +29,9 @@ using namespace rapidjson;
 
 // Секция "COMMON" конфигурационного файла ==============================
 const char* EgsaConfig::s_SECTION_NAME_COMMON_NAME       = "COMMON";
-// Название ключа "имя файла SMAD EGSA"
-const char* EgsaConfig::s_SECTION_COMMON_NAME_SMAD_FILE  = "SMAD_FILE";
+// Название ключа "имя файла SMED EGSA"
+const char* EgsaConfig::s_SECTION_COMMON_NAME_SMED_FILE  = "SMED_FILE";
+const char* EgsaConfig::s_SECTION_COMMON_NAME_DICT_ESG_FILE  = "DICT_ESG_FILE";
 // Секция "SITES" конфигурационного файла ===============================
 // Название секции
 const char* EgsaConfig::s_SECTION_NAME_SITES_NAME    = "SITES";
@@ -198,7 +200,10 @@ RequestEntry EgsaConfig::g_request_dictionary[] = {
 // ==========================================================================================
 EgsaConfig::EgsaConfig(const char* config_filename)
  : m_config_filename(NULL),
-   m_config_has_good_format(false)
+   m_config_has_good_format(false),
+   m_locstruct_items(NULL),
+   m_elemtype_items(NULL),
+   m_elemstruct_items(NULL)
 {
   const char* fname = "EgsaConfig";
   FILE* f_params = NULL;
@@ -220,12 +225,12 @@ EgsaConfig::EgsaConfig(const char* config_filename)
       char *readBuffer = new char[configfile_info.st_size + 1];
 
       FileReadStream is(f_params, readBuffer, configfile_info.st_size + 1);
-      m_document.ParseStream(is);
+      m_egsa_config_document.ParseStream(is);
       delete []readBuffer;
 
-      assert(m_document.IsObject());
+      assert(m_egsa_config_document.IsObject());
 
-      if (!m_document.HasParseError())
+      if (!m_egsa_config_document.HasParseError())
       {
         // Конфиг-файл имеет корректную структуру
         m_config_has_good_format = true;
@@ -247,48 +252,60 @@ EgsaConfig::EgsaConfig(const char* config_filename)
 // ==========================================================================================
 EgsaConfig::~EgsaConfig()
 {
-  int idx = 0;
-
 #if VERBOSE>8
+  int idx = 0;
   LOG(INFO) << "Destructor EgsaConfig";
 #endif
 
   free(m_config_filename); // NB: free() after strdup()
+  delete[] m_locstruct_items;
+  delete[] m_elemtype_items;
+  delete[] m_elemstruct_items;
 
   for (egsa_config_cycles_t::iterator it = m_cycles.begin();
        it != m_cycles.end();
        ++it)
   {
-//    LOG(INFO) << "Free cycle " << ++idx << " " << (*it).first;
+#if VERBOSE>8
+    LOG(INFO) << "Free cycle " << ++idx << " " << (*it).first;
+#endif
     delete (*it).second;
   }
   m_cycles.clear();
 
+#if VERBOSE>8
   idx = 0;
+#endif
   for (egsa_config_sites_t::iterator it = m_sites.begin();
        it != m_sites.end();
        ++it)
   {
-//    LOG(INFO) << "Free site " << ++idx << " " << (*it).first;
+#if VERBOSE>8
+    LOG(INFO) << "Free site " << ++idx << " " << (*it).first;
+#endif
     delete (*it).second;
   }
   m_sites.clear();
 
+#if VERBOSE>8
   idx = 0;
+#endif
   for (egsa_config_requests_t::iterator it = m_requests.begin();
        it != m_requests.end();
        ++it)
   {
-//    LOG(INFO) << "Free request " << ++idx << " " << (*it).first;
+#if VERBOSE>8
+    LOG(INFO) << "Free request " << ++idx << " " << (*it).first;
+#endif
     delete (*it).second;
   }
   m_requests.clear();
 }
 
 // ==========================================================================================
-const std::string& EgsaConfig::smad_name()
+const std::string& EgsaConfig::smed_name()
 {
-  return m_common.smad_filename;
+  return m_common.smed_filename;
 }
 
 // ==========================================================================================
@@ -297,13 +314,16 @@ int EgsaConfig::load_common()
   int rc = NOK;
   const char* fname = "load_common";
 
-  if (true == (m_document.HasMember(s_SECTION_NAME_COMMON_NAME))) {
+  if (true == (m_egsa_config_document.HasMember(s_SECTION_NAME_COMMON_NAME))) {
     // Получение общих данных по конфигурации интерфейсного модуля RTDBUS Системы Сбора
-    Value& section = m_document[s_SECTION_NAME_COMMON_NAME];
+    Value& section = m_egsa_config_document[s_SECTION_NAME_COMMON_NAME];
     if (section.IsObject()) {
-      m_common.smad_filename = section[s_SECTION_COMMON_NAME_SMAD_FILE].GetString();
+      // TODO: Предварительно проверить наличие таких записуй перед их чтением
+      m_common.smed_filename = section[s_SECTION_COMMON_NAME_SMED_FILE].GetString();
+      m_common.dict_esg_filename = section[s_SECTION_COMMON_NAME_DICT_ESG_FILE].GetString();
       rc = OK;
-      LOG(INFO) << fname << ": Use egsa SMAD file: " << m_common.smad_filename;
+      LOG(INFO) << fname << ": Use egsa SMED file: " << m_common.smed_filename;
+      LOG(INFO) << fname << ": Use ESG DICTIONARY file: " << m_common.dict_esg_filename;
     }
     else LOG(ERROR) << fname << ": Section " << s_SECTION_NAME_COMMON_NAME << ": not valid format";
   }
@@ -335,7 +355,7 @@ int EgsaConfig::load_cycles()
   int rc = OK;
 
   // Получение данных по конфигурации Циклов
-  Value& section = m_document[s_SECTION_NAME_CYCLES_NAME];
+  Value& section = m_egsa_config_document[s_SECTION_NAME_CYCLES_NAME];
   if (section.IsArray()) {
     for (Value::ValueIterator itr = section.Begin(); itr != section.End(); ++itr)
     {
@@ -387,7 +407,7 @@ int EgsaConfig::load_sites()
   LOG(INFO) << fname << ": CALL";
 
   // Получение данных по конфигурации Сайтов
-  Value& section = m_document[s_SECTION_NAME_SITES_NAME];
+  Value& section = m_egsa_config_document[s_SECTION_NAME_SITES_NAME];
   if (section.IsArray()) {
     for (Value::ValueIterator itr = section.Begin(); itr != section.End(); ++itr)
     {
@@ -516,7 +536,7 @@ int EgsaConfig::load_requests()
 
 
   // Получение данных по конфигурации Запросов
-  Value& section = m_document[s_SECTION_NAME_REQUESTS_NAME];
+  Value& section = m_egsa_config_document[s_SECTION_NAME_REQUESTS_NAME];
   if (section.IsArray())
   {
     for (Value::ValueIterator itr = section.Begin(); itr != section.End(); ++itr)
@@ -588,7 +608,7 @@ int EgsaConfig::load_requests()
               LOG(INFO) << fname << ": " << request->s_RequestName
                         << " priority=" << (unsigned int)request->i_RequestPriority
                         << " object=" << (unsigned int)request->e_RequestObject
-                        << " mode=" << (unsigned int)request->e_RequestMode
+                        << " mode=" << (unsigned int)request->e_RequestMode << " "
                         << incl_req_name; // << " sequence=" << (sequence+1);
 
               // Ненулевое значение говорит о порядке исполнения подзапросов
@@ -613,13 +633,338 @@ int EgsaConfig::load_requests()
 // Название конфигурационного файла содержится в egsa.json секции COMMON, запись ESG_FILE
 int EgsaConfig::load_esg()
 {
+  int rc = OK;
+  static const char* fname = "load_esg";
+  FILE* f_params = NULL;
+  struct stat configfile_info;
+
+  LOG(INFO) << fname << ": CALL";
+
+  // Выделить буфер readBuffer размером с читаемый файл
+  if (-1 == stat(m_common.dict_esg_filename.c_str(), &configfile_info)) {
+    LOG(ERROR) << fname << ": Unable to stat() '" << m_common.dict_esg_filename << "': " << strerror(errno);
+  }
+  else {
+    if (NULL != (f_params = fopen(m_common.dict_esg_filename.c_str(), "r"))) {
+      // Файл открылся успешно, прочитаем содержимое
+      LOG(INFO) << fname << ": size of '" << m_common.dict_esg_filename << "' is " << configfile_info.st_size;
+      char *readBuffer = new char[configfile_info.st_size + 1];
+
+      FileReadStream is(f_params, readBuffer, configfile_info.st_size + 1);
+      m_esg_config_document.ParseStream(is);
+      delete []readBuffer;
+
+      assert(m_esg_config_document.IsObject());
+
+      if (!m_esg_config_document.HasParseError()) // Конфиг-файл имеет корректную структуру?
+      { 
+        rc = NOK;
+
+        do {
+          // Получение данных по конфигурации
+          Value& elemtypes = m_esg_config_document["DED_ELEMTYPES"];
+          rc = load_DED_ELEMTYPES(elemtypes);
+          if (OK != rc) {
+            LOG(ERROR) << fname << ": unable to load DED_ELEMTYPES";
+            break;
+          }
+
+          Value& elemstructs = m_esg_config_document["DCD_ELEMSTRUCTS"];
+          rc = load_DCD_ELEMSTRUCTS(elemstructs);
+          if (OK != rc) {
+            LOG(ERROR) << fname << ": unable to load DCD_ELEMSTRUCTS";
+            break;
+          }
+
+          Value& locstructs = m_esg_config_document["ESG_LOCSTRUCTS"];
+          rc = load_ESG_LOCSTRUCTS(locstructs);
+          if (OK != rc) {
+            LOG(ERROR) << fname << ": unable to load ESG_LOCSTRUCTS";
+            break;
+          }
+
+          rc = OK;
+        } while (false);
+      }
+      else {
+        LOG(ERROR) << fname << ": Parsing " << m_common.dict_esg_filename;
+      }
+
+      fclose (f_params);
+    } // Конец успешного чтения содержимого файла
+    else {
+      LOG(FATAL) << fname << ": Locating config file " << m_common.dict_esg_filename
+                 << " (" << strerror(errno) << ")";
+    }
+  }
+
+
+  LOG(INFO) << fname << ": get ESG configurations";
+  return rc;
+}
+
+// ==========================================================================================
+// Вернуть идентификатор типа записи ESG_LOCSTRUCT
+field_type_t EgsaConfig::get_locstruct_type_id(const std::string& type_name)
+{
+  field_type_t type;
+
+  if (0 == type_name.compare("LOGIC"))
+    type = FIELD_TYPE_LOGIC;    // 1
+  else if (0 == type_name.compare("INT8"))
+    type = FIELD_TYPE_INT8;     // 2
+  else if (0 == type_name.compare("UINT8"))
+    type = FIELD_TYPE_UINT8;    // 3
+  else if (0 == type_name.compare("INT16"))
+    type = FIELD_TYPE_INT16;    // 4
+  else if (0 == type_name.compare("UINT16"))
+    type = FIELD_TYPE_UINT16;   // 5
+  else if (0 == type_name.compare("INT32"))
+    type = FIELD_TYPE_INT32;    // 6
+  else if (0 == type_name.compare("UINT32"))
+    type = FIELD_TYPE_UINT32;   // 7
+  else if (0 == type_name.compare("FLOAT"))
+    type = FIELD_TYPE_FLOAT;    // 8
+  else if (0 == type_name.compare("DOUBLE"))
+    type = FIELD_TYPE_DOUBLE;   // 9
+  else if (0 == type_name.compare("DATE"))
+    type = FIELD_TYPE_DATE;     // 10
+  else if (0 == type_name.compare("STRING"))
+    type = FIELD_TYPE_STRING;   // 11
+  else type = FIELD_TYPE_UNKNOWN;
+
+//  LOG(INFO) << "IN:" << type_name << " OUT:" << type;
+  return type;
+}
+
+// ==========================================================================================
+int EgsaConfig::load_DCD_ELEMSTRUCTS(rapidjson::Value& dcd_elemstructs)
+{
+  static const char* fname = "load_DCD_ELEMSTRUCTS";
+  int rc = OK;
+  size_t idx = 0, attr_idx;
+
+  if (dcd_elemstructs.IsArray())
+  {
+    LOG(INFO) << fname << ": Initial size=" << dcd_elemstructs.Size();
+
+    m_elemstruct_items = new elemstruct_item_t[dcd_elemstructs.Size() + 1];
+    memset(m_elemstruct_items, '\0', sizeof(elemstruct_item_t) * (dcd_elemstructs.Size() + 1));
+
+    for (Value::ValueIterator itr = dcd_elemstructs.Begin(); itr != dcd_elemstructs.End(); ++itr) {
+      // Получили доступ к очередному элементу элементарных типов
+      const Value::Object& dcd_elemstructs_json = itr->GetObject();
+
+      const std::string name = dcd_elemstructs_json["NAME"].GetString();
+      strncpy(m_elemstruct_items[idx].name, name.c_str(), MAX_ICD_NAME_LENGTH);
+
+      if (dcd_elemstructs_json.HasMember("FIELDS")) { // Есть массив полей?
+        attr_idx = 0;
+
+        Value& field_list = dcd_elemstructs_json["FIELDS"];
+
+        if (field_list.IsArray()) {
+
+          for (Value::ValueIterator itr = field_list.Begin(); itr != field_list.End(); ++itr)
+          {
+            const Value::Object& field_item = itr->GetObject();
+            const std::string attr_str = field_item["FIELD"].GetString();
+            strncpy(m_elemstruct_items[idx].fields[attr_idx], attr_str.c_str(), MAX_ICD_NAME_LENGTH);
+
+            attr_idx++;
+            if (MAX_LOCSTRUCT_FIELDS_NUM < attr_idx) {
+              LOG(ERROR) << fname << ": fields num for " << m_elemstruct_items[idx].name << " exceed limits";
+              break;
+            }
+          }
+
+          m_elemstruct_items[idx].num_fileds = attr_idx;
+        }
+
+        idx++;
+      }
+    }
+  }
+  else {
+    LOG(ERROR) << fname << ": not an array";
+    rc = NOK;
+  }
+
+  LOG(INFO) << fname << ": Load " << idx << " records";
+  return rc;
+}
+
+// ==========================================================================================
+int EgsaConfig::load_ESG_LOCSTRUCTS(rapidjson::Value& esg_locstructs)
+{
+  static const char* fname = "load_ESG_LOCSTRUCTS";
+  int rc = OK;
+  size_t idx = 0, attr_idx = 0;
+
+  if (esg_locstructs.IsArray())
+  {
+    LOG(INFO) << fname << ": Initial size=" << esg_locstructs.Size();
+
+    // Последняя запись будет пустой, как индикатор конца данных
+    m_locstruct_items = new locstruct_item_t[esg_locstructs.Size()+1];
+    memset(m_locstruct_items, '\0', sizeof(locstruct_item_t) * (esg_locstructs.Size()+1));
+
+    for (Value::ValueIterator itr = esg_locstructs.Begin(); itr != esg_locstructs.End(); ++itr)
+    {
+      // Получили доступ к очередному элементу элементарных типов
+      const Value::Object& locstruct_item_json = itr->GetObject();
+      const std::string name = locstruct_item_json["NAME"].GetString();
+      const std::string icd = locstruct_item_json["ICD"].GetString();
+      // const std::string comment = locstruct_item_json["COMMENT"].GetString();
+
+      strncpy(m_locstruct_items[idx].name, name.c_str(), MAX_ICD_NAME_LENGTH);
+      strncpy(m_locstruct_items[idx].icd, icd.c_str(), MAX_ICD_NAME_LENGTH);
+      m_locstruct_items[idx].tm_class = TM_CLASS_UNKNOWN;
+
+      if (m_locstruct_items[idx].name[0]) {
+        switch (m_locstruct_items[idx].name[0]) {
+          case 'I': m_locstruct_items[idx].tm_class = TM_CLASS_INFORMATION;   break;
+          case 'A': m_locstruct_items[idx].tm_class = TM_CLASS_ALARM;         break;
+          case 'S': m_locstruct_items[idx].tm_class = TM_CLASS_STATE;         break;
+          case 'O': m_locstruct_items[idx].tm_class = TM_CLASS_ORDER;         break;
+          case 'P': m_locstruct_items[idx].tm_class = TM_CLASS_HISTORIZATION; break;
+          case 'H': m_locstruct_items[idx].tm_class = TM_CLASS_HISTORIC;      break;
+          case 'T': m_locstruct_items[idx].tm_class = TM_CLASS_THRESHOLD;     break;
+          case 'R': m_locstruct_items[idx].tm_class = TM_CLASS_REQUEST;       break;
+          case 'G': m_locstruct_items[idx].tm_class = TM_CLASS_CHANGEHOUR;    break;
+          case 'D': m_locstruct_items[idx].tm_class = TM_CLASS_INCIDENT;      break;
+          default:  m_locstruct_items[idx].tm_class = TM_CLASS_UNKNOWN;       break;
+        }
+
+        if (locstruct_item_json.HasMember("FIELDS")) { // Есть массив полей?
+          attr_idx = 0;
+
+          Value& field_list = locstruct_item_json["FIELDS"];
+
+          if (field_list.IsArray()) {
+
+            for (Value::ValueIterator itr = field_list.Begin(); itr != field_list.End(); ++itr)
+            {
+              const Value::Object& field_item = itr->GetObject();
+
+              if (field_item.HasMember("ATTR")) {
+                const std::string attr_str = field_item["ATTR"].GetString();
+                strncpy(m_locstruct_items[idx].fields[attr_idx].name, attr_str.c_str(), MAX_ICD_NAME_LENGTH);
+              }
+
+              if (field_item.HasMember("TYPE")) {
+                const std::string type_str = field_item["TYPE"].GetString();
+                m_locstruct_items[idx].fields[attr_idx].type = get_locstruct_type_id(type_str);
+
+                if (m_locstruct_items[idx].fields[attr_idx].type == FIELD_TYPE_STRING) {
+                  if (field_item.HasMember("LENGTH"))  {
+                    m_locstruct_items[idx].fields[attr_idx].length = field_item["LENGTH"].GetInt();
+                  }
+                  else {
+                    LOG(ERROR) << fname << ": string field " << name << " missing his length";
+                    m_locstruct_items[idx].fields[attr_idx].length = 0;
+                    rc = NOK;
+                  }
+                }
+
+              }
+
+              attr_idx++;
+              if (MAX_LOCSTRUCT_FIELDS_NUM < attr_idx) {
+                LOG(ERROR) << fname << ": fields num for " << m_locstruct_items[idx].name << " exceed limits";
+                break;
+              }
+
+            } // конец цикла чтения вложенных полей
+
+            m_locstruct_items[idx].num_fileds = attr_idx;
+
+          } // конец проверки того, что FIELDS содержит массив значений
+
+          idx++;
+
+#if VERBOSE>5
+          LOG(INFO) << fname << ": NAME=" << m_locstruct_items[idx].name << ", ICD=" << m_locstruct_items[idx].icd
+                    << ", type=" << m_locstruct_items[idx].tm_class << ", num=" << m_locstruct_items[idx].num_fileds;
+#endif
+#if VERBOSE>7
+          for (size_t i=0; i<m_locstruct_items[idx].num_fileds; i++) {
+            std::cout << locstruct_idx << " " << m_locstruct_items[idx].name << " " << i+1 << "/" << m_locstruct_items[idx].num_fileds
+                      << " " << m_locstruct_items[idx].fields[i].name << " " << m_locstruct_items[idx].fields[i].type
+                      << " " << m_locstruct_items[idx].fields[i].length << std::endl; 
+          }
+#endif
+
+        }
+      } // end if name not empty
+    } // end for every ESG_LOCSTRUCT entry
+  } // end if ESG_LOCSTRUCT is an array
+  else {
+    LOG(ERROR) << fname << ": not an array";
+    rc = NOK;
+  }
+
+  LOG(INFO) << fname << ": Load " << idx << " records";
+
+  return rc;
+}
+
+// ==========================================================================================
+int EgsaConfig::load_DED_ELEMTYPES(rapidjson::Value& ded_elemtypes)
+{
+  static const char* fname = "load_DED_ELEMTYPES";
+  size_t idx = 0;
+  int rc = OK;
+
+  if (ded_elemtypes.IsArray())
+  {
+    LOG(INFO) << fname << ": Initial size=" << ded_elemtypes.Size();
+    m_elemtype_items = new elemtype_item_t[ded_elemtypes.Size() + 1];
+    memset(m_elemtype_items, '\0', sizeof(elemtype_item_t) * (ded_elemtypes.Size()+1));
+
+    for (Value::ValueIterator itr = ded_elemtypes.Begin(); itr != ded_elemtypes.End(); ++itr)
+    {
+      // Получили доступ к очередному элементу элементарных типов
+      const Value::Object& elemtype_item_json = itr->GetObject();
+      const std::string elemtype_name = elemtype_item_json["NAME"].GetString();
+      const std::string elemtype_type = elemtype_item_json["TYPE"].GetString();
+      const std::string elemtype_size = elemtype_item_json["SIZE"].GetString();
+      // const std::string elemtype_name = elemtype_item_json["COMMENT"].GetString();
+
+      strncpy(m_elemtype_items[idx].name, elemtype_name.c_str(), MAX_ICD_NAME_LENGTH);
+      strncpy(m_elemtype_items[idx].size, elemtype_size.c_str(), MAX_ICD_NAME_LENGTH);
+
+      switch (m_elemtype_items[idx].name[0]) {
+        case 'I': m_elemtype_items[idx].tm_type = TM_TYPE_INTEGER; break;
+        case 'T': m_elemtype_items[idx].tm_type = TM_TYPE_TIME;    break;
+        case 'S': m_elemtype_items[idx].tm_type = TM_TYPE_STRING;  break;
+        case 'R': m_elemtype_items[idx].tm_type = TM_TYPE_REAL;    break;
+        case 'L': m_elemtype_items[idx].tm_type = TM_TYPE_LOGIC;   break;
+        default:  m_elemtype_items[idx].tm_type = TM_TYPE_UNKNOWN; break;
+      }
+  
+      idx++;
+
+#if VERBOSE>7
+      LOG(INFO) << fname << ": name=" << m_elemtype_items[idx].name << " type=" << m_elemtype_items[idx].tm_type << " size=" << m_elemtype_items[idx].size;
+#endif
+    }
+  }
+  else {
+    LOG(ERROR) << fname << ": not an array";
+    rc = NOK;
+  }
+
+  LOG(INFO) << fname << ": Load " << idx << " records";
+
+  return rc;
 }
 
 // ==========================================================================================
 // загрузка всех параметров обмена: разделы COMMON, SITES, CYCLES, REQUESTS
 int EgsaConfig::load()
 {
-  const char* fname = "load";
+  static const char* fname = "load";
   int status = NOK;
 
   LOG(INFO) << fname << ": CALL";

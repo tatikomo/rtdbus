@@ -7,8 +7,6 @@
 #endif
 
 // Общесистемные заголовочные файлы
-#include <map>
-#include <vector>
 #include <thread>
 
 // Служебные заголовочные файлы сторонних утилит
@@ -23,6 +21,7 @@
 
 class SMED;
 class AcqSiteEntry;
+class ExchangeTranslator;
 
 // Команды от EGSA::implementation в адрес ES_ACQ и ES_SEND
 #define INIT         "INIT"
@@ -55,6 +54,9 @@ class EGSA : public mdp::mdwrk {
     // Если собирается рабочая версия, спрятать эти функции в приватный доступ
   private:
 #endif
+    ExchangeTranslator* translator() { return m_translator; }
+    // Разбор файла с данными от ГОФО
+    int load_esg_file(const char*);
     // Внутренний тест SMED
     int test_smed();
     // Запуск Интерфейса ES_ACQ
@@ -210,8 +212,12 @@ class EGSA : public mdp::mdwrk {
     // Экземпляр SMED для хранения конфигурации и данных EGSA
     SMED        *m_smed;
     EgsaConfig  *m_egsa_config;
+    // Транслятор данных между БДРВ и форматом обмена со смежными объектами
+    ExchangeTranslator *m_translator;
     // Хранилище изменивших своё значение параметров, используется для всех СС
     sa_parameters_t m_list;
+    // После чтения из конфигурации имя файла потребуется не сразу
+    std::string m_smed_filename;
 
     // General data
     //static ega_ega_odm_t_GeneralData ega_ega_odm_r_GeneralData;
@@ -229,6 +235,7 @@ class EGSA : public mdp::mdwrk {
 
     RequestRuntimeList m_waiting_requests;
     RequestRuntimeList m_deferred_requests;
+
 
     // Функции нити ES_ACQ <============================================================================
     // Обработка команды от верхнего уровня

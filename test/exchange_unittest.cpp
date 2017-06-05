@@ -140,6 +140,13 @@ TEST(TestEXCHANGE, EGSA_CONFIG)
 }
 
 // =======================================================================================================================
+TEST(TestEXCHANGE, EGSA_ESG_CONFIG)
+{
+  int rc = g_egsa_instance->load_esg_file("SAMPLE1.DAT");
+  EXPECT_TRUE(OK == rc);
+}
+
+// =======================================================================================================================
 // Подготовить полную информацию по циклам, включая связанные с этими циклами сайты
 // ГТП:
 // GCP_PGACQ_DIPL   =   основной цикл сбора информации (1 час)
@@ -512,7 +519,7 @@ TEST(TestEXCHANGE, EGSA_DICT_REQUESTS)
   EXPECT_TRUE(ru->included()[ESG_BASID_STATECMD] == 0);
 }
 
-#ifdef _SHORT_TEST
+#ifndef _SHORT_TEST
 // =======================================================================================================================
 TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
 {
@@ -763,7 +770,7 @@ TEST(TestEXCHANGE, EGSA_RUN)
   g_egsa_instance->run();
 }
 #else
-#warning "SKIP EGSA_RT_REQUESTS TEST"
+#warning "SKIP EGSA_RUN TEST"
 #endif
 
 // =======================================================================================================================

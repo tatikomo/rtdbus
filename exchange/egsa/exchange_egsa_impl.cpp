@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <unistd.h>     // for 'usleep'
 #include <iostream>
+#include <fstream>
 #include <functional>
 #include <queue>
 #include <chrono>
@@ -35,6 +36,7 @@
 #include "exchange_egsa_site.hpp"
 #include "exchange_egsa_impl.hpp"
 #include "exchange_egsa_request.hpp"
+#include "exchange_egsa_translator.hpp"
 #include "xdb_common.hpp"
 
 extern volatile int interrupt_worker;
@@ -55,7 +57,8 @@ EGSA::EGSA(const std::string& _broker, const std::string& _service)
     m_acquisition_thread(NULL),
     m_sending_thread(NULL),
     m_smed(NULL),
-    m_egsa_config(NULL)
+    m_egsa_config(NULL),
+    m_translator(NULL)
 {
 }
 
@@ -74,8 +77,15 @@ EGSA::~EGSA()
   //delete m_acq_control;
   //delete m_send_control;
 
+  delete m_translator;
   delete m_smed;
+
+#ifdef _FUNCTIONAL_TEST
+  // В рабочей программе этот объект можно удалять сразу после получения из него данных,
+  // но для тестов нужно держать его доступным до конца работы.
   delete m_egsa_config;
+#endif
+
   delete m_message_factory;
 }
 
@@ -94,8 +104,8 @@ int EGSA::init()
   load_config();
   LOG(INFO) << fname << ": configs loaded, state=" << m_state;
 
-  // Подключиться к своей внутренней памяти SMAD
-  m_smed = new SMED(m_egsa_config->smad_name().c_str());
+  // Подключиться к своей внутренней памяти SMED
+  m_smed = new SMED(m_smed_filename.c_str());
   LOG(INFO) << fname << ": SMED created, state=" << m_smed->state();
 
   if (STATE_OK == (ext_state = m_smed->connect())) {
@@ -168,6 +178,7 @@ int EGSA::load_config()
     // Была - очистим старые данные и перечитаем её
     LOG(INFO) << fname << ": reload configuration, state=" << m_state;
 
+    delete m_translator;
     delete m_egsa_config;
     m_ega_ega_odm_ar_AcqSites.release();
     // Сведения о Запросах
@@ -181,8 +192,8 @@ int EGSA::load_config()
 
   // Прочитать информацию по сайтам и циклам
   m_egsa_config->load();
+  m_smed_filename = m_egsa_config->smed_name();
   m_state = STATE_CNF_OK;
-
   // Сейчас загружены списки актуальных Циклов, Запросов, Сайтов:
   // m_egsa_config->sites()
   // m_egsa_config->cycles()
@@ -261,6 +272,17 @@ int EGSA::load_config()
 
   m_state = STATE_INI_OK;
 
+  // 4) Создать словари ESG
+  m_translator = new ExchangeTranslator(config()->locstructs(),
+                                        config()->elemtypes(),
+                                        config()->elemstructs());
+
+#ifndef _FUNCTIONAL_TEST
+  // Если это не тест, объект конфигурации более не нужен
+  delete m_egsa_config;
+  m_egsa_config = NULL;
+#endif
+
   return rc;
 }
 
@@ -268,6 +290,9 @@ int EGSA::load_config()
 // Доступ к конфигурации
 EgsaConfig* EGSA::config()
 {
+#ifndef _FUNCTIONAL_TEST
+  LOG(FATAL) << "Access to configuration class instance";
+#endif
   return m_egsa_config;
 }
 
@@ -405,7 +430,9 @@ int EGSA::implementation()
     socket_items[2].events = ZMQ_POLLIN;
     socket_items[2].revents = 0;
 
+#ifdef _FUNCTIONAL_TEST
     const time_t when_starts = time(0);
+#endif
 
     // Запомним как первоначальное значение
     //last_probe_time = cur_time = time(0);
@@ -445,7 +472,9 @@ int EGSA::implementation()
         LOG(INFO) << fname << ": idle";
       }
 
+#ifdef _FUNCTIONAL_TEST
       const time_t now = time(0);
+#endif
 
       switch(m_state_egsa) {
         // Инициализация нити
@@ -1767,4 +1796,28 @@ int EGSA::esg_acq_rsh_ReqsDelMan()
   return rc;
 }
 // ==========================================================================================================
-//
+
+// Разбор файла с данными от ГОФО
+int EGSA::load_esg_file(const char* filename)
+{
+  static const char* fname = "load_esg_file";
+  int rc = NOK;
+
+  LOG(INFO) << fname << ": run " << filename;
+
+  std::ifstream file(filename);
+  if ( file )
+  {
+    std::stringstream buffer;
+
+    buffer << file.rdbuf();
+
+    file.close();
+
+    translator()->load(buffer);
+  }
+
+  return rc;
+}
+
+// ==========================================================================================================
