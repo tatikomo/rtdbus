@@ -883,11 +883,11 @@ int EgsaConfig::load_ESG_LOCSTRUCTS(rapidjson::Value& esg_locstructs)
 
           idx++;
 
-#if VERBOSE>5
+#if VERBOSE >= 5
           LOG(INFO) << fname << ": NAME=" << m_locstruct_items[idx].name << ", ICD=" << m_locstruct_items[idx].icd
                     << ", type=" << m_locstruct_items[idx].tm_class << ", num=" << m_locstruct_items[idx].num_fileds;
 #endif
-#if VERBOSE>7
+#if VERBOSE >= 7
           for (size_t i=0; i<m_locstruct_items[idx].num_fileds; i++) {
             std::cout << locstruct_idx << " " << m_locstruct_items[idx].name << " " << i+1 << "/" << m_locstruct_items[idx].num_fileds
                       << " " << m_locstruct_items[idx].fields[i].name << " " << m_locstruct_items[idx].fields[i].type
@@ -934,7 +934,7 @@ int EgsaConfig::load_DED_ELEMTYPES(rapidjson::Value& ded_elemtypes)
       strncpy(m_elemtype_items[idx].name, elemtype_name.c_str(), MAX_ICD_NAME_LENGTH);
       strncpy(m_elemtype_items[idx].size, elemtype_size.c_str(), MAX_ICD_NAME_LENGTH);
 
-      switch (m_elemtype_items[idx].name[0]) {
+      switch (elemtype_type.c_str()[0]) {
         case 'I': m_elemtype_items[idx].tm_type = TM_TYPE_INTEGER; break;
         case 'T': m_elemtype_items[idx].tm_type = TM_TYPE_TIME;    break;
         case 'S': m_elemtype_items[idx].tm_type = TM_TYPE_STRING;  break;
@@ -943,11 +943,10 @@ int EgsaConfig::load_DED_ELEMTYPES(rapidjson::Value& ded_elemtypes)
         default:  m_elemtype_items[idx].tm_type = TM_TYPE_UNKNOWN; break;
       }
   
-      idx++;
-
-#if VERBOSE>7
+//#if VERBOSE > 7
       LOG(INFO) << fname << ": name=" << m_elemtype_items[idx].name << " type=" << m_elemtype_items[idx].tm_type << " size=" << m_elemtype_items[idx].size;
-#endif
+//#endif
+      idx++;
     }
   }
   else {

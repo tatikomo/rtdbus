@@ -262,8 +262,7 @@ int EGSA::load_config()
               << (*rit).second->s_RequestName << " "
               << (*rit).second->i_RequestPriority << " "
               << (unsigned int)(*rit).second->e_RequestObject << " "
-              << (unsigned int)(*rit).second->e_RequestMode
-              << " (irs " << (*rit).second->composed() << ")";
+              << (unsigned int)(*rit).second->e_RequestMode;
 #endif
     Request* rq = new Request((*rit).second);
 

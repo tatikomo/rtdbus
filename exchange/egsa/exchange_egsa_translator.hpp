@@ -17,6 +17,7 @@
 #include "exchange_egsa_impl.hpp"
 // Конфигурация
 
+//============================================================================
 class ExchangeTranslator
 {
   public:
@@ -27,7 +28,13 @@ class ExchangeTranslator
 
   private:
     DISALLOW_COPY_AND_ASSIGN(ExchangeTranslator);
-    std::map <const std::string, locstruct_item_t> m_locstructs;
+    std::map <const std::string, locstruct_item_t>  m_locstructs;
+    std::map <const std::string, elemtype_item_t>   m_elemtypes;
+    std::map <const std::string, elemstruct_item_t> m_elemstructs;
+
+    // Прочитать из потока столько данных, сколько ожидается форматом Элементарного типа
+    int read_lex_value(std::stringstream&, elemtype_item_t&, char*);
 };
 
+//============================================================================
 #endif

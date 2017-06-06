@@ -1373,7 +1373,6 @@ TEST(TestTools, LOAD_DICT_XML)
 TEST(TestTools, LOAD_DATA_XML)
 {
   unsigned int class_item;
-//  unsigned int attribute_item;
   const int argc = 2;
   char *argv[argc] = {
                     (char*)"LOAD_DATA_XML",
@@ -1423,6 +1422,7 @@ TEST(TestTools, LOAD_DATA_XML)
     RTDB_STRUCT_p.post_RTDB_STRUCT ();
 
 #if defined VERBOSE
+    unsigned int attribute_item;
     std::cout << "Parsing XML is over, processed " << point_list.size() << " element(s)" << std::endl;
 #endif
     /* В cmake/classes.xml есть 3 точки */
