@@ -453,11 +453,11 @@ class EgsaConfig {
     // Название SMED
     const std::string& smed_name();
     // Загруженные Циклы
-    egsa_config_cycles_t& cycles() { return m_cycles; };
+    egsa_config_cycles_t& cycles() { return m_cycles; }
     // Загруженные Сайты
-    egsa_config_sites_t& sites() { return m_sites; };
+    egsa_config_sites_t& sites() { return m_sites; }
     // Загруженные Запросы
-    egsa_config_requests_t& requests() { return m_requests; };
+    egsa_config_requests_t& requests() { return m_requests; }
     ech_t_ReqId get_request_id(const std::string&);
     const char* get_request_name(ech_t_ReqId);
 

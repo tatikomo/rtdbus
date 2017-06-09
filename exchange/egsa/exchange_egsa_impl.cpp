@@ -557,7 +557,7 @@ int EGSA::implementation()
           break;
 
         default:
-          LOG(FATAL) << fname << ": unhandled state #" << m_state_egsa; 
+          LOG(FATAL) << fname << ": unhandled state #" << m_state_egsa;
       } // end switch
 
 /*
@@ -596,7 +596,7 @@ int EGSA::implementation()
 }
 
 // ==========================================================================================================
-// Обработать первые в очереди ожидания Запросы для всех доступных систем сбора 
+// Обработать первые в очереди ожидания Запросы для всех доступных систем сбора
 int EGSA::process_requests_for_all_sites()
 {
   int rc = NOK;
@@ -621,7 +621,7 @@ int EGSA::process_requests_for_all_sites()
 }
 
 // ==========================================================================================================
-// Обработать первый Запрос из в очереди ожидания указанной системы сбора 
+// Обработать первый Запрос из в очереди ожидания указанной системы сбора
 // После обработки запроса (перехода в состояние EXECUTED) он удаляется.
 // Если хотя бы один и группы composed-запросов завершился с ошибкой, вся группа считается завершившейся с
 // ошибкой, и подзапросы группы удаляются.
@@ -876,20 +876,20 @@ int EGSA::run()
       }
     }
 
-    LOG(INFO) << fname << ": joining acquisition thread -> start"; 
+    LOG(INFO) << fname << ": joining acquisition thread -> start";
     m_acquisition_thread->join();
     delete m_acquisition_thread;
-    LOG(INFO) << fname << ": joining acquisition thread -> done"; 
+    LOG(INFO) << fname << ": joining acquisition thread -> done";
 
-    LOG(INFO) << fname << ": joining sending thread -> start"; 
+    LOG(INFO) << fname << ": joining sending thread -> start";
     m_sending_thread->join();
     delete m_sending_thread;
     LOG(INFO) << fname << ": joining sending thread -> done";
 
-    LOG(INFO) << fname << ": joining implementation thread -> start"; 
+    LOG(INFO) << fname << ": joining implementation thread -> start";
     m_servant_thread->join();
     delete m_servant_thread;
-    LOG(INFO) << fname << ": joining implementation thread -> done"; 
+    LOG(INFO) << fname << ": joining implementation thread -> done";
 
     delete reply_to;
 
@@ -1777,7 +1777,7 @@ int EGSA::esg_acq_inm_PhaseChgMan(AcqSiteEntry *site, AcqSiteEntry::init_phase_s
                    }
                }
            }
-        } // end else: if site is not OPStateAuthorised            
+        } // end else: if site is not OPStateAuthorised
 
   LOG(INFO) << fname << ": End stat=" << rc;
 
