@@ -932,7 +932,7 @@ int EgsaConfig::load_DED_ELEMTYPES(rapidjson::Value& ded_elemtypes)
       // const std::string elemtype_name = elemtype_item_json["COMMENT"].GetString();
 
       strncpy(m_elemtype_items[idx].name, elemtype_name.c_str(), MAX_ICD_NAME_LENGTH);
-      strncpy(m_elemtype_items[idx].size, elemtype_size.c_str(), MAX_ICD_NAME_LENGTH);
+      strncpy(m_elemtype_items[idx].format_size, elemtype_size.c_str(), MAX_ICD_NAME_LENGTH);
 
       switch (elemtype_type.c_str()[0]) {
         case 'I': m_elemtype_items[idx].tm_type = TM_TYPE_INTEGER; break;
@@ -944,7 +944,8 @@ int EgsaConfig::load_DED_ELEMTYPES(rapidjson::Value& ded_elemtypes)
       }
   
 //#if VERBOSE > 7
-      LOG(INFO) << fname << ": name=" << m_elemtype_items[idx].name << " type=" << m_elemtype_items[idx].tm_type << " size=" << m_elemtype_items[idx].size;
+      LOG(INFO) << fname << ": name=" << m_elemtype_items[idx].name << " type=" << m_elemtype_items[idx].tm_type
+                << " format_size=" << m_elemtype_items[idx].format_size;
 //#endif
       idx++;
     }

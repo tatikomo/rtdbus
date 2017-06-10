@@ -810,6 +810,7 @@ int EGSA::run()
 
   if (STATE_INI_OK != m_state) {
     LOG(FATAL) << fname << ": unable to continue, state=" << m_state;
+    delete reply_to;
     return NOK;
   }
 
@@ -1804,6 +1805,7 @@ int EGSA::load_esg_file(const char* filename)
 
   LOG(INFO) << fname << ": run " << filename;
 
+#if 0
   std::ifstream file(filename);
   if ( file )
   {
@@ -1815,6 +1817,9 @@ int EGSA::load_esg_file(const char* filename)
 
     translator()->load(buffer);
   }
+#else
+  rc = translator()->esg_acq_dac_Switch(filename, "SAK42663");
+#endif
 
   return rc;
 }

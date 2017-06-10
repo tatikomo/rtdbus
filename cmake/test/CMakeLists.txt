@@ -7,6 +7,7 @@ SET(UNITTEST_MESSAGE  msg_test)
 SET(UNITTEST_METRICS  metric_test)
 SET(UNITTEST_EXCHANGE exch_test)
 SET(UNITTEST_CE       ce_test)
+SET(UNITTEST_ESG      esg_test)
 
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # SOLARIS
@@ -62,6 +63,27 @@ link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 link_directories(${LIBSQLITE_LIBRARIES_DIR})
+
+set (TEST_EXCHANGE_ESG_SOURCES
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_request.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_request.cpp
+        ${EXCHANGE_SMAD_DIR}/exchange_smad.hpp
+        ${EXCHANGE_SMAD_DIR}/exchange_smed.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl_acq.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl_send.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.hpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.hpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.hpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config_sac.hpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config.hpp
+        ${TEST_RTDBUS_DIR}/esg.cpp)
 
 set (TEST_EXCHANGE_SOURCES
         ${GTEST_INC_DIR}/gtest/gtest.h
@@ -269,6 +291,17 @@ set_source_files_properties(${XDB_IMPL_DIR}/dat/broker_db.h
 set_source_files_properties(${XDB_IMPL_DIR}/dat/rtap_db-pskel.hxx
                             ${XDB_IMPL_DIR}/dat/rtap_db-pskel.cxx
                             PROPERTIES GENERATED 1)
+
+add_executable (${UNITTEST_ESG} ${TEST_EXCHANGE_ESG_SOURCES})
+add_definitions (-D_FUNCTIONAL_TEST)
+add_definitions (-D_SHORT_TEST)
+add_definitions (-g)
+target_link_libraries(${UNITTEST_ESG}
+    ${LIBGLOG_LIBRARIES}
+    ${EXCHANGE_LIBRARY_NAME}
+    ${MDP_LIBRARY_NAME}
+    ${TOOLS_LIBRARY_NAME}
+    ${SYSTEM_EXTERNAL_LIBS})
 
 add_executable (${UNITTEST_EXCHANGE} ${TEST_EXCHANGE_SOURCES})
 add_definitions (-D_FUNCTIONAL_TEST)

@@ -358,7 +358,7 @@ typedef struct {
   // Тип телеинформации
   elemtype_t tm_type;
   // Строка размерности, 6 символов
-  char size[MAX_ICD_NAME_LENGTH + 1];
+  char format_size[MAX_ICD_NAME_LENGTH + 1];
 } elemtype_item_t;
 
 // ==============================================================================

@@ -179,7 +179,7 @@
 #define ECH_D_CARZERO               '0'
 #define ECH_D_ENDSTRING             '\0'
 
-typedef char    gof_t_UniversalName[40];
+typedef char    gof_t_UniversalName[32];
 typedef int32_t gof_t_ExchangeId;
 
 // service segments
@@ -301,11 +301,11 @@ typedef struct {
 // . identifier of the elementary data
 // . basic type
 // . format
-typedef struct {
-  char      s_ExchDataId[ECH_D_ELEMIDLG + 1];
-  int32_t   i_BasicType;
-  char      s_Format[ECH_D_FORMATLG + 1];
-} esg_esg_odm_t_ExchDataElem;
+//typedef struct {
+//  char      s_ExchDataId[ECH_D_ELEMIDLG + 1];
+//  int32_t   i_BasicType;
+//  char      s_Format[ECH_D_FORMATLG + 1];
+//} esg_esg_odm_t_ExchDataElem;
 
 // Fields used for historized alarm
 // --------------------------------
@@ -321,12 +321,12 @@ typedef struct {
 // Composed data element :
 // . identifier of the composed data
 // . array of elementary data
-typedef struct {
-    char  s_ExchCompId[ECH_D_COMPIDLG + 1];
-    int32_t i_NbData;
-    char  as_ElemDataArr[ECH_D_IEDPERICD][ECH_D_ELEMIDLG + 1];
-    char  s_AssocSubType[ECH_D_STYPEIDLG + 1];
-} esg_esg_odm_t_ExchCompElem;
+//typedef struct {
+//    char  s_ExchCompId[ECH_D_COMPIDLG + 1];
+//    uint32_t i_NbData;
+//    char  as_ElemDataArr[ECH_D_IEDPERICD][ECH_D_ELEMIDLG + 1];
+//    char  s_AssocSubType[ECH_D_STYPEIDLG + 1];
+//} esg_esg_odm_t_ExchCompElem;
 
 //============================================================================
 class ExchangeTranslator
@@ -336,6 +336,8 @@ class ExchangeTranslator
    ~ExchangeTranslator();
 
     int load(std::stringstream&);
+    // Разбор файла с данными от смежной системы ESG
+    int esg_acq_dac_Switch(const char*, const char*);
 
   private:
     DISALLOW_COPY_AND_ASSIGN(ExchangeTranslator);
@@ -348,10 +350,10 @@ class ExchangeTranslator
 
     // Consulting of an entry in the exchanged composed data Table
     // --------------------------------------------------------------
-    int esg_esg_odm_ConsultExchCompArr(const char*, esg_esg_odm_t_ExchCompElem*);
+    elemstruct_item_t* esg_esg_odm_ConsultExchCompArr(const char*);
     // Consulting of an entry in the exchanged elementary data Table 
     // --------------------------------------------------------------
-    int esg_esg_odm_ConsultExchDataArr(const char*, esg_esg_odm_t_ExchDataElem*);
+    elemtype_item_t* esg_esg_odm_ConsultExchDataArr(const char*);
 
     //  Getting length of Coded composed data in ASCII EDI format
     // --------------------------------------------------------------
@@ -495,19 +497,19 @@ class ExchangeTranslator
                 uint32_t*);     // length of coded label
     // --------------------------------------------------------------
     int esg_esg_edi_GetLengthEData(
-                const esg_esg_odm_t_ExchDataElem*,
+                const elemtype_item_t*,
                 const uint32_t,
                 uint32_t*);
 
     // get format and length of elementary data qualifier
     // --------------------------------------------------------------
-    int esg_esg_edi_GetForLgQuaEData(esg_esg_odm_t_ExchDataElem*,
+    int esg_esg_edi_GetForLgQuaEData(elemtype_item_t*,
                                   uint32_t* pi_OLgEData);
 
     // get completed length of elementary data ASCII string type
     // variable / fixed control of the associated format
     // --------------------------------------------------------------
-    int esg_esg_edi_GetLengthFullCtrlEData(const esg_esg_odm_t_ExchDataElem*,
+    int esg_esg_edi_GetLengthFullCtrlEData(const elemtype_item_t*,
                                   const bool,
                                   const uint32_t,
                                   uint32_t*,
@@ -554,12 +556,22 @@ class ExchangeTranslator
              const int16_t,           // alarms type
              const uint32_t,            // number of alarms
              const esg_esg_t_HistAlElem*);
+
+    // Read A File Header
+    // --------------------------------------------------------------
     int esg_esg_fil_HeadFileRead(const char*,
                                  esg_esg_t_HeaderInterChg*,
                                  esg_esg_t_HeaderMsg*,
                                  int32_t*,
                                  int32_t*,
                                  FILE **);
+
+    // Read An Applicative Header
+    // --------------------------------------------------------------
+    int esg_esg_fil_HeadApplRead(FILE*,
+                                 esg_esg_t_HeaderAppl*,
+                                 int32_t*);
+
     // --------------------------------------------------------------
     float getGoodFloatValue(float, float);
     // --------------------------------------------------------------
