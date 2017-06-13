@@ -17,12 +17,7 @@
 #include "exchange_egsa_impl.hpp"
 #include "exchange_egsa_translator.hpp"
 
-
-
-
 #define ESG_ESG_D_LOGGEDTEXTLENGTH 200
-
-
 
 //============================================================================
 void print_elemstruct(std::pair < const std::string, elemstruct_item_t > pair)
@@ -319,9 +314,9 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
 
   int i_Status;
   int i_RetStatus = OK;
-  uint32_t i_ApplLength;
-  uint32_t ii;
-  uint32_t i_MsgApplNb;
+  int i_ApplLength;
+  int ii;
+  int i_MsgApplNb;
 
   char s_Trace[70 + 1];
 
@@ -341,7 +336,28 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
   esg_esg_t_HistAlElem ar_NopAlarms[GOF_D_LST_ALAmax];
   char s_HistFileName[100];
   char s_FileName[100];
-
+  static const char* segment_names[] = {
+    "REQUEST",      // 0       // basic requests
+    "REPLY",        // 1       // reply
+    "DIFFUSION",    // 2       // reply
+    "TI",           // 3       // current process TI
+    "HISTTI",       // 4       // historized TI
+    "ALARM",        // 5       // list of alarms
+    "ORDER",        // 6       // orders and texts
+    "STATE",        // 7       // communicating system states
+    "THRESHOLD",    // 8       // list of updated tresholds
+    "HISTHISTTI",   // 9       // historic of historized TI
+    "HISTALARM",    // 10      // historic of alarms
+    "CHGHOUR",      // 11      // Hour changing
+    "INCIDENT",     // 12      // Incidents
+    "ORDERRESP",    // 13      // orders responses
+    "MULTITHRES",   // 14      // OutLine Multi Thresholds
+    "TELECMD",      // 15      // Telecommand order
+    "DISPN",        // 16      // dispatcher name
+    "TELEREGU",     // 17      // Teleregulation order
+    "ACDLIST",      // 18      // ACD list
+    "ACDQUERY",     // 19      // ACD query
+  };
   bool b_LastSegment;  // last segment indication
 
   //............................................................................
@@ -385,9 +401,9 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
         i_ApplLength = r_HeaderAppl.i_ApplLength;
 
         std::cout << "Segment Header :" << std::endl;
-        std::cout << "\tSegment Number=" << r_HeaderAppl.h_ApplOrderNb
-                  << " Segment Type=" << r_HeaderAppl.i_ApplType
-                  << " Segment Length=" << r_HeaderAppl.i_ApplLength
+        std::cout << "\tSegment Number=" << r_HeaderAppl.h_ApplOrderNb << "/" << r_HeaderMsg.h_MsgApplNb
+                  << ", Type=" << r_HeaderAppl.i_ApplType << " " << segment_names[r_HeaderAppl.i_ApplType]
+                  << ", Length=" << r_HeaderAppl.i_ApplLength
                   << std::endl;
         std::cout << "Segment Body :" << std::endl;
 
@@ -418,7 +434,7 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
                                               i_ApplLength,
                                               s_IAcqSiteId);
 #else
-            LOG(ERROR) << fname << ": esg_acq_dac_AlarmAcq";
+            LOG(ERROR) << fname << ": esg_acq_dac_ChgHourAcq";
 #endif
             break;
 
@@ -433,7 +449,7 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
                                                r_HeaderInterChg.
                                                d_InterChgDate);
 #else
-            LOG(ERROR) << fname << ": esg_acq_dac_AlarmAcq";
+            LOG(ERROR) << fname << ": esg_acq_dac_TeleinfoAcq";
 #endif
             break;
 
@@ -451,7 +467,7 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
               b_LastSegment = false;
             }
 
-            sprintf(s_Trace, " Segment Number= %d Last segment= %d\n", ii + 1, b_LastSegment);
+            sprintf(s_Trace, " Segment Number=%d, Last segment=%d\n", ii + 1, b_LastSegment);
             LOG(INFO) << fname << s_Trace;
 #if 0
             i_Status = esg_acq_dac_HistTiAcq(b_LastSegment,
@@ -459,7 +475,7 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
                                              i_ApplLength,
                                              s_IAcqSiteId);
 #else
-            LOG(ERROR) << fname << ": esg_acq_dac_AlarmAcq";
+            LOG(ERROR) << fname << ": esg_acq_dac_HistTiAcq";
 #endif
             break;
 
@@ -476,7 +492,7 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
                                              &i_NopAlNb,
                                              (esg_esg_t_HistAlElem *) &ar_NopAlarms);
 #else
-            LOG(ERROR) << fname << ": esg_acq_dac_AlarmAcq";
+            LOG(ERROR) << fname << ": esg_acq_dac_HistAlAcq";
 #endif
             break;
 
@@ -490,7 +506,7 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
                                             r_HeaderInterChg,
                                             s_IAcqSiteId);
 #else
-            LOG(ERROR) << fname << ": esg_acq_dac_AlarmAcq";
+            LOG(ERROR) << fname << ": esg_acq_dac_OrderAcq";
 #endif
 
             break;
@@ -504,7 +520,7 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
                                                 r_HeaderInterChg,
                                                 s_IAcqSiteId);
 #else
-            LOG(ERROR) << fname << ": esg_acq_dac_AlarmAcq";
+            LOG(ERROR) << fname << ": esg_acq_dac_OrderRespAcq";
 #endif
 
             break;
@@ -518,7 +534,7 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
                                                r_HeaderInterChg,
                                                s_IAcqSiteId);
 #else
-            LOG(ERROR) << fname << ": esg_acq_dac_AlarmAcq";
+            LOG(ERROR) << fname << ": esg_acq_dac_IncidentAcq";
 #endif
 
             break;
@@ -531,7 +547,7 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
                                                  i_ApplLength,
                                                  s_IAcqSiteId);
 #else
-            LOG(ERROR) << fname << ": esg_acq_dac_AlarmAcq";
+            LOG(ERROR) << fname << ": esg_acq_dac_MultiThresAcq";
 #endif
             break;
 
@@ -543,7 +559,7 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
                                                 i_ApplLength,
                                                 s_IAcqSiteId);
 #else
-            LOG(ERROR) << fname << ": esg_acq_dac_AlarmAcq";
+            LOG(ERROR) << fname << ": esg_acq_dac_ThresholdAcq";
 #endif
             break;
 
@@ -560,7 +576,7 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
                                               pi_FileId,
                                               &ii);
 #else
-            LOG(ERROR) << fname << ": esg_acq_dac_AlarmAcq";
+            LOG(ERROR) << fname << ": esg_acq_dac_HHistTiAcq";
 #endif
             break;
 
@@ -575,7 +591,7 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
                                                r_HeaderInterChg.
                                                d_InterChgDate);
 #else
-            LOG(ERROR) << fname << ": esg_acq_dac_AlarmAcq";
+            LOG(ERROR) << fname << ": esg_acq_dac_DispNameAcq";
 #endif
             break;
 
@@ -587,12 +603,12 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
                                            i_ApplLength,
                                            s_IAcqSiteId);
 #else
-            LOG(ERROR) << fname << ": esg_acq_dac_AlarmAcq";
+            LOG(ERROR) << fname << ": esg_acq_dac_ACDList";
 #endif
             break;
 
           case ECH_D_EDI_EDDSEG_STATE:
-            LOG(ERROR) << fname << ": Segment Type= Distant state reply";
+            LOG(INFO) << fname << ": Segment Type= Distant state reply";
             i_Status = processing_STATE(pi_FileId,
                                        i_LgAppl,
                                        i_ApplLength,
@@ -601,18 +617,26 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
 
           case ECH_D_EDI_EDDSEG_REQUEST:
             LOG(ERROR) << fname << ": Segment Type= Request";
-           /* i_Status = processing_REQUEST(pi_FileId,
+            i_Status = processing_REQUEST(pi_FileId,
                                        i_LgAppl,
                                        i_ApplLength,
-                                       s_IAcqSiteId);*/
+                                       s_IAcqSiteId);
             break;
 
-          case ECH_D_EDI_EDDSEG_REPLY:
-            LOG(ERROR) << fname << ": ECH_D_EDI_EDDSEG_REPLY";
+          case ECH_D_EDI_EDDSEG_REPLY: // NB: Обработка одинакова с ECH_D_EDI_EDDSEG_DIFFUSION
+            LOG(INFO) << fname << ": ECH_D_EDI_EDDSEG_REPLY";
+            i_Status = processing_REPLY(pi_FileId,
+                                       i_LgAppl,
+                                       i_ApplLength,
+                                       s_IAcqSiteId);
             break;
 
-          case ECH_D_EDI_EDDSEG_DIFFUSION:
-            LOG(ERROR) << fname << ": ECH_D_EDI_EDDSEG_REPLY";
+          case ECH_D_EDI_EDDSEG_DIFFUSION: // NB: Обработка одинакова с ECH_D_EDI_EDDSEG_REPLY
+            LOG(INFO) << fname << ": ECH_D_EDI_EDDSEG_DIFFUSION";
+            i_Status = processing_REPLY(pi_FileId,
+                                       i_LgAppl,
+                                       i_ApplLength,
+                                       s_IAcqSiteId);
             break;
 
           case ECH_D_EDI_EDDSEG_ACDQUERY		:
@@ -629,11 +653,20 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
         if (r_HeaderAppl.i_ApplType != ECH_D_EDI_EDDSEG_HISTHISTTI)
         {
           i_FileDepl += (i_ApplLength + i_LgAppl + ECH_D_SEGLABELLG);
-          i_Status = fseek ( pi_FileId, i_FileDepl, SEEK_SET ) ;
+          if (-1 == fseek ( pi_FileId, i_FileDepl, SEEK_SET )) {
+            LOG(ERROR) << fname << ": fseek(" << s_ILongFileName << ", " << i_FileDepl << ")=" << errno << " : " << strerror(errno);
+            i_Status = NOK;
+          }
         }
-      }                         /* End if: Segment with data */
-    }                           /* for to process segments of the message */
-  }                             /* End if */
+      }                         // End if: Segment with data
+      else {
+        LOG(ERROR) << fname << ": rc=" << i_Status << ", Decoding the segment type=" << r_HeaderAppl.i_ApplType << " header";
+      }
+    }                           // for to process segments of the message
+  }
+  else {
+    LOG(ERROR) << fname << ": rc=" << i_Status << ", Decoding the file header";
+  }
 
   // Close the file (even if not OK)
   //----------------------------------------------------------------------------
@@ -700,8 +733,8 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
 int ExchangeTranslator::esg_acq_dac_HistAlPut (
              const gof_t_UniversalName s_IDistantSite,  // name of distant site
              const char* s_ILongFileName,         // name of the file
-             const int16_t h_IAlListType,           // alarms type
-             const uint32_t i_IHistAlNb,            // number of alarms
+             const int h_IAlListType,           // alarms type
+             const int i_IHistAlNb,            // number of alarms
              const esg_esg_t_HistAlElem* pr_IHistAlarms// description of alarms
   )
 //----------------------------------------------------------------------------
@@ -709,19 +742,18 @@ int ExchangeTranslator::esg_acq_dac_HistAlPut (
   static const char *fname = "esg_acq_dac_HistAlPut";
   int i_RetStatus = OK;     // returned status
   FILE *pi_FileId;          // file pointer
-  uint16_t i_i;         // index
+  int i_i;         // index
   char s_CurStr[256];  // current string
   esg_esg_t_HistAlElem *pr_CurHistAl;    // work variable
   //1 int32_t i_MsgLength;  // message length
   int32_t i_AlListType;     // work variable
 
-// (CD)    open the file to be furnished to SINF
-// --------------------------------------------------------------------------
-//1  i_RetStatus = esg_esg_fil_FileOpen (s_ILongFileName, ESG_ESG_FIL_D_WRITEMODE, &pi_FileId);
+  // (CD)    open the file to be furnished to SINF
+  // --------------------------------------------------------------------------
   if (NULL != (pi_FileId = fopen(s_ILongFileName, "w")))
   {
-// (CD)    write the origin DIPL
-// --------------------------------------------------------------------------
+    // (CD)    write the origin DIPL
+    // --------------------------------------------------------------------------
 #if 0
     sprintf (s_CurStr, "%s\n", s_IDistantSite);
     i_RetStatus = esg_esg_fil_StringWrite (pi_FileId, s_CurStr);
@@ -729,8 +761,8 @@ int ExchangeTranslator::esg_acq_dac_HistAlPut (
     std::cout << "Origin: " << s_IDistantSite;
 #endif
 
-// (CD)    write the list type
-// --------------------------------------------------------------------------
+    // (CD)    write the list type
+    // --------------------------------------------------------------------------
     if (i_RetStatus == OK)
     {
       i_AlListType = GOF_D_NON_OPE_ALA;
@@ -746,8 +778,8 @@ int ExchangeTranslator::esg_acq_dac_HistAlPut (
 #endif
     }
 
-// (CD)    write the count of alarms in the file
-// --------------------------------------------------------------------------
+    // (CD)    write the count of alarms in the file
+    // --------------------------------------------------------------------------
     if (i_RetStatus == OK)
     {
 #if 0
@@ -758,17 +790,17 @@ int ExchangeTranslator::esg_acq_dac_HistAlPut (
 #endif
     }
 
-// (CD)    FOR (each alarm)
-// --------------------------------------------------------------------------
+    // (CD)    FOR (each alarm)
+    // --------------------------------------------------------------------------
     if (i_RetStatus == OK)
     {
       pr_CurHistAl = (esg_esg_t_HistAlElem *) pr_IHistAlarms;
 
       for (i_i = 0; i_i < i_IHistAlNb; i_i++)
       {
-// (CD)        write the record universal : name date type degree state value
-// --------------------------------------------------------------------------
-          sprintf (s_CurStr, "%s %ld %ld %d %d %d %e\n",
+        // (CD)        write the record universal : name date type degree state value
+        // --------------------------------------------------------------------------
+        sprintf (s_CurStr, "%s %ld %ld %d %d %d %e\n",
                pr_CurHistAl->s_AlRef,
                pr_CurHistAl->d_AlDate.tv_sec,
                pr_CurHistAl->d_AlDate.tv_usec,
@@ -780,15 +812,15 @@ int ExchangeTranslator::esg_acq_dac_HistAlPut (
 #if 0
           i_RetStatus = esg_esg_fil_StringWrite (pi_FileId, s_CurStr);
 #else
-      std::cout << " Attributes: " << s_CurStr << std::endl; 
+      std::cout << " Attributes: " << s_CurStr << std::endl;
 #endif
-          pr_CurHistAl = pr_CurHistAl + 1;
+        pr_CurHistAl = pr_CurHistAl + 1;
 
       }
     }
 
-// (CD)    close the file
-// --------------------------------------------------------------------------
+    // (CD)    close the file
+    // --------------------------------------------------------------------------
     if (pi_FileId) {
       fclose(pi_FileId);
       pi_FileId = NULL;
@@ -797,8 +829,8 @@ int ExchangeTranslator::esg_acq_dac_HistAlPut (
 
 #if 0
   sig_t_msg_AlFile r_MsgBody;   // message body
-// (CD)    Inform SINF that file is ready
-// --------------------------------------------------------------------------
+  // (CD)    Inform SINF that file is ready
+  // --------------------------------------------------------------------------
   if (i_RetStatus == OK)
   {
       i_MsgLength = sizeof (r_MsgBody);
@@ -873,7 +905,7 @@ int ExchangeTranslator::esg_esg_fil_HeadFileRead(const char* s_ILongName,
   int i_Status = OK;        // called routines report
   int32_t i_i;              // loop counter
   char s_CodedData[ECH_D_APPLSEGLG + 1];            // coded data as string
-  uint32_t i_LgCodedData;                           // length of coded data
+  int i_LgCodedData;                           // length of coded data
   esg_esg_edi_t_StrQualifyComposedData r_QuaCData;  // qualifiers
   esg_esg_edi_t_StrComposedData r_InternalCData;    // Internal composed data
 
@@ -887,25 +919,25 @@ int ExchangeTranslator::esg_esg_fil_HeadFileRead(const char* s_ILongName,
   if (NULL != (*pi_OFileId = fopen(s_ILongName, "r")))
   {
     i_i = 0;
-    r_InternalCData.ar_EDataTable[i_i].i_type = (uint16_t) FIELD_TYPE_INT32;
+    r_InternalCData.ar_EDataTable[i_i].type = FIELD_TYPE_INT32;
     i_i++;
-    r_InternalCData.ar_EDataTable[i_i].i_type = (uint16_t) FIELD_TYPE_FLOAT;
+    r_InternalCData.ar_EDataTable[i_i].type = FIELD_TYPE_FLOAT;
     i_i++;
-    r_InternalCData.ar_EDataTable[i_i].i_type = (uint16_t) FIELD_TYPE_STRING;
+    r_InternalCData.ar_EDataTable[i_i].type = FIELD_TYPE_STRING;
     r_InternalCData.ar_EDataTable[i_i].u_val.r_Str.i_LgString = sizeof(gof_t_UniversalName); // NB: Из-за совместимости с ГОФО - точно 32 байта
     i_i++;
-    r_InternalCData.ar_EDataTable[i_i].i_type = (uint16_t) FIELD_TYPE_STRING;
+    r_InternalCData.ar_EDataTable[i_i].type = FIELD_TYPE_STRING;
     r_InternalCData.ar_EDataTable[i_i].u_val.r_Str.i_LgString = sizeof(gof_t_UniversalName);
     i_i++;
-    r_InternalCData.ar_EDataTable[i_i].i_type = (uint16_t) FIELD_TYPE_DATE;
+    r_InternalCData.ar_EDataTable[i_i].type = FIELD_TYPE_DATE;
     i_i++;
-    r_InternalCData.ar_EDataTable[i_i].i_type = (uint16_t) FIELD_TYPE_UINT16;
+    r_InternalCData.ar_EDataTable[i_i].type = FIELD_TYPE_UINT16;
     i_i++;
 
     r_InternalCData.i_NbEData = i_i;
 
     r_QuaCData.b_QualifyUse = (bool) false;
-    r_QuaCData.i_QualifyValue = (uint32_t) 0;
+    r_QuaCData.i_QualifyValue = 0;
     r_QuaCData.b_QualifyExist = (bool) false;
   }
   else
@@ -949,12 +981,11 @@ int ExchangeTranslator::esg_esg_fil_HeadFileRead(const char* s_ILongName,
   {
     *i_OLgInterChg = i_LgCodedData;
     i_i = 0;
-    r_InternalCData.ar_EDataTable[i_i].i_type = (uint16_t) FIELD_TYPE_UINT16;
+    r_InternalCData.ar_EDataTable[i_i].type = FIELD_TYPE_UINT16;
     i_i++;
-
-    r_InternalCData.ar_EDataTable[i_i].i_type = (uint16_t) FIELD_TYPE_UINT32;
+    r_InternalCData.ar_EDataTable[i_i].type = FIELD_TYPE_UINT32;
     i_i++;
-    r_InternalCData.ar_EDataTable[i_i].i_type = (uint16_t) FIELD_TYPE_UINT16;
+    r_InternalCData.ar_EDataTable[i_i].type = FIELD_TYPE_UINT16;
     i_i++;
     r_InternalCData.i_NbEData = i_i;
 
@@ -1017,30 +1048,30 @@ int ExchangeTranslator::esg_esg_fil_HeadFileRead(const char* s_ILongName,
 int ExchangeTranslator::esg_esg_edi_HeaderMsgDecoding(
       // Input parameters
       const char* ps_ICodedCData,       // coded composed data
-      const uint32_t i_ILgMaxCodedCData,// max length of coded composed data
+      const int i_ILgMaxCodedCData,// max length of coded composed data
       // Output parameters
-      uint32_t* pi_OLgCodedCData,       // length of coded composed data
+      int* pi_OLgCodedCData,       // length of coded composed data
       esg_esg_t_HeaderMsg* pr_OInternalHMsg// Internal message header
       )
 {
-//----------------------------------------------------------------------------*/
+//----------------------------------------------------------------------------
   static const char* fname = "esg_esg_edi_HeaderMsgDecoding";
  // internal composed data table
   esg_esg_edi_t_StrComposedData r_HMInternalCData;
  // indice internal composed data table
-  uint32_t i_IndIEData;
+  int32_t i_IndIEData;
  // qualifier interface structure
   esg_esg_edi_t_StrQualifyComposedData r_QuaCData;
  // return status of the function
   int i_RetStatus = OK;
 
-//............................................................................*/
-// (CD) providing coded composed data                                         */
+//............................................................................
+// (CD) providing coded composed data
   i_IndIEData = 0;
   r_HMInternalCData.i_NbEData = ESG_ESG_D_HMSGNBEDATA;
-  r_HMInternalCData.ar_EDataTable[i_IndIEData++].i_type = FIELD_TYPE_UINT16;
-  r_HMInternalCData.ar_EDataTable[i_IndIEData++].i_type = FIELD_TYPE_UINT32;
-  r_HMInternalCData.ar_EDataTable[i_IndIEData].i_type = FIELD_TYPE_UINT16;
+  r_HMInternalCData.ar_EDataTable[i_IndIEData++].type = FIELD_TYPE_UINT16;
+  r_HMInternalCData.ar_EDataTable[i_IndIEData++].type = FIELD_TYPE_UINT32;
+  r_HMInternalCData.ar_EDataTable[i_IndIEData].type   = FIELD_TYPE_UINT16;
 
   memset(&r_QuaCData, 0, sizeof(esg_esg_edi_t_StrQualifyComposedData));
   i_RetStatus = esg_esg_edi_ComposedDataDecoding(ECH_D_MSGSEGHICD,
@@ -1083,9 +1114,9 @@ int ExchangeTranslator::esg_esg_edi_ComposedDataDecoding(
                // Input parameters
                const char* s_IIdCData,              // Composed data DCD identifier
                const char* ps_ICodedCData,          // pointer to coded composed data
-               const uint32_t i_ILgMaxCodedCData,   // max length of coded composed data
+               const int i_ILgMaxCodedCData,   // max length of coded composed data
                //       Output parameters
-               uint32_t* pi_OLgCodedCData,          // length of coded composed data
+               int* pi_OLgCodedCData,          // length of coded composed data
 // The function gives an indicator whether a LED exists and the possible  value of this LED if found
                esg_esg_edi_t_StrQualifyComposedData* pr_OQuaCData,// Qualify of internal composed data
                // Input-Output parameters
@@ -1094,29 +1125,29 @@ int ExchangeTranslator::esg_esg_edi_ComposedDataDecoding(
                )
 {
   static const char* fname = "esg_esg_edi_ComposedDataDecoding";
- // list of elementary data for the composed data
+  // list of elementary data for the composed data
   elemstruct_item_t* r_ListEData = NULL;
- // identifier and label of composed data
+  // identifier and label of composed data
   char s_IdCData[ECH_D_COMPIDLG + 1];
   char s_IdEData[ECH_D_ELEMIDLG + 1];
   char s_LabelCData[ECH_D_SEGLABELLG + 1];
- // table indices and number of entities
-  uint32_t i_IndLEData = 0;
-  uint32_t i_IndICData = 0;
-  uint32_t i_NbInternalEData = 0;
-  uint32_t i_NbEData = 0;
-  uint32_t i_LgMaxCodedCData = 0;
-  uint32_t i_LgCodedEData = 0;
- // coded composed data string
+  // table indices and number of entities
+  size_t i_IndLEData = 0;
+  int i_IndICData = 0;
+  int i_NbInternalEData = 0;
+  int i_NbEData = 0;
+  int i_LgMaxCodedCData = 0;
+  int i_LgCodedEData = 0;
+  // coded composed data string
   char *ps_CodedCData = NULL;
- // internal elementary data
+  // internal elementary data
   esg_esg_edi_t_StrElementaryData *pr_InternalEData;
   esg_esg_edi_t_StrElementaryData r_InternalQuaCData;
- // elementary data length quality indicator
+  // elementary data length quality indicator
   bool b_LgQuaEData = false;
- // return status of the function
+  // return status of the function
   int i_RetStatus = OK;
- // logged text
+  // logged text
   char s_LoggedText[ESG_ESG_D_LOGGEDTEXTLENGTH + 1];
 
   *pi_OLgCodedCData = 0;
@@ -1142,7 +1173,7 @@ int ExchangeTranslator::esg_esg_edi_ComposedDataDecoding(
 
   if (i_RetStatus == OK)
   {
-// (CD) Controling of composed data label
+    // Controling of composed data label
     memset(s_LabelCData, 0, sizeof(s_LabelCData));
     memcpy(s_LabelCData, ps_CodedCData, ECH_D_SEGLABELLG);
 
@@ -1230,7 +1261,7 @@ int ExchangeTranslator::esg_esg_edi_ComposedDataDecoding(
 
   if (i_RetStatus == OK)
   {
-// (CD) controling composed data identifier
+    // controling composed data identifier
     memset(s_IdCData, 0, sizeof(s_IdCData));
     memcpy(s_IdCData, ps_CodedCData, ECH_D_COMPIDLG);
     if ((strcmp(s_IIdCData, s_IdCData) != 0))
@@ -1247,7 +1278,7 @@ int ExchangeTranslator::esg_esg_edi_ComposedDataDecoding(
 
   if (i_RetStatus == OK)
   {
-// (CD) controling coherence of elementary data list and internal composed data table
+    // controling coherence of elementary data list and internal composed data table
     if (i_LgMaxCodedCData < ECH_D_ELEMIDLG)
     {
       i_RetStatus = ESG_ESG_D_ERR_DCDLGTOOSHORT;
@@ -1261,8 +1292,8 @@ int ExchangeTranslator::esg_esg_edi_ComposedDataDecoding(
       memcpy(s_IdEData, ps_CodedCData, ECH_D_ELEMIDLG);
       i_NbEData = r_ListEData->num_fileds;
 
-// Treatment for variable string length elementary data
-// A special L1800 data is reserved for string length. So, the number of effective elementary data must be reduced of 1
+      // Treatment for variable string length elementary data
+      // A special L1800 data is reserved for string length. So, the number of effective elementary data must be reduced of 1
       for (i_IndLEData = 0; i_IndLEData < r_ListEData->num_fileds; i_IndLEData++)
       {
         if ((strcmp(r_ListEData->fields[i_IndLEData].field, ECH_D_QUAVARLGED_IDED)) == 0)
@@ -1271,11 +1302,11 @@ int ExchangeTranslator::esg_esg_edi_ComposedDataDecoding(
         }
       }
 
-// Treatment for LED elem data
-// A special elem data is reserved for TI identification, called LED
-// An LED is considered if the special ECH_D_QUALED_IDED identifier is found and if the number
-// of elem data is equal to the number of internal fields
-// incremented of 1 (the LED is not described in internal fields)
+      // Treatment for LED elem data
+      // A special elem data is reserved for TI identification, called LED
+      // An LED is considered if the special ECH_D_QUALED_IDED identifier is found and if the number
+      // of elem data is equal to the number of internal fields
+      // incremented of 1 (the LED is not described in internal fields)
       if ((strcmp(s_IdEData, (char *) ECH_D_QUALED_IDED) == 0))
       {
         if (i_NbEData == (i_NbInternalEData + 1))
@@ -1299,7 +1330,7 @@ int ExchangeTranslator::esg_esg_edi_ComposedDataDecoding(
 
   if (i_RetStatus == OK)
   {
-// (CD) decoding of each elementary data
+    // decoding of each elementary data
     i_IndLEData = 0;
     i_IndICData = 0;
     pr_InternalEData = (esg_esg_edi_t_StrElementaryData *) & pr_IOInternalCData->ar_EDataTable[i_IndICData];
@@ -1309,7 +1340,7 @@ int ExchangeTranslator::esg_esg_edi_ComposedDataDecoding(
 
       if ((pr_OQuaCData->b_QualifyExist) && (i_IndLEData == ESG_ESG_EDI_D_QUAEDATAPOSITION))
       {
-        r_InternalQuaCData.i_type = FIELD_TYPE_UINT32;
+        r_InternalQuaCData.type = FIELD_TYPE_UINT32;
         pr_InternalEData = &r_InternalQuaCData;
       }
 
@@ -1422,32 +1453,32 @@ int ExchangeTranslator::esg_esg_edi_ElementaryDataCoding(
               const char* s_IIdEData,       // Elementary data DED identifier
               const bool b_ILgQuaEData,     // Elementary data length qualify indicator
               const esg_esg_edi_t_StrElementaryData *pr_IInternalEData,// Internal elementary data
-              const uint32_t i_ILgMaxCodedEData,// max length of coded elementary data
+              const int i_ILgMaxCodedEData,// max length of coded elementary data
               // Output parameters
-              uint32_t* pi_OLgCodedEData,   // length of coded elementary data
+              int* pi_OLgCodedEData,   // length of coded elementary data
               char* ps_OCodedEData          // pointer to coded elementary data
               )
 {
-//----------------------------------------------------------------------------*/
+  //----------------------------------------------------------------------------*/
   static const char* fname = "esg_esg_edi_ElementaryDataCoding";
- // EDI format of elementary data
+  // EDI format of elementary data
   elemtype_item_t* r_FormatEData = NULL;
   elemtype_item_t* r_FormatQuaEData = NULL;
- // internal format of variable length elementary data
+  // internal format of variable length elementary data
   esg_esg_edi_t_StrElementaryData r_VariableLength;
- // lengths of elementary data
-  uint32_t i_LgFullEData;
-  uint32_t i_LgEData;
-  uint32_t i_LgQuaEData;
- // coded elementary data pointers
+  // lengths of elementary data
+  int i_LgFullEData;
+  int i_LgEData;
+  int i_LgQuaEData;
+  // coded elementary data pointers
   char *ps_CodedEData;
   char *ps_ValueCodedEData;
- // return status of the function
+  // return status of the function
   int i_RetStatus = OK;
- // logged text
+  // logged text
   char s_LoggedText[ESG_ESG_D_LOGGEDTEXTLENGTH + 1];
 
-//............................................................................
+  //............................................................................
   ps_CodedEData = NULL;
   *pi_OLgCodedEData = 0;
 
@@ -1507,7 +1538,7 @@ int ExchangeTranslator::esg_esg_edi_ElementaryDataCoding(
         // Coding of integer qualifier
         strcpy(ps_CodedEData, ECH_D_QUAVARLGED_IDED);
         ps_ValueCodedEData = ps_CodedEData + ECH_D_ELEMIDLG;
-        r_VariableLength.i_type = FIELD_TYPE_UINT32;
+        r_VariableLength.type = FIELD_TYPE_UINT32;
         r_VariableLength.u_val.i_Uint32 = i_LgEData;
         i_RetStatus = esg_esg_edi_IntegerCoding (r_FormatQuaEData->format_size, &r_VariableLength, ps_ValueCodedEData);
         if (i_RetStatus != OK)
@@ -1536,44 +1567,6 @@ int ExchangeTranslator::esg_esg_edi_ElementaryDataCoding(
   if (i_RetStatus == OK)
   {
 
-#if 0
-// (CD) treatment of integer and logical basis type
-    if ((r_FormatEData.i_BasicType == ECH_D_TYPINT)
-     || (r_FormatEData.i_BasicType == ECH_D_TYPLOGI))
-    {
-      i_RetStatus = esg_esg_edi_IntegerCoding ((char*) r_FormatEData.s_Format, pr_IInternalEData, ps_ValueCodedEData);
-      if (i_RetStatus != OK)
-      {
-        LOG(ERROR) << fname << ": rc=" << i_RetStatus << " " << s_IIdEData;
-      }
-    }
-
-// (CD) treatment of real basis type
-    if (r_FormatEData.i_BasicType == ECH_D_TYPREAL)
-    {
-      i_RetStatus = esg_esg_edi_RealCoding ((char*) r_FormatEData.s_Format, pr_IInternalEData, ps_ValueCodedEData);
-      if (i_RetStatus != OK)
-      {
-        LOG(ERROR) << fname << ": rc=" << i_RetStatus << " " << s_IIdEData;
-      }
-    }
-
-// (CD) treatment of time basis type
-    if (r_FormatEData.i_BasicType == ECH_D_TYPTIME)
-    {
-      i_RetStatus = esg_esg_edi_TimeCoding ((char*) r_FormatEData.s_Format, pr_IInternalEData, ps_ValueCodedEData);
-      if (i_RetStatus != OK)
-      {
-        LOG(ERROR) << fname << ": rc=" << i_RetStatus << " " << s_IIdEData;
-      }
-    }
-
-// (CD) treatment of string basis type
-    if (r_FormatEData.i_BasicType == ECH_D_TYPSTR)
-    {
-      strncpy(ps_ValueCodedEData, pr_IInternalEData->u_val.r_Str.ps_String, i_LgEData);
-    }
-#else
     switch (r_FormatEData->tm_type) {
       case TM_TYPE_LOGIC:
       case TM_TYPE_INTEGER:
@@ -1598,7 +1591,6 @@ int ExchangeTranslator::esg_esg_edi_ElementaryDataCoding(
 
     if (i_RetStatus != OK)
         LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", DED " << s_IIdEData;
-#endif
   }
 
   if (i_RetStatus == OK)
@@ -1635,46 +1627,46 @@ int ExchangeTranslator::esg_esg_edi_ElementaryDataDecoding(
              const char* s_IIdEData,    // Elementary data DED identifier
              const bool b_ILgQuaEData,  // Elementary data length qualify indicator
              const char* ps_ICodedEData,        // coded elementary data
-             const uint32_t i_ILgMaxCodedEData, // max length of coded elementary data
+             const int i_ILgMaxCodedEData, // max length of coded elementary data
              // Input-Output/Output parameters
-             uint32_t* pi_OLgCodedEData,        // length of coded elementary data
+             int* pi_OLgCodedEData,        // length of coded elementary data
              esg_esg_edi_t_StrElementaryData* pr_IOInternalEData   // Internal elementary data
              )
 {
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static const char* fname = "esg_esg_edi_ElementaryDataDecoding";
- // EDI format of elementary data
+  // EDI format of elementary data
   elemtype_item_t* r_FormatEData = NULL;
   elemtype_item_t* r_FormatQuaEData = NULL;
- // internal format of variable length elementary data
+  // internal format of variable length elementary data
   esg_esg_edi_t_StrElementaryData r_VariableLength;
- // lengths of elementary data
-  uint32_t i_LgEData = 0;
-  uint32_t i_LgQuaEData = 0;
-  uint32_t i_LgCodedEData = 0;
- // identifier of elementary data
+  // lengths of elementary data
+  int i_LgEData = 0;
+  int i_LgQuaEData = 0;
+  int i_LgCodedEData = 0;
+  // identifier of elementary data
   char s_IdEData[ECH_D_ELEMIDLG + 1];
   char s_IdQuaEData[ECH_D_ELEMIDLG + 1];
- // coded elementary data pointers
+  // coded elementary data pointers
   char *ps_CodedEData = NULL;
   char *ps_ValueCodedEData = NULL;
   char *ps_StrValueCodedEData = NULL;
- // IC 21-04-99 analyse float received string
+  // IC 21-04-99 analyse float received string
   char *ps_Float = NULL;
   int32_t i_MantLg = 0;
   int32_t i_ExpLg = 0;
-  uint32_t i_FloatLg = 0;
+  int i_FloatLg = 0;
   bool b_EndFloat = false;
   bool b_ESep = false;
   char *s_SearchResult = NULL;
   char s_CodedExponentFormat[ECH_D_CODEDFORMATLG + 1];
- // return status of the function
+  // return status of the function
   int i_RetStatus = OK;
- // logged text
+  // logged text
   char s_LoggedText[ESG_ESG_D_LOGGEDTEXTLENGTH + 1];
   char s_LoggedAux[ESG_ESG_D_LOGGEDTEXTLENGTH + 1];
 
-//............................................................................*/
+  //............................................................................*/
   *pi_OLgCodedEData = 0;
   ps_CodedEData = (char *) ps_ICodedEData;
   ps_ValueCodedEData = NULL;
@@ -1716,7 +1708,7 @@ int ExchangeTranslator::esg_esg_edi_ElementaryDataDecoding(
 
       if (i_RetStatus == OK)
       {
-// (CD) Controling identifier of elementary data qualifier
+        // Controling identifier of elementary data qualifier
         memset(s_IdQuaEData, 0, sizeof(s_IdQuaEData));
         memcpy(s_IdQuaEData, ps_CodedEData, ECH_D_ELEMIDLG);
         if ((strcmp(ECH_D_QUAVARLGED_IDED, s_IdQuaEData)) != 0)
@@ -1739,7 +1731,7 @@ int ExchangeTranslator::esg_esg_edi_ElementaryDataDecoding(
 
       if (i_RetStatus == OK)
       {
-// (CD) Providing format for the basis type of the elementary data from DED
+        // Providing format for the basis type of the elementary data from DED
         if (NULL == (r_FormatQuaEData = esg_esg_odm_ConsultExchDataArr (ECH_D_QUAVARLGED_IDED)))
         {
           i_RetStatus = NOK;
@@ -1748,12 +1740,12 @@ int ExchangeTranslator::esg_esg_edi_ElementaryDataDecoding(
 
         if (i_RetStatus == OK)
         {
-// (CD) decoding of integer qualifier
+          // decoding of integer qualifier
           memset(ps_StrValueCodedEData, 0, i_LgQuaEData + 1);
           ps_ValueCodedEData = ps_CodedEData + ECH_D_ELEMIDLG;
 
           memcpy(ps_StrValueCodedEData, ps_ValueCodedEData, i_LgQuaEData);
-          r_VariableLength.i_type = FIELD_TYPE_UINT32;
+          r_VariableLength.type = FIELD_TYPE_UINT32;
           i_RetStatus = esg_esg_edi_IntegerDecoding (r_FormatQuaEData->format_size, ps_StrValueCodedEData, &r_VariableLength);
 
           free(ps_StrValueCodedEData);
@@ -1776,7 +1768,7 @@ int ExchangeTranslator::esg_esg_edi_ElementaryDataDecoding(
     {
       if (!b_ILgQuaEData)
       {
-// (CD) Providing the length of ASCII coded elementary data without id
+        // Providing the length of ASCII coded elementary data without id
         i_RetStatus = esg_esg_edi_GetLengthEData(r_FormatEData, 0, &i_LgEData);
         if (i_RetStatus != OK)
         {
@@ -1802,12 +1794,12 @@ int ExchangeTranslator::esg_esg_edi_ElementaryDataDecoding(
   if (i_RetStatus == OK)
   {
 
-// Controling the length of ASCII coded EDI format elementary data
-// Receiver has to accept distant 8e4 float format also when float DED format is 11e4 :
-//          - analyse length of received data float
-//          - if local(11e4/8e4) and distant(8e4/11e4) format are different :
-//            set local to distant format
-//---------------------------------------------------------------------------
+    // Controling the length of ASCII coded EDI format elementary data
+    // Receiver has to accept distant 8e4 float format also when float DED format is 11e4 :
+    //          - analyse length of received data float
+    //          - if local(11e4/8e4) and distant(8e4/11e4) format are different :
+    //            set local to distant format
+    //---------------------------------------------------------------------------
     if ((r_FormatEData->tm_type == TM_TYPE_REAL) &&
         ((s_SearchResult = strchr(r_FormatEData->format_size, ECH_D_FORMATEDATA_REALEXP)) != NULL))
     {
@@ -1924,46 +1916,6 @@ int ExchangeTranslator::esg_esg_edi_ElementaryDataDecoding(
 
   if (i_RetStatus == OK)
   {
-#if 0
-// (CD) treatment of integer and logical basis type
-    if ((r_FormatEData.i_BasicType == ECH_D_TYPINT)
-     || (r_FormatEData.i_BasicType == ECH_D_TYPLOGI))
-    {
-      i_RetStatus = esg_esg_edi_IntegerDecoding (r_FormatEData.s_Format, ps_StrValueCodedEData, pr_IOInternalEData);
-      if (i_RetStatus != OK)
-      {
-        LOG(ERROR) << fname << ": rc=" << i_RetStatus << s_IIdEData;
-      }
-    }
-
-// (CD) treatment of real basis type
-    if (r_FormatEData.i_BasicType == ECH_D_TYPREAL)
-    {
-      i_RetStatus = esg_esg_edi_RealDecoding (r_FormatEData.s_Format, ps_StrValueCodedEData, pr_IOInternalEData);
-      if (i_RetStatus != OK)
-      {
-        LOG(ERROR) << fname << ": rc=" << i_RetStatus << " " << s_IIdEData;
-      }
-    }
-
-// (CD) treatment of time basis type
-    if (r_FormatEData.i_BasicType == ECH_D_TYPTIME)
-    {
-      i_RetStatus = esg_esg_edi_TimeDecoding (r_FormatEData.s_Format, ps_StrValueCodedEData, pr_IOInternalEData);
-      if (i_RetStatus != OK)
-      {
-        LOG(ERROR) << fname << ": rc=" << i_RetStatus << " " << s_IIdEData;
-      }
-    }
-
-// (CD) treatment of string basis type if poiner non zero to reserved memory
-    if ((r_FormatEData.i_BasicType == ECH_D_TYPSTR) && (pr_IOInternalEData->u_val.r_Str.ps_String != 0))
-    {
-      strncpy(pr_IOInternalEData->u_val.r_Str.ps_String, ps_StrValueCodedEData, i_LgEData);
-      pr_IOInternalEData->u_val.r_Str.i_LgString = i_LgEData;
-    }
-#else
-
     switch(r_FormatEData->tm_type) {
       case TM_TYPE_LOGIC:
       case TM_TYPE_INTEGER:
@@ -1995,7 +1947,6 @@ int ExchangeTranslator::esg_esg_edi_ElementaryDataDecoding(
       LOG(ERROR) << fname << ": rc=" << i_RetStatus << " " << s_IIdEData;
     }
 
-#endif
   }
 
   if (ps_StrValueCodedEData != NULL)
@@ -2025,36 +1976,36 @@ int ExchangeTranslator::esg_esg_edi_ComposedDataCoding(
              const char* s_IIdCData,    // Composed data DCD identifier
              const esg_esg_edi_t_StrQualifyComposedData* pr_IQuaCData,  // Qualify of internal composed data
              const esg_esg_edi_t_StrComposedData* pr_IInternalCData,    // Internal composed data
-             const uint32_t i_ILgMaxCodedCData, // max length of coded composed data
+             const int i_ILgMaxCodedCData, // max length of coded composed data
              // Output parameters
-             uint32_t* pi_OLgCodedCData,// length of coded composed data
+             int* pi_OLgCodedCData,// length of coded composed data
              char* ps_OCodedCData       // pointer to coded composed data
              )
 {
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static const char* fname = "esg_esg_edi_ComposedDataCoding";
- // list of elementary data for the composed data
+  // list of elementary data for the composed data
   elemstruct_item_t* r_ListEData = NULL;
- // table indices
-  uint32_t i_IndLEData;
-  uint32_t i_IndICData;
- // lengths of data
-  uint32_t i_LgCodedCData;
-  uint32_t i_LgMaxCodedCData;
-  uint32_t i_LgCodedEData;
- // coded composed data string
+  // table indices
+  size_t i_IndLEData;
+  size_t i_IndICData;
+  // lengths of data
+  int i_LgCodedCData;
+  int i_LgMaxCodedCData;
+  int i_LgCodedEData;
+  // coded composed data string
   char *ps_CodedCData;
- // internal elementary data
+  // internal elementary data
   esg_esg_edi_t_StrElementaryData *pr_InternalEData;
   esg_esg_edi_t_StrElementaryData r_InternalQuaCData;
- // elementary data length quality indicator
+  // elementary data length quality indicator
   bool b_LgQuaEData;
- // return status of the function
+  // return status of the function
   int i_RetStatus = OK;
- // logged text
+  // logged text
   char s_LoggedText[ESG_ESG_D_LOGGEDTEXTLENGTH + 1];
 
-//............................................................................
+  //............................................................................
   i_RetStatus = OK;
   *pi_OLgCodedCData = 0;
 
@@ -2121,11 +2072,11 @@ int ExchangeTranslator::esg_esg_edi_ComposedDataCoding(
       ps_CodedCData = ps_CodedCData + ECH_D_SEGLABELLG;
     }
 
-// (CD) Coding of composed data identifier
+    // Coding of composed data identifier
     strcpy(ps_CodedCData, s_IIdCData);
     ps_CodedCData = ps_CodedCData + ECH_D_COMPIDLG;
 
-// (CD) coding of each elementary data
+    // coding of each elementary data
     i_IndLEData = 0;
     i_IndICData = 0;
     pr_InternalEData = (esg_esg_edi_t_StrElementaryData *) & pr_IInternalCData->ar_EDataTable[i_IndICData];
@@ -2133,10 +2084,10 @@ int ExchangeTranslator::esg_esg_edi_ComposedDataCoding(
     while ((i_IndLEData < r_ListEData->num_fileds) && (i_RetStatus == OK))
     {
 
-// (CD) providing the coded elementary data from internal format
+      // (CD) providing the coded elementary data from internal format
       if ((pr_IQuaCData->b_QualifyUse) && (i_IndLEData == ESG_ESG_EDI_D_QUAEDATAPOSITION))
       {
-        r_InternalQuaCData.i_type = FIELD_TYPE_UINT32;
+        r_InternalQuaCData.type = FIELD_TYPE_UINT32;
         r_InternalQuaCData.u_val.i_Uint32 = pr_IQuaCData->i_QualifyValue;
         pr_InternalEData = &r_InternalQuaCData;
       }
@@ -2212,35 +2163,34 @@ int ExchangeTranslator::esg_esg_edi_GetLengthCData(
             const esg_esg_edi_t_StrQualifyComposedData* pr_IQuaCData,   // Qualify of internal composed data
             const esg_esg_edi_t_StrComposedData* pr_IInternalCData,     // Internal composed data
             // Output parameters
-            uint32_t* pi_OLgCodedCData // length of coded composed data
+            int* pi_OLgCodedCData // length of coded composed data
             )
 {
-//----------------------------------------------------------------------------*/
-//	Local declarations
+  //----------------------------------------------------------------------------*/
   static const char* fname = "esg_esg_edi_GetLengthCData";
- // list of elementary data for the composed data
+  // list of elementary data for the composed data
   elemstruct_item_t* r_ListEData = NULL;
- // table indices and number of entities
-  uint32_t i_IndLEData;
-  uint32_t i_IndICData;
-  uint32_t i_NbInternalEData;
-  uint32_t i_NbEData;
- // lengths of data
-  uint32_t i_LgFullEData;
-  uint32_t i_LgEData;
-  uint32_t i_LgQuaEData;
-  uint32_t i_LgCodedCData;
- // EDI format of elementary data
+  // table indices and number of entities
+  size_t i_IndLEData;
+  int i_IndICData;
+  int i_NbInternalEData;
+  int i_NbEData;
+  // lengths of data
+  int i_LgFullEData;
+  int i_LgEData;
+  int i_LgQuaEData;
+  int i_LgCodedCData;
+  // EDI format of elementary data
   elemtype_item_t* r_FormatEData = NULL;
- // elementary data length quality indicator
+  // elementary data length quality indicator
   bool b_LgQuaEData;
- // internal elementary data
-  uint32_t i_LgString;
+  // internal elementary data
+  int i_LgString;
   esg_esg_edi_t_StrElementaryData *pr_InternalEData;
- // return status of the function
+  // return status of the function
   int i_RetStatus = OK;
 
-//............................................................................
+  //............................................................................
   i_RetStatus = OK;
   *pi_OLgCodedCData = 0;
 
@@ -2322,7 +2272,7 @@ int ExchangeTranslator::esg_esg_edi_GetLengthCData(
           i_LgString = pr_InternalEData->u_val.r_Str.i_LgString;
         }
 
-// (CD) Providing the length of ASCII complete coded elementary data
+        // (CD) Providing the length of ASCII complete coded elementary data
         i_RetStatus = esg_esg_edi_GetLengthFullCtrlEData(r_FormatEData,
                                                         b_LgQuaEData,
                                                         i_LgString,
@@ -2337,7 +2287,7 @@ int ExchangeTranslator::esg_esg_edi_GetLengthCData(
 
       if (i_RetStatus == OK)
       {
-// (CD) Save length and get next elementary data of the list
+        // (CD) Save length and get next elementary data of the list
         i_LgCodedCData = i_LgCodedCData + i_LgFullEData;
         if (i_IndLEData == r_ListEData->num_fileds - 1)
         {
@@ -2402,28 +2352,28 @@ int ExchangeTranslator::esg_esg_edi_GetLengthCData(
 int ExchangeTranslator::esg_esg_edi_HeaderInterChgCoding(
            // Input parameters
            const esg_esg_t_HeaderInterChg* pr_IInternalHInterChg,   // Internal interchange header
-           const uint32_t i_ILgMaxCodedCData,   // max length of coded composed data
+           const int i_ILgMaxCodedCData,   // max length of coded composed data
            // Output parameters
-           uint32_t* pi_OLgCodedCData,  // length of coded composed data
+           int* pi_OLgCodedCData,  // length of coded composed data
            char* ps_OCodedCData         // pointer to coded composed data
            )
 {
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static const char* fname = "esg_esg_edi_HeaderInterChgCoding";
- // internal composed data table
+  // internal composed data table
   esg_esg_edi_t_StrComposedData r_HICInternalCData;
- // fixed strings for sender and receiver identifier
+  // fixed strings for sender and receiver identifier
   gof_t_UniversalName s_IdSender;
   gof_t_UniversalName s_IdReceiver;
- // indice internal composed data table
-  uint32_t i_IndIEData;
- // qualifier interface structure
+  // indice internal composed data table
+  int i_IndIEData;
+  // qualifier interface structure
   esg_esg_edi_t_StrQualifyComposedData r_QuaCData;
- // return status of the function
+  // return status of the function
   int i_RetStatus = OK;
 
-//............................................................................
-// (CD) providing coded composed data
+  //............................................................................
+  // (CD) providing coded composed data
   memset(s_IdSender, ' ', sizeof(s_IdSender));
   memset(s_IdReceiver, ' ', sizeof(s_IdReceiver));
   memcpy(s_IdSender, pr_IInternalHInterChg->s_IdSender, strlen(pr_IInternalHInterChg->s_IdSender));
@@ -2433,23 +2383,23 @@ int ExchangeTranslator::esg_esg_edi_HeaderInterChgCoding(
 
   i_IndIEData = 0;
   r_HICInternalCData.i_NbEData = ESG_ESG_D_HICNBEDATA;
-  r_HICInternalCData.ar_EDataTable[i_IndIEData].i_type = FIELD_TYPE_UINT32;
+  r_HICInternalCData.ar_EDataTable[i_IndIEData].type = FIELD_TYPE_UINT32;
   r_HICInternalCData.ar_EDataTable[i_IndIEData++].u_val.i_Uint32 = pr_IInternalHInterChg->i_IdExchange;
-  r_HICInternalCData.ar_EDataTable[i_IndIEData].i_type = FIELD_TYPE_FLOAT;
+  r_HICInternalCData.ar_EDataTable[i_IndIEData].type = FIELD_TYPE_FLOAT;
   r_HICInternalCData.ar_EDataTable[i_IndIEData++].u_val.f_Float = pr_IInternalHInterChg->f_InterChgVersion;
-  r_HICInternalCData.ar_EDataTable[i_IndIEData].i_type = FIELD_TYPE_STRING;
+  r_HICInternalCData.ar_EDataTable[i_IndIEData].type = FIELD_TYPE_STRING;
   r_HICInternalCData.ar_EDataTable[i_IndIEData].u_val.r_Str.ps_String = s_IdSender;
   r_HICInternalCData.ar_EDataTable[i_IndIEData++].u_val.r_Str.i_LgString = sizeof(gof_t_UniversalName);
-  r_HICInternalCData.ar_EDataTable[i_IndIEData].i_type = FIELD_TYPE_STRING;
+  r_HICInternalCData.ar_EDataTable[i_IndIEData].type = FIELD_TYPE_STRING;
   r_HICInternalCData.ar_EDataTable[i_IndIEData].u_val.r_Str.ps_String = s_IdReceiver;
   r_HICInternalCData.ar_EDataTable[i_IndIEData++].u_val.r_Str.i_LgString = sizeof(gof_t_UniversalName);
-  r_HICInternalCData.ar_EDataTable[i_IndIEData].i_type = FIELD_TYPE_DATE;
+  r_HICInternalCData.ar_EDataTable[i_IndIEData].type = FIELD_TYPE_DATE;
 
   memcpy(&r_HICInternalCData.ar_EDataTable[i_IndIEData++].u_val.d_Timeval,
          &pr_IInternalHInterChg->d_InterChgDate,
          sizeof(timeval));
 
-  r_HICInternalCData.ar_EDataTable[i_IndIEData].i_type = FIELD_TYPE_UINT16;
+  r_HICInternalCData.ar_EDataTable[i_IndIEData].type = FIELD_TYPE_UINT16;
   r_HICInternalCData.ar_EDataTable[i_IndIEData].u_val.h_Uint16 = pr_IInternalHInterChg->h_InterChgMsgNb;
 
   memset(&r_QuaCData, '\0', sizeof(esg_esg_edi_t_StrQualifyComposedData));
@@ -2485,42 +2435,42 @@ int ExchangeTranslator::esg_esg_edi_HeaderInterChgCoding(
 int ExchangeTranslator::esg_esg_edi_HeaderInterChgDecoding(
              // Input parameters
              const char* ps_ICodedCData,                        // coded composed data
-             const uint32_t i_ILgMaxCodedCData,                 // max length of coded composed data
+             const int i_ILgMaxCodedCData,                 // max length of coded composed data
              // Output parameters
-             uint32_t* pi_OLgCodedCData,                        // length of coded composed data
+             int* pi_OLgCodedCData,                        // length of coded composed data
              esg_esg_t_HeaderInterChg* pr_OInternalHInterChg    // Internal interchange header
              )
 {
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static const char* fname = "esg_esg_edi_HeaderInterChgDecoding";
- // internal composed data table
+  // internal composed data table
   esg_esg_edi_t_StrComposedData r_HICInternalCData;
- // fixed strings for sender and receiver identifier
+  // fixed strings for sender and receiver identifier
   gof_t_UniversalName s_IdSender;
   gof_t_UniversalName s_IdReceiver;
-  int32_t i_Indice;
+  int i_Indice;
   bool b_CarZeroExist;
- // indice internal composed data table
-  uint32_t i_IndIEData;
- // qualifier interface structure
+  // indice internal composed data table
+  int i_IndIEData;
+  // qualifier interface structure
   esg_esg_edi_t_StrQualifyComposedData r_QuaCData;
- // return status of the function
+  // return status of the function
   int i_RetStatus = OK;
 
-//............................................................................
-// (CD) providing coded composed data
+  //............................................................................
+  // (CD) providing coded composed data
   i_IndIEData = 0;
   r_HICInternalCData.i_NbEData = ESG_ESG_D_HICNBEDATA;
-  r_HICInternalCData.ar_EDataTable[i_IndIEData++].i_type = FIELD_TYPE_UINT32;
-  r_HICInternalCData.ar_EDataTable[i_IndIEData++].i_type = FIELD_TYPE_FLOAT;
-  r_HICInternalCData.ar_EDataTable[i_IndIEData].i_type = FIELD_TYPE_STRING;
+  r_HICInternalCData.ar_EDataTable[i_IndIEData++].type = FIELD_TYPE_UINT32;
+  r_HICInternalCData.ar_EDataTable[i_IndIEData++].type = FIELD_TYPE_FLOAT;
+  r_HICInternalCData.ar_EDataTable[i_IndIEData].type = FIELD_TYPE_STRING;
   r_HICInternalCData.ar_EDataTable[i_IndIEData].u_val.r_Str.ps_String = s_IdSender;
   r_HICInternalCData.ar_EDataTable[i_IndIEData++].u_val.r_Str.i_LgString = sizeof(gof_t_UniversalName);
-  r_HICInternalCData.ar_EDataTable[i_IndIEData].i_type = FIELD_TYPE_STRING;
+  r_HICInternalCData.ar_EDataTable[i_IndIEData].type = FIELD_TYPE_STRING;
   r_HICInternalCData.ar_EDataTable[i_IndIEData].u_val.r_Str.ps_String = s_IdReceiver;
   r_HICInternalCData.ar_EDataTable[i_IndIEData++].u_val.r_Str.i_LgString = sizeof(gof_t_UniversalName);
-  r_HICInternalCData.ar_EDataTable[i_IndIEData++].i_type = FIELD_TYPE_DATE;
-  r_HICInternalCData.ar_EDataTable[i_IndIEData].i_type = FIELD_TYPE_UINT16;
+  r_HICInternalCData.ar_EDataTable[i_IndIEData++].type = FIELD_TYPE_DATE;
+  r_HICInternalCData.ar_EDataTable[i_IndIEData].type = FIELD_TYPE_UINT16;
 
   memset(&r_QuaCData, 0, sizeof(esg_esg_edi_t_StrQualifyComposedData));
   i_RetStatus = esg_esg_edi_ComposedDataDecoding(ECH_D_INCHSEGHICD,
@@ -2619,28 +2569,28 @@ int ExchangeTranslator::esg_esg_edi_HeaderInterChgDecoding(
 int ExchangeTranslator::esg_esg_edi_EndInterChgCoding(
                 // Input parameters
                 const esg_esg_t_EndInterChg* pr_IInternalEInterChg, // Internal interchange end
-                const uint32_t i_ILgMaxCodedCData,                  // max length of coded composed data
+                const int i_ILgMaxCodedCData,                  // max length of coded composed data
                 // Output parameters
-                uint32_t* pi_OLgCodedCData,                         // length of coded composed data
+                int* pi_OLgCodedCData,                         // length of coded composed data
                 char* ps_OCodedCData                                // pointer to coded composed data
                 )
 {
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static const char* fname = "esg_esg_edi_EndInterChgCoding";
- // internal composed data table
+  // internal composed data table
   esg_esg_edi_t_StrComposedData r_EICInternalCData;
- // indice internal composed data table
-  uint32_t i_IndIEData;
- // qualifier interface structure
+  // indice internal composed data table
+  int i_IndIEData;
+  // qualifier interface structure
   esg_esg_edi_t_StrQualifyComposedData r_QuaCData;
- // return status of the function
+  // return status of the function
   int i_RetStatus = OK;
-//............................................................................
+  //............................................................................
 
-// (CD) providing coded composed data
+  // (CD) providing coded composed data
   i_IndIEData = 0;
   r_EICInternalCData.i_NbEData = ESG_ESG_D_EICNBEDATA;
-  r_EICInternalCData.ar_EDataTable[i_IndIEData].i_type = FIELD_TYPE_UINT32;
+  r_EICInternalCData.ar_EDataTable[i_IndIEData].type = FIELD_TYPE_UINT32;
   r_EICInternalCData.ar_EDataTable[i_IndIEData].u_val.i_Uint32 = pr_IInternalEInterChg->i_IdExchange;
 
   memset(&r_QuaCData, 0, sizeof(esg_esg_edi_t_StrQualifyComposedData));
@@ -2676,9 +2626,9 @@ int ExchangeTranslator::esg_esg_edi_EndInterChgCoding(
 int ExchangeTranslator::esg_esg_edi_EndInterChgDecoding(
                   // Input parameters
                   const char* ps_ICodedCData,       // coded composed data
-                  const uint32_t i_ILgMaxCodedCData,// max length of coded composed data
+                  const int i_ILgMaxCodedCData,// max length of coded composed data
                   // Output parameters
-                  uint32_t* pi_OLgCodedCData,       // length of coded composed data
+                  int* pi_OLgCodedCData,       // length of coded composed data
                   esg_esg_t_EndInterChg* pr_OInternalEInterChg  // Internal interchange header
                   )
 {
@@ -2687,7 +2637,7 @@ int ExchangeTranslator::esg_esg_edi_EndInterChgDecoding(
   //internal composed data table
   esg_esg_edi_t_StrComposedData r_EICInternalCData;
  // indice internal composed data table
-  uint32_t i_IndIEData;
+  int i_IndIEData;
  // qualifier interface structure
   esg_esg_edi_t_StrQualifyComposedData r_QuaCData;
  // return status of the function
@@ -2697,7 +2647,7 @@ int ExchangeTranslator::esg_esg_edi_EndInterChgDecoding(
 // providing coded composed data
   i_IndIEData = 0;
   r_EICInternalCData.i_NbEData = ESG_ESG_D_EICNBEDATA;
-  r_EICInternalCData.ar_EDataTable[i_IndIEData].i_type = FIELD_TYPE_UINT32;
+  r_EICInternalCData.ar_EDataTable[i_IndIEData].type = FIELD_TYPE_UINT32;
 
   memset(&r_QuaCData, 0, sizeof(esg_esg_edi_t_StrQualifyComposedData));
   i_RetStatus = esg_esg_edi_ComposedDataDecoding(ECH_D_INCHSEGEICD,
@@ -2738,32 +2688,32 @@ int ExchangeTranslator::esg_esg_edi_EndInterChgDecoding(
 int ExchangeTranslator::esg_esg_edi_HeaderMsgCoding(
                   // Input parameters
                   const esg_esg_t_HeaderMsg* pr_IInternalHMsg,  // Internal interchange message
-                  const uint32_t i_ILgMaxCodedCData,    // max length of coded composed data
+                  const int i_ILgMaxCodedCData,    // max length of coded composed data
                   // Output parameters
-                  uint32_t* pi_OLgCodedCData,   // length of coded composed data
+                  int* pi_OLgCodedCData,   // length of coded composed data
                   char* ps_OCodedCData          // pointer to coded composed data
                   )
 {
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static const char* fname = "esg_esg_edi_HeaderMsgCoding";
- // internal composed data table
+  // internal composed data table
   esg_esg_edi_t_StrComposedData r_HMInternalCData;
- // indice internal composed data table
-  uint32_t i_IndIEData;
- // qualifier interface structure
+  // indice internal composed data table
+  int i_IndIEData;
+  // qualifier interface structure
   esg_esg_edi_t_StrQualifyComposedData r_QuaCData;
- // return status of the function
+  // return status of the function
   int i_RetStatus = OK;
 
-//............................................................................
-// (CD) providing coded composed data
+  //............................................................................
+  // (CD) providing coded composed data
   i_IndIEData = 0;
   r_HMInternalCData.i_NbEData = ESG_ESG_D_HMSGNBEDATA;
-  r_HMInternalCData.ar_EDataTable[i_IndIEData].i_type = FIELD_TYPE_UINT16;
+  r_HMInternalCData.ar_EDataTable[i_IndIEData].type = FIELD_TYPE_UINT16;
   r_HMInternalCData.ar_EDataTable[i_IndIEData++].u_val.h_Uint16 = pr_IInternalHMsg->h_MsgOrderNb;
-  r_HMInternalCData.ar_EDataTable[i_IndIEData].i_type = FIELD_TYPE_UINT32;
+  r_HMInternalCData.ar_EDataTable[i_IndIEData].type = FIELD_TYPE_UINT32;
   r_HMInternalCData.ar_EDataTable[i_IndIEData++].u_val.i_Uint32 = pr_IInternalHMsg->i_MsgType;
-  r_HMInternalCData.ar_EDataTable[i_IndIEData].i_type = FIELD_TYPE_UINT16;
+  r_HMInternalCData.ar_EDataTable[i_IndIEData].type = FIELD_TYPE_UINT16;
   r_HMInternalCData.ar_EDataTable[i_IndIEData].u_val.h_Uint16 = pr_IInternalHMsg->h_MsgApplNb;
 
   memset(&r_QuaCData, 0, sizeof(esg_esg_edi_t_StrQualifyComposedData));
@@ -2798,28 +2748,28 @@ int ExchangeTranslator::esg_esg_edi_HeaderMsgCoding(
 int ExchangeTranslator::esg_esg_edi_EndMsgCoding(
                // Input parameters
                const esg_esg_t_EndMsg* pr_IInternalEMsg,    // Internal message end
-               const uint32_t i_ILgMaxCodedCData,   // max length of coded composed data
+               const int i_ILgMaxCodedCData,   // max length of coded composed data
                // Output parameters
-               uint32_t* pi_OLgCodedCData,     // length of coded composed data
+               int* pi_OLgCodedCData,     // length of coded composed data
                char* ps_OCodedCData            // pointer to coded composed data
                )
 {
-//----------------------------------------------------------------------------*/
+  //----------------------------------------------------------------------------
   static const char* fname = "esg_esg_edi_EndMsgCoding";
- // internal composed data table
+  // internal composed data table
   esg_esg_edi_t_StrComposedData r_EMInternalCData;
- // indice internal composed data table
-  uint32_t i_IndIEData;
- // qualifier interface structure
+  // indice internal composed data table
+  int i_IndIEData;
+  // qualifier interface structure
   esg_esg_edi_t_StrQualifyComposedData r_QuaCData;
- // return status of the function
+  // return status of the function
   int i_RetStatus = OK;
 
-//............................................................................
-// providing coded composed data
+  //............................................................................
+  // providing coded composed data
   i_IndIEData = 0;
   r_EMInternalCData.i_NbEData = ESG_ESG_D_EMSGNBEDATA;
-  r_EMInternalCData.ar_EDataTable[i_IndIEData].i_type = FIELD_TYPE_UINT16;
+  r_EMInternalCData.ar_EDataTable[i_IndIEData].type = FIELD_TYPE_UINT16;
   r_EMInternalCData.ar_EDataTable[i_IndIEData++].u_val.h_Uint16 = pr_IInternalEMsg->h_MsgOrderNb;
 
   memset(&r_QuaCData, 0, sizeof(esg_esg_edi_t_StrQualifyComposedData));
@@ -2855,28 +2805,28 @@ int ExchangeTranslator::esg_esg_edi_EndMsgCoding(
 int ExchangeTranslator::esg_esg_edi_EndMsgDecoding(
                  // Input parameters
                  const char* ps_ICodedCData,            // coded composed data
-                 const uint32_t i_ILgMaxCodedCData,     // max length of coded composed data
+                 const int i_ILgMaxCodedCData,     // max length of coded composed data
                  // Output parameters
-                 uint32_t* pi_OLgCodedCData,            // length of coded composed data
+                 int* pi_OLgCodedCData,            // length of coded composed data
                  esg_esg_t_EndMsg* pr_OInternalEMsg     // Internal message header
                  )
 {
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static const char* fname = "esg_esg_edi_EndMsgDecoding";
- // internal composed data table
+  // internal composed data table
   esg_esg_edi_t_StrComposedData r_EMInternalCData;
- // indice internal composed data table
-  uint32_t i_IndIEData;
- // qualifier interface structure
+  // indice internal composed data table
+  int i_IndIEData;
+  // qualifier interface structure
   esg_esg_edi_t_StrQualifyComposedData r_QuaCData;
- // return status of the function
+  // return status of the function
   int i_RetStatus = OK;
 
-//............................................................................
-// (CD) providing coded composed data
+  //............................................................................
+  // (CD) providing coded composed data
   i_IndIEData = 0;
   r_EMInternalCData.i_NbEData = ESG_ESG_D_EMSGNBEDATA;
-  r_EMInternalCData.ar_EDataTable[i_IndIEData].i_type = FIELD_TYPE_UINT16;
+  r_EMInternalCData.ar_EDataTable[i_IndIEData].type = FIELD_TYPE_UINT16;
 
   memset(&r_QuaCData, 0, sizeof(esg_esg_edi_t_StrQualifyComposedData));
   i_RetStatus = esg_esg_edi_ComposedDataDecoding(ECH_D_MSGSEGEICD,
@@ -2916,32 +2866,32 @@ int ExchangeTranslator::esg_esg_edi_EndMsgDecoding(
 int ExchangeTranslator::esg_esg_edi_HeaderApplCoding(
                // Input parameters
                const esg_esg_t_HeaderAppl* pr_IInternalHAppl,   // Internal interchange application
-               const uint32_t i_ILgMaxCodedCData,   // max length of coded composed data
+               const int i_ILgMaxCodedCData,   // max length of coded composed data
                // Output parameters
-               uint32_t* pi_OLgCodedCData,  // length of coded composed data
+               int* pi_OLgCodedCData,  // length of coded composed data
                char* ps_OCodedCData         // pointer to coded composed data
                )
 {
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static const char* fname = "esg_esg_edi_HeaderApplCoding";
- // internal composed data table
+  // internal composed data table
   esg_esg_edi_t_StrComposedData r_HAInternalCData;
- // indice internal composed data table
-  uint32_t i_IndIEData;
- // qualifier interface structure
+  // indice internal composed data table
+  int i_IndIEData;
+  // qualifier interface structure
   esg_esg_edi_t_StrQualifyComposedData r_QuaCData;
- // return status of the function
+  // return status of the function
   int i_RetStatus = OK;
 
-//............................................................................
-// (CD) providing coded composed data
+  //............................................................................
+  // (CD) providing coded composed data
   i_IndIEData = 0;
   r_HAInternalCData.i_NbEData = ESG_ESG_D_HAPPLNBEDATA;
-  r_HAInternalCData.ar_EDataTable[i_IndIEData].i_type = FIELD_TYPE_UINT16;
+  r_HAInternalCData.ar_EDataTable[i_IndIEData].type = FIELD_TYPE_UINT16;
   r_HAInternalCData.ar_EDataTable[i_IndIEData++].u_val.h_Uint16 = pr_IInternalHAppl->h_ApplOrderNb;
-  r_HAInternalCData.ar_EDataTable[i_IndIEData].i_type = FIELD_TYPE_UINT32;
+  r_HAInternalCData.ar_EDataTable[i_IndIEData].type = FIELD_TYPE_UINT32;
   r_HAInternalCData.ar_EDataTable[i_IndIEData++].u_val.i_Uint32 = pr_IInternalHAppl->i_ApplType;
-  r_HAInternalCData.ar_EDataTable[i_IndIEData].i_type = FIELD_TYPE_UINT32;
+  r_HAInternalCData.ar_EDataTable[i_IndIEData].type = FIELD_TYPE_UINT32;
   r_HAInternalCData.ar_EDataTable[i_IndIEData].u_val.i_Uint32 = pr_IInternalHAppl->i_ApplLength;
 
   memset(&r_QuaCData, 0, sizeof(esg_esg_edi_t_StrQualifyComposedData));
@@ -2977,30 +2927,30 @@ int ExchangeTranslator::esg_esg_edi_HeaderApplCoding(
 int ExchangeTranslator::esg_esg_edi_HeaderApplDecoding(
                  // Input parameters
                  const char* ps_ICodedCData,        // coded composed data
-                 const uint32_t i_ILgMaxCodedCData, // max length of coded composed data
+                 const int i_ILgMaxCodedCData, // max length of coded composed data
                  // Output parameters
-                 uint32_t* pi_OLgCodedCData,        // length of coded composed data
+                 int* pi_OLgCodedCData,        // length of coded composed data
                  esg_esg_t_HeaderAppl* pr_OInternalHAppl  // Internal application header
                  )
 {
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static const char* fname = "esg_esg_edi_HeaderApplDecoding";
- // internal composed data table
+  // internal composed data table
   esg_esg_edi_t_StrComposedData r_HAInternalCData;
- // indice internal composed data table
-  uint32_t i_IndIEData;
- // qualifier interface structure
+  // indice internal composed data table
+  int i_IndIEData;
+  // qualifier interface structure
   esg_esg_edi_t_StrQualifyComposedData r_QuaCData;
- // return status of the function
+  // return status of the function
   int i_RetStatus = OK;
 
-//............................................................................
-// providing coded composed data
+  //............................................................................
+  // providing coded composed data
   i_IndIEData = 0;
   r_HAInternalCData.i_NbEData = ESG_ESG_D_HAPPLNBEDATA;
-  r_HAInternalCData.ar_EDataTable[i_IndIEData++].i_type = FIELD_TYPE_UINT16;
-  r_HAInternalCData.ar_EDataTable[i_IndIEData++].i_type = FIELD_TYPE_UINT32;
-  r_HAInternalCData.ar_EDataTable[i_IndIEData].i_type = FIELD_TYPE_UINT32;
+  r_HAInternalCData.ar_EDataTable[i_IndIEData++].type = FIELD_TYPE_UINT16;
+  r_HAInternalCData.ar_EDataTable[i_IndIEData++].type = FIELD_TYPE_UINT32;
+  r_HAInternalCData.ar_EDataTable[i_IndIEData].type = FIELD_TYPE_UINT32;
 
   memset(&r_QuaCData, 0, sizeof(esg_esg_edi_t_StrQualifyComposedData));
   i_RetStatus = esg_esg_edi_ComposedDataDecoding(ECH_D_APPLSEGHICD,
@@ -3041,21 +2991,21 @@ int ExchangeTranslator::esg_esg_edi_HeaderApplDecoding(
 //----------------------------------------------------------------------------
 int ExchangeTranslator::esg_esg_edi_EndApplCoding(
                 // Input parameters
-                const uint32_t i_ILgMaxCodedCData,  // max length of coded label
+                const int i_ILgMaxCodedCData,  // max length of coded label
                 // Output parameters
-                uint32_t* pi_OLgCodedCData,         // length of coded label
+                int* pi_OLgCodedCData,         // length of coded label
                 char* ps_OCodedCData                // pointer to coded label
                 )
 {
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static const char* fname = "esg_esg_edi_EndApplCoding";
- // return status of the function
+  // return status of the function
   int i_RetStatus = OK;
- // logged text
+  // logged text
   char s_LoggedText[ESG_ESG_D_LOGGEDTEXTLENGTH + 1];
 
-//............................................................................
-// (CD) controling the length of ASCII coded EDI format application label
+  //............................................................................
+  // (CD) controling the length of ASCII coded EDI format application label
   *pi_OLgCodedCData = strlen(ECH_D_STR_APPESEGLABEL);
   if (i_ILgMaxCodedCData < *pi_OLgCodedCData)
   {
@@ -3067,7 +3017,7 @@ int ExchangeTranslator::esg_esg_edi_EndApplCoding(
     LOG(ERROR) << fname << ": rc=" << i_RetStatus << " " << s_LoggedText;
   }
 
-// (CD) Saving ASCII coded EDI format application label
+  // (CD) Saving ASCII coded EDI format application label
   if (i_RetStatus == OK)
   {
     memcpy(ps_OCodedCData, ECH_D_STR_APPESEGLABEL, strlen(ECH_D_STR_APPESEGLABEL));
@@ -3094,20 +3044,20 @@ int ExchangeTranslator::esg_esg_edi_EndApplCoding(
 int ExchangeTranslator::esg_esg_edi_EndApplDecoding(
                   // Input parameters
                   const char* ps_ICodedCData,           // pointer to coded label
-                  const uint32_t i_ILgMaxCodedCData,    // max length of coded label
+                  const int i_ILgMaxCodedCData,    // max length of coded label
                   // Output parameters
-                  uint32_t* pi_OLgCodedCData            // length of coded label
+                  int* pi_OLgCodedCData            // length of coded label
                   )
 {
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static const char* fname = "esg_esg_edi_EndApplDecoding";
- // return status of the function
+  // return status of the function
   int i_RetStatus = OK;
- // logged text
+  // logged text
   char s_LoggedText[ESG_ESG_D_LOGGEDTEXTLENGTH + 1];
 
-//............................................................................
-// (CD) controling the length of ASCII coded EDI format application label
+  //............................................................................
+  // (CD) controling the length of ASCII coded EDI format application label
   *pi_OLgCodedCData = strlen(ECH_D_STR_APPESEGLABEL);
   if (i_ILgMaxCodedCData < *pi_OLgCodedCData)
   {
@@ -3119,7 +3069,7 @@ int ExchangeTranslator::esg_esg_edi_EndApplDecoding(
     LOG(ERROR) << fname << ": rc=" << i_RetStatus << " " << s_LoggedText;
   }
 
-// (CD) controling ASCII coded EDI format application label
+  // (CD) controling ASCII coded EDI format application label
   if (i_RetStatus == OK)
   {
     if ((memcmp(ps_ICodedCData, ECH_D_STR_APPESEGLABEL, strlen(ECH_D_STR_APPESEGLABEL))) != 0)
@@ -3150,91 +3100,26 @@ int ExchangeTranslator::esg_esg_edi_EndApplDecoding(
 int ExchangeTranslator::esg_esg_edi_GetLengthEData(
                  // Input parameters
                  const elemtype_item_t* pr_IFormatEData, // format elementary data
-                 const uint32_t i_ILgString,    // length of various string
+                 const int i_ILgString,    // length of various string
                  // Output parameters
-                 uint32_t* pi_OLgEData  // length of elementary data
+                 int* pi_OLgEData  // length of elementary data
                  )
 {
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static const char* fname = "esg_esg_edi_GetLengthEData";
- // lengths of elementary data
-  uint32_t i_LgEData;
-  uint32_t i_LgPartEData;
- // searching result pointer
+  // lengths of elementary data
+  int i_LgEData;
+  int i_LgPartEData;
+  // searching result pointer
   char* s_SearchResult;
- // part of the format
+  // part of the format
   char s_PartFormat[ECH_D_FORMATLG];
- // return status of the function
+  // return status of the function
   int i_RetStatus = OK;
 
-//............................................................................
+  //............................................................................
   i_RetStatus = OK;
   i_LgEData = 0;
-
-#if 0
-// (CD) obtaining the length of ASCII coded EDI format elemenmtary data
-  if ((pr_IFormatEData->tm_type == ECH_D_TYPINT)
-   || (pr_IFormatEData->tm_type == ECH_D_TYPLOGI)
-   || ((pr_IFormatEData->tm_type == ECH_D_TYPSTR)
-       &&
-      ((strcmp(pr_IFormatEData->format_size, ECH_D_FORMATEDATA_STREMPTY) != 0))))
-  {
-    sscanf(pr_IFormatEData->format_size, "%d", &i_LgEData);
-  }
-
-  if (pr_IFormatEData->tm_type == ECH_D_TYPTIME)
-  {
-    if (pr_IFormatEData->format_size[0] == ECH_D_FORMATEDATA_TIMEUTC)
-    {
-      sscanf(&pr_IFormatEData->format_size[1], "%d", &i_LgEData);
-      if ((i_LgEData != ECH_D_FULLTIMELG) &&
-          (i_LgEData != ECH_D_VERYFULLTIMELG) &&
-          (i_LgEData != ECH_D_LIGHTTIMELG))
-      {
-        i_RetStatus = ESG_ESG_D_ERR_BADDEDFORMAT;
-        LOG(ERROR) << fname << ": rc=" << i_RetStatus << " Bad UTC time format: " << pr_IFormatEData->format_size;
-      }
-    }
-    else
-    {
-      i_RetStatus = ESG_ESG_D_ERR_BADDEDFORMAT;
-      LOG(ERROR) << fname << ": rc=" << i_RetStatus << "time indicator not in UTC format (" << pr_IFormatEData->format_size << ") doesn't supported";
-    }
-  }
-
-  if (pr_IFormatEData->tm_type == ECH_D_TYPREAL)
-  {
-    strcpy(s_PartFormat, pr_IFormatEData->s_Format);
-    if ((s_SearchResult = strchr(s_PartFormat, ECH_D_FORMATEDATA_REALPRES)) != NULL)
-    {
-      *s_SearchResult = '\0';
-      sscanf(s_PartFormat, "%d", &i_LgEData);
-      s_SearchResult++;
-      sscanf(s_SearchResult, "%d", &i_LgPartEData);
-      i_LgEData = i_LgEData + i_LgPartEData + 1;
-    }
-    else if (NULL != (s_SearchResult = strchr(s_PartFormat, ECH_D_FORMATEDATA_REALEXP)))
-    {
-      // real format E
-      *s_SearchResult = '\0';
-      sscanf(s_PartFormat, "%d", &i_LgEData);
-      s_SearchResult++;
-      sscanf(s_SearchResult, "%d", &i_LgPartEData);
-      i_LgEData = i_LgEData + i_LgPartEData + 1;
-    }
-    else
-    {
-      i_RetStatus = ESG_ESG_D_ERR_BADDEDFORMAT;
-      LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", No separate character for real";
-    }
-  }
-
-  if ((pr_IFormatEData->tm_type == ECH_D_TYPSTR)
-   && ((strcmp(pr_IFormatEData->s_Format, ECH_D_FORMATEDATA_STREMPTY) == 0)))
-  {
-    i_LgEData = i_ILgString;
-  }
-#else
 
   switch (pr_IFormatEData->tm_type) {
     case TM_TYPE_LOGIC:
@@ -3300,8 +3185,6 @@ int ExchangeTranslator::esg_esg_edi_GetLengthEData(
         i_RetStatus = NOK;
   }
 
-#endif
-
   *pi_OLgEData = i_LgEData;
 
   return (i_RetStatus);
@@ -3327,17 +3210,17 @@ int ExchangeTranslator::esg_esg_edi_GetLengthEData(
 int ExchangeTranslator::esg_esg_edi_GetForLgQuaEData(
                    // Output parameters
                    elemtype_item_t* pr_OFormatEData, // format elementary data
-                   uint32_t * pi_OLgEData       // length of elementary data
+                   int * pi_OLgEData       // length of elementary data
                    )
 {
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static const char* fname = "esg_esg_edi_GetForLgQuaEData";
- // length data
-  uint32_t i_LgEData;
- // return status of the function
+  // length data
+  int i_LgEData;
+  // return status of the function
   int i_RetStatus = OK;
 
-//............................................................................
+  //............................................................................
   *pi_OLgEData = 0;
 
   if (NULL == (pr_OFormatEData = esg_esg_odm_ConsultExchDataArr(ECH_D_QUAVARLGED_IDED)))
@@ -3394,27 +3277,27 @@ int ExchangeTranslator::esg_esg_edi_GetLengthFullCtrlEData(
                  // Input parameters
                  const elemtype_item_t* pr_IFormatEData, // format elementary data
                  const bool b_ILgQuaEData,  // Elementary data length qualify indicator
-                 const uint32_t i_ILgString,// length of various string
+                 const int i_ILgString,// length of various string
                  // Output parameters
                  // lengths of elementary data
-                 uint32_t* pi_OLgFullEData,
-                 uint32_t* pi_OLgEData,
-                 uint32_t* pi_OLgQuaEData
+                 int* pi_OLgFullEData,
+                 int* pi_OLgEData,
+                 int* pi_OLgQuaEData
                  )
 {
-//----------------------------------------------------------------------------*/
+  //----------------------------------------------------------------------------*/
   static const char* fname = "esg_esg_edi_GetLengthFullCtrlEData";
- // length of elementary data
-  uint32_t i_LgEData;
-  uint32_t i_LgQuaEData;
- // format of elementary data qualifier
+  // length of elementary data
+  int i_LgEData;
+  int i_LgQuaEData;
+  // format of elementary data qualifier
   elemtype_item_t* r_FormatQuaEData = NULL;
- // return status of the function
+  // return status of the function
   int i_RetStatus = OK;
- // logged text
+  // logged text
   char s_LoggedText[ESG_ESG_D_LOGGEDTEXTLENGTH + 1];
 
-//............................................................................*/
+  //............................................................................*/
   *pi_OLgFullEData = 0;
   *pi_OLgEData = 0;
   *pi_OLgQuaEData = 0;
@@ -3510,18 +3393,18 @@ int ExchangeTranslator::esg_esg_edi_IntegerCoding(
                 char* ps_OCodedEData
                 )
 {
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static const char* fname = "esg_esg_edi_IntegerCoding";
- // coded format string
+  // coded format string
   char s_CodedFormat[ECH_D_CODEDFORMATLG];
-  uint32_t i_NbDigit;
+  size_t i_NbDigit;
   char s_CodedEData[ECH_D_APPLSEGLG];
- // return status of the function
+  // return status of the function
   int i_RetStatus = OK;
- // logged text
+  // logged text
   char s_LoggedText[ESG_ESG_D_LOGGEDTEXTLENGTH + 1];
 
-//............................................................................*/
+  //............................................................................*/
   i_RetStatus = OK;
 
   sscanf(s_IFormat, "%d", &i_NbDigit);
@@ -3531,7 +3414,7 @@ int ExchangeTranslator::esg_esg_edi_IntegerCoding(
   strcat(s_CodedFormat, ECH_D_ZEROSTR);
   strcat(s_CodedFormat, s_IFormat);
   strcat(s_CodedFormat, ECH_D_DECIMALSTR);
-  switch (pr_IInternalEData->i_type)
+  switch (pr_IInternalEData->type)
   {
     case FIELD_TYPE_LOGIC:
       sprintf(s_CodedEData, s_CodedFormat, pr_IInternalEData->u_val.b_Logical);
@@ -3556,7 +3439,7 @@ int ExchangeTranslator::esg_esg_edi_IntegerCoding(
       break;
     default:
       i_RetStatus = ESG_ESG_D_ERR_BADEDINTERTYPE;
-      sprintf (s_LoggedText, "Internal data type : %d", pr_IInternalEData->i_type);
+      sprintf (s_LoggedText, "Internal data type : %d", pr_IInternalEData->type);
       LOG(ERROR) << fname << ": rc=" << i_RetStatus << " " << s_LoggedText;
   }
 
@@ -3599,41 +3482,39 @@ int ExchangeTranslator::esg_esg_edi_RealCoding(
              char* ps_OCodedEData   // string
              )
 {
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static const char* fname = "esg_esg_edi_RealCoding";
- // format
+  // format
   char s_PartFormat[ECH_D_FORMATLG];
- // coded format strings
+  // coded format strings
   char s_CodedFormat[ECH_D_CODEDFORMATLG + 1];
   char s_PartCodedFormat[ECH_D_CODEDFORMATLG + 1];
- // lengths of elementary data
-  uint32_t i_LgPart1EData;
-  uint32_t i_LgPart2EData;
- // searching result pointer
+  // lengths of elementary data
+  size_t i_LgPart1EData;
+  size_t i_LgPart2EData;
+  // searching result pointer
   char* s_SearchResult;
-  uint32_t i_NbDigit;
+  size_t i_NbDigit;
   char s_CodedEData[ECH_D_APPLSEGLG];
- // return status of the function
+  // return status of the function
   int i_RetStatus = OK;
- // logged text
+  // logged text
   char s_LoggedText[ESG_ESG_D_LOGGEDTEXTLENGTH + 1];
-// addition of data for exponent format
-// mantissa decimal value of the exponent normalized float representation
+  // addition of data for exponent format
+  // mantissa decimal value of the exponent normalized float representation
   double g_Part1EData;
 
-// exponent value of the exponent normalized float representation
-  uint32_t i_Part2EData;
+  // exponent value of the exponent normalized float representation
+  int i_Part2EData;
   char s_CodedMantissa[ECH_D_APPLSEGLG];
   char s_CodedExponent[ECH_D_APPLSEGLG];
   char s_CodedExponentFormat[ECH_D_CODEDFORMATLG + 1];
 
-// FFT 2412 precision for some measure with "e" format the precision must be
-// specified if we want more than 6 digits after the "."
-// The precision is the number of digits of mantissa of the asked format
-// minus 2 (the first digit before "." and the ".")
-  uint32_t i_Precision;
+  // FFT 2412 precision for some measure with "e" format the precision must be specified if we want more than 6 digits after the "."
+  // The precision is the number of digits of mantissa of the asked format minus 2 (the first digit before "." and the ".")
+  int i_Precision;
 
-//............................................................................
+  //............................................................................
   i_RetStatus = OK;
   memset(s_CodedEData, 0, sizeof(s_CodedEData));
 
@@ -3657,7 +3538,7 @@ int ExchangeTranslator::esg_esg_edi_RealCoding(
 
     i_NbDigit = i_LgPart1EData;
 
-    switch (pr_IInternalEData->i_type)
+    switch (pr_IInternalEData->type)
     {
       case FIELD_TYPE_DOUBLE:
         sprintf (s_CodedEData, s_CodedFormat, getGoodDoubleValue(pr_IInternalEData->u_val.g_Double, 0.0));
@@ -3667,19 +3548,18 @@ int ExchangeTranslator::esg_esg_edi_RealCoding(
         break;
       default:
         i_RetStatus = ESG_ESG_D_ERR_BADEDINTERTYPE;
-        LOG(ERROR) << fname << ": rc=" << i_RetStatus << " Internal data type: " << pr_IInternalEData->i_type;
+        LOG(ERROR) << fname << ": rc=" << i_RetStatus << " Internal data type: " << pr_IInternalEData->type;
     }
   }
 
-// exponent float format
-// The format has the n"e"m form with n digits before the "e" symbol
-// (mantissa) and m digits after the "e" symbol (exponent)
+  // exponent float format
+  // The format has the n"e"m form with n digits before the "e" symbol (mantissa) and m digits after the "e" symbol (exponent)
   else if ((s_SearchResult = strchr(s_PartFormat, ECH_D_FORMATEDATA_REALEXP)) != NULL)
   {
     *s_SearchResult = '\0';
     sscanf(s_PartFormat, "%d", &i_LgPart1EData);
 
-// compute the precision = i_LgPart1EData - 2
+    // compute the precision = i_LgPart1EData - 2
     if (i_LgPart1EData > 8)
     {
       i_Precision = i_LgPart1EData - 2;
@@ -3696,20 +3576,17 @@ int ExchangeTranslator::esg_esg_edi_RealCoding(
     sprintf(s_PartCodedFormat, "%d", i_LgPart1EData);
     strcat(s_CodedFormat, s_PartCodedFormat);
 
-// -----------------------------------------------------------
-// 15-04-99 by TH : addition of precision format
-// The format has the "%0"n"."p"e" form: n digits before exponent
-// and p digits for precision
+    // -----------------------------------------------------------
+    // The format has the "%0"n"."p"e" form: n digits before exponent and p digits for precision
     strcat(s_CodedFormat, ECH_D_POINTSTR);
     sprintf(s_PartCodedFormat, "%d", i_Precision);
     strcat(s_CodedFormat, s_PartCodedFormat);
 
-// ----------------------------------------------------------- */
-
+    // -----------------------------------------------------------
     strcat(s_CodedFormat, ECH_D_EXPSTR);
     i_NbDigit = i_LgPart1EData + i_LgPart2EData + 1;
 
-    switch (pr_IInternalEData->i_type)
+    switch (pr_IInternalEData->type)
     {
       case FIELD_TYPE_DOUBLE:
         sprintf(s_CodedEData, s_CodedFormat, getGoodDoubleValue(pr_IInternalEData->u_val.g_Double, DBL_MAX));
@@ -3719,10 +3596,10 @@ int ExchangeTranslator::esg_esg_edi_RealCoding(
         break;
       default:
         i_RetStatus = ESG_ESG_D_ERR_BADEDINTERTYPE;
-        LOG(ERROR) << fname << ": rc=" << i_RetStatus << " Internal data type: " << pr_IInternalEData->i_type;
+        LOG(ERROR) << fname << ": rc=" << i_RetStatus << " Internal data type: " << pr_IInternalEData->type;
     }
 
-// normalization of the real value in a normalized exponent format
+    // normalization of the real value in a normalized exponent format
     if (i_RetStatus == OK)
     {
       strcpy(s_CodedExponent, "");
@@ -3733,10 +3610,10 @@ int ExchangeTranslator::esg_esg_edi_RealCoding(
         // GEV: sscanf(s_CodedEData, ECH_D_DOUBLESTR, &g_Part1EData);
         sscanf(s_CodedEData, "%lf", &g_Part1EData);
 
-// The mantissa is coded on number of digits before "e" of the given format
+        // The mantissa is coded on number of digits before "e" of the given format
         strncpy(s_CodedMantissa, s_CodedEData, i_LgPart1EData);
 
-// Add end-of-string for the mantissa part, to avoid the unexpected interpretation of following characters which are not always zero
+        // Add end-of-string for the mantissa part, to avoid the unexpected interpretation of following characters which are not always zero
         s_CodedMantissa[i_LgPart1EData] = '\0';
 
         s_SearchResult += 1;
@@ -3764,11 +3641,10 @@ int ExchangeTranslator::esg_esg_edi_RealCoding(
     LOG(ERROR) << fname << ": rc=" << i_RetStatus << " " << s_IFormat;
   }
 
-// (CD) Verify coded string length and memorise coded elementary data
-// The asked format must be identical to the coded length
-// An error is also detected if the format length is greater than the coded
-// length which means that the asked precision is not respected
-// This will be disturbing for the distant site
+  // (CD) Verify coded string length and memorise coded elementary data
+  // The asked format must be identical to the coded length
+  // An error is also detected if the format length is greater than the coded length which means that the asked precision is not respected
+  // This will be disturbing for the distant site
   if (i_RetStatus == OK)
   {
     if (i_NbDigit == strlen(s_CodedEData))
@@ -3815,36 +3691,36 @@ int ExchangeTranslator::esg_esg_edi_TimeCoding(
                  char* ps_OCodedEData   // string
                  )
 {
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static const char* fname = "esg_esg_edi_TimeCoding";
- // length of date in EDI format
-  uint32_t i_LgEData;
- // time string
+  // length of date in EDI format
+  int i_LgEData;
+  // time string
   struct tm *pr_AscUTCTime;
   char s_PartTime[ECH_D_FULLTIMELG + 1];
- // milli seconds
-  uint32_t i_MilliSec;
-// 15-12-98 by TH : micro seconds */
-  uint32_t i_MicroSec;
- // return status of the function
+  // milli seconds
+  int i_MilliSec;
+  // micro seconds
+  int i_MicroSec;
+  // return status of the function
   int i_RetStatus = OK;
- // logged text
+  // logged text
   char s_LoggedText[ESG_ESG_D_LOGGEDTEXTLENGTH + 1];
 
-//............................................................................
+  //............................................................................
   i_RetStatus = OK;
 
-  if (pr_IInternalEData->i_type == FIELD_TYPE_DATE)
+  if (pr_IInternalEData->type == FIELD_TYPE_DATE)
   {
     sscanf(&s_IFormat[1], "%d", &i_LgEData);
     pr_AscUTCTime = gmtime ((time_t *) & pr_IInternalEData->u_val.d_Timeval.tv_sec);
 
-// The year format has now 4 digits
-// In the tm structure we must add 1900 to the year field
+    // The year format has now 4 digits
+    // In the tm structure we must add 1900 to the year field
     pr_AscUTCTime->tm_year += 1900;
     sprintf(ps_OCodedEData, ECH_D_FORMATYEAR, pr_AscUTCTime->tm_year);
 
-// 15-12-98 by TH : the tm month field has a value from 0 to 11 and the coded value is from 1 to 12
+    // The tm month field has a value from 0 to 11 and the coded value is from 1 to 12
     pr_AscUTCTime->tm_mon += 1;
     sprintf(s_PartTime, ECH_D_FORMATTIME, (int32_t) pr_AscUTCTime->tm_mon);
     strcat(ps_OCodedEData, s_PartTime);
@@ -3857,15 +3733,15 @@ int ExchangeTranslator::esg_esg_edi_TimeCoding(
     sprintf(s_PartTime, ECH_D_FORMATTIME, (int32_t) pr_AscUTCTime->tm_sec);
     strcat(ps_OCodedEData, s_PartTime);
 
-// 15-12-98 by TH : addition of date with micro-sec
+    // addition of date with micro-sec
     if ((i_LgEData == ECH_D_FULLTIMELG)
      || (i_LgEData == ECH_D_VERYFULLTIMELG))
     {
       i_MilliSec = pr_IInternalEData->u_val.d_Timeval.tv_usec / 1000; /* ESG_ESG_EDI_D_MICROMILLICONVUNITY */
 
-// A problem happened sometime on this conversion action
-// a %03d format gives a minimum number of digits but not a maximum number
-// So, a test on the milli-sec value is performed and a trace added
+      // A problem happened sometime on this conversion action
+      // a %03d format gives a minimum number of digits but not a maximum number
+      // So, a test on the milli-sec value is performed and a trace added
       if (i_MilliSec > 999)
       {
         sprintf(s_LoggedText, "Incorrect milli-sec value: %d - Forced to 0", i_MilliSec);
@@ -3886,7 +3762,7 @@ int ExchangeTranslator::esg_esg_edi_TimeCoding(
   else
   {
     i_RetStatus = ESG_ESG_D_ERR_BADEDINTERTYPE;
-    LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", Internal data type: " << pr_IInternalEData->i_type;
+    LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", Internal data type: " << pr_IInternalEData->type;
   }
 
   return (i_RetStatus);
@@ -3915,23 +3791,23 @@ int ExchangeTranslator::esg_esg_edi_IntegerDecoding(
                   esg_esg_edi_t_StrElementaryData* pr_IOInternalEData   // string
                   )
 {
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static const char* fname = "esg_esg_edi_IntegerDecoding";
- // coded format string
+  // coded format string
   char s_CodedFormat[ECH_D_CODEDFORMATLG];
- // return status of the function
+  // return status of the function
   int i_RetStatus = OK;
- // Scanned data
+  // Scanned data
   int i_ScanData;
 
-//............................................................................*/
+  //............................................................................*/
   i_RetStatus = OK;
 
   strcpy(s_CodedFormat, ECH_D_POURCENTSTR);
   strcat(s_CodedFormat, ECH_D_ZEROSTR);
   strcat(s_CodedFormat, s_IFormat);
   strcat(s_CodedFormat, ECH_D_DECIMALSTR);
-  switch (pr_IOInternalEData->i_type)
+  switch (pr_IOInternalEData->type)
   {
     case FIELD_TYPE_LOGIC:
       sscanf(ps_ICodedEData, s_CodedFormat, &i_ScanData);
@@ -3963,7 +3839,7 @@ int ExchangeTranslator::esg_esg_edi_IntegerDecoding(
       break;
     default:
       i_RetStatus = ESG_ESG_D_ERR_BADEDINTERTYPE;
-      LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", Internal data type: " << pr_IOInternalEData->i_type;
+      LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", Internal data type: " << pr_IOInternalEData->type;
   }
 
   return (i_RetStatus);
@@ -3992,22 +3868,22 @@ int ExchangeTranslator::esg_esg_edi_RealDecoding(
                    esg_esg_edi_t_StrElementaryData* pr_IOInternalEData  // internal elementary data
                    )
 {
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static const char* fname = "esg_esg_edi_RealDecoding";
- // format
+  // format
   char s_PartFormat[ECH_D_FORMATLG];
- // coded format strings
+  // coded format strings
   char s_CodedFormat[ECH_D_CODEDFORMATLG + 1];
- // lengths of elementary data
-  uint32_t i_LgPart1EData;
-  uint32_t i_LgPart2EData;
- // searching result pointer
+  // lengths of elementary data
+  int i_LgPart1EData;
+  int i_LgPart2EData;
+  // searching result pointer
   char* s_SearchResult;
- // return status of the function
+  // return status of the function
   int i_RetStatus = OK;
- // Scanned data
+  // Scanned data
   double g_ScanData;
-//............................................................................*/
+  //............................................................................
 
   i_RetStatus = OK;
 
@@ -4022,7 +3898,7 @@ int ExchangeTranslator::esg_esg_edi_RealDecoding(
     i_LgPart1EData++;
     strcpy(s_CodedFormat, ECH_D_POURCENTSTR);
     strcat(s_CodedFormat, ECH_D_DOUBLESTR);
-    switch (pr_IOInternalEData->i_type)
+    switch (pr_IOInternalEData->type)
     {
       case FIELD_TYPE_DOUBLE:
         sscanf(ps_ICodedEData, s_CodedFormat, &g_ScanData);
@@ -4034,12 +3910,12 @@ int ExchangeTranslator::esg_esg_edi_RealDecoding(
         break;
       default:
         i_RetStatus = ESG_ESG_D_ERR_BADEDINTERTYPE;
-        LOG(ERROR) << fname << i_RetStatus << " Internal data type:" << pr_IOInternalEData->i_type;
+        LOG(ERROR) << fname << i_RetStatus << " Internal data type:" << pr_IOInternalEData->type;
     }
   }
   else if (NULL != (s_SearchResult = strchr(s_PartFormat, ECH_D_FORMATEDATA_REALEXP))) // exponent real format E
   {
-    switch (pr_IOInternalEData->i_type)
+    switch (pr_IOInternalEData->type)
     {
       case FIELD_TYPE_DOUBLE:
         sscanf(ps_ICodedEData, "%lf", &g_ScanData);
@@ -4051,7 +3927,7 @@ int ExchangeTranslator::esg_esg_edi_RealDecoding(
         break;
       default:
         i_RetStatus = ESG_ESG_D_ERR_BADEDINTERTYPE;
-        LOG(ERROR) << fname << ": rc=" << i_RetStatus << " Internal data type:" << pr_IOInternalEData->i_type;
+        LOG(ERROR) << fname << ": rc=" << i_RetStatus << " Internal data type:" << pr_IOInternalEData->type;
     }
   }
   else
@@ -4086,31 +3962,30 @@ int ExchangeTranslator::esg_esg_edi_TimeDecoding(
                esg_esg_edi_t_StrElementaryData* pr_IOInternalEData  // string
                )
 {
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static const char* fname = "esg_esg_edi_TimeDecoding";
- // length of date in EDI format
-  uint32_t i_LgEData;
- // time parameters
+  // length of date in EDI format
+  int i_LgEData;
+  // time parameters
   struct tm r_AscUTCTime;
   time_t d_UTCTime;
   const char *ps_Time;
   char s_PartTime[ECH_D_FULLTIMELG + 1];
-// milli seconds
-  uint32_t i_MilliSec;
-// micro seconds
-  uint32_t i_MicroSec;
-// return status of the function
+  // milli seconds
+  int i_MilliSec;
+  // micro seconds
+  int i_MicroSec;
+  // return status of the function
   int i_RetStatus = OK;
-// Scanned data
+  // Scanned data
   int i_ScanData;
   // GEV: Значение altzone есть смещение в секундах между UTC и локальным временем. В Линукс отсутствует.
   // TODO: проверить нужность этого вычисления, поскольку время внутри приложения должно быть в едином формате (UTC),
   // и приводиться к локальному только в момент отображения.
   time_t altzone = 0;
-//............................................................................
-  i_RetStatus = OK;
 
-  if (pr_IOInternalEData->i_type == FIELD_TYPE_DATE)
+  //............................................................................
+  if (pr_IOInternalEData->type == FIELD_TYPE_DATE)
   {
     sscanf(&s_IFormat[1], "%d", &i_LgEData);
     memset(&r_AscUTCTime, 0, sizeof(struct tm));
@@ -4191,13 +4066,12 @@ int ExchangeTranslator::esg_esg_edi_TimeDecoding(
   else
   {
     i_RetStatus = ESG_ESG_D_ERR_BADEDINTERTYPE;
-    LOG(ERROR) << fname << i_RetStatus << " Internal data type: " << pr_IOInternalEData->i_type;
+    LOG(ERROR) << fname << i_RetStatus << " Internal data type: " << pr_IOInternalEData->type;
   }
 
   return (i_RetStatus);
 }
 //-END esg_esg_edi_TimeDecoding-----------------------------------------------
-
 
 // Consulting of an entry in the exchanged composed data Table (DCD_ELEMSTRUCT)
 // замена esg_esg_odm_t_ExchCompElem на elemstruct_item_t
@@ -4210,7 +4084,9 @@ elemstruct_item_t* ExchangeTranslator::esg_esg_odm_ConsultExchCompArr(const char
   elemstruct_item_t* dcd_element = NULL;
   std::map < const std::string, elemstruct_item_t >::iterator it_es;
 
+#if VERBOSE > 8
   LOG(INFO) << "search DCD: " << dcd_name;
+#endif
 
   it_es = m_elemstructs.find(dcd_name);
   if (it_es != m_elemstructs.end())
@@ -4232,7 +4108,9 @@ elemtype_item_t* ExchangeTranslator::esg_esg_odm_ConsultExchDataArr(const char* 
   elemtype_item_t* ded_element = NULL;
   std::map < const std::string, elemtype_item_t >::iterator it_et;
 
+#if VERBOSE > 8
   LOG(INFO) << "search DED: " << ded_name;
+#endif
 
   it_et = m_elemtypes.find(ded_name);
   if (it_et != m_elemtypes.end())
@@ -4252,16 +4130,16 @@ int ExchangeTranslator::esg_esg_fil_HeadApplRead(FILE* pi_IFileId, esg_esg_t_Hea
   int       i_Status;       // called routines report
   int32_t   i_i;            // loop counter
   char      s_CodedData[ECH_D_APPLSEGLG + 1];       // coded data as string
-  uint32_t  i_LgCodedData;  // length of coded data
+  int  i_LgCodedData;  // length of coded data
   esg_esg_edi_t_StrQualifyComposedData  r_QuaCData; // qualifiers
   esg_esg_edi_t_StrComposedData         r_InternalCData; // Internal composed data
 
   i_i = 0 ;
-  r_InternalCData.ar_EDataTable[i_i].i_type = FIELD_TYPE_UINT16;
+  r_InternalCData.ar_EDataTable[i_i].type = FIELD_TYPE_UINT16;
   i_i++;
-  r_InternalCData.ar_EDataTable[i_i].i_type = FIELD_TYPE_UINT32;
+  r_InternalCData.ar_EDataTable[i_i].type = FIELD_TYPE_UINT32;
   i_i++;
-  r_InternalCData.ar_EDataTable[i_i].i_type = FIELD_TYPE_UINT32;
+  r_InternalCData.ar_EDataTable[i_i].type = FIELD_TYPE_UINT32;
   i_i++;
   r_InternalCData.i_NbEData = i_i;
 
@@ -4306,6 +4184,66 @@ int ExchangeTranslator::esg_esg_fil_HeadApplRead(FILE* pi_IFileId, esg_esg_t_Hea
   return i_RetStatus;
 }
 
+// Обработка Запросов смежных систем
+// --------------------------------------------------------------
+int ExchangeTranslator::processing_REQUEST(FILE* pi_FileId, int i_LgAppl, int i_ApplLength, const char* s_IAcqSiteId)
+{
+  static const char* fname = "processing_REQUEST";
+  char s_Buffer[ECH_D_APPLSEGLG + 1];
+  int i_Status = OK;
+  int i_LgDone = 0; // GEV: fake
+  int i_CDLength;        // composed data length
+  char s_Trace[100 + 1];
+  char Receiver_Id[32] = "Инкогнито";
+  char s_CodedData[ECH_D_APPLSEGLG + 1];       // coded data as string
+  // Данные из пакета
+  int32_t i_InitPhase;
+  uint16_t h_ReqId;
+  esg_esg_edi_t_StrComposedData r_InternalCData; // decoded composed data buffer
+  esg_esg_edi_t_StrQualifyComposedData r_QuaCData;
+
+#if 0
+  i_Status = esg_esg_fil_StringRead (pi_FileId, i_ApplLength, s_CodedData);
+
+  // get request id.
+  // ---------------
+  i_Status = ech_typ_GetAtt(&r_InternalCData.ar_EDataTable[0].u_val,
+                            r_InternalCData.ar_EDataTable[0].type,
+                            &h_ReqId,
+                            FIELD_TYPE_UINT16);
+
+  if ( i_Status == OK ) {
+	// get init. phase
+	// ---------------
+    i_Status = ech_typ_GetAtt(&r_InternalCData.ar_EDataTable[1].u_val,
+                              r_InternalCData.ar_EDataTable[1].type,
+                              &i_InitPhase,
+                              FIELD_TYPE_INT32);
+
+    if ( i_Status == OK ) {
+	  // manage init. phase
+	  // ------------------
+#if 0
+      i_Status = esg_ine_man_InitPhaseMan ( r_Request.Receiver_Id, i_InitPhase, r_Request.Request_Id.r_ExchangedRequest.h_ReqId ) ;
+#else
+      sprintf(s_Trace, "InitPhase=%d, ReqId=%d, Receiver=%s, status=%d",
+                       i_InitPhase,
+                       h_ReqId,
+                       Receiver_Id,
+                       i_Status) ;
+      LOG(INFO) << fname << " CALL esg_ine_man_InitPhaseMan: " << s_Trace;
+#endif
+    }
+
+  }
+
+  if ( i_Status != OK ) {
+    LOG(ERROR) << fname << ": rc=" << i_Status << ", esg_esg_fil_FileDelete";
+  }
+#endif
+  return i_Status;
+}
+
 // Обработка Состояний смежных систем
 // --------------------------------------------------------------
 int ExchangeTranslator::processing_STATE(FILE* pi_FileId, int i_LgAppl, int i_ApplLength, const char* s_IAcqSiteId)
@@ -4314,15 +4252,16 @@ int ExchangeTranslator::processing_STATE(FILE* pi_FileId, int i_LgAppl, int i_Ap
   char s_Buffer[ECH_D_APPLSEGLG + 1];
   int i_Status = OK;
   int i_LgDone = 0; // GEV: fake
-  uint32_t i_CDLength;        // composed data length
+  int i_CDLength;        // composed data length
+  int32_t i_SiteStateValue;
   esg_esg_edi_t_StrComposedData r_InternalCData; // decoded composed data buffer
   esg_esg_edi_t_StrQualifyComposedData r_QuaCData;
 
   i_Status = esg_esg_fil_StringRead (pi_FileId, i_ApplLength, s_Buffer);
- 
-  if ( i_Status != OK )
+
+ // if ( i_Status != OK )
   {
-    LOG(ERROR) << fname << ": reading body of state segment, i_LgAppl=" << i_LgAppl << ", i_ApplLength=" << i_ApplLength << ", site=" << s_IAcqSiteId;
+    LOG(ERROR) << fname << ": reading body of state segment, i_LgAppl=" << i_LgAppl << ", i_ApplLength=" << i_ApplLength << ", site=" << s_IAcqSiteId << ", rc=" << i_Status;
   }
 
   if ( i_Status == OK )
@@ -4333,29 +4272,23 @@ int ExchangeTranslator::processing_STATE(FILE* pi_FileId, int i_LgAppl, int i_Ap
                                         i_ApplLength - i_LgDone,
                                         &i_CDLength,
                                         &r_InternalCData,
-                                       //1 &r_SubTypeElem,
                                         &r_QuaCData);
   }
 
   if ( i_Status == OK )
   {
-#if 0
     // Get value of distant site state
     // ------------------------------------
-    r_AttElem.i_AttType = ECH_D_LOC_UINT32;
     i_Status = ech_typ_GetAtt (&r_InternalCData.ar_EDataTable[0].u_val,
-                               r_InternalCData.ar_EDataTable[0].i_type,
+                               r_InternalCData.ar_EDataTable[0].type,
                                &i_SiteStateValue,
-                               r_AttElem);
-#else
-    LOG(INFO) << "new " << s_IAcqSiteId << " state, type=" << r_InternalCData.ar_EDataTable[0].i_type << ", val=" << r_InternalCData.ar_EDataTable[0].u_val.i_Uint32;
-#endif
+                               FIELD_TYPE_UINT32);
   }
 
   if ( i_Status == OK )
   {
-    LOG(INFO) << fname << ": Value of distant " << s_IAcqSiteId << " state=i_SiteStateValue";
-  }   
+    LOG(INFO) << fname << ": Value of distant " << s_IAcqSiteId << " state=" << i_SiteStateValue;
+  }
   else
   {
     LOG(ERROR) << fname << ": get Value of distant state, rc=" << i_Status;
@@ -4399,18 +4332,18 @@ int ExchangeTranslator::esg_esg_fil_StringRead(
 //  This function process a composed data bloc.
 //----------------------------------------------------------------------------
 //  NOTES
-//  For each decoded ECH_D_LOC_STRING type attribute, memory is allocated by
+//  For each decoded FIELD_TYPE_STRING type attribute, memory is allocated by
 //  this function. The user of this funtion should free this memory after utilisation.
 //----------------------------------------------------------------------------
 int ExchangeTranslator::esg_ine_man_CDProcessing
 (
         // Input parameters
-        const char* ps_IBuffer,     // begining of the composed data in the buffer
-        const uint32_t i_IBufLen,   //length of the segment body from the composed data to process
+        const char* ps_IBuffer,// begining of the composed data in the buffer
+        const int i_IBufLen,   //length of the segment body from the composed data to process
         // Output parameters
-        uint32_t* pi_OCDLen,        // composed data length
+        int* pi_OCDLen,        // composed data length
         esg_esg_edi_t_StrComposedData   *pr_OInternalCData, // decoded composed data buffer
-        //1 ech_typ_t_SubTypeElem           *pr_OSubTypeElem,   // subtype buffer
+        //1 ech_typ_t_SubTypeElem       *pr_OSubTypeElem,   // subtype buffer
         esg_esg_edi_t_StrQualifyComposedData *pr_OQuaCData  // Quality data buffer
 )
 {
@@ -4418,53 +4351,66 @@ int ExchangeTranslator::esg_ine_man_CDProcessing
   static const char* fname="esg_ine_man_CDProcessing";
   int   i_Status = OK;
   int   i_RetStatus = OK;
-  //1 int   i_AttNumber;
+  int   i_AttNumber;
   char s_ExchCompId[ECH_D_COMPIDLG + 1];
   elemstruct_item_t* r_ExchCompElem = NULL;
   //............................................................................
- 
+
   // Read the identifier of the composed data to process
   // --------------------------------------------------------------------------
   memset(s_ExchCompId, 0, sizeof(s_ExchCompId));
   strncpy(s_ExchCompId, ps_IBuffer, ECH_D_COMPIDLG);
 
-#if 0
   // Get the corresponding sub_type name
   //----------------------------------------------------------------------------
-  if (NULL != (r_ExchCompElem == esg_esg_odm_ConsultExchCompArr(s_ExchCompId)))
+  LOG(INFO) << fname << ": " << s_ExchCompId;
+  if (NULL != (r_ExchCompElem = esg_esg_odm_ConsultExchCompArr(s_ExchCompId)))
   {
     // Get the corresponding sub-type structure
     //----------------------------------------------------------------------------
-    i_Status = ech_typ_ConsultSubType (r_ExchCompElem->s_AssocSubType, pr_OSubTypeElem);
+//1    i_Status = ech_typ_ConsultSubType (r_ExchCompElem->s_AssocSubType, pr_OSubTypeElem);
+    LOG(INFO) << fname << ": ech_typ_ConsultSubType->associate=" << r_ExchCompElem->associate;
   }
 
-  if ( i_Status == GOF_D_NOERROR )
+  if ( i_Status == OK )
   {
     // Put the type of each att of the ComposedData
     //----------------------------------------------------------------------------
-    pr_OInternalCData->i_NbEData = pr_OSubTypeElem->i_AttNumber;
+    pr_OInternalCData->i_NbEData = r_ExchCompElem->num_attributes;
 
-    for (i_AttNumber=0; i_AttNumber < pr_OSubTypeElem->i_AttNumber; i_AttNumber++)
+    // Индекс атрибута БДРВ, поскольку не все поля являются ими
+    i_AttNumber = 0;
+    // Пройтись по всем полям структуры, и выделить память для тех из них, которые имеют строковый тип (FIELD_TYPE_STRING)
+    for(size_t i_FieldNum=0; i_FieldNum < r_ExchCompElem->num_fileds; i_FieldNum++)
     {
-      pr_OInternalCData->ar_EDataTable[i_AttNumber].i_type = pr_OSubTypeElem->ar_AttElem[i_AttNumber].i_AttType;
+      if (FIELD_TYPE_UNKNOWN != r_ExchCompElem->fields[i_FieldNum].type) {
 
-      if ( pr_OInternalCData->ar_EDataTable[i_AttNumber].i_type == ECH_D_LOC_STRING ) 
-      {
-        pr_OInternalCData->ar_EDataTable[i_AttNumber].u_val.r_Str.ps_String = malloc (pr_OSubTypeElem->ar_AttElem[i_AttNumber].i_AttLG + 1);
-        if (pr_OInternalCData->ar_EDataTable[i_AttNumber].u_val.r_Str.ps_String == NULL) 
+        pr_OInternalCData->ar_EDataTable[i_AttNumber].type = r_ExchCompElem->fields[i_FieldNum].type;
+        pr_OInternalCData->ar_EDataTable[i_AttNumber].u_val.r_Str.ps_String = NULL;
+
+        if ( pr_OInternalCData->ar_EDataTable[i_AttNumber].type == FIELD_TYPE_STRING )
         {
-          i_Status = ESG_ESG_D_ERR_BADALLOC;
-	      LOG(ERROR) << fname << ": rc=" << i_Status << ": bad memory allocation";
-	    }
-        else
-        {
-          memset (pr_OInternalCData->ar_EDataTable[i_AttNumber].u_val.r_Str.ps_String,
-                  0,
-                  pr_OSubTypeElem->ar_AttElem[i_AttNumber].i_AttLG + 1);
+          pr_OInternalCData->ar_EDataTable[i_AttNumber].u_val.r_Str.ps_String = new char[r_ExchCompElem->fields[i_FieldNum].length + 1];
+          if (pr_OInternalCData->ar_EDataTable[i_AttNumber].u_val.r_Str.ps_String == NULL)
+          {
+            i_Status = ESG_ESG_D_ERR_BADALLOC;
+            LOG(ERROR) << fname << ": rc=" << i_Status << ": bad memory allocation";
+          }
+          else
+          {
+            memset (pr_OInternalCData->ar_EDataTable[i_AttNumber].u_val.r_Str.ps_String,
+                    '\0',
+                    r_ExchCompElem->fields[i_FieldNum].length + 1);
+          }
         }
+
+        pr_OInternalCData->ar_EDataTable[i_AttNumber].u_val.r_Str.i_LgString = 0;
+
+        // Перейдем к следующему атрибуту
+        i_AttNumber++;
+
       }
 
-      pr_OInternalCData->ar_EDataTable[i_AttNumber].u_val.r_Str.i_LgString = 0;
     } // End for
   }
 
@@ -4472,19 +4418,20 @@ int ExchangeTranslator::esg_ine_man_CDProcessing
   //----------------------------------------------------------------------------
   if ( i_Status == ESG_ESG_D_ERR_BADALLOC )
   {
-    for (i_AttNumber=0;i_AttNumber < pr_OSubTypeElem->i_AttNumber; i_AttNumber++)
+    for (i_AttNumber=0; i_AttNumber < pr_OInternalCData->i_NbEData; i_AttNumber++)
 	{
-      if (pr_OInternalCData->ar_EDataTable[i_AttNumber].u_val.r_Str.ps_String != NULL) 
+      if (pr_OInternalCData->ar_EDataTable[i_AttNumber].u_val.r_Str.ps_String != NULL)
       {
-        free (pr_OInternalCData->ar_EDataTable[i_AttNumber].u_val.r_Str.ps_String);
-        pr_OInternalCData->ar_EDataTable[i_AttNumber].u_val.r_Str.ps_String = NULL;
+        delete[] pr_OInternalCData->ar_EDataTable[i_AttNumber].u_val.r_Str.ps_String;
+        // "Обнуление указателя после удаления сродни заметанию мусора под ковёр" (C) кто-то умный
+        //1 pr_OInternalCData->ar_EDataTable[i_AttNumber].u_val.r_Str.ps_String = NULL;
       }
     }
   }
 
   // (CD) Decode the composed data
   //----------------------------------------------------------------------------
-  if ( i_Status == GOF_D_NOERROR )
+  if ( i_Status == OK )
   {
     pr_OQuaCData->b_QualifyUse   = false;
     pr_OQuaCData->i_QualifyValue = 0;
@@ -4499,11 +4446,592 @@ int ExchangeTranslator::esg_ine_man_CDProcessing
                             pr_OInternalCData);
   }
 
-#endif
-
   i_RetStatus = i_Status;
   return (i_RetStatus);
 }
 //-END esg_ine_man_CDProcessing-----------------------------------------------
 
+//
+int ExchangeTranslator::processing_REPLY(FILE * pi_FileId, int i_LgAppl, int i_ApplLength, const char *s_IAcqSiteId)
+{
+  //----------------------------------------------------------------------------
+  static const char* fname="processing_REPLY";
+  size_t   i_FieldNumber;
+  size_t   i_AttNumber;
+  char s_ExchCompId[ECH_D_COMPIDLG + 1];
+  elemstruct_item_t* r_ExchCompElem = NULL;
+  char s_Buffer[ECH_D_APPLSEGLG + 1];
+  int i_Status = OK;
+  int i_LgDone = 0; // GEV: fake
+  int i_CDLength;        // composed data length
+  esg_esg_edi_t_StrComposedData r_InternalCData; // decoded composed data buffer
+  esg_esg_edi_t_StrQualifyComposedData r_QuaCData;
+  char s_Text[64];
+  int i_LgString;
+  // Данные из Ответа
+  uint16_t h_BasReqId;
+  uint16_t h_ReplyId;
+  uint32_t i_InitPhaseStep32;
+  bool b_HasData;
+  uint32_t i_State;
+  uint32_t i_error_code;    // gof_t_Cause.i_error_code
+  char s_error_text[128];   // gof_t_Cause.s_error_text
+  static const char* reply_string[] = { "ACCEPT", "REFUSAL", "DEFERED", "INTEXEC", "ENDEXEC" }; // строковое соответствия кодам ech_t_ReplyId
+  const char* reply_cause;
 
+  //............................................................................
+
+  // Get the segment length
+  // Read the rest of the segment
+  //----------------------------------------------------------------------------
+  i_Status = esg_esg_fil_StringRead(pi_FileId, i_ApplLength, s_Buffer);
+
+  if (i_Status != OK) {
+    fprintf(stderr, "%s: Error in reading body of reply segment\n", fname);
+  }
+
+  // Process each composed data included in the segment
+  //----------------------------------------------------------------------------
+  i_CDLength = 0;
+
+  for (i_LgDone = 0; i_LgDone < i_ApplLength; i_LgDone = i_LgDone + i_CDLength) {
+
+    if (i_Status == OK) {
+
+      // Get the ICD of the composed data
+      //----------------------------------------------------------------------------
+      strncpy(s_ExchCompId, &s_Buffer[i_LgDone], ECH_D_COMPIDLG);
+      s_ExchCompId[ECH_D_COMPIDLG] = '\0';
+
+      // Get the corresponding sub_type name
+      //----------------------------------------------------------------------------
+      if (NULL == (r_ExchCompElem = esg_esg_odm_ConsultExchCompArr(s_ExchCompId))) {
+        i_Status = NOK;
+        fprintf(stderr, "%s: Error in getting subtype name in reply segment %s\n", fname, s_ExchCompId);
+        break;
+      }
+
+      // Prepare the Composed data
+      // 1- Put the type of each att of the ComposedData
+      // 2- Alloc memory when it is String
+      //---------------------------------------------------
+      if (i_Status == OK) {
+
+        i_AttNumber = 0;
+        r_InternalCData.i_NbEData = r_ExchCompElem->num_attributes;
+
+        for (i_FieldNumber = 0; i_FieldNumber < r_ExchCompElem->num_fileds; i_FieldNumber++) {
+
+          if (FIELD_TYPE_UNKNOWN != r_ExchCompElem->fields[i_FieldNumber].type) {
+
+            r_InternalCData.ar_EDataTable[i_AttNumber].type = r_ExchCompElem->fields[i_FieldNumber].type;
+            r_InternalCData.ar_EDataTable[i_AttNumber].u_val.r_Str.i_LgString = sizeof(s_Text) - 1;
+
+            if (r_InternalCData.ar_EDataTable[i_AttNumber].type == FIELD_TYPE_STRING) {
+              r_InternalCData.ar_EDataTable[i_AttNumber].u_val.r_Str.ps_String = s_Text;
+            }
+
+            i_AttNumber++;
+          }
+
+        }
+
+        // Decode the composed data
+        //--------------------------------
+        i_CDLength = 0;
+        r_QuaCData.b_QualifyUse = false;
+        r_QuaCData.i_QualifyValue = 0;
+        r_QuaCData.b_QualifyExist = false;
+
+        i_Status = esg_esg_edi_ComposedDataDecoding(s_ExchCompId,
+                                                    &s_Buffer[i_LgDone],
+                                                    i_ApplLength,
+                                                    &i_CDLength,
+                                                    &r_QuaCData,
+                                                    &r_InternalCData);
+
+        if (i_Status != OK) {
+          fprintf(stderr, "%s: Error in decoding composed data in reply segment %s\n", fname, s_ExchCompId);
+        }
+      }
+
+      // END OF EXECUTION RESULT
+      // Get HasData indicator
+      //----------------------------
+      if (i_Status == OK) {
+
+        if (strcmp(s_ExchCompId, ECH_D_REPLYSEGHICD) == 0) {
+
+          i_Status = ech_typ_GetAtt(&r_InternalCData.ar_EDataTable[0].u_val,
+                                    r_InternalCData.ar_EDataTable[0].type,
+                                    &h_BasReqId,
+                                    FIELD_TYPE_UINT16);
+
+          if (i_Status == OK) {
+            i_Status = ech_typ_GetAtt(&r_InternalCData.ar_EDataTable[1].u_val,
+                                      r_InternalCData.ar_EDataTable[1].type,
+                                      // &i_InitPhaseStep // GEV: согласно НСИ - это Reply Identification
+                                      &h_ReplyId, // Reply Identification
+                                      FIELD_TYPE_UINT16);
+          }
+
+          i_Status = ech_typ_GetAtt(&r_InternalCData.ar_EDataTable[2].u_val,
+                                    r_InternalCData.ar_EDataTable[2].type,
+                                    &b_HasData,
+                                    FIELD_TYPE_LOGIC);
+
+          if (i_Status != OK) {
+            fprintf(stderr, "%s: Unexpected elementary data in reply segment, Composed data=%s\n", fname, ECH_D_REPLYSEGHICD);
+          }
+          else {
+
+            if (h_ReplyId > ECH_D_ENDEXEC_REPLY)
+              reply_cause = "UNKNOWN"; // Выход на пределы диапазона
+            else
+              reply_cause = reply_string[h_ReplyId];
+
+            fprintf(stdout, "   Basic ReqId=%d, ReplyId=%d (%s), Indication of related data=%d (data=1, no data=0)\n",
+                    h_BasReqId, h_ReplyId, reply_cause, b_HasData);
+          }
+        }
+        else if (strcmp(s_ExchCompId, ECH_D_REPLYSEGXICD) == 0) {
+          i_Status = ech_typ_GetAtt(&r_InternalCData.ar_EDataTable[0].u_val,
+                                    r_InternalCData.ar_EDataTable[0].type,
+                                    &i_State,
+                                    FIELD_TYPE_UINT32);
+          if (i_Status != OK) {
+            fprintf(stderr, "%s: Unexpected elementary data in reply segment, Composed data=%s\n", fname, ECH_D_REPLYSEGXICD);
+          }
+          else {
+            fprintf(stdout, "   Execution result=%d\n", i_State);
+          }
+        }
+
+        else if (strcmp(s_ExchCompId, ECH_D_REPLYSEGFICD) == 0) {
+          i_LgString = r_InternalCData.ar_EDataTable[0].u_val.r_Str.i_LgString;
+          strncpy(s_error_text, r_InternalCData.ar_EDataTable[0].u_val.r_Str.ps_String, i_LgString);
+
+          s_error_text[i_LgString] = '\0';
+          i_Status = ech_typ_GetAtt(&r_InternalCData.ar_EDataTable[1].u_val,
+                                    r_InternalCData.ar_EDataTable[1].type,
+                                    &i_error_code,
+                                    FIELD_TYPE_UINT32);
+
+          if (i_Status != OK) {
+            fprintf(stderr, "%s: Unexpected elementary data in reply segment, Composed data=%s\n", fname, ECH_D_REPLYSEGFICD);
+          }
+          else {
+            fprintf(stdout, "   Error code (no error=0)=%d, Error Text=\"%s\"\n", i_error_code, s_error_text);
+          }
+        }
+
+        // used for DIFFUSION REPLY segment
+        else if (strcmp(s_ExchCompId, ECH_D_DIFFSEGHICD) == 0) {
+
+          i_Status = ech_typ_GetAtt(&r_InternalCData.ar_EDataTable[0].u_val,
+                                    r_InternalCData.ar_EDataTable[0].type,
+                                    &h_BasReqId,
+                                    FIELD_TYPE_UINT16);
+
+          if (i_Status == OK) {
+            i_Status = ech_typ_GetAtt(&r_InternalCData.ar_EDataTable[1].u_val,
+                                      r_InternalCData.ar_EDataTable[1].type,
+                                      &i_InitPhaseStep32,
+                                      FIELD_TYPE_INT32);
+          }
+
+          if (i_Status != OK) {
+            fprintf(stderr, "%s: Unexpected elementary data in reply segment, Composed data=%s\n", fname, ECH_D_DIFFSEGHICD);
+          }
+          else {
+            fprintf(stdout, "   Basic req id=%d, Init phase step=%d\n", h_BasReqId, i_InitPhaseStep32);
+          }
+
+        }
+        else {
+          fprintf(stderr, "%s: Unexpected composed data in reply segment, Composed data=%s\n", fname, s_ExchCompId);
+        }
+      }
+    }                           /* end test no error */
+  }                             /* end for */
+
+  return i_Status;
+}
+
+//----------------------------------------------------------------------------
+//  FUNCTION            ech_typ_GetAtt
+//  FULL NAME           Get attribute
+//----------------------------------------------------------------------------
+//  ROLE
+//  This process allows to get the attribute of a composed data according to his local type.
+//----------------------------------------------------------------------------
+//  NOTES
+//  This process suposes that the time values are timeval like and the string values are ech_t_InternalString like.
+//----------------------------------------------------------------------------
+//  NOMINAL PROCESSING
+//  Switch on the type of attribute to fill
+//    Test the type of the value to store :
+//      If the type of the value to store is smaller than the type of the attribute to fill : store the value
+//----------------------------------------------------------------------------
+//  ERRORS AND EXCEPTIONS PROCESSING
+//  The type of the value to store is biger than the type of the attribute defined in the sub-type : go on error
+//----------------------------------------------------------------------------
+int ExchangeTranslator::ech_typ_GetAtt(
+                             // Input parameters
+                             const ech_t_InternalVal* r_IInternalVal,  // value from composed data
+                             field_type_t i_IGetAttType,   // type of the attribute to get
+                             // Output parameters
+                             void* p_Ovalue,            // attribute to fill
+                             field_type_t att_type)     // Filled attribute type
+{
+  //----------------------------------------------------------------------------
+  static const char* fname = "ech_typ_GetAtt";
+  int i_RetStatus = OK;
+  char s_LoggedTextErr[ESG_ESG_D_LOGGEDTEXTLENGTH + 1];
+  char s_LoggedTextWarn[ESG_ESG_D_LOGGEDTEXTLENGTH + 1];
+  char s_LoggedTextSign[ESG_ESG_D_LOGGEDTEXTLENGTH + 1];
+  //bool b_Logical;
+  uint8_t *po_Uint8;
+  int8_t *po_Int8;
+  uint16_t *ph_Uint16;
+  int16_t *ph_Int16;
+  uint32_t *pi_Uint32;
+  int32_t *pi_Int32;
+  float *pf_Float;
+  double *pg_Double;
+  //timeval pd_Timeval;
+  //ech_t_InternalString r_Str;
+  bool b_warn = false;
+  static const char* s_MessWarn = "The receiver type %d is not coherent with the type of the data to get %d";
+  static const char* s_MessErr = "The receiver type %d is incompatible with  the type of the data to get %d";
+  static const char* s_MessSign = "The value : %d is out of the type of the receiver's limits %d";
+
+  //............................................................................
+  sprintf(s_LoggedTextErr, s_MessErr, att_type, i_IGetAttType);
+  sprintf(s_LoggedTextWarn, s_MessWarn, att_type, i_IGetAttType);
+
+  switch (att_type) {
+    case FIELD_TYPE_LOGIC:
+      if (i_IGetAttType == att_type) {
+        memcpy(p_Ovalue, &r_IInternalVal->b_Logical, sizeof(bool));
+      }
+      else {
+        memcpy(p_Ovalue, &r_IInternalVal->b_Logical, sizeof(bool));
+        i_RetStatus = ESG_ESG_D_ERR_BADCONFFILE;
+        LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextErr;
+      }
+      break;
+
+    case FIELD_TYPE_INT8:
+      po_Int8 = static_cast<int8_t*>(p_Ovalue);
+      if (i_IGetAttType == att_type) {
+        *po_Int8 = r_IInternalVal->o_Int8;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_UINT8) {
+        if (r_IInternalVal->o_Uint8 <= SCHAR_MAX) {
+          *po_Int8 = r_IInternalVal->o_Uint8;
+          LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextWarn;
+        }
+        else {
+          // The data to store is out of the receiver limits
+          sprintf(s_LoggedTextSign, s_MessSign, r_IInternalVal->o_Uint8, att_type);
+          LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextSign;
+        }
+      }
+      else {
+        i_RetStatus = ESG_ESG_D_ERR_BADCONFFILE;
+        LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextErr;
+      }
+      break;
+
+    case FIELD_TYPE_UINT8:
+      po_Uint8 = static_cast<uint8_t*>(p_Ovalue);
+      if (i_IGetAttType == att_type) {
+        *po_Uint8 = r_IInternalVal->o_Uint8;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_INT8) {
+        if (r_IInternalVal->o_Int8 >= 0) {
+          *po_Uint8 = r_IInternalVal->o_Int8;
+          LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextWarn;
+        }
+        else {
+          // The data to store is out of the receiver limits
+          sprintf(s_LoggedTextSign, s_MessSign, r_IInternalVal->o_Int8, att_type);
+          LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextSign;
+        }
+      }
+      else {
+        i_RetStatus = ESG_ESG_D_ERR_BADCONFFILE;
+        LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextErr;
+      }
+      break;
+
+    case FIELD_TYPE_INT16:
+      ph_Int16 = static_cast<int16_t*>(p_Ovalue);
+      b_warn = false;
+      if (i_IGetAttType == att_type) {
+        *ph_Int16 = r_IInternalVal->h_Int16;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_INT8) {
+        *ph_Int16 = r_IInternalVal->o_Int8;
+        b_warn = true;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_UINT8) {
+        *ph_Int16 = r_IInternalVal->o_Uint8;
+        b_warn = true;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_UINT16) {
+        if (r_IInternalVal->h_Uint16 <= SHRT_MAX) {
+          *ph_Int16 = r_IInternalVal->h_Uint16;
+          b_warn = true;
+        }
+        else {
+          // The data to store is out of the receiver limits
+          sprintf(s_LoggedTextSign, s_MessSign, r_IInternalVal->h_Uint16, att_type);
+          LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextSign;
+        }
+      }
+      else {
+        i_RetStatus = ESG_ESG_D_ERR_BADCONFFILE;
+        LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextErr;
+      }
+
+      if (b_warn == true) {
+        LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextWarn;
+      }
+      break;
+
+    case FIELD_TYPE_UINT16:
+      ph_Uint16 = static_cast<uint16_t*>(p_Ovalue);
+      b_warn = false;
+      if (i_IGetAttType == att_type) {
+        *ph_Uint16 = r_IInternalVal->h_Uint16;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_INT8) {
+        *ph_Uint16 = r_IInternalVal->o_Int8;
+        b_warn = true;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_UINT8) {
+        *ph_Uint16 = r_IInternalVal->o_Uint8;
+        b_warn = true;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_INT16) {
+        if (r_IInternalVal->h_Int16 >= 0) {
+          *ph_Uint16 = r_IInternalVal->h_Int16;
+          b_warn = true;
+        }
+        else {
+          // The data to store is out of the receiver limits
+          sprintf(s_LoggedTextSign, s_MessSign, r_IInternalVal->h_Int16, att_type);
+          LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextSign;
+        }
+      }
+      else {
+        i_RetStatus = ESG_ESG_D_ERR_BADCONFFILE;
+        LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextErr;
+      }
+
+      if (b_warn == true) {
+        LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextWarn;
+      }
+      break;
+
+    case FIELD_TYPE_INT32:
+      pi_Int32 = static_cast<int32_t*>(p_Ovalue);
+      b_warn = false;
+      if (i_IGetAttType == att_type) {
+        *pi_Int32 = r_IInternalVal->i_Int32;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_INT8) {
+        *pi_Int32 = r_IInternalVal->o_Int8;
+        b_warn = true;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_UINT8) {
+        *pi_Int32 = r_IInternalVal->o_Uint8;
+        b_warn = true;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_INT16) {
+        *pi_Int32 = r_IInternalVal->h_Int16;
+        b_warn = true;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_UINT16) {
+        *pi_Int32 = r_IInternalVal->h_Uint16;
+        b_warn = true;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_UINT32) {
+        if (r_IInternalVal->i_Uint32 <= LONG_MAX) {
+          *pi_Int32 = r_IInternalVal->i_Uint32;
+          b_warn = true;
+        }
+        else {
+          // The data to store is out of the receiver limits
+          sprintf(s_LoggedTextSign, s_MessSign, r_IInternalVal->i_Uint32, att_type);
+          LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextSign;
+        }
+      }
+      else {
+        i_RetStatus = ESG_ESG_D_ERR_BADCONFFILE;
+        LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextErr;
+      }
+
+      if (b_warn == true) {
+        LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextWarn;
+      }
+      break;
+
+    case FIELD_TYPE_UINT32:
+      pi_Uint32 = static_cast<uint32_t*>(p_Ovalue);
+      b_warn = false;
+      if (i_IGetAttType == att_type) {
+        *pi_Uint32 = r_IInternalVal->i_Uint32;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_INT8) {
+        *pi_Uint32 = r_IInternalVal->o_Int8;
+        b_warn = true;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_UINT8) {
+        *pi_Uint32 = r_IInternalVal->o_Uint8;
+        b_warn = true;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_INT16) {
+        *pi_Uint32 = r_IInternalVal->h_Int16;
+        b_warn = true;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_UINT16) {
+        *pi_Uint32 = r_IInternalVal->h_Uint16;
+        b_warn = true;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_INT32) {
+        if (r_IInternalVal->i_Int32 >= 0) {
+          *pi_Uint32 = r_IInternalVal->i_Int32;
+          b_warn = true;
+        }
+        else {
+          // The data to store is out of the receiver limits
+          sprintf(s_LoggedTextSign, s_MessSign, r_IInternalVal->i_Int32, att_type);
+          LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextSign;
+        }
+      }
+      else {
+        i_RetStatus = ESG_ESG_D_ERR_BADCONFFILE;
+        LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextErr;
+      }
+
+      if (b_warn == true) {
+        LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextWarn;
+      }
+      break;
+
+    case FIELD_TYPE_FLOAT:
+      pf_Float = static_cast<float*>(p_Ovalue);
+      b_warn = false;
+      if (i_IGetAttType == att_type) {
+        *pf_Float = r_IInternalVal->f_Float;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_INT8) {
+        *pf_Float = r_IInternalVal->o_Int8;
+        b_warn = true;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_UINT8) {
+        *pf_Float = r_IInternalVal->o_Uint8;
+        b_warn = true;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_INT16) {
+        *pf_Float = r_IInternalVal->h_Int16;
+        b_warn = true;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_UINT16) {
+        *pf_Float = r_IInternalVal->h_Uint16;
+        b_warn = true;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_INT32) {
+        *pf_Float = r_IInternalVal->i_Int32;
+        b_warn = true;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_UINT32) {
+        *pf_Float = r_IInternalVal->i_Uint32;
+        b_warn = true;
+      }
+      else {
+        i_RetStatus = ESG_ESG_D_ERR_BADCONFFILE;
+        LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextErr;
+      }
+
+      if (b_warn == true) {
+        LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextWarn;
+      }
+      break;
+
+    case FIELD_TYPE_DOUBLE:
+      pg_Double = static_cast<double*>(p_Ovalue);
+      b_warn = false;
+      if (i_IGetAttType == att_type) {
+        *pg_Double = r_IInternalVal->g_Double;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_INT8) {
+        *pg_Double = r_IInternalVal->o_Int8;
+        b_warn = true;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_UINT8) {
+        *pg_Double = r_IInternalVal->o_Uint8;
+        b_warn = true;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_INT16) {
+        *pg_Double = r_IInternalVal->h_Int16;
+        b_warn = true;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_UINT16) {
+        *pg_Double = r_IInternalVal->h_Uint16;
+        b_warn = true;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_INT32) {
+        *pg_Double = r_IInternalVal->i_Int32;
+        b_warn = true;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_UINT32) {
+        *pg_Double = r_IInternalVal->i_Uint32;
+        b_warn = true;
+      }
+      else if (i_IGetAttType == FIELD_TYPE_FLOAT) {
+        *pg_Double = r_IInternalVal->f_Float;
+        b_warn = true;
+      }
+      else {
+        i_RetStatus = ESG_ESG_D_ERR_BADCONFFILE;
+        LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextErr;
+      }
+
+      if (b_warn == true) {
+        LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextWarn;
+      }
+      break;
+
+    case FIELD_TYPE_DATE:
+      if (i_IGetAttType == att_type) {
+        memcpy(p_Ovalue, &r_IInternalVal->d_Timeval, sizeof(timeval));
+      }
+      else {
+        i_RetStatus = ESG_ESG_D_ERR_BADCONFFILE;
+        LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextErr;
+      }
+      break;
+
+    case FIELD_TYPE_STRING:
+      if (i_IGetAttType == att_type) {
+        memcpy(p_Ovalue, &r_IInternalVal->r_Str, sizeof(ech_t_InternalString));
+      }
+      else {
+        i_RetStatus = ESG_ESG_D_ERR_BADCONFFILE;
+        LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedTextErr;
+      }
+      break;
+
+    default:
+      i_RetStatus = ESG_ESG_D_ERR_BADENTRYID;
+      LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", Bad attribute type=" << att_type;
+      break;
+  }
+
+  return (i_RetStatus);
+}
+//-END ech_typ_GetAtt------------------------------------------------

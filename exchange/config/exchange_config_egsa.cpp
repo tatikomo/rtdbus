@@ -347,7 +347,7 @@ cycle_id_t EgsaConfig::get_cycle_id_by_name(const std::string& look_name)
 // ==========================================================================================
 int EgsaConfig::load_cycles()
 {
-  const char* fname = "load_cycles";
+  static const char* fname = "load_cycles";
   egsa_config_cycle_info_t *cycle_info = NULL;
   cycle_id_t cycle_id = ID_CYCLE_UNKNOWN;
   int rc = OK;
@@ -371,15 +371,19 @@ int EgsaConfig::load_cycles()
 
         // Прочитать массив сайтов, поместить их в m_cycles.sites
         Value& site_list = cycle_item[s_SECTION_CYCLES_NAME_SITE];
+#if VERBOSE > 7
         int idx = 0;
+#endif
         for (Value::ValueIterator itr = site_list.Begin(); itr != site_list.End(); ++itr)
         {
           const Value::Object& site_item = itr->GetObject();
           const std::string site_name = site_item[s_SECTION_CYCLES_NAME_SITE_NAME].GetString();
+#if VERBOSE > 7
           LOG(INFO) << fname << ": " << cycle_info->name
                     << " period=" << cycle_info->period
                     << " req_name=" << cycle_info->request_name
                     << " [" << (++idx) << "] " << site_name;
+#endif
           cycle_info->sites.push_back(site_name);
         }
 
@@ -439,11 +443,13 @@ int EgsaConfig::load_sites()
 
       m_sites[item->name] = item;
 
+#if VERBOSE > 7
       LOG(INFO) << fname << ": " << item->name
                 << " level=" << item->level
                 << " nature=" << item->nature
                 << " auto_init=" << item->auto_init
                 << " auto_gencontrol=" << item->auto_gencontrol;
+#endif
     }
   }
   else rc = NOK;
@@ -603,11 +609,13 @@ int EgsaConfig::load_requests()
             // Проверить имя вложенного Запроса
             if (OK == get_request_by_name(incl_req_name, dict_entry))
             {
+#if VERBOSE > 7
               LOG(INFO) << fname << ": " << request->s_RequestName
                         << " priority=" << (unsigned int)request->i_RequestPriority
                         << " object=" << (unsigned int)request->e_RequestObject
                         << " mode=" << (unsigned int)request->e_RequestMode << " "
                         << incl_req_name; // << " sequence=" << (sequence+1);
+#endif
 
               // Ненулевое значение говорит о порядке исполнения подзапросов
               request->r_IncludingRequests[dict_entry->e_RequestId] = ++sequence;
@@ -827,15 +835,23 @@ int EgsaConfig::load_DCD_ELEMSTRUCTS(rapidjson::Value& dcd_elemstructs)
               LOG(ERROR) << fname << ": fields num for " << m_elemstruct_items[idx].name << " exceed limits";
               break;
             }
-          }
+          } // конец блока "по всем атрибутам"
 
           m_elemstruct_items[idx].num_fileds = attr_idx;
-        }
+        } // конец блока if "есть массив атрибутов"
 
-        idx++;
-      }
-    }
-  }
+      } // конец блока "по всем атрибутам"
+
+#if VERBOSE>7
+      LOG(INFO) << fname << ": NAME=" << m_elemstruct_items[idx].name << ", ASSOCIATE=" << m_elemstruct_items[idx].associate
+                << ", type=" << m_elemstruct_items[idx].tm_class << ", num_fields=" << m_elemstruct_items[idx].num_fileds
+                << ", num_attrs=" << m_elemstruct_items[idx].num_attributes;
+#endif
+
+      idx++;
+    } // конец блока "есть сведения об атрибутаx"
+
+  }  // конец блока "if DCD_ELEMSTRUCT содержит данные"
   else {
     LOG(ERROR) << fname << ": not an array";
     rc = NOK;
@@ -996,10 +1012,10 @@ int EgsaConfig::load_DED_ELEMTYPES(rapidjson::Value& ded_elemtypes)
         default:  m_elemtype_items[idx].tm_type = TM_TYPE_UNKNOWN; break;
       }
   
-//#if VERBOSE > 7
+#if VERBOSE > 7
       LOG(INFO) << fname << ": name=" << m_elemtype_items[idx].name << " type=" << m_elemtype_items[idx].tm_type
                 << " format_size=" << m_elemtype_items[idx].format_size;
-//#endif
+#endif
       idx++;
     }
   }

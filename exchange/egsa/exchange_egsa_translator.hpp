@@ -182,6 +182,15 @@
 typedef char    gof_t_UniversalName[32];
 typedef int32_t gof_t_ExchangeId;
 
+// reply identification
+typedef enum 	{
+  ECH_D_ACCEPT_REPLY,
+  ECH_D_REFUSAL_REPLY,
+  ECH_D_DEFERED_REPLY,
+  ECH_D_INTEXEC_REPLY,
+  ECH_D_ENDEXEC_REPLY
+} ech_t_ReplyId;
+
 // service segments
 // ----------------
 // interchange segment
@@ -197,7 +206,7 @@ typedef struct {
   gof_t_UniversalName s_IdSender;
   gof_t_UniversalName s_IdReceiver;
   timeval d_InterChgDate;
-  uint16_t h_InterChgMsgNb;
+  int h_InterChgMsgNb;
 } esg_esg_t_HeaderInterChg;
 
 typedef struct {
@@ -209,13 +218,13 @@ typedef struct {
 //   . type
 //   . number of application segments
 typedef struct {
-  uint16_t h_MsgOrderNb;
-  uint32_t i_MsgType;
-  uint16_t h_MsgApplNb;
+  int h_MsgOrderNb;
+  int i_MsgType;
+  int h_MsgApplNb;
 } esg_esg_t_HeaderMsg;
 
 typedef struct {
-  uint16_t h_MsgOrderNb;
+  int h_MsgOrderNb;
 } esg_esg_t_EndMsg;
 
 // application segments
@@ -223,9 +232,9 @@ typedef struct {
 //   . order number
 //   . length
 typedef struct {
-  uint16_t h_ApplOrderNb;
-  uint32_t i_ApplType;
-  uint32_t i_ApplLength;
+  int h_ApplOrderNb;
+  int i_ApplType;
+  int i_ApplLength;
 } esg_esg_t_HeaderAppl;
 
 // Internal elementary data
@@ -235,7 +244,7 @@ typedef struct {
 //   . string length
 typedef struct {
   char* ps_String;
-  uint32_t i_LgString;
+  int   i_LgString;
 } ech_t_InternalString;
 
 // internal data types
@@ -266,7 +275,7 @@ typedef union { bool b_Logical;
 //           (the length of the received string)
 //
 typedef struct {
-	uint32_t i_type;
+	field_type_t type;
 	ech_t_InternalVal u_val;
 } esg_esg_edi_t_StrElementaryData;
 
@@ -283,7 +292,7 @@ typedef struct {
 //          (i.e EDI services) to TRUE : qualify "L3800" exists in the DCD entity
 typedef struct {
 	bool b_QualifyUse;
-	uint32_t  i_QualifyValue;
+	int  i_QualifyValue;
 	bool b_QualifyExist;
 } esg_esg_edi_t_StrQualifyComposedData;
 
@@ -292,7 +301,7 @@ typedef struct {
 //   . number of internal elementary data
 //   . elementary data table
 typedef struct {
-	uint32_t i_NbEData;
+	int i_NbEData;
 	esg_esg_edi_t_StrElementaryData ar_EDataTable[ECH_D_COMPELEMNB];
 } esg_esg_edi_t_StrComposedData;
 
@@ -323,7 +332,7 @@ typedef struct {
 // . array of elementary data
 //typedef struct {
 //    char  s_ExchCompId[ECH_D_COMPIDLG + 1];
-//    uint32_t i_NbData;
+//    int i_NbData;
 //    char  as_ElemDataArr[ECH_D_IEDPERICD][ECH_D_ELEMIDLG + 1];
 //    char  s_AssocSubType[ECH_D_STYPEIDLG + 1];
 //} esg_esg_odm_t_ExchCompElem;
@@ -360,7 +369,7 @@ class ExchangeTranslator
             const char*,                                // composed data DCD identifier
             const esg_esg_edi_t_StrQualifyComposedData*,// Qualify of internal composed data
             const esg_esg_edi_t_StrComposedData*,       // Internal composed data
-            uint32_t* pi_OLgCodedCData);                // length of coded composed data
+            int* pi_OLgCodedCData);                // length of coded composed data
 
     // Coding of elementary data in EDI format
     // --------------------------------------------------------------
@@ -368,8 +377,8 @@ class ExchangeTranslator
                 const char*,
                 const bool,
                 const esg_esg_edi_t_StrElementaryData*,
-                const uint32_t i_ILgMaxCodedEData,
-                uint32_t*,
+                const int i_ILgMaxCodedEData,
+                int*,
                 char*);
 
     // Decoding from EDI format in internal elementary data
@@ -378,8 +387,8 @@ class ExchangeTranslator
                 const char*,
                 const bool,
                 const char*,
-                const uint32_t,
-                uint32_t*,
+                const int,
+                int*,
                 esg_esg_edi_t_StrElementaryData*);
 
     // Coding of composed data in EDI format
@@ -388,8 +397,8 @@ class ExchangeTranslator
                 const char*,
                 const esg_esg_edi_t_StrQualifyComposedData*,
                 const esg_esg_edi_t_StrComposedData*,
-                const uint32_t,
-                uint32_t*,
+                const int,
+                int*,
                 char*);
 
     // Decoding of composed data in internal format
@@ -397,8 +406,8 @@ class ExchangeTranslator
     int esg_esg_edi_ComposedDataDecoding(
                 const char*,
                 const char*,
-                const uint32_t,
-                uint32_t*,
+                const int,
+                int*,
                 esg_esg_edi_t_StrQualifyComposedData*,
                 esg_esg_edi_t_StrComposedData*);
 
@@ -406,114 +415,114 @@ class ExchangeTranslator
     // --------------------------------------------------------------
     int esg_esg_edi_HeaderInterChgCoding(
                 const esg_esg_t_HeaderInterChg*,
-                const uint32_t,
-                uint32_t*,
+                const int,
+                int*,
                 char*);
 
     // Decoding from EDI format in internal interchange header
     // --------------------------------------------------------------
     int esg_esg_edi_HeaderInterChgDecoding(
                 const char*,
-                const uint32_t,
-                uint32_t*,
+                const int,
+                int*,
                 esg_esg_t_HeaderInterChg*);
 
     // Coding of interchange end in EDI format
     // --------------------------------------------------------------
     int esg_esg_edi_EndInterChgCoding(
                 const esg_esg_t_EndInterChg*,
-                const uint32_t,
-                uint32_t*,
+                const int,
+                int*,
                 char*);
 
     // Decoding from EDI format in internal interchange end
     // --------------------------------------------------------------
     int esg_esg_edi_EndInterChgDecoding(
                 const char*,
-                const uint32_t,
-                uint32_t*,
+                const int,
+                int*,
                 esg_esg_t_EndInterChg*);
 
     // Coding of interchange message in EDI format
     // --------------------------------------------------------------
     int esg_esg_edi_HeaderMsgCoding(
                 const esg_esg_t_HeaderMsg*,
-                const uint32_t,
-                uint32_t*,
+                const int,
+                int*,
                 char*);
     // --------------------------------------------------------------
     // Decoding from EDI format in internal interchange header
     int esg_esg_edi_HeaderMsgDecoding(
                 const char*,    // coded composed data
-                const uint32_t, // max length of coded composed data
-                uint32_t*,      // length of coded composed data
+                const int, // max length of coded composed data
+                int*,      // length of coded composed data
                 esg_esg_t_HeaderMsg*);  // Internal message header
 
     // Coding of message end in EDI format
     // --------------------------------------------------------------
     int esg_esg_edi_EndMsgCoding(
                 const esg_esg_t_EndMsg*,// Internal message end
-                const uint32_t, // max length of coded composed data
-                uint32_t*,      // length of coded composed data
+                const int, // max length of coded composed data
+                int*,      // length of coded composed data
                 char*);         // pointer to coded composed data
 
     // Decoding from EDI format in internal message end
     // --------------------------------------------------------------
     int esg_esg_edi_EndMsgDecoding(
                 const char*,    // coded composed data
-                const uint32_t, // max length of coded composed data
-                uint32_t*,      // length of coded composed data
+                const int, // max length of coded composed data
+                int*,      // length of coded composed data
                 esg_esg_t_EndMsg*);  // Internal message header
 
     // Coding of application header in EDI format
     // --------------------------------------------------------------
     int esg_esg_edi_HeaderApplCoding(
                 const esg_esg_t_HeaderAppl*,   // Internal interchange application
-                const uint32_t, // max length of coded composed data
-                uint32_t* ,     // length of coded composed data
+                const int, // max length of coded composed data
+                int* ,     // length of coded composed data
                 char*);         // pointer to coded composed data
 
     // Decoding from EDI format in internal interchange header
     // --------------------------------------------------------------
     int esg_esg_edi_HeaderApplDecoding(
                 const char*,    // coded composed data
-                const uint32_t, // max length of coded composed data
-                uint32_t*,      // length of coded composed data
+                const int, // max length of coded composed data
+                int*,      // length of coded composed data
                 esg_esg_t_HeaderAppl*); // Internal application header
 
     // Coding of application end in EDI format
     // --------------------------------------------------------------
     int esg_esg_edi_EndApplCoding(
-                const uint32_t, // max length of coded label
-                uint32_t*,      // length of coded label
+                const int, // max length of coded label
+                int*,      // length of coded label
                 char*);         // pointer to coded label
 
     // Decoding of application end in EDI format
     // --------------------------------------------------------------
     int esg_esg_edi_EndApplDecoding(
                 const char*,    // pointer to coded label
-                const uint32_t, // max length of coded label
-                uint32_t*);     // length of coded label
+                const int, // max length of coded label
+                int*);     // length of coded label
     // --------------------------------------------------------------
     int esg_esg_edi_GetLengthEData(
                 const elemtype_item_t*,
-                const uint32_t,
-                uint32_t*);
+                const int,
+                int*);
 
     // get format and length of elementary data qualifier
     // --------------------------------------------------------------
     int esg_esg_edi_GetForLgQuaEData(elemtype_item_t*,
-                                  uint32_t* pi_OLgEData);
+                                  int* pi_OLgEData);
 
     // get completed length of elementary data ASCII string type
     // variable / fixed control of the associated format
     // --------------------------------------------------------------
     int esg_esg_edi_GetLengthFullCtrlEData(const elemtype_item_t*,
                                   const bool,
-                                  const uint32_t,
-                                  uint32_t*,
-                                  uint32_t*,
-                                  uint32_t*);
+                                  const int,
+                                  int*,
+                                  int*,
+                                  int*);
 
     // coding of elementary data in ASCII string
     // --------------------------------------------------------------
@@ -552,8 +561,8 @@ class ExchangeTranslator
     int esg_acq_dac_HistAlPut(
              const gof_t_UniversalName,  // name of distant site
              const char*,         // name of the file
-             const int16_t,           // alarms type
-             const uint32_t,            // number of alarms
+             const int,           // alarms type
+             const int,           // number of alarms
              const esg_esg_t_HistAlElem*);
 
     // Read A File Header
@@ -573,15 +582,20 @@ class ExchangeTranslator
 
     // --------------------------------------------------------------
     int esg_ine_man_CDProcessing(
-        const char*,        // begining of the composed data in the buffer
-        const uint32_t,     //length of the segment body from the composed data to process
-        uint32_t*,          // composed data length
+        const char*,   // begining of the composed data in the buffer
+        const int,     //length of the segment body from the composed data to process
+        int*,          // composed data length
         esg_esg_edi_t_StrComposedData*, // decoded composed data buffer
-        //ech_typ_t_SubTypeElem*,         // subtype buffer
         esg_esg_edi_t_StrQualifyComposedData*);  // Quality data buffer
 
     // --------------------------------------------------------------
     int esg_esg_fil_StringRead(FILE*, const int32_t, char*);
+
+    // --------------------------------------------------------------
+    int ech_typ_GetAtt(const ech_t_InternalVal*,  // value from composed data
+                       field_type_t,  // type of the attribute to get
+                       void*,         // attribute to fill
+                       field_type_t); // тип ожидаемого атрибута
 
     // --------------------------------------------------------------
     float getGoodFloatValue(float, float);
@@ -590,6 +604,8 @@ class ExchangeTranslator
 
     // --------------------------------------------------------------
     int processing_STATE(FILE*, int, int, const char*);
+    int processing_REPLY(FILE*, int, int, const char*);
+    int processing_REQUEST(FILE*, int, int, const char*);
 };
 
 //============================================================================
