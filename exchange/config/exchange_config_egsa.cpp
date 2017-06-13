@@ -201,7 +201,6 @@ RequestEntry EgsaConfig::g_request_dictionary[] = {
 EgsaConfig::EgsaConfig(const char* config_filename)
  : m_config_filename(NULL),
    m_config_has_good_format(false),
-   m_locstruct_items(NULL),
    m_elemtype_items(NULL),
    m_elemstruct_items(NULL)
 {
@@ -258,7 +257,6 @@ EgsaConfig::~EgsaConfig()
 #endif
 
   free(m_config_filename); // NB: free() after strdup()
-  delete[] m_locstruct_items;
   delete[] m_elemtype_items;
   delete[] m_elemstruct_items;
 
@@ -654,6 +652,7 @@ int EgsaConfig::load_esg()
       m_esg_config_document.ParseStream(is);
       delete []readBuffer;
 
+      // На этапе разработки - аварийное завершение есть предпочтительный способ обозначения ошибок
       assert(m_esg_config_document.IsObject());
 
       if (!m_esg_config_document.HasParseError()) // Конфиг-файл имеет корректную структуру?
@@ -673,13 +672,6 @@ int EgsaConfig::load_esg()
           rc = load_DCD_ELEMSTRUCTS(elemstructs);
           if (OK != rc) {
             LOG(ERROR) << fname << ": unable to load DCD_ELEMSTRUCTS";
-            break;
-          }
-
-          Value& locstructs = m_esg_config_document["ESG_LOCSTRUCTS"];
-          rc = load_ESG_LOCSTRUCTS(locstructs);
-          if (OK != rc) {
-            LOG(ERROR) << fname << ": unable to load ESG_LOCSTRUCTS";
             break;
           }
 
@@ -705,7 +697,7 @@ int EgsaConfig::load_esg()
 
 // ==========================================================================================
 // Вернуть идентификатор типа записи ESG_LOCSTRUCT
-field_type_t EgsaConfig::get_locstruct_type_id(const std::string& type_name)
+field_type_t EgsaConfig::get_db_attr_type_id(const std::string& type_name)
 {
   field_type_t type;
 
@@ -758,6 +750,29 @@ int EgsaConfig::load_DCD_ELEMSTRUCTS(rapidjson::Value& dcd_elemstructs)
       const std::string name = dcd_elemstructs_json["NAME"].GetString();
       strncpy(m_elemstruct_items[idx].name, name.c_str(), MAX_ICD_NAME_LENGTH);
 
+      // Не для всех типов есть ASSOCIATE
+      if (dcd_elemstructs_json.HasMember("ASSOCIATE")) {
+        const std::string associate = dcd_elemstructs_json["ASSOCIATE"].GetString();
+        strncpy(m_elemstruct_items[idx].associate, associate.c_str(), MAX_ICD_NAME_LENGTH);
+      }
+
+      // Первый символ ассоциации - тип данных
+      if (m_elemstruct_items[idx].associate[0]) {
+        switch (m_elemstruct_items[idx].associate[0]) {
+          case 'I': m_elemstruct_items[idx].tm_class = TM_CLASS_INFORMATION;   break;
+          case 'A': m_elemstruct_items[idx].tm_class = TM_CLASS_ALARM;         break;
+          case 'S': m_elemstruct_items[idx].tm_class = TM_CLASS_STATE;         break;
+          case 'O': m_elemstruct_items[idx].tm_class = TM_CLASS_ORDER;         break;
+          case 'P': m_elemstruct_items[idx].tm_class = TM_CLASS_HISTORIZATION; break;
+          case 'H': m_elemstruct_items[idx].tm_class = TM_CLASS_HISTORIC;      break;
+          case 'T': m_elemstruct_items[idx].tm_class = TM_CLASS_THRESHOLD;     break;
+          case 'R': m_elemstruct_items[idx].tm_class = TM_CLASS_REQUEST;       break;
+          case 'G': m_elemstruct_items[idx].tm_class = TM_CLASS_CHANGEHOUR;    break;
+          case 'D': m_elemstruct_items[idx].tm_class = TM_CLASS_INCIDENT;      break;
+          default:  m_elemstruct_items[idx].tm_class = TM_CLASS_UNKNOWN;       break;
+        }
+      }
+
       if (dcd_elemstructs_json.HasMember("FIELDS")) { // Есть массив полей?
         attr_idx = 0;
 
@@ -765,11 +780,47 @@ int EgsaConfig::load_DCD_ELEMSTRUCTS(rapidjson::Value& dcd_elemstructs)
 
         if (field_list.IsArray()) {
 
+          // Обнулили счётчик полей, имеющих заданный тип в БДРВ - то есть он являющихся атрибутами БДРВ
+          m_elemstruct_items[idx].num_attributes = 0;
+
           for (Value::ValueIterator itr = field_list.Begin(); itr != field_list.End(); ++itr)
           {
             const Value::Object& field_item = itr->GetObject();
-            const std::string attr_str = field_item["FIELD"].GetString();
-            strncpy(m_elemstruct_items[idx].fields[attr_idx], attr_str.c_str(), MAX_ICD_NAME_LENGTH);
+            // поле FIELD обязательно
+            const std::string field_str = field_item["FIELD"].GetString();
+            strncpy(m_elemstruct_items[idx].fields[attr_idx].field, field_str.c_str(), MAX_ICD_NAME_LENGTH);
+
+            // поле TYPE необязательно, но если оно есть, то могут быть еще поля ATTR, TYPE, LENGTH
+            if (field_item.HasMember("TYPE")) {
+              const std::string attr_type = field_item["TYPE"].GetString();
+
+              // Если это поле - атрибут БДРВ, может быть задан тег ATTR
+              if (field_item.HasMember("ATTR")) {
+                const std::string attr_str = field_item["ATTR"].GetString();
+                strncpy(m_elemstruct_items[idx].fields[attr_idx].attribute, attr_str.c_str(), TAG_NAME_MAXLEN);
+              }
+
+              if (FIELD_TYPE_UNKNOWN != (m_elemstruct_items[idx].fields[attr_idx].type = get_db_attr_type_id(attr_type))) {
+
+                if (FIELD_TYPE_STRING == m_elemstruct_items[idx].fields[attr_idx].type) {
+
+                  assert(field_item.HasMember("LENGTH"));
+
+                  // Для строковых атрибутов должна быть задана их длина
+                  if (field_item.HasMember("LENGTH")) {
+                    m_elemstruct_items[idx].fields[attr_idx].length = field_item["LENGTH"].GetInt();
+                  }
+                  else {
+                    LOG(ERROR) << fname << ": string field " << field_str << " missing his length";
+                    m_elemstruct_items[idx].fields[attr_idx].length = 0;
+                    rc = NOK;
+                  }
+                }
+
+                m_elemstruct_items[idx].num_attributes++;
+              }
+              
+            }
 
             attr_idx++;
             if (MAX_LOCSTRUCT_FIELDS_NUM < attr_idx) {
@@ -794,6 +845,7 @@ int EgsaConfig::load_DCD_ELEMSTRUCTS(rapidjson::Value& dcd_elemstructs)
   return rc;
 }
 
+#if 0
 // ==========================================================================================
 int EgsaConfig::load_ESG_LOCSTRUCTS(rapidjson::Value& esg_locstructs)
 {
@@ -854,7 +906,7 @@ int EgsaConfig::load_ESG_LOCSTRUCTS(rapidjson::Value& esg_locstructs)
 
               if (field_item.HasMember("TYPE")) {
                 const std::string type_str = field_item["TYPE"].GetString();
-                m_locstruct_items[idx].fields[attr_idx].type = get_locstruct_type_id(type_str);
+                m_locstruct_items[idx].fields[attr_idx].type = get_db_attr_type_id(type_str);
 
                 if (m_locstruct_items[idx].fields[attr_idx].type == FIELD_TYPE_STRING) {
                   if (field_item.HasMember("LENGTH"))  {
@@ -908,6 +960,7 @@ int EgsaConfig::load_ESG_LOCSTRUCTS(rapidjson::Value& esg_locstructs)
 
   return rc;
 }
+#endif
 
 // ==========================================================================================
 int EgsaConfig::load_DED_ELEMTYPES(rapidjson::Value& ded_elemtypes)

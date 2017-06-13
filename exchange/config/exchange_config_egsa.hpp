@@ -379,29 +379,25 @@ typedef enum {
 } field_type_t;
 
 typedef struct {
-  char name[MAX_ICD_NAME_LENGTH + 1];
-  field_type_t type;
-  int length;
+  char field[MAX_ICD_NAME_LENGTH + 1];// Название поля
+  char attribute[TAG_NAME_MAXLEN + 1];// Название соответствующего атрибута в БДРВ (если есть)
+  field_type_t type;                  // Для атрибута БДРВ - тип данных. Для обычного поля - FIELD_TYPE_UNKNOWN
+  int length;                         // Для атрибута символьного типа - длина строки
 } field_item_t;
 
-// Описание композитного(составного) типа данных из ESG_LOCSTRUCTS
-typedef struct {
-  char name[MAX_ICD_NAME_LENGTH + 1];
-  char icd[MAX_ICD_NAME_LENGTH + 1];
-  elemtype_class_t tm_class;
-  // Количество атрибутов в массиве fields
-  size_t    num_fileds;
-  field_item_t fields[MAX_LOCSTRUCT_FIELDS_NUM];
-} locstruct_item_t;
-
 // ==========================================================================================
-// Данные для чтения конфигурации раздела конфигурации DCD_ELEMSTRUCTS
+// Данные для чтения конфигурации разделщв конфигурации DCD_ELEMSTRUCTS и ESG_LOCSTRUCTS
+// Описание композитного(составного) типа данных
 typedef struct {
-  char name[MAX_ICD_NAME_LENGTH + 1];
+  char name[MAX_ICD_NAME_LENGTH + 1];           // json-атрибут "NAME"
+  char associate[MAX_ICD_NAME_LENGTH + 1];      // json-атрибут "ASSOCIATE"
+  elemtype_class_t tm_class;
   // Количество структур в массиве fields
   size_t    num_fileds;
-  // Названия структур
-  char fields[MAX_ICD_NAME_LENGTH][MAX_LOCSTRUCT_FIELDS_NUM];
+  // Количество атрибутов БДРВ из всего набора fields
+  size_t    num_attributes;
+  // Вложенные структуры
+  field_item_t fields[MAX_LOCSTRUCT_FIELDS_NUM];
 } elemstruct_item_t;
 
 // ==========================================================================================
@@ -447,7 +443,6 @@ class EgsaConfig {
     int load_requests();
     // Загрузка НСИ ESG
     int load_esg();
-    locstruct_item_t*   locstructs()  { return m_locstruct_items; }
     elemtype_item_t*    elemtypes()   { return m_elemtype_items; }
     elemstruct_item_t*  elemstructs() { return m_elemstruct_items; }
     // Название SMED
@@ -468,10 +463,9 @@ class EgsaConfig {
     int get_request_by_id(ech_t_ReqId, RequestEntry*&);
     // Найти по таблице НСИ запрос с заданным названием
     int get_request_by_name(const std::string&, RequestEntry*&);
-    // Вернуть идентификатор типа записи ESG_LOCSTRUCT
-    field_type_t get_locstruct_type_id(const std::string&);
+    // Вернуть идентификатор типа атрибута
+    field_type_t get_db_attr_type_id(const std::string&);
 
-    int load_ESG_LOCSTRUCTS(rapidjson::Value&);
     int load_DCD_ELEMSTRUCTS(rapidjson::Value&);
     int load_DED_ELEMTYPES(rapidjson::Value&);
 
@@ -479,11 +473,9 @@ class EgsaConfig {
     rapidjson::Document m_esg_config_document;
     char   *m_config_filename;
     bool    m_config_has_good_format;
-    // Данные ESG_LOCSTRUCTS из конфигурационного файла
-    locstruct_item_t *m_locstruct_items;
     // Данные DED_ELEMTYPES из конфигурационного файла
     elemtype_item_t  *m_elemtype_items;
-    // Данные DCD_ELEMSTRUCTS из конфигурационного файла
+    // Данные DCD_ELEMSTRUCTS + ESG_LOCSTRUCTS из конфигурационного файла
     elemstruct_item_t  *m_elemstruct_items;
 
     // Секция "COMMON" конфигурационного файла ==============================

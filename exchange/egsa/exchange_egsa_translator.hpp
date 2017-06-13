@@ -332,7 +332,7 @@ typedef struct {
 class ExchangeTranslator
 {
   public:
-    ExchangeTranslator(locstruct_item_t*, elemtype_item_t*, elemstruct_item_t*);
+    ExchangeTranslator(elemtype_item_t*, elemstruct_item_t*);
    ~ExchangeTranslator();
 
     int load(std::stringstream&);
@@ -341,7 +341,6 @@ class ExchangeTranslator
 
   private:
     DISALLOW_COPY_AND_ASSIGN(ExchangeTranslator);
-    std::map <const std::string, locstruct_item_t>  m_locstructs;
     std::map <const std::string, elemtype_item_t>   m_elemtypes;
     std::map <const std::string, elemstruct_item_t> m_elemstructs;
 
@@ -573,10 +572,24 @@ class ExchangeTranslator
                                  int32_t*);
 
     // --------------------------------------------------------------
+    int esg_ine_man_CDProcessing(
+        const char*,        // begining of the composed data in the buffer
+        const uint32_t,     //length of the segment body from the composed data to process
+        uint32_t*,          // composed data length
+        esg_esg_edi_t_StrComposedData*, // decoded composed data buffer
+        //ech_typ_t_SubTypeElem*,         // subtype buffer
+        esg_esg_edi_t_StrQualifyComposedData*);  // Quality data buffer
+
+    // --------------------------------------------------------------
+    int esg_esg_fil_StringRead(FILE*, const int32_t, char*);
+
+    // --------------------------------------------------------------
     float getGoodFloatValue(float, float);
     // --------------------------------------------------------------
     double getGoodDoubleValue(double, double);
+
     // --------------------------------------------------------------
+    int processing_STATE(FILE*, int, int, const char*);
 };
 
 //============================================================================

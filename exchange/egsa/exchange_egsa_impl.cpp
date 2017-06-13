@@ -272,8 +272,7 @@ int EGSA::load_config()
   m_state = STATE_INI_OK;
 
   // 4) Создать словари ESG
-  m_translator = new ExchangeTranslator(config()->locstructs(),
-                                        config()->elemtypes(),
+  m_translator = new ExchangeTranslator(config()->elemtypes(),
                                         config()->elemstructs());
 
 #ifndef _FUNCTIONAL_TEST
