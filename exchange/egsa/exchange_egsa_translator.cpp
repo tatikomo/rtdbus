@@ -17,8 +17,6 @@
 #include "exchange_egsa_impl.hpp"
 #include "exchange_egsa_translator.hpp"
 
-#define ESG_ESG_D_LOGGEDTEXTLENGTH 200
-
 //============================================================================
 void print_elemstruct(std::pair < const std::string, elemstruct_item_t > pair)
 {
@@ -31,8 +29,10 @@ void print_elemtype(std::pair < const std::string, elemtype_item_t > pair)
 }
 
 //============================================================================
-ExchangeTranslator::ExchangeTranslator(elemtype_item_t* _elemtypes,
+ExchangeTranslator::ExchangeTranslator(EGSA* _egsa,
+                                       elemtype_item_t* _elemtypes,
                                        elemstruct_item_t* _elemstructs)
+ : m_egsa_instance(_egsa)
 {
   LOG(INFO) << "CTOR ExchangeTranslator";
   elemtype_item_t *elemtype = _elemtypes;
@@ -441,13 +441,12 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
           // TI
           // -------------------
           case ECH_D_EDI_EDDSEG_TI:
-#if 0
+#if 1
             i_Status = esg_acq_dac_TeleinfoAcq(pi_FileId,
                                                i_LgAppl,
                                                i_ApplLength,
                                                s_IAcqSiteId,
-                                               r_HeaderInterChg.
-                                               d_InterChgDate);
+                                               r_HeaderInterChg.d_InterChgDate);
 #else
             LOG(ERROR) << fname << ": esg_acq_dac_TeleinfoAcq";
 #endif
@@ -4121,6 +4120,24 @@ elemtype_item_t* ExchangeTranslator::esg_esg_odm_ConsultExchDataArr(const char* 
   return ded_element;
 }
 
+// Удаление памяти, выделенной под значение атрибута, прочитанного из файла ESG
+// --------------------------------------------------------------
+int ExchangeTranslator::esg_ine_man_FreeCompData(esg_esg_edi_t_StrComposedData *r_InternalCData)
+{
+  static const char* fname="esg_ine_man_FreeCompData";
+  int i_Status = OK;
+
+  for(size_t i_IdAttr = 0 ; i_IdAttr < r_InternalCData->i_NbEData; i_IdAttr++)
+  {
+    if ((r_InternalCData->ar_EDataTable[i_IdAttr].type == FIELD_TYPE_STRING)
+     && (r_InternalCData->ar_EDataTable[i_IdAttr].u_val.r_Str.ps_String != NULL))
+    {
+      delete[] r_InternalCData->ar_EDataTable[i_IdAttr].u_val.r_Str.ps_String;
+    }
+  }
+  return (i_Status);
+} //-END esg_ine_man_FreeCompData --------------------------------------------
+
 // Read An Applicative Header
 // --------------------------------------------------------------
 int ExchangeTranslator::esg_esg_fil_HeadApplRead(FILE* pi_IFileId, esg_esg_t_HeaderAppl* pr_OHeadAppl, int32_t* i_OLgAppl)
@@ -4343,7 +4360,6 @@ int ExchangeTranslator::esg_ine_man_CDProcessing
         // Output parameters
         int* pi_OCDLen,        // composed data length
         esg_esg_edi_t_StrComposedData   *pr_OInternalCData, // decoded composed data buffer
-        //1 ech_typ_t_SubTypeElem       *pr_OSubTypeElem,   // subtype buffer
         esg_esg_edi_t_StrQualifyComposedData *pr_OQuaCData  // Quality data buffer
 )
 {
@@ -4363,14 +4379,20 @@ int ExchangeTranslator::esg_ine_man_CDProcessing
 
   // Get the corresponding sub_type name
   //----------------------------------------------------------------------------
+#if VERBOSE > 8
   LOG(INFO) << fname << ": " << s_ExchCompId;
-  if (NULL != (r_ExchCompElem = esg_esg_odm_ConsultExchCompArr(s_ExchCompId)))
-  {
+#endif
+
+  if (NULL == (r_ExchCompElem = esg_esg_odm_ConsultExchCompArr(s_ExchCompId))) {
+    i_Status = NOK;
+  }
+#if VERBOSE > 8
+  else {
     // Get the corresponding sub-type structure
     //----------------------------------------------------------------------------
-//1    i_Status = ech_typ_ConsultSubType (r_ExchCompElem->s_AssocSubType, pr_OSubTypeElem);
     LOG(INFO) << fname << ": ech_typ_ConsultSubType->associate=" << r_ExchCompElem->associate;
   }
+#endif
 
   if ( i_Status == OK )
   {

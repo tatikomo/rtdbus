@@ -142,15 +142,6 @@ enum {
   ESG_ESG_D_ERR_DBREAD, //Error in reading data base
 };
 
-typedef enum {
-    GOF_D_OPE_ALA,
-    GOF_D_NON_OPE_ALA
-} gof_t_AlaListType;
-#define GOF_D_LST_ALA_OPE           6 // List of Operational alarms
-#define GOF_D_LST_ALA_NON_OPE       7 // List of non Operational alarms
-#define GOF_D_LST_ALAmax         1000 // Max of Alarms
-
-
 
 
 
