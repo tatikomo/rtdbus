@@ -34,9 +34,11 @@ ExchangeTranslator::ExchangeTranslator(EGSA* _egsa,
                                        elemstruct_item_t* _elemstructs)
  : m_egsa_instance(_egsa)
 {
-  LOG(INFO) << "CTOR ExchangeTranslator";
+  LOG(INFO) << "CTOR ExchangeTranslator-RELEASE";
   elemtype_item_t *elemtype = _elemtypes;
   elemstruct_item_t *elemstruct = _elemstructs;
+
+  assert(m_egsa_instance);
 
   while (elemtype && elemtype->name[0])
   {
@@ -51,7 +53,34 @@ ExchangeTranslator::ExchangeTranslator(EGSA* _egsa,
     m_elemstructs[elemstruct->name] = *elemstruct;
     elemstruct++;
   }
-};
+}
+
+//============================================================================
+#ifdef _FUNCTIONAL_TEST
+ExchangeTranslator::ExchangeTranslator(AcqSiteList* _sites, SMED* _smed, elemtype_item_t* _elemtypes, elemstruct_item_t* _elemstructs)
+  : m_egsa_instance(NULL),
+    m_sites(_sites),
+    m_smed(_smed)
+{
+  LOG(INFO) << "CTOR ExchangeTranslator-TEST";
+  elemtype_item_t *elemtype = _elemtypes;
+  elemstruct_item_t *elemstruct = _elemstructs;
+
+  assert(m_sites);
+
+  while (elemtype && elemtype->name[0])
+  {
+    m_elemtypes[elemtype->name] = *elemtype;
+    elemtype++;
+  }
+
+  while (elemstruct && elemstruct->name[0])
+  {
+    m_elemstructs[elemstruct->name] = *elemstruct;
+    elemstruct++;
+  }
+}
+#endif
 
 //============================================================================
 ExchangeTranslator::~ExchangeTranslator()
@@ -61,7 +90,21 @@ ExchangeTranslator::~ExchangeTranslator()
 //  std::cout << std::endl;
 //  std::for_each(m_elemstructs.begin(), m_elemstructs.end(), print_elemstruct);
 //  std::cout << std::endl;
-};
+}
+
+//============================================================================
+AcqSiteEntry* ExchangeTranslator::esg_esg_odm_ConsultAcqSiteEntry(const char* name)
+{
+  AcqSiteEntry* look = NULL;
+
+#ifdef _FUNCTIONAL_TEST
+  look = m_sites->operator[](name);
+#else
+  look = m_egsa_instance->sites()[name];
+#endif
+
+  return look;
+}
 
 //============================================================================
 // Прочитать из потока столько данных, сколько ожидается форматом Элементарного типа.
@@ -441,15 +484,11 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
           // TI
           // -------------------
           case ECH_D_EDI_EDDSEG_TI:
-#if 1
             i_Status = esg_acq_dac_TeleinfoAcq(pi_FileId,
                                                i_LgAppl,
                                                i_ApplLength,
                                                s_IAcqSiteId,
                                                r_HeaderInterChg.d_InterChgDate);
-#else
-            LOG(ERROR) << fname << ": esg_acq_dac_TeleinfoAcq";
-#endif
             break;
 
           // TI HISTORICS
@@ -466,33 +505,25 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
               b_LastSegment = false;
             }
 
-            sprintf(s_Trace, " Segment Number=%d, Last segment=%d\n", ii + 1, b_LastSegment);
-            LOG(INFO) << fname << s_Trace;
-#if 0
+            sprintf(s_Trace, " Segment Number=%d, Last segment=%d", ii + 1, b_LastSegment);
+            std::cout << fname << s_Trace << std::endl;
             i_Status = esg_acq_dac_HistTiAcq(b_LastSegment,
                                              pi_FileId,
                                              i_ApplLength,
                                              s_IAcqSiteId);
-#else
-            LOG(ERROR) << fname << ": esg_acq_dac_HistTiAcq";
-#endif
             break;
 
           // HISTORIC ALARM
           // ----------------------------
           case ECH_D_EDI_EDDSEG_HISTALARM:
-#if 0
             i_Status = esg_acq_dac_HistAlAcq(pi_FileId,
                                              i_LgAppl,
                                              i_ApplLength,
                                              s_IAcqSiteId,
                                              &i_AlOpNb,
-                                             (esg_esg_t_HistAlElem *) &ar_AlarmsOp,
+                                             (esg_esg_t_HistAlElem*) &ar_AlarmsOp,
                                              &i_NopAlNb,
-                                             (esg_esg_t_HistAlElem *) &ar_NopAlarms);
-#else
-            LOG(ERROR) << fname << ": esg_acq_dac_HistAlAcq";
-#endif
+                                             (esg_esg_t_HistAlElem*) &ar_NopAlarms);
             break;
 
           // ORDER
@@ -509,6 +540,7 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
 #endif
 
             break;
+
           // ORDER responses
           // -----------------------------
           case ECH_D_EDI_EDDSEG_ORDERRESP:
@@ -541,13 +573,9 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
           // OUTLINE THRESHOLDS
           // --------------------------------
           case ECH_D_EDI_EDDSEG_MULTITHRES:
-#if 0
             i_Status = esg_acq_dac_MultiThresAcq(pi_FileId,
                                                  i_ApplLength,
                                                  s_IAcqSiteId);
-#else
-            LOG(ERROR) << fname << ": esg_acq_dac_MultiThresAcq";
-#endif
             break;
 
           // THRESHOLDS
@@ -567,31 +595,23 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
           case ECH_D_EDI_EDDSEG_HISTHISTTI:
             strcpy(s_FileName, s_ILongFileName);
             sprintf(s_HistFileName, "%s/%s", dirname(s_FileName), "SIG_TIHHIST.DAT" /*ESG_ACQ_DAC_D_TIHHISTFNAME*/);
-#if 0
             i_Status = esg_acq_dac_HHistTiAcq(i_MsgApplNb,
                                               i_ApplLength,
                                               s_IAcqSiteId,
                                               s_HistFileName,
                                               pi_FileId,
                                               &ii);
-#else
-            LOG(ERROR) << fname << ": esg_acq_dac_HHistTiAcq";
-#endif
             break;
 
           // segment with dispatcher name
           // ---------------------------------------
           case ECH_D_EDI_EDDSEG_DISPN:
-#if 0
             i_Status = esg_acq_dac_DispNameAcq(pi_FileId,
                                                i_LgAppl,
                                                i_ApplLength,
                                                s_IAcqSiteId,
                                                r_HeaderInterChg.
                                                d_InterChgDate);
-#else
-            LOG(ERROR) << fname << ": esg_acq_dac_DispNameAcq";
-#endif
             break;
 
           // ACD List
@@ -607,7 +627,7 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
             break;
 
           case ECH_D_EDI_EDDSEG_STATE:
-            LOG(INFO) << fname << ": Segment Type= Distant state reply";
+            LOG(INFO) << fname << ": Segment Type=\"Distant state reply\"";
             i_Status = processing_STATE(pi_FileId,
                                        i_LgAppl,
                                        i_ApplLength,
@@ -615,7 +635,7 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
             break;
 
           case ECH_D_EDI_EDDSEG_REQUEST:
-            LOG(ERROR) << fname << ": Segment Type= Request";
+            LOG(ERROR) << fname << ": Segment Type=\"Request\"";
             i_Status = processing_REQUEST(pi_FileId,
                                        i_LgAppl,
                                        i_ApplLength,
@@ -623,7 +643,7 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
             break;
 
           case ECH_D_EDI_EDDSEG_REPLY: // NB: Обработка одинакова с ECH_D_EDI_EDDSEG_DIFFUSION
-            LOG(INFO) << fname << ": ECH_D_EDI_EDDSEG_REPLY";
+            LOG(INFO) << fname << ": Segment Type=\"Reply\"";
             i_Status = processing_REPLY(pi_FileId,
                                        i_LgAppl,
                                        i_ApplLength,
@@ -631,7 +651,7 @@ int ExchangeTranslator::esg_acq_dac_Switch(const char *s_ILongFileName, const ch
             break;
 
           case ECH_D_EDI_EDDSEG_DIFFUSION: // NB: Обработка одинакова с ECH_D_EDI_EDDSEG_REPLY
-            LOG(INFO) << fname << ": ECH_D_EDI_EDDSEG_DIFFUSION";
+            LOG(INFO) << fname << ": Segment Type=\"Diffusion Reply\"";
             i_Status = processing_REPLY(pi_FileId,
                                        i_LgAppl,
                                        i_ApplLength,
@@ -1028,6 +1048,78 @@ int ExchangeTranslator::esg_esg_fil_HeadFileRead(const char* s_ILongName,
 
   return (i_RetStatus);
 }//-END esg_esg_fil_HeadFileRead ---------------------------------------------
+
+//----------------------------------------------------------------------------
+//  FUNCTION			esg_esg_fil_DataWrite
+//  FULL MAME			Write an array of items
+//----------------------------------------------------------------------------
+//  ROLE
+//	This routine writes to the named output stream at most nitems items of data from the array
+//	Write mode for file is checked before writing.
+//----------------------------------------------------------------------------
+//  RETURNED EXCEPTIONS
+//	report	file has not write mode
+//	report	bad items length or items number
+//	report	cannot write file
+//----------------------------------------------------------------------------
+int	ExchangeTranslator::esg_esg_fil_DataWrite(
+    FILE *pi_IFileId,
+	const void* pr_IStr,    // pointes the array to be written
+    const int  i_IItemLg,   // length of an item
+    const int  i_IItemNb)   // number of items to be written
+{
+  static const char* fname = "esg_esg_fil_DataWrite";
+  int i_Status = NOK;
+
+  // Verify i_IItemLg and i_IItemNb values
+  //--------------------------------------------
+  if (i_IItemLg == 0 || i_IItemNb == 0) {
+    i_Status = ESG_ESG_D_ERR_UNEXPARAMVAL ;
+    LOG(ERROR) << fname << ": rc=" << i_Status;
+  }
+  else {
+    // Write string
+    // --------------------------------------------------------------------------
+    i_Status = fwrite ( pr_IStr, i_IItemLg, i_IItemNb, pi_IFileId ) ;
+
+    // Check write status
+    // --------------------------------------------------------------------------
+    if ( i_Status == i_IItemNb ) {
+      i_Status = OK ;
+	  fflush ( pi_IFileId ) ;
+    }
+    else {
+       LOG(ERROR) << fname << ": rc=" << i_Status;
+    }
+  }
+
+  return i_Status;
+}
+
+//----------------------------------------------------------------------------
+//  FUNCTION			esg_esg_fil_EndApplRead
+//  FULL MAME			Read An Applicative End
+//----------------------------------------------------------------------------
+//  ROLE
+//	The purpose of this routine is to read an applicative end from a file
+//----------------------------------------------------------------------------
+int ExchangeTranslator::esg_esg_fil_EndApplRead(FILE* pi_IFileId)
+{
+  int i_Status = OK;
+  char s_CodedData[ECH_D_APPLSEGLG + 1];  // coded data as string
+  int i_LgCodedData; // length of coded data
+
+  i_LgCodedData = strlen (ECH_D_STR_APPESEGLABEL);
+  i_Status = esg_esg_fil_StringRead (pi_IFileId, i_LgCodedData, s_CodedData);
+
+  // read applicative end
+  if (i_Status == OK)
+  {
+    i_Status = esg_esg_edi_EndApplDecoding (s_CodedData, ECH_D_APPLSEGLG, &i_LgCodedData);
+  }
+
+  return i_Status;
+}
 
 //============================================================================
 //----------------------------------------------------------------------------
@@ -4120,11 +4212,41 @@ elemtype_item_t* ExchangeTranslator::esg_esg_odm_ConsultExchDataArr(const char* 
   return ded_element;
 }
 
+// ESG_LOCSTRUCT
+// Замена ech_typ_t_SubTypeElem на elemstruct_item_t
+//      s_SubTypeId    => associate
+//      i_AttNumber    => num_attributes
+//      ar_AttElem     => fields
+//                          attribute - название атрибута БДРВ
+//                          type - тип атрибута
+//                          length - длина (только для строкового типа атрибута)
+// --------------------------------------------------------------
+elemstruct_item_t* ExchangeTranslator::ech_typ_ConsultSubType(const char* associate_name)
+{
+  elemstruct_item_t* locstruct = NULL;
+  std::map < const std::string, elemstruct_item_t >::iterator it_ls;
+
+#if VERBOSE > 8
+  LOG(INFO) << "search LOCSTRUCT: " << associate_name;
+#endif
+
+  for(it_ls = m_elemstructs.begin(); it_ls != m_elemstructs.end(); ++it_ls)
+  {
+    if (0 == strcmp((*it_ls).second.associate, associate_name))
+    {
+      locstruct = &(*it_ls).second;
+      break;
+    }
+  }
+
+  return locstruct;
+}
+
 // Удаление памяти, выделенной под значение атрибута, прочитанного из файла ESG
 // --------------------------------------------------------------
 int ExchangeTranslator::esg_ine_man_FreeCompData(esg_esg_edi_t_StrComposedData *r_InternalCData)
 {
-  static const char* fname="esg_ine_man_FreeCompData";
+  //static const char* fname="esg_ine_man_FreeCompData";
   int i_Status = OK;
 
   for(size_t i_IdAttr = 0 ; i_IdAttr < r_InternalCData->i_NbEData; i_IdAttr++)
@@ -4205,12 +4327,13 @@ int ExchangeTranslator::esg_esg_fil_HeadApplRead(FILE* pi_IFileId, esg_esg_t_Hea
 // --------------------------------------------------------------
 int ExchangeTranslator::processing_REQUEST(FILE* pi_FileId, int i_LgAppl, int i_ApplLength, const char* s_IAcqSiteId)
 {
-  static const char* fname = "processing_REQUEST";
-  char s_Buffer[ECH_D_APPLSEGLG + 1];
+//1  static const char* fname = "processing_REQUEST";
   int i_Status = OK;
+#if 0
+  char s_Buffer[ECH_D_APPLSEGLG + 1];
   int i_LgDone = 0; // GEV: fake
   int i_CDLength;        // composed data length
-  char s_Trace[100 + 1];
+//  char s_Trace[100 + 1];
   char Receiver_Id[32] = "Инкогнито";
   char s_CodedData[ECH_D_APPLSEGLG + 1];       // coded data as string
   // Данные из пакета
@@ -4219,7 +4342,6 @@ int ExchangeTranslator::processing_REQUEST(FILE* pi_FileId, int i_LgAppl, int i_
   esg_esg_edi_t_StrComposedData r_InternalCData; // decoded composed data buffer
   esg_esg_edi_t_StrQualifyComposedData r_QuaCData;
 
-#if 0
   i_Status = esg_esg_fil_StringRead (pi_FileId, i_ApplLength, s_CodedData);
 
   // get request id.
@@ -4268,10 +4390,10 @@ int ExchangeTranslator::processing_STATE(FILE* pi_FileId, int i_LgAppl, int i_Ap
   static const char* fname = "processing_STATE";
   char s_Buffer[ECH_D_APPLSEGLG + 1];
   int i_Status = OK;
-  int i_LgDone = 0; // GEV: fake
   int i_CDLength;        // composed data length
   int32_t i_SiteStateValue;
   esg_esg_edi_t_StrComposedData r_InternalCData; // decoded composed data buffer
+  elemstruct_item_t* r_TypeElem = NULL;
   esg_esg_edi_t_StrQualifyComposedData r_QuaCData;
 
   i_Status = esg_esg_fil_StringRead (pi_FileId, i_ApplLength, s_Buffer);
@@ -4286,9 +4408,10 @@ int ExchangeTranslator::processing_STATE(FILE* pi_FileId, int i_LgAppl, int i_Ap
     // Read and Decode the applicatif segment
     //----------------------------------------------------
     i_Status = esg_ine_man_CDProcessing(s_Buffer,
-                                        i_ApplLength - i_LgDone,
+                                        i_ApplLength,
                                         &i_CDLength,
                                         &r_InternalCData,
+                                        r_TypeElem,
                                         &r_QuaCData);
   }
 
@@ -4304,7 +4427,7 @@ int ExchangeTranslator::processing_STATE(FILE* pi_FileId, int i_LgAppl, int i_Ap
 
   if ( i_Status == OK )
   {
-    LOG(INFO) << fname << ": Value of distant " << s_IAcqSiteId << " state=" << i_SiteStateValue;
+    LOG(INFO) << fname << ": Value of \"" << s_IAcqSiteId << "\" distant state=" << i_SiteStateValue;
   }
   else
   {
@@ -4346,7 +4469,7 @@ int ExchangeTranslator::esg_esg_fil_StringRead(
 //  FULL MAME
 //----------------------------------------------------------------------------
 //  ROLE
-//  This function process a composed data bloc.
+//  This function process a composed data block
 //----------------------------------------------------------------------------
 //  NOTES
 //  For each decoded FIELD_TYPE_STRING type attribute, memory is allocated by
@@ -4360,16 +4483,16 @@ int ExchangeTranslator::esg_ine_man_CDProcessing
         // Output parameters
         int* pi_OCDLen,        // composed data length
         esg_esg_edi_t_StrComposedData   *pr_OInternalCData, // decoded composed data buffer
+        elemstruct_item_t* r_ExchCompElem,
         esg_esg_edi_t_StrQualifyComposedData *pr_OQuaCData  // Quality data buffer
 )
 {
   //----------------------------------------------------------------------------
   static const char* fname="esg_ine_man_CDProcessing";
-  int   i_Status = OK;
-  int   i_RetStatus = OK;
-  int   i_AttNumber;
+  int i_Status = OK;
+  int i_RetStatus = OK;
+  size_t i_AttNumber;
   char s_ExchCompId[ECH_D_COMPIDLG + 1];
-  elemstruct_item_t* r_ExchCompElem = NULL;
   //............................................................................
 
   // Read the identifier of the composed data to process
@@ -4390,7 +4513,7 @@ int ExchangeTranslator::esg_ine_man_CDProcessing
   else {
     // Get the corresponding sub-type structure
     //----------------------------------------------------------------------------
-    LOG(INFO) << fname << ": ech_typ_ConsultSubType->associate=" << r_ExchCompElem->associate;
+    LOG(INFO) << fname << ": " << s_ExchCompId << "->associate=" << r_ExchCompElem->associate;
   }
 #endif
 
@@ -5057,3 +5180,335 @@ int ExchangeTranslator::ech_typ_GetAtt(
   return (i_RetStatus);
 }
 //-END ech_typ_GetAtt------------------------------------------------
+
+//----------------------------------------------------------------------------
+//  FUNCTION            ech_typ_StoreAtt
+//  FULL NAME            Store attribute
+//----------------------------------------------------------------------------
+//  ROLE
+//  This process allows to store the attribute of a composed data according to his local type.
+//----------------------------------------------------------------------------
+//  NOTES
+//  This process suposes that the time values are timeval like and the string values are ech_t_InternalString like.
+//----------------------------------------------------------------------------
+//  NOMINAL PROCESSING
+//  - Switch on the type of attribute to fill (field_type_t)
+//      Test the type of the value to store :
+//          -> If the type of the value to store is smaller than the type of the attribute to fill : store the value
+//----------------------------------------------------------------------------
+//  ERRORS AND EXCEPTIONS PROCESSING
+//  The type of the value to store is biger than the type of the attribute defined in the sub-type : go on error
+//----------------------------------------------------------------------------
+int ExchangeTranslator::ech_typ_StoreAtt(
+                     // Input parameters
+                     const void* p_Ivalue,      // value of the attribute to store
+                     const int i_IStrAttType,   //  type of the attribute to store
+                     // Output parameters
+                     ech_t_InternalVal* r_OInternalVal,  // attribute to fill: internal value
+                     field_type_t attr_type)    // Filled Attribute type
+{
+  //----------------------------------------------------------------------------
+  static const char* fname = "ech_typ_StoreAtt";
+  int i_Status = OK;
+  char s_LoggedText[ESG_ESG_D_LOGGEDTEXTLENGTH + 1];
+  char s_LoggedTextErr[ESG_ESG_D_LOGGEDTEXTLENGTH + 1];
+  char s_LoggedTextWarn[ESG_ESG_D_LOGGEDTEXTLENGTH + 1];
+  char s_LoggedTextSign[ESG_ESG_D_LOGGEDTEXTLENGTH + 1];
+  bool b_warn = false;
+  bool b_error = false;
+  struct timeval d_Timeval_val;
+  ech_t_InternalString r_Str_val;
+  static const char* s_MessSign = "The value : %d is out of the type of the receiver's limits %d";
+  //............................................................................
+
+  sprintf(s_LoggedTextErr,  "The receiver type %d is incompatible with the type of the data to store %d", attr_type, i_IStrAttType);
+  sprintf(s_LoggedTextWarn, "The receiver type %d is not coherent with the type of the data to store %d", attr_type, i_IStrAttType);
+
+  memset(r_OInternalVal, 0, sizeof(ech_t_InternalVal));
+
+  switch (attr_type) {
+    case FIELD_TYPE_LOGIC:  // -----------------------------------------------------------------
+      if (i_IStrAttType == attr_type) {
+        r_OInternalVal->b_Logical = *(bool*) p_Ivalue;
+      }
+      else b_error = true;
+      break;
+
+    case FIELD_TYPE_INT8:
+      if (i_IStrAttType == attr_type) {
+        r_OInternalVal->o_Int8 = *(int8_t*) p_Ivalue;
+      }
+      else if (i_IStrAttType == FIELD_TYPE_UINT8) {
+        if (*(uint8_t*) p_Ivalue <= SCHAR_MAX) {
+          r_OInternalVal->o_Int8 = *(uint8_t*) p_Ivalue;
+          b_warn = true;
+        }
+        else {
+          // The data to store is out of the receiver limits
+          sprintf(s_LoggedTextSign, s_MessSign, *(uint8_t*) p_Ivalue, attr_type);
+          LOG(ERROR) << fname << ": rc=" << i_Status << ", " << s_LoggedTextSign;
+        }
+      }
+      else b_error = true;
+      break;
+
+    case FIELD_TYPE_UINT8:
+      if (i_IStrAttType == attr_type) {
+        r_OInternalVal->o_Uint8 = *(uint8_t*) p_Ivalue;
+      }
+      else if (i_IStrAttType == FIELD_TYPE_INT8) {
+        if (*(int8_t*) p_Ivalue >= 0) {
+          r_OInternalVal->o_Uint8 = *(int8_t*) p_Ivalue;
+          b_warn = true;
+        }
+        else {
+          // The data to store is out of the receiver limits
+          sprintf(s_LoggedTextSign, s_MessSign, *(int8_t*) p_Ivalue, attr_type);
+          LOG(ERROR) << fname << ": rc=" << i_Status << ", " << s_LoggedTextSign;
+        }
+      }
+      else b_error = true;
+      break;
+
+    case FIELD_TYPE_INT16:  // -----------------------------------------------------------------
+      switch(i_IStrAttType) {
+        case FIELD_TYPE_INT16:  r_OInternalVal->h_Int16 = *(int16_t*)  p_Ivalue; b_warn = false; break;
+        case FIELD_TYPE_INT8:   r_OInternalVal->h_Int16 = *(int8_t*)   p_Ivalue; b_warn = true;  break;
+        case FIELD_TYPE_UINT8:  r_OInternalVal->h_Int16 = *(uint8_t*)  p_Ivalue; b_warn = true;  break;
+        case FIELD_TYPE_UINT16:
+          if (*(uint16_t*) p_Ivalue <= SHRT_MAX) {
+            r_OInternalVal->h_Int16 = *(uint16_t*) p_Ivalue;
+            b_warn = true;
+          }
+          else {
+            /* The data to store is out of the receiver limits */
+            sprintf(s_LoggedTextSign, s_MessSign, *(uint16_t*) p_Ivalue, attr_type);
+            LOG(ERROR) << fname << ": rc=" << i_Status << ", " << s_LoggedTextSign;
+          }
+          break;
+
+        default: b_error = true;
+      }
+      break;
+
+    case FIELD_TYPE_UINT16: // -----------------------------------------------------------------
+      switch(i_IStrAttType) {
+        case FIELD_TYPE_UINT16: r_OInternalVal->h_Uint16 = *(uint16_t*) p_Ivalue; b_warn = false; break;
+        case FIELD_TYPE_INT8:   r_OInternalVal->h_Uint16 = *(int8_t*)   p_Ivalue; b_warn = true;  break;
+        case FIELD_TYPE_UINT8:  r_OInternalVal->h_Uint16 = *(uint8_t*)  p_Ivalue; b_warn = true;  break;
+        case FIELD_TYPE_INT16:
+          if (*(int16_t*) p_Ivalue >= 0) {
+                                r_OInternalVal->h_Uint16 = *(int16_t*)  p_Ivalue; b_warn = true;  break;
+          }
+          else {
+            // The data to store is out of the receiver limits
+            sprintf(s_LoggedTextSign, s_MessSign, *(int16_t*) p_Ivalue, attr_type);
+            LOG(ERROR) << fname << ": rc=" << i_Status << ", " << s_LoggedTextSign;
+          }
+          break;
+
+        default: b_error = true;
+      }
+      break;
+
+    case FIELD_TYPE_INT32:  // -----------------------------------------------------------------
+      switch(i_IStrAttType) {
+        case FIELD_TYPE_INT32:  r_OInternalVal->i_Int32 = *(int32_t*)  p_Ivalue; b_warn = false; break;
+        case FIELD_TYPE_INT8:   r_OInternalVal->i_Int32 = *(int8_t*)   p_Ivalue; b_warn = true;  break;
+        case FIELD_TYPE_UINT8:  r_OInternalVal->i_Int32 = *(uint8_t*)  p_Ivalue; b_warn = true;  break;
+        case FIELD_TYPE_INT16:  r_OInternalVal->i_Int32 = *(int16_t*)  p_Ivalue; b_warn = true;  break;
+        case FIELD_TYPE_UINT16: r_OInternalVal->i_Int32 = *(uint16_t*) p_Ivalue; b_warn = true;  break;
+        case FIELD_TYPE_UINT32:
+          if (*(uint32_t*) p_Ivalue <= LONG_MAX) {
+                                r_OInternalVal->i_Int32 = *(uint32_t*) p_Ivalue; b_warn = true;
+          }
+          else {
+            // The data to store is out of the receiver limits
+            sprintf(s_LoggedTextSign, s_MessSign, *(uint32_t*) p_Ivalue, attr_type);
+            LOG(ERROR) << fname << ": rc=" << i_Status << ", " << s_LoggedTextSign;
+          }
+          break;
+
+        default: b_error = true;
+      }
+      break;
+
+    case FIELD_TYPE_UINT32: // -----------------------------------------------------------------
+      switch(i_IStrAttType) {
+        case FIELD_TYPE_UINT32: r_OInternalVal->i_Uint32 = *(uint32_t*) p_Ivalue;   b_warn = false; break;
+        case FIELD_TYPE_INT8:   r_OInternalVal->i_Uint32 = *(int8_t*)   p_Ivalue;   b_warn = true;  break;
+        case FIELD_TYPE_UINT8:  r_OInternalVal->i_Uint32 = *(uint8_t*)  p_Ivalue;   b_warn = true;  break;
+        case FIELD_TYPE_INT16:  r_OInternalVal->i_Uint32 = *(int16_t*)  p_Ivalue;   b_warn = true;  break;
+        case FIELD_TYPE_UINT16: r_OInternalVal->i_Uint32 = *(uint16_t*) p_Ivalue;   b_warn = true;  break;
+        case FIELD_TYPE_INT32:
+          if (*(int32_t*) p_Ivalue >= 0) {
+                                r_OInternalVal->i_Uint32 = *(int32_t*)  p_Ivalue;   b_warn = true;
+          }
+          else {
+            // The data to store is out of the receiver limits
+            sprintf(s_LoggedTextSign, s_MessSign, *(int32_t*) p_Ivalue, attr_type);
+            LOG(ERROR) << fname << ": rc=" << i_Status << ", " << s_LoggedTextSign;
+          }
+          break;
+
+        default: b_error = true;
+      }
+      break;
+
+    case FIELD_TYPE_FLOAT:  // -----------------------------------------------------------------
+      switch(i_IStrAttType) {
+        case FIELD_TYPE_FLOAT:  r_OInternalVal->f_Float = *(float*)    p_Ivalue;   b_warn = false; break;
+        case FIELD_TYPE_INT8:   r_OInternalVal->f_Float = *(int8_t*)   p_Ivalue;   b_warn = true;  break;
+        case FIELD_TYPE_UINT8:  r_OInternalVal->f_Float = *(uint8_t*)  p_Ivalue;   b_warn = true;  break;
+        case FIELD_TYPE_INT16:  r_OInternalVal->f_Float = *(int16_t*)  p_Ivalue;   b_warn = true;  break;
+        case FIELD_TYPE_UINT16: r_OInternalVal->f_Float = *(uint16_t*) p_Ivalue;   b_warn = true;  break;
+        case FIELD_TYPE_INT32:  r_OInternalVal->f_Float = *(int32_t*)  p_Ivalue;   b_warn = true;  break;
+        case FIELD_TYPE_UINT32: r_OInternalVal->f_Float = *(uint32_t*) p_Ivalue;   b_warn = true;  break;
+        default: b_error = true;
+      }
+      break;
+
+    case FIELD_TYPE_DOUBLE: // -----------------------------------------------------------------
+      switch(i_IStrAttType) {
+        case FIELD_TYPE_DOUBLE: r_OInternalVal->g_Double = *(double*)   p_Ivalue;   b_warn = false; break;
+        case FIELD_TYPE_INT8:   r_OInternalVal->g_Double = *(int8_t*)   p_Ivalue;   b_warn = true;  break;
+        case FIELD_TYPE_UINT8:  r_OInternalVal->g_Double = *(uint8_t*)  p_Ivalue;   b_warn = true;  break;
+        case FIELD_TYPE_INT16:  r_OInternalVal->g_Double = *(int16_t*)  p_Ivalue;   b_warn = true;  break;
+        case FIELD_TYPE_UINT16: r_OInternalVal->g_Double = *(uint16_t*) p_Ivalue;   b_warn = true;  break;
+        case FIELD_TYPE_INT32:  r_OInternalVal->g_Double = *(int32_t*)  p_Ivalue;   b_warn = true;  break;
+        case FIELD_TYPE_UINT32: r_OInternalVal->g_Double = *(uint32_t*) p_Ivalue;   b_warn = true;  break;
+        case FIELD_TYPE_FLOAT:  r_OInternalVal->g_Double = *(float*)    p_Ivalue;   b_warn = true;  break;
+        default: b_error = true;
+      }
+      break;
+
+    case FIELD_TYPE_DATE:   // -----------------------------------------------------------------
+      if (i_IStrAttType == attr_type) {
+        memcpy(&d_Timeval_val, p_Ivalue, sizeof(timeval));
+        r_OInternalVal->d_Timeval.tv_sec = d_Timeval_val.tv_sec;
+        r_OInternalVal->d_Timeval.tv_usec = d_Timeval_val.tv_usec;
+      }
+      else b_error = true;
+      break;
+
+    case FIELD_TYPE_STRING: // -----------------------------------------------------------------
+      if (i_IStrAttType == attr_type) {
+        memcpy(&r_Str_val, p_Ivalue, sizeof(ech_t_InternalString));
+        r_OInternalVal->r_Str.ps_String = r_Str_val.ps_String;
+        r_OInternalVal->r_Str.i_LgString = r_Str_val.i_LgString;
+      }
+      else b_error = true;
+      break;
+
+    default:    // -----------------------------------------------------------------
+      i_Status = ESG_ESG_D_ERR_BADENTRYID;
+      sprintf(s_LoggedText, "Bad attribute type %d", attr_type);
+      LOG(ERROR) << fname << ": rc=" << i_Status << ", " << s_LoggedText;
+      break;
+  }
+
+  if (b_warn == true) {
+    LOG(WARNING) << fname << ": rc=" << i_Status << ", " << s_LoggedTextWarn;
+  }
+
+  if (b_error == true) {
+    i_Status = ESG_ESG_D_ERR_BADCONFFILE;
+    LOG(ERROR) << fname << ": rc=" << i_Status << ", " << s_LoggedTextErr;
+  }
+
+  return (i_Status);
+}
+//-END ech_typ_StoreAtt------------------------------------------------
+
+//----------------------------------------------------------------------------
+// Обновление данных в SMED
+//----------------------------------------------------------------------------
+int ExchangeTranslator::esg_acq_dac_SmdProcessing(
+        const gof_t_UniversalName               	s_IAcqSiteId,
+        const esg_esg_edi_t_StrComposedData        *pr_IInternalCData,
+        const esg_esg_edi_t_StrQualifyComposedData *pr_IQuaCData,
+        const struct timeval 	                    d_IReceivedDate)
+{
+  static const char* fname = "esg_acq_dac_SmdProcessing";
+  int rc = OK;
+
+  LOG(INFO) << fname << ": store data into SMED " << s_IAcqSiteId << " at " << ctime(&d_IReceivedDate.tv_sec);
+
+  return rc;
+}
+
+//----------------------------------------------------------------------------
+//  FUNCTION    esg_esg_odm_ConsExchInfoLed
+//  FULL NAME   Exchanged data consultation by Identifier
+//----------------------------------------------------------------------------
+//  ROLE
+//  Returns all caracteristics of One Exchanged data, referenced by its identifier
+//
+//  TODO: Выбрать данные из SMED для указанного Сайта и указанного идентификатора LED.
+//  NB: SMED используется для Сайтов типа ESG (смежные системы, соседние и вышестоящие объекты),
+//  в отличие от сайтов EGA (подчиненные внешние системы).
+//
+//----------------------------------------------------------------------------
+int ExchangeTranslator::esg_esg_odm_ConsExchInfoLed(
+  // Input parameters
+  const gof_t_UniversalName s_AcqSite,  // acq site universal name
+  const int i_Led,  // Exchange data identificator
+  // Output parameter
+  esg_esg_odm_t_ExchInfoElem* pr_OExchInfoElem)
+{
+  //----------------------------------------------------------------------------
+  static const char* fname = "esg_esg_odm_ConsExchInfoLed";
+  int       i_RetStatus = OK;   // Function Return status
+//  char      s_ErrText[70 + 1];  // Printed trace
+//  size_t    i_Entry;            // Entry composed data table
+//  size_t    i_Index;
+//  bool      b_Exist = false;
+//1  esg_esg_odm_t_ExchInfoNumb   *pr_ExchHead = NULL;
+//1  esg_esg_odm_t_ExchInfoElem   *pr_ExchElem = NULL;
+  //............................................................................
+
+#if 1
+  assert(pr_OExchInfoElem);
+
+  pr_OExchInfoElem->s_Name[0] = '\0';
+  pr_OExchInfoElem->i_LED = 0;
+
+  if (OK != (i_RetStatus = smed()->get_info(s_AcqSite, i_Led, pr_OExchInfoElem))) {
+    LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", unable to get info of " << s_AcqSite << " LED #" << i_Led;
+  }
+#else
+  // Searching the concerned Acquisition Site
+  // ---------------------------------------------
+  if ((i_RetStatus = esg_esg_odm_SearchAcqSite (s_AcqSite, &i_Entry)) == OK) {
+
+     // Search the effectiv number of Exchanged data for the site
+     // ---------------------------------------------------------------
+     pr_ExchHead = &(esg_esg_odm_ar_ExchInfoNumb[i_Entry]);
+     pr_ExchElem = (esg_esg_odm_t_ExchInfoElem*) (esg_esg_odm_ar_AcqSites[i_Entry].p_ExchDataList);
+
+     // For the effectiv elements number compare universal names
+     // -------------------------------------------------------------
+     for (i_Index=0; ((i_Index<(pr_ExchHead->h_EffNb)) && (b_Exist == false)); i_Index++) {
+
+       if (pr_ExchElem->i_LED == i_Led) {
+         b_Exist = true;
+         memcpy(pr_OExchInfoElem, pr_ExchElem, sizeof(esg_esg_odm_t_ExchInfoElem));
+       }
+
+       pr_ExchElem += 1;
+     }
+
+     // No record was found with the universal name
+     // ------------------------------------------------
+     if (b_Exist == false) {
+       i_RetStatus = ESG_ESG_D_ERR_BADENTRYID;
+       sprintf(s_ErrText, "Exchanged dat: (Led: %d) not found in table", i_Led);
+       LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_ErrText;
+     }
+
+  } // end else i_Result = Search ...
+#endif
+
+  return (i_RetStatus);
+} //-END esg_esg_odm_ConsExchInfoLed ----------------------------------------
+

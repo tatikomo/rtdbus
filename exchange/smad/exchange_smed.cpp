@@ -14,6 +14,7 @@
 #include "glog/logging.h"
 
 // Класс внешней SMAD, используемой EGSA
+#include "exchange_config.hpp"
 #include "exchange_smed.hpp"
 
 SMED::SMED(const char* snap_file)
@@ -129,3 +130,11 @@ smad_connection_state_t SMED::connect()
   return m_state;
 }
 
+int SMED::get_info(const gof_t_UniversalName s_AcqSite, const int i_Led, esg_esg_odm_t_ExchInfoElem* elem)
+{
+  static const char* fname = "get_info";
+  int rc = NOK;
+
+  LOG(ERROR) << fname << ": SITE " << s_AcqSite << ", LED " << i_Led;
+  return rc;
+}

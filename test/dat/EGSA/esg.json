@@ -2433,7 +2433,7 @@
         {
             "COMMENT": "Historic of Historised TI Type",
             "NAME": "C0071",
-            "ASSOCIATE": "R0071",
+            "ASSOCIATE": "P0071",
             "FIELDS": [
                 {
                     "COMMENT": "periodicity",

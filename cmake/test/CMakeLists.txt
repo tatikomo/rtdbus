@@ -76,6 +76,10 @@ set (TEST_EXCHANGE_ESG_SOURCES
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_teleinfo.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_hist_ti.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_hhist_ti.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_multi_thres.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_hist_alarm.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.cpp
@@ -99,6 +103,10 @@ set (TEST_EXCHANGE_SOURCES
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_teleinfo.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_hist_ti.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_hhist_ti.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_multi_thres.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_hist_alarm.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.cpp

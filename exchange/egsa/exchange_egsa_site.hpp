@@ -144,6 +144,9 @@ class AcqSiteEntry {
     synthstate_t synthstate() const { return m_synthstate; }
     sa_object_level_t level() const { return m_Level; }
 
+    const char* DispatchName() const { return m_DispatcherName; }
+    int DispatchName(const char*);
+
     // Обработка изменения оперативного состояния системы сбора - атрибута SYNTHSTATE
     int esg_acq_dac_SynthStateMan(int);
     // Регистрация Запросов в указанном Цикле

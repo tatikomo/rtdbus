@@ -20,7 +20,8 @@
 // Служебные файлы RTDBUS
 #include "exchange_config_egsa.hpp"
 #include "exchange_egsa_impl.hpp"
-#include "exchange_config_egsa.hpp"
+#include "exchange_smed.hpp"
+
 // Конфигурация
 
 #define GOF_D_LST_ALA_OPE           6 // List of Operational alarms
@@ -256,15 +257,14 @@
 
 #define ESG_ESG_D_LOGGEDTEXTLENGTH 200
 
-typedef char    gof_t_UniversalName[32];
-typedef int32_t gof_t_ExchangeId;
-
+// --------------------------------
 typedef enum {
     GOF_D_OPE_ALA,
     GOF_D_NON_OPE_ALA
 } gof_t_AlaListType;
 
 // reply identification
+// --------------------------------
 typedef enum 	{
   ECH_D_ACCEPT_REPLY,
   ECH_D_REFUSAL_REPLY,
@@ -272,6 +272,17 @@ typedef enum 	{
   ECH_D_INTEXEC_REPLY,
   ECH_D_ENDEXEC_REPLY
 } ech_t_ReplyId;
+
+typedef enum {
+  GOF_D_PER_NOHISTO=-1,
+  GOF_D_PER_QH=0,
+  GOF_D_PER_HOUR=1,
+  GOF_D_PER_DAY=2,
+  GOF_D_PER_MONTH=3,
+  GOF_D_PER_SAMPLE=4,
+  GOF_D_PER_YEAR=5,
+  GOF_D_PER_5MN=6
+} gof_t_PeriodType;
 
 // service segments
 // ----------------
@@ -282,6 +293,7 @@ typedef enum 	{
 //   . receiver identification
 //   . timestamp of transmission
 //   . number of messages
+// --------------------------------
 typedef struct {
   gof_t_ExchangeId i_IdExchange;
   float f_InterChgVersion;
@@ -291,6 +303,7 @@ typedef struct {
   int h_InterChgMsgNb;
 } esg_esg_t_HeaderInterChg;
 
+// --------------------------------
 typedef struct {
   gof_t_ExchangeId i_IdExchange;
 } esg_esg_t_EndInterChg;
@@ -299,12 +312,14 @@ typedef struct {
 //   . order number
 //   . type
 //   . number of application segments
+// --------------------------------
 typedef struct {
   int h_MsgOrderNb;
   int i_MsgType;
   int h_MsgApplNb;
 } esg_esg_t_HeaderMsg;
 
+// --------------------------------
 typedef struct {
   int h_MsgOrderNb;
 } esg_esg_t_EndMsg;
@@ -313,6 +328,7 @@ typedef struct {
 // --------------------
 //   . order number
 //   . length
+// --------------------------------
 typedef struct {
   int h_ApplOrderNb;
   int i_ApplType;
@@ -324,25 +340,65 @@ typedef struct {
 // internal strings
 //   . string pointer
 //   . string length
+// --------------------------------
 typedef struct {
-  char* ps_String;
-  int   i_LgString;
+  char*  ps_String;
+  size_t i_LgString;
 } ech_t_InternalString;
 
 // internal data types
-typedef union { bool b_Logical;
-                uint8_t  o_Uint8;
-                uint16_t h_Uint16;
-                uint32_t i_Uint32;
-                int8_t  o_Int8;
-                int16_t h_Int16;
-                int32_t i_Int32;
-                float f_Float;
-                double g_Double;
-                timeval d_Timeval;
-                ech_t_InternalString r_Str;
+// --------------------------------
+typedef union {
+  bool b_Logical;
+  uint8_t  o_Uint8;
+  uint16_t h_Uint16;
+  uint32_t i_Uint32;
+  int8_t  o_Int8;
+  int16_t h_Int16;
+  int32_t i_Int32;
+  float f_Float;
+  double g_Double;
+  timeval d_Timeval;
+  ech_t_InternalString r_Str;
 } ech_t_InternalVal;
 
+// 
+// esg_acq_dac_t_HhistTIHeader structure
+// --------------------------------------------
+typedef struct {
+  gof_t_UniversalName s_DIPL;
+  gof_t_PeriodType    e_HistPeriod;
+  uint16_t            h_NbInfosHist;
+} esg_acq_dac_t_HhistTIHeader;
+
+// 
+// esg_acq_dac_t_HhistTIBody
+// NB: хранится в двоичном виде, для обеспечения совместимости с ГОФО использовать эти размерности 
+// --------------------------------------------
+typedef struct {
+  gof_t_UniversalName     s_Info;
+  long      ai_Status;
+  uint32_t  h_NbEch;
+  uint8_t   ai_Type;
+} esg_acq_dac_t_HhistTIBody;
+
+//
+// --------------------------------------------
+typedef struct {
+  struct timeval   ad_Date;
+} esg_acq_dac_t_HhistTIDate;
+
+//
+// --------------------------------------------
+typedef struct {
+  double    g_Value;
+} esg_acq_dac_t_HhistTIValue;
+
+//
+// --------------------------------------------
+typedef struct {
+  uint16_t  ah_Valid;
+} esg_acq_dac_t_HhistTIValid;
 
 // elementary data
 // ---------------
@@ -356,7 +412,7 @@ typedef union { bool b_Logical;
 //           (maximum length of the reserved buffer string)
 //      OUT : valeur of data is set, for string length is set
 //           (the length of the received string)
-//
+// --------------------------------
 typedef struct {
 	field_type_t type;
 	ech_t_InternalVal u_val;
@@ -364,41 +420,33 @@ typedef struct {
 
 //
 // qualify of composed data
-//   . - b_QualifyUse --> used for coding Composed data
+//   - b_QualifyUse --> used for coding Composed data
 //       Input parameter
 //          set to TRUE : if qualify "L3800" has to be taken to account
 //          otherwise set to FALSE
-//   . - i_QualifyValue is set :
+//   - i_QualifyValue is set :
 //          for coding by the caller of EDI services
 //          for decoding by EDI services
-//   . - b_QualifyExist --> Output parameter updated by decoding procedure
+//   - b_QualifyExist --> Output parameter updated by decoding procedure
 //          (i.e EDI services) to TRUE : qualify "L3800" exists in the DCD entity
+// --------------------------------
 typedef struct {
-	bool b_QualifyUse;
-	int  i_QualifyValue;
-	bool b_QualifyExist;
+  bool b_QualifyUse;
+  int  i_QualifyValue;
+  bool b_QualifyExist;
 } esg_esg_edi_t_StrQualifyComposedData;
 
 //
 // internal composed data table
 //   . number of internal elementary data
 //   . elementary data table
+// --------------------------------
 typedef struct {
-	int i_NbEData;
-	esg_esg_edi_t_StrElementaryData ar_EDataTable[ECH_D_COMPELEMNB];
+  size_t i_NbEData;
+  esg_esg_edi_t_StrElementaryData ar_EDataTable[ECH_D_COMPELEMNB];
 } esg_esg_edi_t_StrComposedData;
 
 //
-// Elementary data element :
-// . identifier of the elementary data
-// . basic type
-// . format
-//typedef struct {
-//  char      s_ExchDataId[ECH_D_ELEMIDLG + 1];
-//  int32_t   i_BasicType;
-//  char      s_Format[ECH_D_FORMATLG + 1];
-//} esg_esg_odm_t_ExchDataElem;
-
 // Fields used for historized alarm
 // --------------------------------
 typedef struct {
@@ -410,32 +458,21 @@ typedef struct {
   double              g_AlVal ;
 } esg_esg_t_HistAlElem;
 
-// Composed data element :
-// . identifier of the composed data
-// . array of elementary data
-//typedef struct {
-//    char  s_ExchCompId[ECH_D_COMPIDLG + 1];
-//    int i_NbData;
-//    char  as_ElemDataArr[ECH_D_IEDPERICD][ECH_D_ELEMIDLG + 1];
-//    char  s_AssocSubType[ECH_D_STYPEIDLG + 1];
-//} esg_esg_odm_t_ExchCompElem;
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Эти данные, возможно, не потребуются по завершении интеграции в ExchangeTranslator
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
 // TM Thresholds
 // =============
 #define GOF_D_BDR_CNT_THRESHOLDS	5   // Количество уставок и пределов: VL, L, H, VH, G
 typedef struct {
-	double  ag_value[GOF_D_BDR_CNT_THRESHOLDS];     // the set of thresholds values
-	uint8_t ao_degree[GOF_D_BDR_CNT_THRESHOLDS];    // the set of degrees values
-	uint8_t ao_categ[GOF_D_BDR_CNT_THRESHOLDS];     // the set of categories values
+  double  ag_value[GOF_D_BDR_CNT_THRESHOLDS];     // the set of thresholds values
+  uint8_t ao_degree[GOF_D_BDR_CNT_THRESHOLDS];    // the set of degrees values
+  uint8_t ao_categ[GOF_D_BDR_CNT_THRESHOLDS];     // the set of categories values
 } gof_t_MsgThresholds;
 
 typedef struct {
-	gof_t_UniversalName  s_uni_name;        // universal name
-	gof_t_MsgThresholds  r_MsgThresholds;   // thresholds values
+  gof_t_UniversalName  s_uni_name;        // universal name
+  gof_t_MsgThresholds  r_MsgThresholds;   // thresholds values
 } gof_t_TiThreshold;
 
 typedef struct  {
@@ -446,10 +483,19 @@ typedef struct  {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //============================================================================
+class AcqSiteEntry;
+class SMED;
+class EGSA;
+
 class ExchangeTranslator
 {
   public:
+    // Основной конструктор
     ExchangeTranslator(EGSA*, elemtype_item_t*, elemstruct_item_t*);
+#ifdef _FUNCTIONAL_TEST
+    // Создание транслятора без активного EGSA - для отладки
+    ExchangeTranslator(AcqSiteList*, SMED*, elemtype_item_t*, elemstruct_item_t*);
+#endif
    ~ExchangeTranslator();
 
     int load(std::stringstream&);
@@ -459,8 +505,18 @@ class ExchangeTranslator
   private:
     DISALLOW_COPY_AND_ASSIGN(ExchangeTranslator);
     EGSA* m_egsa_instance;
+#ifdef _FUNCTIONAL_TEST
+    AcqSiteList* m_sites;
+    SMED* m_smed;
+    SMED* smed() { return m_smed; };
+#else
+    SMED* smed() { return m_egsa_instance->smed(); };
+#endif
     std::map <const std::string, elemtype_item_t>   m_elemtypes;
     std::map <const std::string, elemstruct_item_t> m_elemstructs;
+
+    // Получить экземпляр Сайта по его имени
+    AcqSiteEntry* esg_esg_odm_ConsultAcqSiteEntry(const char*);
 
     // Прочитать из потока столько данных, сколько ожидается форматом Элементарного типа
     int read_lex_value(std::stringstream&, elemtype_item_t&, char*);
@@ -468,17 +524,29 @@ class ExchangeTranslator
     // Consulting of an entry in the exchanged composed data Table
     // --------------------------------------------------------------
     elemstruct_item_t* esg_esg_odm_ConsultExchCompArr(const char*);
-    // Consulting of an entry in the exchanged elementary data Table 
+
+    // По названию ассоциации получить ссылку на элемент с характеристиками атрибутов БДРВ 
+    // --------------------------------------------------------------
+    elemstruct_item_t* ech_typ_ConsultSubType(const char*);
+
+    // Consulting of an entry in the exchanged elementary data Table
     // --------------------------------------------------------------
     elemtype_item_t* esg_esg_odm_ConsultExchDataArr(const char*);
+
+    // --------------------------------------------------------------
+    int esg_esg_odm_ConsExchInfoLed(// Input parameters
+                const gof_t_UniversalName,  // acq site universal name
+                const int,  // Exchange data identificator
+                // Output parameter
+                esg_esg_odm_t_ExchInfoElem*);
 
     //  Getting length of Coded composed data in ASCII EDI format
     // --------------------------------------------------------------
     int esg_esg_edi_GetLengthCData(
-            const char*,                                // composed data DCD identifier
-            const esg_esg_edi_t_StrQualifyComposedData*,// Qualify of internal composed data
-            const esg_esg_edi_t_StrComposedData*,       // Internal composed data
-            int* pi_OLgCodedCData);                // length of coded composed data
+                const char*,                                // composed data DCD identifier
+                const esg_esg_edi_t_StrQualifyComposedData*,// Qualify of internal composed data
+                const esg_esg_edi_t_StrComposedData*,       // Internal composed data
+                int* pi_OLgCodedCData);                // length of coded composed data
 
     // Coding of elementary data in EDI format
     // --------------------------------------------------------------
@@ -665,15 +733,6 @@ class ExchangeTranslator
                       const char*,
                       esg_esg_edi_t_StrElementaryData*);
 
-    // Put Historized Alarms for SINF
-    // --------------------------------------------------------------
-    int esg_acq_dac_HistAlPut(
-                      const gof_t_UniversalName,  // name of distant site
-                      const char*,         // name of the file
-                      const int,           // alarms type
-                      const int,           // number of alarms
-                      const esg_esg_t_HistAlElem*);
-
     // Read A File Header
     // --------------------------------------------------------------
     int esg_esg_fil_HeadFileRead(const char*,
@@ -682,12 +741,21 @@ class ExchangeTranslator
                       int32_t*,
                       int32_t*,
                       FILE **);
-
     // Read An Applicative Header
     // --------------------------------------------------------------
     int esg_esg_fil_HeadApplRead(FILE*,
                       esg_esg_t_HeaderAppl*,
                       int32_t*);
+    // --------------------------------------------------------------
+    int esg_esg_fil_StringRead(FILE*, const int32_t, char*);
+    // --------------------------------------------------------------
+    int esg_esg_fil_DataWrite(
+                      FILE*,
+                      const void*, // pointes the array to be written
+                      const int,   // length of an item
+                      const int);  // number of items to be written
+    // --------------------------------------------------------------
+    int esg_esg_fil_EndApplRead(FILE*);
 
     // --------------------------------------------------------------
     int esg_acq_dac_TeleinfoAcq(
@@ -708,6 +776,57 @@ class ExchangeTranslator
                       gof_t_TiThreshold*);
 
     // --------------------------------------------------------------
+    int esg_acq_dac_HHTISndMsg(
+                      // Input parameters
+                      const gof_t_UniversalName,
+                      const gof_t_PeriodType,
+                      const char*);
+
+    // --------------------------------------------------------------
+    int esg_acq_dac_MultiThresAcq(FILE*,
+                                  int,
+                                  const char*);
+
+    // --------------------------------------------------------------
+    int esg_acq_dac_HistAlAcq(FILE*,
+                              int,
+                              int,
+                              const char*,
+                              int*,                     // ALO count
+                              esg_esg_t_HistAlElem*,    // ALO data
+                              int*,                     // ALN count
+                              esg_esg_t_HistAlElem*);   // ALN data
+
+    // --------------------------------------------------------------
+    int esg_acq_dac_HistTiAcq(bool,
+                              FILE*,
+                              int,
+                              const char*);
+
+    // --------------------------------------------------------------
+    int esg_acq_dac_HHTITIProcess(
+                              const gof_t_UniversalName,
+                              const gof_t_UniversalName,
+                              const esg_esg_edi_t_StrComposedData*,
+                              const elemstruct_item_t*,
+                              FILE*,
+                              int*,
+                              int*,
+                              esg_acq_dac_t_HhistTIDate**,
+                              esg_acq_dac_t_HhistTIValue**,
+                              esg_acq_dac_t_HhistTIValid**);
+
+    // --------------------------------------------------------------
+    int esg_acq_dac_HHTIValProcess(
+                              // Input parameters
+                              const esg_esg_edi_t_StrComposedData*,
+                              const elemstruct_item_t*,
+                              // Input/Output parameters
+                              esg_acq_dac_t_HhistTIDate*,
+                              esg_acq_dac_t_HhistTIValue*,
+                              esg_acq_dac_t_HhistTIValid*);
+
+    // --------------------------------------------------------------
     int esg_acq_dac_SmdProcessing(
                       const gof_t_UniversalName,
                       const esg_esg_edi_t_StrComposedData*,
@@ -719,6 +838,9 @@ class ExchangeTranslator
     int esg_acq_dac_SendAcqTIToSidl(const gof_t_UniversalName);   // name of the distant SA site that has send its dispatcher name
 
     // --------------------------------------------------------------
+    int esg_acq_dac_HHistTiAcq(int, int, const char*, const char*, FILE*, int*);
+
+    // --------------------------------------------------------------
     int esg_acq_dac_DispNameAcq(
                       // Input parameters
                       FILE*,
@@ -726,6 +848,18 @@ class ExchangeTranslator
                       const int,
                       const gof_t_UniversalName,    // sender site
                       const struct timeval);
+
+    // --------------------------------------------------------------
+    int esg_acq_dac_InitInternalBis(esg_esg_edi_t_StrComposedData*);
+
+    // Put Historized Alarms for SINF
+    // --------------------------------------------------------------
+    int esg_acq_dac_HistAlPut(
+                      const gof_t_UniversalName,  // name of distant site
+                      const char*,         // name of the file
+                      const int,           // alarms type
+                      const int,           // number of alarms
+                      const esg_esg_t_HistAlElem*);
 
     // Отправка полученного имени Диспетчера в SIDL
     // --------------------------------------------------------------
@@ -744,6 +878,7 @@ class ExchangeTranslator
                       const int,     //length of the segment body from the composed data to process
                       int*,          // composed data length
                       esg_esg_edi_t_StrComposedData*, // decoded composed data buffer
+                      elemstruct_item_t*,
                       esg_esg_edi_t_StrQualifyComposedData*);  // Quality data buffer
 
     // Удаление памяти, выделенной под значение атрибута, прочитанного из файла ESG
@@ -751,13 +886,16 @@ class ExchangeTranslator
     int esg_ine_man_FreeCompData(esg_esg_edi_t_StrComposedData*);
 
     // --------------------------------------------------------------
-    int esg_esg_fil_StringRead(FILE*, const int32_t, char*);
+    int ech_typ_GetAtt(const ech_t_InternalVal*,  // value from composed data
+                      field_type_t,  // type of the attribute to get
+                      void*,         // attribute to fill
+                      field_type_t); // тип ожидаемого атрибута
 
     // --------------------------------------------------------------
-    int ech_typ_GetAtt(const ech_t_InternalVal*,  // value from composed data
-                       field_type_t,  // type of the attribute to get
-                       void*,         // attribute to fill
-                       field_type_t); // тип ожидаемого атрибута
+    int ech_typ_StoreAtt(const void*,       // value of the attribute to store
+                      const int,            //  type of the attribute to store
+                      ech_t_InternalVal*,   // attribute to fill: internal value
+                      field_type_t);        // Тип атрибута для занесения
 
     // --------------------------------------------------------------
     float getGoodFloatValue(float, float);

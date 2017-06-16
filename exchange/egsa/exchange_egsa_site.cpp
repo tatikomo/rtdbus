@@ -534,6 +534,23 @@ int AcqSiteEntry::detach_smad()
 }
 
 // ==============================================================================
+int AcqSiteEntry::DispatchName(const char* name)
+{
+  int rc = NOK;
+
+  if (0 != strncmp(m_DispatcherName, name, TAG_NAME_MAXLEN)) {
+    // Имена Диспетчеров различаются, обновить
+    strncpy(m_DispatcherName, name, TAG_NAME_MAXLEN);
+    m_DispatcherName[TAG_NAME_MAXLEN] = '\0';
+
+    // TODO: обновить данные в SMAD
+    rc = OK;
+  }
+
+  return rc;
+}
+
+// ==============================================================================
 // Управление состояниями СС в зависимости от асинхронных изменений состояния атрибутов
 // SYNTHSTATE, INHIBITION, EXPMODE в БДРВ, приходящих по подписке.
 int AcqSiteEntry::esg_esg_aut_StateManage(int attribute_idx, int val)
@@ -1428,39 +1445,6 @@ int AcqSiteEntry::esg_ine_man_DeleteReqInProgress(const char* s_IDistantSiteId)
 }
 //-END esg_ine_man_DeleteReqInProgress ---------------------------------------
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // ==============================================================================
 AcqSiteList::AcqSiteList()
  : m_egsa(NULL)
@@ -1622,5 +1606,4 @@ int AcqSiteList::release()
 
   return OK;
 }
-
 

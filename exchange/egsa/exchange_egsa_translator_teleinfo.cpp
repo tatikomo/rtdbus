@@ -32,11 +32,11 @@
 //  FULL MAME
 //----------------------------------------------------------------------------
 //  ROLE
-//   This function convertes all transmitted data in the right form and decide if the converted
-//   data are to be stored into the SMAD or to be sent to SIDL.
+//  This function convertes all transmitted data in the right form and decide if the converted
+//  data are to be stored into the SMAD or to be sent to SIDL.
 //----------------------------------------------------------------------------
 //  CALLING CONTEXT
-//   When acquired data must be converted and written into the SMAD or sent to SIDL
+//  When acquired data must be converted and written into the SMAD or sent to SIDL
 //----------------------------------------------------------------------------
 int ExchangeTranslator::esg_acq_dac_TeleinfoAcq(
                 // Input parameters
@@ -54,11 +54,8 @@ int ExchangeTranslator::esg_acq_dac_TeleinfoAcq(
   int i_RetStatus;
   int i_CDLength;
   int i_LgDone;
-
   char s_Trace[200 + 1];
   char s_Buffer[ECH_D_APPLSEGLG + 1];
-  char s_LoggedText[ESG_ESG_D_LOGGEDTEXTLENGTH + 1];
-
   esg_esg_edi_t_StrComposedData r_InternalCData;
   esg_esg_edi_t_StrQualifyComposedData r_QuaCData;
 
@@ -111,7 +108,10 @@ int ExchangeTranslator::esg_acq_dac_TeleinfoAcq(
                                           i_IApplLength - i_LgDone,
                                           &i_CDLength,
                                           &r_InternalCData,
+                                          r_ExchCompElem,
                                           &r_QuaCData);
+
+      LOG(ERROR) << fname << ": CDProcessing delme: " << ((NULL != r_ExchCompElem)? r_ExchCompElem->name : "<NULL>");
 
       // add into a TI applicative segment
       memset(s_ExchCompId, 0, sizeof(s_ExchCompId));
@@ -149,6 +149,9 @@ int ExchangeTranslator::esg_acq_dac_TeleinfoAcq(
 
       if (i_Status == OK) {
         i_FreeStatus = esg_ine_man_FreeCompData(&r_InternalCData);
+        if (OK != i_FreeStatus) {
+          LOG(ERROR) << fname << ": release memory, rc=" << i_FreeStatus;
+        }
       }
     }                           // for to process composed data of the segment
   }                             // Composed data included in the segment
@@ -187,7 +190,7 @@ int ExchangeTranslator::esg_acq_dac_TeleinfoAcq(
   // Global message
   // --------------
   if (i_Status != OK) {
-    LOG(ERROR) << fname << ": " << s_LoggedText;
+    LOG(ERROR) << fname << ": rc=" << i_Status;
   }
 
   std::cout << fname << ": END" << std::endl;
@@ -217,12 +220,12 @@ int ExchangeTranslator::esg_acq_dac_TIThresholdAcq(
   //----------------------------------------------------------------------------
   static const char* fname = "esg_acq_dac_TIThresholdAcq";
   char s_Trace[200 + 1];
-  char s_Buffer[ECH_D_APPLSEGLG + 1];
   int i_Status = OK;
   int i_RetStatus = OK;
-  int i_IxThres;
+  size_t i_IxThres;
   int i_CntThresholds;
   int i_VectorTabNb;
+  esg_esg_odm_t_ExchInfoElem r_ExchInfoElem;
   char s_LoggedText[ESG_ESG_D_LOGGEDTEXTLENGTH + 1];
   //............................................................................
 
@@ -236,17 +239,24 @@ int ExchangeTranslator::esg_acq_dac_TIThresholdAcq(
   // thresholds have vector structures, therefore they can't be saved no more in SMAD; they are transmitted directly to SINF
   // Get the TI uname
   //----------------------------------------------------------------------------
-  //1 i_Status = esg_esg_odm_ConsExchInfoLed(s_IAcqSiteId, r_IQuaCData.i_QualifyValue, &r_ExchInfoElem);
-  LOG(ERROR) << fname << ": get the TAG by LED=" << r_IQuaCData.i_QualifyValue;
+#if 1
   // TODO: рассмотреть возможность замены явного указания LED на автоматически вычисляемую контрольную сумму от TAG.
   // Это позволит автоматически поддерживать синхронность словарей на разных сторонах информационного обмена.
   // Но при этом нужно отказаться от словаря, в котором указаны разрешенные к передаче удаленной стороне свои данные,
   // отдавая все, что попросит удаленная сторона.
+  i_Status = esg_esg_odm_ConsExchInfoLed(s_IAcqSiteId, r_IQuaCData.i_QualifyValue, &r_ExchInfoElem);
+  if (OK != i_Status) {
+    LOG(WARNING) << fname << ": rc=" << i_Status << ", skip LED #" << r_IQuaCData.i_QualifyValue << " " << s_IAcqSiteId;
+    i_Status = OK;
+  }
+#else
+  LOG(ERROR) << fname << ": get the TAG by LED=" << r_IQuaCData.i_QualifyValue;
+#endif
 
   //----------------------------------------------------------------------------
   // Prepare message to SINF
   //----------------------------------------------------------------------------
-  strcpy(pr_TiThreshold->s_uni_name, "GEV" /*r_ExchInfoElem.s_Name*/);
+  strcpy(pr_TiThreshold->s_uni_name, r_ExchInfoElem.s_Name);
   i_IxThres = 0;
   i_CntThresholds = 0;
   i_VectorTabNb = 0;
@@ -391,7 +401,7 @@ int ExchangeTranslator::esg_acq_dac_DispNameAcq(
   esg_esg_edi_t_StrQualifyComposedData r_QuaCData;
   // dispatcher name
   char s_DispatchName[60 + 1]; // NB: rtap_db.mco defines s_dispatch as char[60]
-  int i_LgrStr;
+  size_t i_LgrStr;
   //1 esg_esg_odm_t_AcqSiteEntry r_AcqSite;
   AcqSiteEntry* r_AcqSite = NULL;
   // composed data identifier
@@ -401,9 +411,9 @@ int ExchangeTranslator::esg_acq_dac_DispNameAcq(
   // dispatcher name message to SIDL
   char s_BuffMsg[GOF_MSG_D_MAXBODY];
   // message size
-  int i_MessSize = 0;
+//  int i_MessSize = 0;
   // exchange id
-  static int i_ExchId = 0;
+//  static int i_ExchId = 0;
   // --------------------------------------------------------------------------
 
   memset(s_BuffMsg, 0, sizeof(s_BuffMsg));
@@ -425,7 +435,10 @@ int ExchangeTranslator::esg_acq_dac_DispNameAcq(
                                           i_IApplLength - i_LgDone,
                                           &i_CDLength,
                                           &r_InternalCData,
+                                          r_ExchCompElem,
                                           &r_QuaCData);
+
+      LOG(ERROR) << fname << ": CDProcessing delme: " << ((NULL != r_ExchCompElem)? r_ExchCompElem->name : "<NULL>");
 
       memset(s_ExchCompId, 0, sizeof(s_ExchCompId));
       strncpy(s_ExchCompId, &s_Buffer[i_LgDone], ECH_D_COMPIDLG);
@@ -449,16 +462,12 @@ int ExchangeTranslator::esg_acq_dac_DispNameAcq(
               sprintf(s_Trace, "Dispatcher Name=%s, Sender SA=%s", s_DispatchName, s_IAcqSiteId);
               LOG(INFO) << fname << ": " << s_Trace;
 
-#if 1
-              LOG(INFO) << fname << ": Site " << r_AcqSite->name() << " has DISP " << s_DispatchName;
-#else
               // Get the Acquisition site table (and the dispatcher name of sending site)
-              //1 i_RetStatus = esg_esg_odm_ConsultAcqSiteEntry(s_IAcqSiteId, &r_AcqSite);
-              r_AcqSite = m_egsa_instance->sites()[s_IAcqSiteId];   // GEV: sites() is private
+              r_AcqSite = esg_esg_odm_ConsultAcqSiteEntry(s_IAcqSiteId);
 
-              if (!r_AcqSite) {
-                i_RetStatus = NOK;
-                LOG(ERROR) << fname << ": consult " << s_IAcqSiteId;
+              if (NULL == (r_AcqSite = esg_esg_odm_ConsultAcqSiteEntry(s_IAcqSiteId))) {
+                i_RetStatus = ESG_ESG_D_ERR_NOACQSITE;
+                LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", unknown site " << s_IAcqSiteId;
               }
 
               // compare the last sent dispatcher name and the read one
@@ -468,17 +477,13 @@ int ExchangeTranslator::esg_acq_dac_DispNameAcq(
               // ELSE do not send the message
               // END IF
               if (i_RetStatus == OK) {
-                sprintf(s_Trace, " Old Disp Name=%s, New Disp Name=%s", r_AcqSite.s_DispatchName, s_DispatchName);
+                sprintf(s_Trace, " Old Disp Name=%s, New Disp Name=%s", r_AcqSite->DispatchName(), s_DispatchName);
                 LOG(INFO) << fname << ": " << s_Trace;
-                if (strcmp(r_AcqSite.s_DispatchName, s_DispatchName) != 0) {
+                if (strcmp(r_AcqSite->DispatchName(), s_DispatchName) != 0) {
                   i_RetStatus = esg_acq_inm_SendDispNameToSidl(s_IAcqSiteId, s_DispatchName);
-                  if (i_RetStatus == OK) {
-                    strcpy(r_AcqSite.s_DispatchName, s_DispatchName);
-                    i_RetStatus = esg_esg_odm_UpdateAcqSiteEntry (s_IAcqSiteId, ESG_ESG_ODM_D_UPACQSITEDISPN, &r_AcqSite);
-                  }
+                  r_AcqSite->DispatchName(s_DispatchName);
                 }
               }
-#endif
             }
             else {
               i_RetStatus = ESG_ESG_D_ERR_BADCONFFILE;
@@ -498,9 +503,13 @@ int ExchangeTranslator::esg_acq_dac_DispNameAcq(
       // free strings in internal composed data structure allocated by esg_ine_man_CDProcessing
       if (i_Status == OK) {
         i_FreeStatus = esg_ine_man_FreeCompData(&r_InternalCData);
+        if (OK != i_FreeStatus) {
+          LOG(ERROR) << fname << ": release memory, rc=" << i_FreeStatus;
+        }
       }
 
     }                           // for to process composed data of the segment
+
   }                             // Composed data included in the segment
 
   // Global message
@@ -533,8 +542,6 @@ int ExchangeTranslator::esg_acq_inm_SendDispNameToSidl(
   char s_Trace[200 + 1];        // printed trace
   // returned status
   int i_Status = OK;
-  // complementary error text
-  char s_LoggedText[ESG_ESG_D_LOGGEDTEXTLENGTH + 1] = "";
   int i_MsgSize;                // message size
   // message structure sent to SIDX with dispatcher and site names
   sig_t_msg_DispName r_DispName;
@@ -580,9 +587,10 @@ int ExchangeTranslator::esg_acq_dac_SendAcqTIToSidl(
 {
   //----------------------------------------------------------------------------
   static const char* fname = "esg_acq_dac_SendAcqTIToSidl";
+  int i_Status = OK;
+#if 0
   char s_Trace[200 + 1];
   // returned status
-  int i_Status = OK;
   // complementary error text
   char s_LoggedText[ESG_ESG_D_LOGGEDTEXTLENGTH + 1] = "";
 //1  esg_esg_odm_t_AcqSiteEntry r_AcqSite;
@@ -599,6 +607,7 @@ int ExchangeTranslator::esg_acq_dac_SendAcqTIToSidl(
  //1 gof_t_StructAtt r_RecAttr;    // Attribut of a smad record
   bool b_RecAttrChanged;       // Changed indicator of smad record
   uint32_t i_OSynthStateValue;  // new value
+#endif
   //............................................................................
 
 #if VERBOSE >= 9
@@ -720,21 +729,5 @@ int ExchangeTranslator::esg_acq_dac_SendAcqTIToSidl(
   return (i_Status);
 } //- END esg_acq_dac_SendAcqTIToSidl ----------------------------------------------
 
-//----------------------------------------------------------------------------
-// Обновление данных в SMED
-//----------------------------------------------------------------------------
-int ExchangeTranslator::esg_acq_dac_SmdProcessing(
-        const gof_t_UniversalName               	s_IAcqSiteId,
-        const esg_esg_edi_t_StrComposedData        *pr_IInternalCData,
-        const esg_esg_edi_t_StrQualifyComposedData *pr_IQuaCData,
-        const struct timeval 	                    d_IReceivedDate)
-{
-  static const char* fname = "esg_acq_dac_SmdProcessing";
-  int rc = OK;
-
-  LOG(INFO) << fname << ": store data into SMED " << s_IAcqSiteId << " at \"" << ctime(&d_IReceivedDate.tv_sec) << "\"";
-
-  return rc;
-}
 
 

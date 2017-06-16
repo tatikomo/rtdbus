@@ -118,6 +118,129 @@
 #define MAX_DEVICE_FILENAME_LENGTH      40
 #define MAX_CONFIG_SA_FILENAME_LENGTH   400
 
+// Для совместимости с ГОФО
+typedef char    gof_t_UniversalName[32];
+typedef int32_t gof_t_ExchangeId;
+
+// Начнем нумерацию кодов ошибок после общего кода "Ошибка" (NOK) 
+enum {
+  ESG_ESG_D_ERR_CANNOTOPENFILE = NOK + 1, //	Cannot open file
+  ESG_ESG_D_ERR_CANNOTREADFILE, //Cannot read from file
+  ESG_ESG_D_ERR_CANNOTWRITFILE, //Cannot write into file
+
+  ESG_ESG_D_WAR_STARTINGESDL,   //Starting ESDL
+  ESG_ESG_D_WAR_ESDLTERMINATED, //End of ESDL treatments. Waiting to be killed
+
+  ESG_ESG_D_ERR_CANNOTCLOSESMAD,    //Cannot close SMAD for site
+
+  ESG_ESG_D_ERR_INEXISTINGENTRY,    //Entry does not exist in Oper Data Table
+  ESG_ESG_D_ERR_ACQSITETABLEFULL,   //Oper Data Acquisition Sites Table full
+  ESG_ESG_D_WAR_CANNOTUPDATECYCLE,  //Cannot update Oper Data Cycle Table
+  ESG_ESG_D_ERR_CYCLETABLEFULL, //Oper Data Cycles Table full
+
+  ESG_ESG_D_ERR_UNKNOWNMESS,    //Unknown received message by ESDL
+  ESG_ESG_D_ERR_BADMESS,    //Bad received message by ESDL
+
+  ESG_ESG_D_ERR_NOACQSITE,  //Oper Data Table for acquisition sites is empty
+
+  ESG_ESG_D_ERR_MAXREQSREACHED, //Request(s) rejected : max. number reached
+  ESG_ESG_D_ERR_MAXCYCSREACHED, //Cycle(s) rejected : max. number reached
+  ESG_ESG_D_ERR_MAXSITESREACHED,    //Site(s) rejected : max. number reached
+
+  ESG_ESG_D_ERR_BADCONFFILE,    //Configuration file not correct
+  ESG_ESG_D_ERR_UNKNOWNREQTYPE, //Unknown request type
+  ESG_ESG_D_ERR_BADSTATEMODEVAL,    //Bad value of the state or mode
+  ESG_ESG_D_ERR_BADENTRYID, //Empty string for identifier of Oper Data Table entry
+  ESG_ESG_D_WAR_BADREQTYPE, //Bad received request type
+  ESG_ESG_D_ERR_SMADEMPTY,  //SMAD for site has zero record
+  ESG_ESG_D_ERR_ALLOCACQDATAID, //Acquired data universal names allocation
+  ESG_ESG_D_ERR_ALLOCACQDATAINTID,  //Acquired data internal idents allocation
+  ESG_ESG_D_ERR_ALLOCACQDATAEXFL,   //Acquired data existing indicators allocation
+  ESG_ESG_D_ERR_ACQDATAUNKNOWN, //Acquired data does not exist in DIPL data base
+  ESG_ESG_D_WAR_CYCLEWOACQSITE, //Cycle without acquisition site declaration
+  ESG_ESG_D_ERR_EQUIPWOACQSITE, //Equipment without acquisition site associated
+  ESG_ESG_D_ERR_INFOWOACQSITE,  //Information without acquisition site associated
+  ESG_ESG_D_WAR_BADREQCLASS,    //Bad request class
+
+  ESG_ESG_D_ERR_BADALLOC,   //Cannot allocate memory
+
+  ESG_ESG_D_ERR_UNKNOWNFLAG,    //Unknown flag for consulting or updating
+  ESG_ESG_D_ERR_INEXISTINGREQ,  //Inexisting request in In Progress List
+  ESG_ESG_D_WAR_BADCYCFAMILY,   //Bad cycle family
+
+  ESG_ESG_D_ERR_UNKNOWNREPLY,   //Unknown reply identication
+  ESG_ESG_D_ERR_CANNOTSENDMSG,  //Message cannot be sent
+  ESG_ESG_D_ERR_NOACQSITE_HCPU, //No acquisition site found for the high CPU load
+
+  ESG_ESG_D_ERR_BADMULRESPSPARAM,   //Parameter error for request multi-responses
+  ESG_ESG_D_ERR_MULRESPSTABLEFULL,  //Request multi-responses Table full
+  ESG_ESG_D_ERR_INEXISTINGENVVAR,   //Inexisting environment variable
+
+  ESG_ESG_D_ERR_CANNOTLOCK, //Smad lock cannot be performed
+
+  ESG_ESG_D_ERR_CANNOTDELFILE,  //Cannot delete file
+  ESG_ESG_D_ERR_TOOMANYOPEN,    //Too many open file
+  ESG_ESG_D_ERR_CLOSENOTOPEN,   //Cannot close file : maybe not correctly open
+  ESG_ESG_D_ERR_NOTWRITABLE,    //File is not writable
+  ESG_ESG_D_ERR_NOTREADABLE,    //File is not readable
+  ESG_ESG_D_ERR_EOF,    //End of file entcountered
+
+  ESG_ESG_D_ERR_UNEXPARAMVAL,   //Unexpected value for a parameter
+  ESG_ESG_D_ERR_RESERVEMPTY,    //Reserved table is empty
+  ESG_ESG_D_ERR_BADDEDFORMAT,   //Bad EDI ACSCII format for elementary data
+  ESG_ESG_D_ERR_DEDLGTOOSHORT,  //Buffer for coded elementary data too short
+  ESG_ESG_D_ERR_BADEDINTERTYPE, //Bad internal type for elementary data
+  ESG_ESG_D_ERR_BADDEDIDENT,    //Bad elementary data identifier
+  ESG_ESG_D_ERR_MAXINFOSREACHED,    //Teleinfo(s) rejected : max. number reached
+  ESG_ESG_D_ERR_TRANSASCUTCTIME,    //Cannot transforme ascii UTC time to internal
+  ESG_ESG_D_ERR_BADDCDIDENT,    //Bad composed data identifier
+  ESG_ESG_D_ERR_NBEDINTERDCD,   //Internal and DCD composed data different ED number
+  ESG_ESG_D_ERR_DCDLGTOOSHORT,  //Buffer for coded elementary data too short
+
+  ESG_ESG_D_ERR_BADLISTEN,  //Problem listening named pipes (select)
+  ESG_ESG_D_ERR_CHILDFAILURE,   //Failure activating child process
+
+  ESG_ESG_D_ERR_NOTOPEN,    //File is not open via file services
+  ESG_ESG_D_ERR_BADFILEOP,  //Incorrect file operation
+  ESG_ESG_D_ERR_BUFFSIZE,   //Buffer size
+  ESG_ESG_D_ERR_BADCATEG,   //Bad category
+  ESG_ESG_D_ERR_BADDCDDEDLIST,  //Bad elementary data list in DCD
+  ESG_ESG_D_ERR_ODMTABLE,   //Incoherence in ODM table
+
+  ESG_ESG_D_ERR_TABLEFULL,  //Table full
+  ESG_ESG_D_ERR_BADARGS,    //Non correct process parameters
+  ESG_ESG_D_ERR_ANYEXCHINF, //Any info has not been found
+  ESG_ESG_D_ERR_BADINFOCATEGORY,    //Bad info category
+  ESG_ESG_D_ERR_BADSEGLABEL,    //Bad segment label
+  ESG_ESG_D_ERR_BADSNDRCVID,    //Bad sender-receiver identifier
+  ESG_ESG_D_ERR_CRELISTREQENTRY,    //Bad request entry in progress list creating
+  ESG_ESG_D_ERR_CONSLISTREQENTRY,   //Bad request entry in progress list consulting
+  ESG_ESG_D_ERR_DELELISTREQENTRY,   //Bad request entry in progress list deleting
+  ESG_ESG_D_ERR_REQAUTORISATION,    //Request autorisation err. processing
+  ESG_ESG_D_WAR_ACQTERMINATED,  //End of ACQ treatments. Waiting to be killed
+  ESG_ESG_D_WAR_DIFFTERMINATED, //End of DIFF treatments. Waiting to be killed
+  ESG_ESG_D_ERR_NOSTATESEG, //State exchange contains no state segment
+
+  ESG_ESG_D_ERR_BADSUBTYPEATTNB,    //Incorrect number of attributes in sub-type
+  ESG_ESG_D_ERR_NOHISTTISUBSCRIPT,  //No subscription for the historic period
+  ESG_ESG_D_ERR_NOHISTTISUBTYPE,    //No sub-type for the historic period
+  ESG_ESG_D_ERR_TILEDFORHISTACQ,    //No Ti identifier for Ti historic acquisition
+  ESG_ESG_D_ERR_HHISTTIFREEREQCONT, //No free content in local request HHistTi
+  ESG_ESG_D_ERR_NOMOREHHISTTIREQ,   //No more HHistTi request in period table
+  ESG_ESG_D_ERR_NOTIFORHHISTTIREQ,  //No Ti for HHistTi request
+
+  ESG_ESG_D_ERR_INEXPCOMPDATA,  //Inexpected composed data
+  ESG_ESG_D_ERR_INCOMPLIST, //The Dir and DIPL list are incompatible
+
+  ESG_ESG_D_ERR_PERIODNFOUND,   //The period to update has not been found
+  ESG_ESG_D_WAR_BADREQPRIORITY, //Request priority different than normal/urgent
+  ESG_ESG_D_ERR_NONCORRECTDATA, //Incorrect data in BDTR
+  ESG_ESG_D_ERR_NOPERIODIHHISTFILE, //No period in HHISTINFSACQ file
+  ESG_ESG_D_ERR_QUERYDB,    //Error in query DataBase
+  ESG_ESG_D_ERR_BADCOMMAND, //Bad command
+  ESG_ESG_D_ERR_DBREAD, //Error in reading data base
+};
+
 typedef enum {
   SOFTWARE  = 0,
   HARDWARE  = 1
