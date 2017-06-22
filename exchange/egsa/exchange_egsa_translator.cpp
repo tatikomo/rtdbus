@@ -294,7 +294,7 @@ int ExchangeTranslator::load(std::stringstream & buffer)
           std::cout << elemstruct << std::endl;
 
           // Читать все элементарные типы, содержащиеся в (*it_es)
-          for (size_t idx = 0; idx < (*it_es).second.num_fileds; idx++)
+          for (size_t idx = 0; idx < (*it_es).second.num_fields; idx++)
           {
 
             buffer.get(elemtype, 5 + 1);
@@ -1381,11 +1381,11 @@ int ExchangeTranslator::esg_esg_edi_ComposedDataDecoding(
       i_NbInternalEData = pr_IOInternalCData->i_NbEData;
       memset(s_IdEData, 0, sizeof(s_IdEData));
       memcpy(s_IdEData, ps_CodedCData, ECH_D_ELEMIDLG);
-      i_NbEData = r_ListEData->num_fileds;
+      i_NbEData = r_ListEData->num_fields;
 
       // Treatment for variable string length elementary data
       // A special L1800 data is reserved for string length. So, the number of effective elementary data must be reduced of 1
-      for (i_IndLEData = 0; i_IndLEData < r_ListEData->num_fileds; i_IndLEData++)
+      for (i_IndLEData = 0; i_IndLEData < r_ListEData->num_fields; i_IndLEData++)
       {
         if ((strcmp(r_ListEData->fields[i_IndLEData].field, ECH_D_QUAVARLGED_IDED)) == 0)
         {
@@ -1426,7 +1426,7 @@ int ExchangeTranslator::esg_esg_edi_ComposedDataDecoding(
     i_IndICData = 0;
     pr_InternalEData = (esg_esg_edi_t_StrElementaryData *) & pr_IOInternalCData->ar_EDataTable[i_IndICData];
 
-    while ((i_IndLEData < r_ListEData->num_fileds) && (i_RetStatus == OK))
+    while ((i_IndLEData < r_ListEData->num_fields) && (i_RetStatus == OK))
     {
 
       if ((pr_OQuaCData->b_QualifyExist) && (i_IndLEData == ESG_ESG_EDI_D_QUAEDATAPOSITION))
@@ -1439,7 +1439,7 @@ int ExchangeTranslator::esg_esg_edi_ComposedDataDecoding(
       {
         b_LgQuaEData = true;
         i_IndLEData++;
-        if (i_IndLEData == r_ListEData->num_fileds)
+        if (i_IndLEData == r_ListEData->num_fields)
         {
           i_RetStatus = ESG_ESG_D_ERR_BADDCDDEDLIST;
           LOG(ERROR) << fname << ": rc=" << i_RetStatus << " " << s_IIdCData;
@@ -1479,7 +1479,7 @@ int ExchangeTranslator::esg_esg_edi_ComposedDataDecoding(
         {
           i_IndICData++;
         }
-        if (i_IndLEData < r_ListEData->num_fileds - 1)
+        if (i_IndLEData < r_ListEData->num_fields - 1)
         {
           pr_InternalEData = (esg_esg_edi_t_StrElementaryData *) &pr_IOInternalCData->ar_EDataTable[i_IndICData];
         }
@@ -2172,7 +2172,7 @@ int ExchangeTranslator::esg_esg_edi_ComposedDataCoding(
     i_IndICData = 0;
     pr_InternalEData = (esg_esg_edi_t_StrElementaryData *) & pr_IInternalCData->ar_EDataTable[i_IndICData];
 
-    while ((i_IndLEData < r_ListEData->num_fileds) && (i_RetStatus == OK))
+    while ((i_IndLEData < r_ListEData->num_fields) && (i_RetStatus == OK))
     {
 
       // (CD) providing the coded elementary data from internal format
@@ -2187,7 +2187,7 @@ int ExchangeTranslator::esg_esg_edi_ComposedDataCoding(
       {
         b_LgQuaEData = true;
         i_IndLEData++;
-        if (i_IndLEData == r_ListEData->num_fileds)
+        if (i_IndLEData == r_ListEData->num_fields)
         {
           i_RetStatus = ESG_ESG_D_ERR_BADDCDDEDLIST;
           LOG(ERROR) << fname << ": rc=" << i_RetStatus << " " << s_IIdCData;
@@ -2218,7 +2218,7 @@ int ExchangeTranslator::esg_esg_edi_ComposedDataCoding(
         // Get next saved address for coded elementary data and next elementary data of the list
         i_LgMaxCodedCData = i_LgMaxCodedCData - i_LgCodedEData;
         ps_CodedCData = ps_CodedCData + i_LgCodedEData;
-        if (i_IndLEData < r_ListEData->num_fileds - 1)
+        if (i_IndLEData < r_ListEData->num_fields - 1)
         {
           if ((!pr_IQuaCData->b_QualifyUse)
            || ((pr_IQuaCData->b_QualifyUse) && (i_IndLEData != ESG_ESG_EDI_D_QUAEDATAPOSITION)))
@@ -2296,8 +2296,8 @@ int ExchangeTranslator::esg_esg_edi_GetLengthCData(
       i_NbInternalEData++;
     }
 
-    i_NbEData = r_ListEData->num_fileds;
-    for (i_IndLEData = 0; i_IndLEData < r_ListEData->num_fileds; i_IndLEData++)
+    i_NbEData = r_ListEData->num_fields;
+    for (i_IndLEData = 0; i_IndLEData < r_ListEData->num_fields; i_IndLEData++)
     {
       if ((strcmp(r_ListEData->fields[i_IndLEData].field, ECH_D_QUAVARLGED_IDED)) == 0)
       {
@@ -2324,14 +2324,14 @@ int ExchangeTranslator::esg_esg_edi_GetLengthCData(
     i_IndICData = 0;
     pr_InternalEData = (esg_esg_edi_t_StrElementaryData *) &pr_IInternalCData->ar_EDataTable[i_IndICData];
 
-    while ((i_IndLEData < r_ListEData->num_fileds) && (i_RetStatus == OK))
+    while ((i_IndLEData < r_ListEData->num_fields) && (i_RetStatus == OK))
     {
       // providing the basis type of the elementary data from DED
       if ((strcmp(r_ListEData->fields[i_IndLEData].field, ECH_D_QUAVARLGED_IDED)) == 0)
       {
         b_LgQuaEData = true;
         i_IndLEData++;
-        if (i_IndLEData == r_ListEData->num_fileds)
+        if (i_IndLEData == r_ListEData->num_fields)
         {
           i_RetStatus = ESG_ESG_D_ERR_BADDCDDEDLIST;
           LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << fname << ", " << s_IIdCData;
@@ -2380,7 +2380,7 @@ int ExchangeTranslator::esg_esg_edi_GetLengthCData(
       {
         // (CD) Save length and get next elementary data of the list
         i_LgCodedCData = i_LgCodedCData + i_LgFullEData;
-        if (i_IndLEData == r_ListEData->num_fileds - 1)
+        if (i_IndLEData == r_ListEData->num_fields - 1)
         {
           i_LgCodedCData = i_LgCodedCData + ECH_D_COMPIDLG;
         }
@@ -4167,7 +4167,7 @@ int ExchangeTranslator::esg_esg_edi_TimeDecoding(
 // Consulting of an entry in the exchanged composed data Table (DCD_ELEMSTRUCT)
 // замена esg_esg_odm_t_ExchCompElem на elemstruct_item_t
 //          esg_esg_odm_t_ExchCompElem.s_ExchCompId   => elemstruct_item_t.name
-//          esg_esg_odm_t_ExchCompElem.i_NbData       => elemstruct_item_t.num_fileds
+//          esg_esg_odm_t_ExchCompElem.i_NbData       => elemstruct_item_t.num_fields
 //          esg_esg_odm_t_ExchCompElem.as_ElemDataArr => elemstruct_item_t.fields
 // --------------------------------------------------------------
 elemstruct_item_t* ExchangeTranslator::esg_esg_odm_ConsultExchCompArr(const char* dcd_name)
@@ -4526,7 +4526,7 @@ int ExchangeTranslator::esg_ine_man_CDProcessing
     // Индекс атрибута БДРВ, поскольку не все поля являются ими
     i_AttNumber = 0;
     // Пройтись по всем полям структуры, и выделить память для тех из них, которые имеют строковый тип (FIELD_TYPE_STRING)
-    for(size_t i_FieldNum=0; i_FieldNum < r_ExchCompElem->num_fileds; i_FieldNum++)
+    for(size_t i_FieldNum=0; i_FieldNum < r_ExchCompElem->num_fields; i_FieldNum++)
     {
       if (FIELD_TYPE_UNKNOWN != r_ExchCompElem->fields[i_FieldNum].type) {
 
@@ -4665,7 +4665,7 @@ int ExchangeTranslator::processing_REPLY(FILE * pi_FileId, int i_LgAppl, int i_A
         i_AttNumber = 0;
         r_InternalCData.i_NbEData = r_ExchCompElem->num_attributes;
 
-        for (i_FieldNumber = 0; i_FieldNumber < r_ExchCompElem->num_fileds; i_FieldNumber++) {
+        for (i_FieldNumber = 0; i_FieldNumber < r_ExchCompElem->num_fields; i_FieldNumber++) {
 
           if (FIELD_TYPE_UNKNOWN != r_ExchCompElem->fields[i_FieldNumber].type) {
 

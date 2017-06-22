@@ -393,7 +393,7 @@ typedef struct {
   char associate[MAX_ICD_NAME_LENGTH + 1];      // json-атрибут "ASSOCIATE"
   elemtype_class_t tm_class;
   // Количество структур в массиве fields
-  size_t    num_fileds;
+  size_t    num_fields;
   // Количество атрибутов БДРВ из всего набора fields (имеющие поле TYPE) 
   size_t    num_attributes;
   // Вложенные структуры
@@ -444,7 +444,9 @@ class EgsaConfig {
     // Загрузка НСИ ESG
     int load_esg();
     elemtype_item_t*    elemtypes()   { return m_elemtype_items; }
+    size_t elemtypes_count() const    { return m_elemtypes_count; }
     elemstruct_item_t*  elemstructs() { return m_elemstruct_items; }
+    size_t elemstructs_count() const  { return m_elemstructs_count; }
     // Название SMED
     const std::string& smed_name();
     // Загруженные Циклы
@@ -475,8 +477,10 @@ class EgsaConfig {
     bool    m_config_has_good_format;
     // Данные DED_ELEMTYPES из конфигурационного файла
     elemtype_item_t  *m_elemtype_items;
+    size_t  m_elemtypes_count;
     // Данные DCD_ELEMSTRUCTS + ESG_LOCSTRUCTS из конфигурационного файла
     elemstruct_item_t  *m_elemstruct_items;
+    size_t  m_elemstructs_count;
 
     // Секция "COMMON" конфигурационного файла ==============================
     // Название секции

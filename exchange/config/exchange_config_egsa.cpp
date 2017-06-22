@@ -202,7 +202,9 @@ EgsaConfig::EgsaConfig(const char* config_filename)
  : m_config_filename(NULL),
    m_config_has_good_format(false),
    m_elemtype_items(NULL),
-   m_elemstruct_items(NULL)
+   m_elemtypes_count(0),
+   m_elemstruct_items(NULL),
+   m_elemstructs_count(0)
 {
   const char* fname = "EgsaConfig";
   FILE* f_params = NULL;
@@ -746,10 +748,11 @@ int EgsaConfig::load_DCD_ELEMSTRUCTS(rapidjson::Value& dcd_elemstructs)
 
   if (dcd_elemstructs.IsArray())
   {
-    LOG(INFO) << fname << ": Initial size=" << dcd_elemstructs.Size();
+    m_elemstructs_count = dcd_elemstructs.Size();
+    LOG(INFO) << fname << ": Initial size=" << m_elemstructs_count;
 
-    m_elemstruct_items = new elemstruct_item_t[dcd_elemstructs.Size() + 1];
-    memset(m_elemstruct_items, '\0', sizeof(elemstruct_item_t) * (dcd_elemstructs.Size() + 1));
+    m_elemstruct_items = new elemstruct_item_t[m_elemstructs_count + 1];
+    memset(m_elemstruct_items, '\0', sizeof(elemstruct_item_t) * (m_elemstructs_count + 1));
 
     for (Value::ValueIterator itr = dcd_elemstructs.Begin(); itr != dcd_elemstructs.End(); ++itr) {
       // Получили доступ к очередному элементу элементарных типов
@@ -837,14 +840,14 @@ int EgsaConfig::load_DCD_ELEMSTRUCTS(rapidjson::Value& dcd_elemstructs)
             }
           } // конец блока "по всем атрибутам"
 
-          m_elemstruct_items[idx].num_fileds = attr_idx;
+          m_elemstruct_items[idx].num_fields = attr_idx;
         } // конец блока if "есть массив атрибутов"
 
       } // конец блока "по всем атрибутам"
 
 #if VERBOSE>7
       LOG(INFO) << fname << ": NAME=" << m_elemstruct_items[idx].name << ", ASSOCIATE=" << m_elemstruct_items[idx].associate
-                << ", type=" << m_elemstruct_items[idx].tm_class << ", num_fields=" << m_elemstruct_items[idx].num_fileds
+                << ", type=" << m_elemstruct_items[idx].tm_class << ", num_fields=" << m_elemstruct_items[idx].num_fields
                 << ", num_attrs=" << m_elemstruct_items[idx].num_attributes;
 #endif
 
@@ -945,7 +948,7 @@ int EgsaConfig::load_ESG_LOCSTRUCTS(rapidjson::Value& esg_locstructs)
 
             } // конец цикла чтения вложенных полей
 
-            m_locstruct_items[idx].num_fileds = attr_idx;
+            m_locstruct_items[idx].num_fields = attr_idx;
 
           } // конец проверки того, что FIELDS содержит массив значений
 
@@ -953,11 +956,11 @@ int EgsaConfig::load_ESG_LOCSTRUCTS(rapidjson::Value& esg_locstructs)
 
 #if VERBOSE >= 5
           LOG(INFO) << fname << ": NAME=" << m_locstruct_items[idx].name << ", ICD=" << m_locstruct_items[idx].icd
-                    << ", type=" << m_locstruct_items[idx].tm_class << ", num=" << m_locstruct_items[idx].num_fileds;
+                    << ", type=" << m_locstruct_items[idx].tm_class << ", num=" << m_locstruct_items[idx].num_fields;
 #endif
 #if VERBOSE >= 7
-          for (size_t i=0; i<m_locstruct_items[idx].num_fileds; i++) {
-            std::cout << locstruct_idx << " " << m_locstruct_items[idx].name << " " << i+1 << "/" << m_locstruct_items[idx].num_fileds
+          for (size_t i=0; i<m_locstruct_items[idx].num_fields; i++) {
+            std::cout << locstruct_idx << " " << m_locstruct_items[idx].name << " " << i+1 << "/" << m_locstruct_items[idx].num_fields
                       << " " << m_locstruct_items[idx].fields[i].name << " " << m_locstruct_items[idx].fields[i].type
                       << " " << m_locstruct_items[idx].fields[i].length << std::endl; 
           }
@@ -987,9 +990,10 @@ int EgsaConfig::load_DED_ELEMTYPES(rapidjson::Value& ded_elemtypes)
 
   if (ded_elemtypes.IsArray())
   {
-    LOG(INFO) << fname << ": Initial size=" << ded_elemtypes.Size();
-    m_elemtype_items = new elemtype_item_t[ded_elemtypes.Size() + 1];
-    memset(m_elemtype_items, '\0', sizeof(elemtype_item_t) * (ded_elemtypes.Size()+1));
+    m_elemtypes_count = ded_elemtypes.Size();
+    LOG(INFO) << fname << ": Initial size=" << m_elemtypes_count;
+    m_elemtype_items = new elemtype_item_t[m_elemtypes_count + 1];
+    memset(m_elemtype_items, '\0', sizeof(elemtype_item_t) * (m_elemtypes_count + 1));
 
     for (Value::ValueIterator itr = ded_elemtypes.Begin(); itr != ded_elemtypes.End(); ++itr)
     {
@@ -1040,32 +1044,37 @@ int EgsaConfig::load()
 
   do {
 
-   // загрузка раздела COMMON
-    status = load_common();
-    if (NOK == status) {
-      LOG(ERROR) << fname << ": Get common configuration";
-      break;
-    }
+    if (true == m_config_has_good_format) {
+      // загрузка раздела COMMON
+      status = load_common();
+      if (NOK == status) {
+        LOG(ERROR) << fname << ": Get common configuration";
+        break;
+      }
 
-    // загрузка Сайтов
-    status = load_sites();
-    if (NOK == status) {
-      LOG(ERROR) << fname << ": Get cycles";
-      break;
-    }
+      // загрузка Сайтов
+      status = load_sites();
+      if (NOK == status) {
+        LOG(ERROR) << fname << ": Get cycles";
+        break;
+      }
 
-    // загрузка параметров Циклов
-    status = load_cycles();
-    if (NOK == status) {
-      LOG(ERROR) << fname << ": Get cycles";
-      break;
-    }
+      // загрузка параметров Циклов
+      status = load_cycles();
+      if (NOK == status) {
+        LOG(ERROR) << fname << ": Get cycles";
+        break;
+      }
 
-    // загрузка параметров Запросов
-    status = load_requests();
-    if (NOK == status) {
-       LOG(ERROR) << fname << ": Get requests";
-       break;
+      // загрузка параметров Запросов
+      status = load_requests();
+      if (NOK == status) {
+         LOG(ERROR) << fname << ": Get requests";
+         break;
+      }
+    }
+    else {
+      LOG(ERROR) << fname << ": config file " << m_config_filename << " has bad format";
     }
 
     status = load_esg();

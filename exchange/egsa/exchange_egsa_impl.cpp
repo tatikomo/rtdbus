@@ -104,8 +104,8 @@ int EGSA::init()
   load_config();
   LOG(INFO) << fname << ": configs loaded, state=" << m_state;
 
-  // Подключиться к своей внутренней памяти SMED
-  m_smed = new SMED(m_smed_filename.c_str());
+  // Подключиться к своей внутренней памяти SMED, передав в качестве начальных значений объект конфигурации
+  m_smed = new SMED(m_egsa_config, m_smed_filename.c_str());
   LOG(INFO) << fname << ": SMED created, state=" << m_smed->state();
 
   if (STATE_OK == (ext_state = m_smed->connect())) {
@@ -153,11 +153,13 @@ int EGSA::init()
 
 // ==========================================================================================================
 // Внутренний тест SMED
-int EGSA::test_smed()
+int EGSA::test_smed(const char* sa_dict_file)
 {
   int rc = OK;
 
-  LOG(INFO) << "TEST SMED";
+  LOG(INFO) << "TEST SMED: try load file " << sa_dict_file;
+  rc = m_smed->load_dict(sa_dict_file);
+
   return rc;
 }
 

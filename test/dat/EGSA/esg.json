@@ -331,6 +331,12 @@
             "COMMENT": "order label - label text"
         },
         {
+            "NAME": "E4805",
+            "TYPE": "I",
+            "SIZE": "3",
+            "COMMENT": "GEV: в ГОФО нет этого поля, но он используется в C0016 (execution stage value)"
+        },
+        {
             "NAME": "E5800",
             "TYPE": "I",
             "SIZE": "5",

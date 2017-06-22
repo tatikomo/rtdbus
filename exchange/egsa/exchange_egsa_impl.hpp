@@ -59,8 +59,8 @@ class EGSA : public mdp::mdwrk {
     ExchangeTranslator* translator() { return m_translator; }
     // Разбор файла с данными от ГОФО
     int load_esg_file(const char*);
-    // Внутренний тест SMED
-    int test_smed();
+    // Внутренний тест SMED - загрузка указанного файла словаря типа ESG_EXACQINFOS или ESG_EXSNDINFOS
+    int test_smed(const char*);
     // Доступ ко внутренней буферной памяти с данными от/для смежных систем
     SMED* smed() { return m_smed; }
     // Запуск Интерфейса ES_ACQ

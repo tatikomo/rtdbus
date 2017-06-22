@@ -142,7 +142,7 @@ TEST(TestEXCHANGE, EGSA_CONFIG)
 // =======================================================================================================================
 TEST(TestEXCHANGE, EGSA_ESG_CONFIG)
 {
-  int rc = g_egsa_instance->load_esg_file("SAMPLE1.DAT");
+  int rc = g_egsa_instance->load_esg_file("ESG_REPLY1.DAT");
   EXPECT_TRUE(OK == rc);
 }
 
@@ -751,9 +751,10 @@ TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
 // Данная память является буфером между накапливаемой системами сбора телеинформацией и БДРВ.
 TEST(TestEXCHANGE, EGSA_SMED)
 {
+  static const char* sa_dict_file = "ESG_SA_DICT_ACQINFOS.json";
   LOG(INFO) << "Check SMED";
 
-  int rc = g_egsa_instance->test_smed();
+  int rc = g_egsa_instance->test_smed(sa_dict_file);
   EXPECT_TRUE(rc == OK);
 }
 

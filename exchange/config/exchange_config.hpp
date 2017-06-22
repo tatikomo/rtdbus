@@ -320,6 +320,17 @@ typedef enum {
 } synthstate_t;
 
 // ---------------------------------------------------------
+// Категория телеметрии из ESG словарей обмена со смежными системами
+typedef enum {
+  TM_CATEGORY_OTHER     = 0,
+  TM_CATEGORY_PRIMARY   = 1,
+  TM_CATEGORY_SECONDARY = 2,
+  TM_CATEGORY_TERTIARY  = 4,
+  TM_CATEGORY_EXPLOITATION = 8,
+  TM_CATEGORY_ALL       = 15,
+} telemetry_category_t;
+
+// ---------------------------------------------------------
 // definition of the nature of a Sac (site of acquisition)
 typedef enum {
   GOF_D_SAC_NATURE_DIR  = 0,

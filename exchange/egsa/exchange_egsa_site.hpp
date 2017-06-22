@@ -210,15 +210,15 @@ class AcqSiteEntry {
   private:
     // Exchanged Info table header */
     // --------------------------- */
-    //  . Global number of exchanged data 
+    //  . Global number of exchanged data
     //  . Primary exchanged data number
-    //  . Secondary exchanged data number 
+    //  . Secondary exchanged data number
     //  . Tertiary exchanged data number
     //  . Exploitation exchanged data number
-    //  . TI number, concerned by quarter historic 
-    //  . TI number, concerned by hour historic 
-    //  . TI number, concerned by day historic 
-    //  . TI number, concerned by month historic 
+    //  . TI number, concerned by quarter historic
+    //  . TI number, concerned by hour historic
+    //  . TI number, concerned by day historic
+    //  . TI number, concerned by month historic
     //  . TI, which alarm has to be transmit number
     typedef struct {
         size_t                 h_EffNb; 
