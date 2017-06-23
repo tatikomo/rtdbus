@@ -22,7 +22,7 @@ int ExchangeTranslator::esg_acq_dac_HistAlAcq(FILE*,
                               int*,                     // ALN count
                               esg_esg_t_HistAlElem*)
 {
-  static const char* fname = "esg_acq_dac_HistAlAcq"; 
+  static const char* fname = "esg_acq_dac_HistAlAcq";
   int rc = OK;
 
   LOG(ERROR) << fname << ": TODO " << s_AcqSite;

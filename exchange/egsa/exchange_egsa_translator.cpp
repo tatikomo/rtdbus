@@ -5473,7 +5473,7 @@ int ExchangeTranslator::esg_esg_odm_ConsExchInfoLed(
   pr_OExchInfoElem->s_Name[0] = '\0';
   pr_OExchInfoElem->i_LED = 0;
 
-  if (OK != (i_RetStatus = smed()->get_info(s_AcqSite, i_Led, pr_OExchInfoElem))) {
+  if (OK != (i_RetStatus = smed()->get_acq_info(s_AcqSite, i_Led, pr_OExchInfoElem))) {
     LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", unable to get info of " << s_AcqSite << " LED #" << i_Led;
   }
 #else

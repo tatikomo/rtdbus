@@ -134,6 +134,8 @@ class EGSA : public mdp::mdwrk {
     internal_state_t send_state() { return m_state_send; }
     // Обработка события смены Фазы для данного Сайта
     int esg_acq_inm_PhaseChgMan(AcqSiteEntry*, AcqSiteEntry::init_phase_state_t);
+    // Получить информацию по локальному Сайту из БДРВ
+    int get_local_info();
 
     // Инициализация интерфейса ES_ACQ
     int init_acq();
@@ -222,6 +224,8 @@ class EGSA : public mdp::mdwrk {
     sa_parameters_t m_list;
     // После чтения из конфигурации имя файла потребуется не сразу
     std::string m_smed_filename;
+    // Название локального Сайта
+    char    m_local_sa_name[TAG_NAME_MAXLEN + 1];
 
     // General data
     //static ega_ega_odm_t_GeneralData ega_ega_odm_r_GeneralData;

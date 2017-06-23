@@ -1470,6 +1470,7 @@ AcqSiteList::~AcqSiteList()
 
       // Удалить ссылку на AcqSiteEntry
       (*it).reset();
+      //1 delete *(*it);
     }
   }
 }

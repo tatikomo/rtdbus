@@ -18,7 +18,7 @@ int ExchangeTranslator::esg_acq_dac_HistTiAcq(bool,
                               int,
                               const char*)
 {
-  static const char* fname = "esg_acq_dac_HistTiAcq"; 
+  static const char* fname = "esg_acq_dac_HistTiAcq";
   int rc = OK;
 
   LOG(ERROR) << fname << ": TODO";

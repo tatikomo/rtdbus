@@ -15,7 +15,7 @@
 
 int ExchangeTranslator::esg_acq_dac_MultiThresAcq(FILE*, int, const char* s_AcqSite)
 {
-  static const char* fname = "esg_acq_dac_MultiThresAcq"; 
+  static const char* fname = "esg_acq_dac_MultiThresAcq";
   int rc = OK;
 
   LOG(ERROR) << fname << ": TODO " << s_AcqSite;

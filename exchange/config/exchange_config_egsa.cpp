@@ -621,7 +621,7 @@ int EgsaConfig::load_requests()
 
               // Ненулевое значение говорит о порядке исполнения подзапросов
               request->r_IncludingRequests[dict_entry->e_RequestId] = ++sequence;
-            } // end нашли запрос по его имени 
+            } // end нашли запрос по его имени
           } // конец цикла чтения вложенных запросов
         } // конец блока "этот запрос составной"
         m_requests.insert(std::pair<std::string, RequestEntry*>(request->s_RequestName, request));
@@ -666,7 +666,7 @@ int EgsaConfig::load_esg()
       assert(m_esg_config_document.IsObject());
 
       if (!m_esg_config_document.HasParseError()) // Конфиг-файл имеет корректную структуру?
-      { 
+      {
         rc = NOK;
 
         do {
@@ -830,7 +830,7 @@ int EgsaConfig::load_DCD_ELEMSTRUCTS(rapidjson::Value& dcd_elemstructs)
 
                 m_elemstruct_items[idx].num_attributes++;
               }
-              
+
             }
 
             attr_idx++;
@@ -962,7 +962,7 @@ int EgsaConfig::load_ESG_LOCSTRUCTS(rapidjson::Value& esg_locstructs)
           for (size_t i=0; i<m_locstruct_items[idx].num_fields; i++) {
             std::cout << locstruct_idx << " " << m_locstruct_items[idx].name << " " << i+1 << "/" << m_locstruct_items[idx].num_fields
                       << " " << m_locstruct_items[idx].fields[i].name << " " << m_locstruct_items[idx].fields[i].type
-                      << " " << m_locstruct_items[idx].fields[i].length << std::endl; 
+                      << " " << m_locstruct_items[idx].fields[i].length << std::endl;
           }
 #endif
 
@@ -1015,7 +1015,7 @@ int EgsaConfig::load_DED_ELEMTYPES(rapidjson::Value& ded_elemtypes)
         case 'L': m_elemtype_items[idx].tm_type = TM_TYPE_LOGIC;   break;
         default:  m_elemtype_items[idx].tm_type = TM_TYPE_UNKNOWN; break;
       }
-  
+
 #if VERBOSE > 7
       LOG(INFO) << fname << ": name=" << m_elemtype_items[idx].name << " type=" << m_elemtype_items[idx].tm_type
                 << " format_size=" << m_elemtype_items[idx].format_size;

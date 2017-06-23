@@ -362,7 +362,7 @@ typedef union {
   ech_t_InternalString r_Str;
 } ech_t_InternalVal;
 
-// 
+//
 // esg_acq_dac_t_HhistTIHeader structure
 // --------------------------------------------
 typedef struct {
@@ -371,9 +371,9 @@ typedef struct {
   uint16_t            h_NbInfosHist;
 } esg_acq_dac_t_HhistTIHeader;
 
-// 
+//
 // esg_acq_dac_t_HhistTIBody
-// NB: хранится в двоичном виде, для обеспечения совместимости с ГОФО использовать эти размерности 
+// NB: хранится в двоичном виде, для обеспечения совместимости с ГОФО использовать эти размерности
 // --------------------------------------------
 typedef struct {
   gof_t_UniversalName     s_Info;
@@ -525,7 +525,7 @@ class ExchangeTranslator
     // --------------------------------------------------------------
     elemstruct_item_t* esg_esg_odm_ConsultExchCompArr(const char*);
 
-    // По названию ассоциации получить ссылку на элемент с характеристиками атрибутов БДРВ 
+    // По названию ассоциации получить ссылку на элемент с характеристиками атрибутов БДРВ
     // --------------------------------------------------------------
     elemstruct_item_t* ech_typ_ConsultSubType(const char*);
 

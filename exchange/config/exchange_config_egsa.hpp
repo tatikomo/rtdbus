@@ -394,7 +394,7 @@ typedef struct {
   elemtype_class_t tm_class;
   // Количество структур в массиве fields
   size_t    num_fields;
-  // Количество атрибутов БДРВ из всего набора fields (имеющие поле TYPE) 
+  // Количество атрибутов БДРВ из всего набора fields (имеющие поле TYPE)
   size_t    num_attributes;
   // Вложенные структуры
   field_item_t fields[MAX_LOCSTRUCT_FIELDS_NUM];

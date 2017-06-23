@@ -784,6 +784,8 @@ int EGSA::run()
 #endif
 
   interrupt_worker = true;
+  // Получить информацию из БДРВ о названии (коде) локального Сайта
+  status = get_local_info();
 
   LOG(INFO) << fname << ": START";
 
@@ -918,6 +920,25 @@ int EGSA::run()
   m_state = STATE_STOP;
 
   return status;
+}
+
+// ==========================================================================================================
+// Получить информацию по локальному Сайту из БДРВ
+int EGSA::get_local_info()
+{
+  int rc = OK;
+
+#ifndef _FUNCTIONAL_TEST
+  #warning "TODO: Get name of local SA"
+  rc = NOK;
+  LOG(ERROR) << "TODO: Get name of local SA";
+  m_local_sa_name[0] = '\0';
+#else
+  strcpy(m_local_sa_name, "K42663");
+  LOG(INFO) << "USE FUNCTIONAL_TEST: local SA name is " << m_local_sa_name;
+#endif
+
+  return rc;
 }
 
 // ==========================================================================================================

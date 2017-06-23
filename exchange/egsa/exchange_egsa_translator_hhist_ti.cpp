@@ -398,7 +398,7 @@ int ExchangeTranslator::esg_acq_dac_InitInternalBis( /* output parameters */ esg
     assert(r_SubTypeElem->fields[1].type == FIELD_TYPE_INT32);  // C0072.STATUS
     assert(r_SubTypeElem->fields[2].type == FIELD_TYPE_UINT32); // C0072.<number exchange>
     assert(r_SubTypeElem->fields[3].type == FIELD_TYPE_UINT8);  // C0072.<infotype>
-    
+
     // status
     //--------
     i_Val = 0; // SIG_HIS_D_ERR_NOVAL;

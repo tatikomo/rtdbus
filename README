@@ -7,6 +7,7 @@
 4. google logging 1.7.0
 5. xercesc 3.1.1
 6. CodeSynthesis XSD XML Schema to C++ compiler 3.3.0
+7. SQLite 3
 
 Архитектура передачи сообщений
 --------------------------------------------------------------------------------
@@ -90,6 +91,10 @@ cppclean . -I../libzmq/src -I../eXtremeDB_5_fusion_eval/include -I../glog/src -I
 
 Подробная трассировка тестов включается с помощью:
 ctest -R НАЗВАНИЕ_ТЕСТА -VV
+
+Настройка и оптимизация SQLite
+--------------------------------------------------------------------------------
+https://stackoverflow.com/questions/1711631/improve-insert-per-second-performance-of-sqlite
 
 Хронология проблем:
 --------------------------------------------------------------------------------

@@ -18,7 +18,7 @@
 #define s_OPC           "opc"       // сведения, специфичные для работы протокола OPC
 #define s_SERVICE       "service"   // информация по основному и резервным каналам связи с СС
 #define s_PARAMETERS    "parameters"    // общий раздел, содержащий параметры
-#define s_ACQUISITION   "acquisition"   // параметры, подлежащие модулем приёму от системы сбора 
+#define s_ACQUISITION   "acquisition"   // параметры, подлежащие модулем приёму от системы сбора
 #define s_TRANSMISSION  "transmission"  // параметры, подлежащие передаче модулем в адрес СС
 
 #define s_SA_MODE_MODBUS_TCP    "MODBUS-TCP"
@@ -76,7 +76,7 @@
 #define s_COMMON_BYTE_ORDER_ABCD "ABCD"
 // TODO: насколько важно знать самой системе сбора свой тип?
 #define s_COMMON_NATURE      "NATURE"   // Тип системы сбора
-#define s_COMMON_SUB         "SUB"      // Признак необходимости вычитания единицы из адреса 
+#define s_COMMON_SUB         "SUB"      // Признак необходимости вычитания единицы из адреса
 #define s_COMMON_NAME        "NAME"     // Тег системы сбора (СС)
 #define s_COMMON_SMAD        "SMAD"     // Название файла SQLite, содержащего данные СС
 #define s_COMMON_CHANNEL     "CHANNEL"  // Тип канала доступа к серверу, TCP|RTU
@@ -122,7 +122,7 @@
 typedef char    gof_t_UniversalName[32];
 typedef int32_t gof_t_ExchangeId;
 
-// Начнем нумерацию кодов ошибок после общего кода "Ошибка" (NOK) 
+// Начнем нумерацию кодов ошибок после общего кода "Ошибка" (NOK)
 enum {
   ESG_ESG_D_ERR_CANNOTOPENFILE = NOK + 1, //	Cannot open file
   ESG_ESG_D_ERR_CANNOTREADFILE, //Cannot read from file
@@ -279,10 +279,11 @@ typedef enum {
 } sa_endianess_t;
 
 // ---------------------------------------------------------
-// Направления потока данных - от сервера (0) или к серверу (1)
+// Направления потока данных - от сервера (1) или к серверу (2)
 typedef enum {
-  SA_FLOW_ACQUISITION = 0,
-  SA_FLOW_DIFFUSION   = 1
+  SA_FLOW_UNKNOWN     = 0,
+  SA_FLOW_ACQUISITION = 1,
+  SA_FLOW_DIFFUSION   = 2
 } sa_flow_direction_t; //mbus_flow_t;
 
 // ---------------------------------------------------------
@@ -312,7 +313,7 @@ typedef enum {
 // GOF_D_BDR_SYNTHSTATE_UNR	    0
 // GOF_D_BDR_SYNTHSTATE_OP		1
 // GOF_D_BDR_SYNTHSTATE_PREOP	2
-// 
+//
 typedef enum {
   SYNTHSTATE_UNREACH    = 0,
   SYNTHSTATE_OPER       = 1,
@@ -411,7 +412,7 @@ typedef struct {
   int error_nb;     // Количество последовательных ошибок связи до диагностики разрыва связи
   sa_endianess_t byte_order;    // Порядок байт СС
   gof_t_SacNature nature;       // Тип системы сбора
-  int subtract;     // Признак необходимости вычитания единицы из адреса 
+  int subtract;     // Признак необходимости вычитания единицы из адреса
   std::string name; // Тег системы сбора (СС)
   std::string smad; // Название файла SQLite, содержащего данные СС
   sa_connection_type_t channel;      // Тип канала доступа к серверу, MODBUS-{TCP|RTU}, OPC-UA
