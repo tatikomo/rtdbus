@@ -2,6 +2,8 @@
 #include <string>
 #include <list>
 #include <vector>
+#include <fnmatch.h>    // fnmatch
+#include <dirent.h>     // DIR
 #include <unistd.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -26,7 +28,7 @@
 AcquisitionSystemConfig* g_sa_config = NULL;
 EGSA* g_egsa_instance = NULL;
 AcqSiteEntry *g_sac_entry = NULL;
-
+const char* g_local_site_code = "K42663";   // Код локального объекта
 const char* g_sa_config_filename = "BI4500.json";
 
 // =======================================================================================================================
@@ -133,17 +135,10 @@ TEST(TestEXCHANGE, EGSA_CONFIG)
   EXPECT_TRUE(g_egsa_instance->config()->cycles().size() == 7);
 
   LOG(INFO) << "load " << g_egsa_instance->config()->sites().size() << " sites";
-  EXPECT_TRUE(g_egsa_instance->config()->sites().size() == 3);
+  EXPECT_TRUE(g_egsa_instance->config()->sites().size() == 6);
 
   LOG(INFO) << "load " << g_egsa_instance->config()->requests().size() << " requests";
   EXPECT_TRUE(g_egsa_instance->config()->requests().size() == 41);
-}
-
-// =======================================================================================================================
-TEST(TestEXCHANGE, EGSA_ESG_CONFIG)
-{
-  int rc = g_egsa_instance->load_esg_file("ESG_REPLY1.DAT");
-  EXPECT_TRUE(OK == rc);
 }
 
 // =======================================================================================================================
@@ -422,19 +417,21 @@ TEST(TestEXCHANGE, EGSA_SITES)
     // Имя
     // |
     // |        Уровень
-    // |        |            Тип
-    // |        |            |                      AUTO_INIT
-    // |        |            |                      |     AUTO_GENCONTROL
-    // |        |            |                      |     |
-    { "BI4001", LEVEL_LOCAL, GOF_D_SAC_NATURE_EELE, true, true  },
-    { "BI4002", LEVEL_LOCAL, GOF_D_SAC_NATURE_EELE, true, true  },
-    { "K42001", LEVEL_UPPER, GOF_D_SAC_NATURE_DIR,  true, false }
+    // |        |               Тип
+    // |        |               |                      AUTO_INIT
+    // |        |               |                      |     AUTO_GENCONTROL
+    // |        |               |                      |     |
+    { "BI4001", LEVEL_LOCAL,    GOF_D_SAC_NATURE_EELE, true, true  },
+    { "BI4002", LEVEL_LOCAL,    GOF_D_SAC_NATURE_EELE, true, true  },
+    { "K41681", LEVEL_ADJACENT, GOF_D_SAC_NATURE_DIPL, true, false },
+    { "K42670", LEVEL_ADJACENT, GOF_D_SAC_NATURE_DIPL, true, false },
+    { "K42664", LEVEL_ADJACENT, GOF_D_SAC_NATURE_DIPL, true, false },
+    { "K42001", LEVEL_UPPER,    GOF_D_SAC_NATURE_DIR,  true, false }
   };
   // В тестовом файле только три записи
-  const AcqSiteEntry* check_data[3];
-  check_data[0] = new AcqSiteEntry(g_egsa_instance, &config_item[0]);
-  check_data[1] = new AcqSiteEntry(g_egsa_instance, &config_item[1]);
-  check_data[2] = new AcqSiteEntry(g_egsa_instance, &config_item[2]);
+  const AcqSiteEntry* check_data[6];
+  for (size_t idx = 0; idx < 6; idx++)
+    check_data[idx] = new AcqSiteEntry(g_egsa_instance, &config_item[idx]);
 
   AcqSiteList& sites_list = g_egsa_instance->sites();
   LOG(INFO) << "EGSA_SITES loads " << sites_list.count() << " sites";
@@ -446,11 +443,13 @@ TEST(TestEXCHANGE, EGSA_SITES)
       case 0:
       case 1:
       case 2:
-        EXPECT_TRUE(0 == strcmp(entry->name(), check_data[i]->name()));
+      case 3:
+      case 4:
+      case 5:
         entry = sites_list[check_data[i]->name()];
         ASSERT_TRUE(NULL != entry);
 
-        LOG(INFO) << entry->name()
+        LOG(INFO) << entry->name() << " GEV:" << check_data[i]->name()
                   << "; nature=" << entry->nature()
                   << "; auto_init=" << entry->auto_i()
                   << "; auto_gc=" << entry->auto_gc();
@@ -462,14 +461,13 @@ TEST(TestEXCHANGE, EGSA_SITES)
         break;
 
       default:
-        LOG(FATAL) << "Loaded SITES more than 3: " << i;
+        LOG(FATAL) << "SITES load more than expected: " << i;
         ASSERT_TRUE(0 == 1);
     }
   }
 
-  delete check_data[0];
-  delete check_data[1];
-  delete check_data[2];
+  for (size_t idx = 0; idx < 6; idx++)
+    delete check_data[idx];
 }
 
 // =======================================================================================================================
@@ -747,15 +745,58 @@ TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
 #endif
 
 // =======================================================================================================================
-// Тест памяти SMED.
+// Тест памяти SMED
 // Данная память является буфером между накапливаемой системами сбора телеинформацией и БДРВ.
 TEST(TestEXCHANGE, EGSA_SMED)
 {
-  static const char* sa_dict_file = "ESG_SA_DICT_ACQINFOS.json";
-  LOG(INFO) << "Check SMED";
+  int rc;
+  DIR *dir;
+  struct dirent *ent;
+  char directory[255] = "./";
+  const char* dict_file_pattern = "???INFOS.K?????.json";
+  char dict_filename[255];
 
-  int rc = g_egsa_instance->test_smed(sa_dict_file);
-  EXPECT_TRUE(rc == OK);
+  LOG(INFO) << "Check SMED";
+#if 0
+  sprintf(dict_filename, dict_file_pattern, g_local_site_code);
+
+  // Прочитать набор словарей для своего объекта. Тип режима закодирован в названии словаря.
+  // Формат имени файла: <Код локального объекта>.{SND|ACQ}INFOS.<Код удаленного объекта>.json
+  // DIFFUSION - что локальный объект должен отправить
+  // ACQUISITION - что локальный объект хочет получить
+  dir = opendir(directory);
+
+  while (NULL != (ent = readdir(dir))) {
+
+    if (0 == fnmatch(dict_filename, ent->d_name, 0)) {
+      LOG(INFO) << "LOAD " << ent->d_name;
+      rc = g_egsa_instance->load_dict(ent->d_name);
+      //EXPECT_TRUE(rc == OK);
+    }
+
+  }
+  closedir(dir);
+#endif
+
+  // Прочитать набор словарей для режима ACQUISITION своего объекта - что локальный объект хочет получить
+  // Формат имени файла: <Код локального объекта>.ACQINFOS.<Код удаленного объекта>.json
+  //
+}
+
+// =======================================================================================================================
+// Предварительно загруженный в SMED словарь из теста EGSA_SMED позволяет разбирать файлы с данными
+// Проверим на примере ответа K42663 на запрос от K42001
+TEST(TestEXCHANGE, EGSA_ESG_CONFIG)
+{
+  int rc;
+  // Составной Запрос от K42001 в адрес K42663
+  rc = g_egsa_instance->load_esg_file("ESG_REQUEST1.DAT");
+  EXPECT_TRUE(OK == rc);
+
+  // Составной Ответ на предыдущий запрос от K42663 в адрес K42001
+  // NB: в обычном режиме обработка этого ответа невозможна, поскольку он обрабатывается на уровне K42001
+  rc = g_egsa_instance->load_esg_file("ESG_REPLY1.DAT");
+  EXPECT_TRUE(OK == rc);
 }
 
 #ifndef _SHORT_TEST

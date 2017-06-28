@@ -24,6 +24,15 @@
 #include "exchange_config_egsa.hpp"
 #include "exchange_smed.hpp"
 
+static const char *SQL_TEMPLATE_SELECT_DATA_BY_LED =
+  "SELECT D.DATA_ID,D.TAG,D.OBJCLASS,D.CATEGORY,D.ALARM_INDIC,D.HISTO_INDIC"
+  " FROM DATA D,SITES S,PROCESSING P"
+  " WHERE S.NAME=\"%s\""
+  " AND D.LED=%d"
+  " AND P.TYPE=%d"
+  " AND S.SITE_ID=P.SITE_REF"
+  " AND P.DATA_REF=D.DATA_ID;";
+
 // ==========================================================================================================
 SMED::SMED(EgsaConfig* _config, const char* snap_file)
  : m_db(NULL),
@@ -58,7 +67,8 @@ smad_connection_state_t SMED::connect()
 
   // ------------------------------------------------------------------
   // Открыть файл SMED с базой данных SQLite
-  rc = sqlite3_open_v2(m_snapshot_filename,
+  // NB: создание БД в ОЗУ, а не на НЖМД, на порядок ускоряет с ней работу
+  rc = sqlite3_open_v2(m_snapshot_filename /* ":memory:" */,
                        &m_db,
                        // Если таблица только что создана, проверить наличие
                        SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX,
@@ -108,6 +118,7 @@ int SMED::create_internal()
     "  DROP TABLE IF EXISTS ASSOCIATE_LINK;"
     "  DROP TABLE IF EXISTS PROCESSING;"
     "  DROP TABLE IF EXISTS DATA;"
+    "  DROP TABLE IF EXISTS FIELDS_LINK;"
     "  DROP TABLE IF EXISTS FIELDS;"
     "  DROP TABLE IF EXISTS ELEMSTRUCT;"
     "  DROP TABLE IF EXISTS ELEMTYPE;"
@@ -121,18 +132,13 @@ int SMED::create_internal()
     "  OBJCLASS integer DEFAULT 127,"
     "  CATEGORY integer DEFAULT 0,"
     "  ALARM_INDIC integer DEFAULT 0,"
-    "  HISTO_INDIC integer DEFAULT 0,"
-    "  CONV_COEFF integer DEFAULT 1.0,"
-    "  LAST_UPDATE datetime,"
-    "  VAL_INT integer DEFAULT 0,"
-    "  VAL_DOUBLE double DEFAULT 0.0,"
-    "  VAL_TIME datetime);"
+    "  HISTO_INDIC integer DEFAULT 0);"
     "CREATE TABLE PROCESSING ("
     "  PROCESS_ID integer PRIMARY KEY AUTOINCREMENT,"
     "  SITE_REF integer NOT NULL,"
     "  DATA_REF integer NOT NULL,"
-    "  PROCESSING_TYPE integer,"
-    "  LAST_PROC datetime,"
+    "  TYPE integer,"
+    "  LAST_PROC integer,"
     "  FOREIGN KEY (SITE_REF) REFERENCES SITES(SITE_ID) ON DELETE CASCADE,"
     "  FOREIGN KEY (DATA_REF) REFERENCES DATA(DATA_ID) ON DELETE CASCADE);"
     "CREATE TABLE ELEMTYPE ("
@@ -145,9 +151,20 @@ int SMED::create_internal()
     "  ATTR varchar,"
     "  TYPE integer DEFAULT 0,"
     "  LENGTH integer DEFAULT 0,"
-    "  ELEMTYPE_REF integer NOT NULL,"
+    "  IDX integer DEFAULT 0,"
     "  ELEMSTRUCT_REF integer NOT NULL,"
-    "  FOREIGN KEY (ELEMTYPE_REF) REFERENCES ELEMTYPE(TYPE_ID) ON DELETE CASCADE,"
+    "  ELEMTYPE_REF integer NOT NULL,"
+    "  FOREIGN KEY (ELEMSTRUCT_REF) REFERENCES ELEMSTRUCT(STRUCT_ID) ON DELETE CASCADE,"
+    "  FOREIGN KEY (ELEMTYPE_REF) REFERENCES ELEMTYPE(TYPE_ID) ON DELETE CASCADE);"
+    "CREATE TABLE FIELDS_LINK ("
+    "  LINK_ID integer PRIMARY KEY AUTOINCREMENT,"
+    "  FIELD_REF integer NOT NULL,"
+    "  ELEMSTRUCT_REF integer NOT NULL,"
+    "  LAST_UPDATE integer,"
+    "  VAL_INT integer,"
+    "  VAL_DOUBLE double,"
+    "  VAL_STR varchar,"
+    "  FOREIGN KEY (FIELD_REF) REFERENCES FIELDS(FIELD_ID) ON DELETE CASCADE,"
     "  FOREIGN KEY (ELEMSTRUCT_REF) REFERENCES ELEMSTRUCT(STRUCT_ID) ON DELETE CASCADE);"
     "CREATE TABLE ELEMSTRUCT ("
     "  STRUCT_ID integer PRIMARY KEY AUTOINCREMENT,"
@@ -166,11 +183,13 @@ int SMED::create_internal()
     "  NATURE integer,"
     "  AUTO_INIT integer,"
     "  AUTO_GENCONTROL integer,"
-    "  LAST_UPDATE datetime);"
+    "  LAST_UPDATE integer);"
     "COMMIT;";
 
   const char* ddl_create_indexes =
     "BEGIN;"
+    "  CREATE INDEX FIELDS_LINK_IDX_FIELDS ON FIELDS_LINK(FIELD_REF);"
+    "  CREATE INDEX FIELDS_LINK_IDX_ELEMSTRUCT ON FIELDS_LINK(ELEMSTRUCT_REF);"
     "  CREATE INDEX PROCESS_IDX_SITES ON PROCESSING(SITE_REF);"
     "  CREATE INDEX PROCESS_IDX_DATA ON PROCESSING(DATA_REF);"
     "  CREATE INDEX FIELDS_IDX_ELEMTYPE ON FIELDS(ELEMTYPE_REF);"
@@ -186,23 +205,36 @@ int SMED::create_internal()
   }
   else {
     LOG(INFO) << fname << ": successfully creates SMED structure";
+#ifdef SQL_TRACE
+    std::cout << "SQL " << ddl_commands << std::endl;
+#endif
     rc = load_internal(m_egsa_config->elemtypes(), m_egsa_config->elemstructs());
 
-    // Создать индексы После заполнения таблиц, это быстрее
+#if 0
+#warning "Suppress creating INDEX for SMED"
+    // TODO: БД без индексов занимает вдвое меньше места (5.8Мб против 2.5Мб), нужно ли использовать индексы в этом виде?
+#else
+    // Создать индексы После заполнения таблиц
     if (OK == rc) {
       if (sqlite3_exec(m_db, ddl_create_indexes, 0, 0, &m_db_err)) {
         // NB: Возникновение ошибки при создании индексов не критично, можно игнорировать
         LOG(WARNING) << fname << ": creating SMED indexes: " << m_db_err;
         sqlite3_free(m_db_err);
       }
+      else {
+#ifdef SQL_TRACE
+        std::cout << "SQL " << ddl_create_indexes << std::endl;
+#endif
+      }
     }
+#endif
   }
 
   return rc;
 }
 
 // ==========================================================================================================
-// Начальная загрузка данных в SMED - словари ESG, перечень известных Сайтов,...
+// Начальная загрузка данных в SMED - справочник структур и полей ESG, перечень известных Сайтов,...
 int SMED::load_internal(elemtype_item_t* _elemtype, elemstruct_item_t* _elemstruct)
 {
   static const char* fname = "load_internal";
@@ -240,7 +272,12 @@ int SMED::load_internal(elemtype_item_t* _elemtype, elemstruct_item_t* _elemstru
       LOG(ERROR) << fname << ": insert elemtypes: " << m_db_err;
       sqlite3_free(m_db_err);
     }
-    else rc = OK;
+    else {
+#ifdef SQL_TRACE
+        std::cout << "SQL " << sql << std::endl;
+#endif
+        rc = OK;
+    }
   }
 
   // Занести DCD_ELEMSTRUCTS
@@ -262,12 +299,21 @@ int SMED::load_internal(elemtype_item_t* _elemtype, elemstruct_item_t* _elemstru
       LOG(ERROR) << fname << ": insert elemstructs: " << m_db_err;
       sqlite3_free(m_db_err);
     }
-    else rc = OK;
+    else {
+#ifdef SQL_TRACE
+      std::cout << "SQL " << sql << std::endl;
+#endif
+      rc = OK;
+    }
   }
 
   if (OK == rc) {
     // Занести описания Атрибутов из ELEMSTRUCTS
-    // 1) FIELDS: ATTR, TYPE, LENGTH
+    // 1) FIELDS:
+    //      ATTR название атрибута БДРВ
+    //      TYPE тип атрибута БДРВ
+    //      LENGTH длина строкового атрибута
+    //      IDX  порядковый номер в Структуре
     // Чтобы вставить новую запись в FIELDS, нужно знать ссылку на FIELDS.ELEMTYPE_REF для elemstruct->fields[].field в таблице ELEMTYPES
     // Для этого нужно после занесения данных в ELEMTYPES получить соответствия значений ELEMTYPE.TYPE_ID и ELEMTYPE.NAME
     // Далее использовать соответствующие ELEMTYPE.TYPE_ID для elemstruct->fields[].field в составе:
@@ -280,7 +326,7 @@ int SMED::load_internal(elemtype_item_t* _elemtype, elemstruct_item_t* _elemstru
       elemstruct = _elemstruct;
       fields_stored = 0;
       elemtype_type_id = 0; elemstruct_struct_id = 0;
-      sql = "BEGIN;INSERT INTO FIELDS(ATTR,TYPE,LENGTH,ELEMTYPE_REF,ELEMSTRUCT_REF) VALUES";
+      sql = "BEGIN;INSERT INTO FIELDS(ATTR,TYPE,LENGTH,IDX,ELEMSTRUCT_REF,ELEMTYPE_REF) VALUES";
       while (elemstruct && elemstruct->name[0])
       {
         for (size_t idx = 0; idx < elemstruct->num_fields; idx++) {
@@ -297,13 +343,14 @@ int SMED::load_internal(elemtype_item_t* _elemtype, elemstruct_item_t* _elemstru
           }
           else LOG(ERROR) << fname << ": ID not found for struct " << elemstruct->name;
 
-          snprintf(dml_operator, 100, "%s(\"%s\",%d,%d,%d,%d)",
+          snprintf(dml_operator, 100, "%s(\"%s\",%d,%d,%d,%d,%d)",
                    ((fields_stored++)? "," : ""),
                    elemstruct->fields[idx].attribute,
                    elemstruct->fields[idx].type,
                    elemstruct->fields[idx].length,
-                   elemtype_type_id,
-                   elemstruct_struct_id);
+                   idx,
+                   elemstruct_struct_id,
+                   elemtype_type_id);
 
           sql += dml_operator;
         }
@@ -320,6 +367,9 @@ int SMED::load_internal(elemtype_item_t* _elemtype, elemstruct_item_t* _elemstru
         }
         else {
           LOG(INFO) << fname << ": store " << fields_stored << " fields";
+#ifdef SQL_TRACE
+          std::cout << "SQL " << sql << std::endl;
+#endif
 
           // 2) Наполнить таблицу SITES
           sql = "BEGIN;INSERT INTO SITES(NAME,NATURE) VALUES";
@@ -341,7 +391,10 @@ int SMED::load_internal(elemtype_item_t* _elemtype, elemstruct_item_t* _elemstru
               sqlite3_free(m_db_err);
             }
             else {
-              LOG(INFO) << fname << ": store " << fields_stored << " sites";
+              LOG(INFO) << fname << ": store " << sites_stored << " sites";
+#ifdef SQL_TRACE
+              std::cout << "SQL " << sql << std::endl;
+#endif
               rc = OK;
 
               if (OK != get_map_id("SELECT SITE_ID,NAME FROM SITES;", m_sites_dict)) {
@@ -374,29 +427,107 @@ int SMED::load_internal(elemtype_item_t* _elemtype, elemstruct_item_t* _elemstru
   return rc;
 }
 
+
 // ==========================================================================================================
-// Получить информацию по параметру, передаваемому в указанную смежную систему
+int SMED::get_info(const gof_t_UniversalName site, sa_flow_direction_t direction, const int i_Led, esg_esg_odm_t_ExchInfoElem* elem)
+{
+  static const char* fname = "get_info";
+  sqlite3_stmt* stmt = 0;
+  const size_t operator_size = strlen(SQL_TEMPLATE_SELECT_DATA_BY_LED)
+                               + sizeof(gof_t_UniversalName)    // Параметр #1
+                               + 12 // #2: длина символьного представления LED
+                               + 4; // #3: длина представления TYPE
+  char dml_operator[operator_size + 1];
+  int num_lines = 0;
+  int rc = NOK;
+
+  snprintf(dml_operator, operator_size, SQL_TEMPLATE_SELECT_DATA_BY_LED, site, i_Led, direction);
+
+  // Начальные значения
+  elem->s_Name[0] = '\0';
+  elem->i_LED = i_Led;
+  elem->infotype = GOF_D_BDR_OBJCLASS_UNUSED;
+  elem->o_Categ = TM_CATEGORY_OTHER;
+  elem->b_AlarmIndic = false;
+  elem->i_HistoIndic = 0;
+  elem->f_ConvertCoeff = 1.0;
+  elem->d_LastUpdDate.tv_sec = 0;
+  elem->d_LastUpdDate.tv_usec = 0;
+
+  if (SQLITE_OK == sqlite3_prepare(m_db, dml_operator, -1, &stmt, 0)) {
+
+    // Запрос успешно выполнился
+    while(sqlite3_step(stmt) == SQLITE_ROW) {
+
+      elem->h_RecId = sqlite3_column_int(stmt, 0);
+      strncpy(elem->s_Name, (const char*)sqlite3_column_text(stmt, 1), sizeof(gof_t_UniversalName));
+      elem->infotype = sqlite3_column_int(stmt, 2);
+      const int input_category = sqlite3_column_int(stmt, 3);
+      if ((TM_CATEGORY_OTHER <= input_category) && (input_category <= TM_CATEGORY_ALL))
+        elem->o_Categ = static_cast<telemetry_category_t>(input_category);
+      elem->b_AlarmIndic = (sqlite3_column_int(stmt, 4) > 0);
+      elem->i_HistoIndic = sqlite3_column_int(stmt, 5);
+      elem->f_ConvertCoeff = sqlite3_column_double(stmt, 6);
+      elem->d_LastUpdDate.tv_sec = sqlite3_column_int(stmt, 7);
+      num_lines++;
+
+    }
+    sqlite3_finalize(stmt);
+
+    if (num_lines == 1) {
+      LOG(INFO) << fname << ": SITE " << site << ", LED " << i_Led << ", TAG=" << elem->s_Name;
+      rc = OK;
+    }
+    else if (num_lines > 1) {
+      LOG(ERROR) << fname << ": SITE " << site << " has more than one (" << num_lines << ") LED " << i_Led << " TAG=" << elem->s_Name;
+    }
+    else {
+      LOG(WARNING) << fname << ": nothing to read from " << site << " by led #" << i_Led; // << " SQL=" << dml_operator;
+    }
+  }
+  else {
+    LOG(ERROR) << fname << ": select " << site << " LED=" << i_Led << " info, SQL=" << dml_operator;
+  }
+
+  return rc;
+}
+
+// ==========================================================================================================
+// Получить информацию по параметру, получаемому от указанной смежной системы
 int SMED::get_acq_info(const gof_t_UniversalName site, const int i_Led, esg_esg_odm_t_ExchInfoElem* elem)
 {
-  static const char* fname = "get_acq_info";
   int rc = NOK;
 
-  LOG(ERROR) << fname << ": SITE " << site << ", LED " << i_Led;
+  assert(m_db);
+
+  if (STATE_OK == m_state)
+    rc = get_info(site, SA_FLOW_ACQUISITION, i_Led, elem);
+  else LOG(ERROR) << "incorrect SMED state: " << m_state;
+
   return rc;
 }
 
 // ==========================================================================================================
-// Получить информацию по параметру, принимаемую из указанной смежной системы
+// Получить информацию по параметру, передаваемому в указанную смежную систему
 int SMED::get_diff_info(const gof_t_UniversalName site, const int i_Led, esg_esg_odm_t_ExchInfoElem* elem)
 {
-  static const char* fname = "get_diff_info";
   int rc = NOK;
 
-  LOG(ERROR) << fname << ": SITE " << site << ", LED " << i_Led;
+  assert(m_db);
+
+  if (STATE_OK == m_state)
+    rc = get_info(site, SA_FLOW_DIFFUSION, i_Led, elem);
+  else LOG(ERROR) << "incorrect SMED state: " << m_state;
+
   return rc;
 }
 
 // ==========================================================================================================
+// Загрузка словаря обменов из данного файла.
+// Заполняются таблицы:
+// ASSOCIATE_LINK
+// FIELDS_LINK
+// DATA
 int SMED::load_dict(const char* config_filename)
 {
   static const char* fname = "load_dict";
@@ -524,7 +655,9 @@ int SMED::load_dict(const char* config_filename)
             parameter->info.infotype = GOF_D_BDR_OBJCLASS_UNUSED;
           }
 
+#if VERBOSE>6
           LOG(INFO) << fname << ": " << parameter->info.s_Name << ":" << parameter->info.infotype << ":" << parameter->info.i_LED << ":" << parameter->info.o_Categ;
+#endif
 
           if (dict_item.HasMember(SECTION_NAME_ASSOCIATES)) {
 
@@ -572,7 +705,12 @@ int SMED::load_dict(const char* config_filename)
 }
 
 // ==========================================================================================================
-// Заполнить таблицы DATA и ASSOCIATES_LINK
+// Загрузка словаря обменов из данного файла
+// Заполняются таблицы:
+// ASSOCIATE_LINK   соответствие между Тегом и используемыми им Структурами. Заполняется при загрузке словарей обмена.
+// FIELDS_LINK      связь между Структурой данных, набором входящих в неё полей, и их оперативными значениями.
+// DATA             описание всех Параметров, заполняется путем загрузки словарей обмена.
+//
 // Параметры с одним и тем же тегом могут встречаться в разных словарях на распространение данных, поскольку
 // они передаются более чем одному Сайту. В этом случае рассчитываем, что их описания идентичны друг другу в
 // разных словарях, различаясь только адресатами (SITE_ID).
@@ -581,8 +719,6 @@ int SMED::load_dict(const char* config_filename)
 // ВАЖНО! Совершенно обратная ситуация для параметров, подлежащих приему от смежных систем. Такие параметры
 // не должны существовать, это ошибка! Для каждого Параметра может быть только один источник!
 //
-// INSERT INTO ASSOCIATES_LINK(DATA_REF,ELEMSTRUCT_REF) VALUES
-// (<DATA_ID только что внесенной записи>, <ELEMSTRUCT_ID той записи, у которой struct_name == ELEMSTRUCT.ASSOCIATE>
 int SMED::load_data_dict(const char* site_name, std::vector<exchange_parameter_t*>& parameters, sa_flow_direction_t flow)
 {
   static const char* fname = "load_data_dict";
@@ -590,10 +726,13 @@ int SMED::load_data_dict(const char* site_name, std::vector<exchange_parameter_t
   size_t data_stored = 0;
   size_t associates_stored = 0;
   size_t processing_stored = 0;
+  size_t fields_stored = 0;
   int rc = NOK;
   map_id_by_name_t data_dict;
-  size_t elem_id, data_id, site_id;
+  size_t elem_id, data_id, site_id, field_id;
   std::string sql;
+  std::string sql2;
+  sqlite3_stmt* stmt = 0;
 
   // Проверить наличие указанного Сайта
   map_id_by_name_t::const_iterator iter_sa = m_sites_dict.find(site_name);
@@ -601,6 +740,8 @@ int SMED::load_data_dict(const char* site_name, std::vector<exchange_parameter_t
     LOG(ERROR) << fname << ": site unknown: " << site_name;
   }
   else {
+    accelerate(true);
+
     // Сайт был известен на момент создания SMED
     // NB: Добавление Сайтов после создания SMED пока (2017/06) не предусмотрено
     site_id = (*iter_sa).second;
@@ -646,13 +787,16 @@ int SMED::load_data_dict(const char* site_name, std::vector<exchange_parameter_t
       }
       else {
         LOG(INFO) << fname << ": store " << data_stored << " DATA items";
+#ifdef SQL_TRACE
+        std::cout << "SQL " << sql << std::endl;
+#endif
 
         // Выгрузить DATA_ID и связать их с TAG
         // В data_dict содержатся все параметры из DATA, включая и те, которые подлежат обмену с другими Сайтами
         if (OK == get_map_id("SELECT DATA_ID,TAG FROM DATA;", data_dict)) {
 
           // Заполнить таблицу PROCESSING новыми точками, их теги содержатся в parameters
-          sql = "BEGIN;INSERT INTO PROCESSING(SITE_REF,DATA_REF,PROCESSING_TYPE) VALUES";
+          sql = "BEGIN;INSERT INTO PROCESSING(SITE_REF,DATA_REF,TYPE) VALUES";
           for (std::vector<exchange_parameter_t*>::const_iterator it = parameters.begin();
                it != parameters.end();
                ++it)
@@ -679,6 +823,9 @@ int SMED::load_data_dict(const char* site_name, std::vector<exchange_parameter_t
             }
             else {
               LOG(INFO) << fname << ": store " << processing_stored << " PROCESSING items";
+#ifdef SQL_TRACE
+              std::cout << "SQL " << sql << std::endl;
+#endif
             }
           }
           else {
@@ -728,7 +875,100 @@ int SMED::load_data_dict(const char* site_name, std::vector<exchange_parameter_t
             }
             else {
               LOG(INFO) << fname << ": store " << associates_stored << " ASSOCIATE_LINK links";
-              rc = OK;
+#ifdef SQL_TRACE
+              std::cout << "SQL " << sql << std::endl;
+#endif
+
+              // Вставить связи в таблицу FIELDS_LINK
+              // 1) Цикл по всем Ассоциациям <ИМЯ> Структур данного Параметра:
+              //    2) Найти STRUCT_ID из ELEMSTRUCT, ассоциация которой равна текущей ассоциации цикла для Параметра
+              //    select STRUCT_ID from ELEMSTRUCT where ASSOCIATE = <ИМЯ>
+              //
+              //    3) Найти все FIELD_ID для полей, входящих в состав ранее найденной на этапе (2) Структуры
+              //    select FIELD_ID from FIELDS where ELEMSTRUCT_REF = <STRUCT_ID>
+              //
+              //    Цикл по всем FIELD_ID, найденным на этапе (3)
+              //        4) Вставить новую запись в FIELDS_LINK с <STRUCT_ID> и <FIELD_ID>, содержащую поля для хранения данных из файлов обмена
+
+              // (1) Цикл по всем Ассоциациям
+              for (std::vector<exchange_parameter_t*>::const_iterator it = parameters.begin();
+                  it != parameters.end();
+                  ++it)
+              {
+                for (std::vector<std::string>::const_iterator is = (*it)->struct_list.begin();
+                     is != (*it)->struct_list.end();
+                     ++is)
+                {
+                  elem_id = 0;    // если значение останется нулевым - это признак ошибки
+                  // в (*is) находится название ASSOCIATE структуры текущего элемента DATA
+                  sql = "SELECT STRUCT_ID FROM ELEMSTRUCT WHERE ASSOCIATE=\"";
+                  sql+= (*is);
+                  sql+= "\";";
+                  if (SQLITE_OK == sqlite3_prepare(m_db, sql.c_str(), -1, &stmt, 0)) {
+
+                    if (sqlite3_step(stmt) == SQLITE_ROW) {
+                      elem_id = sqlite3_column_int(stmt, 0);
+                    }
+                    else {
+                      LOG(ERROR) << fname << ": nothing to select from ELEMSTRUCT: " << sql;
+                    }
+                    sqlite3_finalize(stmt);
+
+                    if (elem_id) { // (2) Найден идентификатор Ассоциативной Структуры
+                      sprintf(dml_operator, "SELECT FIELD_ID FROM FIELDS WHERE ELEMSTRUCT_REF=%d;", elem_id);
+                      if (SQLITE_OK == sqlite3_prepare(m_db, dml_operator, -1, &stmt, 0)) {
+
+                        fields_stored = 0;
+                        sql2 = "INSERT INTO FIELDS_LINK(ELEMSTRUCT_REF,FIELD_REF) VALUES";
+                        // (3) Найти идентификаторы полей
+                        while(sqlite3_step(stmt) == SQLITE_ROW) {
+                          field_id = 0;   // если значение останется нулевым - это признак ошибки
+
+                          field_id = sqlite3_column_int(stmt, 0);
+                          if (field_id) {
+                            // (4) Вставить новую запись в FIELDS_LINK
+                            snprintf(dml_operator, 100, "%s(%d,%d)",
+                                     ((fields_stored++)? "," : ""),
+                                     elem_id,
+                                     field_id);
+                            sql2 += dml_operator;
+                          }
+                        }
+                        if (fields_stored) {  // Были записи для занесения в БД
+                          sql2 += ";";
+                          if (sqlite3_exec(m_db, sql2.c_str(), 0, 0, &m_db_err)) {
+                            LOG(ERROR) << fname << ": insert into FIELDS_LINK: " << sql2 << ": " << m_db_err;
+                            sqlite3_free(m_db_err);
+                          }
+                          else {
+#if VERBOSE>7
+                            LOG(INFO) << fname << ": store " << fields_stored << " FIELDS_LINK items";
+#endif
+#ifdef SQL_TRACE
+                            std::cout << "SQL " << sql2 << std::endl;
+#endif
+                            // Успешно
+                            rc = OK;
+                          }
+                        }
+                        else {
+                          LOG(ERROR) << fname << ": nothing to store info FIELDS_LINK";
+                        }
+
+                      }
+                      else {
+                        LOG(ERROR) << fname << ": nothing to select from FIELDS: " << dml_operator; 
+                      }
+                      sqlite3_finalize(stmt);
+
+                    }
+
+                  }
+
+                }
+
+              }
+
             }
           }
           else {
@@ -758,12 +998,106 @@ int SMED::load_data_dict(const char* site_name, std::vector<exchange_parameter_t
       }
       else {
         LOG(INFO) << fname << ": update date of last communication with site " << site_name;
+#ifdef SQL_TRACE
+        std::cout << "SQL " << dml_operator << std::endl;
+#endif
       }
 
     }
+
+    accelerate(false);
   }
 
   return rc;
+}
+
+// ===========================================================================
+void SMED::accelerate(bool speedup)
+{
+  const char* fname = "accelerate";
+  const char* sync_FULL = "FULL";
+  const char* sync_NORM = "NORMAL";
+  const char* sync_OFF  = "OFF";
+  const char* journal_DELETE = "DELETE"; // сброс лога транзакции на диск после каждой операции
+  const char* journal_MEMORY = "MEMORY"; // лог транзакции не сбрасывается на диск, а ведется в ОЗУ
+  const char* journal_OFF = "OFF";       // лог транзакции не ведется, быстрый и ненадежный способ
+  // Возможные значения JOURNAL_MODE: DELETE | TRUNCATE | PERSIST | MEMORY | WAL | OFF
+  // По умолчанию: DELETE
+  const char* pragma_set_journal_mode_template = "PRAGMA JOURNAL_MODE = %s";
+  // Возможные значения SYNCHRONOUS: 0 | OFF | 1 | NORMAL | 2 | FULL
+  // По умолчанию: FULL
+  const char* pragma_set_synchronous_template = "PRAGMA SYNCHRONOUS = %s";
+  char sql_operator_journal[MAX_BUFFER_SIZE_FOR_SQL_COMMAND + 1];
+  char sql_operator_synchronous[MAX_BUFFER_SIZE_FOR_SQL_COMMAND + 1];
+  int printed;
+
+  // Для начальной вставки больших объёмов данных в пустую БД (когда не жалко потерять данные)
+  // PRAGMA synchronous = 0;
+  // PRAGMA journal_mode = OFF;
+  // BEGIN;
+  // INSERT INTO XXX ...;
+  // INSERT INTO XXX ...;
+  // ... 10000 вставок...synchronous
+  // COMMIT;
+
+  // BEGIN;
+  // INSERT INTO XXX ...;
+  // INSERT INTO XXX ...;
+  // ...10000 вставок...
+  // COMMIT;
+
+  // ... пока все не вставится ...
+
+  // PRAGMA synchronous = FULL;
+  // PRAGMA journal_mode = DELETE;
+
+  switch (speedup) {
+      case true:
+        printed = snprintf(sql_operator_journal,
+                           MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
+                           pragma_set_journal_mode_template,
+        // Ослабить нагрузку на диск, журнал не будет скидываться в файл после каждой операции
+        //                   journal_MEMORY);
+                           journal_OFF);
+        assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
+#if 1
+        printed = snprintf(sql_operator_synchronous,
+                           MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
+                           pragma_set_synchronous_template,
+        // Поднять производительность за счёт отказа от полной гарантии консистентности данных
+        //                   sync_NORM);
+                           sync_OFF);
+        assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
+#endif
+        break;
+
+      case false:
+        printed = snprintf(sql_operator_journal,
+                           MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
+                           pragma_set_journal_mode_template,
+                           journal_DELETE);
+        assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
+#if 1
+        printed = snprintf(sql_operator_synchronous,
+                           MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
+                           pragma_set_synchronous_template,
+                           sync_FULL);
+        assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
+#endif
+        break;
+  }
+
+  if (sqlite3_exec(m_db, sql_operator_journal, 0, 0, &m_db_err)) {
+    LOG(ERROR) << fname << ": Unable to change JOURNAL_MODE: " << m_db_err;
+    sqlite3_free(m_db_err);
+  }
+  else LOG(INFO) << "JOURNAL_MODE is changed";
+
+  if (sqlite3_exec(m_db, sql_operator_synchronous, 0, 0, &m_db_err)) {
+    LOG(ERROR) << fname << ": Unable to change SYNCHRONOUS mode: " << m_db_err;
+    sqlite3_free(m_db_err);
+  }
+  else LOG(INFO) << "SYNCHRONOUS mode is changed";
 }
 
 // ==========================================================================================================

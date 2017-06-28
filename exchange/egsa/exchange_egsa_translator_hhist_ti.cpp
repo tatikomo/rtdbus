@@ -660,7 +660,6 @@ int ExchangeTranslator::esg_acq_dac_HHistTiAcq(
                                                      e_SinfPeriod,
                                                      &pr_HistUpdReq,
                                                      &i_MsgSize);
-#endif
 
               if (i_Status == OK) {
                 for (i_Ti = 0; i_Ti < pr_HistUpdReq->h_NbInfosHist; i_Ti++) {
@@ -668,6 +667,7 @@ int ExchangeTranslator::esg_acq_dac_HHistTiAcq(
                   std::cout << fname << ": " << s_Trace << std::endl;
                 }
               }
+#endif
             }
 
             // Open the file containing the results for SIDR

@@ -349,16 +349,16 @@ typedef struct {
 // internal data types
 // --------------------------------
 typedef union {
-  bool b_Logical;
-  uint8_t  o_Uint8;
-  uint16_t h_Uint16;
-  uint32_t i_Uint32;
-  int8_t  o_Int8;
-  int16_t h_Int16;
-  int32_t i_Int32;
-  float f_Float;
-  double g_Double;
-  timeval d_Timeval;
+  bool      b_Logical;
+  uint8_t   o_Uint8;
+  uint16_t  h_Uint16;
+  uint32_t  i_Uint32;
+  int8_t    o_Int8;
+  int16_t   h_Int16;
+  int32_t   i_Int32;
+  float     f_Float;
+  double    g_Double;
+  timeval   d_Timeval;
   ech_t_InternalString r_Str;
 } ech_t_InternalVal;
 
@@ -498,9 +498,8 @@ class ExchangeTranslator
 #endif
    ~ExchangeTranslator();
 
-    int load(std::stringstream&);
     // Разбор файла с данными от смежной системы ESG
-    int esg_acq_dac_Switch(const char*, const char*);
+    int esg_acq_dac_Switch(const char*);
 
   private:
     DISALLOW_COPY_AND_ASSIGN(ExchangeTranslator);
@@ -508,7 +507,7 @@ class ExchangeTranslator
 #ifdef _FUNCTIONAL_TEST
     AcqSiteList* m_sites;
     SMED* m_smed;
-    SMED* smed() { return m_smed; };
+    SMED* smed() { return (m_egsa_instance)? m_egsa_instance->smed() : m_smed; };
 #else
     SMED* smed() { return m_egsa_instance->smed(); };
 #endif

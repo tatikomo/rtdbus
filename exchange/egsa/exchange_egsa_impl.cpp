@@ -110,13 +110,16 @@ int EGSA::init()
 
   if (STATE_OK == (ext_state = m_smed->connect())) {
 
+    // Загрузить словари обменов со смежными Сайтами
+    if (OK == (status = load_all_dictionaries())) {
 #ifndef _FUNCTIONAL_TEST
-    // Активировать группу подписки
-    status = activateSBS();
-    LOG(INFO) << fname << ": SBS activated";
+      // Активировать группу подписки
+      status = activateSBS();
+      LOG(INFO) << fname << ": SBS activated";
 #else
 #warning "FUNCTIONAL_TEST: skip SMED and SBS facilities"
 #endif
+    }
 
     if (OK == status) {
       try {
@@ -152,13 +155,47 @@ int EGSA::init()
 }
 
 // ==========================================================================================================
-// Внутренний тест SMED
-int EGSA::test_smed(const char* sa_dict_file)
+// Загрузка указанного обменного словаря
+int EGSA::load_dict(const char* sa_dict_file)
 {
   int rc = OK;
 
-  LOG(INFO) << "TEST SMED: try load file " << sa_dict_file;
   rc = m_smed->load_dict(sa_dict_file);
+  LOG(INFO) << "Loading ESG dictionary " << sa_dict_file << " into SMED, rc=" << rc;
+
+  return rc;
+}
+
+// ==========================================================================================================
+// Загрузка обменных словарей для известных Сайтов
+// Прочитать набор словарей для своего объекта. Тип режима закодирован в названии словаря.
+// Формат имени файла: {SND|ACQ}INFOS.<Код удаленного объекта>.json
+// (SND)DIFFUSION - что локальный объект должен отправить
+// ACQUISITION - что локальный объект хочет получить
+int EGSA::load_all_dictionaries()
+{
+  int rc = NOK;
+  char dict_filename[255];
+  AcqSiteList &all_sa = sites();
+
+  for(size_t i=0; i < all_sa.count(); i++) {
+
+    AcqSiteEntry* site = all_sa[i];
+
+    if (site) {
+      sprintf(dict_filename, "SNDINFOS.%s.json", site->name());
+      //
+      LOG(INFO) << "LOAD " << dict_filename;
+      rc = load_dict(dict_filename);
+      if (OK != rc) {
+        // Не удалось загрузить словарь обмена с Сайтом
+        // TODO: Исключить его из опроса? Или ограничиться минимальным набором данных (только свое состояние)
+        LOG(ERROR) << "TODO: Exclude site " << site->name() << " due its loading dictionary error";
+      }
+      LOG(INFO) << site->name() << ": SND Dictionary " << dict_filename << " loading status=" << rc;
+    }
+
+  }
 
   return rc;
 }
@@ -1841,7 +1878,7 @@ int EGSA::load_esg_file(const char* filename)
     translator()->load(buffer);
   }
 #else
-  rc = translator()->esg_acq_dac_Switch(filename, "SAK42663");
+  rc = translator()->esg_acq_dac_Switch(filename);
 #endif
 
   return rc;

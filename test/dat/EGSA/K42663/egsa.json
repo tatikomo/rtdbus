@@ -4,85 +4,104 @@
       "DICT_ESG_FILE":  "esg.json"
     },
 
-	"SITES": [{
-		"NAME": "BI4001",
-		"LEVEL": "LOCAL",
-		"NATURE": "ELE",
-		"AUTO_INIT": 1,
-		"AUTO_GENCONTROL": 1
-	}, {
-		"NAME": "BI4002",
-		"LEVEL": "LOCAL",
-		"NATURE": "ELE",
-		"AUTO_INIT": 1,
-		"AUTO_GENCONTROL": 1
-	}, {
-		"NAME": "K42001",
-		"LEVEL": "UPPER",
-		"NATURE": "DIR",
-		"AUTO_INIT": 1,
-		"AUTO_GENCONTROL": 0
+	"SITES": [
+      {
+      "NAME": "BI4001",
+	  "LEVEL": "LOCAL",
+      "NATURE": "ELE",
+	  "AUTO_INIT": 1,
+	  "AUTO_GENCONTROL": 1
+      }, {
+      "NAME": "BI4002",
+      "LEVEL": "LOCAL",
+      "NATURE": "ELE",
+      "AUTO_INIT": 1,
+      "AUTO_GENCONTROL": 1
+      }, {
+      "NAME": "K41681",
+      "LEVEL": "ADJACENT",
+      "NATURE": "DIPL",
+      "AUTO_INIT": 1,
+      "AUTO_GENCONTROL": 0
+      }, {
+	  "NAME": "K42670",
+	  "LEVEL": "ADJACENT",
+	  "NATURE": "DIPL",
+	  "AUTO_INIT": 1,
+	  "AUTO_GENCONTROL": 0
+      }, {
+	  "NAME": "K42664",
+	  "LEVEL": "ADJACENT",
+	  "NATURE": "DIPL",
+	  "AUTO_INIT": 1,
+	  "AUTO_GENCONTROL": 0
+	  }, {
+	  "NAME": "K42001",
+	  "LEVEL": "UPPER",
+	  "NATURE": "DIR",
+	  "AUTO_INIT": 1,
+	  "AUTO_GENCONTROL": 0
 	}],
 
 	"CYCLES": [{
 		"NAME": "GENCONTROL",
 		"PERIOD": 36,
 		"REQUEST": "A_GENCONTROL",
-		"SITE": [{
-			"NAME": "BI4001"
-		}, {
-			"NAME": "BI4002"
-		}]
+		"SITE": [
+          { "NAME": "BI4001" },
+          { "NAME": "BI4002" }
+          ]
 	}, {
 		"NAME": "URGINFOS",
 		"PERIOD": 5,
 		"REQUEST": "A_URGINFOS",
-		"SITE": [{
-			"NAME": "BI4001"
-		}]
+		"SITE": [
+          { "NAME": "BI4001" }
+          ]
 	}, {
 		"NAME": "INFOSACQ",
 		"PERIOD": 2,
 		"REQUEST": "A_INFOSACQ",
-		"SITE": [{
-			"NAME": "BI4001"
-		}, {
-			"NAME": "BI4002"
-		}]
+		"SITE": [
+          { "NAME": "BI4001" },
+          { "NAME": "BI4002" }
+          ]
 	}, {
 		"NAME": "INFO_DIFF_DIPADJ",
 		"PERIOD": 30,
 		"REQUEST": "DB_INFOSACQ",
         "COMMENT": "Возможно потребуется добавить поле CATEG (категория ТИ, обслуживаемая этим Циклом - первичная/вторичная/третичная)",
-		"SITE": [{
-			"NAME": "K42101"
-		}, {
-			"NAME": "K42102"
-        }, {
-			"NAME": "K42103"
-        }]
+		"SITE": [
+          { "NAME": "K42664" },
+          { "NAME": "K42101" },
+          { "NAME": "K42670" },
+          { "NAME": "K41681" }
+          ]
 	}, {
 		"NAME": "INFO_DACQ_DIPADJ",
 		"PERIOD": 30,
 		"REQUEST": "DB_INFOSACQ",
         "COMMENT": "Соответствие CATEG есть в ESG_EX{SND|ACQ}INFOS.DAT - каждая ТИ помечена как первичная/вторичная/третичная",
-		"SITE": [{
-		"NAME": "K42101"
-        }]
+		"SITE": [
+          { "NAME": "K42101" },
+          { "NAME": "K42664" },
+          { "NAME": "K42670" },
+          { "NAME": "K41681" }
+          ]
 	}, {
 		"NAME": "INFO_DIFF_PRIDIR",
 		"PERIOD": 30,
 		"REQUEST": "DB_INFOSACQ",
-		"SITE": [{
-		"NAME": "K42001"
-		}]
+		"SITE": [
+          { "NAME": "K42001" }
+          ]
 	}, {
 		"NAME": "INFO_DIFF_SECDIR",
 		"PERIOD": 3600,
 		"REQUEST": "DB_INFOSACQ",
-		"SITE": [{
-		"NAME": "K42001"
-		}]
+		"SITE": [
+          { "NAME": "K42001" }
+          ]
 	}],
 
     "REQUESTS": [{
@@ -90,35 +109,26 @@
 		"PRIORITY": 80,
 		"OBJECT": "A",
 		"MODE": "NONDIFF",
-		"INCLUDED_REQUESTS": [{
-			"NAME": "A_INFOSACQ"
-		}, {
-			"NAME": "A_URGINFOS"
-		}, {
-			"NAME": "A_ALATHRES"
-		}, {
-			"NAME": "A_GCPRIMARY"
-		}, {
-			"NAME": "A_GCSECOND"
-		}, {
-			"NAME": "A_GCTERTIARY"
-		}, {
-			"NAME": "A_IAPRIMARY"
-		}, {
-			"NAME": "A_IASECOND"
-		}, {
-			"NAME": "A_IATERTIARY"
-		}]
+		"INCLUDED_REQUESTS": [ 
+        { "NAME": "A_INFOSACQ" },
+        { "NAME": "A_URGINFOS" },
+        { "NAME": "A_ALATHRES" },
+        { "NAME": "A_GCPRIMARY" },
+        { "NAME": "A_GCSECOND" },
+        { "NAME": "A_GCTERTIARY" },
+        { "NAME": "A_IAPRIMARY" },
+        { "NAME": "A_IASECOND" },
+        { "NAME": "A_IATERTIARY" }
+        ]
 	}, {
 		"NAME": "A_INFOSACQ",
 		"PRIORITY": 80,
 		"OBJECT": "A",
 		"MODE": "DIFF",
-		"INCLUDED_REQUESTS": [{
-			"NAME": "A_URGINFOS"
-		}, {
-			"NAME": "A_ALATHRES"
-		}]
+		"INCLUDED_REQUESTS": [
+        { "NAME": "A_URGINFOS" },
+        { "NAME": "A_ALATHRES" }
+        ]
 	}, {
 		"NAME": "A_URGINFOS",
 		"PRIORITY": 80,
@@ -226,15 +236,12 @@
 		"OBJECT": "A",
 		"MODE": "DIFF",
         "COMMENT": "Виртуальный локальный запрос. Если INCLUDED_REQUEST есть, этот запрос считать COMPOSED (комбинированным, состоящим из неск. подчиненных)",
-		"INCLUDED_REQUESTS": [{
-			"NAME": "AB_STATESCMD"
-		}, {
-			"NAME": "AB_HISTALARM"
-		}, {
-			"NAME": "AB_HHISTINFSACQ"
-		}, {
-			"NAME": "AB_GENCONTROL"
-		}]
+		"INCLUDED_REQUESTS": [
+        { "NAME": "AB_STATESCMD" },
+        { "NAME": "AB_HISTALARM" },
+        { "NAME": "AB_HHISTINFSACQ" },
+        { "NAME": "AB_GENCONTROL" }
+        ]
     }, {
         "NAME": "AB_SELECTLIST",
 		"PRIORITY": 80,

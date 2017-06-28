@@ -59,8 +59,8 @@ class EGSA : public mdp::mdwrk {
     ExchangeTranslator* translator() { return m_translator; }
     // Разбор файла с данными от ГОФО
     int load_esg_file(const char*);
-    // Внутренний тест SMED - загрузка указанного файла словаря типа ESG_EXACQINFOS или ESG_EXSNDINFOS
-    int test_smed(const char*);
+    // Загрузка указанного файла словаря типа ESG_EXACQINFOS или ESG_EXSNDINFOS
+    int load_dict(const char*);
     // Доступ ко внутренней буферной памяти с данными от/для смежных систем
     SMED* smed() { return m_smed; }
     // Запуск Интерфейса ES_ACQ
@@ -160,6 +160,8 @@ class EGSA : public mdp::mdwrk {
     // =  0 - разовое чтение сообщений, немедленный выход в случае отсутствия таковых
     // >  0 - время ожидания нового сообщения в милисекундах, от 1 до HEARTBEAT-интервала
     int recv(msg::Letter*&, int = 1000);
+    // Загрузка обменных словарей для известных Сайтов
+    int load_all_dictionaries();
 
     // --------------------------------------------------------------------------
     // Обслуживание запросов:

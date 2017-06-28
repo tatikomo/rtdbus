@@ -221,7 +221,7 @@ class AcqSiteEntry {
     //  . TI number, concerned by month historic
     //  . TI, which alarm has to be transmit number
     typedef struct {
-        size_t                 h_EffNb; 
+        size_t                 h_EffNb;
         size_t                 h_PrimNb;
         size_t                 h_SecondNb;
         size_t                 h_TertiaryNb;
@@ -299,7 +299,7 @@ class AcqSiteEntry {
     init_phase_state_t m_init_phase_state;
     // TODO: определить назначение поля
     bool m_FirstDistInitOPStateAuth;
- 
+
     // матрица допустимости Запросов по типам от текущего функционального состояния СС
     static const bool enabler_matrix[REQUEST_ID_LAST + 1][EGA_EGA_AUT_D_NB_STATE + 1];
     // Состояние предыстории определенной дискретизации - секундная (2017/05: пока нет),

@@ -111,7 +111,7 @@ int ExchangeTranslator::esg_acq_dac_TeleinfoAcq(
                                           r_ExchCompElem,
                                           &r_QuaCData);
 
-      LOG(ERROR) << fname << ": CDProcessing delme: " << ((NULL != r_ExchCompElem)? r_ExchCompElem->name : "<NULL>");
+//1      LOG(ERROR) << fname << ": CDProcessing delme: " << ((NULL != r_ExchCompElem)? r_ExchCompElem->name : "<NULL>");
 
       // add into a TI applicative segment
       memset(s_ExchCompId, 0, sizeof(s_ExchCompId));
