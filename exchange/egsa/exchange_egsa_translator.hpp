@@ -251,7 +251,6 @@
 #define ECH_D_EDI_EDDSEG_ACDLIST    18      // ACD list
 #define ECH_D_EDI_EDDSEG_ACDQUERY   19      // ACD query
 
-#define ECH_D_COMPELEMNB		    20
 #define ECH_D_CARZERO               '0'
 #define ECH_D_ENDSTRING             '\0'
 
@@ -335,33 +334,6 @@ typedef struct {
   int i_ApplLength;
 } esg_esg_t_HeaderAppl;
 
-// Internal elementary data
-// ------------------------
-// internal strings
-//   . string pointer
-//   . string length
-// --------------------------------
-typedef struct {
-  char*  ps_String;
-  size_t i_LgString;
-} ech_t_InternalString;
-
-// internal data types
-// --------------------------------
-typedef union {
-  bool      b_Logical;
-  uint8_t   o_Uint8;
-  uint16_t  h_Uint16;
-  uint32_t  i_Uint32;
-  int8_t    o_Int8;
-  int16_t   h_Int16;
-  int32_t   i_Int32;
-  float     f_Float;
-  double    g_Double;
-  timeval   d_Timeval;
-  ech_t_InternalString r_Str;
-} ech_t_InternalVal;
-
 //
 // esg_acq_dac_t_HhistTIHeader structure
 // --------------------------------------------
@@ -399,52 +371,6 @@ typedef struct {
 typedef struct {
   uint16_t  ah_Valid;
 } esg_acq_dac_t_HhistTIValid;
-
-// elementary data
-// ---------------
-//
-// all internal data types to code to or to decode from EDI format
-//   . for coding :
-//      IN : type and valeur of data are set
-//           (for string fixed/variable the length of the string is set)
-//   . for decoding :
-//      IN : type of data is set, for string length is set
-//           (maximum length of the reserved buffer string)
-//      OUT : valeur of data is set, for string length is set
-//           (the length of the received string)
-// --------------------------------
-typedef struct {
-	field_type_t type;
-	ech_t_InternalVal u_val;
-} esg_esg_edi_t_StrElementaryData;
-
-//
-// qualify of composed data
-//   - b_QualifyUse --> used for coding Composed data
-//       Input parameter
-//          set to TRUE : if qualify "L3800" has to be taken to account
-//          otherwise set to FALSE
-//   - i_QualifyValue is set :
-//          for coding by the caller of EDI services
-//          for decoding by EDI services
-//   - b_QualifyExist --> Output parameter updated by decoding procedure
-//          (i.e EDI services) to TRUE : qualify "L3800" exists in the DCD entity
-// --------------------------------
-typedef struct {
-  bool b_QualifyUse;
-  int  i_QualifyValue;
-  bool b_QualifyExist;
-} esg_esg_edi_t_StrQualifyComposedData;
-
-//
-// internal composed data table
-//   . number of internal elementary data
-//   . elementary data table
-// --------------------------------
-typedef struct {
-  size_t i_NbEData;
-  esg_esg_edi_t_StrElementaryData ar_EDataTable[ECH_D_COMPELEMNB];
-} esg_esg_edi_t_StrComposedData;
 
 //
 // Fields used for historized alarm
@@ -829,6 +755,7 @@ class ExchangeTranslator
     int esg_acq_dac_SmdProcessing(
                       const gof_t_UniversalName,
                       const esg_esg_edi_t_StrComposedData*,
+                      elemstruct_item_t*,
                       const esg_esg_edi_t_StrQualifyComposedData*,
                       const struct timeval);
 

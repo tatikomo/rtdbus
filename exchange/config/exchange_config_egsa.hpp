@@ -362,22 +362,6 @@ typedef struct {
 } elemtype_item_t;
 
 // ==============================================================================
-// Данные для чтения конфигурации раздела конфигурации ESG_LOCSTRUCTS
-typedef enum {
-  FIELD_TYPE_UNKNOWN    = 0,
-  FIELD_TYPE_LOGIC      = 1,
-  FIELD_TYPE_INT8       = 2,
-  FIELD_TYPE_UINT8      = 3,
-  FIELD_TYPE_INT16      = 4,
-  FIELD_TYPE_UINT16     = 5,
-  FIELD_TYPE_INT32      = 6,
-  FIELD_TYPE_UINT32     = 7,
-  FIELD_TYPE_FLOAT      = 8,
-  FIELD_TYPE_DOUBLE     = 9,
-  FIELD_TYPE_DATE       = 10,
-  FIELD_TYPE_STRING     = 11,
-} field_type_t;
-
 typedef struct {
   char field[MAX_ICD_NAME_LENGTH + 1];// Название поля
   char attribute[TAG_NAME_MAXLEN + 1];// Название соответствующего атрибута в БДРВ (если есть)

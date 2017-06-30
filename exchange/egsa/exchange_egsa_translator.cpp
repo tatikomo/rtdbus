@@ -5244,55 +5244,26 @@ int ExchangeTranslator::ech_typ_StoreAtt(
 //----------------------------------------------------------------------------
 // Обновление данных в SMED
 //----------------------------------------------------------------------------
-/*
-SELECT D.DATA_ID,FL.LINK_ID,ES.STRUCT_ID,ES.ASSOCIATE,F.FIELD_ID,F.ATTR,ET.TYPE_ID,ET.NAME,ET.TYPE,ET.SIZE
-FROM DATA D,ELEMSTRUCT ES,ASSOCIATE_LINK AL,FIELDS F,FIELDS_LINK FL,ELEMTYPE ET,SITES S,PROCESSING P
-WHERE D.LED=1
-AND AL.DATA_REF=D.DATA_ID
-AND AL.ELEMSTRUCT_REF=ES.STRUCT_ID
-AND FL.ELEMSTRUCT_REF=ES.STRUCT_ID
-AND FL.FIELD_REF=F.FIELD_ID
-AND F.ELEMTYPE_REF=ET.TYPE_ID
-AND F.ELEMSTRUCT_REF=ES.STRUCT_ID
-AND S.NAME='K42001'
-AND S.SITE_ID=P.SITE_REF
-AND P.DATA_REF=D.DATA_ID
-GROUP BY ES.STRUCT_ID,F.FIELD_ID,F.ATTR,ET.TYPE_ID;
-
-DATA_ID LINK_ID STRUCT_ID   ASSOCIATE   FIELD_ID  ATTR      TYPE_ID NAME    TYPE    SIZE
-------- ------- ----------- ----------- --------- --------- ------- ------- ------- ----
-2163    123915  14          A0014       54                  3       L3800   1       8
-2163    123916  14          A0014       55                  25      E2828   2       U20
-2163    123917  14          A0014       56                  68      E5812   1       3
-2163    123918  14          A0014       57                  69      E5814   1       3
-2163    123919  14          A0014       58                  59      E5802   1       5
-2163    123920  14          A0014       59                  87      E6800   4       11e4
-2163    123909  27          H0028       87                  3       L3800   1       8
-2163    123910  27          H0028       88                  25      E2828   2       U20
-2163    123911  27          H0028       89                  68      E5812   1       3
-2163    123912  27          H0028       90                  69      E5814   1       3
-2163    123913  27          H0028       91                  59      E5802   1       5
-2163    123914  27          H0028       92                  87      E6800   4       11e4
-2163    123901  64          I0114       379                 3       L3800   1       8
-2163    123902  64          I0114       380       STATUS    66      E5809   5       1
-2163    123903  64          I0114       381       VAL       60      E5803   1       5
-2163    123904  64          I0114       382       VALID     61      E5804   1       5
-2163    123905  64          I0114       383       VALIDR    62      E5805   1       5
-2163    123906  64          I0114       384       DATEHOURM 11      E2800   2       U17
-2163    123907  64          I0114       385                 1       L1800   1       4
-2163    123908  64          I0114       386       VAL_LABEL 64      E5807   3       0
-*/
+// Обновить значения приведенных полей Структур при необходимости (если хотя бы отдна из хранимых процедур имеет более ранний маркер обновления LAST_UPDATE)
+// TODO: заменить вызовы esg_acq_dac_SmdProcessing() на прямой вызов smed()->processing()
 int ExchangeTranslator::esg_acq_dac_SmdProcessing(const gof_t_UniversalName s_IAcqSiteId,
-                                                  const esg_esg_edi_t_StrComposedData * pr_IInternalCData,
-                                                  const esg_esg_edi_t_StrQualifyComposedData * pr_IQuaCData,
+                                                  const esg_esg_edi_t_StrComposedData* pr_IInternalCData,
+                                                  elemstruct_item_t* pr_ISubTypeElem,
+                                                  const esg_esg_edi_t_StrQualifyComposedData* pr_IQuaCData,
                                                   const struct timeval d_IReceivedDate)
 {
-  static const char *fname = "esg_acq_dac_SmdProcessing";
-  esg_esg_odm_t_ExchInfoElem    r_ExchInfoElem;
   int rc = OK;
+
 #if 1
-  rc = esg_esg_odm_ConsExchInfoLed(s_IAcqSiteId, pr_IQuaCData->i_QualifyValue, &r_ExchInfoElem);
-  LOG(INFO) << fname << ": store data into SMED " << s_IAcqSiteId << " tag=" << r_ExchInfoElem.s_Name << " at " << ctime(&d_IReceivedDate.tv_sec);
+  // По заданному Сайту, LED и значению Параметра обновить соответствующие поля SMED
+//1  rc = esg_esg_odm_ConsExchInfoLed(s_IAcqSiteId, pr_IQuaCData->i_QualifyValue, &r_ExchInfoElem);
+//1  LOG(INFO) << fname << ": store data into SMED " << s_IAcqSiteId << " tag=" << r_ExchInfoElem.s_Name << " at " << ctime(&d_IReceivedDate.tv_sec);
+
+  // Выбрать список элементов структур, у которых ВСЕ маркеры времени в SMED более поздние, чем у вновь поступивших
+  //    Найти DATA_ID параметров, подлежащих обновлению
+  //
+  rc = smed()->processing(s_IAcqSiteId, pr_IInternalCData, pr_ISubTypeElem, pr_IQuaCData, d_IReceivedDate);
+
 #else
   int i_RetStatus;
   int i_Status;
@@ -5454,6 +5425,8 @@ int ExchangeTranslator::esg_acq_dac_SmdProcessing(const gof_t_UniversalName s_IA
 //  NB: SMED используется для Сайтов типа ESG (смежные системы, соседние и вышестоящие объекты),
 //  в отличие от сайтов EGA (подчиненные внешние системы).
 //
+//  В ГОФО эта функция для указанного LED также выбирает и значения из SMED, но поскольку эти данные
+//  используются очень редко, только в паре мест, выборка значений отсюда выненесена. 
 //----------------------------------------------------------------------------
 int ExchangeTranslator::esg_esg_odm_ConsExchInfoLed(
   // Input parameters

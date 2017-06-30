@@ -44,7 +44,7 @@ class sqlite3;
 		<type label="Real" default="0" length="0" sql="REAL" quote="" color="rgb(238,238,170)"/>
 		<type label="None" default="" length="0" sql="NONE" quote="" color="rgb(200,255,200)"/>
 	</group>
-</datatypes><table x="502" y="279" name="ELEMSTRUCT">
+</datatypes><table x="489" y="329" name="ELEMSTRUCT">
 <row name="STRUCT_ID" null="0" autoincrement="1">
 <datatype>INTEGER</datatype>
 <default>NOT NULL</default></row>
@@ -62,7 +62,7 @@ class sqlite3;
 </key>
 <comment>Таблица НСИ. Содержит соответствие между названием Структуры и ее Ассоциацией.</comment>
 </table>
-<table x="273" y="408" name="FIELDS">
+<table x="274" y="410" name="FIELDS">
 <row name="FIELD_ID" null="0" autoincrement="1">
 <datatype>INTEGER</datatype>
 </row>
@@ -91,7 +91,7 @@ class sqlite3;
 </key>
 <comment>Таблица НСИ. Содержит описание полей и атрибутов БДРВ каждой Структуры.</comment>
 </table>
-<table x="804" y="4" name="DATA">
+<table x="747" y="184" name="DATA">
 <row name="DATA_ID" null="0" autoincrement="1">
 <datatype>INTEGER</datatype>
 </row>
@@ -118,17 +118,17 @@ class sqlite3;
 </key>
 <comment>Оперативная таблица. Содержит описания всех Параметров, заполняется путем загрузки словарей обмена.</comment>
 </table>
-<table x="500" y="99" name="PROCESSING">
+<table x="250" y="12" name="PROCESSING">
 <row name="PROCESS_ID" null="0" autoincrement="1">
 <datatype>INTEGER</datatype>
 <default>NULL</default></row>
-<row name="DATA_REF" null="0" autoincrement="0">
-<datatype>INTEGER</datatype>
-<default>NOT NULL</default><relation table="DATA" row="DATA_ID" />
-</row>
 <row name="SITE_REF" null="0" autoincrement="0">
 <datatype>INTEGER</datatype>
 <default>NOT NULL</default><relation table="SITES" row="SITE_ID" />
+</row>
+<row name="DATA_REF" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NOT NULL</default><relation table="DATA" row="DATA_ID" />
 </row>
 <row name="TYPE" null="0" autoincrement="0">
 <datatype>INTEGER</datatype>
@@ -141,7 +141,7 @@ class sqlite3;
 </key>
 <comment>Оперативная таблица. Содержит связь между Параметром и используемым его Сайтом, с типом связи - прием от Сайта или передача в адрес Сайта.</comment>
 </table>
-<table x="43" y="6" name="ASSOCIATES_LINK">
+<table x="37" y="152" name="ASSOCIATES_LINK">
 <row name="DATA_REF" null="0" autoincrement="0">
 <datatype>INTEGER</datatype>
 <default>NOT NULL</default><relation table="DATA" row="DATA_ID" />
@@ -155,9 +155,13 @@ class sqlite3;
 </key>
 <comment>Оперативная таблица. Содержит соответствие между Тегом и используемыми им Структурами. Заполняется при загрузке словарей обмена</comment>
 </table>
-<table x="38" y="256" name="FIELDS_LINK">
+<table x="41" y="310" name="FIELDS_LINK">
 <row name="LINK_ID" null="0" autoincrement="1">
 <datatype>INTEGER</datatype>
+</row>
+<row name="DATA_REF" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<relation table="DATA" row="DATA_ID" />
 </row>
 <row name="ELEMSTRUCT_REF" null="0" autoincrement="0">
 <datatype>INTEGER</datatype>
@@ -167,27 +171,24 @@ class sqlite3;
 <datatype>INTEGER</datatype>
 <relation table="FIELDS" row="FIELD_ID" />
 </row>
+<row name="LAST_UPDATE" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
 <row name="VAL_INT" null="1" autoincrement="0">
 <datatype>INTEGER</datatype>
 <default>NULL</default></row>
 <row name="VAL_DOUBLE" null="1" autoincrement="0">
 <datatype>REAL</datatype>
 <default>NULL</default></row>
-<row name="VAL_TIME" null="1" autoincrement="0">
-<datatype>INTEGER</datatype>
-<default>NULL</default></row>
 <row name="VAL_TEXT" null="1" autoincrement="0">
 <datatype>TEXT</datatype>
-<default>NULL</default></row>
-<row name="LAST_UPDATE" null="0" autoincrement="0">
-<datatype>INTEGER</datatype>
 <default>NULL</default></row>
 <key type="PRIMARY" name="">
 <part>LINK_ID</part>
 </key>
 <comment>Оперативная таблица. Содержит связь между Структурой данных, набором входящих в неё полей, и их оперативными значениями </comment>
 </table>
-<table x="804" y="236" name="SITES">
+<table x="601" y="32" name="SITES">
 <row name="SITE_ID" null="0" autoincrement="1">
 <datatype>INTEGER</datatype>
 </row>
@@ -208,7 +209,7 @@ class sqlite3;
 </key>
 <comment>Оперативная таблица. Заполняется из конфига egsa и содержит известные локально Сайты.</comment>
 </table>
-<table x="804" y="453" name="ELEMTYPE">
+<table x="669" y="449" name="ELEMTYPE">
 <row name="TYPE_ID" null="0" autoincrement="1">
 <datatype>INTEGER</datatype>
 <default>NULL</default></row>
@@ -227,6 +228,7 @@ class sqlite3;
 <comment>Таблица НСИ. Содержит описание элементарного типа - название, тип данных, длина строки.</comment>
 </table>
 </sql>
+
  */
  
 // NB: Поскольку один и тот же локальный параметр БДРВ может передаваться нескольким получателям, нужно ввести связь с несколькими СС для таблицы DATA.
@@ -245,7 +247,7 @@ class sqlite3;
 //  2 | NAME        | TEXT      |              |    |   // Код СС
 //  3 | STATE       | INTEGER   | 0            |    |   // Состояние
 //  4 | NATURE      | INTEGER   | 0            |    |   // Тип СС - ЛПУ, ЦДП, ЭЖД, ...
-//  5 | LAST_UPDATE | INTEGER   |              |    |   // Время с последнего взаимодействия
+//  5 | LAST_UPDATE | INTEGER   | 0            |    |   // Время с последнего взаимодействия
 // ---+-------------+-----------+--------------+    |
 //                                                  |
 // Структура таблицы PROCESSING Параметров, подлежащих отправки в соответствующие внешние системы (заполняется при загрузке словаря ACQ|SEND)
@@ -256,7 +258,7 @@ class sqlite3;
 //  2 | SITE_REF    | INTEGER   | FK: NOT NULL +----+
 //  3 | DATA_REF    | INTEGER   | FK: NOT NULL +----+
 //  4 | PROC_TYPE   | INTEGER   |              |    |   // Тип обработки Параметра: Прием (ACQ)/передача (DIFF)/...
-//  5 | LAST_PROC   | INTEGER   |              |    |   // Время с последнего взаимодействия
+//  5 | LAST_PROC   | INTEGER   | 0            |    |   // Время с последнего взаимодействия
 // ---+-------------+-----------+--------------+    |
 //                                                  |
 // Структура таблицы текущих оперативных данных СС "DATA"
@@ -264,42 +266,42 @@ class sqlite3;
 // ---+-------------+-----------+--------------+    |
 //  # |  Имя поля   | Тип поля  | По умолчанию |    |
 // ---+-------------+-----------+--------------+    v
-//  1 | DATA_ID     | INTEGER   | PK:generated |<---+
-//  2 | TAG         | CHAR[32]  | NOT NULL     |    ^    // Тег
-//  3 | LED         | INTEGER   | NOT NULL     |    |    // Идентификатор параметра из обменного файла
-//  4 | OBJCLASS    | INTEGER   | 127          |    |    // Инфотип параметра из обменного файла
-//  5 | CATEGORY    | INTEGER   | NOT NULL     |    |    // Категория параметра (первичный 'P', вторичный 'S', или третичный 'T' цикл сбора данных)
-//  6 | ALARM_INDIC | INTEGER   | 0            |    |    // Признак наличия тревоги по данному параметру
-//  7 | HISTO_INDIC | INTEGER   | 0            |    |    // Период предыстории (0 = NONE, QH, HOUR, DAY, ...)
-// ---+-------------+-----------+--------------+    |
-//                                                  |
+//  1 | DATA_ID     | INTEGER   | PK:generated |<---+<+
+//  2 | TAG         | CHAR[32]  | NOT NULL     |    ^ |  // Тег
+//  3 | LED         | INTEGER   | NOT NULL     |    | |  // Идентификатор параметра из обменного файла
+//  4 | OBJCLASS    | INTEGER   | 127          |    | |  // Инфотип параметра из обменного файла
+//  5 | CATEGORY    | INTEGER   | NOT NULL     |    | |  // Категория параметра (первичный 'P', вторичный 'S', или третичный 'T' цикл сбора данных)
+//  6 | ALARM_INDIC | INTEGER   | 0            |    | |  // Признак наличия тревоги по данному параметру
+//  7 | HISTO_INDIC | INTEGER   | 0            |    | |  // Период предыстории (0 = NONE, QH, HOUR, DAY, ...)
+// ---+-------------+-----------+--------------+    | |
+//                                                  | |
 // Таблица "ASSOCIATES_LINK" для связи "DATA" и "ELEMSTRUCTS"
-// ---+-------------+-----------+--------------+    |
-//  # |  Имя поля   | Тип поля  | По умолчанию |    |
-// ---+-------------+-----------+--------------+    |
-//  1 | DATA_REF    | INTEGER   | FK: NOT NULL |----+    //  Ссылка на элемент таблицы "DATA" параметра
-//  2 | ELEMSTR_REF | INTEGER   | FK: NOT NULL |----+   //  Ссылка на таблицу с описанием Композитной структуры параметра
-// ---+-------------+-----------+--------------+    |
-//                                                  |
-// Таблица с данными ELEMSTRUCT                     |
-// ---+-------------+-----------+--------------+    |
-//  # |  Имя поля   | Тип поля  | По умолчанию |    |
-// ---+-------------+-----------+--------------+    v
-//  1 | STRUCT_ID   | INTEGER   | PK:generated |<---+
-//  2 | NAME        | CHAR[6]   |              |  ^ ^   // Название Композитной структуры
-//  3 | ASSOCIATE   | CHAR[6]   |              |  | |   // Название Ассоциации
-//  4 | CLASS       | INTEGER   |              |  | |   // Класс Композитной структуры
-// ---+-------------+-----------+--------------+  | |
-//                                                | |
+// ---+-------------+-----------+--------------+    | |
+//  # |  Имя поля   | Тип поля  | По умолчанию |    | |
+// ---+-------------+-----------+--------------+    | |
+//  1 | DATA_REF    | INTEGER   | FK: NOT NULL |----+ |  //  Ссылка на элемент таблицы "DATA" параметра
+//  2 | ELEMSTR_REF | INTEGER   | FK: NOT NULL |----+ | //  Ссылка на таблицу с описанием Композитной структуры параметра
+// ---+-------------+-----------+--------------+    | |
+//                                                  | |
+// Таблица с данными ELEMSTRUCT                     | |
+// ---+-------------+-----------+--------------+    | |
+//  # |  Имя поля   | Тип поля  | По умолчанию |    | |
+// ---+-------------+-----------+--------------+    v |
+//  1 | STRUCT_ID   | INTEGER   | PK:generated |<---+ |
+//  2 | NAME        | CHAR[6]   |              |  ^ ^ | // Название Композитной структуры
+//  3 | ASSOCIATE   | CHAR[6]   |              |  | | | // Название Ассоциации
+//  4 | CLASS       | INTEGER   |              |  | | | // Класс Композитной структуры
+// ---+-------------+-----------+--------------+  | | |
+//                                                | | |
 // Таблица FIELDS_LINK связи полей Параметра и их родительской Структуры
-// ---+-------------+-----------+--------------+  | |
-//  # |  Имя поля   | Тип поля  | По умолчанию |  | |
-// ---+-------------+-----------+--------------+  | |
-//  1 | LINK_ID     | INTEGER   | PK:generated |  | |
-//  2 | STRUCT_REF  | INTEGER   | FK: NOT NULL +--+ |
-//  3 | FIELD_REF   | INTEGER   | FK: NOT NULL +--+ |
-//  4 | CONV_COEFF  | FLOAT     | 1.0          |  | |    // Коэффициент предобразования значения параметра перед передачей его значения в БДРВ
-//  5 | LAST_UPDATE | INTEFER   |              |  | |    // Время последнего занесения значения данного параметра в SMED
+// ---+-------------+-----------+--------------+  | | |
+//  # |  Имя поля   | Тип поля  | По умолчанию |  | | |
+// ---+-------------+-----------+--------------+  | | |
+//  1 | LINK_ID     | INTEGER   | PK:generated |  | | |
+//  2 | STRUCT_REF  | INTEGER   | FK: NOT NULL +--+ | |
+//  3 | FIELD_REF   | INTEGER   | FK: NOT NULL +--+ | |
+//  4 | DATA_REF    | INTEGER   | FK: NOT NULL +------+  // Коэффициент предобразования значения параметра перед передачей его значения в БДРВ
+//  5 | LAST_UPDATE | INTEFER   | 0            |  | |    // Время последнего занесения значения данного параметра в SMED
 //  6 | VAL_INT     | INTEGER   |              |  | |    // Значение атрибута типов "Целое"/"Логическое"/"Время" (время в SQLite хранится в INTEGER)
 //  7 | VAL_DOUBLE  | DOUBLE    |              |  | |    // Значение атрибута типа "С плав. точкой"
 //  8 | VAL_STRING  | VARCHAR   | NULL         |  | |    // Значение атрибута типа "Строка" (TODO: Можно сделать необязательной?)
@@ -332,7 +334,7 @@ class sqlite3;
 typedef struct {
   gof_t_UniversalName s_Name;       // name (TAG) of the exchanged data
   int   i_LED;                      // identifier of the exchanged data
-  int   h_RecId;                    // SMED record identifier
+  int   h_RecId;                    // SMED record identifier (DATA_ID из SMED)
   int   infotype;                   // OBJCLASS
   telemetry_category_t o_Categ;     // category (Primary/Secondary/Exploitation)
   bool  b_AlarmIndic;               // Alarm indication
@@ -352,11 +354,16 @@ class SMED
 
     smad_connection_state_t state() { return m_state; };
     smad_connection_state_t connect();
+    void accelerate(bool);
     // Найти и вернуть информацию по параметру с идентификатором LED для указанного Сайта
     int get_diff_info(const gof_t_UniversalName, const int, esg_esg_odm_t_ExchInfoElem*);
     int get_acq_info(const gof_t_UniversalName, const int, esg_esg_odm_t_ExchInfoElem*);
     int load_dict(const char*);
-
+    int processing(const gof_t_UniversalName s_IAcqSiteId,
+                   const esg_esg_edi_t_StrComposedData* pr_IInternalCData,
+                   elemstruct_item_t* pr_ISubTypeElem,
+                   const esg_esg_edi_t_StrQualifyComposedData* pr_IQuaCData,
+                   const struct timeval d_IReceivedDate);
   private:
     DISALLOW_COPY_AND_ASSIGN(SMED);
 
@@ -385,7 +392,6 @@ class SMED
     int load_data_dict(const char*, std::vector<exchange_parameter_t*>&, sa_flow_direction_t);
     int get_map_id(const char*, map_id_by_name_t&);
     int get_info(const gof_t_UniversalName, sa_flow_direction_t, const int, esg_esg_odm_t_ExchInfoElem*);
-    void accelerate(bool);
 
     sqlite3* m_db;
     smad_connection_state_t  m_state;
@@ -397,23 +403,5 @@ class SMED
     map_id_by_name_t m_sites_dict;      // Связи между названием Сайта и его идентификатором в БД
 };
 
-/*
- Выборка данных из SMED указанного своим LED параметра
- Проблема - поля структуры выбираются не в соответствии с их порядком в конфигурационном файле!
- Следует ввести поле ORDER для Полей и заполнять его в таблице FIELDS
-
-SELECT D.TAG,ES.STRUCT_ID,ES.NAME,ES.ASSOCIATE,F.FIELD_ID,F.ATTR,F.TYPE,ET.NAME,ET.TYPE
-FROM DATA D,ELEMSTRUCT ES, ASSOCIATE_LINK AL,PROCESSING P,SITES S,FIELDS_LINK FL,FIELDS F,ELEMTYPE ET
-WHERE AL.DATA_REF=D.DATA_ID
-AND AL.ELEMSTRUCT_REF=ES.STRUCT_ID
-AND P.DATA_REF=D.DATA_ID
-AND P.SITE_REF=S.SITE_ID
-AND FL.ELEMSTRUCT_REF=ES.STRUCT_ID
-AND FL.FIELD_REF=F.FIELD_ID
-AND F.ELEMSTRUCT_REF=ES.STRUCT_ID
-AND F.ELEMTYPE_REF=ET.TYPE_ID
-AND D.LED=5
-GROUP BY ES.STRUCT_ID,ET.TYPE_ID;
- */
 #endif
 

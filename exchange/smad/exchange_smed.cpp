@@ -138,7 +138,7 @@ int SMED::create_internal()
     "  SITE_REF integer NOT NULL,"
     "  DATA_REF integer NOT NULL,"
     "  TYPE integer,"
-    "  LAST_PROC integer,"
+    "  LAST_PROC integer DEFAULT 0,"
     "  FOREIGN KEY (SITE_REF) REFERENCES SITES(SITE_ID) ON DELETE CASCADE,"
     "  FOREIGN KEY (DATA_REF) REFERENCES DATA(DATA_ID) ON DELETE CASCADE);"
     "CREATE TABLE ELEMTYPE ("
@@ -160,10 +160,12 @@ int SMED::create_internal()
     "  LINK_ID integer PRIMARY KEY AUTOINCREMENT,"
     "  FIELD_REF integer NOT NULL,"
     "  ELEMSTRUCT_REF integer NOT NULL,"
-    "  LAST_UPDATE integer,"
+    "  DATA_REF integer NOT NULL,"
+    "  LAST_UPDATE integer DEFAULT 0,"
     "  VAL_INT integer,"
     "  VAL_DOUBLE double,"
     "  VAL_STR varchar,"
+    "  FOREIGN KEY (DATA_REF) REFERENCES DATA(DATA_ID) ON DELETE CASCADE,"
     "  FOREIGN KEY (FIELD_REF) REFERENCES FIELDS(FIELD_ID) ON DELETE CASCADE,"
     "  FOREIGN KEY (ELEMSTRUCT_REF) REFERENCES ELEMSTRUCT(STRUCT_ID) ON DELETE CASCADE);"
     "CREATE TABLE ELEMSTRUCT ("
@@ -183,7 +185,7 @@ int SMED::create_internal()
     "  NATURE integer,"
     "  AUTO_INIT integer,"
     "  AUTO_GENCONTROL integer,"
-    "  LAST_UPDATE integer);"
+    "  LAST_UPDATE integer DEFAULT 0);"
     "COMMIT;";
 
   const char* ddl_create_indexes =
@@ -467,8 +469,6 @@ int SMED::get_info(const gof_t_UniversalName site, sa_flow_direction_t direction
         elem->o_Categ = static_cast<telemetry_category_t>(input_category);
       elem->b_AlarmIndic = (sqlite3_column_int(stmt, 4) > 0);
       elem->i_HistoIndic = sqlite3_column_int(stmt, 5);
-      elem->f_ConvertCoeff = sqlite3_column_double(stmt, 6);
-      elem->d_LastUpdDate.tv_sec = sqlite3_column_int(stmt, 7);
       num_lines++;
 
     }
@@ -838,29 +838,36 @@ int SMED::load_data_dict(const char* site_name, std::vector<exchange_parameter_t
                it != parameters.end();
                ++it)
           {
-            for (std::vector<std::string>::const_iterator is = (*it)->struct_list.begin();
-                 is != (*it)->struct_list.end();
-                 ++is)
-            {
-              // в (*is) находится название ASSOCIATE структуры текущего элемента DATA
-              // в data->info.s_Name находится Тег текущего элемента DATA
-              map_id_by_name_t::const_iterator iter_el = m_elemstruct_associate_dict.find((*is));
-              map_id_by_name_t::const_iterator iter_da = data_dict.find((*it)->info.s_Name);
+            map_id_by_name_t::const_iterator iter_da = data_dict.find((*it)->info.s_Name);
+            if (data_dict.end() != iter_da) {
+              (*it)->info.h_RecId = (*iter_da).second; // Запомним DATA_ID параметра
 
-              if ((m_elemstruct_associate_dict.end() != iter_el) && (data_dict.end() != iter_da)) {
+              for (std::vector<std::string>::const_iterator is = (*it)->struct_list.begin();
+                   is != (*it)->struct_list.end();
+                   ++is)
+              {
+                // в (*is) находится название ASSOCIATE структуры текущего элемента DATA
+                // в data->info.s_Name находится Тег текущего элемента DATA
+                map_id_by_name_t::const_iterator iter_el = m_elemstruct_associate_dict.find((*is));
 
-                elem_id = (*iter_el).second;
-                data_id = (*iter_da).second;
+                if (m_elemstruct_associate_dict.end() != iter_el) {
 
-                snprintf(dml_operator, 100, "%s(%d,%d)",
-                         ((associates_stored++)? "," : ""),
-                         data_id,
-                         elem_id);
-                sql += dml_operator;
+                  elem_id = (*iter_el).second;
+
+                  snprintf(dml_operator, 100, "%s(%d,%d)",
+                           ((associates_stored++)? "," : ""),
+                           (*it)->info.h_RecId,
+                           elem_id);
+                  sql += dml_operator;
+                }
+                else {
+                  LOG(ERROR) << fname << ": unable to find associate " << (*is) << " for tag " << (*it)->info.s_Name;
+                }
               }
-              else {
-                LOG(ERROR) << fname << ": unable to find associate " << (*is) << " or tag " << (*it)->info.s_Name;
-              }
+            }
+            else {
+              (*it)->info.h_RecId = 0;
+              LOG(ERROR) << fname << ": unable to find tag " << (*it)->info.s_Name;
             }
 
           } // Конец перебора Параметров
@@ -919,7 +926,7 @@ int SMED::load_data_dict(const char* site_name, std::vector<exchange_parameter_t
                       if (SQLITE_OK == sqlite3_prepare(m_db, dml_operator, -1, &stmt, 0)) {
 
                         fields_stored = 0;
-                        sql2 = "INSERT INTO FIELDS_LINK(ELEMSTRUCT_REF,FIELD_REF) VALUES";
+                        sql2 = "INSERT INTO FIELDS_LINK(ELEMSTRUCT_REF,FIELD_REF,DATA_REF) VALUES";
                         // (3) Найти идентификаторы полей
                         while(sqlite3_step(stmt) == SQLITE_ROW) {
                           field_id = 0;   // если значение останется нулевым - это признак ошибки
@@ -927,10 +934,11 @@ int SMED::load_data_dict(const char* site_name, std::vector<exchange_parameter_t
                           field_id = sqlite3_column_int(stmt, 0);
                           if (field_id) {
                             // (4) Вставить новую запись в FIELDS_LINK
-                            snprintf(dml_operator, 100, "%s(%d,%d)",
+                            snprintf(dml_operator, 100, "%s(%d,%d,%d)",
                                      ((fields_stored++)? "," : ""),
-                                     elem_id,
-                                     field_id);
+                                     elem_id,               // ELEMSTRUCT_ID
+                                     field_id,              // FIELD_ID
+                                     (*it)->info.h_RecId);  // DATA_ID
                             sql2 += dml_operator;
                           }
                         }
@@ -1135,3 +1143,236 @@ int SMED::get_map_id(const char* dml_operator, map_id_by_name_t& map_id)
 
   return rc;
 }
+
+// ==========================================================================================================
+/*
+Более быстрый вариант (в FIELDS_LINK добавлен поле DATA_REF)
+SELECT D.DATA_ID,FL.LINK_ID,ES.STRUCT_ID,ES.ASSOCIATE,F.FIELD_ID,F.ATTR,ET.TYPE_ID,ET.NAME,ET.TYPE,ET.SIZE
+FROM DATA D,ELEMSTRUCT ES,ASSOCIATE_LINK AL,FIELDS F,FIELDS_LINK FL,ELEMTYPE ET,SITES S,PROCESSING P
+WHERE D.LED=1
+AND AL.DATA_REF=D.DATA_ID
+AND D.DATA_ID=FL.DATA_REF
+AND AL.ELEMSTRUCT_REF=ES.STRUCT_ID
+AND FL.FIELD_REF=F.FIELD_ID
+AND F.ELEMTYPE_REF=ET.TYPE_ID
+AND F.ELEMSTRUCT_REF=ES.STRUCT_ID
+AND S.NAME='K42001'
+AND S.SITE_ID=P.SITE_REF
+AND P.DATA_REF=D.DATA_ID;
+
+Медленный вариант
+SELECT D.DATA_ID,FL.LINK_ID,ES.STRUCT_ID,ES.ASSOCIATE,F.FIELD_ID,F.ATTR,ET.TYPE_ID,ET.NAME,ET.TYPE,ET.SIZE
+FROM DATA D,ELEMSTRUCT ES,ASSOCIATE_LINK AL,FIELDS F,FIELDS_LINK FL,ELEMTYPE ET,SITES S,PROCESSING P
+WHERE D.LED=1
+AND AL.DATA_REF=D.DATA_ID
+AND AL.ELEMSTRUCT_REF=ES.STRUCT_ID
+AND FL.ELEMSTRUCT_REF=ES.STRUCT_ID
+AND FL.FIELD_REF=F.FIELD_ID
+AND F.ELEMTYPE_REF=ET.TYPE_ID
+AND F.ELEMSTRUCT_REF=ES.STRUCT_ID
+AND S.NAME='K42001'
+AND S.SITE_ID=P.SITE_REF
+AND P.DATA_REF=D.DATA_ID
+GROUP BY ES.STRUCT_ID,F.FIELD_ID,F.ATTR,ET.TYPE_ID;
+*/
+
+// DATA_ID LINK_ID STRUCT_ID   ASSOCIATE   FIELD_ID  ATTR      TYPE_ID NAME    TYPE    SIZE
+// ------- ------- ----------- ----------- --------- --------- ------- ------- ------- ----
+// 107     2428    64          I0114       379                 3       L3800   1       8
+// 107     2429    64          I0114       380       STATUS    66      E5809   5       1
+// 107     2430    64          I0114       381       VAL       60      E5803   1       5
+// 107     2431    64          I0114       382       VALID     61      E5804   1       5
+// 107     2432    64          I0114       383       VALIDR    62      E5805   1       5
+// 107     2433    64          I0114       384       DATEHOURM 11      E2800   2       U17
+// 107     2434    64          I0114       385                 1       L1800   1       4
+// 107     2435    64          I0114       386       VAL_LABEL 64      E5807   3       0
+// 107     2436    27          H0028       87                  3       L3800   1       8
+// 107     2437    27          H0028       88                  25      E2828   2       U20
+// 107     2438    27          H0028       89                  68      E5812   1       3
+// 107     2439    27          H0028       90                  69      E5814   1       3
+// 107     2440    27          H0028       91                  59      E5802   1       5
+// 107     2441    27          H0028       92                  87      E6800   4       11e4
+// 107     2442    14          A0014       54                  3       L3800   1       8
+// 107     2443    14          A0014       55                  25      E2828   2       U20
+// 107     2444    14          A0014       56                  68      E5812   1       3
+// 107     2445    14          A0014       57                  69      E5814   1       3
+// 107     2446    14          A0014       58                  59      E5802   1       5
+// 107     2447    14          A0014       59                  87      E6800   4       11e4
+
+int SMED::processing(const gof_t_UniversalName s_IAcqSiteId,
+                   const esg_esg_edi_t_StrComposedData* pr_IInternalCData,
+                   elemstruct_item_t* pr_ISubTypeElem,
+                   const esg_esg_edi_t_StrQualifyComposedData* pr_IQuaCData,
+                   const struct timeval d_IReceivedDate)
+{
+  static const char *fname = "processing";
+  const char* SELECT_INFO = "SELECT FL.LAST_UPDATE,D.DATA_ID,FL.LINK_ID,F.FIELD_ID,F.ATTR,F.TYPE,ET.TYPE_ID,ET.NAME,ET.TYPE,ET.SIZE"
+                            " FROM DATA D,ELEMSTRUCT ES,ASSOCIATE_LINK AL,FIELDS F,FIELDS_LINK FL,ELEMTYPE ET,SITES S,PROCESSING P"
+                            " WHERE D.LED=%d"
+                            " AND AL.DATA_REF=D.DATA_ID"
+                            " AND D.DATA_ID=FL.DATA_REF"
+                            " AND AL.ELEMSTRUCT_REF=ES.STRUCT_ID"
+                            " AND FL.FIELD_REF=F.FIELD_ID"
+                            " AND ES.STRUCT_ID=%d"
+                            " AND F.ELEMTYPE_REF=ET.TYPE_ID"
+                            " AND F.ELEMSTRUCT_REF=ES.STRUCT_ID"
+                            " AND S.NAME='%s'"
+                            " AND S.SITE_ID=P.SITE_REF"
+                            " AND P.DATA_REF=D.DATA_ID;";
+  const int dml_sql_size = strlen(SELECT_INFO) + 9 /*LED*/ + 9 /*STRUCT_ID*/ + 7 /*site tag*/ + 300 /*значение*/;
+  char dml_operator[dml_sql_size + 1];  // буфер SQL для обновления данных в SMED
+  char dml_value[300 + 1];              // буфер для сохранения значения Параметра в зависимости от его типа
+  sqlite3_stmt* stmt = 0;
+  time_t last_update;
+  size_t data_id, link_id, struct_id, field_id, type_id;
+  int et_type, attr_type;
+//  esg_esg_odm_t_ExchInfoElem r_ExchInfoElem;
+  int rc = NOK;
+  size_t field_idx = 0;
+  size_t attr_idx = 0; // Индекс Абтрибута БДРВ в массиве Полей (народная мудрость: не каждое Поле - Атрибут БДРВ)
+//  unsigned char attr_name[TAG_NAME_MAXLEN + 1];
+//  unsigned char *et_name, *et_size;
+//  elemstruct_item_t* r_ExchCompElem = NULL;         // subtype structure
+  std::string sql;
+
+//  ech_t_InternalVal value;
+
+  do {
+
+    if (!d_IReceivedDate.tv_sec) {
+      LOG(WARNING) << fname << ": timestamp wrong of received data: " << d_IReceivedDate.tv_sec;
+      break;
+    }
+
+    map_id_by_name_t::const_iterator it = m_elemstruct_dict.find(pr_ISubTypeElem->name);
+    if (it == m_elemstruct_dict.end()) {
+      LOG(ERROR) << fname << ": unable to find ID for ELEMSTRUCT " << pr_ISubTypeElem->name;
+      break;
+    }
+    // Получили идентификатор ELEMSTRUCT по её названию
+    struct_id = (*it).second;
+
+    // Если заданное время получения данных не нулевое (т.е. корректно прочиталось), проверить "время последнего обновления"
+    // данных для всех подтипов данного LED. Если обновление необходимо, взвести флаг b_DataOK и обновить хранимый маркер времени".
+    sprintf(dml_operator, SELECT_INFO, 
+            /* LED */       pr_IQuaCData->i_QualifyValue,
+            /* STRUCT_ID */ struct_id,
+            /* SITE NAME */ s_IAcqSiteId);
+    if (SQLITE_OK == sqlite3_prepare(m_db, dml_operator, -1, &stmt, 0)) {
+
+      // Запрос успешно выполнился
+      attr_idx = 0;
+      sql = "BEGIN;";
+      while(sqlite3_step(stmt) == SQLITE_ROW) {
+
+        last_update = sqlite3_column_int(stmt, 0);  // FL.LAST_UPDATE
+        data_id     = sqlite3_column_int(stmt, 1);  // D.DATA_ID
+        link_id     = sqlite3_column_int(stmt, 2);  // FL.LINK_ID
+        field_id    = sqlite3_column_int(stmt, 3);  // F.FIELD_ID
+        const unsigned char* attr_name = sqlite3_column_text(stmt, 4);           // F.ATTR
+        attr_type   = sqlite3_column_int(stmt, 5);  // F.TYPE
+        type_id     = sqlite3_column_int(stmt, 6);  // ET.TYPE_ID
+        const unsigned char* et_name = sqlite3_column_text(stmt,7);  // ET.NAME
+        et_type     = sqlite3_column_int(stmt, 8);  // ET.TYPE
+        const unsigned char* et_size = sqlite3_column_text(stmt,9); // ET.SIZE
+
+        // Если это служебное поле, не имеющее соответствия в БДРВ, пропустим
+        if (FIELD_TYPE_UNKNOWN != attr_type) { // Нет, это один из атрибутов БДРВ
+
+          // TODO: пропускать параметры, имеющие фактический тип, несовпадающий со своим типом в SMED
+          //1 if (pr_IInternalCData->ar_EDataTable[attr_idx].type != attr_type)
+          if (pr_ISubTypeElem->fields[field_idx].type != attr_type)
+            LOG(ERROR) << "LED=" << pr_IQuaCData->i_QualifyValue
+                      << " attr_idx=" << attr_idx
+                      << " assoc=" << pr_ISubTypeElem->name
+                      << " data_id=" << data_id
+                      << " attr=" << attr_name
+                      << " field_id=" << field_id
+                      << " struct_id=" << struct_id
+                      << " et(name=" << et_name
+                      << " type=" << et_type
+                      << " size=" << et_size << ")"
+                      << " type_id=" << type_id
+                      << " link_id=" << link_id
+                      << " type1=" << pr_IInternalCData->ar_EDataTable[attr_idx].type
+                      << " type2=" << attr_type;
+          //1 assert(pr_IInternalCData->ar_EDataTable[attr_idx].type == attr_type);
+          assert(pr_ISubTypeElem->fields[field_idx].type == attr_type);
+
+          // Данные обновляются, только если полученные данные имеют больший маркер времени, чем содержащийся в SMED
+          if (last_update < d_IReceivedDate.tv_sec) {  // Да, пришли более свежие данные
+            LOG(INFO) << fname << ": update smed record id " << link_id << ", type=" << attr_type << " attr=" << attr_name << " size=" << et_size;
+
+            // Шапка команды обновления
+            sprintf(dml_operator, "UPDATE FIELDS_LINK SET LAST_UPDATE=%ld", d_IReceivedDate.tv_sec);
+            dml_value[0] = '\0';
+
+            switch (attr_type) {
+              case FIELD_TYPE_LOGIC:  sprintf(dml_value, ",VAL_INT=%d", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.b_Logical);  break;
+              case FIELD_TYPE_INT8:   sprintf(dml_value, ",VAL_INT=%d", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.o_Int8);     break;
+              case FIELD_TYPE_UINT8:  sprintf(dml_value, ",VAL_INT=%d", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.o_Uint8);    break;
+              case FIELD_TYPE_INT16:  sprintf(dml_value, ",VAL_INT=%d", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.h_Int16);    break;
+              case FIELD_TYPE_UINT16: sprintf(dml_value, ",VAL_INT=%d", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.h_Uint16);   break;
+              case FIELD_TYPE_INT32:  sprintf(dml_value, ",VAL_INT=%d", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.i_Int32);    break;
+              case FIELD_TYPE_UINT32: sprintf(dml_value, ",VAL_INT=%d", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.i_Uint32);   break;
+              case FIELD_TYPE_FLOAT:  sprintf(dml_value, ",VAL_DOUBLE=%f", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.f_Float); break;
+              case FIELD_TYPE_DOUBLE: sprintf(dml_value, ",VAL_DOUBLE=%g", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.g_Double);break;
+              case FIELD_TYPE_DATE:   sprintf(dml_value, ",VAL_INT=%ld",   pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.d_Timeval.tv_sec);break;
+              case FIELD_TYPE_STRING:
+                // Размер сохраняемой строки ограничен
+                if (pr_IInternalCData->ar_EDataTable[attr_idx].u_val.r_Str.i_LgString < 256) {
+                  if (pr_IInternalCData->ar_EDataTable[attr_idx].u_val.r_Str.i_LgString) {
+                    sprintf(dml_value, ", VAL_STR='%s'",  pr_IInternalCData->ar_EDataTable[attr_idx].u_val.r_Str.ps_String);
+                  }
+                }
+                else {
+                  LOG(ERROR) << fname << ": LED " << pr_IQuaCData->i_QualifyValue << " of " << s_IAcqSiteId
+                             << " exceeds size limit: " << pr_IInternalCData->ar_EDataTable[attr_idx].u_val.r_Str.i_LgString;
+                }
+                assert(pr_IInternalCData->ar_EDataTable[attr_idx].u_val.r_Str.i_LgString < 256); // режим отладки
+                attr_idx++;
+                break;
+
+              default:
+                LOG(ERROR) << fname << ": unwilling LED " << pr_IQuaCData->i_QualifyValue << " type: " << attr_type;
+            }
+
+            if (dml_value[0]) strcat(dml_operator, dml_value);
+            sprintf(dml_value, " WHERE LINK_ID=%d;", link_id);
+            strcat(dml_operator, dml_value);
+            sql += dml_operator;
+          }
+        }   // Конец блока обработки атрибута БДРВ
+
+        field_idx++;
+      } // Конец блока обработки строк, возвращенных при выборке из SMED полей Ассоциированной структуры
+      sqlite3_finalize(stmt);
+
+      if (attr_idx) { // Если атрибуты БДРВ встречались в выборке
+
+        sql += "COMMIT;";
+        if (sqlite3_exec(m_db, sql.c_str(), 0, 0, &m_db_err)) {
+          LOG(ERROR) << fname << ": SMED " << s_IAcqSiteId << " led=" << pr_IQuaCData->i_QualifyValue << " updating: " << m_db_err;
+          sqlite3_free(m_db_err);
+        }
+        else {
+          LOG(INFO) << fname << ": SMED " << s_IAcqSiteId << " led=" << pr_IQuaCData->i_QualifyValue << " update " << attr_idx << " atributes";
+#ifdef SQL_TRACE
+          std::cout << "SQL " << sql << std::endl;
+#endif
+        }
+      }  // Конец блока занесения данных в SMED
+
+      rc = OK;
+    }
+/*
+    if (num_lines) {
+      LOG(INFO) << fname << " last date=" << ctime(&last_update);
+      rc = OK;
+    }*/
+
+  } while (false);
+
+  return rc;
+}
+

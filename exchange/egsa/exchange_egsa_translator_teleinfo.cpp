@@ -63,7 +63,7 @@ int ExchangeTranslator::esg_acq_dac_TeleinfoAcq(
   // composed data identifier
   char s_ExchCompId[ECH_D_COMPIDLG + 1];
   // subtype structure
-  elemstruct_item_t* r_ExchCompElem = NULL;
+  elemstruct_item_t* pr_ExchCompElem = NULL;
   // number of TI Thresholds
   int i_NbTiThres;
   // pointer Multi TI thresholds structure
@@ -97,7 +97,8 @@ int ExchangeTranslator::esg_acq_dac_TeleinfoAcq(
   if (i_Status == OK) {
 
     i_CDLength = 0;
-
+  
+    smed()->accelerate(true);
     for (i_LgDone = 0; ((i_LgDone < i_IApplLength) && (i_Status == OK)); i_LgDone = i_LgDone + i_CDLength) {
 
       memset(&r_InternalCData, 0, sizeof(esg_esg_edi_t_StrComposedData));
@@ -108,10 +109,10 @@ int ExchangeTranslator::esg_acq_dac_TeleinfoAcq(
                                           i_IApplLength - i_LgDone,
                                           &i_CDLength,
                                           &r_InternalCData,
-                                          r_ExchCompElem,
+                                          pr_ExchCompElem,
                                           &r_QuaCData);
 
-//1      LOG(ERROR) << fname << ": CDProcessing delme: " << ((NULL != r_ExchCompElem)? r_ExchCompElem->name : "<NULL>");
+//1      LOG(ERROR) << fname << ": CDProcessing delme: " << ((NULL != pr_ExchCompElem)? pr_ExchCompElem->name : "<NULL>");
 
       // add into a TI applicative segment
       memset(s_ExchCompId, 0, sizeof(s_ExchCompId));
@@ -119,9 +120,9 @@ int ExchangeTranslator::esg_acq_dac_TeleinfoAcq(
 
       // Get the corresponding sub_type name related to the composed data
       //----------------------------------------------------------------------------
-      if (NULL != (r_ExchCompElem = esg_esg_odm_ConsultExchCompArr(s_ExchCompId))) {
+      if (NULL != (pr_ExchCompElem = esg_esg_odm_ConsultExchCompArr(s_ExchCompId))) {
 #if VERBOSE > 7
-        sprintf(s_Trace, "Composed Data=%s, Subtype=%s", s_ExchCompId, r_ExchCompElem->associate);
+        sprintf(s_Trace, "Composed Data=%s, Subtype=%s", s_ExchCompId, pr_ExchCompElem->associate);
         LOG(INFO) << fname << ": " << s_Trace;
 #endif
 
@@ -129,7 +130,7 @@ int ExchangeTranslator::esg_acq_dac_TeleinfoAcq(
         // IF The current composed data is a threshold one
         // THEN call threshold decoding function
         // IF no error then memorize the current decoded threshold
-        if (strcmp(r_ExchCompElem->associate, ECH_D_THRESHOLDS_SET) == 0) {
+        if (strcmp(pr_ExchCompElem->associate, ECH_D_THRESHOLDS_SET) == 0) {
           i_Status = esg_acq_dac_TIThresholdAcq(s_IAcqSiteId, r_InternalCData, r_QuaCData, &r_TiThreshold);
           if (i_Status == OK) {
             i_NbTiThres += 1;
@@ -142,6 +143,7 @@ int ExchangeTranslator::esg_acq_dac_TeleinfoAcq(
           //-------------------------------------------
           i_Status = esg_acq_dac_SmdProcessing(s_IAcqSiteId,
                                                &r_InternalCData,
+                                               pr_ExchCompElem,
                                                &r_QuaCData,
                                                d_IReceivedDate);
         } // End if: Process applicatif segment
@@ -154,6 +156,7 @@ int ExchangeTranslator::esg_acq_dac_TeleinfoAcq(
         }
       }
     }                           // for to process composed data of the segment
+    smed()->accelerate(false);
   }                             // Composed data included in the segment
 
   // If it's a differential message then send the data to SIDL
@@ -407,7 +410,7 @@ int ExchangeTranslator::esg_acq_dac_DispNameAcq(
   // composed data identifier
   char s_ExchCompId[ECH_D_COMPIDLG + 1];
   // subtype structure
-  elemstruct_item_t* r_ExchCompElem = NULL;
+  elemstruct_item_t* pr_ExchCompElem = NULL;
   // dispatcher name message to SIDL
   char s_BuffMsg[GOF_MSG_D_MAXBODY];
   // message size
@@ -435,18 +438,18 @@ int ExchangeTranslator::esg_acq_dac_DispNameAcq(
                                           i_IApplLength - i_LgDone,
                                           &i_CDLength,
                                           &r_InternalCData,
-                                          r_ExchCompElem,
+                                          pr_ExchCompElem,
                                           &r_QuaCData);
 
-      LOG(ERROR) << fname << ": CDProcessing delme: " << ((NULL != r_ExchCompElem)? r_ExchCompElem->name : "<NULL>");
+      LOG(ERROR) << fname << ": CDProcessing delme: " << ((NULL != pr_ExchCompElem)? pr_ExchCompElem->name : "<NULL>");
 
       memset(s_ExchCompId, 0, sizeof(s_ExchCompId));
       strncpy(s_ExchCompId, &s_Buffer[i_LgDone], ECH_D_COMPIDLG);
 
       // Get the corresponding sub_type name related to the composed data
       //----------------------------------------------------------------------------
-      if (NULL != (r_ExchCompElem = esg_esg_odm_ConsultExchCompArr(s_ExchCompId))) {
-        sprintf(s_Trace, "Composed Data=%s, Subtype=%s", s_ExchCompId, r_ExchCompElem->associate);
+      if (NULL != (pr_ExchCompElem = esg_esg_odm_ConsultExchCompArr(s_ExchCompId))) {
+        sprintf(s_Trace, "Composed Data=%s, Subtype=%s", s_ExchCompId, pr_ExchCompElem->associate);
         LOG(INFO) << fname << ": " << s_Trace;
 
         // test if the current composed data is a dispatcher name one
@@ -454,7 +457,7 @@ int ExchangeTranslator::esg_acq_dac_DispNameAcq(
         // THEN decode it
 
         // IF no error then memorize the current decoded dispatcher name
-        if (strcmp(r_ExchCompElem->associate, ECH_D_DISP_NAME) == 0) {
+        if (strcmp(pr_ExchCompElem->associate, ECH_D_DISP_NAME) == 0) {
           if (r_InternalCData.ar_EDataTable[0].u_val.r_Str.ps_String != NULL) {
             i_LgrStr = r_InternalCData.ar_EDataTable[0].u_val.r_Str.i_LgString;
             if (sizeof(s_DispatchName) >= i_LgrStr) {
