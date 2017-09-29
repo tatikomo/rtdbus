@@ -12,11 +12,13 @@
 #include "glog/logging.h"
 
 // Служебные файлы RTDBUS
-#include "exchange_egsa_site.hpp"
-#include "exchange_egsa_impl.hpp"
-
-#include "exchange_smad.hpp"
+#include "msg_common.h"
+#include "xdb_common.hpp"
 #include "exchange_config_sac.hpp"
+#include "exchange_config_site.hpp"
+#include "exchange_config_cycle.hpp"
+#include "exchange_config_request.hpp"
+#include "exchange_smad.hpp"
 
 // Строки 0 и 1 используются, если меняется значение атрибута SYNTHSTATE
 // Строки 2 и 3 используются, если меняется значение атрибута EXPMODE
@@ -175,8 +177,8 @@ const bool AcqSiteEntry::enabler_matrix[REQUEST_ID_LAST+1][EGA_EGA_AUT_D_NB_STAT
 #undef X
 
 // ==============================================================================
-AcqSiteEntry::AcqSiteEntry(EGSA* egsa, const egsa_config_site_item_t* entry)
-  : m_egsa(egsa),
+AcqSiteEntry::AcqSiteEntry(/*EGSA* egsa,*/ const egsa_config_site_item_t* entry)
+  : /*m_egsa(egsa),*/
     m_synthstate(SYNTHSTATE_UNREACH),
     m_expmode(true),
     m_inhibition(false),
@@ -319,8 +321,10 @@ const Request* AcqSiteEntry::get_dict_request(ech_t_ReqId type)
 {
   Request *dict = NULL;
 
-  assert(m_egsa);
+/*  assert(m_egsa);
   dict = m_egsa->dictionary_requests().query_by_id(type);
+  */
+    LOG(ERROR) << "TODO: remove method AcqSiteEntry::get_dict_request";
 
   return dict;
 }
@@ -337,6 +341,10 @@ int AcqSiteEntry::cbAutoInit()
 
   switch(m_Level) {
     case LEVEL_LOCAL:
+      LOG(FATAL) << fname << ": try using local site as exchange partner";
+      assert(0 == 1);
+      break;
+
     case LEVEL_LOWER:
       rq_init = get_dict_request(EGA_INITCMD); // Композитный общий сбор
       break;
@@ -375,6 +383,10 @@ int AcqSiteEntry::cbGeneralControl()
 
   switch(m_Level) {
     case LEVEL_LOCAL:
+      LOG(FATAL) << fname << ": try using local site as exchange partner";
+      assert(0 == 1);
+      break;
+
     case LEVEL_LOWER:
       rq_gencontrol = get_dict_request(EGA_GENCONTROL); // Композитный общий сбор
       break;
@@ -666,9 +678,9 @@ int AcqSiteEntry::esg_esg_aut_StateManage(int attribute_idx, int val)
 
 // ==============================================================================
 // Обработка изменения оперативного состояния системы сбора - атрибута SYNTHSTATE
-int AcqSiteEntry::esg_acq_dac_SynthStateMan(int _state)
+int AcqSiteEntry::SynthStateMan(int _state)
 {
-  static const char* fname = "esg_acq_dac_SynthStateMan";
+  static const char* fname = "SynthStateMan";
   int rc = OK;
 
   LOG(INFO) << name() << ": change SYNTHSTATE: " << m_synthstate << " => " << _state;
@@ -676,74 +688,19 @@ int AcqSiteEntry::esg_acq_dac_SynthStateMan(int _state)
   // определить допустимость значения нового состояния
   assert((SYNTHSTATE_UNREACH <= _state) && (_state <= SYNTHSTATE_PRE_OPER));
   if ((SYNTHSTATE_UNREACH <= _state) && (_state <= SYNTHSTATE_PRE_OPER)) {
+
     m_synthstate = static_cast<synthstate_t>(_state);
+
+    // Manage distant equipement state and update in state automate
+    // ------------------------------------------------------------
+    if (OK != (rc = esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, m_synthstate))) {
+      LOG(ERROR) << fname << ": Automate SynthStateValue: " << m_synthstate;
+    }
+
   }
   else {
     LOG(ERROR) << fname << ": unsupported given value: " << _state;
     rc = NOK;
-  }
-
-  // Manage distant equipement state and update in state automate
-  // ------------------------------------------------------------
-  if (OK == (rc = esg_esg_aut_StateManage(RTDB_ATT_IDX_SYNTHSTATE, m_synthstate)))
-  {
-#if 1
-    LOG(INFO) << "TODO: Propagate new SYNTHSTATE value to all exchange threads";
-#else
-    // Обновить состояние Сайта в общем доступе
-    // ----------------------------------------
-    if (OK == (rc = esg_acq_dac_SmdSynthState (s_IAcqSiteId, m_synthstate))) {
-
-      // Build state message to be transmitted to DIFF process
-      // -----------------------------------------------------
-      memcpy(r_SyntSend.s_AcqSiteName, s_IAcqSiteId, sizeof(gof_t_UniversalName));
-      r_SyntSend.i_StateValue = m_synthstate;
-
-      // Consult general data to get DIFF process num
-      // -----------------------------------------------------
-      //   Build the structure process
-      //   - Get the current Rtap environnement
-      //   - Get the identification of the interface component
-      // -----------------------------------------------------
-      esg_esg_odm_ConsultGeneralData (&r_GenData);
-
-      rc = gof_msg_p_GetProcByNum (r_GenData.s_RtapEnvironment, (gof_t_Int16)r_GenData.o_DIFprocNum, &r_ProcessDest);
-
-      if (rc == OK)
-      {
-        rc = gof_msg_p_SendMessage (&r_ProcessDest, ESG_D_SYNTHETICAL_STATE, sizeof(esg_t_SyntheticalState), &r_SyntSend);
-
-        // Send the message to es_Sending
-        // -----------------------------------
-        if (rc == OK) {
-          rc = gof_msg_p_SendMessage (&r_ProcessDest,
-                                        ESG_D_SYNTHETICAL_STATE,
-                                        sizeof(esg_t_SyntheticalState),
-                                        &r_SyntSend);
-          // Transmit immediatly the new synthetic state to SINF component
-          if (rc == OK) {
-            strcpy (r_SynthStateSite.s_SA_name, s_IAcqSiteId);
-            r_SynthStateSite.e_status = m_synthstate;
-
-            rc = sig_ext_msg_p_InpSendMessageToSinf ( SIG_D_MSG_SASTATUS, sizeof (sig_t_msg_SAStatus), &r_SynthStateSite);
-            sprintf ( s_Trace, "Transmit synth state to SINF, Status %d", rc) ;
-            ech_tra_p_Trace ( s_FctName, s_Trace ) ;
-          }
-        }
-
-      }
-      else {
-        sprintf(s_LoggedText,"Rtap env: %s DIF procNum: %d", r_GenData.s_RtapEnvironment,r_GenData.o_DIFprocNum);
-      }
-
-    }
-    else {
-      LOG(ERROR) << fname << ": Can;t set site " << site->name() << " StateVal: " << m_synthstate;
-    }
-#endif
-  }
-  else {
-    LOG(ERROR) << fname << ": Automate SynthStateValue: " << m_synthstate;
   }
 
   return rc;
@@ -1445,166 +1402,4 @@ int AcqSiteEntry::esg_ine_man_DeleteReqInProgress(const char* s_IDistantSiteId)
 }
 //-END esg_ine_man_DeleteReqInProgress ---------------------------------------
 
-// ==============================================================================
-AcqSiteList::AcqSiteList()
- : m_egsa(NULL)
-{
-}
-
-// ==============================================================================
-AcqSiteList::~AcqSiteList()
-{
-#if VERBOSE>7
-  LOG(INFO) << "DTOR AcqSiteList, size=" << m_items.size();
-#endif
-  // Разные экземпляры AcqSiteList в Cycle и в EGSA содержат ссылки на одни
-  // и те же экземпляры объектов AcqSiteEntry
-  for (std::vector<std::shared_ptr<AcqSiteEntry*>>::iterator it = m_items.begin();
-       it != m_items.end();
-       ++it)
-  {
-    if (*it) {
-#if VERBOSE>8
-      LOG(INFO) << "DTOR AcqSiteList item " << (*(*it))->name();
-#endif
-
-      // Удалить ссылку на AcqSiteEntry
-      (*it).reset();
-      //1 delete *(*it);
-    }
-  }
-}
-
-// ==============================================================================
-void AcqSiteList::set_egsa(EGSA* egsa)
-{
-  m_egsa = egsa;
-}
-
-// ==============================================================================
-int AcqSiteList::attach_to_smad(const char* sa_name)
-{
-  return NOK;
-}
-
-// ==============================================================================
-int AcqSiteList::detach()
-{
-  int rc = NOK;
-
-  // TODO: Для всех подчиненных систем сбора:
-  // 1. Изменить их состояние SYNTHSTATE на "ОТКЛЮЧЕНО"
-  // 2. Отключиться от их внутренней SMAD
-  for(std::vector<std::shared_ptr<AcqSiteEntry*>>::const_iterator it = m_items.begin();
-      it != m_items.end();
-      ++it)
-  {
-    if (*it) {
-      AcqSiteEntry* entry = *(*it);
-      LOG(INFO) << "TODO: set " << entry->name() << ".SYNTHSTATE = 0";
-      LOG(INFO) << "TODO: detach " << entry->name() << " SMAD";
-    }
-  }
-
-  return rc;
-}
-
-// ==============================================================================
-int AcqSiteList::detach_from_smad(const char* name)
-{
-  int rc = NOK;
-
-  LOG(INFO) << "TODO: detach " << name << " SMAD";
-  return rc;
-}
-
-// ==============================================================================
-void AcqSiteList::insert(AcqSiteEntry* the_new_one)
-{
-  m_items.push_back(std::make_shared<AcqSiteEntry*>(the_new_one));
-  LOG(INFO) << "insert " << the_new_one->name() << ", index=" << m_items.size();
-}
-
-// ==============================================================================
-// Вернуть элемент по имени Сайта
-AcqSiteEntry* AcqSiteList::operator[](const char* name)
-{
-  AcqSiteEntry *entry = NULL;
-
-  for(std::vector< std::shared_ptr<AcqSiteEntry*> >::const_iterator it = m_items.begin();
-      it != m_items.end();
-      ++it)
-  {
-    if (0 == std::strcmp((*(*it))->name(), name)) {
-      entry = *(*it);
-      break;
-    }
-  }
-
-  return entry;
-}
-
-// ==============================================================================
-// Вернуть элемент по имени Сайта
-AcqSiteEntry* AcqSiteList::operator[](const std::string& name)
-{
-  AcqSiteEntry *entry = NULL;
-
-  for(std::vector< std::shared_ptr<AcqSiteEntry*> >::const_iterator it = m_items.begin();
-      it != m_items.end();
-      ++it)
-  {
-    if (*it) {
-//      LOG(INFO) << "look at " << (*(*it))->name() << " (" << name << ")";
-      if (0 == name.compare((*(*it))->name())) {
-        entry = *(*it);
-//        LOG(INFO) << "found " << (*(*it))->name() << " = " << name;
-        break;
-      }
-    }
-    else {
-      LOG(WARNING) << "AcqSiteList::operator[" << name << "] found NULL in m_items";
-    }
-  }
-
-  return entry;
-}
-
-// ==============================================================================
-// Вернуть элемент по индексу
-AcqSiteEntry* AcqSiteList::operator[](const std::size_t idx)
-{
-  AcqSiteEntry *entry = NULL;
-
-  if (idx < m_items.size()) {
-    if (m_items.at(idx)) {
-      entry = *m_items.at(idx);
-    }
-    else {
-      LOG(WARNING) << "AcqSiteList::operator[" << idx << "] found NULL in m_items";
-    }
-  }
-
-  return entry;
-}
-
-// ==============================================================================
-// Освободить все ресурсы
-int AcqSiteList::release()
-{
-  static const char* fname = "AcqSiteList::release";
-
-  LOG(INFO) << fname << ": RUN, size=" << m_items.size();
-
-  while (!m_items.empty())
-  {
-    const AcqSiteEntry *item = (*m_items.back());
-    LOG(INFO) << fname << ": delete " << item->name();
-    delete item;
-    m_items.pop_back();
-  }
-  LOG(INFO) << fname << ": FINISH, size=" << m_items.size();
-
-  return OK;
-}
 

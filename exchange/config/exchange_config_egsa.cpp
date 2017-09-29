@@ -39,13 +39,13 @@ const char* EgsaConfig::s_SECTION_NAME_SITES_NAME    = "SITES";
 const char* EgsaConfig::s_SECTION_SITES_NAME_NAME    = "NAME";
 // Уровень в иерархии
 const char* EgsaConfig::s_SECTION_SITES_NAME_LEVEL   = "LEVEL";
-// Уровень в иерархии - локальная АСУ
+// Уровень в иерархии - локальная АСУ, представляет сама себя
 const char* EgsaConfig::s_SECTION_SITES_NAME_LEVEL_LOCAL = "LOCAL";
 // Уровень в иерархии - вышестоящая система
 const char* EgsaConfig::s_SECTION_SITES_NAME_LEVEL_UPPER = "UPPER";
 // Уровень в иерархии - соседняя/смежная система
 const char* EgsaConfig::s_SECTION_SITES_NAME_LEVEL_ADJACENT = "ADJACENT";
-// Уровень в иерархии - подчиненная система
+// Уровень в иерархии - подчиненная система (САУ, СЛТМ, ГИС, ...)
 const char* EgsaConfig::s_SECTION_SITES_NAME_LEVEL_LOWER = "LOWER";
 const char* EgsaConfig::s_SECTION_SITES_NAME_NATURE  = "NATURE";
 const char* EgsaConfig::s_SECTION_SITES_NAME_AUTO_INIT       = "AUTO_INIT";
@@ -406,6 +406,8 @@ int EgsaConfig::load_sites()
 {
   const char* fname = "load_sites";
   egsa_config_site_item_t *item;
+  // Еще не было информации о том, каким объектом является локальная система АСУ
+  bool local_already_present = false;
   int rc = OK;
 
   LOG(INFO) << fname << ": CALL";
@@ -427,8 +429,13 @@ int EgsaConfig::load_sites()
       }
 
       std::string level = cycle_item[s_SECTION_SITES_NAME_LEVEL].GetString();
-      if (0 == level.compare(s_SECTION_SITES_NAME_LEVEL_LOCAL))
-        item->level = LEVEL_LOCAL;
+      if (0 == level.compare(s_SECTION_SITES_NAME_LEVEL_LOCAL)) {
+        if (!local_already_present) {
+          item->level = LEVEL_LOCAL;
+          local_already_present = true;
+        }
+        else LOG(ERROR) << fname << ": redefinition of local site: " << item->name;
+      }
       else if (0 == level.compare(s_SECTION_SITES_NAME_LEVEL_LOWER))
         item->level = LEVEL_LOWER;
       else if (0 == level.compare(s_SECTION_SITES_NAME_LEVEL_ADJACENT))
@@ -440,8 +447,13 @@ int EgsaConfig::load_sites()
         item->level = LEVEL_UNKNOWN;
       }
 
-      item->auto_init = cycle_item[s_SECTION_SITES_NAME_AUTO_INIT].GetInt();
-      item->auto_gencontrol = cycle_item[s_SECTION_SITES_NAME_AUTO_GENCONTROL].GetInt();
+      if (cycle_item.HasMember(s_SECTION_SITES_NAME_AUTO_INIT))
+        item->auto_init = cycle_item[s_SECTION_SITES_NAME_AUTO_INIT].GetInt();
+      else item->auto_init = false;
+
+      if (cycle_item.HasMember(s_SECTION_SITES_NAME_AUTO_GENCONTROL))
+        item->auto_gencontrol = cycle_item[s_SECTION_SITES_NAME_AUTO_GENCONTROL].GetInt();
+      else item->auto_gencontrol = false;
 
       m_sites[item->name] = item;
 

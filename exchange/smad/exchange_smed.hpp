@@ -12,17 +12,25 @@
 #include <vector>
 
 // Служебные заголовочные файлы сторонних утилит
+#include "glog/logging.h"
+
 class sqlite3;
+class AcqSiteEntry;
+class Request;
+class Cycle;
+class SMED;
 
 // Служебные файлы RTDBUS
+#include "xdb_common.hpp"
 #include "exchange_config.hpp"
+#include "exchange_config_egsa.hpp"
 
 // Название разделов к словаре обмена данными (ESG_EXACQINFOS / ESG_EXSNDINFOS)
 #define SECTION_NAME_DESCRIPTION    "DESCRIPTION"   // Блок описания словаря
 #define SECTION_NAME_SITE       "SITE"          // Код сайта, с которым осуществляется обмен
 #define SECTION_NAME_FLOW       "FLOW"          // Направление переноса данных
-#define SECTION_FLOW_VALUE_ACQ  "ACQ"           // перенос данных с Сайта
-#define SECTION_FLOW_VALUE_DIFF "DIFF"          // перенос данных на Сайт
+#define SECTION_FLOW_VALUE_ACQ  "ACQUISITION"   // перенос данных с Сайта
+#define SECTION_FLOW_VALUE_DIFF "DIFFUSION"     // перенос данных на Сайт
 #define SECTION_NAME_ACQINFOS   "ACQINFOS"      // Название раздела с данными словаря
 #define SECTION_NAME_TAG        "TAG"           // Тег параметра
 #define SECTION_NAME_TYPE       "TYPE"          // Инфотип
@@ -245,9 +253,11 @@ class sqlite3;
 // ---+-------------+-----------+--------------+
 //  1 | SITE_ID     | INTEGER   | PK:generated |<---+   // Идентификатор записи
 //  2 | NAME        | TEXT      |              |    |   // Код СС
-//  3 | STATE       | INTEGER   | 0            |    |   // Состояние
-//  4 | NATURE      | INTEGER   | 0            |    |   // Тип СС - ЛПУ, ЦДП, ЭЖД, ...
-//  5 | LAST_UPDATE | INTEGER   | 0            |    |   // Время с последнего взаимодействия
+//  3 | SYNTHSTATE  | INTEGER   | 0            |    |   // Состояние: 0=UNREACH / 1=PRE_OPERATIVE / 2=OPERATIVE
+//  4 | EXPMODE     | INTEGER   | 1            |    |   // Режим: 1=Работа / 0=Техобслуживание
+//  5 | INHIBITION  | INTEGER   | 1            |    |   // Признак запрета: 1=Запрещена / 0=Разрешена
+//  6 | NATURE      | INTEGER   | 0            |    |   // Тип СС - ЛПУ, ЦДП, ЭЖД, ...
+//  7 | LAST_UPDATE | INTEGER   | 0            |    |   // Время с последнего взаимодействия
 // ---+-------------+-----------+--------------+    |
 //                                                  |
 // Структура таблицы PROCESSING Параметров, подлежащих отправки в соответствующие внешние системы (заполняется при загрузке словаря ACQ|SEND)
@@ -302,9 +312,10 @@ class sqlite3;
 //  3 | FIELD_REF   | INTEGER   | FK: NOT NULL +--+ | |
 //  4 | DATA_REF    | INTEGER   | FK: NOT NULL +------+  // Коэффициент предобразования значения параметра перед передачей его значения в БДРВ
 //  5 | LAST_UPDATE | INTEFER   | 0            |  | |    // Время последнего занесения значения данного параметра в SMED
-//  6 | VAL_INT     | INTEGER   |              |  | |    // Значение атрибута типов "Целое"/"Логическое"/"Время" (время в SQLite хранится в INTEGER)
-//  7 | VAL_DOUBLE  | DOUBLE    |              |  | |    // Значение атрибута типа "С плав. точкой"
-//  8 | VAL_STRING  | VARCHAR   | NULL         |  | |    // Значение атрибута типа "Строка" (TODO: Можно сделать необязательной?)
+//  6 | NEED_SYNC   | INTEFER   | 0            |  | |    // Признак необходимости переноса данных из SMED в БДРВ
+//  7 | VAL_INT     | INTEGER   |              |  | |    // Значение атрибута типов "Целое"/"Логическое"/"Время" (время в SQLite хранится в INTEGER)
+//  8 | VAL_DOUBLE  | DOUBLE    |              |  | |    // Значение атрибута типа "С плав. точкой"
+//  9 | VAL_STR     | VARCHAR   | NULL         |  | |    // Значение атрибута типа "Строка" (TODO: Можно сделать необязательной?)
 // ---+-------------+-----------+--------------+  | |
 //                                                | |
 // Таблица FIELDS набора словарных полей          | |
@@ -344,11 +355,102 @@ typedef struct {
   // TODO: добавить универсальную структуру хранения значений параметра - union {}
 } esg_esg_odm_t_ExchInfoElem;
 
+
+template <typename T>
+class SmedObjectList
+{
+    public:
+    SmedObjectList(SMED* _smed) : m_smed(_smed) {}
+   ~SmedObjectList() {}
+
+    void insert(T the_new_one) {
+        LOG(INFO) << "insert " << the_new_one->name();
+    }
+    // Полностью очистить содержимое
+    int clear() {
+        LOG(INFO) << "clear ";
+        return NOK;
+    }
+    size_t count() const { return m_items.size(); }
+    // Обновить содержимое на основе данных из БД
+    int refresh();
+
+    // Вернуть элемент по имени Сайта
+    T operator[](const char*) { return NULL; }
+    // Вернуть элемент по имени Сайта
+    T operator[](const std::string&) { return NULL; }
+    // Вернуть элемент по индексу
+    T& operator[](const std::size_t idx) { return m_items[idx]; }
+
+  private:
+    SMED* m_smed;
+    std::vector<T> m_items;
+};
+
+#if 0
+// ==========================================================================================================
+// Acquisition Site Entry Structure
+// Перечень Сайтов, хранящихся в SMED
+class AcqSiteList
+{
+  public:
+    AcqSiteList(SMED* _smed) : m_smed(_smed) {}
+   ~AcqSiteList() {}
+
+    void insert(AcqSiteEntry*);
+    size_t count() const { return m_items.size(); };
+    // Обновить состояние Сайтов на "ОТКЛЮЧЕНО"
+    int detach();
+    // Обновить содержимое на основе данных из БД
+    int refresh();
+
+    // Вернуть элемент по имени Сайта
+    AcqSiteEntry* operator[](const char*);
+    // Вернуть элемент по имени Сайта
+    AcqSiteEntry* operator[](const std::string&);
+    // Вернуть элемент по индексу
+    AcqSiteEntry* operator[](const std::size_t);
+
+  private:
+    DISALLOW_COPY_AND_ASSIGN(AcqSiteList);
+    SMED* m_smed;
+//    EGSA* m_egsa;
+    std::vector<AcqSiteEntry*> m_items;
+};
+
+// ==========================================================================================================
+// Request Entry Structure
+// Перечень Запросов, хранящихся в SMED
+class RequestList
+{
+  public:
+    RequestList(SMED* _smed) : m_smed(_smed) {}
+   ~RequestList();
+
+    void insert(Request*);
+    size_t count() const { return m_items.size(); };
+    // Обновить содержимое на основе данных из БД
+    int refresh();
+
+    // Вернуть элемент по имени Сайта
+    AcqSiteEntry* operator[](const char*);
+    // Вернуть элемент по имени Сайта
+    AcqSiteEntry* operator[](const std::string&);
+    // Вернуть элемент по индексу
+    AcqSiteEntry* operator[](const std::size_t);
+
+  private:
+    DISALLOW_COPY_AND_ASSIGN(RequestList);
+    SMED* m_smed;
+//    EGSA* m_egsa;
+    std::vector<Request*> m_items;
+};
+#endif
+
 // ==========================================================================================================
 class SMED
 {
   public:
-
     SMED(EgsaConfig*, const char*);
    ~SMED();
 
@@ -364,9 +466,26 @@ class SMED
                    elemstruct_item_t* pr_ISubTypeElem,
                    const esg_esg_edi_t_StrQualifyComposedData* pr_IQuaCData,
                    const struct timeval d_IReceivedDate);
+    // Читать из SMED значение указанного атрибута для данного Тега Сайта
+    int ech_smd_p_ReadRecAttr(const char*,      // IN : site name
+	               const gof_t_UniversalName,   // IN : object universal name of the record
+	               const char*,                 // IN : attribut universal name
+	               xdb::AttributeInfo_t* /* gof_t_StructAtt* */,            // OUT : value of the concerned attribut
+	               bool&);
+    // Обновить указанной Системе синтетическое состояние
+    int esg_acq_dac_SmdSynthState(const char*, synthstate_t);
+
+    // Acquisition Sites Table
+    // Получить текущий список Сайтов из SMED
+    SmedObjectList<AcqSiteEntry*>* SiteList() { return m_site_list; }   // Интерфейс доступа с списку Сайтов
+    // Получить текущий список Запросов из SMED
+    SmedObjectList<Request*>* ReqList()  { return m_request_list; }// Интерфейс доступа с списку Запросов
+    // Получить текущий список Циклов из SMED
+    SmedObjectList<Cycle*>* CycleList() { return m_cycle_list; }
+
   private:
     DISALLOW_COPY_AND_ASSIGN(SMED);
-
+    static bool m_content_initialized;
     struct map_cmp_str {
       // Оператор сравнения строк в m_site_map.
       // Иначе происходит арифметическое сравнение значений указателей, но не содержимого строк
@@ -392,12 +511,26 @@ class SMED
     int load_data_dict(const char*, std::vector<exchange_parameter_t*>&, sa_flow_direction_t);
     int get_map_id(const char*, map_id_by_name_t&);
     int get_info(const gof_t_UniversalName, sa_flow_direction_t, const int, esg_esg_odm_t_ExchInfoElem*);
+    // Сменить состояние всех Сайтов в "ОБРЫВ СВЯЗИ"
+    int detach_sites();
+
+    // Загрузить таблицу Сайтов из БД в память
+    int store_sites();
+    // Загрузить таблицу Запросов из БД в память
+    int store_requests();
+    // Загрузить таблицу Циклов из БД в память
+    int store_cycles();
 
     sqlite3* m_db;
     smad_connection_state_t  m_state;
     char*    m_db_err;
     EgsaConfig* m_egsa_config;  // Конфигурация нужна для восстановления структуры таблиц и загрузки начальных значений
     char*    m_snapshot_filename;
+
+    SmedObjectList<AcqSiteEntry*> *m_site_list;    // список Сайтов в БД
+    SmedObjectList<Request*>      *m_request_list; // список Запросов в БД
+    SmedObjectList<Cycle*>        *m_cycle_list;   // список Запросов в БД
+
     map_id_by_name_t m_elemstruct_dict; // Связи между названием Композитной структуры и её идентификатором в БД
     map_id_by_name_t m_elemstruct_associate_dict; // Связи между ассоциацией Композитной структуры и её идентификатором в БД
     map_id_by_name_t m_sites_dict;      // Связи между названием Сайта и его идентификатором в БД

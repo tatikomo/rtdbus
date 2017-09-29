@@ -1,5 +1,5 @@
-#ifndef EXCHANGE_EGSA_CYCLE_HPP
-#define EXCHANGE_EGSA_CYCLE_HPP
+#ifndef EXCHANGE_CONFIG_CYCLE_HPP
+#define EXCHANGE_CONFIG_CYCLE_HPP
 #pragma once
 
 #ifdef HAVE_CONFIG_H
@@ -7,7 +7,6 @@
 #endif
 
 class AcqSiteEntry;
-class AcqSiteList;
 
 // Общесистемные заголовочные файлы
 #include <iostream>
@@ -17,10 +16,10 @@ class AcqSiteList;
 // Служебные заголовочные файлы сторонних утилит
 
 // Служебные файлы RTDBUS
-#include "tool_timer.hpp"
 #include "exchange_config_egsa.hpp"
 
-
+#if 0
+#include "tool_timer.hpp"
 // ===================================================================================================
 class CycleTrigger : public TimerTimeoutHandler
 {
@@ -35,6 +34,7 @@ class CycleTrigger : public TimerTimeoutHandler
     std::string m_cycle_name;
     int m_fd;
 };
+#endif
 
 // ===================================================================================================
 class Cycle {
@@ -53,7 +53,7 @@ class Cycle {
     // Зарегистрировать указанную СС в этом Цикле
     int link(AcqSiteEntry*);
     // Список сайтов
-    AcqSiteList* sites() { return m_SiteList; }
+    const std::vector<AcqSiteEntry*>& sites() { return m_SiteList; }
     void dump();
 
   protected:
@@ -68,7 +68,7 @@ class Cycle {
     // Идентификатор Запроса, связанного с Циклом
     ech_t_ReqId     m_RequestId;
     // identifiers of the concerned acquisition sites
-	AcqSiteList*     m_SiteList;
+	std::vector<AcqSiteEntry*> m_SiteList;
 	//Timer*          m_CycleTimer;
     //CycleTrigger*   m_CycleTrigger;
  

@@ -31,16 +31,25 @@
 #include "msg_sinf.hpp"
 #include "exchange_config.hpp"
 #include "exchange_config_egsa.hpp"
+//#include "exchange_config_site.hpp"
+#include "exchange_config_request.hpp"
 #include "exchange_smad.hpp"
 #include "exchange_smed.hpp"
-#include "exchange_egsa_site.hpp"
 #include "exchange_egsa_impl.hpp"
-#include "exchange_egsa_request.hpp"
 #include "exchange_egsa_translator.hpp"
 #include "xdb_common.hpp"
 
 extern volatile int interrupt_worker;
 const char* EGSA::internal_report_string[] = { "GOOD", "ALREADY", "FAIL", "UNWILLING" };
+static const char* SYNTHSTATE_LABELS[] = {
+      /* 0 */ "UNREACHABLE",    /* SYNTHSTATE_UNREACH */
+      /* 1 */ "OPERATIVE",      /* SYNTHSTATE_OPER */
+      /* 2 */ "INITIALIZATION", /* SYNTHSTATE_PRE_OPER */
+      /* 3 */ "UNKNOWN" };
+typedef enum {
+    GOF_D_FAILURE = 0,
+    GOF_D_SUCCESS = 1
+} gof_state_t;
 
 // ==========================================================================================================
 EGSA::EGSA(const std::string& _broker, const std::string& _service)
@@ -67,9 +76,7 @@ EGSA::~EGSA()
 {
   // Отключиться от SMAD Сайтов
   detach();
-  // Удалить сведения о Сайтах из памяти
-  m_ega_ega_odm_ar_AcqSites.release();
-  // Сведения о Запросах
+  // НСИ сведения о Запросах не хранятся в БД
   m_ega_ega_odm_ar_Requests.release();
 
   m_backend_socket.close();
@@ -81,8 +88,8 @@ EGSA::~EGSA()
   delete m_smed;
 
 #ifdef _FUNCTIONAL_TEST
-  // В рабочей программе этот объект можно удалять сразу после получения из него данных,
-  // но для тестов нужно держать его доступным до конца работы.
+  // Для тестов нужно было держать конфигурацию доступной до конца работы,
+  // но в рабочей программе этот объект можно удалять сразу после получения из него данных.
   delete m_egsa_config;
 #endif
 
@@ -110,15 +117,22 @@ int EGSA::init()
 
   if (STATE_OK == (ext_state = m_smed->connect())) {
 
+    // Загрузить НСИ Запросов
+    if (OK != (status = store_requests_dict())) {
+      LOG(ERROR) << fname << ": Storing Requests into SMED : rc=" << status;
+    }
+
     // Загрузить словари обменов со смежными Сайтами
-    if (OK == (status = load_all_dictionaries())) {
+    if (OK == status) {
+      if (OK == (status = load_all_dictionaries())) {
 #ifndef _FUNCTIONAL_TEST
-      // Активировать группу подписки
-      status = activateSBS();
-      LOG(INFO) << fname << ": SBS activated";
+        // Активировать группу подписки
+        status = activateSBS();
+        LOG(INFO) << fname << ": SBS activated";
 #else
-#warning "FUNCTIONAL_TEST: skip SMED and SBS facilities"
+        LOG(WARNING) << fname << ": FUNCTIONAL_TEST: skip SMED and SBS facilities";
 #endif
+      }
     }
 
     if (OK == status) {
@@ -155,6 +169,27 @@ int EGSA::init()
 }
 
 // ==========================================================================================================
+// Загрузка словаря Запросов в SMED
+int EGSA::store_requests_dict()
+{
+  const char *fname = "store_requests_dict";
+  int rc = OK;
+
+  assert(m_smed);
+  assert(m_smed->state() == STATE_OK);
+
+  LOG(INFO) << fname << ": RUN";
+
+  for(int id= 0; id < 80; id++) {
+    Request *r = m_ega_ega_odm_ar_Requests[static_cast<ech_t_ReqId>(id)];
+    if (r)
+      LOG(INFO) << fname << ": Req " << r->name() << " ";
+  }
+
+  return rc;
+}
+
+// ==========================================================================================================
 // Загрузка указанного обменного словаря
 int EGSA::load_dict(const char* sa_dict_file)
 {
@@ -176,11 +211,11 @@ int EGSA::load_all_dictionaries()
 {
   int rc = NOK;
   char dict_filename[255];
-  AcqSiteList &all_sa = sites();
+  SmedObjectList<AcqSiteEntry*>* all_sa = smed()->SiteList();
 
-  for(size_t i=0; i < all_sa.count(); i++) {
+  for(std::size_t i=0; i < all_sa->count(); i++) {
 
-    AcqSiteEntry* site = all_sa[i];
+    AcqSiteEntry* site = (*all_sa)[i];
 
     if (site) {
       sprintf(dict_filename, "SNDINFOS.%s.json", site->name());
@@ -219,12 +254,7 @@ int EGSA::load_config()
 
     delete m_translator;
     delete m_egsa_config;
-    m_ega_ega_odm_ar_AcqSites.release();
-    // Сведения о Запросах
-    m_ega_ega_odm_ar_Requests.release();
   }
-
-  m_ega_ega_odm_ar_AcqSites.set_egsa(this);
 
   // Открыть конфигурацию
   m_egsa_config = new EgsaConfig("egsa.json");
@@ -237,80 +267,8 @@ int EGSA::load_config()
   // m_egsa_config->sites()
   // m_egsa_config->cycles()
   // m_egsa_config->requests()
-  //
-  // TODO: сформировать БД, содержащую все используемые Циклы, каждый из
-  // которых содержит ссылки на Сайты, которые в свою очередь содержат
-  // очередь актуальных Запросов.
 
-  // 1) Создать объект-список Сайтов
-  for (egsa_config_sites_t::const_iterator sit = config()->sites().begin();
-       sit != config()->sites().end();
-       ++sit)
-  {
-    AcqSiteEntry* site = new AcqSiteEntry(this, (*sit).second);
-    m_ega_ega_odm_ar_AcqSites.insert(site);
-  }
-
-  // 2) Создать список Циклов
-  for(egsa_config_cycles_t::const_iterator cit = config()->cycles().begin();
-      cit != config()->cycles().end();
-      ++cit)
-  {
-    // request_id получить по имени запроса
-    if (NOT_EXISTENT != (request_id = m_egsa_config->get_request_id((*cit).second->request_name))) {
-
-      // Создадим экземпляр Цикла, удалится он в деструкторе EGSA
-      Cycle *cycle = new Cycle((*cit).first.c_str(),
-                               (*cit).second->period,
-                               (*cit).second->id,
-                               request_id,
-                               CYCLE_NORMAL);
-
-      // Для данного цикла получить все использующие его сайты
-      for(std::vector <std::string>::const_iterator sit = (*cit).second->sites.begin();
-          sit != (*cit).second->sites.end();
-          ++sit)
-      {
-        // Найти AcqSiteEntry для текущей SA в m_ega_ega_odm_ar_AcqSites
-        AcqSiteEntry* site = m_ega_ega_odm_ar_AcqSites[(*sit)];
-        if (site) {
-          cycle->link(site);
-        }
-        else {
-          LOG(ERROR) << fname << ": skip undefined site " << (*sit);
-        }
-      }
-      //
-      cycle->dump();
-
-      // Ввести в оборот новый Цикл сбора, вернуть новый размер очереди циклов
-      m_ega_ega_odm_ar_Cycles.insert(cycle);
-    }
-    else {
-      LOG(ERROR) << fname << ": cycle " << (*cit).first << ": unknown included request " << (*cit).second->request_name;
-    }
-  }
-
-  // 3) Создать список Запросов
-  for(egsa_config_requests_t::const_iterator rit = config()->requests().begin();
-      rit != config()->requests().end();
-      ++rit)
-  {
-#if VERBOSE>6
-    LOG(INFO) << "Req "
-              << (*rit).second->s_RequestName << " "
-              << (*rit).second->i_RequestPriority << " "
-              << (unsigned int)(*rit).second->e_RequestObject << " "
-              << (unsigned int)(*rit).second->e_RequestMode;
-#endif
-    Request* rq = new Request((*rit).second);
-
-    m_ega_ega_odm_ar_Requests.add(rq);
-  }
-
-  m_state = STATE_INI_OK;
-
-  // 4) Создать словари ESG
+  // Создать словари ESG
   m_translator = new ExchangeTranslator(this,
                                         config()->elemtypes(),
                                         config()->elemstructs());
@@ -335,19 +293,6 @@ EgsaConfig* EGSA::config()
 }
 
 // ==========================================================================================================
-// Доступ к Сайтам
-AcqSiteList& EGSA::sites()
-{
-  return m_ega_ega_odm_ar_AcqSites;
-}
-
-// ==========================================================================================================
-// Доступ к Циклам
-CycleList& EGSA::cycles() {
-  return m_ega_ega_odm_ar_Cycles;
-}
-
-// ==========================================================================================================
 // Доступ к Запросам
 RequestDictionary& EGSA::dictionary_requests()
 {
@@ -362,12 +307,12 @@ int EGSA::attach_to_sites_smad()
   int rc = OK;
 
   // По списку известных нам систем сбора создать интерфейсы к их SMAD
-  for (size_t i=0; i < m_ega_ega_odm_ar_AcqSites.count(); i++) {
+  for (std::size_t i=0; i < sites()->count(); i++) {
 
 #warning "Нужно предусмотреть возможность работы системы сбора и EGSA на разных хостах"
     // TODO: СС и EGSA могут работать на разных хостах, в этом случае подключение EGSA к smad СС
     // не получит доступа к реальным данным от СС. Их придется EGSA туда заносить самостоятельно.
-    rc |= m_ega_ega_odm_ar_AcqSites[i]->attach_smad();
+    rc |= (*sites())[i]->attach_smad();
   }
 
   return OK;
@@ -382,13 +327,11 @@ int EGSA::detach()
   // TODO: Для всех подчиненных систем сбора:
   // 1. Изменить их состояние SYNTHSTATE на "ОТКЛЮЧЕНО"
   // 2. Отключиться от их внутренней SMAD
-  for (size_t i=0; i < m_ega_ega_odm_ar_AcqSites.count(); i++) {
+  for (size_t i=0; i < sites()->count(); i++) {
 
-    if (m_ega_ega_odm_ar_AcqSites[i]) {
-      LOG(INFO) << "TODO: set " << m_ega_ega_odm_ar_AcqSites[i]->name() << "." << RTDB_ATT_SYNTHSTATE << " = 0";
-      LOG(INFO) << "TODO: detach " << m_ega_ega_odm_ar_AcqSites[i]->name() << " SMAD";
-      rc |= m_ega_ega_odm_ar_AcqSites[i]->detach_smad();
-    }
+    LOG(INFO) << "TODO: set " << (*sites())[i]->name() << "." << RTDB_ATT_SYNTHSTATE << " = 0";
+    LOG(INFO) << "TODO: detach " << (*sites())[i]->name() << " SMAD";
+    rc |= (*sites())[i]->detach_smad();
 
   }
 
@@ -639,11 +582,11 @@ int EGSA::implementation()
 int EGSA::process_requests_for_all_sites()
 {
   int rc = NOK;
-  AcqSiteList &all_sa = sites();
+  SmedObjectList<AcqSiteEntry*> *all_sa = m_smed->SiteList();
 
-  for(size_t i=0; i < all_sa.count(); i++) {
+  for(std::size_t i=0; i < all_sa->count(); i++) {
 
-    AcqSiteEntry* site = all_sa[i];
+    AcqSiteEntry* site = all_sa->operator[](i);
     //assert(site);
     if (site) {
       //
@@ -967,6 +910,7 @@ int EGSA::get_local_info()
 
 #ifndef _FUNCTIONAL_TEST
   #warning "TODO: Get name of local SA"
+  // NB: У Сайта есть атрибут уровня, возвращается функцией level(). Значение LEVEL_LOCAL говорит о том, что именно этот Сайт - локальный
   rc = NOK;
   LOG(ERROR) << "TODO: Get name of local SA";
   m_local_sa_name[0] = '\0';
@@ -1081,28 +1025,22 @@ int EGSA::activate_cycles()
   //int site_idx; // Порядковый номер Сайта в списке для данного Цикла
 
   // Пройти по всем возможным Циклам
-  for (size_t idx = ID_CYCLE_GENCONTROL; idx < ID_CYCLE_UNKNOWN; idx++)
+  for (size_t idx = 0; idx < cycles()->count(); idx++)
   {
-    // Вернет экземпляр, если таковой Цикл используется
-    Cycle* cycle = m_ega_ega_odm_ar_Cycles[idx];
+    Cycle* cycle = (*cycles())[idx];
 
-    if (cycle) {
-      // Для каждого Цикла активировать столько экземпляров, сколько в нем объявлено Сайтов
-      for (size_t sid = 0, site_idx = 0; sid < cycle->sites()->count(); sid++, site_idx++)
-      {
-        LOG(INFO) << "Activate cycle: " << cycle->name()
-                  << " id=" << cycle->id()
-                  << " period=" << cycle->period()
-                  << " SA: " << (*cycle->sites())[sid]->name() << " id=" << site_idx;
+    // Для каждого Цикла активировать столько экземпляров, сколько в нем объявлено Сайтов
+    for (size_t site_idx = 0; site_idx < cycle->sites().size(); site_idx++)
+    {
+      LOG(INFO) << "Activate cycle: " << cycle->name()
+                << " id=" << cycle->id()
+                << " period=" << cycle->period()
+                << " SA: " << cycle->sites().at(site_idx)->name() << " id=" << site_idx;
 
-        // Связать триггер с объектом, идентификаторами Цикла и Системы Сбора
-        cycles::add(std::bind(&EGSA::cycle_trigger, this, cycle->id(), site_idx),
-                    now /*+ std::chrono::seconds((*it)->period())*/); // Время активации: сейчас (+ период цикла?)
-      }
-    } /*
-    else {
-      LOG(ERROR) << "Skip missing cycle id=" << idx;
-    } */
+      // Связать триггер с объектом, идентификаторами Цикла и Системы Сбора
+      cycles::add(std::bind(&EGSA::cycle_trigger, this, cycle->id(), site_idx),
+                  now /*+ std::chrono::seconds((*it)->period())*/); // Время активации: сейчас (+ период цикла?)
+    }
   }
 
   return OK;
@@ -1114,9 +1052,8 @@ int EGSA::deactivate_cycles()
 {
 //  int cycle_idx = 0;
 
-  for (size_t idx = ID_CYCLE_GENCONTROL; idx < ID_CYCLE_UNKNOWN; idx++) {
-    if (m_ega_ega_odm_ar_Cycles[idx])
-      LOG(INFO) << "Deactivate cycle id=" << idx << ": " << m_ega_ega_odm_ar_Cycles[idx]->name();
+  for (size_t idx = 0; idx < cycles()->count(); idx++) {
+    LOG(INFO) << "Deactivate cycle id=" << idx << ": " << (*cycles())[idx]->name();
   }
   cycles::clear();
 
@@ -1126,7 +1063,7 @@ int EGSA::deactivate_cycles()
 // ==========================================================================================================
 // Функция срабатывания при наступлении времени очередного таймера
 // На входе
-// cycle_id : идентификатор номера Цикла из m_ega_ega_odm_ar_Cycles
+// cycle_id : идентификатор номера Цикла
 // sa_id    : локальный идентификатор СС для этого Цикла (NB: они не совпадают с id из m_ega_ega_odm_ar_Sites)
 // Для каждой СС периоды Циклов одинаковы, но время начала индивидуально.
 // sa_id == -1 означает, что Цикл общий для всех его СС.
@@ -1137,11 +1074,12 @@ void EGSA::cycle_trigger(size_t cycle_id, size_t sa_id)
   int delta_sec;
 #endif
 
-  Cycle *cycle = m_ega_ega_odm_ar_Cycles[cycle_id];
-  AcqSiteEntry *site = (*cycle->sites())[sa_id];
-
-  assert(site);
+  assert(cycle_id < cycles()->count());
+  Cycle *cycle = (*cycles())[cycle_id];
   assert(cycle);
+  assert(sa_id < cycle->sites().size());
+  AcqSiteEntry *site = cycle->sites().at(sa_id);
+  assert(site);
 
   LOG(INFO) << "Trigger callback for cycle id=" << cycle_id << " (" << cycle->name() << ") "
             << " SA id=" << sa_id << " (" << site->name() << ")";
@@ -1598,7 +1536,7 @@ int EGSA::process_read_response(msg::Letter* report)
 
     // Проверим, получили ли мы допустимый атрибут
     if (RTDB_ATT_IDX_UNEXIST != attribute_idx) { // Да, один из допустимых
-      // Обновим состояние Сайтов m_ega_ega_odm_ar_AcqSites
+      // Обновим состояние Сайтов в SMED
       //
       // Вырезать из attr_val.tag() часть от первого символа '/' до '.'
       const size_t point_pos = attr_val.tag().find(".");
@@ -1606,7 +1544,7 @@ int EGSA::process_read_response(msg::Letter* report)
       assert(point_pos > 1);
 
       const std::string sa_name = attr_val.tag().substr(1, point_pos-1);
-      AcqSiteEntry* sa_entry = m_ega_ega_odm_ar_AcqSites[sa_name];
+      AcqSiteEntry* sa_entry = (*m_smed->SiteList())[sa_name];
 
       // Нашли в своей конфигурации упоминание этой СС
       if (sa_entry) {
@@ -1779,7 +1717,7 @@ int EGSA::esg_acq_inm_PhaseChgMan(AcqSiteEntry *site, AcqSiteEntry::init_phase_s
       case AcqSiteEntry::INITPHASE_END_NOHHIST:
         i_StateValue = SYNTHSTATE_OPER;
         // Transmit immediatly the new synthetic state to SINF component
-        rc = site->esg_acq_dac_SynthStateMan (i_StateValue);
+        rc = esg_acq_dac_SynthStateMan (site, i_StateValue);
         if (rc == OK) {
           site->OPStateAuthorised(false);
           site->DistantInitTerminated(false);
@@ -1824,7 +1762,7 @@ int EGSA::esg_acq_inm_PhaseChgMan(AcqSiteEntry *site, AcqSiteEntry::init_phase_s
                if (site->synthstate() == SYNTHSTATE_OPER) {
                    i_StateValue = SYNTHSTATE_PRE_OPER;
                    // Transmit immediatly the new synthetic state to SINF component
-                   rc = site->esg_acq_dac_SynthStateMan (i_StateValue);
+                   rc = esg_acq_dac_SynthStateMan (site, i_StateValue);
                    if (rc == NOK) {
                      LOG(ERROR) << fname << ": Update smed et send to SINF synth state";
                    }
@@ -1884,4 +1822,188 @@ int EGSA::load_esg_file(const char* filename)
   return rc;
 }
 
+// ==============================================================================
+// Найти Запрос в адрес или от указанного Сайта по заданному идентификатору
+// Все исполняемые запросы хранятся в БД (SMED?) в отдельной таблице. Базовая конфигурация запросов берется из НСИ egsa.json.
+// 
+// Запись таблицы исполняемых запросов содержит:
+// 1) идентификатор запроса
+// 2) ссылку на запись сайта в таблице НСИ Сайтов 
+// 3) ссылку на соответствующую запись в таблице НСИ Запросов для этого Запроса
+// 4) время выдачи запроса
+// 5) максимальное время задержки ответа
+// 6) состояние запроса request_executing_state_t (INPROGRESS, ACCEPTED, SENT, EXECUTED, ERROR, NOTSENT, WAIT, ...)
+Request* EGSA::esg_esg_lis_ConsultBasic(AcqSiteEntry* site, int request_id, int request_type)
+{
+  Request *req = NULL;
+
+  LOG(ERROR) << "Search req id #" << request_id << " for site " << site->name();
+  return req;
+}
+
+// ==============================================================================
+// Обработка изменения оперативного состояния системы сбора - атрибута SYNTHSTATE
+int EGSA::esg_acq_dac_SynthStateMan(AcqSiteEntry* site, int _state)
+{
+  static const char* fname = "esg_acq_dac_SynthStateMan";
+  int rc = OK;
+
+  if (OK == (rc = site->SynthStateMan(_state)))
+  {
+    LOG(INFO) << "TODO: Propagate new SYNTHSTATE value to RTDB and SMED";
+
+    // Обновить состояние Сайта в SMED
+    // ----------------------------------------
+    if (OK == (rc = smed()->esg_acq_dac_SmdSynthState (site->name(), site->synthstate()))) {
+
+#if 1
+      // Отправить изменившийся атрибут .SYNTHSTATE в БДРВ
+      LOG(ERROR) << fname << ": send " << site->name() << "." << RTDB_ATT_SYNTHSTATE << " to RTDB";
+#else
+
+      // Build state message to be transmitted to DIFF process
+      // -----------------------------------------------------
+      memcpy(r_SyntSend.s_AcqSiteName, s_IAcqSiteId, sizeof(gof_t_UniversalName));
+      r_SyntSend.i_StateValue = m_synthstate;
+
+      // Consult general data to get DIFF process num
+      // -----------------------------------------------------
+      //   Build the structure process
+      //   - Get the current Rtap environnement
+      //   - Get the identification of the interface component
+      // -----------------------------------------------------
+      esg_esg_odm_ConsultGeneralData (&r_GenData);
+
+      rc = gof_msg_p_GetProcByNum (r_GenData.s_RtapEnvironment, (gof_t_Int16)r_GenData.o_DIFprocNum, &r_ProcessDest);
+
+      if (rc == OK)
+      {
+        rc = gof_msg_p_SendMessage (&r_ProcessDest, ESG_D_SYNTHETICAL_STATE, sizeof(esg_t_SyntheticalState), &r_SyntSend);
+
+        // Send the message to es_Sending
+        // -----------------------------------
+        if (rc == OK) {
+          rc = gof_msg_p_SendMessage (&r_ProcessDest, ESG_D_SYNTHETICAL_STATE, sizeof(esg_t_SyntheticalState), &r_SyntSend);
+          // Transmit immediatly the new synthetic state to SINF component
+          if (rc == OK) {
+            strcpy (r_SynthStateSite.s_SA_name, s_IAcqSiteId);
+            r_SynthStateSite.e_status = m_synthstate;
+
+            rc = sig_ext_msg_p_InpSendMessageToSinf ( SIG_D_MSG_SASTATUS, sizeof (sig_t_msg_SAStatus), &r_SynthStateSite);
+            sprintf ( s_Trace, "Transmit synth state to SINF, Status %d", rc) ;
+            ech_tra_p_Trace ( s_FctName, s_Trace ) ;
+          }
+        }
+
+      }
+      else {
+        sprintf(s_LoggedText,"Rtap env: %s DIF procNum: %d", r_GenData.s_RtapEnvironment,r_GenData.o_DIFprocNum);
+      }
+#endif
+
+    }
+    else {
+      LOG(ERROR) << fname << ": Can't set site " << site->name() << " StateVal: " << _state;
+    }
+  }
+  else {
+    LOG(ERROR) << fname << ": Automate SynthStateValue: " << _state;
+  }
+
+  return rc;
+}
+
+// ==========================================================================================================
+// EgsaTranslator::processing_STATE читает соответствующую секцию входных файлов с данными, а эта функция выполняет необходимые изменения
+int EGSA::processing_STATE(AcqSiteEntry* site, synthstate_t i_StateValue)
+{
+  static const char *fname = "processing_STATE";
+  int i_Status = OK;
+  int i_StateStatus = OK;
+  const char* state_label = SYNTHSTATE_LABELS[SYNTHSTATE_PRE_OPER + 1];
+  uint32_t i_error_code;        // r_FailCause.i_error_code
+  char s_error_text[80 + 1];    // r_FailCause.s_error_text
+  gof_state_t e_State;
+  xdb::AttributeInfo_t r_RecAttr;
+  bool b_RecAttrChanged = false;
+  bool b_DeleteReq = false;
+  synthstate_t i_SynthState;
+
+
+  // Stop initialisation command for not operationnal site
+  // ----------------------------------------------------------
+ 
+
+    LOG(INFO) << fname << ": " << site->name() << " site state is " << state_label << "(" << i_StateValue << ")";
+
+    if (i_StateValue != SYNTHSTATE_OPER) {
+
+      // Update synthetic state
+      // ---------------------------
+      i_Status = esg_acq_dac_SynthStateMan (site, i_StateValue);
+      if (i_Status == OK) {
+         e_State = GOF_D_FAILURE;
+         i_error_code = 0;
+         s_error_text[0] = '\0';
+         b_DeleteReq = true;
+      }
+    }
+    else {
+      // Synchronisation of DIR-DIPL initialisation :
+      // DIR will start init to DIPL only when DIPL has terminated init with DIR (b_DistantInitTerminated is set to TRUE)
+      i_StateStatus = smed()->ech_smd_p_ReadRecAttr(site->name(),
+                                            /*r_ReqResp.Provider_Id*/ site->name(),
+                                            "SYNTHSTATE",
+                                            &r_RecAttr,
+                                            b_RecAttrChanged);
+      if (i_StateStatus != OK) {
+        LOG(ERROR) << fname << ": Get synth state of site " << site->name() /*r_ReqResp.Provider_Id*/
+                    << " attr_chg:" << b_RecAttrChanged;
+      }                
+      if (i_StateStatus == OK) {
+        // Set synth state from unreachable to pre-operational if response of STATECMD is OK
+        // --------------------------------------------------------------------------
+        if (r_RecAttr.value.fixed.val_uint32 < SYNTHSTATE_PRE_OPER)
+          i_SynthState = static_cast<synthstate_t>(r_RecAttr.value.fixed.val_uint32);
+        else {
+          LOG(ERROR) << fname << ": unsupported " << site->name() << ".SYNTHSTATE value:" << r_RecAttr.value.fixed.val_uint32;
+          i_SynthState = SYNTHSTATE_UNREACH;
+        }
+
+        if (i_SynthState == SYNTHSTATE_UNREACH) {
+
+          LOG(INFO) << fname << ": Set synth state from UNREACH to PREOP if state req OK";
+
+          // Удаленный Сайт сообщил, что он в онлайне. Начать инициализацию связи с ним.
+          i_StateValue = SYNTHSTATE_PRE_OPER;
+          i_StateStatus = esg_acq_dac_SynthStateMan (site, i_StateValue);
+
+          if (i_StateStatus != OK) {
+            LOG(ERROR) << fname << ": Update and set synth state of Site %s" << site->name() /*r_ReqResp.Provider_Id*/;
+          }
+        }
+      }
+#if 1
+      LOG(INFO) << fname << ": r_LocalGenData";
+#else
+      esg_esg_odm_ConsultGeneralData(&r_LocalGenData);
+      sprintf(s_Trace, ", Loc ReqId %d, Local Site obj type %d, b_DistantInitTerminated %d",
+              r_OResultEntry.r_ManagedRequestDesc.r_ExchangedRequest.h_ReqId,
+              r_LocalGenData.o_ObjectType,
+              r_AcqSite.b_DistantInitTerminated);
+      LOG(INFO) << fname << s_Trace;
+
+      if ((r_OResultEntry.r_ManagedRequestDesc.r_ExchangedRequest.h_ReqId == ESG_ESG_D_LOCID_INITCOMD)
+        &&(r_LocalGenData.o_ObjectType == GOF_D_BDR_OBJCLASS_DIR)
+        &&(r_AcqSite.b_DistantInitTerminated == false)) {
+              e_State = GOF_D_FAILURE;
+              i_error_code = 0;
+              s_error_text[0] = '\0';
+              b_DeleteReq = true;
+      }
+#endif
+    }
+
+  return i_Status;
+}
 // ==========================================================================================================

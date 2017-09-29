@@ -27,6 +27,13 @@
 // Максимальный размер сообщения для RTAP - rtMAXMSG
 #define GOF_MSG_D_MAXBODY 4000
 
+typedef struct  {
+  gof_t_ExchangeId      i_exchange_id;   // exchange identifier
+  gof_t_UniversalName   s_dipl_un;       // object name
+  char s_dispatch_name[60]; // dispatcher name
+} sig_t_msg_DispName ;
+
+
 //----------------------------------------------------------------------------
 //  FUNCTION            esg_acq_dac_TeleinfoAcq
 //  FULL MAME
@@ -41,8 +48,8 @@
 int ExchangeTranslator::esg_acq_dac_TeleinfoAcq(
                 // Input parameters
                 FILE * pi_FileId,
-                const int i_LgAppl,
-                const int i_IApplLength,
+                const size_t i_LgAppl,
+                const size_t i_IApplLength,
                 const gof_t_UniversalName s_IAcqSiteId,
                 const struct timeval d_IReceivedDate)
 {
@@ -52,8 +59,8 @@ int ExchangeTranslator::esg_acq_dac_TeleinfoAcq(
   int i_Status;
   int i_FreeStatus;
   int i_RetStatus;
-  int i_CDLength;
-  int i_LgDone;
+  size_t i_CDLength;
+  size_t i_LgDone;
   char s_Trace[200 + 1];
   char s_Buffer[ECH_D_APPLSEGLG + 1];
   esg_esg_edi_t_StrComposedData r_InternalCData;
@@ -65,7 +72,7 @@ int ExchangeTranslator::esg_acq_dac_TeleinfoAcq(
   // subtype structure
   elemstruct_item_t* pr_ExchCompElem = NULL;
   // number of TI Thresholds
-  int i_NbTiThres;
+  size_t i_NbTiThres;
   // pointer Multi TI thresholds structure
   sig_t_msg_MultiThresholds *pr_MultiThresholds;
   // pointer on one TI thresholds structure
@@ -75,7 +82,7 @@ int ExchangeTranslator::esg_acq_dac_TeleinfoAcq(
   // Thresholds message to SIDL
   char s_BuffMsg[GOF_MSG_D_MAXBODY];
   // message size
-  int i_MessSize;
+  size_t i_MessSize;
   // exchange id
   static int i_ExchId = 0;
 
@@ -141,7 +148,7 @@ int ExchangeTranslator::esg_acq_dac_TeleinfoAcq(
         else {
           // Process the applicatif segment
           //-------------------------------------------
-          i_Status = esg_acq_dac_SmdProcessing(s_IAcqSiteId,
+          i_Status = /*esg_acq_dac_SmdProcessing*/ smed()->processing(s_IAcqSiteId,
                                                &r_InternalCData,
                                                pr_ExchCompElem,
                                                &r_QuaCData,
@@ -378,56 +385,50 @@ int ExchangeTranslator::esg_acq_dac_TIThresholdAcq(
 
 //----------------------------------------------------------------------------
 //  FUNCTION            esg_acq_dac_DispNameAcq
+//  FULL MAME
 //----------------------------------------------------------------------------
 //  ROLE
-//  This function converts the received data in the right form and decide if the converted data are to be transmitted to SIDX
+//  This function convertes the received data in the right form and decide if
+//  the converted data are to be transmitted to SIDX
 //----------------------------------------------------------------------------
-int ExchangeTranslator::esg_acq_dac_DispNameAcq(
-                             // Input parameters
-                             FILE * pi_FileId,
-                             const int i_LgAppl,
-                             const int i_IApplLength,
-                             const gof_t_UniversalName s_IAcqSiteId,    // sender site
-                             const struct timeval d_IReceivedDate)
+int ExchangeTranslator::esg_acq_dac_DispNameAcq(// Input parameters
+                            FILE * pi_FileId,
+                            const size_t i_LgAppl,
+                            const size_t i_IApplLength,
+                            const gof_t_UniversalName s_IAcqSiteId,    // sender site
+                            const struct timeval d_IReceivedDate)
 {
   //----------------------------------------------------------------------------
   static const char* fname = "esg_acq_dac_DispNameAcq";
   int i_Status = OK;
-  int i_FreeStatus;
   int i_RetStatus = OK;
-  int i_CDLength = 0;
-  int i_LgDone;
+  int i_FreeStatus = OK;
+  size_t i_CDLength = 0;
+  size_t i_LgDone = 0;
+  size_t i_LgrStr = 0;
+  // size_t i_MessSize = 0;        // message size
+  // static size_t i_ExchId = 0;   // exchange id
   char s_Trace[200 + 1];
   char s_Buffer[ECH_D_APPLSEGLG + 1];
   char s_LoggedText[ESG_ESG_D_LOGGEDTEXTLENGTH + 1];
   esg_esg_edi_t_StrComposedData r_InternalCData;
+  elemstruct_item_t* r_SubTypeElem = NULL;
   esg_esg_edi_t_StrQualifyComposedData r_QuaCData;
-  // dispatcher name
   char s_DispatchName[60 + 1]; // NB: rtap_db.mco defines s_dispatch as char[60]
-  size_t i_LgrStr;
-  //1 esg_esg_odm_t_AcqSiteEntry r_AcqSite;
   AcqSiteEntry* r_AcqSite = NULL;
-  // composed data identifier
-  char s_ExchCompId[ECH_D_COMPIDLG + 1];
-  // subtype structure
-  elemstruct_item_t* pr_ExchCompElem = NULL;
-  // dispatcher name message to SIDL
-  char s_BuffMsg[GOF_MSG_D_MAXBODY];
-  // message size
-//  int i_MessSize = 0;
-  // exchange id
-//  static int i_ExchId = 0;
   // --------------------------------------------------------------------------
+  char s_ExchCompId[ECH_D_COMPIDLG + 1];    // composed data identifier
+  elemstruct_item_t* r_ExchCompElem = NULL; // subtype structure
 
-  memset(s_BuffMsg, 0, sizeof(s_BuffMsg));
-
+  // --------------------------------------------------------------------------
   // Read the rest of the segment
-  //-------------------------------------
   i_Status = esg_esg_fil_StringRead(pi_FileId, i_IApplLength, s_Buffer);
 
-  // Process each composed data included in the segment
+  //Process each composed data included in the segment
   // --------------------------------------------------------
   if (i_Status == OK) {
+
+    i_CDLength = 0;
 
     for (i_LgDone = 0; ((i_LgDone < i_IApplLength) && (i_Status == OK)); i_LgDone = i_LgDone + i_CDLength) {
       memset(&r_InternalCData, 0, sizeof(esg_esg_edi_t_StrComposedData));
@@ -438,39 +439,35 @@ int ExchangeTranslator::esg_acq_dac_DispNameAcq(
                                           i_IApplLength - i_LgDone,
                                           &i_CDLength,
                                           &r_InternalCData,
-                                          pr_ExchCompElem,
+                                          r_SubTypeElem,
                                           &r_QuaCData);
-
-      LOG(ERROR) << fname << ": CDProcessing delme: " << ((NULL != pr_ExchCompElem)? pr_ExchCompElem->name : "<NULL>");
 
       memset(s_ExchCompId, 0, sizeof(s_ExchCompId));
       strncpy(s_ExchCompId, &s_Buffer[i_LgDone], ECH_D_COMPIDLG);
 
       // Get the corresponding sub_type name related to the composed data
       //----------------------------------------------------------------------------
-      if (NULL != (pr_ExchCompElem = esg_esg_odm_ConsultExchCompArr(s_ExchCompId))) {
-        sprintf(s_Trace, "Composed Data=%s, Subtype=%s", s_ExchCompId, pr_ExchCompElem->associate);
-        LOG(INFO) << fname << ": " << s_Trace;
+      if ((OK == i_Status) && (NULL != (r_ExchCompElem = esg_esg_odm_ConsultExchCompArr(s_ExchCompId)))) {
+        // sprintf(s_Trace, ": Composed Data=%s Subtype=%s", s_ExchCompId, r_ExchCompElem.s_AssocSubType);
+        // LOG(INFO) << fname << s_Trace;
 
         // test if the current composed data is a dispatcher name one
         // IF The current composed data is a dispatcher name one
         // THEN decode it
-
         // IF no error then memorize the current decoded dispatcher name
-        if (strcmp(pr_ExchCompElem->associate, ECH_D_DISP_NAME) == 0) {
+        if (strcmp(r_ExchCompElem->associate, ECH_D_DISP_NAME) == 0) {
           if (r_InternalCData.ar_EDataTable[0].u_val.r_Str.ps_String != NULL) {
             i_LgrStr = r_InternalCData.ar_EDataTable[0].u_val.r_Str.i_LgString;
+
             if (sizeof(s_DispatchName) >= i_LgrStr) {
               memcpy(&s_DispatchName, r_InternalCData.ar_EDataTable[0].u_val.r_Str.ps_String, i_LgrStr);
-              sprintf(s_Trace, "Dispatcher Name=%s, Sender SA=%s", s_DispatchName, s_IAcqSiteId);
-              LOG(INFO) << fname << ": " << s_Trace;
+              sprintf(s_Trace, ": Dispatcher Name=%s Sender SA=%s", s_DispatchName, s_IAcqSiteId);
+              LOG(INFO) << fname << s_Trace;
 
               // Get the Acquisition site table (and the dispatcher name of sending site)
-              r_AcqSite = esg_esg_odm_ConsultAcqSiteEntry(s_IAcqSiteId);
-
               if (NULL == (r_AcqSite = esg_esg_odm_ConsultAcqSiteEntry(s_IAcqSiteId))) {
                 i_RetStatus = ESG_ESG_D_ERR_NOACQSITE;
-                LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", unknown site " << s_IAcqSiteId;
+                LOG(ERROR) << fname << " : " << "consult " << s_IAcqSiteId;
               }
 
               // compare the last sent dispatcher name and the read one
@@ -479,20 +476,26 @@ int ExchangeTranslator::esg_acq_dac_DispNameAcq(
               //      memorize the new received name
               // ELSE do not send the message
               // END IF
+
               if (i_RetStatus == OK) {
-                sprintf(s_Trace, " Old Disp Name=%s, New Disp Name=%s", r_AcqSite->DispatchName(), s_DispatchName);
-                LOG(INFO) << fname << ": " << s_Trace;
+                sprintf(s_Trace, ": Old Disp Name=%s, New Disp Name=%s", r_AcqSite->DispatchName(), s_DispatchName);
+                LOG(INFO) << fname << s_Trace;
+
                 if (strcmp(r_AcqSite->DispatchName(), s_DispatchName) != 0) {
+
                   i_RetStatus = esg_acq_inm_SendDispNameToSidl(s_IAcqSiteId, s_DispatchName);
-                  r_AcqSite->DispatchName(s_DispatchName);
+                  if (i_RetStatus == OK) {
+                    r_AcqSite->DispatchName(s_DispatchName);
+                  }
                 }
               }
             }
             else {
               i_RetStatus = ESG_ESG_D_ERR_BADCONFFILE;
-              sprintf(s_LoggedText, "The dispatcher name string size %d is not coherent with the struct size %d",
-                      i_LgrStr, sizeof(s_DispatchName));
-              LOG(ERROR) << fname << ": rc=" << i_RetStatus << ", " << s_LoggedText;
+              sprintf(s_LoggedText, ": rc=%d, The dispatcher name string size %d is not coherent with the struct size %d",
+                      i_RetStatus, i_LgrStr, sizeof(s_DispatchName));
+
+              LOG(ERROR) << fname << s_LoggedText;
             }
           }
           else {
@@ -503,37 +506,29 @@ int ExchangeTranslator::esg_acq_dac_DispNameAcq(
         }                       // End if: Process applicatif segment
       }
 
-      // free strings in internal composed data structure allocated by esg_ine_man_CDProcessing
+      // free strings in internal composed data structure
+      // allocated by esg_ine_man_CDProcessing
       if (i_Status == OK) {
+
         i_FreeStatus = esg_ine_man_FreeCompData(&r_InternalCData);
         if (OK != i_FreeStatus) {
           LOG(ERROR) << fname << ": release memory, rc=" << i_FreeStatus;
         }
+
       }
 
-    }                           // for to process composed data of the segment
-
+    }                         // for to process composed data of the segment
   }                             // Composed data included in the segment
 
-  // Global message
-  // --------------
   if (i_Status != OK) {
     LOG(ERROR) << fname << ": rc=" << i_Status;
   }
 
-  std::cout << fname << ": End" << std::endl;
-
   i_RetStatus = i_Status;
   return (i_RetStatus);
 }
-//-END esg_acq_dac_DispNameAcq -----------------------------------------------
 
-typedef struct  {
-  gof_t_ExchangeId      i_exchange_id;   // exchange identifier
-  gof_t_UniversalName   s_dipl_un;       // object name
-  char s_dispatch_name[60]; // dispatcher name
-} sig_t_msg_DispName ;
-
+//----------------------------------------------------------------------------
 // Sends the dispatcher name message to SIDX each time it has received it in a TI message form distant site
 int ExchangeTranslator::esg_acq_inm_SendDispNameToSidl(
                 // Input parameters
@@ -567,19 +562,6 @@ int ExchangeTranslator::esg_acq_inm_SendDispNameToSidl(
   return (i_Status);
 
 }//-END esg_acq_inm_SendDispNameToSidl ---------------------------------------
-
-//----------------------------------------------------------------------------
-// Sends to SIDX the data from the acquisition of a distant site
-//----------------------------------------------------------------------------
-int ExchangeTranslator::sig_ext_msg_p_InpSendMessageToSinf(const rtdbMsgType msgId, int i_MsgSize, const char*)
-{
-  static const char* fname = "sig_ext_msg_p_InpSendMessageToSinf";
-  int rc = OK;
-
-  LOG(INFO) << fname << ": Sends to SIDX the data (" << i_MsgSize << " bytes) as msg #" << msgId << " from the acquisition of a distant site";
-
-  return rc;
-}
 
 //----------------------------------------------------------------------------
 // Sends to SIDX the data from the acquisition of a distant site

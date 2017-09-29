@@ -56,8 +56,7 @@ include_directories(${XERCESC_INCLUDE_DIR})
 
 link_directories(${GTEST_DIR}/../googlemock/gtest)
 link_directories(${LIBGLOG_LIBRARIES_DIR})
-#link_directories(${MDP_DIR})
-#link_directories(${HDB_DIR})
+link_directories(${EXCHANGE_CONFIG_DIR})
 link_directories(${XERCESC_LIBRARIES_DIR})
 link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
@@ -65,8 +64,6 @@ link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 link_directories(${LIBSQLITE_LIBRARIES_DIR})
 
 set (TEST_EXCHANGE_ESG_SOURCES
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_request.hpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_request.cpp
         ${EXCHANGE_SMAD_DIR}/exchange_smad.hpp
         ${EXCHANGE_SMAD_DIR}/exchange_smed.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.cpp
@@ -80,20 +77,23 @@ set (TEST_EXCHANGE_ESG_SOURCES
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_hhist_ti.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_multi_thres.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_hist_alarm.cpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.hpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.cpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.cpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_request.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_state.cpp
+#        ${EXCHANGE_CONFIG_DIR}/exchange_config_site.cpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config_site.hpp
+#        ${EXCHANGE_CONFIG_DIR}/exchange_config_cycle.cpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config_cycle.hpp
+#        ${EXCHANGE_CONFIG_DIR}/exchange_config_request.cpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config_request.hpp
+#        ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.cpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.hpp
-        ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.hpp
+#        ${EXCHANGE_CONFIG_DIR}/exchange_config_sac.cpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config_sac.hpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config.hpp
         ${TEST_RTDBUS_DIR}/esg.cpp)
 
 set (TEST_EXCHANGE_SOURCES
         ${GTEST_INC_DIR}/gtest/gtest.h
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_request.hpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_request.cpp
         ${EXCHANGE_SMAD_DIR}/exchange_smad.hpp
         ${EXCHANGE_SMAD_DIR}/exchange_smed.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.cpp
@@ -107,12 +107,17 @@ set (TEST_EXCHANGE_SOURCES
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_hhist_ti.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_multi_thres.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_hist_alarm.cpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.hpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.cpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.cpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.hpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_request.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_state.cpp
+#        ${EXCHANGE_CONFIG_DIR}/exchange_config_site.cpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config_site.hpp
+#        ${EXCHANGE_CONFIG_DIR}/exchange_config_cycle.cpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config_cycle.hpp
+#        ${EXCHANGE_CONFIG_DIR}/exchange_config_request.cpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config_request.hpp
+#        ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.cpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.hpp
-        ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.hpp
+#        ${EXCHANGE_CONFIG_DIR}/exchange_config_sac.cpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config_sac.hpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config.hpp
         ${TEST_RTDBUS_DIR}/exchange_unittest.cpp)

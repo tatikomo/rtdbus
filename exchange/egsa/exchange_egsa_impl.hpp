@@ -14,10 +14,11 @@
 #include "mdp_worker_api.hpp"
 #include "msg_message.hpp"
 // Конфигурация
+#include "exchange_smed.hpp"
 #include "exchange_config.hpp"
-#include "exchange_egsa_site.hpp"
-#include "exchange_egsa_cycle.hpp"
-#include "exchange_egsa_request.hpp"
+#include "exchange_config_site.hpp"
+#include "exchange_config_request.hpp"
+#include "exchange_config_cycle.hpp"
 
 class SMED;
 class AcqSiteEntry;
@@ -61,6 +62,8 @@ class EGSA : public mdp::mdwrk {
     int load_esg_file(const char*);
     // Загрузка указанного файла словаря типа ESG_EXACQINFOS или ESG_EXSNDINFOS
     int load_dict(const char*);
+    // Загрузка НСИ Запросов в SMED
+    int store_requests_dict();
     // Доступ ко внутренней буферной памяти с данными от/для смежных систем
     SMED* smed() { return m_smed; }
     // Запуск Интерфейса ES_ACQ
@@ -74,9 +77,9 @@ class EGSA : public mdp::mdwrk {
     // Доступ к конфигурации
     EgsaConfig* config();
     // Доступ к Сайтам
-    AcqSiteList& sites();
+    SmedObjectList<AcqSiteEntry*>* sites() { return m_smed->SiteList(); }
     // Доступ к Циклам
-    CycleList& cycles();
+    SmedObjectList<Cycle*>* cycles() { return m_smed->CycleList(); }
     // Ввести в оборот новый Цикл сбора
     size_t push_cycle(Cycle*);
     // Активировать циклы
@@ -136,6 +139,11 @@ class EGSA : public mdp::mdwrk {
     int esg_acq_inm_PhaseChgMan(AcqSiteEntry*, AcqSiteEntry::init_phase_state_t);
     // Получить информацию по локальному Сайту из БДРВ
     int get_local_info();
+    // Обработка изменения оперативного состояния системы сбора - атрибута SYNTHSTATE
+    int esg_acq_dac_SynthStateMan(AcqSiteEntry*, int);
+    int processing_STATE(AcqSiteEntry*, synthstate_t);
+    // Найти Запрос в адрес или от указанного Сайта по заданному идентификатору
+    Request* esg_esg_lis_ConsultBasic(AcqSiteEntry*, int, int);
 
     // Инициализация интерфейса ES_ACQ
     int init_acq();
@@ -229,19 +237,12 @@ class EGSA : public mdp::mdwrk {
     // Название локального Сайта
     char    m_local_sa_name[TAG_NAME_MAXLEN + 1];
 
-    // General data
-    //static ega_ega_odm_t_GeneralData ega_ega_odm_r_GeneralData;
-
-    // Acquisition Sites Table
-    AcqSiteList m_ega_ega_odm_ar_AcqSites;
-	
+    // TODO: перенести все эти значения в SMED
     // Cyclic Operations Table
     //static ega_ega_odm_t_CycleEntity ega_ega_odm_ar_Cycles[NBCYCLES];
-    CycleList   m_ega_ega_odm_ar_Cycles;
-
+    // CycleList   m_ega_ega_odm_ar_Cycles;
     //static ega_ega_odm_t_RequestEntry m_requests_table[/*NBREQUESTS*/]; // ega_ega_odm_ar_Requests
     RequestDictionary m_ega_ega_odm_ar_Requests;
-    //std::vector<Request*> m_ega_ega_odm_ar_Requests;
 
     RequestRuntimeList m_waiting_requests;
     RequestRuntimeList m_deferred_requests;

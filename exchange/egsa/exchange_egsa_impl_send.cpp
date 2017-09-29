@@ -9,9 +9,9 @@
 #include "glog/logging.h"
 
 // Служебные файлы RTDBUS
-#include "exchange_egsa_site.hpp"
+#include "exchange_config_site.hpp"
+#include "exchange_config_request.hpp"
 #include "exchange_egsa_impl.hpp"
-#include "exchange_egsa_request.hpp"
 
 extern int interrupt_worker;
 

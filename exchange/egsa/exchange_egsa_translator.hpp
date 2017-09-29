@@ -28,8 +28,6 @@
 #define GOF_D_LST_ALA_NON_OPE       7 // List of non Operational alarms
 #define GOF_D_LST_ALAmax         1000 // Max of Alarms
 
-
-
 #define SIG_DBA_D_IND_VH    0   // very high
 #define SIG_DBA_D_IND_H     1   // high
 #define SIG_DBA_D_IND_L     2   // low
@@ -283,6 +281,48 @@ typedef enum {
   GOF_D_PER_5MN=6
 } gof_t_PeriodType;
 
+// Тип объекта управления
+typedef enum {
+  GOF_D_TC_VALVE      = 1,
+  GOF_D_TC_GROUP      = 2,
+  GOF_D_TC_SC         = 3,
+  GOF_D_TC_ATC        = 4,
+  GOF_D_TC_AUX        = 5
+} gof_t_TcType; 
+
+// Тип команды управления
+typedef enum {
+  // разрешить дублировать значения констант (в ГОФО есть дубликаты)
+  //option allow_alias = true;
+  GOF_D_TC_ON                         = 1,
+  GOF_D_TC_OFF                        = 2,
+  GOF_D_TC_SC_START_MAIN_LINE         = 3,
+  GOF_D_TC_SC_STOP_MAIN_LINE          = 4,
+  GOF_D_TC_ATC_STOP_NORMAL            = 5,
+  GOF_D_TC_ATC_STOP_URG               = 6, //GOF_D_TC_OFF
+  GOF_D_TC_ATC_START_LOOPING          = 7,
+  GOF_D_TC_ATC_START_MAIN_LINE        = 8,
+  GOF_D_TC_ATC_STOP_MAIN_LINE         = 9,
+  GOF_D_TC_ATC_SWITCH_COLD_REGUL1     = 10,
+  GOF_D_TC_ATC_SWITCH_COLD_REGUL2     = 11,
+  GOF_D_TC_GRC_STOP_NORMAL            = 12, // GOF_D_TC_OFF
+  GOF_D_TC_GRC_STOP_URG_NO_EVAC_GAZ   = 13,
+  GOF_D_TC_GRC_STOP_URG_WITH_EVAC_GAZ = 14,
+  GOF_D_TC_ATC_STOP_URG_NO_EVAC_GAZ   = 15, // GOF_D_TC_GRC_STOP_URG_NO_EVAC_GAZ
+  GOF_D_TC_ATC_STOP_URG_WITH_EVAC_GAZ = 16, // GOF_D_TC_GRC_STOP_URG_WITH_EVAC_GAZ
+  GOF_D_TC_GRC_START_LOOPING          = 17,
+  GOF_D_TC_GRC_START_MAIN_LINE        = 18,
+  GOF_D_TC_AUX_FLOW_REGUL             = 19,
+  GOF_D_TC_AUX_PRESSURE_REGUL         = 20,
+  GOF_D_TC_AUX_START_PUMP             = 21,
+  GOF_D_TC_AUX_STOP_PUMP              = 22,
+  GOF_D_TC_AUX_START_COMPRESSOR       = 23,
+  GOF_D_TC_AUX_STOP_COMPRESSOR        = 24,
+  GOF_D_TC_AUX_STOP_URG_AIRCOOLING    = 25,
+  GOF_D_TC_AUX_START_VENTILATOR       = 26,
+  GOF_D_TC_AUX_STOP_VENTILATOR        = 27
+} gof_t_TcOper; 
+
 // service segments
 // ----------------
 // interchange segment
@@ -406,6 +446,25 @@ typedef struct  {
   uint16_t         h_Cnt;      // count of list elements
   gof_t_TiThreshold    ar_TiThreshold[1];   // thresholds data
 } sig_t_msg_MultiThresholds;
+
+// TC from DIR contents
+typedef struct {
+  gof_t_UniversalName s_TechnObjId;     // identification of the technological object concerned by the process command
+  gof_t_TcType        e_tc_type;        // equipment type: Valve (GOF_D_TC_VALVE)
+  gof_t_TcOper        e_operation;      // operation (GOF_D_TC_ON or GOF_D_TC_OFF)
+  char  s_dispatch_name[60 + 1];        // dispatcher name
+  bool  b_responsability_change;        // the boolean responsability flag about permission of the telecommand
+} esg_esg_t_TCContents;
+ 
+ 
+// TR from DIR contents
+typedef struct {
+  gof_t_UniversalName s_TechnObjId;     // identification of the technological object concerned by the process command
+  double g_value;                       // Value of teleregulation
+  char  s_dispatch_name[60 + 1];        // dispatcher name
+  bool  b_responsability_change;        // the boolean responsability flag about permission of the telecommand
+} esg_esg_t_TRContents;
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //============================================================================
@@ -420,7 +479,7 @@ class ExchangeTranslator
     ExchangeTranslator(EGSA*, elemtype_item_t*, elemstruct_item_t*);
 #ifdef _FUNCTIONAL_TEST
     // Создание транслятора без активного EGSA - для отладки
-    ExchangeTranslator(AcqSiteList*, SMED*, elemtype_item_t*, elemstruct_item_t*);
+    ExchangeTranslator(SMED*, elemtype_item_t*, elemstruct_item_t*);
 #endif
    ~ExchangeTranslator();
 
@@ -431,11 +490,12 @@ class ExchangeTranslator
     DISALLOW_COPY_AND_ASSIGN(ExchangeTranslator);
     EGSA* m_egsa_instance;
 #ifdef _FUNCTIONAL_TEST
-    AcqSiteList* m_sites;
     SMED* m_smed;
-    SMED* smed() { return (m_egsa_instance)? m_egsa_instance->smed() : m_smed; };
+    SMED* smed() { return (m_egsa_instance)? m_egsa_instance->smed() : m_smed; }
+    EGSA* egsa() { return NULL; }
 #else
-    SMED* smed() { return m_egsa_instance->smed(); };
+    EGSA* egsa() { return m_egsa_instance; }
+    SMED* smed() { return m_egsa_instance->smed(); }
 #endif
     std::map <const std::string, elemtype_item_t>   m_elemtypes;
     std::map <const std::string, elemstruct_item_t> m_elemstructs;
@@ -461,7 +521,7 @@ class ExchangeTranslator
     // --------------------------------------------------------------
     int esg_esg_odm_ConsExchInfoLed(// Input parameters
                 const gof_t_UniversalName,  // acq site universal name
-                const int,  // Exchange data identificator
+                const size_t,  // Exchange data identificator
                 // Output parameter
                 esg_esg_odm_t_ExchInfoElem*);
 
@@ -471,7 +531,7 @@ class ExchangeTranslator
                 const char*,                                // composed data DCD identifier
                 const esg_esg_edi_t_StrQualifyComposedData*,// Qualify of internal composed data
                 const esg_esg_edi_t_StrComposedData*,       // Internal composed data
-                int* pi_OLgCodedCData);                // length of coded composed data
+                size_t* pi_OLgCodedCData);                // length of coded composed data
 
     // Coding of elementary data in EDI format
     // --------------------------------------------------------------
@@ -479,8 +539,8 @@ class ExchangeTranslator
                 const char*,
                 const bool,
                 const esg_esg_edi_t_StrElementaryData*,
-                const int i_ILgMaxCodedEData,
-                int*,
+                const size_t,
+                size_t*,
                 char*);
 
     // Decoding from EDI format in internal elementary data
@@ -489,8 +549,8 @@ class ExchangeTranslator
                 const char*,
                 const bool,
                 const char*,
-                const int,
-                int*,
+                const size_t,
+                size_t*,
                 esg_esg_edi_t_StrElementaryData*);
 
     // Coding of composed data in EDI format
@@ -499,8 +559,8 @@ class ExchangeTranslator
                 const char*,
                 const esg_esg_edi_t_StrQualifyComposedData*,
                 const esg_esg_edi_t_StrComposedData*,
-                const int,
-                int*,
+                const size_t,
+                size_t*,
                 char*);
 
     // Decoding of composed data in internal format
@@ -508,8 +568,8 @@ class ExchangeTranslator
     int esg_esg_edi_ComposedDataDecoding(
                 const char*,
                 const char*,
-                const int,
-                int*,
+                const size_t,
+                size_t*,
                 esg_esg_edi_t_StrQualifyComposedData*,
                 esg_esg_edi_t_StrComposedData*);
 
@@ -517,114 +577,114 @@ class ExchangeTranslator
     // --------------------------------------------------------------
     int esg_esg_edi_HeaderInterChgCoding(
                 const esg_esg_t_HeaderInterChg*,
-                const int,
-                int*,
+                const size_t,
+                size_t*,
                 char*);
 
     // Decoding from EDI format in internal interchange header
     // --------------------------------------------------------------
     int esg_esg_edi_HeaderInterChgDecoding(
                 const char*,
-                const int,
-                int*,
+                const size_t,
+                size_t*,
                 esg_esg_t_HeaderInterChg*);
 
     // Coding of interchange end in EDI format
     // --------------------------------------------------------------
     int esg_esg_edi_EndInterChgCoding(
                 const esg_esg_t_EndInterChg*,
-                const int,
-                int*,
+                const size_t,
+                size_t*,
                 char*);
 
     // Decoding from EDI format in internal interchange end
     // --------------------------------------------------------------
     int esg_esg_edi_EndInterChgDecoding(
                 const char*,
-                const int,
-                int*,
+                const size_t,
+                size_t*,
                 esg_esg_t_EndInterChg*);
 
     // Coding of interchange message in EDI format
     // --------------------------------------------------------------
     int esg_esg_edi_HeaderMsgCoding(
                 const esg_esg_t_HeaderMsg*,
-                const int,
-                int*,
+                const size_t,
+                size_t*,
                 char*);
     // --------------------------------------------------------------
     // Decoding from EDI format in internal interchange header
     int esg_esg_edi_HeaderMsgDecoding(
                 const char*,    // coded composed data
-                const int, // max length of coded composed data
-                int*,      // length of coded composed data
+                const size_t, // max length of coded composed data
+                size_t*,      // length of coded composed data
                 esg_esg_t_HeaderMsg*);  // Internal message header
 
     // Coding of message end in EDI format
     // --------------------------------------------------------------
     int esg_esg_edi_EndMsgCoding(
                 const esg_esg_t_EndMsg*,// Internal message end
-                const int, // max length of coded composed data
-                int*,      // length of coded composed data
+                const size_t, // max length of coded composed data
+                size_t*,      // length of coded composed data
                 char*);         // pointer to coded composed data
 
     // Decoding from EDI format in internal message end
     // --------------------------------------------------------------
     int esg_esg_edi_EndMsgDecoding(
                 const char*,    // coded composed data
-                const int, // max length of coded composed data
-                int*,      // length of coded composed data
+                const size_t, // max length of coded composed data
+                size_t*,      // length of coded composed data
                 esg_esg_t_EndMsg*);  // Internal message header
 
     // Coding of application header in EDI format
     // --------------------------------------------------------------
     int esg_esg_edi_HeaderApplCoding(
                 const esg_esg_t_HeaderAppl*,   // Internal interchange application
-                const int, // max length of coded composed data
-                int* ,     // length of coded composed data
+                const size_t, // max length of coded composed data
+                size_t* ,     // length of coded composed data
                 char*);         // pointer to coded composed data
 
     // Decoding from EDI format in internal interchange header
     // --------------------------------------------------------------
     int esg_esg_edi_HeaderApplDecoding(
                 const char*,    // coded composed data
-                const int, // max length of coded composed data
-                int*,      // length of coded composed data
+                const size_t, // max length of coded composed data
+                size_t*,      // length of coded composed data
                 esg_esg_t_HeaderAppl*); // Internal application header
 
     // Coding of application end in EDI format
     // --------------------------------------------------------------
     int esg_esg_edi_EndApplCoding(
-                const int, // max length of coded label
-                int*,      // length of coded label
+                const size_t, // max length of coded label
+                size_t*,      // length of coded label
                 char*);         // pointer to coded label
 
     // Decoding of application end in EDI format
     // --------------------------------------------------------------
     int esg_esg_edi_EndApplDecoding(
                 const char*,    // pointer to coded label
-                const int, // max length of coded label
-                int*);     // length of coded label
+                const size_t, // max length of coded label
+                size_t*);     // length of coded label
     // --------------------------------------------------------------
     int esg_esg_edi_GetLengthEData(
                 const elemtype_item_t*,
-                const int,
-                int*);
+                const size_t,
+                size_t*);
 
     // get format and length of elementary data qualifier
     // --------------------------------------------------------------
     int esg_esg_edi_GetForLgQuaEData(elemtype_item_t*,
-                      int* pi_OLgEData);
+                      size_t* pi_OLgEData);
 
     // get completed length of elementary data ASCII string type
     // variable / fixed control of the associated format
     // --------------------------------------------------------------
     int esg_esg_edi_GetLengthFullCtrlEData(const elemtype_item_t*,
                       const bool,
-                      const int,
-                      int*,
-                      int*,
-                      int*);
+                      const size_t,
+                      size_t*,
+                      size_t*,
+                      size_t*);
 
     // coding of elementary data in ASCII string
     // --------------------------------------------------------------
@@ -663,22 +723,23 @@ class ExchangeTranslator
     int esg_esg_fil_HeadFileRead(const char*,
                       esg_esg_t_HeaderInterChg*,
                       esg_esg_t_HeaderMsg*,
-                      int32_t*,
-                      int32_t*,
+                      size_t*,
+                      size_t*,
                       FILE **);
     // Read An Applicative Header
     // --------------------------------------------------------------
     int esg_esg_fil_HeadApplRead(FILE*,
                       esg_esg_t_HeaderAppl*,
-                      int32_t*);
+                      size_t*);
     // --------------------------------------------------------------
-    int esg_esg_fil_StringRead(FILE*, const int32_t, char*);
+    int esg_esg_fil_StringRead(FILE*, const size_t, char*);
+    int	esg_esg_fil_StringWrite(FILE*, const char*);
     // --------------------------------------------------------------
     int esg_esg_fil_DataWrite(
                       FILE*,
                       const void*, // pointes the array to be written
-                      const int,   // length of an item
-                      const int);  // number of items to be written
+                      const size_t,   // length of an item
+                      const size_t);  // number of items to be written
     // --------------------------------------------------------------
     int esg_esg_fil_EndApplRead(FILE*);
 
@@ -686,10 +747,17 @@ class ExchangeTranslator
     int esg_acq_dac_TeleinfoAcq(
                       // Input parameters
                       FILE*,
-                      const int,
-                      const int,
+                      const size_t,
+                      const size_t,
                       const gof_t_UniversalName,
                       const struct timeval);
+
+    // --------------------------------------------------------------
+    int esg_acq_dac_GetSiteState(
+                // Input parameters
+                FILE*, size_t, size_t, AcqSiteEntry*,
+                // Output parameters
+                uint32_t*);
 
     // --------------------------------------------------------------
     int esg_acq_dac_TIThresholdAcq(
@@ -714,12 +782,12 @@ class ExchangeTranslator
 
     // --------------------------------------------------------------
     int esg_acq_dac_HistAlAcq(FILE*,
-                              int,
-                              int,
+                              size_t,
+                              size_t,
                               const char*,
-                              int*,                     // ALO count
+                              size_t*,                  // ALO count
                               esg_esg_t_HistAlElem*,    // ALO data
-                              int*,                     // ALN count
+                              size_t*,                  // ALN count
                               esg_esg_t_HistAlElem*);   // ALN data
 
     // --------------------------------------------------------------
@@ -735,8 +803,8 @@ class ExchangeTranslator
                               const esg_esg_edi_t_StrComposedData*,
                               const elemstruct_item_t*,
                               FILE*,
-                              int*,
-                              int*,
+                              size_t*,
+                              size_t*,
                               esg_acq_dac_t_HhistTIDate**,
                               esg_acq_dac_t_HhistTIValue**,
                               esg_acq_dac_t_HhistTIValid**);
@@ -764,16 +832,26 @@ class ExchangeTranslator
     int esg_acq_dac_SendAcqTIToSidl(const gof_t_UniversalName);   // name of the distant SA site that has send its dispatcher name
 
     // --------------------------------------------------------------
-    int esg_acq_dac_HHistTiAcq(int, int, const char*, const char*, FILE*, int*);
+    int esg_acq_dac_HHistTiAcq(size_t, size_t, const char*, const char*, FILE*, size_t*);
 
     // --------------------------------------------------------------
     int esg_acq_dac_DispNameAcq(
                       // Input parameters
                       FILE*,
-                      const int,
-                      const int,
+                      const size_t,
+                      const size_t,
                       const gof_t_UniversalName,    // sender site
                       const struct timeval);
+
+    // decoding TR request from DIR
+    // --------------------------------------------------------------
+    int esg_snd_inm_DecodeTRReq(
+                      esg_esg_edi_t_StrComposedData,// Input parameters
+                      esg_esg_t_TRContents*);       // Output parameters
+
+    // decoding TC request from DIR
+    int esg_snd_inm_DecodeTCReq(esg_esg_edi_t_StrComposedData,  // Input parameters
+                      esg_esg_t_TCContents*);       // Output parameters
 
     // --------------------------------------------------------------
     int esg_acq_dac_InitInternalBis(esg_esg_edi_t_StrComposedData*);
@@ -784,7 +862,7 @@ class ExchangeTranslator
                       const gof_t_UniversalName,  // name of distant site
                       const char*,         // name of the file
                       const int,           // alarms type
-                      const int,           // number of alarms
+                      const size_t,        // number of alarms
                       const esg_esg_t_HistAlElem*);
 
     // Отправка полученного имени Диспетчера в SIDL
@@ -793,16 +871,15 @@ class ExchangeTranslator
                       const gof_t_UniversalName,    // name of the distant SA site that has send its dispatcher name
                       const char*);                 // dispatcher name
 
-
     // Отправка сообщения в SINF
     // --------------------------------------------------------------
-    int sig_ext_msg_p_InpSendMessageToSinf(const rtdbMsgType, int, const char*);
+    int sig_ext_msg_p_InpSendMessageToSinf(const rtdbMsgType, size_t, const char*);
 
     // --------------------------------------------------------------
     int esg_ine_man_CDProcessing(
                       const char*,   // begining of the composed data in the buffer
-                      const int,     //length of the segment body from the composed data to process
-                      int*,          // composed data length
+                      const size_t,  //length of the segment body from the composed data to process
+                      size_t*,       // composed data length
                       esg_esg_edi_t_StrComposedData*, // decoded composed data buffer
                       elemstruct_item_t*,
                       esg_esg_edi_t_StrQualifyComposedData*);  // Quality data buffer
@@ -830,9 +907,9 @@ class ExchangeTranslator
     // --------------------------------------------------------------
 
     // --------------------------------------------------------------
-    int processing_STATE(FILE*, int, int, const char*);
-    int processing_REPLY(FILE*, int, int, const char*);
-    int processing_REQUEST(FILE*, int, int, const char*);
+    int processing_STATE(FILE*, size_t, size_t, AcqSiteEntry*);
+    int processing_REPLY(FILE*, size_t, size_t, AcqSiteEntry*);
+    int processing_REQUEST(FILE*, size_t, size_t, AcqSiteEntry*);
 };
 
 //============================================================================

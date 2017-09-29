@@ -7,13 +7,13 @@
 	"SITES": [
       {
       "NAME": "BI4001",
-	  "LEVEL": "LOCAL",
+	  "LEVEL": "LOWER",
       "NATURE": "ELE",
 	  "AUTO_INIT": 1,
 	  "AUTO_GENCONTROL": 1
       }, {
       "NAME": "BI4002",
-      "LEVEL": "LOCAL",
+      "LEVEL": "LOWER",
       "NATURE": "ELE",
       "AUTO_INIT": 1,
       "AUTO_GENCONTROL": 1
@@ -35,6 +35,11 @@
 	  "NATURE": "DIPL",
 	  "AUTO_INIT": 1,
 	  "AUTO_GENCONTROL": 0
+      }, {
+	  "NAME": "K42663",
+	  "LEVEL": "LOCAL",
+	  "NATURE": "DIPL",
+      "COMMENT": "Локальный Сайт"
 	  }, {
 	  "NAME": "K42001",
 	  "LEVEL": "UPPER",

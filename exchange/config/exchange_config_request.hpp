@@ -1,5 +1,5 @@
-#if !defined EXCHANGE_EGSA_REQUEST_HPP
-#define EXCHANGE_EGSA_REQUEST_HPP
+#ifndef EXCHANGE_CONFIG_REQUEST_HPP
+#define EXCHANGE_CONFIG_REQUEST_HPP
 #pragma once
 
 #ifdef HAVE_CONFIG_H
@@ -167,6 +167,7 @@ class RequestDictionary
     int add(Request*);
     void release();
     Request* query_by_id(ech_t_ReqId);
+    Request* operator[](ech_t_ReqId id) { return ((id < size())? m_requests.at(id) : NULL); }
 
   private:
     DISALLOW_COPY_AND_ASSIGN(RequestDictionary);

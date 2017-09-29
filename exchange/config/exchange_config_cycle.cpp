@@ -6,14 +6,16 @@
 #include <assert.h>
 #include <unistd.h>
 #include <linux/limits.h>
+#include <list>
 
 // Служебные заголовочные файлы сторонних утилит
 #include "glog/logging.h"
 
 // Служебные файлы RTDBUS
-#include "exchange_egsa_site.hpp"
-#include "exchange_egsa_cycle.hpp"
+#include "exchange_config_site.hpp"
+#include "exchange_config_cycle.hpp"
 
+#if 0
 // ===================================================================================================
 CycleTrigger::CycleTrigger(const std::string& cycle_name)
   : m_cycle_name(cycle_name)
@@ -48,6 +50,7 @@ void CycleTrigger::handlerFunction( void )
                << m_fd <<": " << strerror(errno);
   }
 }
+#endif
 
 // ===================================================================================================
 // Конструктор экземпляра "Цикл"
@@ -60,10 +63,7 @@ Cycle::Cycle(const char* _name, int _period, cycle_id_t _id, ech_t_ReqId _req_id
  : m_CycleFamily(_family),
    m_CyclePeriod(_period),
    m_CycleId(_id),
-   m_RequestId(_req_id),
-   m_SiteList(new AcqSiteList)
-   /*m_CycleTimer(NULL),
-   m_CycleTrigger(NULL)*/
+   m_RequestId(_req_id)
 {
   strncpy(m_CycleName, _name, EGA_EGA_D_LGCYCLENAME);
   m_CycleName[EGA_EGA_D_LGCYCLENAME] = '\0';
@@ -72,19 +72,16 @@ Cycle::Cycle(const char* _name, int _period, cycle_id_t _id, ech_t_ReqId _req_id
 // ===================================================================================================
 Cycle::~Cycle()
 {
-  delete m_SiteList;
-//  delete m_CycleTimer;
-//  delete m_CycleTrigger;
 };
 
 void Cycle::dump()
 {
   std::cout << "Cycle name:" << m_CycleName << " family:" << (int)m_CycleFamily
             << " period:" << (int)m_CyclePeriod << " id:" << (int)m_CycleId << " ";
-  if (m_SiteList->count()) {
-    std::cout << "sites: " << m_SiteList->count() << " [";
-    for(size_t i=0; i < m_SiteList->count(); i++) {
-      std::cout << " " << (*m_SiteList)[i]->name();
+  if (m_SiteList.size()) {
+    std::cout << "sites: " << m_SiteList.size() << " [";
+    for (size_t sid = 0; sid < m_SiteList.size(); sid++) {
+      std::cout << " " << m_SiteList.at(sid)->name();
     }
     std::cout << " ]";
   }
@@ -147,15 +144,24 @@ bool Cycle::exist_for_SA(const std::string& sa_name)
 int Cycle::link(AcqSiteEntry* site)
 {
   int rc = NOK;
+  bool stop_it = false;
 
-  // Добавить Сайт, если он ранее уже не был добавлен
-  if (NULL == (*m_SiteList)[site->name()]) {
-    m_SiteList->insert(site);
+  // Добавить Сайт, если ранее он ещё не был добавлен
+  for (size_t cid = 0; cid < m_SiteList.size(); cid++) {
+//  std::list<AcqSiteEntry*>::iterator it = m_SiteList.begin(); it != m_SiteList.end(); ++it) {
+    if (0 == strncmp(m_SiteList.at(cid)->name(), site->name(), TAG_NAME_MAXLEN)) {
+      LOG(WARNING) << "Try to register in " << m_CycleName << " already known SA: " << site->name();
+      stop_it = true;
+      break;
+    }
+  }
+
+  if (!stop_it) {
+    m_SiteList.push_back(site);
     //LOG(INFO) << "Link " << site->name() << " with cycle " << m_CycleName;
     rc = OK;
   }
   else {
-    LOG(WARNING) << "Try to register in " << m_CycleName << " already known SA: " << site->name();
   }
 
   return rc;

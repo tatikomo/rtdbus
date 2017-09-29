@@ -20,8 +20,9 @@
 #include "exchange_config.hpp"
 #include "exchange_config_sac.hpp"
 #include "exchange_config_egsa.hpp"
+#include "exchange_config_site.hpp"
+#include "exchange_config_request.hpp"
 #include "exchange_egsa_impl.hpp"
-#include "exchange_egsa_request.hpp"
 
 #include "proto/rtdbus.pb.h"
 
@@ -207,19 +208,19 @@ TEST(TestEXCHANGE, EGSA_CONFIG)
 TEST(TestEXCHANGE, EGSA_CYCLES_CONFIG)
 {
   // TODO Собрать для каждой СС информацию в виде, пригодном к выдаче Запросов в Циклах
-  CycleList &cycles = g_egsa_instance->cycles();
+  SmedObjectList<Cycle*> *cycles = g_egsa_instance->cycles();
 
-  for(size_t cidx = 0; cidx < cycles.size(); cidx++) {
-    Cycle* cycle = cycles[cidx];
+  for(size_t cidx = 0; cidx < cycles->count(); cidx++) {
+    Cycle* cycle = (*cycles)[cidx];
     if (cycle) {
       LOG(INFO) << cycle->name();
 
-      AcqSiteList* sites = cycle->sites();
-      if (sites) {
+      const std::vector<AcqSiteEntry*> sites = cycle->sites();
+      if (sites.size()) {
 
-        for (size_t sidx = 0; sidx < sites->count(); sidx++) {
+        for (size_t sidx = 0; sidx < sites.size(); sidx++) {
 
-          AcqSiteEntry* sa = (*sites)[sidx];
+          AcqSiteEntry* sa = sites[sidx];
           LOG(INFO) << "\t" << "SA " << sa->name();
 
           // Получить для данной СС актуальный Запрос из конфигурации
@@ -308,7 +309,7 @@ TEST(TestEXCHANGE, SAC_CREATE)
   new_item.auto_init= g_egsa_instance->config()->sites().begin()->second->auto_init;
   new_item.auto_gencontrol = g_egsa_instance->config()->sites().begin()->second->auto_gencontrol;
 
-  g_sac_entry = new AcqSiteEntry(g_egsa_instance, &new_item);
+  g_sac_entry = new AcqSiteEntry(/*g_egsa_instance,*/ &new_item);
   // Начальное состояние СС
   EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_NO);
   // Послать системе команду инициализации
@@ -421,23 +422,24 @@ TEST(TestEXCHANGE, EGSA_SITES)
     // |        |               |                      AUTO_INIT
     // |        |               |                      |     AUTO_GENCONTROL
     // |        |               |                      |     |
-    { "BI4001", LEVEL_LOCAL,    GOF_D_SAC_NATURE_EELE, true, true  },
-    { "BI4002", LEVEL_LOCAL,    GOF_D_SAC_NATURE_EELE, true, true  },
+    { "BI4001", LEVEL_LOWER,    GOF_D_SAC_NATURE_EELE, true, true  },
+    { "BI4002", LEVEL_LOWER,    GOF_D_SAC_NATURE_EELE, true, true  },
     { "K41681", LEVEL_ADJACENT, GOF_D_SAC_NATURE_DIPL, true, false },
     { "K42670", LEVEL_ADJACENT, GOF_D_SAC_NATURE_DIPL, true, false },
     { "K42664", LEVEL_ADJACENT, GOF_D_SAC_NATURE_DIPL, true, false },
+    { "K42663", LEVEL_LOCAL,    GOF_D_SAC_NATURE_DIPL, false,false },
     { "K42001", LEVEL_UPPER,    GOF_D_SAC_NATURE_DIR,  true, false }
   };
   // В тестовом файле только три записи
-  const AcqSiteEntry* check_data[6];
-  for (size_t idx = 0; idx < 6; idx++)
-    check_data[idx] = new AcqSiteEntry(g_egsa_instance, &config_item[idx]);
+  const AcqSiteEntry* check_data[7];
+  for (size_t idx = 0; idx < 7; idx++)
+    check_data[idx] = new AcqSiteEntry(/*g_egsa_instance,*/ &config_item[idx]);
 
-  AcqSiteList& sites_list = g_egsa_instance->sites();
-  LOG(INFO) << "EGSA_SITES loads " << sites_list.count() << " sites";
+  SmedObjectList<AcqSiteEntry*> *sites_list = g_egsa_instance->sites();
+  LOG(INFO) << "EGSA_SITES loads " << sites_list->count() << " sites";
 
-  for (size_t i=0; i < sites_list.count(); i++) {
-    const AcqSiteEntry* entry = sites_list[i];
+  for (size_t i=0; i < sites_list->count(); i++) {
+    const AcqSiteEntry* entry; // = (*sites_list)[i];
 
     switch(i) {
       case 0:
@@ -446,10 +448,11 @@ TEST(TestEXCHANGE, EGSA_SITES)
       case 3:
       case 4:
       case 5:
-        entry = sites_list[check_data[i]->name()];
+      case 6:
+        entry = (*sites_list)[check_data[i]->name()];
         ASSERT_TRUE(NULL != entry);
 
-        LOG(INFO) << entry->name() << " GEV:" << check_data[i]->name()
+        LOG(INFO) << entry->name() // << " GEV:" << check_data[i]->name()
                   << "; nature=" << entry->nature()
                   << "; auto_init=" << entry->auto_i()
                   << "; auto_gc=" << entry->auto_gc();
@@ -466,7 +469,7 @@ TEST(TestEXCHANGE, EGSA_SITES)
     }
   }
 
-  for (size_t idx = 0; idx < 6; idx++)
+  for (size_t idx = 0; idx < 7; idx++)
     delete check_data[idx];
 }
 
@@ -749,6 +752,7 @@ TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
 // Данная память является буфером между накапливаемой системами сбора телеинформацией и БДРВ.
 TEST(TestEXCHANGE, EGSA_SMED)
 {
+#if 0
   int rc;
   DIR *dir;
   struct dirent *ent;
@@ -756,9 +760,8 @@ TEST(TestEXCHANGE, EGSA_SMED)
   const char* dict_file_pattern = "???INFOS.K?????.json";
   char dict_filename[255];
 
-  LOG(INFO) << "Check SMED";
-#if 0
   sprintf(dict_filename, dict_file_pattern, g_local_site_code);
+  LOG(INFO) << "Check SMED";
 
   // Прочитать набор словарей для своего объекта. Тип режима закодирован в названии словаря.
   // Формат имени файла: <Код локального объекта>.{SND|ACQ}INFOS.<Код удаленного объекта>.json
@@ -776,6 +779,8 @@ TEST(TestEXCHANGE, EGSA_SMED)
 
   }
   closedir(dir);
+#else
+  LOG(INFO) << "SKIP checking SMED";
 #endif
 
   // Прочитать набор словарей для режима ACQUISITION своего объекта - что локальный объект хочет получить

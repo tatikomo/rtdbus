@@ -1,5 +1,5 @@
-#ifndef EXCHANGE_EGSA_SITE_HPP
-#define EXCHANGE_EGSA_SITE_HPP
+#ifndef EXCHANGE_CONFIG_SITE_HPP
+#define EXCHANGE_CONFIG_SITE_HPP
 #pragma once
 
 #ifdef HAVE_CONFIG_H
@@ -17,11 +17,12 @@
 #include "exchange_config_egsa.hpp"
 #include "exchange_config.hpp"
 
-class EGSA;
+//1 class EGSA;
 class Cycle;
 class Request;
 class SMAD;
 class AcqSiteEntry;
+class Site;
 
 // Transition definition
 // ---------------------
@@ -78,6 +79,8 @@ typedef enum {
 
 // ==============================================================================
 // Acquisition Site Entry Structure
+// Класс Сайта, хранящий своё состояние в SMED
+// NB: Значения полей, которые могут быть изменены в любой момент, берутся из БД
 //
 // Состояние Систем Сбора:
 // Конфигурационные файлы (cnf)
@@ -97,7 +100,7 @@ typedef enum {
 // PRE_OPERATIONAL ---------------------+   |   (СС в процессе инициализации связи)
 //  |       cnf+,comm+params+,link+-        |
 //  v                                       |
-//  OPERATIONAL ----------------------------+   (СС в рабочем режиме)
+// OPERATIONAL -----------------------------+   (СС в рабочем режиме)
 //          cnf+,comm+params+,link+
 
 class AcqSiteEntry {
@@ -133,7 +136,7 @@ class AcqSiteEntry {
       INITPHASE_END     = 3
     } init_phase_state_t;
 
-    AcqSiteEntry(EGSA*, const egsa_config_site_item_t*);
+    AcqSiteEntry(/*EGSA*,*/ const egsa_config_site_item_t*);
    ~AcqSiteEntry();
 
     const char* name()      const { return m_IdAcqSite; }
@@ -148,7 +151,7 @@ class AcqSiteEntry {
     int DispatchName(const char*);
 
     // Обработка изменения оперативного состояния системы сбора - атрибута SYNTHSTATE
-    int esg_acq_dac_SynthStateMan(int);
+    int SynthStateMan(int);
     // Регистрация Запросов в указанном Цикле
     int push_request_for_cycle(Cycle*, const int*);
     // Удалить Запросы из очереди на исполнение
@@ -199,6 +202,7 @@ class AcqSiteEntry {
     // Состояние авторизации (?)
     bool OPStateAuthorised() { return m_OPStateAuthorised; }
     void OPStateAuthorised(bool _auth) { m_OPStateAuthorised = _auth; }
+    // Считает ли этот хост, что он закончил инициализацию связи с нами
     bool DistantInitTerminated() { return m_DistantInitTerminated; }
     void DistantInitTerminated(bool _distant) { m_DistantInitTerminated = _distant; }
     init_phase_state_t InitPhase() { return m_init_phase_state; }
@@ -239,7 +243,7 @@ class AcqSiteEntry {
     // Получить ссылку на экземпляр Запроса указанного типа
     const Request* get_dict_request(ech_t_ReqId);
 
-    EGSA* m_egsa;
+    //1 EGSA* m_egsa;
     synthstate_t m_synthstate;
     bool m_expmode;
     bool m_inhibition;
@@ -312,49 +316,6 @@ class AcqSiteEntry {
     teleinformation_processing_t m_Infos;
     // ========================= ESG ================================================
 };
-
-// ==============================================================================
-// Acquisition Site Entry Structure
-class AcqSiteList {
-  public:
-    AcqSiteList();
-   ~AcqSiteList();
-
-    int attach_to_smad(const char*);
-    int detach_from_smad(const char*);
-    // Отключиться от SMAD
-    int detach();
-    // Очистить ресурсы
-    int release();
-    void insert(AcqSiteEntry*);
-    size_t count() const { return m_items.size(); };
-    void set_egsa(EGSA*);
-
-    // Вернуть элемент по имени Сайта
-    AcqSiteEntry* operator[](const char*);
-    // Вернуть элемент по имени Сайта
-    AcqSiteEntry* operator[](const std::string&);
-    // Вернуть элемент по индексу
-    AcqSiteEntry* operator[](const std::size_t);
-
-  private:
-    DISALLOW_COPY_AND_ASSIGN(AcqSiteList);
-
-    EGSA* m_egsa;
-    struct map_cmp_str {
-      // Оператор сравнения строк в m_site_map.
-      // Иначе происходит арифметическое сравнение значений указателей, но не содержимого строк
-      bool operator()(const std::string& a, const std::string& b) { return a.compare(b) < 0; }
-    };
-    // Связь между названием СС и её данными
-    typedef std::map<const std::string, size_t, map_cmp_str> system_acquisition_list_t;
-
-    std::vector<std::shared_ptr<AcqSiteEntry*>> m_items;
-    // Связь между названием СС и её индексом в m_items
-    system_acquisition_list_t  m_site_map;
-};
-
-
 
 #endif
 

@@ -11,9 +11,9 @@
 
 // Служебные файлы RTDBUS
 #include "exchange_config_egsa.hpp"
-#include "exchange_egsa_request.hpp"
-#include "exchange_egsa_cycle.hpp"
-#include "exchange_egsa_site.hpp"
+#include "exchange_config_request.hpp"
+#include "exchange_config_cycle.hpp"
+#include "exchange_config_site.hpp"
 
 size_t Request::m_sequence = 0;
 

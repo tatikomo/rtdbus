@@ -843,7 +843,7 @@ extern const uint16_t var_size[];
 // ------------------------------------------------------------
 
 
-} // namespace xdb
+}; // namespace xdb
 
 #endif
 

@@ -46,6 +46,7 @@ link_directories(${LIBGLOG_LIBRARIES_DIR})
 link_directories(${LIBSQLITE_LIBRARIES_DIR})
 link_directories(${XERCESC_LIBRARIES_DIR})
 link_directories(${LIBZMQ_LIBRARIES_DIR})
+link_directories(${EXCHANGE_LIB_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 link_directories(${LIBMODBUS_LIBRARIES_DIR})
@@ -117,16 +118,16 @@ set (WORKER_EGSA_SOURCES
         ${EXCHANGE_SMAD_DIR}/exchange_smed.hpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config.hpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config_egsa.hpp
+#        ${EXCHANGE_CONFIG_DIR}/exchange_config_request.cpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config_request.hpp
+#        ${EXCHANGE_CONFIG_DIR}/exchange_config_cycle.cpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config_cycle.hpp
+#        ${EXCHANGE_CONFIG_DIR}/exchange_config_site.cpp
+        ${EXCHANGE_CONFIG_DIR}/exchange_config_site.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl_acq.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_impl_send.cpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.cpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_cycle.hpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.cpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_site.hpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_request.cpp
-        ${EXCHANGE_EGSA_DIR}/exchange_egsa_request.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator.hpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_teleinfo.cpp
@@ -134,6 +135,8 @@ set (WORKER_EGSA_SOURCES
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_hhist_ti.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_multi_thres.cpp
         ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_hist_alarm.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_request.cpp
+        ${EXCHANGE_EGSA_DIR}/exchange_egsa_translator_state.cpp
         )
 
 set (WORKER_TIMEKEEPER_SOURCES
@@ -256,6 +259,7 @@ target_link_libraries(${WORKER_SYSACQ_CLI}
     ${LIBGLOG_LIBRARIES}
     "-pthread"
     ${MDP_LIBRARY_NAME}
+    ${EXCHANGE_LIBRARY_NAME}
     ${MODBUS_LIBRARY_NAME}
     ${LIBMODBUS_LIBRARIES}
     ${LIBPROTOBUF_LIBRARIES}
@@ -271,6 +275,7 @@ target_link_libraries(${WORKER_EGSA}
     ${LIBPROTOBUF_LIBRARIES}
     ${TOOLS_LIBRARY_NAME}
     ${MDP_LIBRARY_NAME}
+    ${EXCHANGE_LIBRARY_NAME}
     ${LIBSQLITE_LIBRARIES}
     ${SYSTEM_EXTERNAL_LIBS}
     )

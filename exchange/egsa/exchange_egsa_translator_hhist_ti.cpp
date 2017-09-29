@@ -14,15 +14,6 @@
 #include "exchange_egsa_translator.hpp"
 #include "exchange_smed.hpp"
 
-//............................................................................
-//  CONTENTS
-//  esg_acq_dac_HHistTiAcq
-//      esg_acq_dac_HHTISndMsg
-//      esg_acq_dac_HHTITIProcess
-//      esg_acq_dac_HHTIValProcess
-//      esg_acq_dac_InitInternalBis
-//............................................................................
-
 #define MAXHOSTNAMELEN  50
 
 #define ESG_ESG_ODM_D_HIST_QH       1  // Quarter of hour historization
@@ -37,42 +28,6 @@ typedef struct {
   uint16_t          h_NbInfosHist;
   gof_t_UniversalName   s_Info[1];
 } gof_t_HistUpdReq;
-
-// --------------------------------------------
-static int esg_acq_dac_HHTISndMsg(
-    const gof_t_UniversalName,
-    const gof_t_PeriodType,
-    const char*);
-
-// --------------------------------------------
-static int esg_acq_dac_HHTITIProcess(
-    const gof_t_UniversalName,
-    const gof_t_UniversalName,
-    const esg_esg_edi_t_StrComposedData*,
-    const elemstruct_item_t*,
-    FILE*,
-    int*,
-    // the number of treated group of data is output parameter
-    int*,
-    // the allocated pointers are input/output parameters
-    esg_acq_dac_t_HhistTIDate**,
-    esg_acq_dac_t_HhistTIValue**,
-    esg_acq_dac_t_HhistTIValid**);
-
-// --------------------------------------------
-static int esg_acq_dac_HHTIValProcess(
-    const esg_esg_edi_t_StrComposedData*,
-    const elemstruct_item_t*,
-    esg_acq_dac_t_HhistTIDate*,
-    esg_acq_dac_t_HhistTIValue*,
-    esg_acq_dac_t_HhistTIValid*);
-
-// --------------------------------------------
-static int esg_acq_dac_InitInternalBis(esg_esg_edi_t_StrComposedData * pr_OInternalCDataBis);
-
-//----------------------------------------------------------------------------
-//  BODIES OF SUB-PROGRAMS
-//----------------------------------------------------------------------------
 
 //============================================================================
 
@@ -150,11 +105,11 @@ int ExchangeTranslator::esg_acq_dac_HHTITIProcess(
                               // Input/Output parameters
                               // INPUT = number of groups of data of the previous TI
                               // OUTPUT = number of groups of data of the current TI
-                              int* pi_IONbEch,
+                              size_t* pi_IONbEch,
                               // Output       parameters
                               // the number of treated groups of data is output parameter
                               // This parameter is always set to 0 as the TI is a new one to treat
-                              int* pi_OEchDone,
+                              size_t* pi_OEchDone,
                               // Input/Output parameters
                               // the allocated pointers are input/output parameters
                               esg_acq_dac_t_HhistTIDate** pr_IOHhistTIDate,
@@ -172,7 +127,7 @@ int ExchangeTranslator::esg_acq_dac_HHTITIProcess(
   esg_acq_dac_t_HhistTIValue *pr_HhistTIValue;
   esg_acq_dac_t_HhistTIValid *pr_HhistTIValid;
   // index of TI value group for trace
-  int i_IxEch;
+  size_t i_IxEch;
   // internal validity on a simple field used to avoid the holes in the esg_acq_dac_t_HhistTIValid structure
   uint16_t h_HhistTIValid;
   //............................................................................
@@ -448,32 +403,32 @@ int ExchangeTranslator::esg_acq_dac_InitInternalBis( /* output parameters */ esg
 //----------------------------------------------------------------------------
 int ExchangeTranslator::esg_acq_dac_HHistTiAcq(
                            // Input parameters
-                           const int i_IMsgApplNb,   // number of applicative segments of the file
-                           const int i_IApplLength,   // length of current applicative segment of the file
+                           const size_t i_IMsgApplNb,   // number of applicative segments of the file
+                           const size_t i_IApplLength,   // length of current applicative segment of the file
                            const char* s_IAcqSiteId,    // universal name of the distant site of acquisition
                            const char* s_IHistFileName, // name of the result historic file for SIDR
                            FILE* pi_IFileId,                 // id of the exchanged file (opened in the caller)
                            // Input-output parameters
-                           int* i_IOApplDone)       // number of processed applicative segments
+                           size_t* i_IOApplDone)       // number of processed applicative segments
 {
   //----------------------------------------------------------------------------
   static const char* fname = "esg_acq_dac_HHistTiAcq";
   int i_Status = OK;
   int i_RetStatus = OK;
-  int i_CDLength = 0;
-  int i_LgDone = 0;
+  size_t i_CDLength = 0;
+  size_t i_LgDone = 0;
   // number of group of data for one TI of the historic
-  int i_NbEch = 0;
+  size_t i_NbEch = 0;
   // number of group of treated data for the current TI
-  int i_EchDone = 0;
-  int i_MsgSize = 0;
+  size_t i_EchDone = 0;
+  size_t i_MsgSize = 0;
   // current number of explored TI in the list given by SIDR
-  int i_InfosHistDone = 0;
+  size_t i_InfosHistDone = 0;
   // number of historised TI given by SIDR at the DIR
-  int i_NbInfosHist = 0;
-  int i_ApplLength = 0;
-  int i_ApplDone = 0;
-  int i_LgAppl = 0;
+  size_t i_NbInfosHist = 0;
+  size_t i_ApplLength = 0;
+  size_t i_ApplDone = 0;
+  size_t i_LgAppl = 0;
   gof_t_HistUpdReq *pr_HistUpdReq = NULL;
   // the size of trace buffer must be at least this size
   char s_Trace[120 + 1];
@@ -503,9 +458,9 @@ int ExchangeTranslator::esg_acq_dac_HHistTiAcq(
 // An SIDL function must be called with this site
   gof_t_UniversalName s_Site;
 // LED read
-  int i_LEDRead;
+  size_t i_LEDRead;
 // Ti index in tracing loop
-  int i_Ti;
+//  size_t i_Ti;
 // indication of end of TI processed, the file for SIDR is so completed
   bool b_EndTi;
 // indication of end of received file processed

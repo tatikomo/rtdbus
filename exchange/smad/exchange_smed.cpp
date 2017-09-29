@@ -22,7 +22,10 @@
 #include "xdb_common.hpp"       // Инфотипы GOF_D_BDR_OBJCLASS_*
 #include "exchange_config.hpp"
 #include "exchange_config_egsa.hpp"
+#include "exchange_config_site.hpp"
+#include "exchange_config_request.hpp"
 #include "exchange_smed.hpp"
+//#include "exchange_egsa_cycle.hpp"
 
 static const char *SQL_TEMPLATE_SELECT_DATA_BY_LED =
   "SELECT D.DATA_ID,D.TAG,D.OBJCLASS,D.CATEGORY,D.ALARM_INDIC,D.HISTO_INDIC"
@@ -33,6 +36,9 @@ static const char *SQL_TEMPLATE_SELECT_DATA_BY_LED =
   " AND S.SITE_ID=P.SITE_REF"
   " AND P.DATA_REF=D.DATA_ID;";
 
+// Созданы или нет в SMED служебные таблицы
+bool SMED::m_content_initialized = false;
+
 // ==========================================================================================================
 SMED::SMED(EgsaConfig* _config, const char* snap_file)
  : m_db(NULL),
@@ -42,6 +48,10 @@ SMED::SMED(EgsaConfig* _config, const char* snap_file)
    m_snapshot_filename(NULL)
 {
   m_snapshot_filename = strdup(snap_file);
+
+  // Создать экземпляры доступа к Сайтам и Запросам в SMED
+  m_site_list = new SmedObjectList<AcqSiteEntry*>(this);
+  m_request_list = new SmedObjectList<Request*>(this);
 }
 
 // ==========================================================================================================
@@ -49,12 +59,18 @@ SMED::~SMED()
 {
   int rc;
 
+  // Сменить состояние Сайтов в "ОБРЫВ СВЯЗИ"
+  detach_sites();
+
   if (SQLITE_OK != (rc = sqlite3_close(m_db)))
     LOG(ERROR) << "Closing SMED '" << m_snapshot_filename << "': " << rc;
   else
     LOG(INFO) << "SMED file '" << m_snapshot_filename << "' successfuly closed";
 
   free(m_snapshot_filename);
+
+  delete m_request_list;
+  delete m_site_list;
 }
 
 // ==========================================================================================================
@@ -78,22 +94,27 @@ smad_connection_state_t SMED::connect()
     LOG(INFO) << fname << ": SMED file '" << m_snapshot_filename << "' successfuly opened";
     m_state = STATE_OK;
 
-    // Установить кодировку UTF8
-    if (sqlite3_exec(m_db, "PRAGMA ENCODING = \"UTF-8\"", 0, 0, &m_db_err)) {
-      LOG(ERROR) << fname << ": Unable to set UTF-8 support: " << m_db_err;
-      sqlite3_free(m_db_err);
-    }
-    else LOG(INFO) << "Enable UTF-8 support for HDB";
+    // Проверить содержимое, чтобы повторно не вносить данные
+    if (!m_content_initialized) {
 
-    // Включить поддержку внешних ключей
-    if (sqlite3_exec(m_db, "PRAGMA FOREIGN_KEYS = 1", 0, 0, &m_db_err)) {
-      LOG(ERROR) << fname << ": Unable to set FOREIGN_KEYS support: " << m_db_err;
-      sqlite3_free(m_db_err);
-    }
-    else LOG(INFO) << "Enable FOREIGN_KEYS support";
+      // Установить кодировку UTF8
+      if (sqlite3_exec(m_db, "PRAGMA ENCODING=\"UTF-8\"", 0, 0, &m_db_err)) {
+        LOG(ERROR) << fname << ": Unable to set UTF-8 support: " << m_db_err;
+        sqlite3_free(m_db_err);
+      }
+      else LOG(INFO) << "Enable UTF-8 support for HDB";
 
-    // Создать структуру, прочитав DDL из файла
-    rc = create_internal();
+      // Включить поддержку внешних ключей
+      if (sqlite3_exec(m_db, "PRAGMA FOREIGN_KEYS=1", 0, 0, &m_db_err)) {
+        LOG(ERROR) << fname << ": Unable to set FOREIGN_KEYS support: " << m_db_err;
+        sqlite3_free(m_db_err);
+      }
+      else LOG(INFO) << "Enable FOREIGN_KEYS support";
+
+      // Создать структуру, прочитав DDL из файла
+      rc = create_internal();
+      m_content_initialized = true;
+    }
   }
   else
   {
@@ -162,6 +183,7 @@ int SMED::create_internal()
     "  ELEMSTRUCT_REF integer NOT NULL,"
     "  DATA_REF integer NOT NULL,"
     "  LAST_UPDATE integer DEFAULT 0,"
+    "  NEED_SYNC integer DEFAULT 0,"
     "  VAL_INT integer,"
     "  VAL_DOUBLE double,"
     "  VAL_STR varchar,"
@@ -181,13 +203,14 @@ int SMED::create_internal()
     "CREATE TABLE SITES ("
     "  SITE_ID integer PRIMARY KEY AUTOINCREMENT,"
     "  NAME varchar,"
-    "  LEVEL integer,"
+    "  SYNTHSTATE integer DEFAULT 0,"
+    "  EXPMODE integer DEFAULT 1,"
+    "  INHIBITION integer DEFAULT 1,"
     "  NATURE integer,"
-    "  AUTO_INIT integer,"
-    "  AUTO_GENCONTROL integer,"
     "  LAST_UPDATE integer DEFAULT 0);"
     "COMMIT;";
 
+#ifdef CREATE_INDEX_SMED
   const char* ddl_create_indexes =
     "BEGIN;"
     "  CREATE INDEX FIELDS_LINK_IDX_FIELDS ON FIELDS_LINK(FIELD_REF);"
@@ -199,6 +222,7 @@ int SMED::create_internal()
     "  CREATE INDEX ASSOCIATE_LINK_IDX_DATA ON ASSOCIATE_LINK(DATA_REF);"
     "  CREATE INDEX ASSOCIATE_LINK_IDX_ELEMSTRUCT ON ASSOCIATE_LINK(ELEMSTRUCT_REF);"
     "COMMIT;";
+#endif
 
   // Выполнить DDL
   if (sqlite3_exec(m_db, ddl_commands, 0, 0, &m_db_err)) {
@@ -212,7 +236,7 @@ int SMED::create_internal()
 #endif
     rc = load_internal(m_egsa_config->elemtypes(), m_egsa_config->elemstructs());
 
-#if 0
+#ifndef CREATE_INDEX_SMED
 #warning "Suppress creating INDEX for SMED"
     // TODO: БД без индексов занимает вдвое меньше места (5.8Мб против 2.5Мб), нужно ли использовать индексы в этом виде?
 #else
@@ -244,7 +268,6 @@ int SMED::load_internal(elemtype_item_t* _elemtype, elemstruct_item_t* _elemstru
   int types_stored = 0;
   int fields_stored = 0;
   int structs_stored = 0;
-  int sites_stored = 0;
   char dml_operator[100 + 1];
   elemtype_item_t* elemtype = _elemtype;
   elemstruct_item_t* elemstruct = _elemstruct;
@@ -373,42 +396,22 @@ int SMED::load_internal(elemtype_item_t* _elemtype, elemstruct_item_t* _elemstru
           std::cout << "SQL " << sql << std::endl;
 #endif
 
-          // 2) Наполнить таблицу SITES
-          sql = "BEGIN;INSERT INTO SITES(NAME,NATURE) VALUES";
-          for (egsa_config_sites_t::const_iterator it = m_egsa_config->sites().begin();
-               it != m_egsa_config->sites().end();
-               ++it)
-          {
-            snprintf(dml_operator, 100, "%s(\"%s\",%d)",
-                    ((sites_stored++)? "," : ""),
-                    (*it).second->name.c_str(),
-                    (*it).second->nature);
-            sql += dml_operator;
-          }
-          if (sites_stored) {
-            sql += ";COMMIT;";
-            // Выполнить запрос
-            if (sqlite3_exec(m_db, sql.c_str(), 0, 0, &m_db_err)) {
-              LOG(ERROR) << fname << ": insert sites: " << m_db_err;
-              sqlite3_free(m_db_err);
-            }
-            else {
-              LOG(INFO) << fname << ": store " << sites_stored << " sites";
-#ifdef SQL_TRACE
-              std::cout << "SQL " << sql << std::endl;
+          // TODO: сформировать БД, содержащую все используемые Циклы, каждый из
+          // которых содержит ссылки на Сайты, которые в свою очередь содержат
+          // очередь актуальных Запросов.
+
+          // 2) Наполнить таблицу SITES и объект-список Сайтов
+          rc = store_sites();
+
+          // 3) Заполнить таблицу REQUESTS
+          rc = store_requests();
+          
+#if 0
+          // 4) Заполнить таблицу CYCLES
+          rc = store_cycles();
+#else
+#warning "Store Cycles here"
 #endif
-              rc = OK;
-
-              if (OK != get_map_id("SELECT SITE_ID,NAME FROM SITES;", m_sites_dict)) {
-                LOG(ERROR) << fname << ": unable to load SITES dictionary";
-              }
-
-            }
-          }
-          else {
-            LOG(ERROR) << fname << ": nothing to store in SITES";
-          }
-
         }
 
       }
@@ -429,6 +432,173 @@ int SMED::load_internal(elemtype_item_t* _elemtype, elemstruct_item_t* _elemstru
   return rc;
 }
 
+
+// ==========================================================================================================
+int SMED::store_sites()
+{
+  static const char *fname = "store_sites";
+  int rc = OK;
+  char dml_operator[100 + 1];
+  std::string sql;
+  int sites_stored = 0;
+
+  m_site_list->clear();
+  sql = "BEGIN;INSERT INTO SITES(NAME,NATURE) VALUES";
+  for (egsa_config_sites_t::const_iterator it = m_egsa_config->sites().begin();
+       it != m_egsa_config->sites().end();
+       ++it)
+  {
+    snprintf(dml_operator, 100, "%s(\"%s\",%d)",
+            ((sites_stored++)? "," : ""),
+            (*it).second->name.c_str(),
+            (*it).second->nature);
+    sql += dml_operator;
+
+    // Занесем сведения о Сайте в SMED
+    // TODO: ссылка на EGSA нужна для работы функции get_dict_request, нужно её перенести в класс SMED
+    m_site_list->insert(new AcqSiteEntry(/*m_egsa,*/ (*it).second));
+  }
+
+  if (sites_stored) {
+    sql += ";COMMIT;";
+    // Выполнить запрос
+    if (sqlite3_exec(m_db, sql.c_str(), 0, 0, &m_db_err)) {
+      LOG(ERROR) << fname << ": insert sites: " << m_db_err;
+      sqlite3_free(m_db_err);
+    }
+    else {
+      LOG(INFO) << fname << ": store " << sites_stored << " sites";
+
+#ifdef SQL_TRACE
+      std::cout << "SQL " << sql << std::endl;
+#endif
+
+      if (OK != get_map_id("SELECT SITE_ID,NAME FROM SITES;", m_sites_dict)) {
+        LOG(ERROR) << fname << ": unable to load SITES dictionary";
+      }
+    }
+  }
+  else {
+    LOG(ERROR) << fname << ": nothing to store in SITES";
+    // Ошибка, обнулим список Сайтов, поскольку он был уже заполнен ранее
+    m_site_list->clear();
+    rc = NOK;
+  }
+
+  return rc;
+}
+
+// ==========================================================================================================
+// Загрузить таблицу Запросов
+int SMED::store_requests()
+{
+  int rc = OK;
+  //char dml_operator[100 + 1];
+  std::string sql;
+
+  for(egsa_config_requests_t::const_iterator rit = m_egsa_config->requests().begin();
+      rit != m_egsa_config->requests().end();
+      ++rit)
+  {
+#if VERBOSE>6
+    LOG(INFO) << "Req "
+              << (*rit).second->s_RequestName << " "
+              << (*rit).second->i_RequestPriority << " "
+              << (unsigned int)(*rit).second->e_RequestObject << " "
+              << (unsigned int)(*rit).second->e_RequestMode;
+#endif
+
+    m_request_list->insert(new Request((*rit).second));
+    /* Request* rq = new Request((*rit).second);
+    m_ega_ega_odm_ar_Requests.add(rq);*/
+  }
+
+  return rc;
+}
+
+#if 0
+// ==========================================================================================================
+// Загрузить таблицу Циклов
+int SMED::store_cycles()
+{
+  int rc = OK;
+  ech_t_ReqId request_id;
+
+  for(egsa_config_cycles_t::const_iterator cit = m_egsa_config->cycles().begin();
+      cit != m_egsa_config->cycles().end();
+      ++cit)
+  {
+    // request_id получить по имени запроса
+    if (NOT_EXISTENT != (request_id = m_egsa_config->get_request_id((*cit).second->request_name))) {
+
+      // Создадим экземпляр Цикла, удалится он в деструкторе EGSA
+      Cycle *cycle = new Cycle((*cit).first.c_str(),
+                               (*cit).second->period,
+                               (*cit).second->id,
+                               request_id,
+                               CYCLE_NORMAL);
+
+      // Для данного цикла получить все использующие его сайты
+      for(std::vector <std::string>::const_iterator sit = (*cit).second->sites.begin();
+          sit != (*cit).second->sites.end();
+          ++sit)
+      {
+        // Найти AcqSiteEntry для текущей SA в m_ega_ega_odm_ar_AcqSites
+        AcqSiteEntry* site = m_ega_ega_odm_ar_AcqSites[(*sit)];
+        if (site) {
+          cycle->link(site);
+        }
+        else {
+          LOG(ERROR) << fname << ": skip undefined site " << (*sit);
+        }
+      }
+      //
+      cycle->dump();
+
+      // Ввести в оборот новый Цикл сбора, вернуть новый размер очереди циклов
+      m_ega_ega_odm_ar_Cycles.insert(cycle);
+    }
+    else {
+      LOG(ERROR) << fname << ": cycle " << (*cit).first << ": unknown included request " << (*cit).second->request_name;
+    }
+  }
+
+  return rc;
+}
+#else
+#warning "TODO store Cycles"
+#endif
+
+#if 0
+// ==========================================================================================================
+// Получить текущий список Сайтов из БД SMED
+AcqSiteList* SMED::get_site_list()
+{
+  AcqSiteList* current = NULL;
+
+  return current;
+}
+
+// ==========================================================================================================
+// Получить текущий список Запросов из БД SMED
+RequestList* SMED::get_request_list()
+{
+  RequestList* current = NULL;
+
+  return current;
+}
+
+// ==========================================================================================================
+// Получить текущий список Циклов из БД SMED
+CycleList* SMED::get_cycle_list()
+{
+  CycleList* current = NULL;
+
+  return current;
+}
+#else
+#warning "TODO get_cycle_list"
+#endif
 
 // ==========================================================================================================
 int SMED::get_info(const gof_t_UniversalName site, sa_flow_direction_t direction, const int i_Led, esg_esg_odm_t_ExchInfoElem* elem)
@@ -597,10 +767,12 @@ int SMED::load_dict(const char* config_filename)
         const std::string flow_direction = section[SECTION_NAME_FLOW].GetString();
         if (0 == flow_direction.compare(SECTION_FLOW_VALUE_ACQ))
           flow = SA_FLOW_ACQUISITION;
-        else if (flow_direction.compare((SECTION_FLOW_VALUE_DIFF)))
+        else if (0 == flow_direction.compare((SECTION_FLOW_VALUE_DIFF)))
           flow = SA_FLOW_DIFFUSION;
-        else
+        else {
+          LOG(ERROR) << fname << ": unsupported information flow: " << flow_direction;
           flow = SA_FLOW_UNKNOWN;
+        }
       }
     }   // Конец блока "Есть секция с описанием словаря"
 
@@ -729,7 +901,7 @@ int SMED::load_data_dict(const char* site_name, std::vector<exchange_parameter_t
   size_t fields_stored = 0;
   int rc = NOK;
   map_id_by_name_t data_dict;
-  size_t elem_id, data_id, site_id, field_id;
+  size_t elem_id, site_id, field_id;
   std::string sql;
   std::string sql2;
   sqlite3_stmt* stmt = 0;
@@ -756,7 +928,7 @@ int SMED::load_data_dict(const char* site_name, std::vector<exchange_parameter_t
         break;
 
       default:
-        LOG(ERROR) << fname << ": unsupported transmittion mode: " << flow << " for site " << site_name;
+        LOG(ERROR) << fname << ": unsupported transmition mode: " << flow << " for site " << site_name;
     }
 
     if (!sql.empty()) { // Указан допустимый режим передачи
@@ -972,6 +1144,9 @@ int SMED::load_data_dict(const char* site_name, std::vector<exchange_parameter_t
                     }
 
                   }
+                  else {
+                    LOG(ERROR) << fname << ": SQL : " << sql; 
+                  }
 
                 }
 
@@ -999,7 +1174,7 @@ int SMED::load_data_dict(const char* site_name, std::vector<exchange_parameter_t
 
     // Обновить время последнего информационного обмена с Сайтом
     if (OK == rc) {
-      snprintf(dml_operator, 100, "BEGIN;UPDATE OR ROLLBACK SITES SET LAST_UPDATE=CURRENT_TIMESTAMP WHERE SITE_ID=%d;COMMIT;", site_id);
+      snprintf(dml_operator, 100, "BEGIN;UPDATE OR ROLLBACK SITES SET LAST_UPDATE=%ld WHERE SITE_ID=%d;COMMIT;", time(0), site_id);
       if (sqlite3_exec(m_db, dml_operator, 0, 0, &m_db_err)) {
         LOG(ERROR) << fname << ": update date of last communication with site " << site_name << " : " << m_db_err;
         sqlite3_free(m_db_err);
@@ -1220,6 +1395,16 @@ int SMED::processing(const gof_t_UniversalName s_IAcqSiteId,
                             " AND S.SITE_ID=P.SITE_REF"
                             " AND P.DATA_REF=D.DATA_ID;";
   const int dml_sql_size = strlen(SELECT_INFO) + 9 /*LED*/ + 9 /*STRUCT_ID*/ + 7 /*site tag*/ + 300 /*значение*/;
+/*  const char* SELECT_DATEHOURM = "SELECT D.DATA_ID"
+                            " FROM SITES S,PROCESSING P,DATA D,FIELDS_LINK FL,FIELDS F"
+                            " WHERE S.NAME='%s'"
+                            " AND S.SITE_ID=P.SITE_REF"
+                            " AND P.DATA_REF=D.DATA_ID"
+                            " AND P.TYPE=%d"
+                            " AND D.TAG='%s'"
+                            " AND D.DATA_ID=FL.DATA_REF"
+                            " AND FL.FIELD_REF=F.FIELD_ID"
+                            " AND F.ATTR='%s';";*/
   char dml_operator[dml_sql_size + 1];  // буфер SQL для обновления данных в SMED
   char dml_value[300 + 1];              // буфер для сохранения значения Параметра в зависимости от его типа
   sqlite3_stmt* stmt = 0;
@@ -1299,6 +1484,11 @@ int SMED::processing(const gof_t_UniversalName s_IAcqSiteId,
           //1 assert(pr_IInternalCData->ar_EDataTable[attr_idx].type == attr_type);
           assert(pr_ISubTypeElem->fields[field_idx].type == attr_type);
 
+          // TODO: Для телеметрии, имеющей атрибут DATEHOURM, обновлять значение только тогда, когда этот атрибут содержит более ранний
+          // маркер времени, чем данный. Обновляется вся телеметрия, не имеющая данного атрибута, или имеющая его более раннее значение.
+          // sprintf(SELECT_DATEHOURM, s_IAcqSiteId, SA_FLOW_DIFFUSION, 
+#warning "ГОФО дополнительно для ТИ проверяет значение атрибута DATEHOURM при обновлении данных - проверить необходимость"
+
           // Данные обновляются, только если полученные данные имеют больший маркер времени, чем содержащийся в SMED
           if (last_update < d_IReceivedDate.tv_sec) {  // Да, пришли более свежие данные
             LOG(INFO) << fname << ": update smed record id " << link_id << ", type=" << attr_type << " attr=" << attr_name << " size=" << et_size;
@@ -1308,21 +1498,21 @@ int SMED::processing(const gof_t_UniversalName s_IAcqSiteId,
             dml_value[0] = '\0';
 
             switch (attr_type) {
-              case FIELD_TYPE_LOGIC:  sprintf(dml_value, ",VAL_INT=%d", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.b_Logical);  break;
-              case FIELD_TYPE_INT8:   sprintf(dml_value, ",VAL_INT=%d", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.o_Int8);     break;
-              case FIELD_TYPE_UINT8:  sprintf(dml_value, ",VAL_INT=%d", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.o_Uint8);    break;
-              case FIELD_TYPE_INT16:  sprintf(dml_value, ",VAL_INT=%d", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.h_Int16);    break;
-              case FIELD_TYPE_UINT16: sprintf(dml_value, ",VAL_INT=%d", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.h_Uint16);   break;
-              case FIELD_TYPE_INT32:  sprintf(dml_value, ",VAL_INT=%d", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.i_Int32);    break;
-              case FIELD_TYPE_UINT32: sprintf(dml_value, ",VAL_INT=%d", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.i_Uint32);   break;
-              case FIELD_TYPE_FLOAT:  sprintf(dml_value, ",VAL_DOUBLE=%f", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.f_Float); break;
-              case FIELD_TYPE_DOUBLE: sprintf(dml_value, ",VAL_DOUBLE=%g", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.g_Double);break;
-              case FIELD_TYPE_DATE:   sprintf(dml_value, ",VAL_INT=%ld",   pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.d_Timeval.tv_sec);break;
+              case FIELD_TYPE_LOGIC:  sprintf(dml_value, ",NEED_SYNC=1,VAL_INT=%d", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.b_Logical);  break;
+              case FIELD_TYPE_INT8:   sprintf(dml_value, ",NEED_SYNC=1,VAL_INT=%d", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.o_Int8);     break;
+              case FIELD_TYPE_UINT8:  sprintf(dml_value, ",NEED_SYNC=1,VAL_INT=%d", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.o_Uint8);    break;
+              case FIELD_TYPE_INT16:  sprintf(dml_value, ",NEED_SYNC=1,VAL_INT=%d", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.h_Int16);    break;
+              case FIELD_TYPE_UINT16: sprintf(dml_value, ",NEED_SYNC=1,VAL_INT=%d", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.h_Uint16);   break;
+              case FIELD_TYPE_INT32:  sprintf(dml_value, ",NEED_SYNC=1,VAL_INT=%d", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.i_Int32);    break;
+              case FIELD_TYPE_UINT32: sprintf(dml_value, ",NEED_SYNC=1,VAL_INT=%d", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.i_Uint32);   break;
+              case FIELD_TYPE_FLOAT:  sprintf(dml_value, ",NEED_SYNC=1,VAL_DOUBLE=%f", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.f_Float); break;
+              case FIELD_TYPE_DOUBLE: sprintf(dml_value, ",NEED_SYNC=1,VAL_DOUBLE=%g", pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.g_Double);break;
+              case FIELD_TYPE_DATE:   sprintf(dml_value, ",NEED_SYNC=1,VAL_INT=%ld",   pr_IInternalCData->ar_EDataTable[attr_idx++].u_val.d_Timeval.tv_sec);break;
               case FIELD_TYPE_STRING:
                 // Размер сохраняемой строки ограничен
                 if (pr_IInternalCData->ar_EDataTable[attr_idx].u_val.r_Str.i_LgString < 256) {
                   if (pr_IInternalCData->ar_EDataTable[attr_idx].u_val.r_Str.i_LgString) {
-                    sprintf(dml_value, ", VAL_STR='%s'",  pr_IInternalCData->ar_EDataTable[attr_idx].u_val.r_Str.ps_String);
+                    sprintf(dml_value, ",NEED_SYNC=1,VAL_STR='%s'",  pr_IInternalCData->ar_EDataTable[attr_idx].u_val.r_Str.ps_String);
                   }
                 }
                 else {
@@ -1350,6 +1540,14 @@ int SMED::processing(const gof_t_UniversalName s_IAcqSiteId,
 
       if (attr_idx) { // Если атрибуты БДРВ встречались в выборке
 
+        // обновить маркер времени последнего обмена информацией с Сайтом в таблице SITES
+        sprintf(dml_operator, "UPDATE SITES SET LAST_UPDATE=%ld WHERE NAME='%s';", d_IReceivedDate.tv_sec, s_IAcqSiteId);
+        sql += dml_operator;
+
+
+
+
+
         sql += "COMMIT;";
         if (sqlite3_exec(m_db, sql.c_str(), 0, 0, &m_db_err)) {
           LOG(ERROR) << fname << ": SMED " << s_IAcqSiteId << " led=" << pr_IQuaCData->i_QualifyValue << " updating: " << m_db_err;
@@ -1364,15 +1562,364 @@ int SMED::processing(const gof_t_UniversalName s_IAcqSiteId,
       }  // Конец блока занесения данных в SMED
 
       rc = OK;
+
+    } // Конец блока успешного выполнения запроса на выбор
+    else {
+      LOG(ERROR) << fname << ": SQL : " << dml_operator;
     }
-/*
-    if (num_lines) {
-      LOG(INFO) << fname << " last date=" << ctime(&last_update);
-      rc = OK;
-    }*/
 
   } while (false);
 
   return rc;
 }
+
+// ==============================================================================
+// Чтение из SMED для Сайта значения указанного Атрибута для данного Тега
+int SMED::ech_smd_p_ReadRecAttr (
+	// Input parameters
+	const char* site_name,       // IN : site object
+	const gof_t_UniversalName   s_ObjName,  // IN : object universal name of the record
+	const char*                 s_AttrName, // IN : attribut universal name
+	// Output parameters
+	xdb::AttributeInfo_t       *pr_RecAttr, // OUT : value of the concerned attribut
+	bool                       &b_RecAttrChanged) // OUT : changed indicator of the concerned attribut
+{
+  static const char* fname = "ech_smd_p_ReadRecAttr";
+  static const char* SELECT_TEMPLATE = "SELECT D.OBJCLASS,F.TYPE,FL.NEED_SYNC,FL.LAST_UPDATE,FL.VAL_INT,FL.VAL_DOUBLE,FL.VAL_STR"
+                                       " FROM DATA D,PROCESSING P, SITES S,FIELDS F, FIELDS_LINK FL"
+                                       " WHERE P.DATA_REF=D.DATA_ID"
+                                       " AND FL.DATA_REF=D.DATA_ID"
+                                       " AND P.DATA_REF=FL.DATA_REF"
+                                       " AND FL.FIELD_REF=F.FIELD_ID"
+                                       " AND D.TAG='%s'"
+                                       " AND F.ATTR='%s'"
+                                       " AND S.NAME='%s';";
+  const int operator_size = strlen(SELECT_TEMPLATE)
+          + /* DATA.TAG   */ TAG_NAME_MAXLEN
+          + /* FIELD.ATTR */ TAG_NAME_MAXLEN
+          + /* SITE.NAME  */ TAG_NAME_MAXLEN
+          + /* RESERVE    */ 1;
+  char dml_operator[operator_size + 1];
+  sqlite3_stmt* stmt = 0;
+  int rc = OK;
+
+  // Первоначальная инициализация
+  pr_RecAttr->type = xdb::DB_TYPE_UNDEF;
+  pr_RecAttr->quality = xdb::ATTR_NOT_FOUND;
+  pr_RecAttr->value.fixed.val_uint64 = 0;
+  pr_RecAttr->value.dynamic.size = 0;
+  pr_RecAttr->value.dynamic.varchar = NULL;
+  pr_RecAttr->value.dynamic.val_string = NULL;
+
+  pr_RecAttr->name = s_ObjName;
+  pr_RecAttr->name+= ".";
+  pr_RecAttr->name+= s_AttrName;
+
+  LOG(INFO) << fname << ": site=" << site_name << " tag=" << pr_RecAttr->name;
+
+  // univname_t name;    /* имя атрибута */
+  // DbType_t   type;    /* его тип - целое, дробь, строка */
+  // Quality_t  quality; /* качество атрибута (из БДРВ) */
+  // AttrVal_t  value;   /* значение атрибута */
+
+  snprintf(dml_operator, operator_size, SELECT_TEMPLATE, s_ObjName, s_AttrName, site_name);
+
+  if (SQLITE_OK == sqlite3_prepare(m_db, dml_operator, -1, &stmt, 0)) {
+
+    int num_lines = 1;
+    // Запрос успешно выполнился
+    while(sqlite3_step(stmt) == SQLITE_ROW) {
+
+      const unsigned int objclass    = sqlite3_column_int(stmt, 0);
+      assert(objclass <= GOF_D_BDR_OBJCLASS_LASTUSED);
+      const unsigned int field_type  = sqlite3_column_int(stmt, 1);
+      assert(field_type <= FIELD_TYPE_STRING);
+      const int need_sync   = sqlite3_column_int(stmt, 2);
+      const int last_update = sqlite3_column_int(stmt, 3);
+      const unsigned long val_int = sqlite3_column_int(stmt, 4);
+      const double val_double   = sqlite3_column_double(stmt, 5);
+      const std::string val_str = (const char*)sqlite3_column_text(stmt, 6);
+
+      b_RecAttrChanged = (need_sync > 0);
+      // В выборке должна быть только одна строка
+      assert(--num_lines == 0);
+
+      switch(field_type) {
+        case 1:  pr_RecAttr->type = xdb::DB_TYPE_LOGICAL; pr_RecAttr->value.fixed.val_bool   = (val_int > 0);     break;
+        case 2:  pr_RecAttr->type = xdb::DB_TYPE_INT8;    pr_RecAttr->value.fixed.val_int8   = (int8_t)val_int;   break;
+        case 3:  pr_RecAttr->type = xdb::DB_TYPE_UINT8;   pr_RecAttr->value.fixed.val_uint8  = (uint8_t)val_int;  break;
+        case 4:  pr_RecAttr->type = xdb::DB_TYPE_INT16;   pr_RecAttr->value.fixed.val_int16  = (int16_t)val_int;  break;
+        case 5:  pr_RecAttr->type = xdb::DB_TYPE_UINT16;  pr_RecAttr->value.fixed.val_uint16 = (uint16_t)val_int; break;
+        case 6:  pr_RecAttr->type = xdb::DB_TYPE_INT32;   pr_RecAttr->value.fixed.val_int32  = (int32_t)val_int;  break;
+        case 7:  pr_RecAttr->type = xdb::DB_TYPE_UINT32;  pr_RecAttr->value.fixed.val_uint32 = (uint32_t)val_int; break;
+        case 8:  pr_RecAttr->type = xdb::DB_TYPE_FLOAT;   pr_RecAttr->value.fixed.val_float  = (float)val_double; break;
+        case 9:  pr_RecAttr->type = xdb::DB_TYPE_DOUBLE;  pr_RecAttr->value.fixed.val_double = val_double;        break;
+        case 10: pr_RecAttr->type = xdb::DB_TYPE_ABSTIME; pr_RecAttr->value.fixed.val_time.tv_sec = val_int;      break;
+        case 11:
+          pr_RecAttr->type = xdb::DB_TYPE_BYTES;
+          pr_RecAttr->value.dynamic.size = val_str.size();
+          pr_RecAttr->value.dynamic.varchar = new char[val_str.size() + 1];
+          strcpy(pr_RecAttr->value.dynamic.varchar, val_str.c_str());
+          break;
+
+        default:
+          LOG(ERROR) << fname << ": unsupported SMED attribute " << pr_RecAttr->name << " type: " << pr_RecAttr->type;
+          rc = NOK;
+      }
+
+/*
+      if ((TM_CATEGORY_OTHER <= input_category) && (input_category <= TM_CATEGORY_ALL))
+        elem->o_Categ = static_cast<telemetry_category_t>(input_category);
+      elem->b_AlarmIndic = (sqlite3_column_int(stmt, 4) > 0);
+      elem->i_HistoIndic = sqlite3_column_int(stmt, 5);
+      num_lines++; */
+    }
+    sqlite3_finalize(stmt);
+  }
+  else {
+    LOG(ERROR) << fname << ": SQL : " << dml_operator;
+    rc = NOK;
+  }
+
+  return rc;
+}
+
+// ==============================================================================
+// Обновить указанной Системе синтетическое состояние
+int SMED::esg_acq_dac_SmdSynthState(const char* site_name, synthstate_t synthstate)
+{
+  const char* fname = "esg_acq_dac_SmdSynthState";
+  static const char* SQL_TEMPLATE_1 = "BEGIN;UPDATE FIELDS_LINK SET VAL_INT=%d WHERE DATA_REF IN("
+            "SELECT D.DATA_ID"
+            " FROM DATA D, ELEMSTRUCT ES, ASSOCIATE_LINK AL,FIELDS_LINK FL,FIELDS F,SITES S,PROCESSING P"
+            " WHERE D.DATA_ID=AL.DATA_REF"
+            " AND FL.DATA_REF=D.DATA_ID"
+            " AND FL.FIELD_REF=F.FIELD_ID"
+            " AND P.DATA_REF=D.DATA_ID"
+            " AND S.SITE_ID=P.SITE_REF"
+            " AND S.NAME='%s'"
+            " AND P.TYPE=%d"
+            " AND D.OBJCLASS=%d"
+            " AND ES.ASSOCIATE='%s');";
+  const int operator_size = strlen(SQL_TEMPLATE_1)
+            + /* VAL_INT */  3
+            + /* S.NAME */   TAG_NAME_MAXLEN
+            + /* P.TYPE */   3
+            + /* OBJCLASS */ 4
+            + /* ASSOCIATE*/ 5 /* ECH_D_COMPIDLG */
+            + /* резерв */   1;
+  static const char* SQL_TEMPLATE_2 = "UPDATE SITES SET SYNTHSTATE=%d WHERE NAME='%s';COMMIT;";
+  char dml_operator[operator_size + 1]; // NB: размер SQL_TEMPLATE_1 много больше, чем SQL_TEMPLATE_2, выбираем размер буфера по нему
+  int rc = OK;
+  std::string sql;
+
+  sprintf(dml_operator, SQL_TEMPLATE_1, synthstate, site_name, SA_FLOW_ACQUISITION, GOF_D_BDR_OBJCLASS_SA, "I0017" /*ECH_D_SYNTHSTATE_VALUE*/);
+  sql = dml_operator;
+
+  sprintf(dml_operator, SQL_TEMPLATE_2, synthstate, site_name);
+  sql += dml_operator;
+
+  // Установить кодировку UTF8
+  if (sqlite3_exec(m_db, dml_operator, 0, 0, &m_db_err)) {
+    LOG(ERROR) << fname << ": updating " << site_name << "." << RTDB_ATT_SYNTHSTATE << " to " << synthstate
+#if VERBOSE > 7
+               << ", SQL: " << sql
+#endif
+               << " : " << m_db_err;
+    sqlite3_free(m_db_err);
+    rc = NOK;
+  }
+  else {
+    LOG(INFO) << fname << ": " << site_name << "." << RTDB_ATT_SYNTHSTATE << " := " << synthstate;
+  }
+
+  return rc;
+}
+// ==============================================================================
+
+// ==============================================================================
+// TODO: Для всех подчиненных систем сбора:
+// 1. Изменить их состояние SYNTHSTATE на "ОТКЛЮЧЕНО"
+// 2. Отключиться от их внутренней SMAD
+int SMED::detach_sites()
+{
+  const char* fname = "detach_sites";
+  const char* SQL_UPDATE_SYNTHSTATES = "BEGIN;UPDATE SITES SET SYNTHSTATE=0,LAST_UPDATE=%ld WHERE SYNTHSTATE>0;COMMIT;";
+  int rc = OK;
+  const int operator_size = strlen(SQL_UPDATE_SYNTHSTATES)
+            + /* LAST_UPDATE */  10
+            + /* резерв */   1;
+  char dml_operator[operator_size + 1];
+
+  sprintf(dml_operator, SQL_UPDATE_SYNTHSTATES, time(0));
+  if (sqlite3_exec(m_db, dml_operator, 0, 0, &m_db_err)) {
+    LOG(ERROR) << fname << ": updating attributes " << RTDB_ATT_SYNTHSTATE
+#if VERBOSE > 7
+               << ", SQL: " << dml_operator
+#endif
+               << " : " << m_db_err;
+    sqlite3_free(m_db_err);
+    rc = NOK;
+  }
+  else {
+    LOG(INFO) << fname << ": update atributes " << RTDB_ATT_SYNTHSTATE;
+  }
+
+  /*{
+    if (*it) {
+      AcqSiteEntry* entry = *(*it);
+      LOG(INFO) << "TODO: set " << entry->name() << ".SYNTHSTATE = 0";
+      LOG(INFO) << "TODO: detach " << entry->name() << " SMAD";
+    }
+  }*/
+
+  return rc;
+}
+
+#if 0
+// ==============================================================================
+template <typename Item>
+int SmedObjectList<Item>::clear()
+{
+  LOG(INFO) << "clear ";
+  return NOK;
+}
+
+// ==============================================================================
+template <typename Item>
+void SmedObjectList<Item>::insert(Item the_new_one)
+{
+  LOG(INFO) << "insert " << the_new_one->name();
+  LOG(ERROR) << "SMED: \"Вставить\" - ещё не реализовано";
+}
+
+// ==============================================================================
+template <typename Item>
+int SmedObjectList<Item>::refresh()
+{
+  int rc = NOK;
+  LOG(ERROR) << "SMED: refresh - ещё не реализовано";
+  return rc;
+}
+
+// ==============================================================================
+// Вернуть элемент по имени Сайта
+template <typename Item>
+Item SmedObjectList<Item>::operator[](const char* name)
+{
+  Item entry = NULL;
+
+  LOG(ERROR) << "SMED: \"Вернуть элемент по имени Сайта \"" << name << " - ещё не реализовано";
+
+  return entry;
+}
+
+// ==============================================================================
+// Вернуть элемент по имени Сайта
+template <typename Item>
+Item SmedObjectList<Item>::operator[](const std::string& name)
+{
+  Item entry = NULL;
+
+  LOG(ERROR) << "SMED: \"Вернуть элемент по имени Сайта \"" << name << "\" - ещё не реализовано";
+
+  return entry;
+}
+
+// ==============================================================================
+// Вернуть элемент по индексу
+template <typename Item>
+Item SmedObjectList<Item>::operator[](const std::size_t idx)
+{
+  Item entry = NULL;
+
+  LOG(ERROR) << "SMED: \"Вернуть элемент по индексу " << idx << " - ещё не реализовано";
+  return entry;
+}
+#endif
+
+#if 0
+// ==============================================================================
+void AcqSiteList::insert(AcqSiteEntry* the_new_one)
+{
+  LOG(INFO) << "insert " << the_new_one->name();
+  LOG(ERROR) << "SMED: \"Вставить новый Сайт\" - ещё не реализовано";
+}
+
+// ==============================================================================
+int AcqSiteList::refresh()
+{
+  int rc = NOK;
+  LOG(ERROR) << "SMED: refresh site - ещё не реализовано";
+  return rc;
+}
+
+// ==============================================================================
+// Вернуть элемент по имени Сайта
+AcqSiteEntry* AcqSiteList::operator[](const char* name)
+{
+  AcqSiteEntry *entry = NULL;
+
+  LOG(ERROR) << "SMED: \"Вернуть элемент по имени Сайта \"" << name << " - ещё не реализовано";
+/*  for(std::vector< std::shared_ptr<AcqSiteEntry*> >::const_iterator it = m_items.begin();
+      it != m_items.end();
+      ++it)
+  {
+    if (0 == std::strcmp((*(*it))->name(), name)) {
+      entry = *(*it);
+      break;
+    }
+  }*/
+
+  return entry;
+}
+
+// ==============================================================================
+// Вернуть элемент по имени Сайта
+AcqSiteEntry* AcqSiteList::operator[](const std::string& name)
+{
+  AcqSiteEntry *entry = NULL;
+
+  LOG(ERROR) << "SMED: \"Вернуть элемент по имени Сайта \"" << name << "\" - ещё не реализовано";
+
+  return entry;
+}
+
+// ==============================================================================
+// Вернуть элемент по индексу
+AcqSiteEntry* AcqSiteList::operator[](const std::size_t idx)
+{
+  AcqSiteEntry *entry = NULL;
+
+  LOG(ERROR) << "SMED: \"Вернуть элемент по индексу " << idx << " - ещё не реализовано";
+  /*if (idx < m_items.size()) {
+    if (m_items.at(idx)) {
+      entry = *m_items.at(idx);
+    }
+    else {
+      LOG(WARNING) << "AcqSiteList::operator[" << idx << "] found NULL in m_items";
+    }
+  }*/
+
+  return entry;
+}
+
+// ==============================================================================
+
+// ==============================================================================
+void RequestList::insert(AcqSiteEntry* the_new_one)
+{
+  LOG(INFO) << "insert " << the_new_one->name();
+  LOG(ERROR) << "SMED: \"Вставить новый Запрос\" - ещё не реализовано";
+}
+
+// ==============================================================================
+int RequestList::refresh()
+{
+  int rc = NOK;
+  LOG(ERROR) << "SMED: refresh request - ещё не реализовано";
+  return rc;
+}
+
+#endif
 

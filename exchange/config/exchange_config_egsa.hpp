@@ -1,4 +1,4 @@
-#if !defined EXCHANGE_CONFIG_EGSA_HPP
+#ifndef EXCHANGE_CONFIG_EGSA_HPP
 #define EXCHANGE_CONFIG_EGSA_HPP
 #pragma once
 
@@ -160,6 +160,29 @@ typedef enum {
   ESG_LOCID_EMERGENCY     = 50,
   NOT_EXISTENT = (ESG_LOCID_EMERGENCY + 1)   // 51, request not exist
 } ech_t_ReqId;
+
+// Коды запросов ГОФО отличаются от приведенных выше ech_t_ReqId, и для обмена с объектами ГОФО должны использоваться старые коды 
+typedef enum {
+  ESG_ESG_D_BASID_STATECMD      = 0,
+  ESG_ESG_D_BASID_STATEACQ      = 1,
+  ESG_ESG_D_BASID_SELECTLIST    = 2,
+  ESG_ESG_D_BASID_GENCONTROL    = 3,
+  ESG_ESG_D_BASID_INFOSACQ      = 4,
+  ESG_ESG_D_BASID_HISTINFOSACQ  = 5,
+  ESG_ESG_D_BASID_ALARM         = 6,
+  ESG_ESG_D_BASID_THRESHOLD     = 7,
+  ESG_ESG_D_BASID_ORDER         = 8,
+  ESG_ESG_D_BASID_HHISTINFSACQ  = 9,
+  ESG_ESG_D_BASID_HISTALARM     = 10,
+  ESG_ESG_D_BASID_CHGHOUR       = 11,
+  ESG_ESG_D_BASID_INCIDENT      = 12,
+  ESG_ESG_D_BASID_MULTITHRES    = 13,  // OutLine Thresholds
+  ESG_ESG_D_BASID_TELECMD       = 14,
+  ESG_ESG_D_BASID_TELEREGU      = 15,
+  ESG_ESG_D_BASID_EMERGENCY     = 16,
+  ESG_ESG_D_BASID_ACDLIST       = 17,
+  ESG_ESG_D_BASID_ACDQUERY      = 18
+} gofo_ech_t_ReqId;
 
 // NB: Должен быть последним значением ech_t_ReqId + 1
 #define NBREQUESTS          (NOT_EXISTENT)
