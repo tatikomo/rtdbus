@@ -40,203 +40,8 @@ class SMED;
 #define SECTION_NAME_STRUCT     "STRUCT"        // Экземпляр ассоциированной с Параметром структуры
 
 /*
-<?xml version="1.0" encoding="utf-8" ?>
-<!-- SQL XML created by WWW SQL Designer, https://github.com/ondras/wwwsqldesigner/ -->
-<!-- Active URL: http://ondras.zarovi.cz/sql/demo/ -->
-<sql>
-<datatypes db="sqlite">
-	<group label="Affinity">
-		<type label="Text" default="" length="1" sql="TEXT" quote="'" color="rgb(255,200,200)"/>
-		<type label="Numeric" default="0" length="0" sql="NUMERIC" quote="" color="rgb(238,238,170)"/>
-		<type label="Integer" default="0" length="0" sql="INTEGER" quote="" color="rgb(238,238,170)"/>
-		<type label="Real" default="0" length="0" sql="REAL" quote="" color="rgb(238,238,170)"/>
-		<type label="None" default="" length="0" sql="NONE" quote="" color="rgb(200,255,200)"/>
-	</group>
-</datatypes><table x="489" y="329" name="ELEMSTRUCT">
-<row name="STRUCT_ID" null="0" autoincrement="1">
-<datatype>INTEGER</datatype>
-<default>NOT NULL</default></row>
-<row name="ASSOCIATE" null="0" autoincrement="0">
-<datatype>TEXT(6)</datatype>
-<default>'NULL'</default></row>
-<row name="NAME" null="0" autoincrement="0">
-<datatype>TEXT(6)</datatype>
-<default>'NULL'</default></row>
-<row name="CLASS" null="0" autoincrement="0">
-<datatype>INTEGER</datatype>
-</row>
-<key type="PRIMARY" name="">
-<part>STRUCT_ID</part>
-</key>
-<comment>Таблица НСИ. Содержит соответствие между названием Структуры и ее Ассоциацией.</comment>
-</table>
-<table x="274" y="410" name="FIELDS">
-<row name="FIELD_ID" null="0" autoincrement="1">
-<datatype>INTEGER</datatype>
-</row>
-<row name="ELEMSTRUCT_REF" null="0" autoincrement="0">
-<datatype>INTEGER</datatype>
-<relation table="ELEMSTRUCT" row="STRUCT_ID" />
-</row>
-<row name="ELEMTYPE_REF" null="0" autoincrement="0">
-<datatype>INTEGER</datatype>
-<relation table="ELEMTYPE" row="TYPE_ID" />
-</row>
-<row name="ATTR" null="1" autoincrement="0">
-<datatype>TEXT(32)</datatype>
-<default>NULL</default></row>
-<row name="TYPE" null="1" autoincrement="0">
-<datatype>INTEGER</datatype>
-<default>NULL</default></row>
-<row name="LENGTH" null="1" autoincrement="0">
-<datatype>INTEGER</datatype>
-<default>NULL</default></row>
-<row name="IDX" null="0" autoincrement="0">
-<datatype>INTEGER</datatype>
-<default>NUL</default></row>
-<key type="PRIMARY" name="">
-<part>FIELD_ID</part>
-</key>
-<comment>Таблица НСИ. Содержит описание полей и атрибутов БДРВ каждой Структуры.</comment>
-</table>
-<table x="747" y="184" name="DATA">
-<row name="DATA_ID" null="0" autoincrement="1">
-<datatype>INTEGER</datatype>
-</row>
-<row name="TAG" null="0" autoincrement="0">
-<datatype>TEXT(32)</datatype>
-<default>'NULL'</default></row>
-<row name="LED" null="1" autoincrement="0">
-<datatype>INTEGER</datatype>
-<default>NULL</default></row>
-<row name="OBJCLASS" null="0" autoincrement="0">
-<datatype>INTEGER</datatype>
-</row>
-<row name="CATEGORY" null="0" autoincrement="0">
-<datatype>INTEGER</datatype>
-</row>
-<row name="ALARM_INDOC" null="0" autoincrement="0">
-<datatype>INTEGER</datatype>
-</row>
-<row name="HISTO_INDIC" null="0" autoincrement="0">
-<datatype>INTEGER</datatype>
-</row>
-<key type="PRIMARY" name="">
-<part>DATA_ID</part>
-</key>
-<comment>Оперативная таблица. Содержит описания всех Параметров, заполняется путем загрузки словарей обмена.</comment>
-</table>
-<table x="250" y="12" name="PROCESSING">
-<row name="PROCESS_ID" null="0" autoincrement="1">
-<datatype>INTEGER</datatype>
-<default>NULL</default></row>
-<row name="SITE_REF" null="0" autoincrement="0">
-<datatype>INTEGER</datatype>
-<default>NOT NULL</default><relation table="SITES" row="SITE_ID" />
-</row>
-<row name="DATA_REF" null="0" autoincrement="0">
-<datatype>INTEGER</datatype>
-<default>NOT NULL</default><relation table="DATA" row="DATA_ID" />
-</row>
-<row name="TYPE" null="0" autoincrement="0">
-<datatype>INTEGER</datatype>
-<default>NULL</default></row>
-<row name="LAST_UPDATE" null="1" autoincrement="0">
-<datatype>INTEGER</datatype>
-<default>NULL</default></row>
-<key type="PRIMARY" name="">
-<part>PROCESS_ID</part>
-</key>
-<comment>Оперативная таблица. Содержит связь между Параметром и используемым его Сайтом, с типом связи - прием от Сайта или передача в адрес Сайта.</comment>
-</table>
-<table x="37" y="152" name="ASSOCIATES_LINK">
-<row name="DATA_REF" null="0" autoincrement="0">
-<datatype>INTEGER</datatype>
-<default>NOT NULL</default><relation table="DATA" row="DATA_ID" />
-</row>
-<row name="ELEMSTRUCT_REF" null="0" autoincrement="0">
-<datatype>INTEGER</datatype>
-<default>NOT NULL</default><relation table="ELEMSTRUCT" row="STRUCT_ID" />
-</row>
-<key type="PRIMARY" name="">
-<part>DATA_REF</part>
-</key>
-<comment>Оперативная таблица. Содержит соответствие между Тегом и используемыми им Структурами. Заполняется при загрузке словарей обмена</comment>
-</table>
-<table x="41" y="310" name="FIELDS_LINK">
-<row name="LINK_ID" null="0" autoincrement="1">
-<datatype>INTEGER</datatype>
-</row>
-<row name="DATA_REF" null="0" autoincrement="0">
-<datatype>INTEGER</datatype>
-<relation table="DATA" row="DATA_ID" />
-</row>
-<row name="ELEMSTRUCT_REF" null="0" autoincrement="0">
-<datatype>INTEGER</datatype>
-<relation table="ELEMSTRUCT" row="STRUCT_ID" />
-</row>
-<row name="FIELDS_REF" null="0" autoincrement="0">
-<datatype>INTEGER</datatype>
-<relation table="FIELDS" row="FIELD_ID" />
-</row>
-<row name="LAST_UPDATE" null="0" autoincrement="0">
-<datatype>INTEGER</datatype>
-<default>NULL</default></row>
-<row name="VAL_INT" null="1" autoincrement="0">
-<datatype>INTEGER</datatype>
-<default>NULL</default></row>
-<row name="VAL_DOUBLE" null="1" autoincrement="0">
-<datatype>REAL</datatype>
-<default>NULL</default></row>
-<row name="VAL_TEXT" null="1" autoincrement="0">
-<datatype>TEXT</datatype>
-<default>NULL</default></row>
-<key type="PRIMARY" name="">
-<part>LINK_ID</part>
-</key>
-<comment>Оперативная таблица. Содержит связь между Структурой данных, набором входящих в неё полей, и их оперативными значениями </comment>
-</table>
-<table x="601" y="32" name="SITES">
-<row name="SITE_ID" null="0" autoincrement="1">
-<datatype>INTEGER</datatype>
-</row>
-<row name="NAME" null="1" autoincrement="0">
-<datatype>TEXT(32)</datatype>
-<default>NULL</default></row>
-<row name="STATE" null="1" autoincrement="0">
-<datatype>INTEGER</datatype>
-<default>NULL</default></row>
-<row name="NATURE" null="0" autoincrement="0">
-<datatype>INTEGER</datatype>
-</row>
-<row name="LAST_UPDATE" null="1" autoincrement="0">
-<datatype>INTEGER</datatype>
-<default>NULL</default></row>
-<key type="PRIMARY" name="">
-<part>SITE_ID</part>
-</key>
-<comment>Оперативная таблица. Заполняется из конфига egsa и содержит известные локально Сайты.</comment>
-</table>
-<table x="669" y="449" name="ELEMTYPE">
-<row name="TYPE_ID" null="0" autoincrement="1">
-<datatype>INTEGER</datatype>
-<default>NULL</default></row>
-<row name="NAME" null="1" autoincrement="0">
-<datatype>TEXT(6)</datatype>
-<default>NULL</default></row>
-<row name="TYPE" null="1" autoincrement="0">
-<datatype>INTEGER</datatype>
-<default>NULL</default></row>
-<row name="SIZE" null="1" autoincrement="0">
-<datatype>TEXT(6)</datatype>
-<default>NULL</default></row>
-<key type="PRIMARY" name="">
-<part>TYPE_ID</part>
-</key>
-<comment>Таблица НСИ. Содержит описание элементарного типа - название, тип данных, длина строки.</comment>
-</table>
-</sql>
-
+ * Схема расположена в файле test/dat/smed_schema.xml
+ * NB: актуализировать файл после изменений
  */
  
 // NB: Поскольку один и тот же локальный параметр БДРВ может передаваться нескольким получателям, нужно ввести связь с несколькими СС для таблицы DATA.
@@ -376,9 +181,25 @@ class SmedObjectList
     int refresh();
 
     // Вернуть элемент по имени Сайта
-    T operator[](const char*) { return NULL; }
+    T operator[](const char* wtf) {
+      for (T &item : m_items) { // access by reference to avoid copying
+        if (0 == strcmp(item->name(), wtf)) {
+          // Нашли что искали, выходим
+          return item;
+        }
+      }
+      return NULL;
+    }
     // Вернуть элемент по имени Сайта
-    T operator[](const std::string&) { return NULL; }
+    T operator[](const std::string& wtf) {
+      for (T &item : m_items) { // access by reference to avoid copying
+        if (0 == wtf.compare(item->name())) {
+          // Нашли что искали, выходим
+          return item;
+        }
+      }
+      return NULL;
+    }
     // Вернуть элемент по индексу
     T& operator[](const std::size_t idx) { return m_items[idx]; }
 
