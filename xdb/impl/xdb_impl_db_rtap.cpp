@@ -4882,10 +4882,11 @@ MCO_RET DatabaseRtapImpl::writeINHIB(mco_trans_h& t, rtap_db::XDBPoint& instance
 
   assert(attr_info->type == AttrTypeDescription[RTDB_ATT_IDX_INHIB].type);
 
-  switch (attr_info->value.fixed.val_bool)
-  {
-    case false: result = FALSE; break;
-    case true:  result = TRUE;  break;
+  if (attr_info->value.fixed.val_bool > 0) {
+    result = TRUE;
+  }
+  else {
+    result = FALSE;
   }
 
   rc = instance.INHIB_put(result);
@@ -4942,10 +4943,10 @@ MCO_RET DatabaseRtapImpl::writeINHIBLOCAL(mco_trans_h& t, rtap_db::XDBPoint& ins
 
   assert(attr_info->type == AttrTypeDescription[RTDB_ATT_IDX_INHIBLOCAL].type);
 
-  switch (attr_info->value.fixed.val_bool)
-  {
-    case false: result = FALSE; break;
-    case true:  result = TRUE;  break;
+  if (attr_info->value.fixed.val_bool > 0) {
+    result = TRUE;
+  } else {
+    result = FALSE;
   }
 
   rc = instance.INHIBLOCAL_put(result);

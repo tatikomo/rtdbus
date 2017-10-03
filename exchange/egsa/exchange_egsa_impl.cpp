@@ -77,7 +77,7 @@ EGSA::~EGSA()
   // Отключиться от SMAD Сайтов
   detach();
   // НСИ сведения о Запросах не хранятся в БД
-  m_ega_ega_odm_ar_Requests.release();
+  //1 m_ega_ega_odm_ar_Requests.release();
 
   m_backend_socket.close();
   // Эти сокеты удаляются в функциях их создания
@@ -117,10 +117,13 @@ int EGSA::init()
 
   if (STATE_OK == (ext_state = m_smed->connect())) {
 
+#if 0
+    Запросы НСИ загружаются в момент подключения к неинициализированной SMED
     // Загрузить НСИ Запросов
     if (OK != (status = store_requests_dict())) {
       LOG(ERROR) << fname << ": Storing Requests into SMED : rc=" << status;
     }
+#endif
 
     // Загрузить словари обменов со смежными Сайтами
     if (OK == status) {
@@ -168,6 +171,7 @@ int EGSA::init()
   return status;
 }
 
+#if 0
 // ==========================================================================================================
 // Загрузка словаря Запросов в SMED
 int EGSA::store_requests_dict()
@@ -188,6 +192,7 @@ int EGSA::store_requests_dict()
 
   return rc;
 }
+#endif
 
 // ==========================================================================================================
 // Загрузка указанного обменного словаря
@@ -290,13 +295,6 @@ EgsaConfig* EGSA::config()
   LOG(FATAL) << "Access to configuration class instance";
 #endif
   return m_egsa_config;
-}
-
-// ==========================================================================================================
-// Доступ к Запросам
-RequestDictionary& EGSA::dictionary_requests()
-{
-  return m_ega_ega_odm_ar_Requests;
 }
 
 // ==========================================================================================================

@@ -49,14 +49,14 @@ int ExchangeTranslator::esg_acq_dac_HistAlAcq (
 
   int i_Status = OK;
   int i_RetStatus = OK;
-  size_t i_CDLength;
-  size_t i_LgDone;
+  size_t i_CDLength = 0;
+  size_t i_LgDone = 0;
 
   char s_Trace[70 + 1];
   char s_Buffer[ECH_D_APPLSEGLG + 1];
 
   esg_esg_edi_t_StrComposedData r_InternalCData;
-  elemstruct_item_t* r_SubTypeElem;
+  elemstruct_item_t* r_SubTypeElem = NULL;
   esg_esg_edi_t_StrQualifyComposedData r_QuaCData;
 
   size_t i_FileDepl;	// work variable
@@ -65,7 +65,7 @@ int ExchangeTranslator::esg_acq_dac_HistAlAcq (
   size_t i_LEDRead;	// LED read
   esg_esg_odm_t_ExchInfoElem r_AssocInfo;	// associated teleinfo
   int h_AlTypeRead;	// alarm type read
-  esg_esg_t_HistAlElem *r_CurHistAl;	// work variable
+  esg_esg_t_HistAlElem *r_CurHistAl = 0;	// work variable
 
   char s_LoggedText[ESG_ESG_D_LOGGEDTEXTLENGTH + 1];
 
@@ -266,7 +266,7 @@ int ExchangeTranslator::esg_acq_dac_HistAlPut (
   size_t i_i;       // index
   char s_CurStr[256]; // current string
   esg_esg_t_HistAlElem *pr_CurHistAl;	// work variable
-  size_t i_MsgLength; // message length
+  size_t i_MsgLength = 0; // message length
 //1  sig_t_msg_AlFile r_MsgBody;	// message body
   char s_LoggedText[ESG_ESG_D_LOGGEDTEXTLENGTH + 1];
   int i_AlListType;	// work variable

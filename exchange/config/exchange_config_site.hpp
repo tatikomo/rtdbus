@@ -21,6 +21,7 @@
 class Cycle;
 class Request;
 class SMAD;
+class SMED;
 class AcqSiteEntry;
 class Site;
 
@@ -136,7 +137,7 @@ class AcqSiteEntry {
       INITPHASE_END     = 3
     } init_phase_state_t;
 
-    AcqSiteEntry(/*EGSA*,*/ const egsa_config_site_item_t*);
+    AcqSiteEntry(SMED*, const egsa_config_site_item_t*);
    ~AcqSiteEntry();
 
     const char* name()      const { return m_IdAcqSite; }
@@ -240,8 +241,6 @@ class AcqSiteEntry {
     DISALLOW_COPY_AND_ASSIGN(AcqSiteEntry);
     // Инициализация внутреннего состояния в зависимости от атрибутов SYNTHSTATE, INHIB, EXPMODE
     void init_functional_state();
-    // Получить ссылку на экземпляр Запроса указанного типа
-    const Request* get_dict_request(ech_t_ReqId);
 
     //1 EGSA* m_egsa;
     synthstate_t m_synthstate;
@@ -276,6 +275,8 @@ class AcqSiteEntry {
     // interface component state : active / stopped (TRUE / FALSE)
     bool m_InterfaceComponentActive;
 
+    // Ссылка на общую СУБД SMED - единая область памяти для пересылки в БДРВ
+    SMED    *m_smed;
     // Ссылка на внутреннюю SMAD - acquired data access
     SMAD    *m_smad;
 

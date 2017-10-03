@@ -156,25 +156,6 @@ class Request
 };
 
 // ==============================================================================
-// НСИ актуального перечня Запросов EGSA
-class RequestDictionary
-{
-  public:
-    RequestDictionary();
-   ~RequestDictionary();
-
-    size_t size() { return m_requests.size(); }
-    int add(Request*);
-    void release();
-    Request* query_by_id(ech_t_ReqId);
-    Request* operator[](ech_t_ReqId id) { return ((id < size())? m_requests.at(id) : NULL); }
-
-  private:
-    DISALLOW_COPY_AND_ASSIGN(RequestDictionary);
-    std::map<ech_t_ReqId, Request*> m_requests;
-};
-
-// ==============================================================================
 // ==============================================================================
 // ==============================================================================
 // ==============================================================================

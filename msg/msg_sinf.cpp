@@ -94,7 +94,8 @@ Value::Value(std::string& _name, xdb::DbType_t _type, void* val)
 
 // Инициализация
 Value::Value(/*RTDBM::ValueUpdate* */ void* vu)
-  : m_rtdbm_valueupdate_instance(vu)
+  : m_instance(),
+    m_rtdbm_valueupdate_instance(vu)
 {
   RTDBM::ValueUpdate* temp = static_cast<RTDBM::ValueUpdate*>(m_rtdbm_valueupdate_instance);
   xdb::datetime_t datetime;
@@ -223,7 +224,8 @@ void Value::CopyFrom(/*const RTDBM::ValueUpdate* */ const void* vu)
 
 // Установка начальных значений с неявным указанием типа
 Value::Value(std::string& name, bool val)
-  : m_rtdbm_valueupdate_instance(NULL)
+  : m_instance(),
+    m_rtdbm_valueupdate_instance(NULL)
 {
   m_instance.name.assign(name);
   m_instance.type = xdb::DB_TYPE_LOGICAL;
@@ -235,7 +237,8 @@ Value::Value(std::string& name, bool val)
 }
 
 Value::Value(std::string& name, int8_t val)
-  : m_rtdbm_valueupdate_instance(NULL)
+  : m_instance(),
+    m_rtdbm_valueupdate_instance(NULL)
 {
   m_instance.name.assign(name);
   m_instance.type = xdb::DB_TYPE_INT8;
@@ -247,7 +250,8 @@ Value::Value(std::string& name, int8_t val)
 }
 
 Value::Value(std::string& name, uint8_t val)
-  : m_rtdbm_valueupdate_instance(NULL)
+  : m_instance(),
+    m_rtdbm_valueupdate_instance(NULL)
 {
   m_instance.name.assign(name);
   m_instance.type = xdb::DB_TYPE_UINT8;
@@ -259,7 +263,8 @@ Value::Value(std::string& name, uint8_t val)
 }
 
 Value::Value(std::string& name, int16_t val)
-  : m_rtdbm_valueupdate_instance(NULL)
+  : m_instance(),
+    m_rtdbm_valueupdate_instance(NULL)
 {
   m_instance.name.assign(name);
   m_instance.type = xdb::DB_TYPE_INT16;
@@ -271,7 +276,8 @@ Value::Value(std::string& name, int16_t val)
 }
 
 Value::Value(std::string& name, uint16_t val)
-  : m_rtdbm_valueupdate_instance(NULL)
+  : m_instance(),
+    m_rtdbm_valueupdate_instance(NULL)
 {
   m_instance.name.assign(name);
   m_instance.type = xdb::DB_TYPE_UINT16;
@@ -283,7 +289,8 @@ Value::Value(std::string& name, uint16_t val)
 }
 
 Value::Value(std::string& name, int32_t val)
-  : m_rtdbm_valueupdate_instance(NULL)
+  : m_instance(),
+    m_rtdbm_valueupdate_instance(NULL)
 {
   m_instance.name.assign(name);
   m_instance.type = xdb::DB_TYPE_INT32;
@@ -295,7 +302,8 @@ Value::Value(std::string& name, int32_t val)
 }
 
 Value::Value(std::string& name, uint32_t val)
-  : m_rtdbm_valueupdate_instance(NULL)
+  : m_instance(),
+    m_rtdbm_valueupdate_instance(NULL)
 {
   m_instance.name.assign(name);
   m_instance.type = xdb::DB_TYPE_UINT32;
@@ -307,7 +315,8 @@ Value::Value(std::string& name, uint32_t val)
 }
 
 Value::Value(std::string& name, int64_t val)
-  : m_rtdbm_valueupdate_instance(NULL)
+  : m_instance(),
+    m_rtdbm_valueupdate_instance(NULL)
 {
   m_instance.name.assign(name);
   m_instance.type = xdb::DB_TYPE_INT64;
@@ -319,7 +328,8 @@ Value::Value(std::string& name, int64_t val)
 }
 
 Value::Value(std::string& name, uint64_t val)
-  : m_rtdbm_valueupdate_instance(NULL)
+  : m_instance(),
+    m_rtdbm_valueupdate_instance(NULL)
 {
   m_instance.name.assign(name);
   m_instance.type = xdb::DB_TYPE_UINT64;
@@ -331,7 +341,8 @@ Value::Value(std::string& name, uint64_t val)
 }
 
 Value::Value(std::string& name, float val)
-  : m_rtdbm_valueupdate_instance(NULL)
+  : m_instance(),
+    m_rtdbm_valueupdate_instance(NULL)
 {
   m_instance.name.assign(name);
   m_instance.type = xdb::DB_TYPE_FLOAT;
@@ -343,7 +354,8 @@ Value::Value(std::string& name, float val)
 }
 
 Value::Value(std::string& name, double val)
-  : m_rtdbm_valueupdate_instance(NULL)
+  : m_instance(),
+    m_rtdbm_valueupdate_instance(NULL)
 {
   m_instance.name.assign(name);
   m_instance.type = xdb::DB_TYPE_DOUBLE;
@@ -355,7 +367,8 @@ Value::Value(std::string& name, double val)
 }
 
 Value::Value(std::string& name, const char* val, size_t size)
-  : m_rtdbm_valueupdate_instance(NULL)
+  : m_instance(),
+    m_rtdbm_valueupdate_instance(NULL)
 {
   m_instance.name.assign(name);
   m_instance.type = xdb::DB_TYPE_BYTES;
@@ -405,7 +418,8 @@ Value::Value(std::string& name, const char* val, size_t size)
 }
 
 Value::Value(std::string& name, std::string& val)
-  : m_rtdbm_valueupdate_instance(NULL)
+  : m_instance(),
+    m_rtdbm_valueupdate_instance(NULL)
 {
   m_instance.name.assign(name);
   m_instance.type = xdb::DB_TYPE_BYTES;

@@ -359,64 +359,6 @@ const char* Request::dump()
 }
 
 // ==============================================================================
-RequestDictionary::RequestDictionary()
-{
-  m_requests.clear();
-}
-
-// ==============================================================================
-RequestDictionary::~RequestDictionary()
-{
-  for(std::map<ech_t_ReqId, Request*>::const_iterator it = m_requests.begin();
-      it != m_requests.end();
-      ++it)
-  {
-    delete (*it).second;
-  }
-
-  m_requests.clear();
-}
-
-// ==============================================================================
-int RequestDictionary::add(Request* item)
-{
-  m_requests.insert(std::pair<ech_t_ReqId, Request*>(item->id(), item));
-  return NOK;
-}
-
-// ==============================================================================
-void RequestDictionary::release()
-{
-  for(std::map<ech_t_ReqId, Request*>::iterator it = m_requests.begin();
-      it != m_requests.end();
-      ++it)
-  {
-#if VERBOSE>6
-    LOG(INFO) << "Free dictionary req " << (*it).second->name();
-#endif
-    delete (*it).second;
-  }
-  m_requests.clear();
-}
-
-// ==============================================================================
-// Вернуть экземпляр Request соответствующего типа
-Request* RequestDictionary::query_by_id(ech_t_ReqId _id)
-{
-  std::map<ech_t_ReqId, Request*>::iterator it;
-  Request* item = NULL;
-
-  if (m_requests.end() != (it = m_requests.find(_id))) {
-    item = (*it).second;
-    assert(item);
-    LOG(INFO) << "query_by_id(" << _id << ")=" << item->name();
-  }
-  else LOG(ERROR) << "Can't locate request " << _id << " from dictionary";
-
-  return item;
-}
-
-// ==============================================================================
 RequestRuntimeList::RequestRuntimeList()
 {
 #if VERBOSE>8

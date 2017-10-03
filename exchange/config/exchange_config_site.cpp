@@ -19,6 +19,7 @@
 #include "exchange_config_cycle.hpp"
 #include "exchange_config_request.hpp"
 #include "exchange_smad.hpp"
+#include "exchange_smed.hpp"
 
 // Строки 0 и 1 используются, если меняется значение атрибута SYNTHSTATE
 // Строки 2 и 3 используются, если меняется значение атрибута EXPMODE
@@ -177,9 +178,10 @@ const bool AcqSiteEntry::enabler_matrix[REQUEST_ID_LAST+1][EGA_EGA_AUT_D_NB_STAT
 #undef X
 
 // ==============================================================================
-AcqSiteEntry::AcqSiteEntry(/*EGSA* egsa,*/ const egsa_config_site_item_t* entry)
-  : /*m_egsa(egsa),*/
-    m_synthstate(SYNTHSTATE_UNREACH),
+// SMED - общая память всех систем, находится локально с EGSA в одном экземпляре
+// SMAD - локальная независимая СУБД (память) системы сбора, туда она помещает полученные от СС данные
+AcqSiteEntry::AcqSiteEntry(SMED* smed, const egsa_config_site_item_t* entry)
+  : m_synthstate(SYNTHSTATE_UNREACH),
     m_expmode(true),
     m_inhibition(false),
     m_IdAcqSite(),
@@ -190,6 +192,7 @@ AcqSiteEntry::AcqSiteEntry(/*EGSA* egsa,*/ const egsa_config_site_item_t* entry)
     m_FunctionalState(EGA_EGA_AUT_D_STATE_NI_NM_NO),
     m_Level(entry->level),
     m_InterfaceComponentActive(false),
+    m_smed(smed),
     m_smad(NULL),
     m_OPStateAuthorised(false),
     m_DistantInitTerminated(false),
@@ -220,6 +223,9 @@ AcqSiteEntry::AcqSiteEntry(/*EGSA* egsa,*/ const egsa_config_site_item_t* entry)
      LOG(ERROR) << fname << ": unable to parse SA " << name() << " common config";
   }
   else {
+    // NB: к SMAD можно подключаться, если эта СС - локальная автоматизация, + она работает на локальном узле
+    // Если СС локальной автоматики работает на удаленном узле, к SMAD не получится подключиться - SQLite не имеет
+    // удаленных подключений.
     m_smad = new SMAD(sa_common.name.c_str(), sa_common.nature, sa_common.smad.c_str());
 
     // TODO: подключаться к SMAD только после успешной инициализации модуля данной СС
@@ -316,20 +322,6 @@ void AcqSiteEntry::init_functional_state()
 }
 
 // ==============================================================================
-// Получить ссылку на экземпляр Запроса указанного типа
-const Request* AcqSiteEntry::get_dict_request(ech_t_ReqId type)
-{
-  Request *dict = NULL;
-
-/*  assert(m_egsa);
-  dict = m_egsa->dictionary_requests().query_by_id(type);
-  */
-    LOG(ERROR) << "TODO: remove method AcqSiteEntry::get_dict_request";
-
-  return dict;
-}
-
-// ==============================================================================
 // Функция вызывается при необходимости создания Запросов на инициализацию связи
 int AcqSiteEntry::cbAutoInit()
 {
@@ -346,7 +338,7 @@ int AcqSiteEntry::cbAutoInit()
       break;
 
     case LEVEL_LOWER:
-      rq_init = get_dict_request(EGA_INITCMD); // Композитный общий сбор
+      rq_init = m_smed->get_request_dict_by_id(EGA_INITCMD); // Композитный общий сбор
       break;
 
     case LEVEL_UNKNOWN:
@@ -355,7 +347,7 @@ int AcqSiteEntry::cbAutoInit()
 
     case LEVEL_ADJACENT:
     case LEVEL_UPPER:
-      rq_init = get_dict_request(ESG_LOCID_INITCOMD); // Композитный запрос инициализации связи
+      rq_init = m_smed->get_request_dict_by_id(ESG_LOCID_INITCOMD); // Композитный запрос инициализации связи
       break;
   }
 
@@ -388,7 +380,7 @@ int AcqSiteEntry::cbGeneralControl()
       break;
 
     case LEVEL_LOWER:
-      rq_gencontrol = get_dict_request(EGA_GENCONTROL); // Композитный общий сбор
+      rq_gencontrol = m_smed->get_request_dict_by_id(EGA_GENCONTROL); // Композитный общий сбор
       break;
 
     case LEVEL_UNKNOWN:
@@ -397,7 +389,7 @@ int AcqSiteEntry::cbGeneralControl()
 
     case LEVEL_ADJACENT:
     case LEVEL_UPPER:
-      rq_gencontrol = get_dict_request(ESG_BASID_GENCONTROL); // Композитный общий сбор
+      rq_gencontrol = m_smed->get_request_dict_by_id(ESG_BASID_GENCONTROL); // Композитный общий сбор
       break;
   }
 
@@ -999,7 +991,7 @@ int AcqSiteEntry::add_request(const Request* dict_req)
         if (sorted_sequence[rid]) { // Встретилось ненулевое значение - порядковый номер запроса в группе
 
           // Создадим экземпляр базового для этого составного Запроса
-          basic_request = new Request(get_dict_request(static_cast<ech_t_ReqId>(sorted_sequence[rid])));
+          basic_request = new Request(m_smed->get_request_by_id(static_cast<ech_t_ReqId>(sorted_sequence[rid])));
           // Запомнить идентификатор Составного Запроса
           basic_request->composed_id(dict_req->id());
           LOG(INFO) << fname << ": " << ++idx << "/" << num_composed << " " << basic_request->name()

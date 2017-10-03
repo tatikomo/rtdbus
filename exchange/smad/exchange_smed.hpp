@@ -165,16 +165,21 @@ template <typename T>
 class SmedObjectList
 {
     public:
-    SmedObjectList(SMED* _smed) : m_smed(_smed) {}
-   ~SmedObjectList() {}
-
+    SmedObjectList(SMED* _smed) : m_smed(_smed) {
+      m_items.clear();
+    }
+   ~SmedObjectList() {
+      clear();
+    }
     void insert(T the_new_one) {
-        LOG(INFO) << "insert " << the_new_one->name();
+      m_items.push_back(the_new_one);
+      LOG(INFO) << "SmedObjectList: inserted " << the_new_one->name() << ", size=" << m_items.size();
     }
     // Полностью очистить содержимое
     int clear() {
-        LOG(INFO) << "clear ";
-        return NOK;
+      LOG(INFO) << "clear ";
+      for(T &item : m_items) { delete item; }
+      return OK;
     }
     size_t count() const { return m_items.size(); }
     // Обновить содержимое на основе данных из БД
@@ -207,66 +212,6 @@ class SmedObjectList
     SMED* m_smed;
     std::vector<T> m_items;
 };
-
-#if 0
-// ==========================================================================================================
-// Acquisition Site Entry Structure
-// Перечень Сайтов, хранящихся в SMED
-class AcqSiteList
-{
-  public:
-    AcqSiteList(SMED* _smed) : m_smed(_smed) {}
-   ~AcqSiteList() {}
-
-    void insert(AcqSiteEntry*);
-    size_t count() const { return m_items.size(); };
-    // Обновить состояние Сайтов на "ОТКЛЮЧЕНО"
-    int detach();
-    // Обновить содержимое на основе данных из БД
-    int refresh();
-
-    // Вернуть элемент по имени Сайта
-    AcqSiteEntry* operator[](const char*);
-    // Вернуть элемент по имени Сайта
-    AcqSiteEntry* operator[](const std::string&);
-    // Вернуть элемент по индексу
-    AcqSiteEntry* operator[](const std::size_t);
-
-  private:
-    DISALLOW_COPY_AND_ASSIGN(AcqSiteList);
-    SMED* m_smed;
-//    EGSA* m_egsa;
-    std::vector<AcqSiteEntry*> m_items;
-};
-
-// ==========================================================================================================
-// Request Entry Structure
-// Перечень Запросов, хранящихся в SMED
-class RequestList
-{
-  public:
-    RequestList(SMED* _smed) : m_smed(_smed) {}
-   ~RequestList();
-
-    void insert(Request*);
-    size_t count() const { return m_items.size(); };
-    // Обновить содержимое на основе данных из БД
-    int refresh();
-
-    // Вернуть элемент по имени Сайта
-    AcqSiteEntry* operator[](const char*);
-    // Вернуть элемент по имени Сайта
-    AcqSiteEntry* operator[](const std::string&);
-    // Вернуть элемент по индексу
-    AcqSiteEntry* operator[](const std::size_t);
-
-  private:
-    DISALLOW_COPY_AND_ASSIGN(RequestList);
-    SMED* m_smed;
-//    EGSA* m_egsa;
-    std::vector<Request*> m_items;
-};
-#endif
 
 // ==========================================================================================================
 class SMED
@@ -301,8 +246,14 @@ class SMED
     SmedObjectList<AcqSiteEntry*>* SiteList() { return m_site_list; }   // Интерфейс доступа с списку Сайтов
     // Получить текущий список Запросов из SMED
     SmedObjectList<Request*>* ReqList()  { return m_request_list; }// Интерфейс доступа с списку Запросов
+    SmedObjectList<Request*>* ReqDictList() { return m_request_dict_list; }// Интерфейс доступа с списку Запросов из НСИ
     // Получить текущий список Циклов из SMED
     SmedObjectList<Cycle*>* CycleList() { return m_cycle_list; }
+
+    // Вернуть шаблон Запроса по его идентификатору
+    Request* get_request_dict_by_id(ech_t_ReqId);
+    // Вернуть Запрос по его идентификатору
+    Request* get_request_by_id(ech_t_ReqId);
 
   private:
     DISALLOW_COPY_AND_ASSIGN(SMED);
@@ -339,6 +290,7 @@ class SMED
     int store_sites();
     // Загрузить таблицу Запросов из БД в память
     int store_requests();
+    int store_requests_dict();
     // Загрузить таблицу Циклов из БД в память
     int store_cycles();
 
@@ -350,11 +302,13 @@ class SMED
 
     SmedObjectList<AcqSiteEntry*> *m_site_list;    // список Сайтов в БД
     SmedObjectList<Request*>      *m_request_list; // список Запросов в БД
+    SmedObjectList<Request*>      *m_request_dict_list; // НСИ список Запросов в БД
     SmedObjectList<Cycle*>        *m_cycle_list;   // список Запросов в БД
 
     map_id_by_name_t m_elemstruct_dict; // Связи между названием Композитной структуры и её идентификатором в БД
     map_id_by_name_t m_elemstruct_associate_dict; // Связи между ассоциацией Композитной структуры и её идентификатором в БД
     map_id_by_name_t m_sites_dict;      // Связи между названием Сайта и его идентификатором в БД
+
 };
 
 #endif

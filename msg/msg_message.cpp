@@ -290,7 +290,7 @@ DataImpl* Data::impl() const
 {
   assert(m_impl);
   return m_impl;
-};
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -343,18 +343,17 @@ Letter::Letter(rtdbMsgType _type, rtdbExchangeId _id)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Создание нового сообщения с уже десериализованым заголовком
 Letter::Letter(Header* head_pb, const std::string& body_str)
-  : m_header(head_pb)
+  : m_header(head_pb),
+    m_data(new Data(m_header->usr_msg_type(), body_str))
 {
-  assert(m_header);
-
-  m_data = new Data(m_header->usr_msg_type(), body_str);
 //  LOG(INFO) << "Letter::Letter(" << head_pb << ", " << body_str << ")";
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // входные параметры - фреймы заголовка и нагрузки из zmsg
 Letter::Letter(const std::string& head_str, const std::string& body_str)
-  : m_header(new Header(head_str))
+  : m_header(new Header(head_str)),
+    m_data(new Data(m_header->usr_msg_type(), body_str))
 {
 #if 0
   // Отбрасывать сообщения с более новым протоколом
@@ -365,7 +364,6 @@ Letter::Letter(const std::string& head_str, const std::string& body_str)
   assert(m_header->protocol_version() == m_version_message_system);
 #endif
 
-  m_data = new Data(m_header->usr_msg_type(), body_str);
 }
 
 // признак того, была ли модификация данных

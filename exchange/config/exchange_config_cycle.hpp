@@ -41,7 +41,7 @@ class Cycle {
   public:
     // Конструктор экземпляра "Цикл"
     Cycle(const char*, int, cycle_id_t, ech_t_ReqId, cycle_family_t);
-   ~Cycle();
+   ~Cycle() {}
 
     // Род цикла
     cycle_family_t family() { return m_CycleFamily; }

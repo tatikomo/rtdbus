@@ -46,8 +46,6 @@ class EGSA : public mdp::mdwrk {
 
     // Основной рабочий цикл
     int run();
-    // Доступ к Запросам
-    RequestDictionary& dictionary_requests();
 
     //============================================================================
 #ifdef _FUNCTIONAL_TEST
@@ -57,6 +55,8 @@ class EGSA : public mdp::mdwrk {
     // Если собирается рабочая версия, спрятать эти функции в приватный доступ
   private:
 #endif
+    // Найти НСИ Запрос по его идентификатору
+    Request* get_request_by_id(ech_t_ReqId id) { return m_smed->get_request_by_id(id); }
     ExchangeTranslator* translator() { return m_translator; }
     // Разбор файла с данными от ГОФО
     int load_esg_file(const char*);
@@ -76,6 +76,9 @@ class EGSA : public mdp::mdwrk {
     int process_command(const std::string&);
     // Доступ к конфигурации
     EgsaConfig* config();
+    // Доступ к Запросам
+    SmedObjectList<Request*>* ReqDictList() { return m_smed->ReqDictList(); }
+    SmedObjectList<Request*>* ReqList() { return m_smed->ReqList(); }
     // Доступ к Сайтам
     SmedObjectList<AcqSiteEntry*>* sites() { return m_smed->SiteList(); }
     // Доступ к Циклам
@@ -242,10 +245,9 @@ class EGSA : public mdp::mdwrk {
     //static ega_ega_odm_t_CycleEntity ega_ega_odm_ar_Cycles[NBCYCLES];
     // CycleList   m_ega_ega_odm_ar_Cycles;
     //static ega_ega_odm_t_RequestEntry m_requests_table[/*NBREQUESTS*/]; // ega_ega_odm_ar_Requests
-    RequestDictionary m_ega_ega_odm_ar_Requests;
-
-    RequestRuntimeList m_waiting_requests;
-    RequestRuntimeList m_deferred_requests;
+    //1 RequestDictionary m_ega_ega_odm_ar_Requests;
+    //1 RequestRuntimeList m_waiting_requests;
+    //1 RequestRuntimeList m_deferred_requests;
 
 
     // Функции нити ES_ACQ <============================================================================

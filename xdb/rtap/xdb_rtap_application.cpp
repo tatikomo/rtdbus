@@ -20,7 +20,8 @@ using namespace xdb;
 // ---------------------------------------------------------------------
 RtApplication::RtApplication(const char* _name)
   : m_impl(new ApplicationImpl(_name)),
-    m_initialized(false)
+    m_initialized(false),
+    m_env_list()
 {
   // Установить вместимость списка Сред - не более четырёх
   m_env_list.reserve(4);

@@ -493,7 +493,7 @@ typedef enum
 #define GOF_D_BDR_MAX_DE_TYPE rtUNDEFINED
 
 /* перечень значимых атрибутов и их типов */
-typedef struct
+struct AttributeInfo_t
 {
 #if CMAKE_COMPILER_IS_GNUCC && (CMAKE_CXX_COMPILER_VERSION >= 483)
   univname_t name = "";    /* имя атрибута */
@@ -506,7 +506,12 @@ typedef struct
   Quality_t  quality; /* качество атрибута (из БДРВ) */
   AttrVal_t  value;   /* значение атрибута */
 #endif
-} AttributeInfo_t;
+
+  AttributeInfo_t() : name(""), type(DB_TYPE_UNDEF), quality(ATTR_ERROR), value({ {0}, {0, NULL, NULL} }) {}
+  AttributeInfo_t(univname_t _n, DbType_t _t, Quality_t _q, AttrVal_t _v)
+    : name(_n), type(_t), quality(_q), value(_v) {}
+
+} /*AttributeInfo_t*/;
 
 // Наборы значений флагов
 // создать БД в случае, если это не было сделано ранее
@@ -843,7 +848,7 @@ extern const uint16_t var_size[];
 // ------------------------------------------------------------
 
 
-}; // namespace xdb
+} // namespace xdb
 
 #endif
 

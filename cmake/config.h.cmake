@@ -84,6 +84,10 @@
 #cmakedefine MAX_PORTION_SIZE_LOADED_HISTORY @MAX_PORTION_SIZE_LOADED_HISTORY@
 /* Maximum buffer size for single part of SQL-command */
 #cmakedefine MAX_BUFFER_SIZE_FOR_SQL_COMMAND @MAX_BUFFER_SIZE_FOR_SQL_COMMAND@
+/* SQLite syncronization mode: FULL|NORMAL|OFF */
+#define SQLITE_SYNC_MODE_ON_BULK "@SQLITE_SYNC_MODE_ON_BULK@"
+/* SQLite transaction journal mode: DELETE|MEMORY|OFF|TRUNCATE|PERSIST|WAL */
+#define SQLITE_JOURNAL_MODE_ON_BULK "@SQLITE_JOURNAL_MODE_ON_BULK@"
  
 /* Timeouts for ZMQ-throw operations */
 #cmakedefine RECV_TIMEOUT_MSEC        @RECV_TIMEOUT_MSEC@

@@ -98,11 +98,7 @@ AcqSiteEntry* ExchangeTranslator::esg_esg_odm_ConsultAcqSiteEntry(const char* na
 {
   AcqSiteEntry* look = NULL;
 
-#ifdef _FUNCTIONAL_TEST
-  look = (*m_smed->SiteList())[name];
-#else
   look = (*m_egsa_instance->sites())[name];
-#endif
 
   return look;
 }
@@ -2886,13 +2882,13 @@ int ExchangeTranslator::esg_esg_edi_GetLengthEData(
   switch (pr_IFormatEData->tm_type) {
     case TM_TYPE_LOGIC:
     case TM_TYPE_INTEGER:
-      sscanf(pr_IFormatEData->format_size, "%d", &i_LgEData);
+      sscanf(pr_IFormatEData->format_size, "%u", &i_LgEData);
       break;
 
     case TM_TYPE_TIME:
       if (pr_IFormatEData->format_size[0] == ECH_D_FORMATEDATA_TIMEUTC)
       {
-        sscanf(&pr_IFormatEData->format_size[1], "%d", &i_LgEData);
+        sscanf(&pr_IFormatEData->format_size[1], "%u", &i_LgEData);
         if ((i_LgEData != ECH_D_FULLTIMELG) &&
             (i_LgEData != ECH_D_VERYFULLTIMELG) &&
             (i_LgEData != ECH_D_LIGHTTIMELG))
@@ -2913,7 +2909,7 @@ int ExchangeTranslator::esg_esg_edi_GetLengthEData(
         i_LgEData = i_ILgString;
       }
       else {
-        sscanf(pr_IFormatEData->format_size, "%d", &i_LgEData);
+        sscanf(pr_IFormatEData->format_size, "%u", &i_LgEData);
       }
       break;
 
@@ -2922,18 +2918,18 @@ int ExchangeTranslator::esg_esg_edi_GetLengthEData(
       if ((s_SearchResult = strchr(s_PartFormat, ECH_D_FORMATEDATA_REALPRES)) != NULL)
       {
         *s_SearchResult = '\0';
-        sscanf(s_PartFormat, "%d", &i_LgEData);
+        sscanf(s_PartFormat, "%u", &i_LgEData);
         s_SearchResult++;
-        sscanf(s_SearchResult, "%d", &i_LgPartEData);
+        sscanf(s_SearchResult, "%u", &i_LgPartEData);
         i_LgEData = i_LgEData + i_LgPartEData + 1;
       }
       else if (NULL != (s_SearchResult = strchr(s_PartFormat, ECH_D_FORMATEDATA_REALEXP)))
       {
         // real format E
         *s_SearchResult = '\0';
-        sscanf(s_PartFormat, "%d", &i_LgEData);
+        sscanf(s_PartFormat, "%u", &i_LgEData);
         s_SearchResult++;
-        sscanf(s_SearchResult, "%d", &i_LgPartEData);
+        sscanf(s_SearchResult, "%u", &i_LgPartEData);
         i_LgEData = i_LgEData + i_LgPartEData + 1;
       }
       else
@@ -3167,7 +3163,7 @@ int ExchangeTranslator::esg_esg_edi_IntegerCoding(
   //............................................................................
   i_RetStatus = OK;
 
-  sscanf(s_IFormat, "%d", &i_NbDigit);
+  sscanf(s_IFormat, "%u", &i_NbDigit);
   memset(s_CodedEData, 0, sizeof(s_CodedEData));
 
   strcpy(s_CodedFormat, ECH_D_POURCENTSTR);
@@ -3282,17 +3278,17 @@ int ExchangeTranslator::esg_esg_edi_RealCoding(
   if ((s_SearchResult = strchr(s_PartFormat, ECH_D_FORMATEDATA_REALPRES)) != NULL)
   {
     *s_SearchResult = '\0';
-    sscanf(s_PartFormat, "%d", &i_LgPart1EData);
+    sscanf(s_PartFormat, "%u", &i_LgPart1EData);
     s_SearchResult++;
-    sscanf(s_SearchResult, "%d", &i_LgPart2EData);
+    sscanf(s_SearchResult, "%u", &i_LgPart2EData);
     i_LgPart1EData = i_LgPart1EData + i_LgPart2EData;
     i_LgPart1EData++;
     strcpy(s_CodedFormat, ECH_D_POURCENTSTR);
     strcat(s_CodedFormat, ECH_D_ZEROSTR);
-    sprintf(s_PartCodedFormat, "%d", i_LgPart1EData);
+    sprintf(s_PartCodedFormat, "%u", i_LgPart1EData);
     strcat(s_CodedFormat, s_PartCodedFormat);
     strcat(s_CodedFormat, ECH_D_POINTSTR);
-    sprintf(s_PartCodedFormat, "%d", i_LgPart2EData);
+    sprintf(s_PartCodedFormat, "%u", i_LgPart2EData);
     strcat(s_CodedFormat, s_PartCodedFormat);
     strcat(s_CodedFormat, ECH_D_FLOATSTR);
 
@@ -3317,7 +3313,7 @@ int ExchangeTranslator::esg_esg_edi_RealCoding(
   else if ((s_SearchResult = strchr(s_PartFormat, ECH_D_FORMATEDATA_REALEXP)) != NULL)
   {
     *s_SearchResult = '\0';
-    sscanf(s_PartFormat, "%d", &i_LgPart1EData);
+    sscanf(s_PartFormat, "%u", &i_LgPart1EData);
 
     // compute the precision = i_LgPart1EData - 2
     if (i_LgPart1EData > 8)
@@ -3330,10 +3326,10 @@ int ExchangeTranslator::esg_esg_edi_RealCoding(
     }
 
     s_SearchResult++;
-    sscanf(s_SearchResult, "%d", &i_LgPart2EData);
+    sscanf(s_SearchResult, "%u", &i_LgPart2EData);
     strcpy(s_CodedFormat, ECH_D_POURCENTSTR);
     strcat(s_CodedFormat, ECH_D_ZEROSTR);
-    sprintf(s_PartCodedFormat, "%d", i_LgPart1EData);
+    sprintf(s_PartCodedFormat, "%u", i_LgPart1EData);
     strcat(s_CodedFormat, s_PartCodedFormat);
 
     // -----------------------------------------------------------
@@ -3377,10 +3373,10 @@ int ExchangeTranslator::esg_esg_edi_RealCoding(
         s_CodedMantissa[i_LgPart1EData] = '\0';
 
         s_SearchResult += 1;
-        sscanf(s_SearchResult, "%d", &i_Part2EData);
+        sscanf(s_SearchResult, "%u", &i_Part2EData);
         strcpy(s_CodedExponentFormat, ECH_D_POURCENTSTR);
         strcat(s_CodedExponentFormat, ECH_D_ZEROSTR);
-        sprintf(s_PartCodedFormat, "%d", i_LgPart2EData);
+        sprintf(s_PartCodedFormat, "%u", i_LgPart2EData);
         strcat(s_CodedExponentFormat, s_PartCodedFormat);
         strcat(s_CodedExponentFormat, ECH_D_DECIMALSTR);
         sprintf(s_CodedExponent, s_CodedExponentFormat, i_Part2EData);
@@ -3472,7 +3468,7 @@ int ExchangeTranslator::esg_esg_edi_TimeCoding(
 
   if (pr_IInternalEData->type == FIELD_TYPE_DATE)
   {
-    sscanf(&s_IFormat[1], "%d", &i_LgEData);
+    sscanf(&s_IFormat[1], "%u", &i_LgEData);
     pr_AscUTCTime = gmtime ((time_t *) & pr_IInternalEData->u_val.d_Timeval.tv_sec);
 
     // The year format has now 4 digits
@@ -3651,9 +3647,9 @@ int ExchangeTranslator::esg_esg_edi_RealDecoding(
   if (NULL != (s_SearchResult = strchr(s_PartFormat, ECH_D_FORMATEDATA_REALPRES)))
   {
     *s_SearchResult = '\0';
-    sscanf(s_PartFormat, "%d", &i_LgPart1EData);
+    sscanf(s_PartFormat, "%u", &i_LgPart1EData);
     s_SearchResult++;
-    sscanf(s_SearchResult, "%d", &i_LgPart2EData);
+    sscanf(s_SearchResult, "%u", &i_LgPart2EData);
     i_LgPart1EData = i_LgPart1EData + i_LgPart2EData;
     i_LgPart1EData++;
     strcpy(s_CodedFormat, ECH_D_POURCENTSTR);
@@ -3747,7 +3743,7 @@ int ExchangeTranslator::esg_esg_edi_TimeDecoding(
   //............................................................................
   if (pr_IOInternalEData->type == FIELD_TYPE_DATE)
   {
-    sscanf(&s_IFormat[1], "%d", &i_LgEData);
+    sscanf(&s_IFormat[1], "%u", &i_LgEData);
     memset(&r_AscUTCTime, 0, sizeof(struct tm));
     ps_Time = ps_ICodedEData;
 

@@ -69,11 +69,6 @@ Cycle::Cycle(const char* _name, int _period, cycle_id_t _id, ech_t_ReqId _req_id
   m_CycleName[EGA_EGA_D_LGCYCLENAME] = '\0';
 }
 
-// ===================================================================================================
-Cycle::~Cycle()
-{
-};
-
 void Cycle::dump()
 {
   std::cout << "Cycle name:" << m_CycleName << " family:" << (int)m_CycleFamily

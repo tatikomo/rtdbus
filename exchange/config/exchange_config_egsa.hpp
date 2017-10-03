@@ -462,16 +462,16 @@ class EgsaConfig {
     egsa_config_sites_t& sites() { return m_sites; }
     // Загруженные Запросы
     egsa_config_requests_t& requests() { return m_requests; }
-    ech_t_ReqId get_request_id(const std::string&);
-    const char* get_request_name(ech_t_ReqId);
+    ech_t_ReqId get_request_dict_id(const std::string&);
+    const char* get_request_dict_name(ech_t_ReqId);
+    // Найти по таблице НСИ запрос с заданным идентификатором
+    int get_request_dict_by_id(ech_t_ReqId, RequestEntry*&);
 
   private:
     DISALLOW_COPY_AND_ASSIGN(EgsaConfig);
     cycle_id_t get_cycle_id_by_name(const std::string&);
-    // Найти по таблице НСИ запрос с заданным идентификатором
-    int get_request_by_id(ech_t_ReqId, RequestEntry*&);
     // Найти по таблице НСИ запрос с заданным названием
-    int get_request_by_name(const std::string&, RequestEntry*&);
+    int get_request_dict_by_name(const std::string&, RequestEntry*&);
     // Вернуть идентификатор типа атрибута
     field_type_t get_db_attr_type_id(const std::string&);
 

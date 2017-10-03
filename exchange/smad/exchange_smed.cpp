@@ -23,6 +23,7 @@
 #include "exchange_config.hpp"
 #include "exchange_config_egsa.hpp"
 #include "exchange_config_site.hpp"
+#include "exchange_config_cycle.hpp"
 #include "exchange_config_request.hpp"
 #include "exchange_smed.hpp"
 //#include "exchange_egsa_cycle.hpp"
@@ -40,6 +41,8 @@ static const char *SQL_TEMPLATE_SELECT_DATA_BY_LED =
 bool SMED::m_content_initialized = false;
 
 // ==========================================================================================================
+// NB: Экземпляр EgsaConfig удаляется в EGSA после своего использования, и доступ к EgsaConfig возможен только на этапе
+// инициализации
 SMED::SMED(EgsaConfig* _config, const char* snap_file)
  : m_db(NULL),
    m_state(STATE_DISCONNECTED),
@@ -49,9 +52,11 @@ SMED::SMED(EgsaConfig* _config, const char* snap_file)
 {
   m_snapshot_filename = strdup(snap_file);
 
-  // Создать экземпляры доступа к Сайтам и Запросам в SMED
-  m_site_list = new SmedObjectList<AcqSiteEntry*>(this);
+  // Создать экземпляры доступа к Сайтам/Запросам/Циклам в SMED
+  m_site_list    = new SmedObjectList<AcqSiteEntry*>(this);
   m_request_list = new SmedObjectList<Request*>(this);
+  m_cycle_list   = new SmedObjectList<Cycle*>(this);
+  m_request_dict_list = new SmedObjectList<Request*>(this);
 }
 
 // ==========================================================================================================
@@ -69,8 +74,10 @@ SMED::~SMED()
 
   free(m_snapshot_filename);
 
+  delete m_request_dict_list;
   delete m_request_list;
   delete m_site_list;
+  delete m_cycle_list;
 }
 
 // ==========================================================================================================
@@ -404,6 +411,9 @@ int SMED::load_internal(elemtype_item_t* _elemtype, elemstruct_item_t* _elemstru
           rc = store_sites();
 
           // 3) Заполнить таблицу REQUESTS
+          // 3.1) Загрузить НСИ Запросов
+          rc = store_requests_dict();
+          // 3.2) Загрузить используемые Запросы
           rc = store_requests();
           
 #if 0
@@ -434,6 +444,7 @@ int SMED::load_internal(elemtype_item_t* _elemtype, elemstruct_item_t* _elemstru
 
 
 // ==========================================================================================================
+// Занесем сведения о Сайтах в таблицу SITES в SMED
 int SMED::store_sites()
 {
   static const char *fname = "store_sites";
@@ -454,9 +465,7 @@ int SMED::store_sites()
             (*it).second->nature);
     sql += dml_operator;
 
-    // Занесем сведения о Сайте в SMED
-    // TODO: ссылка на EGSA нужна для работы функции get_dict_request, нужно её перенести в класс SMED
-    m_site_list->insert(new AcqSiteEntry(/*m_egsa,*/ (*it).second));
+    m_site_list->insert(new AcqSiteEntry(this, (*it).second));
   }
 
   if (sites_stored) {
@@ -489,7 +498,34 @@ int SMED::store_sites()
 }
 
 // ==========================================================================================================
-// Загрузить таблицу Запросов
+// Загрузить НСИ таблицу Запросов
+// Используется на этапе подключения к SMED
+// NB: эта информация статична, можно не заносить в БД
+int SMED::store_requests_dict()
+{
+  int rc = OK;
+  RequestEntry* entry = NULL;
+  int rid;
+
+  for(rid = EGA_GENCONTROL; rid < NOT_EXISTENT; rid++)
+  {
+    if (OK == m_egsa_config->get_request_dict_by_id(static_cast<ech_t_ReqId>(rid), entry)) {
+
+      LOG(INFO) << "ReqDict "
+                << entry->s_RequestName << " "
+                << entry->i_RequestPriority << " "
+                << (unsigned int)entry->e_RequestObject << " "
+                << (unsigned int)entry->e_RequestMode;
+
+      m_request_dict_list->insert(new Request(entry));
+    }
+  }
+
+  return rc;
+}
+
+// ==========================================================================================================
+// Загрузить таблицу используемых Запросов
 int SMED::store_requests()
 {
   int rc = OK;
@@ -605,15 +641,18 @@ int SMED::get_info(const gof_t_UniversalName site, sa_flow_direction_t direction
 {
   static const char* fname = "get_info";
   sqlite3_stmt* stmt = 0;
+#if 0
   const size_t operator_size = strlen(SQL_TEMPLATE_SELECT_DATA_BY_LED)
                                + sizeof(gof_t_UniversalName)    // Параметр #1
                                + 12 // #2: длина символьного представления LED
                                + 4; // #3: длина представления TYPE
-  char dml_operator[operator_size + 1];
+#endif
+  char dml_operator[1000 /*operator_size + 1*/];
   int num_lines = 0;
   int rc = NOK;
 
-  snprintf(dml_operator, operator_size, SQL_TEMPLATE_SELECT_DATA_BY_LED, site, i_Led, direction);
+  const int n=snprintf(dml_operator, 1000 /* operator_size */, SQL_TEMPLATE_SELECT_DATA_BY_LED, site, i_Led, direction);
+  assert(n < 1000); // 1000 = sizeof(dml_operator)
 
   // Начальные значения
   elem->s_Name[0] = '\0';
@@ -1198,17 +1237,11 @@ int SMED::load_data_dict(const char* site_name, std::vector<exchange_parameter_t
 void SMED::accelerate(bool speedup)
 {
   const char* fname = "accelerate";
-  const char* sync_FULL = "FULL";
-  const char* sync_NORM = "NORMAL";
-  const char* sync_OFF  = "OFF";
-  const char* journal_DELETE = "DELETE"; // сброс лога транзакции на диск после каждой операции
-  const char* journal_MEMORY = "MEMORY"; // лог транзакции не сбрасывается на диск, а ведется в ОЗУ
-  const char* journal_OFF = "OFF";       // лог транзакции не ведется, быстрый и ненадежный способ
-  // Возможные значения JOURNAL_MODE: DELETE | TRUNCATE | PERSIST | MEMORY | WAL | OFF
-  // По умолчанию: DELETE
+  const char* sync_MODE = SQLITE_SYNC_MODE_ON_BULK;
+  const char* journal_MODE = SQLITE_JOURNAL_MODE_ON_BULK;
+  // Возможные значения JOURNAL_MODE: [DELETE] | TRUNCATE | PERSIST | MEMORY | WAL | OFF
   const char* pragma_set_journal_mode_template = "PRAGMA JOURNAL_MODE = %s";
-  // Возможные значения SYNCHRONOUS: 0 | OFF | 1 | NORMAL | 2 | FULL
-  // По умолчанию: FULL
+  // Возможные значения SYNCHRONOUS: 0 | OFF | 1 | NORMAL | 2 | [FULL]
   const char* pragma_set_synchronous_template = "PRAGMA SYNCHRONOUS = %s";
   char sql_operator_journal[MAX_BUFFER_SIZE_FOR_SQL_COMMAND + 1];
   char sql_operator_synchronous[MAX_BUFFER_SIZE_FOR_SQL_COMMAND + 1];
@@ -1234,40 +1267,33 @@ void SMED::accelerate(bool speedup)
   // PRAGMA synchronous = FULL;
   // PRAGMA journal_mode = DELETE;
 
-  switch (speedup) {
-      case true:
+  if (speedup) {
         printed = snprintf(sql_operator_journal,
                            MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
                            pragma_set_journal_mode_template,
-        // Ослабить нагрузку на диск, журнал не будет скидываться в файл после каждой операции
-        //                   journal_MEMORY);
-                           journal_OFF);
+                           journal_MODE);
         assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
 #if 1
         printed = snprintf(sql_operator_synchronous,
                            MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
                            pragma_set_synchronous_template,
-        // Поднять производительность за счёт отказа от полной гарантии консистентности данных
-        //                   sync_NORM);
-                           sync_OFF);
+                           sync_MODE);
         assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
 #endif
-        break;
-
-      case false:
+  }
+  else {
         printed = snprintf(sql_operator_journal,
                            MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
                            pragma_set_journal_mode_template,
-                           journal_DELETE);
+                           "DELETE");
         assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
 #if 1
         printed = snprintf(sql_operator_synchronous,
                            MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
                            pragma_set_synchronous_template,
-                           sync_FULL);
+                           "FULL");
         assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
 #endif
-        break;
   }
 
   if (sqlite3_exec(m_db, sql_operator_journal, 0, 0, &m_db_err)) {
@@ -1394,7 +1420,7 @@ int SMED::processing(const gof_t_UniversalName s_IAcqSiteId,
                             " AND S.NAME='%s'"
                             " AND S.SITE_ID=P.SITE_REF"
                             " AND P.DATA_REF=D.DATA_ID;";
-  const int dml_sql_size = strlen(SELECT_INFO) + 9 /*LED*/ + 9 /*STRUCT_ID*/ + 7 /*site tag*/ + 300 /*значение*/;
+//  const int dml_sql_size = strlen(SELECT_INFO) + 9 /*LED*/ + 9 /*STRUCT_ID*/ + 7 /*site tag*/ + 300 /*значение*/;
 /*  const char* SELECT_DATEHOURM = "SELECT D.DATA_ID"
                             " FROM SITES S,PROCESSING P,DATA D,FIELDS_LINK FL,FIELDS F"
                             " WHERE S.NAME='%s'"
@@ -1405,7 +1431,7 @@ int SMED::processing(const gof_t_UniversalName s_IAcqSiteId,
                             " AND D.DATA_ID=FL.DATA_REF"
                             " AND FL.FIELD_REF=F.FIELD_ID"
                             " AND F.ATTR='%s';";*/
-  char dml_operator[dml_sql_size + 1];  // буфер SQL для обновления данных в SMED
+  char dml_operator[1000 /*dml_sql_size + 1*/];  // буфер SQL для обновления данных в SMED
   char dml_value[300 + 1];              // буфер для сохранения значения Параметра в зависимости от его типа
   sqlite3_stmt* stmt = 0;
   time_t last_update;
@@ -1439,10 +1465,11 @@ int SMED::processing(const gof_t_UniversalName s_IAcqSiteId,
 
     // Если заданное время получения данных не нулевое (т.е. корректно прочиталось), проверить "время последнего обновления"
     // данных для всех подтипов данного LED. Если обновление необходимо, взвести флаг b_DataOK и обновить хранимый маркер времени".
-    sprintf(dml_operator, SELECT_INFO, 
+    const int n=sprintf(dml_operator, SELECT_INFO,
             /* LED */       pr_IQuaCData->i_QualifyValue,
             /* STRUCT_ID */ struct_id,
             /* SITE NAME */ s_IAcqSiteId);
+    assert(n < 1000); // 1000 = sizeof(dml_sql_size)
     if (SQLITE_OK == sqlite3_prepare(m_db, dml_operator, -1, &stmt, 0)) {
 
       // Запрос успешно выполнился
@@ -1594,12 +1621,14 @@ int SMED::ech_smd_p_ReadRecAttr (
                                        " AND D.TAG='%s'"
                                        " AND F.ATTR='%s'"
                                        " AND S.NAME='%s';";
+#if 0
   const int operator_size = strlen(SELECT_TEMPLATE)
           + /* DATA.TAG   */ TAG_NAME_MAXLEN
           + /* FIELD.ATTR */ TAG_NAME_MAXLEN
           + /* SITE.NAME  */ TAG_NAME_MAXLEN
           + /* RESERVE    */ 1;
-  char dml_operator[operator_size + 1];
+#endif
+  char dml_operator[1000 /*operator_size + 1*/];
   sqlite3_stmt* stmt = 0;
   int rc = OK;
 
@@ -1622,7 +1651,8 @@ int SMED::ech_smd_p_ReadRecAttr (
   // Quality_t  quality; /* качество атрибута (из БДРВ) */
   // AttrVal_t  value;   /* значение атрибута */
 
-  snprintf(dml_operator, operator_size, SELECT_TEMPLATE, s_ObjName, s_AttrName, site_name);
+  const int n=snprintf(dml_operator, 1000 /*operator_size*/, SELECT_TEMPLATE, s_ObjName, s_AttrName, site_name);
+  assert(n < 1000);
 
   if (SQLITE_OK == sqlite3_prepare(m_db, dml_operator, -1, &stmt, 0)) {
 
@@ -1701,6 +1731,7 @@ int SMED::esg_acq_dac_SmdSynthState(const char* site_name, synthstate_t synthsta
             " AND P.TYPE=%d"
             " AND D.OBJCLASS=%d"
             " AND ES.ASSOCIATE='%s');";
+#if 0
   const int operator_size = strlen(SQL_TEMPLATE_1)
             + /* VAL_INT */  3
             + /* S.NAME */   TAG_NAME_MAXLEN
@@ -1708,15 +1739,18 @@ int SMED::esg_acq_dac_SmdSynthState(const char* site_name, synthstate_t synthsta
             + /* OBJCLASS */ 4
             + /* ASSOCIATE*/ 5 /* ECH_D_COMPIDLG */
             + /* резерв */   1;
+#endif
   static const char* SQL_TEMPLATE_2 = "UPDATE SITES SET SYNTHSTATE=%d WHERE NAME='%s';COMMIT;";
-  char dml_operator[operator_size + 1]; // NB: размер SQL_TEMPLATE_1 много больше, чем SQL_TEMPLATE_2, выбираем размер буфера по нему
+  char dml_operator[500 /*operator_size + 1*/]; // NB: размер SQL_TEMPLATE_1 много больше, чем SQL_TEMPLATE_2, выбираем размер буфера по нему
   int rc = OK;
   std::string sql;
 
-  sprintf(dml_operator, SQL_TEMPLATE_1, synthstate, site_name, SA_FLOW_ACQUISITION, GOF_D_BDR_OBJCLASS_SA, "I0017" /*ECH_D_SYNTHSTATE_VALUE*/);
+  const int n1=sprintf(dml_operator, SQL_TEMPLATE_1, synthstate, site_name, SA_FLOW_ACQUISITION, GOF_D_BDR_OBJCLASS_SA, "I0017" /*ECH_D_SYNTHSTATE_VALUE*/);
+  assert(n1 < 500);
   sql = dml_operator;
 
-  sprintf(dml_operator, SQL_TEMPLATE_2, synthstate, site_name);
+  const int n2=sprintf(dml_operator, SQL_TEMPLATE_2, synthstate, site_name);
+  assert(n2 < 500);
   sql += dml_operator;
 
   // Установить кодировку UTF8
@@ -1746,12 +1780,15 @@ int SMED::detach_sites()
   const char* fname = "detach_sites";
   const char* SQL_UPDATE_SYNTHSTATES = "BEGIN;UPDATE SITES SET SYNTHSTATE=0,LAST_UPDATE=%ld WHERE SYNTHSTATE>0;COMMIT;";
   int rc = OK;
+#if 0
   const int operator_size = strlen(SQL_UPDATE_SYNTHSTATES)
             + /* LAST_UPDATE */  10
             + /* резерв */   1;
-  char dml_operator[operator_size + 1];
+#endif
+  char dml_operator[100 /*operator_size + 1*/];
 
-  sprintf(dml_operator, SQL_UPDATE_SYNTHSTATES, time(0));
+  const int n=sprintf(dml_operator, SQL_UPDATE_SYNTHSTATES, time(0));
+  assert(n < 100);
   if (sqlite3_exec(m_db, dml_operator, 0, 0, &m_db_err)) {
     LOG(ERROR) << fname << ": updating attributes " << RTDB_ATT_SYNTHSTATE
 #if VERBOSE > 7
@@ -1776,150 +1813,37 @@ int SMED::detach_sites()
   return rc;
 }
 
-#if 0
-// ==============================================================================
-template <typename Item>
-int SmedObjectList<Item>::clear()
+// ==========================================================================================================
+// Вернуть шаблон запроса по его идентификатору
+Request* SMED::get_request_dict_by_id(ech_t_ReqId id)
 {
-  LOG(INFO) << "clear ";
-  return NOK;
-}
+  Request* req = NULL;
 
-// ==============================================================================
-template <typename Item>
-void SmedObjectList<Item>::insert(Item the_new_one)
-{
-  LOG(INFO) << "insert " << the_new_one->name();
-  LOG(ERROR) << "SMED: \"Вставить\" - ещё не реализовано";
-}
-
-// ==============================================================================
-template <typename Item>
-int SmedObjectList<Item>::refresh()
-{
-  int rc = NOK;
-  LOG(ERROR) << "SMED: refresh - ещё не реализовано";
-  return rc;
-}
-
-// ==============================================================================
-// Вернуть элемент по имени Сайта
-template <typename Item>
-Item SmedObjectList<Item>::operator[](const char* name)
-{
-  Item entry = NULL;
-
-  LOG(ERROR) << "SMED: \"Вернуть элемент по имени Сайта \"" << name << " - ещё не реализовано";
-
-  return entry;
-}
-
-// ==============================================================================
-// Вернуть элемент по имени Сайта
-template <typename Item>
-Item SmedObjectList<Item>::operator[](const std::string& name)
-{
-  Item entry = NULL;
-
-  LOG(ERROR) << "SMED: \"Вернуть элемент по имени Сайта \"" << name << "\" - ещё не реализовано";
-
-  return entry;
-}
-
-// ==============================================================================
-// Вернуть элемент по индексу
-template <typename Item>
-Item SmedObjectList<Item>::operator[](const std::size_t idx)
-{
-  Item entry = NULL;
-
-  LOG(ERROR) << "SMED: \"Вернуть элемент по индексу " << idx << " - ещё не реализовано";
-  return entry;
-}
-#endif
-
-#if 0
-// ==============================================================================
-void AcqSiteList::insert(AcqSiteEntry* the_new_one)
-{
-  LOG(INFO) << "insert " << the_new_one->name();
-  LOG(ERROR) << "SMED: \"Вставить новый Сайт\" - ещё не реализовано";
-}
-
-// ==============================================================================
-int AcqSiteList::refresh()
-{
-  int rc = NOK;
-  LOG(ERROR) << "SMED: refresh site - ещё не реализовано";
-  return rc;
-}
-
-// ==============================================================================
-// Вернуть элемент по имени Сайта
-AcqSiteEntry* AcqSiteList::operator[](const char* name)
-{
-  AcqSiteEntry *entry = NULL;
-
-  LOG(ERROR) << "SMED: \"Вернуть элемент по имени Сайта \"" << name << " - ещё не реализовано";
-/*  for(std::vector< std::shared_ptr<AcqSiteEntry*> >::const_iterator it = m_items.begin();
-      it != m_items.end();
-      ++it)
-  {
-    if (0 == std::strcmp((*(*it))->name(), name)) {
-      entry = *(*it);
+  // TODO: проверить все Запросы в m_request_dict_list и найти тот, что имеет заданный идентификатор
+  for(size_t idx = 0; idx < m_request_dict_list->count(); idx++) {
+    req = (*m_request_dict_list)[idx];
+    if (id == req->id()) {
+      LOG(INFO) << "gotcha: get_request_dict_by_id id=" << id;
       break;
     }
-  }*/
-
-  return entry;
+  }
+  return req;
 }
 
-// ==============================================================================
-// Вернуть элемент по имени Сайта
-AcqSiteEntry* AcqSiteList::operator[](const std::string& name)
+// ==========================================================================================================
+// Вернуть Запрос по его идентификатору
+Request* SMED::get_request_by_id(ech_t_ReqId id)
 {
-  AcqSiteEntry *entry = NULL;
+  Request* req = NULL;
 
-  LOG(ERROR) << "SMED: \"Вернуть элемент по имени Сайта \"" << name << "\" - ещё не реализовано";
-
-  return entry;
-}
-
-// ==============================================================================
-// Вернуть элемент по индексу
-AcqSiteEntry* AcqSiteList::operator[](const std::size_t idx)
-{
-  AcqSiteEntry *entry = NULL;
-
-  LOG(ERROR) << "SMED: \"Вернуть элемент по индексу " << idx << " - ещё не реализовано";
-  /*if (idx < m_items.size()) {
-    if (m_items.at(idx)) {
-      entry = *m_items.at(idx);
+  // TODO: проверить все Запросы в m_request_list и найти тот, что имеет заданный идентификатор
+  for(size_t idx = 0; idx < m_request_list->count(); idx++) {
+    req = (*m_request_list)[idx];
+    if (id == req->id()) {
+      LOG(INFO) << "gotcha: get_request_by_id id=" << id;
+      break;
     }
-    else {
-      LOG(WARNING) << "AcqSiteList::operator[" << idx << "] found NULL in m_items";
-    }
-  }*/
-
-  return entry;
+  }
+  return req;
 }
-
-// ==============================================================================
-
-// ==============================================================================
-void RequestList::insert(AcqSiteEntry* the_new_one)
-{
-  LOG(INFO) << "insert " << the_new_one->name();
-  LOG(ERROR) << "SMED: \"Вставить новый Запрос\" - ещё не реализовано";
-}
-
-// ==============================================================================
-int RequestList::refresh()
-{
-  int rc = NOK;
-  LOG(ERROR) << "SMED: refresh request - ещё не реализовано";
-  return rc;
-}
-
-#endif
 

@@ -28,28 +28,16 @@ static inline timer_mark_t getTime() {
 
 static inline const timer_mark_t timeAdd(timer_mark_t oldTime, timer_mark_t time) {
     if (time.tv_nsec + oldTime.tv_nsec >= BILLION)
-        return (timer_mark_t){
-            tv_sec: time.tv_sec + oldTime.tv_sec + 1,
-            tv_nsec: time.tv_nsec + oldTime.tv_nsec - BILLION
-        };
+        return (timer_mark_t){ time.tv_sec + oldTime.tv_sec + 1, time.tv_nsec + oldTime.tv_nsec - BILLION };
     else
-        return (timer_mark_t){
-            tv_sec: time.tv_sec + oldTime.tv_sec,
-            tv_nsec: time.tv_nsec + oldTime.tv_nsec
-        };
+        return (timer_mark_t){ time.tv_sec + oldTime.tv_sec, time.tv_nsec + oldTime.tv_nsec };
 }
 
 static inline const timer_mark_t timeDiff(timer_mark_t oldTime, timer_mark_t time) {
     if (time.tv_nsec < oldTime.tv_nsec)
-        return (timer_mark_t){
-            tv_sec: time.tv_sec - 1 - oldTime.tv_sec,
-            tv_nsec: BILLION + time.tv_nsec - oldTime.tv_nsec
-        };
+        return (timer_mark_t){ time.tv_sec - 1 - oldTime.tv_sec, BILLION + time.tv_nsec - oldTime.tv_nsec };
     else
-        return (timer_mark_t){
-            tv_sec: time.tv_sec - oldTime.tv_sec,
-            tv_nsec: time.tv_nsec - oldTime.tv_nsec
-        };
+        return (timer_mark_t){ time.tv_sec - oldTime.tv_sec, time.tv_nsec - oldTime.tv_nsec };
 }
 
 static inline double timeSeconds(timer_mark_t time) {

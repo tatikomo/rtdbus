@@ -55,7 +55,7 @@ SysAcqInterface::SysAcqInterface(const std::string& _name,
     LOG(ERROR) << fname << " : reading configuration files";
     m_status = STATUS_FATAL_CONFIG;
   }
-};
+}
 
 // --------------------------------------------------------------------------------
 SysAcqInterface::~SysAcqInterface()

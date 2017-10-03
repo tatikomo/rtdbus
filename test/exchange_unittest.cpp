@@ -23,6 +23,7 @@
 #include "exchange_config_site.hpp"
 #include "exchange_config_request.hpp"
 #include "exchange_egsa_impl.hpp"
+#include "exchange_smed.hpp"
 
 #include "proto/rtdbus.pb.h"
 
@@ -136,7 +137,7 @@ TEST(TestEXCHANGE, EGSA_CONFIG)
   EXPECT_TRUE(g_egsa_instance->config()->cycles().size() == 7);
 
   LOG(INFO) << "load " << g_egsa_instance->config()->sites().size() << " sites";
-  EXPECT_TRUE(g_egsa_instance->config()->sites().size() == 6);
+  EXPECT_TRUE(g_egsa_instance->config()->sites().size() == 7);
 
   LOG(INFO) << "load " << g_egsa_instance->config()->requests().size() << " requests";
   EXPECT_TRUE(g_egsa_instance->config()->requests().size() == 41);
@@ -227,9 +228,7 @@ TEST(TestEXCHANGE, EGSA_CYCLES_CONFIG)
           LOG(INFO) << "\t\t" << "REQ #" << cycle->req_id() << " " << Request::name(cycle->req_id());
 
           // Для актуального Запроса найти все вложенные в него подзапросы
-          RequestDictionary& d_requests = g_egsa_instance->dictionary_requests();
-
-          Request *main_req = d_requests.query_by_id(cycle->req_id());
+          Request *main_req = g_egsa_instance->get_request_by_id(cycle->req_id());
 
           if (main_req) { // Есть вложенные Запросы
 #if 0
@@ -309,7 +308,7 @@ TEST(TestEXCHANGE, SAC_CREATE)
   new_item.auto_init= g_egsa_instance->config()->sites().begin()->second->auto_init;
   new_item.auto_gencontrol = g_egsa_instance->config()->sites().begin()->second->auto_gencontrol;
 
-  g_sac_entry = new AcqSiteEntry(/*g_egsa_instance,*/ &new_item);
+  g_sac_entry = new AcqSiteEntry(g_egsa_instance->smed(), &new_item);
   // Начальное состояние СС
   EXPECT_TRUE(g_sac_entry->state() == EGA_EGA_AUT_D_STATE_NI_NM_NO);
   // Послать системе команду инициализации
@@ -414,6 +413,7 @@ TEST(TestEXCHANGE, SAC_STATES)
 // =======================================================================================================================
 TEST(TestEXCHANGE, EGSA_SITES)
 {
+  // Копия данных из тестового набора
   const egsa_config_site_item_t config_item[] = {
     // Имя
     // |
@@ -433,10 +433,13 @@ TEST(TestEXCHANGE, EGSA_SITES)
   // В тестовом файле только три записи
   const AcqSiteEntry* check_data[7];
   for (size_t idx = 0; idx < 7; idx++)
-    check_data[idx] = new AcqSiteEntry(/*g_egsa_instance,*/ &config_item[idx]);
+    check_data[idx] = new AcqSiteEntry(g_egsa_instance->smed(), &config_item[idx]);
 
   SmedObjectList<AcqSiteEntry*> *sites_list = g_egsa_instance->sites();
   LOG(INFO) << "EGSA_SITES loads " << sites_list->count() << " sites";
+
+  LOG(INFO) << (*sites_list)["K42670"]->name();
+  LOG(INFO) << (*sites_list)["НЕСУЩЕСТВУЮЩИЙ"];
 
   for (size_t i=0; i < sites_list->count(); i++) {
     const AcqSiteEntry* entry; // = (*sites_list)[i];
@@ -476,20 +479,14 @@ TEST(TestEXCHANGE, EGSA_SITES)
 // =======================================================================================================================
 TEST(TestEXCHANGE, EGSA_DICT_REQUESTS)
 {
-  RequestDictionary &rl = g_egsa_instance->dictionary_requests();
+  SmedObjectList<Request*>* rl = g_egsa_instance->ReqList();
 
-  for (size_t id = 0; id < rl.size() /*NBREQUESTS*/; id++) {
+  for (size_t id = 0; id < rl->count() /*NBREQUESTS*/; id++) {
+    // LOG(INFO) << "GEV: RequestDictionary idx=" << id << " size=" << rl.size();
 
-   // LOG(INFO) << "GEV: RequestDictionary idx=" << id << " size=" << rl.size();
+    Request *r = (*rl)[id];
+    ech_t_ReqId rid = r->id();
 
-    ech_t_ReqId rid = static_cast<ech_t_ReqId>(id);
-
-    Request *r = rl.query_by_id(rid);
-    // Запроса EGA_GAZPROCOP нет в конфигурации
-    if (EGA_GAZPROCOP != id)
-      EXPECT_TRUE(NULL != r);
-    else
-      EXPECT_TRUE(NULL == r);
 #if 0
     if (r)
       LOG(INFO) << id << " req_id=" << r->id()
@@ -498,26 +495,36 @@ TEST(TestEXCHANGE, EGSA_DICT_REQUESTS)
                 << " exchange_id=" << r->exchange_id()
                 << " prio=" << r->priority();
 #endif
+
+    switch(rid) {
+      case EGA_GAZPROCOP:
+        EXPECT_TRUE(NULL == r); // Запроса EGA_GAZPROCOP не должно быть в конфигурации
+        break;
+
+      case ESG_LOCID_INITCOMD:
+        // Локальный запрос IL_INITCOMD является композитным,
+        // состоящим из AB_STATESCMD,AB_HISTALARM,AB_HHISTINFSACQ,AB_GENCONTROL
+        ASSERT_TRUE(NULL != r);
+        LOG(INFO) << ESG_ESG_D_LOCSTR_INITCOMD << ": composed() = " << r->composed();
+        EXPECT_TRUE(r->composed() == 4);
+        EXPECT_TRUE(r->included()[ESG_BASID_STATECMD]     == 1);
+        EXPECT_TRUE(r->included()[ESG_BASID_HISTALARM]    == 2);
+        EXPECT_TRUE(r->included()[ESG_BASID_HHISTINFSACQ] == 3);
+        EXPECT_TRUE(r->included()[ESG_BASID_GENCONTROL]   == 4);
+        break;
+
+      case EGA_URGINFOS:
+        // Запрос URGINFOS не является композитным
+        ASSERT_TRUE(NULL != r);
+        LOG(INFO) << EGA_EGA_D_STRURGINFOS << ": composed() = " << r->composed();
+        EXPECT_TRUE(r->composed() == 0);
+        EXPECT_TRUE(r->included()[ESG_BASID_STATECMD] == 0);
+        break;
+
+      default:
+        ASSERT_TRUE(NULL != r);
+    }
   }
-  // req_list.insert()
-
-  // Локальный запрос IL_INITCOMD является композитным,
-  // состоящим из AB_STATESCMD,AB_HISTALARM,AB_HHISTINFSACQ,AB_GENCONTROL
-  Request *ric = rl.query_by_id(ESG_LOCID_INITCOMD);
-  ASSERT_TRUE(NULL != ric);
-  LOG(INFO) << ESG_ESG_D_LOCSTR_INITCOMD << ": composed() = " << ric->composed();
-  EXPECT_TRUE(ric->composed() == 4);
-  EXPECT_TRUE(ric->included()[ESG_BASID_STATECMD] == 1);
-  EXPECT_TRUE(ric->included()[ESG_BASID_HISTALARM] == 2);
-  EXPECT_TRUE(ric->included()[ESG_BASID_HHISTINFSACQ] == 3);
-  EXPECT_TRUE(ric->included()[ESG_BASID_GENCONTROL] == 4);
-
-  // Запрос URGINFOS не является композтным
-  Request *ru = rl.query_by_id(EGA_URGINFOS);
-  ASSERT_TRUE(NULL != ru);
-  LOG(INFO) << EGA_EGA_D_STRURGINFOS << ": composed() = " << ru->composed();
-  EXPECT_TRUE(ru->composed() == 0);
-  EXPECT_TRUE(ru->included()[ESG_BASID_STATECMD] == 0);
 }
 
 #ifndef _SHORT_TEST
@@ -527,7 +534,6 @@ TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
 #if 0
   RequestRuntimeList rt_list;
   Request* dict_req = NULL;
-  RequestDictionary& dict_requests = g_egsa_instance->dictionary_requests();
   AcqSiteList& sites_list = g_egsa_instance->sites();
   CycleList &cycles = g_egsa_instance->cycles();
   std::list<Request*>::iterator it;
@@ -540,16 +546,16 @@ TEST(TestEXCHANGE, EGSA_RT_REQUESTS)
   ASSERT_TRUE(site1);
   ASSERT_TRUE(cycle1);
 
-  dict_req = dict_requests.query_by_id(EGA_INITCMD);
+  dict_req = g_egsa_instance->get_request_dict_by_id(EGA_INITCMD);
   ASSERT_TRUE(dict_req);
   Request* req1 = new Request(dict_req, site1, cycle1);
-  dict_req = dict_requests.query_by_id(ESG_BASID_STATEACQ);
+  dict_req = g_egsa_instance->get_request_dict_by_id(ESG_BASID_STATEACQ);
   ASSERT_TRUE(dict_req);
   Request* req2 = new Request(dict_req, site3, cycle1);
-  dict_req = dict_requests.query_by_id(EGA_DELEGATION);
+  dict_req = g_egsa_instance->get_request_dict_by_id(EGA_DELEGATION);
   ASSERT_TRUE(dict_req);
   Request* req3 = new Request(dict_req, site2, cycle2);
-  dict_req = dict_requests.query_by_id(ESG_BASID_INFOSACQ);
+  dict_req = g_egsa_instance->get_request_dict_by_id(ESG_BASID_INFOSACQ);
   ASSERT_TRUE(dict_req);
   Request* req4 = new Request(dict_req, site3, cycle2);
 

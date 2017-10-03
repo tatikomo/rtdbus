@@ -477,7 +477,7 @@ int EgsaConfig::load_sites()
 // Найти по таблице запрос с заданным идентификатором.
 // Есть такой - присвоить параметру его адрес и вернуть OK
 // Нет такого - присвоить второму параметру NULL и вернуть NOK
-int EgsaConfig::get_request_by_id(ech_t_ReqId _id, RequestEntry*& _entry)
+int EgsaConfig::get_request_dict_by_id(ech_t_ReqId _id, RequestEntry*& _entry)
 {
   int rc = NOK;
 
@@ -496,7 +496,7 @@ int EgsaConfig::get_request_by_id(ech_t_ReqId _id, RequestEntry*& _entry)
 // Найти по таблице запрос с заданным названием.
 // Есть такой - присвоить параметру его адрес и вернуть OK
 // Нет такого - присвоить второму параметру NULL и вернуть NOK
-int EgsaConfig::get_request_by_name(const std::string& _name, RequestEntry*& _entry)
+int EgsaConfig::get_request_dict_by_name(const std::string& _name, RequestEntry*& _entry)
 {
   for (int id = EGA_GENCONTROL; id < NOT_EXISTENT; id++) {
     if (id == g_request_dictionary[id].e_RequestId) {
@@ -516,7 +516,7 @@ int EgsaConfig::get_request_by_name(const std::string& _name, RequestEntry*& _en
 }
 
 // ==========================================================================================
-ech_t_ReqId EgsaConfig::get_request_id(const std::string& name)
+ech_t_ReqId EgsaConfig::get_request_dict_id(const std::string& name)
 {
   ech_t_ReqId result = NOT_EXISTENT;
 
@@ -530,7 +530,7 @@ ech_t_ReqId EgsaConfig::get_request_id(const std::string& name)
 }
 
 // ==========================================================================================
-const char* EgsaConfig::get_request_name(ech_t_ReqId id)
+const char* EgsaConfig::get_request_dict_name(ech_t_ReqId id)
 {
   return g_request_dictionary[id].s_RequestName;
 }
@@ -563,7 +563,7 @@ int EgsaConfig::load_requests()
       const Value::Object& request_item_json = itr->GetObject();
 
       // Проверить в НСИ, известен ли этот Запрос
-      if (OK == get_request_by_name(request_item_json[s_SECTION_REQUESTS_NAME_NAME].GetString(), dict_entry))
+      if (OK == get_request_dict_by_name(request_item_json[s_SECTION_REQUESTS_NAME_NAME].GetString(), dict_entry))
       { // Да - собираем по нему информацию
 
         // в dict_entry заполнились поля из НСИ
@@ -621,7 +621,7 @@ int EgsaConfig::load_requests()
             const Value::Object& incl_req_item = itr->GetObject();
             const std::string incl_req_name = incl_req_item[s_SECTION_REQUESTS_NAME_INC_REQ_NAME].GetString();
             // Проверить имя вложенного Запроса
-            if (OK == get_request_by_name(incl_req_name, dict_entry))
+            if (OK == get_request_dict_by_name(incl_req_name, dict_entry))
             {
 #if VERBOSE > 7
               LOG(INFO) << fname << ": " << request->s_RequestName

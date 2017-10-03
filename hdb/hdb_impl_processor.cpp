@@ -470,18 +470,15 @@ bool HistoricImpl::history_db_disconnect()
 void HistoricImpl::accelerate(bool speedup)
 {
   const char* fname = "accelerate";
-  const char* sync_FULL = "FULL";
-  const char* sync_NORM = "NORMAL";
-  const char* sync_OFF  = "OFF";
-  const char* journal_DELETE = "DELETE"; // сброс лога транзакции на диск после каждой операции
-  const char* journal_MEMORY = "MEMORY"; // лог транзакции не сбрасывается на диск, а ведется в ОЗУ
-  const char* journal_OFF = "OFF";       // лог транзакции не ведется, быстрый и ненадежный способ
-  // Возможные значения JOURNAL_MODE: DELETE | TRUNCATE | PERSIST | MEMORY | WAL | OFF
-  // По умолчанию: DELETE
-  const char* pragma_set_journal_mode_template = "PRAGMA JOURNAL_MODE = %s";
-  // Возможные значения SYNCHRONOUS: 0 | OFF | 1 | NORMAL | 2 | FULL
-  // По умолчанию: FULL
-  const char* pragma_set_synchronous_template = "PRAGMA SYNCHRONOUS = %s";
+  const char* sync_MODE = SQLITE_SYNC_MODE_ON_BULK;
+  // Возможные значения JOURNAL_MODE: [DELETE] | TRUNCATE | PERSIST | MEMORY | WAL | OFF
+  // DELETE: сброс лога транзакции на диск после каждой операции [по умолчанию]
+  // MEMORY: лог транзакции не сбрасывается на диск, а ведется в ОЗУ
+  // OFF: лог транзакции не ведется, быстрый и ненадежный способ
+  const char* journal_MODE = SQLITE_JOURNAL_MODE_ON_BULK;
+  const char* pragma_set_journal_mode_template = "PRAGMA JOURNAL_MODE=%s";
+  // Возможные значения SYNCHRONOUS: 0 | OFF | 1 | NORMAL | 2 | [FULL]
+  const char* pragma_set_synchronous_template = "PRAGMA SYNCHRONOUS=%s";
   char sql_operator_journal[MAX_BUFFER_SIZE_FOR_SQL_COMMAND + 1];
   char sql_operator_synchronous[MAX_BUFFER_SIZE_FOR_SQL_COMMAND + 1];
   int printed;
@@ -506,38 +503,32 @@ void HistoricImpl::accelerate(bool speedup)
   // PRAGMA synchronous = FULL;
   // PRAGMA journal_mode = DELETE;
 
-  switch (speedup) {
-      case true:
+  if (speedup) {
         printed = snprintf(sql_operator_journal,
                            MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
                            pragma_set_journal_mode_template,
-        // Ослабить нагрузку на диск, журнал не будет скидываться в файл после каждой операции
-        //                   journal_MEMORY);
-                           journal_OFF);
+                           journal_MODE
+                           );
         assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
 
         printed = snprintf(sql_operator_synchronous,
                            MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
                            pragma_set_synchronous_template,
-        // Поднять производительность за счёт отказа от полной гарантии консистентности данных
-        //                   sync_NORM);
-                           sync_OFF);
+                           sync_MODE);
         assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
-        break;
-
-      case false:
+  } 
+  else {
         printed = snprintf(sql_operator_journal,
                            MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
                            pragma_set_journal_mode_template,
-                           journal_DELETE);
+                           "DELETE");
         assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
 
         printed = snprintf(sql_operator_synchronous,
                            MAX_BUFFER_SIZE_FOR_SQL_COMMAND,
                            pragma_set_synchronous_template,
-                           sync_FULL);
+                           "FULL");
         assert(printed < MAX_BUFFER_SIZE_FOR_SQL_COMMAND);
-        break;
   }
 
   if (sqlite3_exec(m_hist_db, sql_operator_journal, 0, 0, &m_hist_err)) {

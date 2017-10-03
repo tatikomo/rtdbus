@@ -298,6 +298,20 @@ set (HISTORY_DB_FILENAME "hdb.sqlite3")
 set (MAX_PORTION_SIZE_LOADED_HISTORY 100)
 # Размер буфера для формирования SQL-команды
 set (MAX_BUFFER_SIZE_FOR_SQL_COMMAND 400)
+# Опции ускорения работы HDB при массовом занесении данных: HDB_SYNC_MODE_ON_BULK и HDB_SYNC_MODE_ON_BULK
+# Допустимые значения HDB_SYNC_MODE_ON_BULK
+# FULL   - полная синхронизация, сброс БД на диск после каждой транзакции (очень медленно)
+# NORMAL - обычная синхронизация, сброс БД на диск после каждой транзакции (?) (медленно)
+# OFF    - отключить синхронизацию (быстро)
+set (SQLITE_SYNC_MODE_ON_BULK "OFF")
+# Допустимые значения HDB_SYNC_MODE_ON_BULK
+# DELETE - сброс лога транзакции на диск после каждой операции (медленно, надежно)
+# TRUNCATE -
+# PERSIST -
+# WAL -
+# MEMORY - лог транзакции не сбрасывается на диск, а ведется в ОЗУ (быстро, надежно)
+# OFF - лог транзакции не ведется (быстро, ненадежно)
+set (SQLITE_JOURNAL_MODE_ON_BULK "MEMORY")
 
 # Максимальное количество одновременно допустимых подключений
 set (DEFAULT_MAX_DB_CONNECTIONS_ALLOWED  4)
