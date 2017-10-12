@@ -101,7 +101,9 @@ smad_connection_state_t SMED::connect()
     LOG(INFO) << fname << ": SMED file '" << m_snapshot_filename << "' successfuly opened";
     m_state = STATE_OK;
 
-    // Проверить содержимое, чтобы повторно не вносить данные
+    // Проверить содержимое, чтобы повторно не вносить данные.
+    // NB: первое подключение полностью восстанавливает содержимое БД из файлового снимка,
+    // и при этом она не считает себя инициализированной.
     if (!m_content_initialized) {
 
       // Установить кодировку UTF8
@@ -142,7 +144,7 @@ int SMED::create_internal()
   int rc = NOK;
   const char* ddl_commands =
     "BEGIN EXCLUSIVE;"
-    "  PRAGMA foreign_keys = 1;"
+    "  PRAGMA foreign_keys=0;"
     "  DROP TABLE IF EXISTS ASSOCIATE_LINK;"
     "  DROP TABLE IF EXISTS PROCESSING;"
     "  DROP TABLE IF EXISTS DATA;"
@@ -151,8 +153,12 @@ int SMED::create_internal()
     "  DROP TABLE IF EXISTS ELEMSTRUCT;"
     "  DROP TABLE IF EXISTS ELEMTYPE;"
     "  DROP TABLE IF EXISTS SITES;"
+    "  DROP TABLE IF EXISTS SITE_CYCLE_LINK;"
+    "  DROP TABLE IF EXISTS REQUESTS;"
+    "  DROP TABLE IF EXISTS CYCLES;"
     "COMMIT;"
     "BEGIN EXCLUSIVE;"
+    "  PRAGMA foreign_keys=1;"
     "CREATE TABLE DATA ("
     "  DATA_ID integer PRIMARY KEY AUTOINCREMENT,"
     "  TAG varchar,"
@@ -205,7 +211,7 @@ int SMED::create_internal()
     "CREATE TABLE ASSOCIATE_LINK ("
     "  DATA_REF integer NOT NULL,"
     "  ELEMSTRUCT_REF integer NOT NULL,"
-    "  FOREIGN KEY (DATA_REF)  REFERENCES DATA(DATA_ID) ON DELETE CASCADE,"
+    "  FOREIGN KEY (DATA_REF) REFERENCES DATA(DATA_ID) ON DELETE CASCADE,"
     "  FOREIGN KEY (ELEMSTRUCT_REF) REFERENCES ELEMSTRUCT(STRUCT_ID) ON DELETE CASCADE);"
     "CREATE TABLE SITES ("
     "  SITE_ID integer PRIMARY KEY AUTOINCREMENT,"
@@ -215,6 +221,30 @@ int SMED::create_internal()
     "  INHIBITION integer DEFAULT 1,"
     "  NATURE integer,"
     "  LAST_UPDATE integer DEFAULT 0);"
+    "CREATE TABLE CYCLES ("
+    "  CYCLE_ID INTEGER PRIMARY KEY AUTOINCREMENT,"
+    "  NAME VARCHAR NOT NULL,"
+    "  FAMILY INTEGER DEFAULT 0,"
+    "  PERIOD INTEGER DEFAULT 0,"
+    "  TYPE INTEGER DEFAULT 0);"
+    "CREATE TABLE REQUESTS ("
+    "  REQ_ID INTEGER PRIMARY KEY AUTOINCREMENT,"
+    "  CYCLE_REF INTEGER NOT NULL,"
+    "  SITE_REF INTEGER NOT NULL,"
+    "  STATE INTEGER DEFAULT 0,"
+    "  DATE_START INTEGER DEFAULT 0,"
+    "  DATE_FINISH INTEGER DEFAULT 0,"
+    "  TYPE INTEGER DEFAULT 0,"
+    "  UID INTEGER DEFAULT 0,"
+    "  DATA_NAME VARCHAR DEFAULT NULL,"
+    "  FOREIGN KEY (CYCLE_REF) REFERENCES CYCLES(CYCLE_ID) ON DELETE CASCADE,"
+    "  FOREIGN KEY (SITE_REF) REFERENCES SITES(SITE_ID) ON DELETE CASCADE);"
+    "CREATE TABLE SITE_CYCLE_LINK ("
+    "  SA_CYC_ID INTEGER PRIMARY KEY AUTOINCREMENT,"
+    "  SITE_REF INTEGER NOT NULL,"
+    "  CYCLE_REF INTEGER NOT NULL,"
+    "  FOREIGN KEY (SITE_REF) REFERENCES SITES(SITE_ID) ON DELETE CASCADE,"
+    "  FOREIGN KEY (CYCLE_REF) REFERENCES CYCLES(CYCLE_ID) ON DELETE CASCADE);"
     "COMMIT;";
 
 #ifdef CREATE_INDEX_SMED
@@ -415,13 +445,9 @@ int SMED::load_internal(elemtype_item_t* _elemtype, elemstruct_item_t* _elemstru
           rc = store_requests_dict();
           // 3.2) Загрузить используемые Запросы
           rc = store_requests();
-          
-#if 0
+
           // 4) Заполнить таблицу CYCLES
           rc = store_cycles();
-#else
-#warning "Store Cycles here"
-#endif
         }
 
       }
@@ -552,20 +578,29 @@ int SMED::store_requests()
   return rc;
 }
 
-#if 0
 // ==========================================================================================================
 // Загрузить таблицу Циклов
+/* Характеристика одного цикла из конфигурации
+typedef struct {
+  std::string name; // Название Цикла, берется из файла конфигурации
+  cycle_id_t id;    // Числовой уникальный идентификатор Цикла, берется из таблицы связи "Имя"<->"ID"
+  int period;       // Период активации в секундах
+  std::string request_name;         // Связанный Запрос
+  std::vector <std::string> sites;  // Список Сайтов, задействованных в Цикле, берется из конфигурации
+} egsa_config_cycle_info_t;
+*/
 int SMED::store_cycles()
 {
+  const char *fname = "store_cycles";
   int rc = OK;
-  ech_t_ReqId request_id;
+  ech_t_ReqId request_id = NOT_EXISTENT;
 
   for(egsa_config_cycles_t::const_iterator cit = m_egsa_config->cycles().begin();
       cit != m_egsa_config->cycles().end();
       ++cit)
   {
     // request_id получить по имени запроса
-    if (NOT_EXISTENT != (request_id = m_egsa_config->get_request_id((*cit).second->request_name))) {
+    if (true) /*(NOT_EXISTENT != (request_id = m_egsa_config->get_request_id((*cit).second->request_name)))*/ {
 
       // Создадим экземпляр Цикла, удалится он в деструкторе EGSA
       Cycle *cycle = new Cycle((*cit).first.c_str(),
@@ -573,7 +608,7 @@ int SMED::store_cycles()
                                (*cit).second->id,
                                request_id,
                                CYCLE_NORMAL);
-
+#if 0
       // Для данного цикла получить все использующие его сайты
       for(std::vector <std::string>::const_iterator sit = (*cit).second->sites.begin();
           sit != (*cit).second->sites.end();
@@ -588,11 +623,12 @@ int SMED::store_cycles()
           LOG(ERROR) << fname << ": skip undefined site " << (*sit);
         }
       }
+#endif
       //
       cycle->dump();
 
       // Ввести в оборот новый Цикл сбора, вернуть новый размер очереди циклов
-      m_ega_ega_odm_ar_Cycles.insert(cycle);
+      m_cycle_list->insert(cycle);
     }
     else {
       LOG(ERROR) << fname << ": cycle " << (*cit).first << ": unknown included request " << (*cit).second->request_name;
@@ -601,9 +637,6 @@ int SMED::store_cycles()
 
   return rc;
 }
-#else
-#warning "TODO store Cycles"
-#endif
 
 #if 0
 // ==========================================================================================================
@@ -1176,7 +1209,7 @@ int SMED::load_data_dict(const char* site_name, std::vector<exchange_parameter_t
 
                       }
                       else {
-                        LOG(ERROR) << fname << ": nothing to select from FIELDS: " << dml_operator; 
+                        LOG(ERROR) << fname << ": nothing to select from FIELDS: " << dml_operator;
                       }
                       sqlite3_finalize(stmt);
 
@@ -1184,7 +1217,7 @@ int SMED::load_data_dict(const char* site_name, std::vector<exchange_parameter_t
 
                   }
                   else {
-                    LOG(ERROR) << fname << ": SQL : " << sql; 
+                    LOG(ERROR) << fname << ": SQL : " << sql;
                   }
 
                 }
@@ -1513,7 +1546,7 @@ int SMED::processing(const gof_t_UniversalName s_IAcqSiteId,
 
           // TODO: Для телеметрии, имеющей атрибут DATEHOURM, обновлять значение только тогда, когда этот атрибут содержит более ранний
           // маркер времени, чем данный. Обновляется вся телеметрия, не имеющая данного атрибута, или имеющая его более раннее значение.
-          // sprintf(SELECT_DATEHOURM, s_IAcqSiteId, SA_FLOW_DIFFUSION, 
+          // sprintf(SELECT_DATEHOURM, s_IAcqSiteId, SA_FLOW_DIFFUSION,
 #warning "ГОФО дополнительно для ТИ проверяет значение атрибута DATEHOURM при обновлении данных - проверить необходимость"
 
           // Данные обновляются, только если полученные данные имеют больший маркер времени, чем содержащийся в SMED

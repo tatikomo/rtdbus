@@ -1,5 +1,7 @@
 SET(TEST_RTDBUS_DIR ${CMAKE_SOURCE_DIR}/../test)
 
+INCLUDE(${ODB_USE_FILE})
+
 SET(UNITTEST_DEV_INT  dev_int_test)
 SET(UNITTEST_DEV_RUN  dev_run_test)
 SET(UNITTEST_DATABASE db_test)
@@ -8,6 +10,7 @@ SET(UNITTEST_METRICS  metric_test)
 SET(UNITTEST_EXCHANGE exch_test)
 SET(UNITTEST_CE       ce_test)
 SET(UNITTEST_ESG      esg_test)
+SET(UNITTEST_SMED     smed_test)
 
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   # SOLARIS
@@ -51,6 +54,7 @@ include_directories(${LIBZMQ_INCLUDE_DIR})
 include_directories(${LIBCPPZMQ_INCLUDE_DIR})
 include_directories(${LIBGLOG_INCLUDE_DIR})
 include_directories(${LIBSQLITE_INCLUDE_DIR})
+#include_directories(${LIBODB_INCLUDE_DIR})
 include_directories(${XERCESC_INCLUDE_DIR})
 
 
@@ -62,6 +66,7 @@ link_directories(${LIBZMQ_LIBRARIES_DIR})
 link_directories(${LIBPROTOBUF_LIBRARIES_DIR})
 link_directories(${LIBEXTREMEDB_LIBRARIES_DIR})
 link_directories(${LIBSQLITE_LIBRARIES_DIR})
+link_directories(${LIBODB_LIBRARIES_DIR})
 
 set (TEST_EXCHANGE_ESG_SOURCES
         ${EXCHANGE_SMAD_DIR}/exchange_smad.hpp
@@ -91,6 +96,14 @@ set (TEST_EXCHANGE_ESG_SOURCES
         ${EXCHANGE_CONFIG_DIR}/exchange_config_sac.hpp
         ${EXCHANGE_CONFIG_DIR}/exchange_config.hpp
         ${TEST_RTDBUS_DIR}/esg.cpp)
+
+set (TEST_EXCHANGE_SMED_SOURCES
+        ${EXCHANGE_SMAD_DIR}/smed-odb.hxx
+        ${EXCHANGE_SMAD_DIR}/smed-odb.cxx
+        ${EXCHANGE_SMAD_DIR}/smed-odb.ixx
+        ${EXCHANGE_SMAD_DIR}/exchange_smed_database.hxx
+        ${TEST_RTDBUS_DIR}/smed_unittest.cpp
+        )
 
 set (TEST_EXCHANGE_SOURCES
         ${GTEST_INC_DIR}/gtest/gtest.h
@@ -281,7 +294,7 @@ add_custom_command(
         )
 
 add_custom_command(
-        OUTPUT 
+        OUTPUT
         ${XDB_IMPL_DIR}/dat/rtap_db.h
         ${XDB_IMPL_DIR}/dat/rtap_db.c
         ${XDB_IMPL_DIR}/dat/rtap_db.hpp
@@ -291,6 +304,19 @@ add_custom_command(
         ${XDB_IMPL_DIR}/dat/rtap_db.mco
         WORKING_DIRECTORY
         ${XDB_IMPL_DIR}/dat
+        )
+
+add_custom_command(
+        OUTPUT
+        ${EXCHANGE_SMAD_DIR}/smed-odb.cxx
+        ${EXCHANGE_SMAD_DIR}/smed-odb.hxx
+        ${EXCHANGE_SMAD_DIR}/smed-odb.ixx
+        COMMAND
+        ${ODB_EXECUTABLE} --std c++11 -I ${LIBODB_INC_DIR} -I ${LIBODB_SQLITE_INC_DIR} --database sqlite --generate-query --generate-schema smed.hxx
+        DEPENDS
+        ${EXCHANGE_SMAD_DIR}/smed.hxx
+        WORKING_DIRECTORY
+        ${EXCHANGE_SMAD_DIR}
         )
 
 set_source_files_properties(${XDB_IMPL_DIR}/dat/rtap_db.hpp
@@ -307,6 +333,12 @@ set_source_files_properties(${XDB_IMPL_DIR}/dat/rtap_db-pskel.hxx
                             ${XDB_IMPL_DIR}/dat/rtap_db-pskel.cxx
                             PROPERTIES GENERATED 1)
 
+set_source_files_properties(${EXCHANGE_SMAD_DIR}/smed-odb.hxx
+                            ${EXCHANGE_SMAD_DIR}/smed-odb.cxx
+                            ${EXCHANGE_SMAD_DIR}/smed-odb.ixx
+                            PROPERTIES GENERATED 1)
+
+
 add_executable (${UNITTEST_ESG} ${TEST_EXCHANGE_ESG_SOURCES})
 add_definitions (-D_FUNCTIONAL_TEST)
 add_definitions (-D_SHORT_TEST)
@@ -317,6 +349,23 @@ target_link_libraries(${UNITTEST_ESG}
     ${MDP_LIBRARY_NAME}
     ${TOOLS_LIBRARY_NAME}
     ${SYSTEM_EXTERNAL_LIBS})
+
+add_executable (${UNITTEST_SMED} ${TEST_EXCHANGE_SMED_SOURCES})
+add_definitions (-D_FUNCTIONAL_TEST)
+add_definitions (-DDATABASE_SQLITE)
+add_definitions (-g)
+target_include_directories(${UNITTEST_SMED}
+    PRIVATE
+    ${LIBODB_INCLUDE_DIR})
+
+target_link_libraries(${UNITTEST_SMED}
+    ${LIBGLOG_LIBRARIES}
+    ${LIBSQLITE_LIBRARIES}
+    ${LIBODB_LIBRARIES}
+    ${EXCHANGE_LIBRARY_NAME}
+    ${TOOLS_LIBRARY_NAME}
+    ${SYSTEM_EXTERNAL_LIBS})
+
 
 add_executable (${UNITTEST_EXCHANGE} ${TEST_EXCHANGE_SOURCES})
 add_definitions (-D_FUNCTIONAL_TEST)

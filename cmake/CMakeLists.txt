@@ -128,6 +128,12 @@ if(NOT LIBSQLITE_FOUND)
     return()
 endif(NOT LIBSQLITE_FOUND)
 
+find_package(LIBODB)
+if(NOT LIBODB_FOUND)
+    message(SEND_ERROR "Failed to find Codesynthesis ODB facility")
+    return()
+endif(NOT LIBODB_FOUND)
+
 find_package(LIBMODBUS)
 if(NOT LIBMODBUS_FOUND)
     message(SEND_ERROR "Failed to find MODBUS facility")
@@ -298,20 +304,6 @@ set (HISTORY_DB_FILENAME "hdb.sqlite3")
 set (MAX_PORTION_SIZE_LOADED_HISTORY 100)
 # Размер буфера для формирования SQL-команды
 set (MAX_BUFFER_SIZE_FOR_SQL_COMMAND 400)
-# Опции ускорения работы HDB при массовом занесении данных: HDB_SYNC_MODE_ON_BULK и HDB_SYNC_MODE_ON_BULK
-# Допустимые значения HDB_SYNC_MODE_ON_BULK
-# FULL   - полная синхронизация, сброс БД на диск после каждой транзакции (очень медленно)
-# NORMAL - обычная синхронизация, сброс БД на диск после каждой транзакции (?) (медленно)
-# OFF    - отключить синхронизацию (быстро)
-set (SQLITE_SYNC_MODE_ON_BULK "OFF")
-# Допустимые значения HDB_SYNC_MODE_ON_BULK
-# DELETE - сброс лога транзакции на диск после каждой операции (медленно, надежно)
-# TRUNCATE -
-# PERSIST -
-# WAL -
-# MEMORY - лог транзакции не сбрасывается на диск, а ведется в ОЗУ (быстро, надежно)
-# OFF - лог транзакции не ведется (быстро, ненадежно)
-set (SQLITE_JOURNAL_MODE_ON_BULK "MEMORY")
 
 # Максимальное количество одновременно допустимых подключений
 set (DEFAULT_MAX_DB_CONNECTIONS_ALLOWED  4)
@@ -383,6 +375,8 @@ message(STATUS "Protobuf:                 ${LIBPROTOBUF_LIBRARIES_DIR}\t${LIBPRO
 message(STATUS "eXtremeDB:                ${LIBEXTREMEDB_LIBRARIES_DIR}\t${LIBEXTREMEDB_LIBRARIES}")
 message(STATUS "glog:                     ${LIBGLOG_LIBRARIES_DIR}\t${LIBGLOG_LIBRARIES}")
 message(STATUS "sqlite:                   ${LIBSQLITE_LIBRARIES_DIR}\t${LIBSQLITE_LIBRARIES}")
+message(STATUS "odb:                      ${LIBODB_BASEDIR}")
+message(STATUS "odb-sqlite:               ${LIBODB_SQLITE_LIB_DIR}\t${LIBODB_LIBRARIES}")
 message(STATUS "json:                     ${RAPIDJSON_INCLUDE_DIR}")
 message(STATUS "Building unit tests:      ${RTDBUS_BUILD_TESTS}               ")
 message(STATUS "Building xdb http serv:   ${RTDBUS_USE_EXTREMEDB_HTTP_SERVER} ")
@@ -391,7 +385,7 @@ message(STATUS "Building w/o assertions:  ${RTDBUS_DISABLE_ASSERTS}           ")
 message(STATUS "Building w/o checks:      ${RTDBUS_DISABLE_CHECKS}            ")
 message(STATUS "Building XML docs:        ${RTDBUS_ENABLE_XML_DOCS}           ")
 message(STATUS "Using XML parser:         ${XML_LIB}                          ")
-message(STATUS "Daemon executable name:   ${RTDBUS_DAEMON_NAME}               ")
+#message(STATUS "Daemon executable name:   ${RTDBUS_DAEMON_NAME}               ")
 #message(STATUS "LD_LIBRARY_PATH:          $ENV{LD_LIBRARY_PATH}               ")
 
 MESSAGE(" ")

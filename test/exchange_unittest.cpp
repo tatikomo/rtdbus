@@ -129,7 +129,7 @@ TEST(TestEXCHANGE, SA_CONFIG)
 TEST(TestEXCHANGE, EGSA_CONFIG)
 {
   int rc = g_egsa_instance->init();
-  EXPECT_TRUE(OK == rc);
+  ASSERT_TRUE(OK == rc);
 
   ASSERT_TRUE(g_egsa_instance->config());
 

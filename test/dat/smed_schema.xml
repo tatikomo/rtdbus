@@ -10,7 +10,7 @@
 		<type label="Real" default="0" length="0" sql="REAL" quote="" color="rgb(238,238,170)"/>
 		<type label="None" default="" length="0" sql="NONE" quote="" color="rgb(200,255,200)"/>
 	</group>
-</datatypes><table x="489" y="329" name="ELEMSTRUCT">
+</datatypes><table x="564" y="600" name="ELEMSTRUCT">
 <row name="STRUCT_ID" null="0" autoincrement="1">
 <datatype>INTEGER</datatype>
 <default>NOT NULL</default></row>
@@ -28,7 +28,7 @@
 </key>
 <comment>Таблица НСИ. Содержит соответствие между названием Структуры и ее Ассоциацией.</comment>
 </table>
-<table x="274" y="410" name="FIELDS">
+<table x="234" y="631" name="FIELDS">
 <row name="FIELD_ID" null="0" autoincrement="1">
 <datatype>INTEGER</datatype>
 </row>
@@ -57,7 +57,7 @@
 </key>
 <comment>Таблица НСИ. Содержит описание полей и атрибутов БДРВ каждой Структуры.</comment>
 </table>
-<table x="747" y="184" name="DATA">
+<table x="566" y="403" name="DATA">
 <row name="DATA_ID" null="0" autoincrement="1">
 <datatype>INTEGER</datatype>
 </row>
@@ -84,7 +84,7 @@
 </key>
 <comment>Оперативная таблица. Содержит описания всех Параметров, заполняется путем загрузки словарей обмена.</comment>
 </table>
-<table x="250" y="12" name="PROCESSING">
+<table x="0" y="260" name="PROCESSING">
 <row name="PROCESS_ID" null="0" autoincrement="1">
 <datatype>INTEGER</datatype>
 <default>NULL</default></row>
@@ -107,7 +107,7 @@
 </key>
 <comment>Оперативная таблица. Содержит связь между Параметром и используемым его Сайтом, с типом связи - прием от Сайта или передача в адрес Сайта.</comment>
 </table>
-<table x="37" y="152" name="ASSOCIATES_LINK">
+<table x="344" y="476" name="ASSOCIATES_LINK">
 <row name="DATA_REF" null="0" autoincrement="0">
 <datatype>INTEGER</datatype>
 <default>NOT NULL</default><relation table="DATA" row="DATA_ID" />
@@ -121,7 +121,7 @@
 </key>
 <comment>Оперативная таблица. Содержит соответствие между Тегом и используемыми им Структурами. Заполняется при загрузке словарей обмена</comment>
 </table>
-<table x="41" y="310" name="FIELDS_LINK">
+<table x="0" y="434" name="FIELDS_LINK">
 <row name="LINK_ID" null="0" autoincrement="1">
 <datatype>INTEGER</datatype>
 </row>
@@ -154,7 +154,7 @@
 </key>
 <comment>Оперативная таблица. Содержит связь между Структурой данных, набором входящих в неё полей, и их оперативными значениями </comment>
 </table>
-<table x="601" y="32" name="SITES">
+<table x="290" y="200" name="SITES">
 <row name="SITE_ID" null="0" autoincrement="1">
 <datatype>INTEGER</datatype>
 </row>
@@ -175,7 +175,7 @@
 </key>
 <comment>Оперативная таблица. Заполняется из конфига egsa и содержит известные локально Сайты.</comment>
 </table>
-<table x="669" y="449" name="ELEMTYPE">
+<table x="564" y="722" name="ELEMTYPE">
 <row name="TYPE_ID" null="0" autoincrement="1">
 <datatype>INTEGER</datatype>
 <default>NULL</default></row>
@@ -192,6 +192,84 @@
 <part>TYPE_ID</part>
 </key>
 <comment>Таблица НСИ. Содержит описание элементарного типа - название, тип данных, длина строки.</comment>
+</table>
+<table x="883" y="32" name="SITE_CYCLE_LINK">
+<row name="SA_CYC_ID" null="0" autoincrement="1">
+<datatype>INTEGER</datatype>
+<default>NOT NULL</default></row>
+<row name="SITE_REF" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<relation table="SITES" row="SITE_ID" />
+</row>
+<row name="CYCLE_REF" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<relation table="CYCLES" row="CYCLE_ID" />
+</row>
+<key type="PRIMARY" name="">
+<part>SA_CYC_ID</part>
+</key>
+</table>
+<table x="679" y="175" name="CYCLES">
+<row name="CYCLE_ID" null="0" autoincrement="1">
+<datatype>INTEGER</datatype>
+<default>NOT NULL</default></row>
+<row name="NAME" null="0" autoincrement="0">
+<datatype>TEXT(32)</datatype>
+</row>
+<row name="FAMILY" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>0</default></row>
+<row name="PERIOD" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>0</default></row>
+<row name="TYPE" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>0</default></row>
+<key type="PRIMARY" name="">
+<part>CYCLE_ID</part>
+</key>
+<comment>Таблица Циклов из конфигурации</comment>
+</table>
+<table x="887" y="309" name="REQUESTS">
+<row name="REQ_ID" null="0" autoincrement="1">
+<datatype>INTEGER</datatype>
+</row>
+<row name="CYCLE_REF" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<relation table="CYCLES" row="CYCLE_ID" />
+</row>
+<row name="SITE_REF" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<relation table="SITES" row="SITE_ID" />
+</row>
+<row name="STATE" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>0</default><comment>Текущее состояние запроса</comment>
+</row>
+<row name="DATE_START" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>0</default><comment>Время подачи</comment>
+</row>
+<row name="DATE_FINISH" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<comment>Максимальное время содержания в очереди</comment>
+</row>
+<row name="TYPE" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>0</default><comment>Числовой НСИ идентификатор запроса</comment>
+</row>
+<row name="UID" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>0</default><comment>Уникальный идентификатор запроса</comment>
+</row>
+<row name="DATA_NAME" null="1" autoincrement="0">
+<datatype>TEXT(64)</datatype>
+<default>NULL</default><comment>Название файла, связанного с запросом</comment>
+</row>
+<key type="PRIMARY" name="">
+<part>REQ_ID</part>
+</key>
+<comment>Таблица Запросов</comment>
 </table>
 </sql>
 

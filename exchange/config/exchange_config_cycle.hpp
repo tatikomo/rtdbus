@@ -76,6 +76,7 @@ class Cycle {
     DISALLOW_COPY_AND_ASSIGN(Cycle);
 };
 
+#if 0
 // ===================================================================================================
 class CycleList
 {
@@ -91,6 +92,7 @@ class CycleList
     DISALLOW_COPY_AND_ASSIGN(CycleList);
     std::vector<Cycle*> m_Cycles;
 };
+#endif
 
 #endif
 
